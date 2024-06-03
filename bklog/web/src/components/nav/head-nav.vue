@@ -330,8 +330,8 @@ export default {
   async created() {
     this.language = jsCookie.get('blueking_language') || 'zh-cn';
     this.$store.commit('updateMenuList', menuArr);
-    await this.getUserInfo();
-    setTimeout(() => this.requestMySpaceList(), 100);
+    setTimeout(() => this.requestMySpaceList(), 10);
+    this.getUserInfo();
     window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
   },
   beforeDestroy() {

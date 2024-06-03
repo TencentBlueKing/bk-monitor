@@ -120,7 +120,8 @@
           "data": {
             "app_name": "$app_name",
             "filter_params": {
-              "resource.bk.instance.id": "$bk_instance_id"
+              "resource.bk.instance.id": "$bk_instance_id",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
           },
@@ -156,7 +157,8 @@
             "bk_biz_id": "${bk_biz_id}",
             "exception_type": "$exception_type",
             "filter_params": {
-              "resource.bk.instance.id": "$bk_instance_id"
+              "resource.bk.instance.id": "$bk_instance_id",
+              "span_name": "$endpoint"
             }
           }
         }
@@ -182,7 +184,8 @@
           "data": {
             "app_name": "$app_name",
             "filter_params": {
-              "resource.bk.instance.id": "$bk_instance_id"
+              "resource.bk.instance.id": "$bk_instance_id",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
           },
@@ -208,6 +211,7 @@
       "compare_select": false,
       "columns_toggle": false,
       "interval_select": false,
+      "full_table": true,
       "split_switcher": false
     },
     "selector_panel": {

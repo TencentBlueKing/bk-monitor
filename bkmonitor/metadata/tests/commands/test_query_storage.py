@@ -12,7 +12,7 @@ import json
 from io import StringIO
 
 import pytest
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 
 from metadata.tests.commands.conftest import (
     DEFAULT_DATA_ID,
@@ -45,6 +45,7 @@ def test_query_storage(create_and_delete_record):
         'influxdb_instance_cluster',
         'data_source',
         'victoria_metrics',
+        'result_table',
     ]
     assert not (set(keys) - set(output[0].keys()))
     assert output[0]["kafka_config"]["topic"] == DEFAULT_NAME
@@ -68,3 +69,14 @@ def test_query_storage_not_exist(create_and_delete_table_storage, create_and_del
     """测试仅有部分链路的场景"""
     params = {"table_id": f"{DEFAULT_NAME}1"}
     call_command("query_storage", **params)
+
+
+def test_query_storage_params_error():
+    """测试错误的场景"""
+    params = {"data_id": "123"}
+    with pytest.raises(Exception):
+        call_command("query_storage", **params)
+
+    params = {"metric_name": "container_spec_memory_limit_bytes"}
+    with pytest.raises(CommandError):
+        call_command("query_storage", **params)

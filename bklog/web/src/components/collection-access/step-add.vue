@@ -51,9 +51,11 @@
       <div data-test-id="acquisitionConfig_div_baseMessageBox">
         <div class="add-collection-title">{{ $t('基础信息') }}</div>
         <bk-form-item
+          ext-cls="en-bk-form"
           :label="$t('采集名')"
           :required="true"
           :rules="rules.collector_config_name"
+          :icon-offset="120"
           :property="'collector_config_name'"
         >
           <bk-input
@@ -754,12 +756,12 @@
         <bk-button
           theme="primary"
           data-test-id="acquisitionConfig_div_nextPage"
-          :title="$t('开始采集')"
+          :title="isFinishCreateStep ? $t('保存') : $t('开始采集')"
           :loading="isHandle"
           :disabled="!collectProject"
-          @click.stop.prevent="startCollect"
+          @click.stop.prevent="startCollect()"
         >
-          {{ $t('下一步') }}
+          {{ isFinishCreateStep ? $t('保存') : $t('下一步') }}
         </bk-button>
         <bk-button
           theme="default"
@@ -790,8 +792,7 @@ import yamlEditor from './components/step-add/yaml-editor';
 import matchLabelItem from './components/step-add/match-label-item';
 import configViewDialog from './components/step-add/config-view-dialog';
 import { mapGetters } from 'vuex';
-import { projectManages, random } from '@/common/util';
-import { deepClone } from '../monitor-echarts/utils';
+import { projectManages, random, deepEqual, deepClone } from '@/common/util';
 
 export default {
   components: {
@@ -806,6 +807,16 @@ export default {
   },
   props: {
     isUpdate: {
+      type: Boolean,
+      require: true
+    },
+    /** 是否是容器步骤 */
+    isContainerStep: {
+      type: Boolean,
+      require: true
+    },
+    /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
+    isFinishCreateStep: {
       type: Boolean,
       require: true
     }
@@ -948,7 +959,7 @@ export default {
             trigger: 'blur'
           },
           {
-            max: 50,
+            validator: this.checkEnNameLength,
             message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur'
           },
@@ -965,7 +976,7 @@ export default {
           {
             // 检查数据名是否可用
             validator: this.checkEnNameRepeat,
-            message: this.$t('该数据名已重复'),
+            message: () => this.enNameErrorMessage,
             trigger: 'blur'
           }
         ],
@@ -995,6 +1006,7 @@ export default {
       isClone: false,
       globals: {},
       localParams: {}, // 缓存的初始数据 用于对比编辑时表单是否有属性更改
+      editComparedData: {}, // 编辑保存时 保存不判断基本信息 去除基本信息后的所有值
       showIpSelectorDialog: false,
       collectTargetTarget: {
         // 已(动态)选择 静态主机 节点 服务模板 集群模板
@@ -1041,6 +1053,8 @@ export default {
       // isConfigConflict: false, // 配置项是否有冲突
       conflictList: [], // 冲突列表
       conflictMessage: '', // 冲突信息
+      /** 英文名错误信息 */
+      enNameErrorMessage: '',
       clusterList: [], // 集群列表
       nameSpacesSelectList: [], // namespace 列表
       operatorSelectList: [
@@ -1190,7 +1204,7 @@ export default {
     this.getLinkData();
     // 克隆与编辑均进行数据回填
     if (this.isUpdate || this.isClone) {
-      const cloneCollect = JSON.parse(JSON.stringify(this.curCollect));
+      const cloneCollect = deepClone(this.curCollect);
       if (cloneCollect.environment === 'container') {
         // 容器环境
         this.getWorkLoadTypeList();
@@ -1237,6 +1251,8 @@ export default {
           // 克隆时不缓存初始数据
           // 编辑采集项时缓存初始数据 用于对比提交时是否发生变化 未修改则不重新提交 update 接口
           this.localParams = this.handleParams(true);
+          const { description, collector_config_name, ...otherVal } = this.localParams;
+          this.editComparedData = otherVal;
         });
       }
     }
@@ -1377,23 +1393,43 @@ export default {
       if (splitList.length === 1 && splitList[0] === '') return [];
       return splitList;
     },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.startCollect(callback);
+    },
     // 开始采集
-    async startCollect() {
+    async startCollect(callback) {
       const isCanSubmit = await this.submitDataValidate();
-      if (!isCanSubmit) return;
+      if (!isCanSubmit) {
+        callback?.(false);
+        return;
+      }
       const params = this.handleParams();
-      if (this.objCompare(this.localParams, params)) {
-        // 未修改表单 直接跳转下一步
-        this.$emit('stepChange');
+      if (deepEqual(this.localParams, params)) {
         this.isHandle = false;
+        if (this.isFinishCreateStep) {
+          // 保存的情况下, 没有任何改变, 回退到列表
+          if (callback) {
+            callback(true);
+            return;
+          }
+          this.cancel();
+        } else {
+          // 未修改表单 直接跳转下一步
+          this.$emit('stepChange');
+        }
         return;
       }
       this.$refs.validateForm.validate().then(
         () => {
           this.isCloseDataLink && delete params.data_link_id;
-          this.isPhysicsEnvironment ? this.setCollection(params) : this.setContainerCollection(params);
+          this.isPhysicsEnvironment
+            ? this.setCollection(params, callback)
+            : this.setContainerCollection(params, callback);
         },
-        () => {}
+        () => {
+          callback?.(false);
+        }
       );
     },
     /**
@@ -1469,7 +1505,7 @@ export default {
       return true;
     },
     // 新增/修改采集
-    setCollection(params) {
+    setCollection(params, callback) {
       this.isHandle = true;
       const urlParams = {};
       let requestUrl;
@@ -1488,17 +1524,33 @@ export default {
               `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
               Object.assign({}, this.formData, params, res.data)
             );
-            this.$emit('stepChange');
-            this.$emit('update:is-update', true); // 新建成功,更新是否是编辑状态
             this.setDetail(res.data.collector_config_id);
+            // 物理环境编辑情况
+            if (this.isFinishCreateStep) {
+              // 修改过非基本信息的值 重新下发 不改变步骤 直接展示下发组件 否则直接回列表
+              if (this.isUpdateIssuedShowValue() && !this.isContainerStep) {
+                this.$emit('update:force-show-component', 'stepIssued');
+                callback?.(false);
+              } else {
+                if (callback) {
+                  callback(true);
+                  return;
+                }
+                this.cancel();
+              }
+            } else {
+              // 新增情况直接下一步
+              this.$emit('stepChange');
+            }
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isHandle = false;
         });
     },
     // 容器日志新增/修改采集
-    setContainerCollection(params) {
+    setContainerCollection(params, callback) {
       this.isHandle = true;
       this.$emit('update:container-loading', true);
       const urlParams = {};
@@ -1519,13 +1571,22 @@ export default {
               `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
               Object.assign({}, this.formData, params, res.data)
             );
-            this.$emit('update:is-update', true); // 新建成功,更新是否是编辑状态
-            this.$emit('stepChange');
             this.setDetail(res.data.collector_config_id);
+            // 容器环境没有下发步骤 直接回到列表或者下一步
+            if (this.isFinishCreateStep) {
+              if (callback) {
+                callback(true);
+                return;
+              }
+              this.cancel();
+            } else {
+              this.$emit('stepChange');
+            }
           }
         })
         .catch(error => {
           console.warn(error);
+          callback?.(false);
           // this.isShowSubmitErrorDialog = true;
           // this.submitErrorMessage = error.message;
         })
@@ -1723,9 +1784,21 @@ export default {
     },
     // 取消操作
     cancel() {
+      // 保存, 回退到列表
+      if (this.isFinishCreateStep) {
+        this.$emit('changeSubmit', true);
+      }
+      let routeName;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else {
+        routeName = 'collection-item';
+      }
       this.$router.push({
-        name: 'collection-item',
+        name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });
@@ -1800,7 +1873,10 @@ export default {
         const res = await this.$http.request('collect/getPreCheck', {
           params: { collector_config_name_en: val, bk_biz_id: this.$store.state.bkBizId }
         });
-        if (res.data) return res.data.allowed;
+        if (res.data) {
+          this.enNameErrorMessage = res.data.message;
+          return res.data.allowed;
+        }
       } catch (error) {
         return false;
       }
@@ -2067,8 +2143,11 @@ export default {
       this.isTextValid = new RegExp(/^[A-Za-z0-9_]+$/).test(val);
       return this.isTextValid;
     },
-    objCompare(objectA = {}, objectB = {}) {
-      return JSON.stringify(objectA) === JSON.stringify(objectB);
+    checkEnNameLength(val) {
+      // 编辑时，不需要验证采集项英文名
+      if (this.isUpdate) return true;
+      // 判断字符串长度是否大于50
+      return val.length <= 50;
     },
     handleEnConvert() {
       const str = this.formData.collector_config_name_en;
@@ -2235,6 +2314,17 @@ export default {
       const findSpace = this.mySpaceList.find(item => item.space_code === projectItem.project_id);
       const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_id}/log-collector`;
       window.open(url, '_blank');
+    },
+    /** 判断除基本信息外是否有更改过值 */
+    isUpdateIssuedShowValue() {
+      const params = this.handleParams();
+      const { description, collector_config_name, ...otherVal } = params;
+      return !deepEqual(this.editComparedData, otherVal);
+    },
+    /** 判断是否有改值 */
+    getIsUpdateSubmitValue() {
+      const params = this.handleParams();
+      return !deepEqual(this.localParams, params);
     }
   }
 };

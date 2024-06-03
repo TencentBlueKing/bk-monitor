@@ -24,8 +24,14 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <span :class="['event-button', { 'event-button-active': active }]" @click="(e) => $emit('click', e)">
-    <i v-show="icon" :class="['icon-monitor', icon]" />
+  <span
+    :class="['event-button', { 'event-button-active': active }]"
+    @click="e => $emit('click', e)"
+  >
+    <i
+      v-show="icon"
+      :class="['icon-monitor', icon]"
+    />
     <span class="text">{{ text }}</span>
   </span>
 </template>
@@ -33,7 +39,7 @@
 import { Vue, Component, Prop } from 'vue-property-decorator';
 
 @Component({
-  name: 'event-type'
+  name: 'event-type',
 })
 export default class EventType extends Vue {
   // 文字

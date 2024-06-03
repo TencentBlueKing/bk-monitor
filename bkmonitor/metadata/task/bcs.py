@@ -36,7 +36,9 @@ CMDB_IP_SEARCH_MAX_SIZE = 100
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMonitorInfo")
 def refresh_bcs_monitor_info():
     # 拉取所有cluster，遍历刷新monitorinfo信息
-    for cluster in BCSClusterInfo.objects.filter(status=BCSClusterInfo.CLUSTER_STATUS_RUNNING):
+    for cluster in BCSClusterInfo.objects.filter(
+        status__in=[models.BCSClusterInfo.CLUSTER_STATUS_RUNNING, models.BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING],
+    ):
         try:
             # 刷新集群内置公共dataid resource
             cluster.refresh_common_resource()
@@ -127,7 +129,6 @@ def discover_bcs_clusters():
     bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
     cluster_list = []
     # bcs 集群中的正常状态
-    running_status = "RUNNING"
     for bcs_cluster in bcs_clusters:
         project_id = bcs_cluster["project_id"]
         bk_biz_id = bcs_cluster["bk_biz_id"]
@@ -139,17 +140,10 @@ def discover_bcs_clusters():
         cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
         if cluster:
             update_fields = []
-            # 状态发生变化需要更新
-            # NOTE: 现阶段仅记录到 running 和 deleted 状态的集群数据，其中，非 running 的都设置为 deleted
-            if cluster_raw_status == running_status:
-                if cluster.status != BCSClusterInfo.CLUSTER_STATUS_RUNNING:
-                    cluster.status = BCSClusterInfo.CLUSTER_STATUS_RUNNING
-                    update_fields.append("status")
-            else:
-                if cluster.status == BCSClusterInfo.CLUSTER_STATUS_RUNNING:
-                    cluster.status = BCSClusterInfo.CLUSTER_STATUS_DELETED
-                    update_fields.append("status")
-
+            # NOTE: 现阶段完全以 BCS 的集群状态为准，
+            if cluster_raw_status != cluster.status:
+                cluster.status = cluster_raw_status
+                update_fields.append("status")
             # 如果 BCS Token 变了需要刷新
             if cluster.api_key_content != settings.BCS_API_GATEWAY_TOKEN:
                 cluster.api_key_content = settings.BCS_API_GATEWAY_TOKEN
@@ -186,7 +180,9 @@ def discover_bcs_clusters():
 
     # 如果是不存在的集群列表则更新当前状态为删除，加上>0的判断防止误删
     if cluster_list:
-        BCSClusterInfo.objects.exclude(cluster_id__in=cluster_list).update(status=BCSClusterInfo.CLUSTER_STATUS_DELETED)
+        BCSClusterInfo.objects.exclude(cluster_id__in=cluster_list).update(
+            status=BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED
+        )
 
 
 def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):
@@ -197,7 +193,12 @@ def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):
         filter_kwargs["bk_biz_id"] = bk_biz_id
     if cluster_id:
         filter_kwargs["cluster_id"] = cluster_id
-    filter_kwargs.update({"status": BCSClusterInfo.CLUSTER_STATUS_RUNNING, "bk_cloud_id__isnull": True})
+    filter_kwargs.update(
+        {
+            "status__in": [BCSClusterInfo.CLUSTER_STATUS_RUNNING, BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING],
+            "bk_cloud_id__isnull": True,
+        }
+    )
     clusters = BCSClusterInfo.objects.filter(**filter_kwargs).values("bk_biz_id", "cluster_id")
     for start in range(0, len(clusters), BCS_SYNC_SYNC_CONCURRENCY):
         cluster_chunk = clusters[start : start + BCS_SYNC_SYNC_CONCURRENCY]

@@ -50,7 +50,7 @@
                 class="loading"
               ></span>
               <bk-button
-                v-cursor="{ active: !tokenReviewAuth }"
+                v-cursor="{ active: !editAuth }"
                 text
                 class="view-btn"
                 :loading="tokenLoading"
@@ -212,7 +212,7 @@
             v-else-if="
               collectorData.params.conditions &&
               collectorData.params.conditions.type === 'separator' &&
-              collectorData.params.conditions.separator_filters !== []
+              !!collectorData.params.conditions.separator_filters.length
             "
             class="content-style"
           >
@@ -285,7 +285,13 @@
         <!-- 存储集群 -->
         <div>
           <span>{{ $t('存储集群') }}</span>
-          <span>{{ collectorData.storage_cluster_name || '-' }}</span>
+          <span
+            v-bk-tooltips.top="{
+              content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
+              disabled: !collectorData.storage_cluster_name
+            }"
+            >{{ collectorData.storage_cluster_name || '-' }}</span
+          >
         </div>
         <!-- 存储索引名 -->
         <div>
@@ -308,7 +314,6 @@
       <bk-button
         v-cursor="{ active: !editAuth }"
         :theme="'default'"
-        ext-cls=""
         style="min-width: 88px; color: #3a84ff"
         class="mr10"
         @click="handleClickEdit"
@@ -338,7 +343,6 @@
 import { mapState } from 'vuex';
 import { utcFormatDate, copyMessage } from '@/common/util';
 import containerBase from './components/container-base';
-import * as authorityMap from '../../../../../../common/authority-map';
 
 export default {
   components: {
@@ -348,18 +352,27 @@ export default {
     collectorData: {
       type: Object,
       required: true
+    },
+    editAuth: {
+      type: Boolean,
+      default: false
+    },
+    editAuthData: {
+      type: Object,
+      default: null,
+      validator(value) {
+        // 校验 value 是否为 null 或一个有效的对象
+        return value === null || (typeof value === 'object' && value !== null);
+      }
     }
   },
   data() {
     return {
       // 右边展示的创建人、创建时间
       createAndTimeData: [],
-      editAuth: false,
-      authData: null,
       basicLoading: false,
       isShowToken: false, // 是否展示 oltp_log Token
       showPassword: true, // 是否展示Token值
-      tokenReviewAuth: false, // 是否有查看token的权限
       tokenLoading: false,
       tokenStr: '' // token 的值
     };
@@ -388,7 +401,6 @@ export default {
   },
   created() {
     this.getCollectDetail();
-    this.getEditAuth();
   },
   methods: {
     getCollectDetail() {
@@ -444,8 +456,8 @@ export default {
       this.instance && this.instance.destroy(true);
     },
     handleClickEdit() {
-      if (!this.editAuth && this.authData) {
-        this.$store.commit('updateAuthDialogData', this.authData);
+      if (!this.editAuth && this.editAuthData) {
+        this.$store.commit('updateAuthDialogData', this.editAuthData);
         return;
       }
       const params = {};
@@ -455,33 +467,15 @@ export default {
         name: routeName,
         params,
         query: {
-          spaceUid: this.$store.state.spaceUid
+          spaceUid: this.$store.state.spaceUid,
+          backRoute: 'manage-collection',
+          type: 'basicInfo'
         }
       });
     },
-    async getEditAuth() {
-      try {
-        const paramData = {
-          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-          resources: [
-            {
-              type: 'collection',
-              id: this.$route.params.collectorId
-            }
-          ]
-        };
-        const res = await this.$store.dispatch('checkAndGetData', paramData);
-        if (!res.isAllowed) this.authData = res.data;
-        this.editAuth = res.isAllowed;
-        this.tokenReviewAuth = res.isAllowed;
-      } catch (error) {
-        this.editAuth = false;
-        this.tokenReviewAuth = false;
-      }
-    },
     async handleGetToken() {
-      if (!this.tokenReviewAuth && this.authData) {
-        this.$store.commit('updateAuthDialogData', this.authData);
+      if (!this.editAuth && this.editAuthData) {
+        this.$store.commit('updateAuthDialogData', this.editAuthData);
         return;
       }
       try {

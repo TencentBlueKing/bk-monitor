@@ -15,7 +15,6 @@ logger = logging.getLogger("bcs_storage")
 
 
 class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    cache_type = CacheType.BCS
     module_name = "bcs-storage"
 
     # BCS目前是非蓝鲸标准的返回格式，所以需要兼容
@@ -35,7 +34,9 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         if field:
             request_url = f"{request_url}&field={field}"
 
-        return request_url.format(**validated_request_data)
+        url = request_url.format(**validated_request_data)
+        validated_request_data.clear()
+        return url
 
     def get_headers(self):
         headers = super(BcsStorageBaseResource, self).get_headers()
@@ -50,6 +51,22 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             except Exception as e:
                 logger.error(e)
         return data
+
+
+class FetchPageResource(BcsStorageBaseResource):
+    base_url = urljoin(
+        f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
+        "/bcsapi/v4/storage/k8s/dynamic/all_resources/clusters",
+    )
+    action = "{cluster_id}/{type}?offset={offset}&limit={limit}"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        cluster_id = serializers.CharField(label="集群ID")
+        type = serializers.CharField(label="资源类型")
+        field = serializers.CharField(label="字段选择器", required=False, allow_null=True)
+        offset = serializers.IntegerField(label="偏移量")
+        limit = serializers.IntegerField(label="每页数量")
 
 
 class FetchResource(BcsStorageBaseResource):
@@ -85,3 +102,28 @@ class FetchResource(BcsStorageBaseResource):
             break
 
         return data
+
+
+def fetch_iterator(cluster_id, resource_type, field=None):
+    """
+    获取bcs资源的迭代器
+    """
+    offset = 0
+    limit = settings.BCS_STORAGE_PAGE_SIZE
+    while True:
+        validated_request_data = {
+            "cluster_id": cluster_id,
+            "type": resource_type,
+            "offset": offset,
+            "limit": limit,
+            "field": field,
+        }
+        data_per_page = FetchPageResource().perform_request(validated_request_data)
+        yield from data_per_page
+
+        data_len = len(data_per_page)
+        # 通过判断返回结果的数据判断是否需要获取下一页的数据
+        if data_len == limit:
+            offset += limit
+            continue
+        break

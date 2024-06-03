@@ -30,8 +30,8 @@
   />
   <div
     v-else
-    v-monitor-loading="{ isLoading: delayLoading }"
     class="collector-config"
+    v-monitor-loading="{ isLoading: delayLoading }"
   >
     <page-tips
       style="margin-bottom: 16px"
@@ -56,8 +56,8 @@
           <bk-tab-panel
             v-for="(item, index) in filterTabList"
             :key="index"
-            :name="index"
             :label="item.name"
+            :name="index"
           >
             <template slot="label">
               <div class="panel-tab-item">
@@ -83,9 +83,9 @@
         >
           <li
             v-for="(num, key) in activeTabItem.data"
-            :key="key"
             class="panel-content-item"
             :class="{ 'active-num': key === panel.itemActive }"
+            :key="key"
             @click="handleTabNumClick(key, num)"
           >
             <span class="content-num">{{ num }}</span>
@@ -96,10 +96,10 @@
       <div class="collector-config-tool">
         <div class="tool-btn">
           <bk-button
+            style="margin-right: 8px"
+            class="mc-btn-add"
             v-authority="{ active: !authority.MANAGE_AUTH }"
             theme="primary"
-            class="mc-btn-add"
-            style="margin-right: 8px"
             @click="authority.MANAGE_AUTH ? handleShowAdd('add') : handleShowAuthorityDetail()"
           >
             <span class="icon-monitor icon-plus-line mr-6" />
@@ -108,10 +108,10 @@
           <!-- <bk-button theme="default" @click="handleToLogCollection"> {{ $t('日志采集') }} </bk-button> -->
         </div>
         <bk-input
+          class="tool-search"
           v-model="panel.keyword"
           :placeholder="$t('采集配置名称/ID')"
           right-icon="bk-icon icon-search"
-          class="tool-search"
           @change="handleSearch"
         />
       </div>
@@ -122,8 +122,8 @@
         <div class="table-wrap">
           <bk-table
             ref="table"
-            class="config-table"
             :row-style="handleStoppedRow"
+            class="config-table"
             :data="table.data"
             :size="table.size"
             @row-mouse-enter="i => (table.hoverIndex = i)"
@@ -140,11 +140,11 @@
               v-for="column of selectedColumns"
               :key="column.prop"
               :label="column.label"
+              :min-width="column.minWidth"
               :prop="column.prop"
+              :show-overflow-tooltip="column.tooltip"
               :sortable="column.sortable"
               :width="column.width"
-              :min-width="column.minWidth"
-              :show-overflow-tooltip="column.tooltip"
             >
               <template slot-scope="scope">
                 <template v-if="column.prop === 'id'">
@@ -171,23 +171,23 @@
                 </template>
                 <template v-else-if="column.prop === 'status'">
                   <span
+                    :style="{ color: ['PREPARING', 'STOPPED'].includes(scope.row.status) ? '#C4C6CC' : '#63656E' }"
                     class="col-status"
                     :class="'status-' + scope.row.status"
-                    :style="{ color: ['PREPARING', 'STOPPED'].includes(scope.row.status) ? '#C4C6CC' : '#63656E' }"
                   >
                     <img
                       v-if="scope.row.doingStatus"
-                      src="../../static/images/svg/spinner.svg"
                       class="status-loading"
                       alt=""
+                      src="../../static/images/svg/spinner.svg"
                     />
                     <div
                       v-if="['FAILED', 'WARNING', 'SUCCESS', 'STOPPED'].includes(scope.row.taskStatus)"
-                      class="col-status-circle"
                       :style="{
                         backgroundColor: startedBack[scope.row.taskStatus],
                         borderColor: startedBorder[scope.row.taskStatus],
                       }"
+                      class="col-status-circle"
                     />
                     <span
                       :class="{ 'pointer-active': !['PREPARING', 'STOPPED'].includes(scope.row.status) }"
@@ -223,10 +223,10 @@
                 <div class="col-operator">
                   <span
                     v-if="scope.row.bizId === bizId"
+                    class="col-operator-btn"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
-                    class="col-operator-btn"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus }"
                     @click="
                       authority.MANAGE_AUTH || scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus
@@ -237,27 +237,27 @@
                     {{ $t('增删目标') }}
                   </span>
                   <span
+                    class="col-operator-btn"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
-                    class="col-operator-btn"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' }"
                     @click="scope.row.taskStatus !== 'STOPPED' && handleCheckView(scope.row)"
                   >
                     {{ $t('可视化') }}
                     <span
-                      style="min-width: 23px; color: #ea3636"
                       :style="!!scope.row.errorNum ? 'visibility: visible;' : 'visibility: hidden;'"
+                      style="min-width: 23px; color: #ea3636"
                     >
                       ({{ scope.row.errorNum }})
                     </span>
                   </span>
                   <span
                     v-if="scope.row.bizId === bizId"
+                    class="col-operator-btn"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
-                    class="col-operator-btn"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' }"
                     @click="scope.row.taskStatus !== 'STOPPED' && handleShowAdd('edit', scope.row)"
                   >
@@ -265,14 +265,14 @@
                   </span>
                   <span
                     v-if="scope.row.bizId === bizId"
-                    :ref="'operator-' + scope.$index"
-                    v-authority="{ active: !authority.MANAGE_AUTH && !scope.row.doingStatus }"
                     class="col-operator-more"
-                    data-popover="true"
+                    v-authority="{ active: !authority.MANAGE_AUTH && !scope.row.doingStatus }"
                     :class="{
                       'operator-active': popover.hover === scope.$index,
                       'btn-disabled': scope.row.doingStatus,
                     }"
+                    :ref="'operator-' + scope.$index"
+                    data-popover="true"
                     @click="
                       authority.MANAGE_AUTH || scope.row.doingStatus
                         ? !scope.row.doingStatus && handleOperatorOver(scope.row, $event, scope.$index)
@@ -280,8 +280,8 @@
                     "
                   >
                     <i
-                      data-popover="true"
                       class="bk-icon icon-more"
+                      data-popover="true"
                     />
                   </span>
                 </div>
@@ -300,13 +300,13 @@
           <bk-pagination
             v-if="isShowPagination"
             class="config-pagination"
+            :count="pagination.total"
+            :current="pagination.page"
+            :limit="pagination.pageSize"
+            :limit-list="tableInstance.pageList"
             align="right"
             size="small"
             pagination-able
-            :current="pagination.page"
-            :limit="pagination.pageSize"
-            :count="pagination.total"
-            :limit-list="tableInstance.pageList"
             show-total-count
             @change="handlePageChange"
             @limit-change="handleLimitChange"
@@ -317,21 +317,21 @@
     <collector-config-detail
       :side-data="side.data"
       :side-show="side.show"
-      @update-name="handleChangeCollectName"
-      @edit-plugin="handleEditPlugin"
       @edit="handleToEdit"
+      @edit-plugin="handleEditPlugin"
       @set-hide="handleSideHidden"
+      @update-name="handleChangeCollectName"
     />
     <bk-dialog
+      width="850"
       v-model="dialog.update.show"
       :show-footer="false"
-      width="850"
     >
       <collector-config-update
         v-if="dialog.update.params"
         :update-params="dialog.update.params"
-        @on-submit="handleOpenUpgradePage"
         @close-update="handleCloseUpdate"
+        @on-submit="handleOpenUpgradePage"
       />
     </bk-dialog>
     <bk-dialog
@@ -347,10 +347,10 @@
         </div>
         <div class="dialog-del-footer">
           <bk-button
-            theme="primary"
+            style="margin-right: 10px"
             class="footer-btn"
             :loading="dialog.delete.loading"
-            style="margin-right: 10px"
+            theme="primary"
             @click="handleSubmitDelete"
           >
             {{ $t('确定') }}
@@ -610,9 +610,6 @@ export default {
       return this.tableInstance.tabItemMap || {};
     },
     retrievalUrl() {
-      if (process.env.NODE_ENV === 'development') {
-        return `${process.env.loginHost}/t/log-search-4#/manage/collect?bizId=${this.bizId}`;
-      }
       return `${this.$store.getters.bkLogSearchUrl}#/manage/collect?bizId=${this.bizId}`;
     },
     /** 是否展示分页 */

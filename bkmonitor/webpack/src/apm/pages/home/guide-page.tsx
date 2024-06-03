@@ -64,9 +64,6 @@ export default class GuidePage extends tsc<IProps, IEvents> {
   get bizId() {
     return this.$store.getters.bizId;
   }
-  get bizList() {
-    return this.$store.getters.bizList;
-  }
   /** DEMO业务 */
   get demoBiz() {
     return this.$store.getters.demoBiz;

@@ -45,6 +45,8 @@ import './select-index-set.scss';
 type IndexSetType = 'single' | 'union';
 type ActiveType = 'favorite' | 'history';
 
+const MAX_UNION_INDEXSET_LIMIT = 20;
+
 @Component
 export default class QueryStatement extends tsc<{}> {
   @Prop({ type: String, required: true }) indexId: string;
@@ -305,13 +307,13 @@ export default class QueryStatement extends tsc<{}> {
   }
 
   get isOverSelect() {
-    return this.selectTagCatchIDList.length >= 10;
+    return this.selectTagCatchIDList.length >= MAX_UNION_INDEXSET_LIMIT;
   }
 
   @Watch('unionIndexList', { immediate: true, deep: true })
   initUnionList(val) {
     this.indexSearchType = !!val.length ? 'union' : 'single';
-    this.selectTagCatchIDList = !!val.length ? val : [this.indexId];
+    this.selectTagCatchIDList = !!val.length ? val : this.indexId ? [this.indexId] : [];
   }
 
   @Emit('selected')
@@ -331,7 +333,7 @@ export default class QueryStatement extends tsc<{}> {
   /** 选中索引集 */
   handleSelectIndex(val) {
     if (this.isAloneType) {
-      if (val[0]) this.selectAloneVal = [val[1]];
+      if (val[0]) this.selectAloneVal = [val[val.length - 1]];
       this.handleCloseSelectPopover();
     } else {
       this.selectTagCatchIDList = val.filter(item => item !== '-1');
@@ -348,13 +350,13 @@ export default class QueryStatement extends tsc<{}> {
         // 当前未全选中  则把过滤后的标签索引集id全放到缓存的id列表
         this.selectTagCatchIDList = [...new Set([...this.selectedItemIDlist, ...this.havValRenderIDSetList])].slice(
           0,
-          10
+          MAX_UNION_INDEXSET_LIMIT
         ); // 最多选10条数据
       } else {
         // 全选选中 清空 已有的过滤后的标签索引集id
         this.selectTagCatchIDList = this.selectedItemIDlist
           .filter(item => !this.havValRenderIDSetList.includes(item))
-          .slice(0, 10); // 最多选10条数据
+          .slice(0, MAX_UNION_INDEXSET_LIMIT); // 最多选20条数据
       }
     }
   }
@@ -364,13 +366,13 @@ export default class QueryStatement extends tsc<{}> {
     this.isShowSelectPopover = val;
     if (val) {
       // 打开索引集下拉框 初始化单选的数据
-      this.selectAloneVal = [this.indexId];
+      this.selectAloneVal = this.indexId ? [this.indexId] : [];
       if (this.isUnionSearch) {
         this.indexSearchType = 'union';
         this.selectTagCatchIDList = this.unionIndexList;
       } else {
         this.indexSearchType = 'single';
-        this.selectTagCatchIDList = [this.indexId];
+        this.selectTagCatchIDList = this.indexId ? [this.indexId] : [];
       }
       // 获取多选收藏
       this.getMultipleFavoriteList();
@@ -383,7 +385,15 @@ export default class QueryStatement extends tsc<{}> {
       // 监听选中的标签是否超过2行
       this.initResizeGroupStyle();
     } else {
-      if (!this.selectTagCatchIDList.length) this.indexSearchType = 'single';
+      if (!this.selectTagCatchIDList.length) {
+        if (this.indexSearchType === 'single' && this.changeTypeCatchIDlist.length) {
+          this.selectTagCatchIDList = [...this.changeTypeCatchIDlist];
+          this.indexSearchType = 'union';
+        } else {
+          this.indexSearchType = 'single';
+        }
+      }
+
       this.aloneHistory = [];
       this.multipleHistory = [];
       this.changeTypeCatchIDlist = [];
@@ -486,7 +496,7 @@ export default class QueryStatement extends tsc<{}> {
 
     if (type === 'single') {
       this.changeTypeCatchIDlist = this.selectTagCatchIDList;
-      this.selectTagCatchIDList = [this.indexId];
+      this.selectTagCatchIDList = this.indexId ? [this.indexId] : [];
     } else {
       this.selectTagCatchIDList = this.changeTypeCatchIDlist;
     }
@@ -933,7 +943,7 @@ export default class QueryStatement extends tsc<{}> {
             >
               {this.selectedItemList.length}
             </i18n>
-            {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择10项')}</span>}
+            {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择20项')}</span>}
           </div>
           <Popover
             ref='favoritePopover'

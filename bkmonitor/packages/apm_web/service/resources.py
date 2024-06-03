@@ -13,6 +13,7 @@ import functools
 import itertools
 import operator
 import re
+from multiprocessing.pool import ApplyResult
 
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
@@ -37,6 +38,7 @@ from apm_web.models import (
     LogServiceRelation,
     UriServiceRelation,
 )
+from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
@@ -64,6 +66,8 @@ class ServiceInfoResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务")
+        start_time = serializers.IntegerField(required=False, default=None, label="数据开始时间")
+        end_time = serializers.IntegerField(required=False, default=None, label="数据结束时间")
 
     def get_operate_record(self, bk_biz_id, app_name, service_name):
         """获取操作记录"""
@@ -123,13 +127,32 @@ class ServiceInfoResource(Resource):
 
     def get_apdex_relation_info(self, bk_biz_id, app_name, service_name, topo_node):
         instance = ServiceHandler.get_apdex_relation_info(bk_biz_id, app_name, service_name, topo_node)
+        if not instance:
+            return {}
         return ServiceApdexConfigSerializer(instance=instance).data
 
-    def perform_request(self, validated_request_data):
+    def get_profiling_info(self, bk_biz_id, app_name, service_name, start_time, end_time):
+        """获取服务的 profiling 状态"""
+
+        res = {}
+        # 获取应用是否开启 Profiling
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise ValueError("应用不存在")
+
+        res["is_enabled_profiling"] = app.is_enabled_profiling
+
+        # 获取此服务是否有 Profiling 数据
+        count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
+        res["is_profiling_data_normal"] = bool(count)
+        res["application_id"] = app.application_id
+        return res
+
+    def perform_request(self, validate_data):
         # 获取请求数据
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        service_name = validated_request_data["service_name"]
+        bk_biz_id = validate_data["bk_biz_id"]
+        app_name = validate_data["app_name"]
+        service_name = validate_data["service_name"]
 
         query_instance_param = {
             "bk_biz_id": bk_biz_id,
@@ -149,13 +172,22 @@ class ServiceInfoResource(Resource):
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
         uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
         operate_record = pool.apply_async(self.get_operate_record, args=(bk_biz_id, app_name, service_name))
+        profiling_info = {}
+        if validate_data.get("start_time") and validate_data.get("end_time"):
+            profiling_info = pool.apply_async(
+                self.get_profiling_info,
+                args=(bk_biz_id, app_name, service_name, validate_data["start_time"], validate_data["end_time"]),
+            )
         pool.close()
         pool.join()
 
         # 获取服务信息
         service_info = {"extra_data": {}, "topo_key": service_name}
         service_info.update(operate_record.get())
-
+        if isinstance(profiling_info, ApplyResult):
+            execute_res = profiling_info.get()
+            if isinstance(execute_res, dict):
+                service_info.update(execute_res)
         resp = topo_node_res.get()
 
         service_info["relation"] = {
@@ -167,7 +199,7 @@ class ServiceInfoResource(Resource):
         }
 
         for service in resp:
-            if service["topo_key"] == validated_request_data["service_name"]:
+            if service["topo_key"] == validate_data["service_name"]:
                 service_info.update(service)
         # 一级目录名称
         category_key = service_info["extra_data"].get("category", "")
@@ -396,24 +428,22 @@ class UriregularVerifyResource(Resource):
         app_name = serializers.CharField()
         service_name = serializers.CharField()
         uris_source = serializers.ListSerializer(child=serializers.CharField())
+        uris = serializers.ListSerializer(child=serializers.CharField())
 
     def perform_request(self, data):
         """
         调试url
         """
-        app = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
-        if not app:
-            raise ValueError(_("应用不存在"))
+        pool = ThreadPool()
+        params = [(index, i, data["uris_source"]) for index, i in enumerate(data["uris"])]
+        match_results = pool.map_ignore_exception(self.uri_regular, params)
+        return list(itertools.chain(*[i for i in match_results if i]))
 
-        uris = UriServiceRelation.objects.filter(
-            bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], service_name=data["service_name"]
-        )
+    def uri_regular(self, index, url_regex, sources):
         res = []
-        for uri in data["uris_source"]:
-            for index, uri_reg in enumerate(uris):
-                if re.match(uri_reg.uri, uri):
-                    res.append(_("{} 匹配到第{}个uri配置: {}").format(uri, index + 1, uri_reg.uri))
-                    break
+        for source in sources:
+            if re.match(url_regex, source):
+                res.append(f"第 {index + 1} 项配置({url_regex})匹配到 url: {source}")
 
         return res
 

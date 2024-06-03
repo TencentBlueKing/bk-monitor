@@ -14,7 +14,7 @@
     height: calc(100vh - var(--notice-alert-height)) !important;
 
     .container-content {
-      max-height: calc(100vh - 52px - var(--notice-alert-height)) !important
+      max-height: calc(100vh - 52px - var(--notice-alert-height)) !important;
     }
 
     .nav-slider-list {
@@ -66,7 +66,6 @@
           .bk-icon {
             margin-left: 4px;
           }
-
         }
 
         &.item-active {
@@ -94,7 +93,7 @@
         cursor: pointer;
         background-color: #fafbfd;
         border-top: 1px solid #dcdee5;
-    
+
         .bk-icon {
           margin-right: 4px;
         }
@@ -153,9 +152,9 @@
         z-index: 0;
         height: 1px;
         content: ' ';
-        background: rgba(44,53,77,.00);
+        background: rgba(44, 53, 77, 0);
         border-radius: 2px;
-        box-shadow: 0 1px 0 0 rgba(255,255,255,.10);
+        box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.1);
       }
     }
 
@@ -169,7 +168,7 @@
         display: flex;
         flex: 1;
         height: 32px;
-        background-color: rgba(255,255,255,.05);
+        background-color: rgba(255, 255, 255, 0.05);
         border: 1px solid #2c354d;
         border-radius: 2px;
 
@@ -186,7 +185,9 @@
             position: absolute;
             right: 10px;
             font-size: 18px;
-            transition: transform .3s cubic-bezier(.4,0,.2,1),-webkit-transform .3s cubic-bezier(.4,0,.2,1);
+            transition:
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              -webkit-transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
         }
 
@@ -200,7 +201,7 @@
           overflow: auto;
           background-color: #363f56;
           border-radius: 2px;
-          box-shadow: 0px 2px 6px 0px rgba(0,0,0,.20);;
+          box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
 
           .biz-list {
             display: flex;
@@ -216,7 +217,7 @@
               height: 32px;
               padding: 0 16px;
               color: #acb5c6;
-  
+
               @include flex-center;
             }
 
@@ -235,7 +236,7 @@
 
               &:hover {
                 cursor: pointer;
-  
+
                 @extend %is-select;
               }
             }
@@ -243,7 +244,7 @@
             &::-webkit-scrollbar-thumb {
               background: #363f56;
               border-radius: 20px;
-              box-shadow: inset 0 0 6px rgba(204, 204, 204, .3);
+              box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
             }
           }
         }
@@ -257,15 +258,15 @@
             color: #acb5c6;
             background-color: #363f56;
             border: 0;
-            border-bottom: 1px solid rgba(240,241,245,.16);
+            border-bottom: 1px solid rgba(240, 241, 245, 0.16);
             border-radius: 0;
 
             &:focus {
               background-color: #363f56 !important;
-              border-color: rgba(240,241,245,.16) !important;
+              border-color: rgba(240, 241, 245, 0.16) !important;
             }
           }
-        }  
+        }
       }
 
       .menu-title {
@@ -312,7 +313,7 @@
 
       .navigation-menu-item-name {
         font-size: 14px;
-        color: #666d8e!important;
+        color: #666d8e !important;
       }
     }
 
@@ -339,7 +340,7 @@
     z-index: 999 !important;
 
     .nav-slider {
-      border-right: initial!important;
+      border-right: initial !important;
     }
   }
 
@@ -350,8 +351,7 @@
     font-size: 16px;
     color: #313238;
     background-color: white;
-    box-shadow: 0px 3px 4px 0px rgba(64,112,203,.06);
-    
+    box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
 
     @include flex-align(center);
 
@@ -391,6 +391,10 @@
     padding: 0 !important;
     overflow: inherit !important;
 
+    &:has(.page-ai-settings-set) {
+      transform: scale(1);
+    }
+
     .page-container {
       flex: 1;
       width: 100%;
@@ -406,6 +410,9 @@
       &.grafana-page {
         position: relative;
       }
+      // &.page-ai-settings-set {
+      //   transform: scale(1);
+      // }
     }
   }
 
@@ -420,7 +427,7 @@
   }
 
   .group-name-wrap {
-    color: rgba(172,178,198,.60);
+    color: rgba(172, 178, 198, 0.6);
   }
 
   .footer-icon {
@@ -434,7 +441,7 @@
     width: 32px;
     height: 32px;
     background-image: url('../static/images/svg/monitor-logo.svg');
-  } 
+  }
 
   .monitor-navigation-footer {
     display: flex;

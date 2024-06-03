@@ -132,7 +132,7 @@ def get_metric_id(
         DataSourceLabel.PROMETHEUS: {DataTypeLabel.TIME_SERIES: promql[:125] + "..." if len(promql) > 128 else promql},
         DataSourceLabel.CUSTOM: {
             DataTypeLabel.EVENT: "{}.{}.{}.{}".format(
-                data_source_label, data_type_label, result_table_id, custom_event_name
+                data_source_label, data_type_label, result_table_id, custom_event_name or "__INDEX__"
             ),
             DataTypeLabel.TIME_SERIES: "{}.{}.{}".format(data_source_label, result_table_id, metric_field),
         },
@@ -1642,10 +1642,12 @@ class Strategy(AbstractConfig):
         user_group_ids = []
         for action_relation in action_relations:
             user_group_ids.extend(action_relation.validated_user_groups)
-        user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         if with_detail:
             user_groups_slz = UserGroupDetailSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
+        else:
+            user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         user_groups = {group["id"]: dict(group) for group in user_groups_slz}
+
         for config in configs:
             for action in config["actions"] + [config["notice"]]:
                 user_group_list = []
@@ -2293,6 +2295,10 @@ class Strategy(AbstractConfig):
 
                 for field in query_config_fields:
                     new_query_config[field] = getattr(query_config, field, None)
+
+                # 聚合维度排序
+                if new_query_config["agg_dimension"]:
+                    new_query_config["agg_dimension"] = sorted(new_query_config["agg_dimension"])
 
                 # promql需要去除条件
                 if getattr(query_config, "promql", None):

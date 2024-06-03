@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Union
 
 import kafka
 import requests
+from django.db.models import Q
 from elasticsearch import Elasticsearch as Elasticsearch
 from kafka.admin import KafkaAdminClient
 
@@ -27,14 +28,22 @@ logger = logging.getLogger("metadata")
 
 class ResultTableAndDataSource:
     def __init__(
-        self, table_id: Optional[str] = None, bk_data_id: Optional[int] = None, bcs_cluster_id: Optional[str] = None
+        self,
+        table_id: Optional[str] = None,
+        bk_data_id: Optional[int] = None,
+        bcs_cluster_id: Optional[str] = None,
+        vm_table_id: Optional[str] = None,
+        metric_name: Optional[str] = None,
     ):
         self.bk_data_id = bk_data_id
         self.table_id = table_id
         self.bcs_cluster_id = bcs_cluster_id
+        self.metric_name = metric_name
+        self.vm_table_id = vm_table_id
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
+
         # 获取table id和data id
         try:
             table_id_data_id = self.get_table_id_data_id()
@@ -52,12 +61,15 @@ class ResultTableAndDataSource:
         # 组装获取数据详情
         data = []
         for table_id, data_id in table_id_data_id.items():
-            if not detail:
+            _detail = {}
+            if not detail or self.bcs_cluster_id:
                 detail = self.get_basic_detail(data_id)
-            detail.update(self.get_biz_info(table_id, detail["data_source"]))
-            detail.update(self.get_storage_cluster(table_id))
-            detail.update(self.get_influxdb_instance_cluster(table_id))
-            data.append(detail)
+            _detail.update(detail)
+            _detail.update(self.get_table_id(table_id))
+            _detail.update(self.get_biz_info(table_id, detail["data_source"]))
+            _detail.update(self.get_storage_cluster(table_id))
+            _detail.update(self.get_influxdb_instance_cluster(table_id))
+            data.append(_detail)
         return data
 
     def get_basic_detail(self, data_id: int) -> Dict:
@@ -79,19 +91,57 @@ class ResultTableAndDataSource:
         except Exception:
             raise Exception(f"bk_data_id: {bk_data_id} not found")
 
-        return {"bk_data_id": ds.bk_data_id, "bk_data_name": ds.data_name, "space_uid": ds.space_uid}
+        # 如果是集群的数据源ID，则返回集群信息
+        cluster_obj = models.BCSClusterInfo.objects.filter(
+            Q(K8sMetricDataID=bk_data_id)
+            | Q(CustomMetricDataID=bk_data_id)
+            | Q(K8sEventDataID=bk_data_id)
+            | Q(CustomEventDataID=bk_data_id)
+        ).first()
+        cluster_id = ""
+        if cluster_obj:
+            cluster_id = cluster_obj.cluster_id
+
+        return {
+            "bk_data_id": ds.bk_data_id,
+            "bk_data_name": ds.data_name,
+            "space_uid": ds.space_uid,
+            "etl_config": ds.etl_config,
+            "creator": ds.creator,
+            "updater": ds.last_modify_user,
+            "cluster_id": cluster_id,
+            "is_enable": ds.is_enable,
+        }
+
+    def get_table_id(self, table_id: str) -> Dict:
+        """获取结果表信息"""
+        try:
+            rt = models.ResultTable.objects.get(table_id=table_id)
+        except models.ResultTable.DoesNotExist:
+            raise Exception(f"table_id: {table_id} not found")
+        return {
+            "result_table": {
+                "table_id": rt.table_id,
+                "result_table_name": rt.table_name_zh,
+                "is_enable": rt.is_enable,
+            }
+        }
 
     def get_table_id_data_id(self) -> Dict:
         """
         获取数据源ID和结果表ID
 
-        1. 如果结果表存在，则以结果表查询数据源，这里仅存在一个
+        1. 如果结果表或vm结果表存在，则以结果表查询数据源，这里仅存在一个
         2. 否则，如果数据源存在，则通过数据源查询结果表，这里可能会存在多个
         3. 否则，则按照过滤对应的数据源，然后查询到相应的结果表，一个集群会存在两个必要数据源
         """
-        if self.table_id:
-            obj = models.DataSourceResultTable.objects.get(table_id=self.table_id)
+        if self.table_id or self.vm_table_id:
+            table_id = self.table_id
+            if self.vm_table_id:
+                table_id = models.AccessVMRecord.objects.get(vm_result_table_id=self.vm_table_id).result_table_id
+            obj = models.DataSourceResultTable.objects.get(table_id=table_id)
             return {obj.table_id: obj.bk_data_id}
+
         elif self.bk_data_id:
             return {
                 obj.table_id: obj.bk_data_id
@@ -102,11 +152,21 @@ class ResultTableAndDataSource:
             bk_data_id_list = [
                 cluster_record.K8sMetricDataID,
                 cluster_record.CustomMetricDataID,
+                cluster_record.K8sEventDataID,
             ]
-            return {
+
+            tid_ds = {
                 obj.table_id: obj.bk_data_id
                 for obj in models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_id_list)
             }
+            # 当指标存在时，根据指标过滤结果表
+            if self.metric_name:
+                tids = models.ResultTableField.objects.filter(
+                    field_name=self.metric_name, table_id__in=tid_ds.keys()
+                ).values_list("table_id", flat=True)
+                return {tid: tid_ds[tid] for tid in tids}
+
+            return tid_ds
 
     def get_biz_info(self, table_id: str, data_source: Dict) -> Dict:
         try:

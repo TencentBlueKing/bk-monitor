@@ -30,7 +30,7 @@ interface IDragOption {
   min: number;
   max: number;
 }
-export const handleMouseDown: Function = (e, tag: string, resetWidth = 200, option: IDragOption, setWidth) => {
+export const handleMouseDown = (e, tag: string, resetWidth = 200, option: IDragOption, setWidth) => {
   let { target } = e;
 
   while (target && target.dataset.tag !== tag) {
@@ -61,7 +61,7 @@ export const handleMouseDown: Function = (e, tag: string, resetWidth = 200, opti
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
 };
-export const handleMouseMove: Function = e => {
+export const handleMouseMove = e => {
   let { target } = e;
   while (target && target.dataset.tag !== 'resizeTarget') {
     target = target.parentNode;
@@ -71,3 +71,11 @@ export const handleMouseMove: Function = e => {
 /** 敏感度阈值转换规则 threshold = (1 - sensitivity / 10) * 0.8 + 0.1 */
 export const transformSensitivityValue = (val: number): number =>
   new Big(1).minus(new Big(val).div(10)).times(0.8).plus(0.1).toNumber();
+
+export const compareObjectsInArray = arr => {
+  return arr.every((obj, index, array) => {
+    return Object.keys(obj).every(key =>
+      array.every((otherObj, otherIndex) => index === otherIndex || obj[key] === otherObj[key]),
+    );
+  });
+};

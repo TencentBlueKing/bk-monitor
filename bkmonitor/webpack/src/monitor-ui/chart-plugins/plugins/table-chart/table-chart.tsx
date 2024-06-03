@@ -26,6 +26,7 @@
 import { Component, Emit, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -41,6 +42,7 @@ import {
 } from 'monitor-pc/pages/monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName,
@@ -55,6 +57,7 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import StatusTab from './status-tab';
 
 import './table-chart.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const STORE_KEY_PREFIX = 'table_chart_store_key_'; /** 图表缓存前缀 */
 
@@ -242,7 +245,7 @@ export class TableChart extends CommonSimpleChart {
               this.filterList = filter ?? [];
               this.tableData = data || [];
               this.columns = columns || [];
-              this.conditionOptions = condition_list || [];
+              this.conditionOptions = transformConditionSearchList(condition_list || []);
               this.conditionList = updateBkSearchSelectName(this.conditionOptions, this.conditionList, true, true);
               this.overviewData = overview_data;
               // this.pagination.limit = 10;
@@ -446,7 +449,8 @@ export class TableChart extends CommonSimpleChart {
   }
 
   /** search select组件搜索 */
-  handleConditionChange() {
+  handleConditionChange(v) {
+    this.conditionList = v;
     this.pagination.current = 1;
     this.getPanelData();
   }
@@ -488,15 +492,13 @@ export class TableChart extends CommonSimpleChart {
               <div class='search-wrapper'>
                 {}
                 {this.searchType === 'search_select' ? (
-                  <bk-search-select
-                    class='search-wrapper-input'
-                    v-model={this.conditionList}
-                    data={this.conditionOptions}
-                    show-condition={false}
-                    clearable
-                    onChange={this.handleConditionChange}
-                    onClear={this.handleConditionChange}
-                  />
+                  <div class='search-wrapper-input'>
+                    <SearchSelect
+                      data={this.conditionOptions}
+                      modelValue={this.conditionList}
+                      onChange={this.handleConditionChange}
+                    />
+                  </div>
                 ) : this.searchType === 'input' ? (
                   <bk-input
                     class='search-wrapper-input'

@@ -39,7 +39,7 @@ from bkmonitor.utils import get_metric_category
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from constants.alert import IGNORED_TAGS, EventTargetType
-from constants.apm import ApmMetrics, OtlpKey
+from constants.apm import ApmMetrics
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
@@ -174,6 +174,17 @@ UPTIMECHECK_MAP = {
 }
 
 METRIC_POOL_KEYS = ["id", "metric_md5", "bk_biz_id", "result_table_id", "metric_field", "related_id", "readable_name"]
+
+APM_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
+
+APM_METRICS_INFO = {
+    name: {
+        "field_name": name,
+        "description": alias,
+        "unit": unit,
+    }
+    for name, alias, unit in ApmMetrics.all()
+}
 
 
 class BaseMetricCacheManager:
@@ -437,61 +448,23 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
 
             # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
             custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
-        apm_metrics, apm_result_table_ids = self._apm_get_tables()
-        apm_table_regex = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
-        # 过滤APM指标
-        custom_ts_result = [i for i in custom_ts_result if not apm_table_regex.match(i["table_id"])]
 
         # 不在监控创建的策略配置均展示，除了全局data id， 该过滤在get_metrics_by_table中生效
         for result in custom_ts_result:
             self.process_logbeat_table(result)
+            self.process_apm_table(result)
             yield result
 
-        yield from apm_metrics
-
-    def _apm_get_tables(self):
-        # apm 指标
-        metrics = []
-        result_table_ids = []
-        applications = api.apm_api.list_application({"bk_biz_id": self.bk_biz_id})
-
-        dimensions = api.apm_api.query_metric_dimensions(bk_biz_id=0)
-        dimensions_set = set()
-        for dimension in dimensions:
-            dimensions_set |= set(dimension["dimensions"])
-
-        tag_list = []
-        for i in dimensions_set:
-            pure_dimension = OtlpKey.get_metric_dimension_key(i)
-            tag_list.append({"field_name": pure_dimension, "description": pure_dimension})
-
-        for app in applications:
-            if not app.get("metric_config", {}).get("result_table_id"):
-                continue
-
-            # 指标维度相同
-            result_table_ids.append(app["metric_config"]["result_table_id"])
-            metrics.append(
-                {
-                    "time_series_group_id": 0,
-                    "time_series_group_name": app["app_name"],
-                    "bk_data_id": app["metric_config"]["bk_data_id"],
-                    "bk_biz_id": self.bk_biz_id,
-                    "table_id": app["metric_config"]["result_table_id"],
-                    "label": "apm",
-                    "metric_info_list": [
-                        {
-                            "field_name": name,
-                            "description": alias,
-                            "unit": unit,
-                            "tag_list": tag_list,
-                        }
-                        for name, alias, unit in ApmMetrics.all()
-                    ],
-                }
-            )
-
-        return metrics, result_table_ids
+    @classmethod
+    def process_apm_table(cls, table: Dict):
+        if APM_TABLE_REGEX.match(table["table_id"]):
+            table["label"] = "apm"
+            for metric in table.get("metric_info_list", []):
+                metric_name = metric["field_name"]
+                if metric_name in APM_METRICS_INFO:
+                    metric_info = APM_METRICS_INFO[metric_name]
+                    metric["unit"] = metric_info["unit"]
+                    metric["description"] = metric_info["description"]
 
     @staticmethod
     def process_logbeat_table(table: Dict):
@@ -965,7 +938,8 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
-            custom_event.bk_event_group_id for custom_event in CustomEventGroup.objects.filter(type="custom_event")
+            custom_event.bk_event_group_id
+            for custom_event in CustomEventGroup.objects.filter(type="custom_event").only("bk_event_group_id")
         ]
         # 增加自定义事件筛选，不在监控创建的策略配置时不展示
         for result in custom_event_result:
@@ -988,7 +962,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     # 补充k8s事件对应dataid的用途:
                     # bcs_${cluster_id}_custom_event: 自定义(custom)
                     # bcs_${cluster_id}_k8s_event：k8s系统(system)
-                    usage = "custom" if result["event_group_name"].endswith("_custom_event") else "system"
+                    usage = "custom" if result["event_group_name"].endswith("_custom_event") else "k8s"
                     extend_cluster_info["usage"] = usage
                     # 更新补充信息
                     cluster_map[cluster_id].update(extend_cluster_info)
@@ -1004,9 +978,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             table_display_name = (
                 f"{pre_fix}{table['k8s_cluster_info']['name']}" f"({table['k8s_cluster_info']['cluster_id']})"
             )
-            # todo k8s要区分系统事件和自定义事件。当前前端统一将系统事件内置，因此全放到自定义分类下先。
-            # if table["k8s_cluster_info"]["usage"] == "system":
-            #     data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
+            table_display_name = f"[{table['k8s_cluster_info']['usage']}]{table_display_name}"
 
         base_dict = {
             "result_table_id": table["table_id"],
@@ -1049,6 +1021,25 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     ]
                 )
 
+            metric_detail.update(base_dict)
+            yield metric_detail
+
+        # 新增整个事件源
+        if table["event_group_id"] != 0:
+            metric_detail = {
+                "default_dimensions": [],
+                "default_condition": [],
+                # "__INDEX__" 表示整个事件源索引
+                "metric_field": "__INDEX__",
+                "metric_field_name": f'{table_display_name}({table["bk_data_id"]})',
+                "dimensions": [{"id": "event_name", "name": "event_name"}],
+                "extend_fields": {
+                    # 全局自定义事件指标， 不预定义事件名称
+                    "custom_event_name": "",
+                    "bk_data_id": table["bk_data_id"],
+                    "bk_event_group_id": table["event_group_id"],
+                },
+            }
             metric_detail.update(base_dict)
             yield metric_detail
 

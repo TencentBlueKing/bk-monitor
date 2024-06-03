@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 import logging
+import time
 
 from django.conf import settings
 
@@ -30,11 +31,13 @@ def recover_weixin_robot_limit():
 
 
 def clean_expired_detect_result():
+    recover_weixin_robot_limit()
     try:
-        recover_weixin_robot_limit()
         CleanResult.clean_expired_detect_result()
     except Exception as e:
-        logger.exception(e)
+        logger.exception("clean_expired_detect_result Error: ", e)
+        time.sleep(60)
+        CleanResult.clean_expired_detect_result()
 
 
 def clean_md5_to_dimension_cache():

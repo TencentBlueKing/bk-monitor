@@ -280,26 +280,17 @@ export default {
             `${item.space_code}`.includes(keyword);
         }
         if (show) {
-          const tags = [{ id: item.space_type_id, name: item.space_type_name, type: item.space_type_id }];
-          if (item.space_type_id === 'bkci' && item.space_code) {
-            tags.push({ id: 'bcs', name: this.$tc('容器项目'), type: 'bcs' });
-          }
-          const newItem = {
-            ...item,
-            name: item.space_name.replace(/\[.*?\]/, ''),
-            tags
-          };
           // 无权限 直接不显示
           if (!item.permission[authorityMap.VIEW_BUSINESS]) return;
           if (item.is_sticky) {
             /** 置顶数据 */
-            stickyList.children.push(newItem);
+            stickyList.children.push(item);
           } else if (this.commonListIds.includes(item.space_uid)) {
             /** 常用数据 */
-            commonList.children.push(newItem);
+            commonList.children.push(item);
           } else {
             /** 普通列表 */
-            generalList.push(newItem);
+            generalList.push(item);
           }
         }
       });

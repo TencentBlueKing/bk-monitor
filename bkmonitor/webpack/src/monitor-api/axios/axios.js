@@ -45,14 +45,15 @@ const errorHandle = (response, config) => {
       }
       break;
     case 401:
+      const { data } = response;
       if (process.env.NODE_ENV === 'development') {
-        window.location.href = `${process.env.loginUrl}?c_url=${process.env.devUrl}`;
+        const url = new URL(data.login_url);
+        url.searchParams.set('c_url', location.href);
+        window.open(url.href, '_self');
       } else {
         const handleLoginExpire = () => {
           window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
         };
-        const { data } = response;
-
         if (data?.has_plain) {
           try {
             if (data.login_url) {

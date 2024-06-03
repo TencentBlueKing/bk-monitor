@@ -158,6 +158,10 @@ class UnifyQuery:
         if len(self.data_sources) > 1:
             return True
 
+        # 如果使用表达式，走统一查询模块
+        if len(self.expression.strip()) > 1:
+            return True
+
         # 如果使用了查询函数，比如会走统一查询模块
         if self.data_sources[0].functions:
             return True

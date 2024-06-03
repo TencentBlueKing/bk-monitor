@@ -951,8 +951,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         class='comm-item'
       >
         <div
-          class='comm-item-title'
           v-en-style='min-width: 130px'
+          class='comm-item-title'
         >
           {title}:
         </div>

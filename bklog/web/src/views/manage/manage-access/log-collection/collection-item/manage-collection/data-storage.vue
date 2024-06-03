@@ -22,13 +22,35 @@
 
 <template>
   <div class="data-storage-container">
+    <div
+      v-if="isShowEditBtn"
+      class="edit-btn-container"
+    >
+      <bk-button
+        v-cursor="{ active: !editAuth }"
+        :theme="'default'"
+        style="min-width: 88px; color: #3a84ff"
+        class="mr10"
+        @click="handleClickEdit"
+      >
+        {{ $t('编辑') }}
+      </bk-button>
+    </div>
     <section class="partial-content">
       <div class="main-title">
         {{ $t('基础信息') }}
       </div>
       <dl class="description-list">
         <dt class="description-term">{{ $t('集群名称') }}</dt>
-        <dd class="description-definition">{{ collectorData.storage_cluster_name || '--' }}</dd>
+        <dd class="description-definition">
+          <span
+            v-bk-tooltips.top="{
+              content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
+              disabled: !collectorData.storage_cluster_name
+            }"
+            >{{ collectorData.storage_cluster_name || '-' }}</span
+          >
+        </dd>
         <dt class="description-term">{{ $t('索引集名称') }}</dt>
         <dd class="description-definition">{{ collectorData.table_id_prefix + collectorData.table_id || '--' }}</dd>
         <dt class="description-term">{{ $t('过期时间') }}</dt>
@@ -100,6 +122,22 @@ export default {
     collectorData: {
       type: Object,
       required: true
+    },
+    isShowEditBtn: {
+      type: Boolean,
+      default: false
+    },
+    editAuth: {
+      type: Boolean,
+      default: false
+    },
+    editAuthData: {
+      type: Object,
+      default: null,
+      validator(value) {
+        // 校验 value 是否为 null 或一个有效的对象
+        return value === null || (typeof value === 'object' && value !== null);
+      }
     }
   },
   data() {
@@ -137,12 +175,39 @@ export default {
       } finally {
         this.tableLoading1 = false;
       }
+    },
+    handleClickEdit() {
+      if (!this.editAuth && this.editAuthData) {
+        this.$store.commit('updateAuthDialogData', this.editAuthData);
+        return;
+      }
+      const params = {
+        collectorId: this.$route.params.collectorId
+      };
+      this.$router.push({
+        name: 'collectStorage',
+        params,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+          backRoute: 'manage-collection',
+          type: 'dataStorage'
+        }
+      });
     }
   }
 };
 </script>
 
 <style lang="scss" scoped>
+.data-storage-container {
+  .edit-btn-container {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: end;
+  }
+}
+
 .description-list {
   display: flex;
   flex-flow: wrap;

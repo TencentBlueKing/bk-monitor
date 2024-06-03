@@ -72,7 +72,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
-            slz.CharField(label=_("计算平台 SQL 类存储集群类型"), default="mysql_storage", allow_blank=True),
+            slz.CharField(label="计算平台 SQL 类存储集群类型", default="mysql_storage", allow_blank=True),
         ),
         (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
@@ -80,18 +80,18 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         (
             "BK_DATA_DRUID_STORAGE_CLUSTER_NAME",
-            slz.CharField(label=_("计算平台 DRUID 存储集群名称"), default="", allow_blank=True),
+            slz.CharField(label="计算平台 DRUID 存储集群名称", default="", allow_blank=True),
         ),
-        ("BK_DATA_KAFKA_BROKER_URL", slz.CharField(label=_("与计算平台对接的消息队列BROKER地址"), default="")),
-        ("BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW", slz.IntegerField(label=_("数据接入计算平台后dataflow延时时间"), default=5)),
-        ("BK_DATA_SCENE_ID_INTELLIGENT_DETECTION", slz.IntegerField(label=_("计算平台单指标异常检测场景ID"), default=0)),
-        ("BK_DATA_SCENE_ID_TIME_SERIES_FORECASTING", slz.IntegerField(label=_("计算平台时序预测场景ID"), default=0)),
-        ("BK_DATA_SCENE_ID_ABNORMAL_CLUSTER", slz.IntegerField(label=_("计算平台离群检测场景ID"), default=0)),
-        ("BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION", slz.IntegerField(label=_("计算平台多指标异常检测场景ID"), default=0)),
-        ("BK_DATA_SCENE_ID_METRIC_RECOMMENDATION", slz.IntegerField(label=_("计算平台指标推荐场景ID"), default=0)),
-        ("BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label=_("计算平台主机异常检测场景ID"), default=0)),
-        ("BK_DATA_FLOW_CLUSTER_GROUP", slz.CharField(label=_("计算平台 dataflow 计算集群组"), default="default_inland")),
-        ("BK_DATA_REALTIME_NODE_WAIT_TIME", slz.IntegerField(label=_("计算平台 实时节点等待时间"), default=10)),
+        ("BK_DATA_KAFKA_BROKER_URL", slz.CharField(label="与计算平台对接的消息队列BROKER地址", default="")),
+        ("BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW", slz.IntegerField(label="数据接入计算平台后dataflow延时时间", default=5)),
+        ("BK_DATA_SCENE_ID_INTELLIGENT_DETECTION", slz.IntegerField(label="计算平台单指标异常检测场景ID", default=0)),
+        ("BK_DATA_SCENE_ID_TIME_SERIES_FORECASTING", slz.IntegerField(label="计算平台时序预测场景ID", default=0)),
+        ("BK_DATA_SCENE_ID_ABNORMAL_CLUSTER", slz.IntegerField(label="计算平台离群检测场景ID", default=0)),
+        ("BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION", slz.IntegerField(label="计算平台多指标异常检测场景ID", default=0)),
+        ("BK_DATA_SCENE_ID_METRIC_RECOMMENDATION", slz.IntegerField(label="计算平台指标推荐场景ID", default=0)),
+        ("BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label="计算平台主机异常检测场景ID", default=0)),
+        ("BK_DATA_FLOW_CLUSTER_GROUP", slz.CharField(label="计算平台 dataflow 计算集群组", default="default_inland")),
+        ("BK_DATA_REALTIME_NODE_WAIT_TIME", slz.IntegerField(label="计算平台 实时节点等待时间", default=10)),
         (
             "BK_DATA_DIMENSION_DRILL_PROCESSING_ID",
             slz.CharField(label="维度下钻 API Serving 请求的数据处理ID", default="multidimension_drill"),
@@ -148,13 +148,13 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         (
             "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
-            slz.IntegerField(label=_("APM应用操作BkdataFlow时拉取运行状态的最大操作次数"), default=10),
+            slz.IntegerField(label="APM应用操作BkdataFlow时拉取运行状态的最大操作次数", default=10),
         ),
         (
             "APM_APP_BKDATA_REQUIRED_TEMP_CONVERT_NODE",
-            slz.BooleanField(label=_("APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点"), default=False),
+            slz.BooleanField(label="APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点", default=False),
         ),
-        ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label=_("APM尾部采样项目id"), default=0)),
+        ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label="APM尾部采样项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),
@@ -188,7 +188,7 @@ ADVANCED_OPTIONS = OrderedDict(
             "BK_DATA_PLAN_ID_METRIC_RECOMMENDATION",
             slz.IntegerField(label="指标推荐默认plan id", default=0),
         ),
-        ("BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label=_("计算平台主机异常检测方案ID"), default=0)),
+        ("BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label="计算平台主机异常检测方案ID", default=0)),
         (
             "BK_DATA_MULTIVARIATE_HOST_RT_ID",
             slz.CharField(label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"),
@@ -287,12 +287,22 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
+        ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
+        ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
+        ("DEFAULT_VM_DATA_LINK_NAMESPACE", slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor")),
         ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
-
+        ("BK_DATA_RECORD_RULE_PROJECT_ID", slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1)),
+        ("ENABLE_DATA_LABEL_EXPORT", slz.BooleanField(label="grafana和策略导出是否支持data_label转换", default=True)),
+        ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
     ]
 )
+
+
+# ！！！注意！！！
+# 上面高级配置定义， 不提供用户配置页面， 所以 label 不要标记！不要标记！不要标记！
+
 
 STANDARD_CONFIGS = OrderedDict(
     [
@@ -371,6 +381,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
+        ("APM_BMW_DEPLOY_BIZ_ID", slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0)),
+        ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
         ("COLLECTING_CONFIG_FILE_MAXSIZE", slz.IntegerField(label=_("采集配置文件参数最大值(M)"), default=2)),

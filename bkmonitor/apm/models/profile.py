@@ -19,6 +19,7 @@ class ProfileService(models.Model):
     period_type = models.CharField("周期类型", null=True, max_length=128)
     frequency = models.DecimalField("采样频率", null=True, max_digits=10, decimal_places=2)
     data_type = models.CharField("数据类型", max_length=128, null=True)
+    sample_type = models.CharField("采样类型", max_length=128, null=True)
     last_check_time = models.DateTimeField("最近检查时间")
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", blank=True, null=True, auto_now=True)

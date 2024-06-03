@@ -32,7 +32,8 @@
               "async_columns": [
                 "request_count",
                 "error_rate",
-                "avg_duration"
+                "avg_duration",
+                "profiling_data_count"
               ]
             }
           }

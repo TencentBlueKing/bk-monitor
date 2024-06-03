@@ -2084,16 +2084,16 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
             "anomaly_point": anomaly_metric[1],
             "anomaly_score": anomaly_metric[2],
             "anomaly_point_with_unit": anomaly_metric[3],
-            "metric_name": anomaly_metric[4],
+            "metric_name": _(anomaly_metric[4]),
         }
 
         graph_panel["id"] = anomaly_metric[0]
-        graph_panel["title"] = anomaly_metric[4]
+        graph_panel["title"] = _(anomaly_metric[4])
         graph_panel["subTitle"] = anomaly_metric[0]
         graph_panel["anomaly_info"] = anomaly_info
         graph_panel["result_table_label"] = metric.result_table_label
-        graph_panel["result_table_label_name"] = metric.result_table_label_name
-        graph_panel["metric_name_alias"] = metric.metric_field_name
+        graph_panel["result_table_label_name"] = _(metric.result_table_label_name)
+        graph_panel["metric_name_alias"] = _(metric.metric_field_name)
         graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
         graph_panel["targets"][0]["alias"] = ""
 

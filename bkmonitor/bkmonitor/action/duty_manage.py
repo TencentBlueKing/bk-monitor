@@ -10,11 +10,13 @@ specific language governing permissions and limitations under the License.
 """
 import calendar
 import logging
+import time
 import typing
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from dateutil.relativedelta import relativedelta
+from django.db import OperationalError, transaction
 from django.db.models import Q
 
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
@@ -25,6 +27,9 @@ from constants.action import NoticeWay
 from constants.common import DutyGroupType, RotationType, WorkTimeType
 
 logger = logging.getLogger("fta_action.run")
+
+MAX_RETRIES = 3  # 最大重试次数
+BATCH_SIZE = 1000  # 每批次更新的记录数量
 
 
 class DutyCalendar:
@@ -576,15 +581,28 @@ class GroupDutyRuleManager:
                 changed_duties.append(rule_snap)
 
         # 过滤出已经被禁用的规则, 如果被禁用了， 需要及时删除
-        disabled_duty_rules = DutyRule.objects.filter(enabled=False).values_list("id", flat=True)
+        disabled_duty_rules = DutyRule.objects.filter(enabled=False, bk_biz_id=self.user_group.bk_biz_id).values_list(
+            "id", flat=True
+        )
         if disabled_duty_rules:
             # 如果有有禁用的，需要删除掉
             DutyRuleSnap.objects.filter(duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id).delete()
 
             # 已经设置的好的排班计划，也需要设置为不生效
-            DutyPlan.objects.filter(
-                duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id, is_effective=1
-            ).update(is_effective=0)
+            for retry_count in range(MAX_RETRIES):
+                try:
+                    self.update_duty_plan(disabled_duty_rules, self.user_group.id)
+                    break  # 成功执行，跳出循环
+                except OperationalError as e:
+                    if 'Deadlock' in str(e):
+                        # 如果已达到最大重试次数，抛出异常
+                        if retry_count == MAX_RETRIES - 1:
+                            raise e
+                        time.sleep(0.5)  # 一段时间后重试
+                        continue
+                    else:
+                        # 非死锁异常,直接抛出
+                        raise e
 
         # 排除掉没有发生变化的，其他的都需要重新生效
         new_group_rule_snaps = [
@@ -638,6 +656,22 @@ class GroupDutyRuleManager:
             next_plan_time__lte=time_tools.datetime2str(plan_time), user_group_id=self.user_group.id, enabled=True
         ):
             self.manage_duty_plan(rule_snap=rule_snap)
+
+    def update_duty_plan(self, disabled_duty_rules, user_group_id):
+        """
+        分批更新失效的排班计划
+        """
+        with transaction.atomic():
+            # 使用 select_for_update() 锁定相关记录
+            duty_plans = DutyPlan.objects.select_for_update().filter(
+                duty_rule_id__in=disabled_duty_rules, user_group_id=user_group_id, is_effective=1
+            )
+
+            # 分批更新记录
+            for i in range(0, len(duty_plans), BATCH_SIZE):
+                duty_plan_batch = duty_plans[i : i + BATCH_SIZE]
+                duty_plan_ids = [duty_plan.id for duty_plan in duty_plan_batch]
+                DutyPlan.objects.filter(id__in=duty_plan_ids).update(is_effective=0)
 
     def manage_duty_plan(self, rule_snap: DutyRuleSnap):
         """

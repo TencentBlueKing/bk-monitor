@@ -53,6 +53,7 @@ class AIOPSManager(abc.ABC):
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT),
         (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT),
         (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT),
     )
 
     def __init__(self, alert: AlertDocument, ai_settings: Optional[ReadOnlyAiSetting] = None):
@@ -78,7 +79,8 @@ class AIOPSManager(abc.ABC):
     def translate_custom_event_metric(cls, query_config, **kwargs):
         # 关键字的节点维度需要转换成实际的维度字段
         filter_dict = kwargs.get("filter_dict", {})
-        filter_dict["event_name"] = query_config["custom_event_name"]
+        if query_config["custom_event_name"]:
+            filter_dict["event_name"] = query_config["custom_event_name"]
         query_config["metric_field"] = "_index"
 
     @classmethod
@@ -130,7 +132,7 @@ class AIOPSManager(abc.ABC):
                             "function": compare_function,
                         },
                         "datasourceId": "time_series",
-                        "name": "时序数据",
+                        "name": _("时序数据"),
                         "alias": "$time_offset",
                     }
                 ],
@@ -151,17 +153,48 @@ class AIOPSManager(abc.ABC):
         }
 
         extra_unify_query_params = {
+            # AIOPS 额外图表
             "expression": item.get("expression", ""),
             "functions": item.get("functions", []),
             "query_configs": [],
             "function": compare_function,
         }
 
-        if (
-            query_config["data_source_label"],
-            query_config["data_type_label"],
-        ) in cls.AVAILABLE_DATA_LABEL:
+        data_source = (query_config["data_source_label"], query_config["data_type_label"])
+        if data_source in cls.AVAILABLE_DATA_LABEL:
             for query_config in item["query_configs"]:
+                # 系统事件需要特殊处理
+                if data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT):
+                    event_name_mapping = {
+                        "corefile-gse": "CoreFile",
+                        "disk-full-gse": "DiskFull",
+                        "disk-readonly-gse": "DiskReadonly",
+                        "oom-gse": "OOM",
+                        "agent-gse": "AgentLost",
+                    }
+                    if query_config.get("metric_field") not in event_name_mapping:
+                        return
+
+                    unify_query_params["query_configs"].append(
+                        {
+                            "data_source_label": DataSourceLabel.CUSTOM,
+                            "data_type_label": DataTypeLabel.EVENT,
+                            "table": "gse_system_event",
+                            "metrics": [{"field": "_index", "method": "SUM", "alias": "a"}],
+                            "filter_dict": {
+                                "event_name": event_name_mapping[query_config["metric_field"]],
+                                "ip": alert.event.ip,
+                                "bk_cloud_id": alert.event.bk_cloud_id,
+                            },
+                            "time_field": "time",
+                            "interval": 60,
+                            "where": [],
+                            "group_by": [],
+                        }
+                    )
+                    continue
+
+                # promql
                 if use_raw_query_config:
                     raw_query_config = query_config.get("raw_query_config", {})
                     query_config.update(raw_query_config)
@@ -313,6 +346,7 @@ class AIOPSManager(abc.ABC):
                 if extra_metrics:
                     extra_query_config = copy.deepcopy(query_config)
                     extra_query_config["metrics"] = extra_metrics
+                    extra_unify_query_params["expression"] = extra_metrics[0].get("alias") or extra_metrics[0]["field"]
                     extra_unify_query_params["query_configs"].append(extra_query_config)
 
         if not unify_query_params["query_configs"]:
@@ -341,7 +375,7 @@ class AIOPSManager(abc.ABC):
                 {
                     "data": unify_query_params,
                     "datasourceId": "time_series",
-                    "name": "时序数据",
+                    "name": _("时序数据"),
                     "alias": "$metric_field-$time_offset" if is_composite else "$time_offset",
                 }
             ],
@@ -559,7 +593,7 @@ class DimensionDrillManager(AIOPSManager):
                 ],
                 "normal_data": [                     # 异常分值不超过阈值的维度组合
                     [
-                        ("127.0.0.2"),
+                        ("127.0.0.1"),
                         "0.0",
                         "0.06"
                     ]
@@ -574,8 +608,8 @@ class DimensionDrillManager(AIOPSManager):
                     "is_anomaly": true
                 },
                 {
-                    "id": "bk_target_ip=127.0.0.2",
-                    "dimension_value": "127.0.0.2",
+                    "id": "bk_target_ip=127.0.0.1",
+                    "dimension_value": "127.0.0.1",
                     "anomaly_score": 0.06,
                     "is_anomaly": false
                 }
@@ -613,7 +647,7 @@ class DimensionDrillManager(AIOPSManager):
                 ],
                 "normal_data": [                     # 异常分值不超过阈值的维度组合
                     [
-                        ["127.0.0.2"],
+                        ["127.0.0.1"],
                         "0.0",
                         "0.06"
                     ]
@@ -797,7 +831,6 @@ class DimensionDrillManager(AIOPSManager):
 
     def fetch_aiops_result(self):
         if not self.is_enable():
-            # raise AIOpsDisableError({"func": _("维度下钻")})
             raise AIOpsFunctionAccessedError({"func": _("维度下钻")})
 
         graph_panel = AIOPSManager.get_graph_panel(self.alert, use_raw_query_config=True)
@@ -858,7 +891,6 @@ class RecommendMetricManager(AIOPSManager):
             return {}
 
         if not self.is_enable():
-            # raise AIOpsDisableError({"func": _("指标推荐")})
             raise AIOpsFunctionAccessedError({"func": _("指标推荐")})
 
         graph_panel = self.get_graph_panel(self.alert, use_raw_query_config=True)

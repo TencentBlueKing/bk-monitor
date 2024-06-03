@@ -34,9 +34,9 @@
         <van-radio-group v-model="shieldType">
           <van-radio
             v-for="item in radioList.type"
+            class="content-radio"
             :key="item.value"
             :name="item.value"
-            class="content-radio"
           >
             {{ item.name }}
           </van-radio>
@@ -51,8 +51,8 @@
       <div class="shield-section-detail">
         <div
           v-for="(item, index) in shieldContent"
-          :key="index"
           class="detail-item"
+          :key="index"
         >
           <template v-if="item.type === shieldType">
             <span>
@@ -72,9 +72,9 @@
         <van-grid :column-num="3">
           <van-grid-item
             v-for="item in dataPickerList"
+            :class="active === item.id ? 'active' : ''"
             :key="item.id"
             :text="item.name"
-            :class="active === item.id ? 'active' : ''"
             @click="handleShowDatePicker(item.id, item.value)"
           />
         </van-grid>
@@ -89,9 +89,9 @@
         <van-radio-group v-model="reason">
           <van-radio
             v-for="item in radioList.reason"
+            class="content-radio"
             :key="item.value"
             :name="item.value"
-            class="content-radio"
           >
             {{ item.name }}
           </van-radio>
@@ -99,8 +99,8 @@
       </div>
     </section>
     <datetime-picker
-      :show.sync="isShowDatePicker"
       :min-date="minDate"
+      :show.sync="isShowDatePicker"
       @confirm="handleDateTimeConfirm"
     />
     <footer-button

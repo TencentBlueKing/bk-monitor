@@ -26,7 +26,7 @@
  */
 
 import { TranslateResult } from 'vue-i18n';
-import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -40,8 +40,6 @@ import {
   searchAlert,
   validateQueryString,
 } from 'monitor-api/modules/alert';
-import { listSpaces } from 'monitor-api/modules/commons';
-import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import { checkAllowed } from 'monitor-api/modules/iam';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
@@ -52,7 +50,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
 import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import SplitPanel from 'monitor-pc/pages/monitor-k8s/components/split-panel';
@@ -61,6 +59,7 @@ import { setLocalStoreRoute } from 'monitor-pc/router/router-config';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import ChatGroup from '../../components/chat-group/chat-group';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import EventStoreModule from '../../store/modules/event';
 import Group, { IGroupData } from '../integrated/group';
 import AlertAnalyze from './alert-analyze';
@@ -75,6 +74,7 @@ import QuickShield from './event-detail/quick-shield';
 import EventTable, { IShowDetail } from './event-table';
 import FilterInput from './filter-input';
 import MonitorDrag from './monitor-drag';
+import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
 import {
   AnlyzeField,
   EBatchAction,
@@ -86,7 +86,7 @@ import {
   IEventItem,
   SearchType,
 } from './typings/event';
-import { getOperatorDisabled } from './utils';
+import { getOperatorDisabled, INIT_COMMON_FILTER_DATA } from './utils';
 
 import './event.scss';
 // 有权限的业务id
@@ -219,8 +219,6 @@ const filterIconMap = {
   name: 'Event',
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   // 监控左侧栏是否收缩配置 自愈默认未收缩
   @Prop({ default: false, type: Boolean }) readonly toggleSet: boolean;
   // 是否是分屏模式下的事件展示
@@ -235,11 +233,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   @InjectReactive('refleshImmediate') readonly panelRefleshImmediate: string;
 
   @Ref('filterInput') filterInputRef: FilterInput;
-  commonFilterData: ICommonTreeItem[] = [];
+  commonFilterData: ICommonTreeItem[] = INIT_COMMON_FILTER_DATA;
+  commonFilterLoading = true;
   /* 默认事件范围为近24小时 */
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
   /* 时区 */
-  timezone: string = getDefautTimezone();
+  timezone: string = getDefaultTimezone();
   refleshInterval = 5 * 60 * 1000;
   refleshInstance = null;
   allowedBizList = [];
@@ -247,6 +246,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 左侧过滤
   advancedFilterData = [];
   advancedFilterDefaultOpen = [];
+  advancedFilterLoading = false;
   condition: Record<string, string | string[]> = {};
   activeFilterName = '';
   activeFilterId = '';
@@ -363,7 +363,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   noDataType: EmptyStatusType = 'empty';
   noDataString: any = '';
   bussinessTips: TranslateResult = '';
-  allBizList = [];
 
   // 统计 未恢复告警的通知人 栏为空的人数。
   numOfEmptyAssignee = 0;
@@ -476,7 +475,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           vm.queryString = queryString;
         }
       }
-      // await vm.handleGetAllBizList();
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
       vm.handleRefleshChange(vm.refleshInterval);
       // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情
@@ -519,15 +517,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const { contentWrap } = this.$refs as any;
     (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisbaleHover, false);
     window.clearInterval(this.refleshInstance);
-  }
-  async handleGetAllBizList() {
-    const allBizList = await listSpaces({ show_all: true });
-    // const allBizList = await businessListOption({ show_all: true });
-    this.allBizList = allBizList.map(item => ({
-      id: item.bk_biz_id,
-      text: item.space_name,
-      name: item.space_name,
-    }));
   }
   // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常通知人数据（显示是通知人为空）
   setQueryStringForCheckingEmptyAssignee() {
@@ -1005,11 +994,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @return {*}
    */
   async handleGetFilterData() {
+    this.commonFilterLoading = true;
     const [{ overview }, { overview: actionOverview }] = await Promise.all([
       this.handleGetSearchAlertList(true),
       this.handleGetSearchActionList(true),
     ]).catch(() => [{ overview: [] }, { overview: [] }]);
     this.commonFilterData = [overview, { ...actionOverview }];
+    this.commonFilterLoading = false;
     if (!this.activeFilterId) {
       this.activeFilterId = overview.id;
       this.activeFilterName = overview.name;
@@ -1059,10 +1050,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   async handleGetTableData(searchTypeChange = false, refleshAgg = true, needTopN = true) {
     this.tableLoading = true;
+    if (refleshAgg) this.advancedFilterLoading = true;
     // await this.handleValidateQueryString()
-    if (!this.allowedBizList?.length) {
-      await this.handleGetAllowedBizList();
-    }
     await this.$nextTick();
     const promiseList = [];
     if (this.searchType === 'alert') {
@@ -1091,6 +1080,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     if (refleshAgg) {
       this.advancedFilterData = aggs || [];
     }
+    this.advancedFilterLoading = false;
     this.tableData =
       list.map(item => ({
         ...item,
@@ -1174,7 +1164,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       // timeRange: 3600000,
       from: 'now-30d',
       to: 'now',
-      timezone: getDefautTimezone(),
+      timezone: getDefaultTimezone(),
       refleshInterval: 300000,
       activePanel: 'list',
       chartInterval: 'auto',
@@ -1216,63 +1206,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       return false;
     });
     return newData;
-  }
-  /**
-   * @description: 获取有权限的业务列表
-   * @param {*}
-   * @return {*}
-   */
-  async handleGetAllowedBizList() {
-    const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
-      () => ({})
-    );
-    this.allBizList = business_list.map(item => ({
-      id: item.bk_biz_id,
-      name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-    }));
-    const data =
-      business_with_permission.map(item => ({
-        ...item,
-        id: item.bk_biz_id,
-        name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-        sort: this.bizIds.includes(item.id) ? 2 : 1,
-      })) || [];
-    if (business_with_alert?.length) {
-      business_with_alert.forEach(item => {
-        data.push({
-          name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-          id: item.bk_biz_id,
-          noAuth: true,
-          hasData: true,
-          sort: 2,
-        });
-      });
-    }
-    this.bizIds?.forEach(id => {
-      const bizItem = this.allBizList.find(set => set.id === id);
-      if (bizItem && !data.some(set => set.id === id)) {
-        data.push({
-          name: bizItem.name,
-          id: bizItem.id,
-          noAuth: true,
-          sort: 2,
-        });
-      }
-    });
-    if (data.length) {
-      data.unshift({
-        id: hasDataBizId,
-        name: this.$t('-我有告警的空间-'),
-        sort: 3,
-      });
-      data.unshift({
-        id: authorityBizId,
-        name: this.$t('-我有权限的空间-'),
-        sort: 3,
-      });
-    }
-    data.sort((a, b) => b.sort - a.sort);
-    this.allowedBizList = data;
   }
   /**
    * @description: 获取趋势图表数据
@@ -1986,8 +1919,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         onConfirm={this.handleConfirmAfter}
       ></AlarmConfirm>,
       <QuickShield
+        authority={this.authority}
         bizIds={this.dialog.quickShield.bizIds}
         details={this.dialog.quickShield.details}
+        handleShowAuthorityDetail={this.handleShowAuthorityDetail}
         ids={this.dialog.quickShield.ids}
         show={this.dialog.quickShield.show}
         on-change={this.quickShieldChange}
@@ -2048,7 +1983,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >
         {item.name}
-        <span class='item-count'>{item.count}</span>
+        {this.commonFilterLoading ? (
+          <div class='count-skeleton skeleton-element'></div>
+        ) : (
+          <span class='item-count'>{item.count}</span>
+        )}
       </div>,
       <ul class='set-list'>
         {item?.children?.map?.(set =>
@@ -2063,7 +2002,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 class={`icon-monitor item-icon ${filterIconMap[set.id].icon}`}
               />
               {set.name}
-              <span class='item-count'>{set.count}</span>
+              {this.commonFilterLoading ? (
+                <div class='count-skeleton skeleton-element'></div>
+              ) : (
+                <span class='item-count'>{set.count}</span>
+              )}
             </li>
           ) : undefined
         ) || undefined}
@@ -2107,17 +2050,21 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
           <div class='filter-search'>
             <div class='search-title'>{this.$t('高级筛选')}</div>
-            <Group
-              class='search-group'
-              scopedSlots={{
-                default: ({ item }) => this.filterGroupSlot(item),
-              }}
-              data={this.advancedFilterData}
-              defaultActiveName={this.advancedFilterDefaultOpen}
-              theme='filter'
-              onActiveChange={this.handleFilterActiveChange}
-              onClear={item => this.clearCheckedFilter(item)}
-            />
+            {this.advancedFilterLoading ? (
+              <AdvancedFilterSkeleton></AdvancedFilterSkeleton>
+            ) : (
+              <Group
+                class='search-group'
+                scopedSlots={{
+                  default: ({ item }) => this.filterGroupSlot(item),
+                }}
+                data={this.advancedFilterData}
+                defaultActiveName={this.advancedFilterDefaultOpen}
+                theme='filter'
+                onActiveChange={this.handleFilterActiveChange}
+                onClear={item => this.clearCheckedFilter(item)}
+              />
+            )}
           </div>
           <MonitorDrag
             lineText={''}
@@ -2314,38 +2261,56 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 ))}
               </bk-tab>
               {!this.tableData.length ? (
-                <EmptyTable
-                  v-bkloading={{ isLoading: this.tableLoading, zIndex: 1000 }}
-                  emptyType={this.noDataType}
-                  handleOperation={this.handleOperation}
-                  onApplyAuth={this.handleCheckAllowedByIds}
-                >
-                  {this.noDataString && <span>{this.noDataString} </span>}
-                </EmptyTable>
+                (() => {
+                  if (this.tableLoading) {
+                    return (
+                      <div class='table-content'>
+                        <TableSkeleton type={2}></TableSkeleton>
+                      </div>
+                    );
+                  }
+                  return (
+                    <EmptyTable
+                      // v-bkloading={{ isLoading: this.tableLoading, zIndex: 1000 }}
+                      emptyType={this.noDataType}
+                      handleOperation={this.handleOperation}
+                      onApplyAuth={this.handleCheckAllowedByIds}
+                    >
+                      {this.noDataString && <span>{this.noDataString} </span>}
+                    </EmptyTable>
+                  );
+                })()
               ) : (
                 <div class='table-content'>
                   <keep-alive>
                     {this.activePanel === 'list' ? (
-                      <EventTable
-                        bizIds={this.bizIds}
-                        doLayout={this.activePanel}
-                        loading={this.tableLoading}
-                        pagination={this.pagination}
-                        searchType={this.searchType}
-                        selectedList={this.selectedList}
-                        tableData={this.tableData}
-                        onAlarmDispatch={this.handleAlarmDispatch}
-                        onAlertConfirm={this.handleAlertConfirm}
-                        onBatchSet={this.handleBatchAlert}
-                        onChatGroup={this.handleChatGroup}
-                        onLimitChange={this.handleTableLimitChange}
-                        onManualProcess={this.handleManualProcess}
-                        onPageChange={this.handleTabelPageChange}
-                        onQuickShield={this.handleQuickShield}
-                        onSelectChange={this.handleTableSelecChange}
-                        onShowDetail={this.handleShowDetail}
-                        onSortChange={this.handleSortChange}
-                      />
+                      (() => {
+                        if (this.tableLoading) {
+                          return <TableSkeleton type={2}></TableSkeleton>;
+                        }
+                        return (
+                          <EventTable
+                            bizIds={this.bizIds}
+                            doLayout={this.activePanel}
+                            loading={this.tableLoading}
+                            pagination={this.pagination}
+                            searchType={this.searchType}
+                            selectedList={this.selectedList}
+                            tableData={this.tableData}
+                            onAlarmDispatch={this.handleAlarmDispatch}
+                            onAlertConfirm={this.handleAlertConfirm}
+                            onBatchSet={this.handleBatchAlert}
+                            onChatGroup={this.handleChatGroup}
+                            onLimitChange={this.handleTableLimitChange}
+                            onManualProcess={this.handleManualProcess}
+                            onPageChange={this.handleTabelPageChange}
+                            onQuickShield={this.handleQuickShield}
+                            onSelectChange={this.handleTableSelecChange}
+                            onShowDetail={this.handleShowDetail}
+                            onSortChange={this.handleSortChange}
+                          />
+                        );
+                      })()
                     ) : (
                       <AlertAnalyze
                         analyzeData={this.analyzeData}

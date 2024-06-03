@@ -38,6 +38,7 @@ from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.models import MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
+from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.time_tools import (
     hms_string,
     parse_time_compare_abbreviation,
@@ -516,6 +517,10 @@ class UnifyQueryRawResource(ApiAuthResource):
                 return attrs
 
         target = serializers.ListField(default=[], label="监控目标")
+        target_filter_type = serializers.ChoiceField(
+            label="监控目标过滤方法", default="auto", choices=["auto", "query", "post-query"]
+        )
+        post_query_filter_dict = serializers.DictField(label="后置查询过滤条件", default={})
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_configs = serializers.ListField(label="查询配置列表", allow_empty=False, child=QueryConfigSerializer())
         expression = serializers.CharField(label="查询表达式", allow_blank=True)
@@ -631,7 +636,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 result_table_id=metric.result_table_id,
                 index_set_id=metric.related_id,
                 metric_field=metric.metric_field,
-                custom_event_name=metric.metric_field,
+                custom_event_name=metric.extend_fields.get("custom_event_name", ""),
             )
             metric_infos.append(metric_info)
         return metric_infos
@@ -671,9 +676,14 @@ class UnifyQueryRawResource(ApiAuthResource):
         if not target_instances:
             return target_instances is not None
 
-        # 插入条件
-        for query_config in params["query_configs"]:
-            query_config["filter_dict"]["target"] = target_instances
+        # 如果主机过滤模式为query或模式为auto且目标实例数量小于100，则将目标实例作为查询条件
+        if params["target_filter_type"] == "query" or (
+            params["target_filter_type"] == "auto" and len(target_instances) < 100
+        ):
+            for query_config in params["query_configs"]:
+                query_config["filter_dict"]["target"] = target_instances
+        else:
+            params["post_query_filter_dict"]["target"] = target_instances
         return True
 
     def perform_request(self, params):
@@ -759,6 +769,11 @@ class UnifyQueryRawResource(ApiAuthResource):
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
         )
+
+        # 如果存在数据后过滤条件，则进行过滤
+        if params.get("post_query_filter_dict"):
+            condition_filter = load_agg_condition_instance(params["post_query_filter_dict"])
+            points = [point for point in points if condition_filter.is_match(point)]
 
         # 数据预处理
         points = TimeCompareProcessor.process_origin_data(params, points)
@@ -1311,6 +1326,7 @@ class DimensionUnifyQuery(Resource):
             limit=params["slimit"],
             start_time=params["start_time"] * 1000,
             end_time=params["end_time"] * 1000,
+            interval=600,
         )
 
         # 处理数据，支持多字段查找

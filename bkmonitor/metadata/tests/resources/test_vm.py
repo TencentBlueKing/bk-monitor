@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
-from metadata.resources.vm import QueryBizByBkBase
+from metadata.resources.vm import QueryBizByBkBase, QueryVmRtBySpace
 from metadata.tests.common_utils import consul_client
 
 pytestmark = pytest.mark.django_db
@@ -89,7 +89,13 @@ def create_and_delete_records(mocker):
         bk_data_id=DEFAULT_DATA_ID_ONE,
         bk_biz_id=DEFAULT_BIZ_ID_ONE,
     )
+    models.Space.objects.create(
+        space_type_id="bkcc",
+        space_id=DEFAULT_BIZ_ID_ONE,
+        space_name="test_demo",
+    )
     yield
+    models.Space.objects.filter(space_type_id="bkcc", space_id__in=[DEFAULT_BIZ_ID_ONE]).delete()
     models.EventGroup.objects.filter(table_id=DEFAULT_RT_ID_TWO).delete()
     models.TimeSeriesGroup.objects.filter(table_id=DEFAULT_RT_ID_ONE).delete()
     models.AccessVMRecord.objects.filter(
@@ -162,3 +168,10 @@ def test_query_biz_by_bk_base_with_error_id(create_and_delete_records):
     params = {"bk_base_data_id_list": [123123123123]}
     resp = QueryBizByBkBase().request(params)
     assert len(resp) == 0
+
+
+def test_query_vm_rt_without_plugin(create_and_delete_records):
+    params = {"space_type": "bkcc", "space_id": "0"}
+    resp = QueryVmRtBySpace().request(params)
+    assert len(resp) == 3
+    assert {DEFAULT_VM_RT_ID, DEFAULT_VM_RT_ID_ONE, DEFAULT_VM_RT_ID_TWO} == set(resp)

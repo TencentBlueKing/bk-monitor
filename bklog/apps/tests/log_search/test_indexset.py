@@ -40,8 +40,7 @@ SCENARIO_ID_BKDATA = "bkdata"
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
-CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": ""}}]
-
+CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
 CLUSTER_INFO_WITH_AUTH = [
     {"cluster_config": {"cluster_id": 1, "cluster_name": ""}, "auth_info": {"username": "", "password": ""}}
 ]
@@ -90,6 +89,7 @@ CREATE_SUCCESS = {
         "is_editable": True,
         "sort_fields": [],
         "target_fields": [],
+        "result_window": 10000,
     },
     "code": 0,
     "message": "",
@@ -159,6 +159,7 @@ UPDATE_INDEX_SET = {
     "is_editable": True,
     "sort_fields": [],
     "target_fields": [],
+    "result_window": 10000,
 }
 
 NOT_EDITABLE_RETURN = {
@@ -241,6 +242,9 @@ INDEX_SET_LISTS = {
             "is_editable": True,
             "sort_fields": [],
             "target_fields": [],
+            "result_window": 10000,
+            "storage_cluster_domain_name": "",
+            "storage_cluster_port": 123,
         }
     ],
 }
@@ -305,6 +309,15 @@ RETRIEVE_LIST = {
     "index_set_id": 63,
     "view_roles": [],
     "bkdata_project_id": None,
+    "bk_biz_id": 2,
+    'apply_status': 'normal',
+    'apply_status_name': '正常',
+    "storage_cluster_name": "",
+    "tags": [],
+    "storage_cluster_domain_name": "",
+    "storage_cluster_port": 123,
+    "scenario_name": "第三方ES",
+    "category_name": "其他",
     "indexes": [
         {
             "index_id": 126,
@@ -359,10 +372,10 @@ RETRIEVE_LIST = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": [],
     "is_editable": True,
     "sort_fields": [],
     "target_fields": [],
+    "result_window": 10000,
 }
 
 
@@ -481,7 +494,10 @@ class TestIndexSet(TestCase):
         self.sync_index_id(INDEX_SET_LISTS["list"][0], index_ids)
         self.sync_indexes(INDEX_SET_LISTS["list"][0], index_set_id=index_set_id)
         self.sync_params(
-            INDEX_SET_LISTS["list"][0], index_set_id=index_set_id, created_at=created_at, updated_at=updated_at
+            INDEX_SET_LISTS["list"][0],
+            index_set_id=index_set_id,
+            created_at=created_at,
+            updated_at=updated_at,
         )
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
@@ -634,6 +650,7 @@ class TestIndexSet(TestCase):
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertEqual(content, DELETE_SUCCESS)
 
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_retrieve_index_set(self, *args):
         """

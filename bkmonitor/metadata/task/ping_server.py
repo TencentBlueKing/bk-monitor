@@ -41,6 +41,12 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
     3. 根据Hash环，将同一云区域下的ip分配到不同的Proxy
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
+    if not settings.ENABLE_PING_ALARM:
+        cloud_areas = api.cmdb.search_cloud_area()
+        for cloud_area in cloud_areas:
+            PingServerSubscriptionConfig.create_subscription(cloud_area["bk_cloud_id"], {}, [], plugin_name)
+        return
+
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
     from alarm_backends.core.cache.cmdb.host import HostManager
 
@@ -51,14 +57,18 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
         logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
         return
 
+    exists_host_ids = set()
     cloud_to_hosts = defaultdict(list)
     for h in all_hosts:
         ip = h.bk_host_innerip_v6 if is_ipv6_biz(h.bk_biz_id) else h.bk_host_innerip
-        if h.ignore_monitoring or not ip:
+        if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids:
             continue
         cloud_to_hosts[h.bk_cloud_id].append(
             {"ip": ip, "bk_cloud_id": h.bk_cloud_id, "bk_biz_id": h.bk_biz_id, "bk_host_id": h.bk_host_id}
         )
+        exists_host_ids.add(h.bk_host_id)
+
+    del all_hosts
 
     # 2. 获取云区域下的所有ProxyIP
     for bk_cloud_id, target_ips in cloud_to_hosts.items():

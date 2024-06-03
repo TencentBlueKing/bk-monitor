@@ -427,7 +427,7 @@ class CollectConfigDetailResource(Resource):
                 item["mode"] = "plugin"
             value = params.get(item["mode"], {}).get(item.get("key", item["name"])) or item["default"]
             # 获取敏感信息时采用bool值表示用户是否设置密码
-            if item["type"] == "password":
+            if item["type"] in ["password", "encrypt"]:
                 params[item["mode"]][item["name"]] = bool(value)
 
     def perform_request(self, validated_request_data):
@@ -1052,7 +1052,7 @@ class SaveCollectConfigResource(Resource):
         deployment_params = config_meta.deployment_config.params
 
         for param in config_params:
-            if param["type"] != "password":
+            if param["type"] not in ["password", "encrypt"]:
                 continue
 
             param_name = param["name"]
@@ -1198,6 +1198,7 @@ class UpgradeCollectPluginResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="采集配置id")
         params = serializers.DictField(required=True, label="采集配置参数")
+        realtime = serializers.BooleanField(required=False, default=False, label=_("是否实时刷新缓存"))
 
     @lock(CacheLock("collect_config"))
     def request_nodeman(self, collect_config, deployment_config):
@@ -1209,6 +1210,11 @@ class UpgradeCollectPluginResource(Resource):
             collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(pk=data["id"])
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
+
+        # 判断是否需要实时刷新缓存
+        if data["realtime"]:
+            # 调用 collect_config_list 接口刷新采集配置的缓存，避免外部调接口可能会无法更新插件
+            resource.collecting.collect_config_list(page=-1, refresh_status=True, search={"id": data["id"]})
 
         # 判断采集配置是否需要升级
         if not collect_config.need_upgrade:
@@ -1526,36 +1532,10 @@ class BaseCollectTargetStatusResource(Resource):
     def get_target_status(self):
         if not self.config.deployment_config.subscription_id:
             return []
-        if self.is_task_result:
-            # is_task_result为true，则请求节点管理任务结果接口，获得本次任务的数据，用于采集下发/执行详情页
-            if self.is_auto:
-                # 如果是自动执行的情况，则传前端获取获取的自动运行中的任务id，获取正在执行的任务结果
-                params = {
-                    "subscription_id": self.config.deployment_config.subscription_id,
-                    "task_id_list": self.auto_running_tasks,
-                    "need_detail": True,
-                }
-            else:
-                params = {
-                    "subscription_id": self.config.deployment_config.subscription_id,
-                    "task_id_list": self.config.deployment_config.task_ids,
-                    "need_detail": True,
-                }
-            task_result = api.node_man.batch_task_result(**params)
-
-            # 如果采集配置处于执行中，则更新其状态为执行结果
-            if self.config.operation_result == OperationResult.DEPLOYING:
-                try:
-                    update_config_operation_result(self.config)
-                except SubscriptionStatusError as e:
-                    logger.exception(str(e))
-            return task_result
-        else:
-            # is_task_result为false，则请求节点管理的主机运行状态接口，获得全量数据，用于启停/升级/检查视图页
-            instance_status_result = api.node_man.subscription_instance_status(
-                subscription_id_list=[self.config.deployment_config.subscription_id]
-            )
-            return instance_status_result[0]["instances"] if instance_status_result else []
+        instance_status_result = api.node_man.batch_task_result(
+            subscription_id=self.config.deployment_config.subscription_id, need_detail=bool(self.is_task_result)
+        )
+        return instance_status_result
 
     @staticmethod
     def get_instance_action(instance):
@@ -2450,9 +2430,7 @@ def update_config_operation_result(config, not_update_user=True):
     local.username = business.maintainer(str(config.bk_biz_id))
     # 请求节点管理的任务结果接口，获取采集下发状态
     try:
-        status_result = api.node_man.subscription_instance_status(
-            subscription_id_list=[config.deployment_config.subscription_id]
-        )[0]["instances"]
+        status_result = api.node_man.batch_task_result(subscription_id=config.deployment_config.subscription_id)
     except BKAPIError as e:
         message = _("采集配置 CollectConfigMeta: {} 查询订阅{}结果出错: {}").format(
             config.id, config.deployment_config.subscription_id, e
@@ -2496,22 +2474,13 @@ class CollectInstanceStatusResource(CollectTargetStatusResource):
     running_status = {OperationType.START: TaskStatus.STARTING, OperationType.STOP: TaskStatus.STOPPING}
 
     def get_target_status(self):
-        res_data = api.node_man.subscription_instance_status(
-            subscription_id_list=[self.config.deployment_config.subscription_id], show_task_detail=True
+        res_data = api.node_man.batch_task_result(
+            subscription_id=self.config.deployment_config.subscription_id, need_detail=True
         )
-
-        last_task_list = []
-        for data in res_data:
-            for instance in data["instances"]:
-                task_info = instance["last_task"]
-                task_info["task_id"] = task_info.pop("id")
-                if task_info["status"] in [TaskStatus.DEPLOYING, TaskStatus.RUNNING]:
-                    task_info["status"] = self.running_status.get(self.config.last_operation, TaskStatus.DEPLOYING)
-
-                task_info.update(instance_info=instance["instance_info"], instance_id=instance["instance_id"])
-                last_task_list.append(task_info)
-
-        return last_task_list
+        for instance in res_data:
+            if instance["status"] in [TaskStatus.DEPLOYING, TaskStatus.RUNNING]:
+                instance["status"] = self.running_status.get(self.config.last_operation, TaskStatus.DEPLOYING)
+        return res_data
 
     def classify_instances(self, instance_list):
         if instance_list:

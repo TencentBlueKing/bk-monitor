@@ -149,14 +149,14 @@ class SpanStandardField:
         StandardField(
             OtlpKey.ATTRIBUTES,
             SpanAttributes.HTTP_HOST,
-            _("HTTP Host"),
+            "HTTP Host",
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
             SpanAttributes.HTTP_URL,
-            _("HTTP URL"),
+            "HTTP URL",
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
         ),
@@ -580,17 +580,17 @@ class FlowType(TextChoices):
 class TailSamplingSupportMethod(TextChoices):
     """计算平台-尾部采样中采样规则支持配置的操作符"""
 
-    GT = "gt", _("gt")
-    GTE = "gte", _("gte")
-    LT = "lt", _("lt")
-    LTE = "lte", _("lte")
+    GT = "gt", "gt"
+    GTE = "gte", "gte"
+    LT = "lt", "lt"
+    LTE = "lte", "lte"
     EQ = (
         "eq",
-        _("eq"),
+        "eq",
     )
-    NEQ = "neq", _("neq")
-    REG = "reg", _("reg")
-    NREG = "nreg", _("nreg")
+    NEQ = "neq", "neq"
+    REG = "reg", "reg"
+    NREG = "nreg", "nreg"
 
 
 class DataSamplingLogTypeChoices:

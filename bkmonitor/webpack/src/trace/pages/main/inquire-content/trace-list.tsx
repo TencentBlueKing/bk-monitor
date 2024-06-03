@@ -826,7 +826,6 @@ export default defineComponent({
     const handleTraceDetail = async (traceId: string, index) => {
       // 当前全屏状态且点击的是当前trace
       if (traceId === curTraceId.value && isFullscreen.value) return;
-      debugger;
       if (!isFullscreen.value) {
         // 当前未在全屏，则打开全屏弹窗
         curTraceIndex.value = index;
@@ -891,7 +890,7 @@ export default defineComponent({
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       setTimeout(() => {
         store.setTraceDetail(false);
-      }, 1000);
+      }, 100);
     };
     const traceListFilter = reactive<TraceListType>({
       // 属于 Trace 列表的
@@ -1067,13 +1066,19 @@ export default defineComponent({
       }
     );
 
+    const handleListPageKeydown = (evt: KeyboardEvent) => {
+      if (evt.code === 'Escape') handleColseDetail();
+    };
+
     onMounted(() => {
       handleClientResize();
       addListener(traceListWrapper.value as HTMLDivElement, handleClientResize);
+      traceListWrapper.value?.addEventListener('keydown', handleListPageKeydown);
     });
 
     onBeforeUnmount(() => {
       removeListener(traceListWrapper.value as HTMLDivElement, handleClientResize);
+      traceListWrapper.value?.removeEventListener('keydown', handleListPageKeydown);
     });
 
     // Span List 相关
@@ -1820,6 +1825,7 @@ export default defineComponent({
 
         <Dialog
           class='trace-info-fullscreen-dialog'
+          esc-close={false}
           is-show={this.isFullscreen}
           fullscreen
           multi-instance

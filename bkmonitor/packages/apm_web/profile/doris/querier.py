@@ -11,17 +11,22 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 
+import curlify
 import requests
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+from opentelemetry import trace
+from requests import RequestException
 
 from api.bkdata.default import QueryDataResource
 from apm_web.models import Application
 from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
+
+tracer = trace.get_tracer(__name__)
 
 
 class APIType(Enum):
@@ -101,34 +106,48 @@ class Query:
         }
         return r
 
-    def execute(self) -> Optional[dict]:
-        # bkData need a raw string with double quotes
-        sql = json.dumps(self.to_dict())
-        logger.debug("[ProfileDatasource] query_data params: %s", sql)
+    def execute(self, retry_if_empty_handler=None) -> Optional[dict]:
+        res = self._execute()
 
-        # TODO: api.bkdata.query_data is not working on making sql valid, fix it.
-        try:
-            res = requests.post(
-                url=f"{QueryDataResource.base_url}{QueryDataResource.action}",
-                json={
+        if (not res or not res.get("list")) and retry_if_empty_handler:
+            retry_if_empty_handler(self.api_params)
+            res = self._execute()
+
+        return res
+
+    def _execute(self):
+        # bkData need a raw string with double quotes
+        with tracer.start_as_current_span("query_profile") as span:
+            sql = json.dumps(self.to_dict())
+            logger.info("[ProfileDatasource] query_data params: %s", sql)
+
+            try:
+                url = f"{QueryDataResource.base_url}{QueryDataResource.action}"
+                params = {
                     "sql": sql,
                     "bk_app_code": settings.APP_CODE,
                     "bk_app_secret": settings.SECRET_KEY,
                     "prefer_storage": "doris",
                     "bk_username": settings.COMMON_USERNAME,
                     "bkdata_authentication_method": "user",
-                },
-                headers={"Content-Type": "application/json"},
-            ).json()
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("query bkdata doris failed")
-            return None
+                }
+                span.set_attribute("profile.query.url", url)
+                span.set_attribute("profile.query.params", json.dumps(params))
+                response = requests.post(url=url, json=params, headers={"Content-Type": "application/json"})
+                span.set_attribute("profile.query.curl", curlify.to_curl(response.request))
+                res = response.json()
+            except RequestException as e:
+                logger.exception(f"query bkdata doris failed, error: {e}")
+                span.record_exception(e)
+                return None
 
-        if not res["result"]:
-            logger.error("query bkdata doris failed: %s", res["message"])
-            return None
+            if not res["result"]:
+                err_msg = "query bkdata doris failed: %s", res["message"]
+                logger.error(err_msg)
+                span.record_exception(ValueError(err_msg))
+                return None
 
-        return res["data"]
+            return res["data"]
 
 
 class QueryTemplate:
@@ -150,40 +169,38 @@ class QueryTemplate:
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
 
-    def get_sample_info(
-        self, start: int, end: int, data_types: List[str], service_name: str, label_filter: dict = None
-    ):
-        """查询样本基本信息"""
+    def get_sample_info(self, start: int, end: int, sample_type: str, service_name: str, label_filter: dict = None):
+        """根据 sample_type 查询最新的数据时间（最近上报时间）"""
         label_filter = label_filter or {}
 
-        res = {}
-        for data_type in data_types:
-            info = Query(
-                api_type=APIType.QUERY_SAMPLE_BY_JSON,
-                api_params=APIParams(
-                    biz_id=self.bk_biz_id,
-                    app=self.app_name,
-                    type=data_type,
-                    start=start,
-                    end=end,
-                    service_name=service_name,
-                    limit={"offset": 0, "rows": 1},
-                    order={"expr": "dtEventTimeStamp", "sort": "desc"},
-                    label_filter=label_filter,
-                ),
-                result_table_id=self.result_table_id,
-            ).execute()
+        if not sample_type:
+            return None
 
-            if not info or not info.get("list", []):
-                continue
+        info = Query(
+            api_type=APIType.QUERY_SAMPLE_BY_JSON,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
+                start=start,
+                end=end,
+                service_name=service_name,
+                limit={"offset": 0, "rows": 1},
+                order={"expr": "dtEventTimeStamp", "sort": "desc"},
+                label_filter=label_filter,
+                dimension_fields="dtEventTimeStamp",
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
 
-            ts = info["list"][0].get("dtEventTimeStamp")
-            if not ts:
-                continue
+        if not info or not info.get("list", []):
+            return None
 
-            res[data_type] = {"last_report_time": ts}
+        ts = info["list"][0].get("dtEventTimeStamp")
+        if not ts:
+            return None
 
-        return res
+        return ts
 
     def exist_data(self, start: int, end: int) -> bool:
         """查询 Profile 是否有数据上报"""
@@ -225,12 +242,13 @@ class QueryTemplate:
         if not services:
             return {}
         res = {}
+        count_mapping = self.get_service_request_count_mapping(start, end)
         for svr in services:
-            res.update(self.get_service_request_info(start, end, svr))
+            res.update({svr: {"profiling_data_count": count_mapping[svr]}} if svr in count_mapping else {})
 
         return res
 
-    def get_service_request_info(self, start: int, end: int, service_name: str):
+    def get_service_request_count_mapping(self, start: int, end: int):
         """
         获取 service 的请求信息
         信息包含:
@@ -243,8 +261,7 @@ class QueryTemplate:
                 app=self.app_name,
                 start=start,
                 end=end,
-                service_name=service_name,
-                dimension_fields="service",
+                dimension_fields="service_name",
                 metric_fields="count(*)",
             ),
             result_table_id=self.result_table_id,
@@ -254,11 +271,32 @@ class QueryTemplate:
             return {}
 
         # 计算平台 select_count 时, 固定的列名称为 count(1) . 所以这里这样写
-        count = next((i["count(*)"] for i in res["list"] if i.get("service_name") == service_name), None)
-        return {service_name: {"profiling_data_count": count}} if count else {}
+        return {i["service_name"]: i["count(*)"] for i in res["list"]}
+
+    def get_service_count(self, start_time, end_time, service_name):
+        """获取单个 service 数据量"""
+
+        res = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                start=start_time,
+                end=end_time,
+                service_name=service_name,
+                dimension_fields="service_name",
+                metric_fields="count(*)",
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+
+        if not res or not res.get("list"):
+            return None
+
+        return next(i["count(*)"] for i in res["list"])
 
     def get_count(
-        self, start_time: int, end_time: int, data_type: str, service_name: str = None, label_filter: dict = None
+        self, start_time: int, end_time: int, sample_type: str, service_name: str = None, label_filter: dict = None
     ):
         """根据查询条件获取数据条数"""
         label_filter = label_filter or {}
@@ -269,24 +307,23 @@ class QueryTemplate:
                 end=end_time,
                 biz_id=self.bk_biz_id,
                 app=self.app_name,
-                type=data_type,
                 label_filter=label_filter,
                 service_name=service_name,
                 metric_fields="count(*)",
-                dimension_fields="(ROUND(dtEventTimeStamp / 60000) * 60)",
+                dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
             ),
             result_table_id=self.result_table_id,
         ).execute()
         if not res or not res.get("list", []):
             return None
-        field_key = "((round((CAST(`dtEventTimeStamp` AS DOUBLE) / 60000)) * 60))"
-        return [[i["count(*)"], int(i[field_key]) * 1000] for i in res["list"] if field_key in i]
+        return [[i["count(*)"], int(i["time"])] for i in res["list"] if "time" in i]
 
     def list_labels(
         self,
         start_time: int,
         end_time: int,
-        data_type: str,
+        sample_type: str,
         service_name: str = None,
         label_filter: dict = None,
         limit: int = None,
@@ -302,7 +339,7 @@ class QueryTemplate:
                 end=end_time,
                 biz_id=self.bk_biz_id,
                 app=self.app_name,
-                type=data_type,
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
                 label_filter=label_filter,
                 service_name=service_name,
                 limit={"rows": limit} if limit else None,
