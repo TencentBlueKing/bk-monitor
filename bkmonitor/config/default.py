@@ -1326,12 +1326,20 @@ BKCI_SPACE_ACCESS_PLUGIN_LIST = []
 # 禁用告警CMDB缓存刷新
 DISABLE_ALARM_CMDB_CACHE_REFRESH = []
 
-# 需要base64编码的特殊字符
-BASE64_ENCODE_TRIGGER_CHARS = []
-
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
+# 需要base64编码的特殊字符
+BASE64_ENCODE_TRIGGER_CHARS = []
+
+# 是否启用新版的数据链路
+# 是否启用通过计算平台获取GSE data_id 资源，默认不启用
+ENABLE_V2_BKDATA_GSE_RESOURCE = False
+# 是否启用新版的 vm 链路，默认不启用
+ENABLE_V2_VM_DATA_LINK = False
+
+# 创建 vm 链路资源所属的命名空间
+DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
 ENABLE_DATA_LABEL_EXPORT = True
 

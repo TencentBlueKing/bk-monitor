@@ -28,7 +28,7 @@ class BcsHandler:
     def list_bcs_shared_cluster_namespace(cls, bcs_cluster_id: str) -> dict:
         namespaces = BcsApi.list_namespaces({"project_code": "-", "cluster_id": bcs_cluster_id.upper()})
         project_id_to_ns = {}
-        for ns in namespaces.get("results", []):
+        for ns in namespaces:
             project_id_to_ns.setdefault(ns["projectID"], []).append(ns["name"])
         return project_id_to_ns
 

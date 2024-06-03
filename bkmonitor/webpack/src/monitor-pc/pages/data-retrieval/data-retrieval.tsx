@@ -64,7 +64,7 @@ import {
   handleTransformToTimestamp,
   timestampTransformStr,
 } from '../../components/time-range/utils';
-import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
@@ -207,7 +207,7 @@ export default class DataRetrieval extends tsc<object> {
     tools: {
       refleshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: getDefautTimezone(),
+      timezone: getDefaultTimezone(),
     },
   };
 
@@ -546,7 +546,7 @@ export default class DataRetrieval extends tsc<object> {
     } = this.$route.query.targets ? this.$route.query : this.$route.params;
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
-    this.compareValue.tools.timezone = getDefautTimezone();
+    this.compareValue.tools.timezone = getDefaultTimezone();
     if (timezone) {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);

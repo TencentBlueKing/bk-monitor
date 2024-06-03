@@ -1652,6 +1652,8 @@ class CustomEventDataSource(BkMonitorLogDataSource):
                 metric["method"] = "SUM"
             if metric["field"] == "_index":
                 metric["method"] = "COUNT"
+            if metric["field"] == "event.count":
+                metric["method"] = "SUM"
 
         # 平台级且业务不等于绑定的平台业务
         if judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table):

@@ -390,7 +390,6 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 metricMetaId,
                 time_field: timeField,
                 bkmonitor_strategy_id: bkmonitorStrategyId,
-                custom_event_name: customEventName,
                 curRealMetric,
               }) => {
                 dataSourceLabel = curRealMetric?.data_source_label || dataSourceLabel;
@@ -412,7 +411,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                     return '_index'; // 此类情况field固定为_index
                   }
                   if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-                    return customEventName;
+                    return metricField;
                   }
                   return metricField || bkmonitorStrategyId;
                 };
