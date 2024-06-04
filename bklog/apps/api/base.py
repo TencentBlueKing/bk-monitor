@@ -214,7 +214,7 @@ class DataAPI(object):
         default_timeout=60,
         data_api_retry_cls=None,
         use_superuser=False,
-        pagination_style=PaginationStyle.LIMIT_OFFSET,
+        pagination_style=PaginationStyle.LIMIT_OFFSET.value,
     ):
         """
         初始化一个请求句柄
@@ -611,7 +611,7 @@ class DataAPI(object):
         :return: 请求结果
         """
         params = params or {}
-        pagination_style = self.PaginationStyle.PAGE_NUMBER
+        pagination_style = self.PaginationStyle.PAGE_NUMBER.value
         # 请求第一次获取总数
         if self.pagination_style == pagination_style:
             request_params = {"page": 1, "pagesize": limit, "no_request": True}
