@@ -148,9 +148,9 @@ def discover_bcs_clusters():
             if cluster.api_key_content != settings.BCS_API_GATEWAY_TOKEN:
                 cluster.api_key_content = settings.BCS_API_GATEWAY_TOKEN
                 update_fields.append("api_key_content")
-            if bk_biz_id != cluster.bk_biz_id:
+            if int(bk_biz_id) != cluster.bk_biz_id:
                 # 更新业务ID
-                cluster.bk_biz_id = bk_biz_id
+                cluster.bk_biz_id = int(bk_biz_id)
                 update_fields.append("bk_biz_id")
             if update_fields:
                 update_fields.append("last_modify_time")
