@@ -1580,7 +1580,6 @@ OPERATORS = {
     ],
 }
 
-
 DEFAULT_INDEX_OBJECT_FIELDS_PRIORITY = ["__ext.io_kubernetes_pod", "serverIp", "ip"]
 
 # 默认索引集字段配置名称
@@ -1591,14 +1590,3 @@ COMPRESS_INDICES_CACHE_KEY_LENGTH = 256
 
 # 检索选项历史记录API返回数据数量大小
 SEARCH_OPTION_HISTORY_NUM = 10
-
-# 字段类型映射表
-FieldTypeMap = {
-    "keyword": "string",
-    "text": "string",
-    "integer": "int",
-    "long": "int",
-    "double": "int",
-    "bool": "string",
-    "conflict": "string",
-}

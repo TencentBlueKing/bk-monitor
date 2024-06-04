@@ -14,10 +14,9 @@ from typing import Any, Dict
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
+from apps.log_unifyquery.constants import REFERENCE_ALIAS
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
-
-reference_names = "abcdefghijklmnopqrstuvwx"
 
 
 class UnifyQueryHandler(object):
@@ -29,7 +28,10 @@ class UnifyQueryHandler(object):
         self.include_nested_fields: bool = params.get("include_nested_fields", True)
 
     def init_default_interval(self):
-        hour_interval = int((self.end_time - self.start_time) / 3600)
+        # 兼容查询时间段为默认近十五分钟的情况
+        if not self.start_time or not self.end_time:
+            return "1m"
+        hour_interval = (int(self.end_time) - int(self.start_time)) / 3600
         if hour_interval <= 1:
             return "1m"
         elif hour_interval <= 6:
@@ -40,9 +42,6 @@ class UnifyQueryHandler(object):
             return "1d"
 
     def init_base_dict(self):
-        # TODO: UnifyQuery支持字段包含.符号
-        if "." in self.search_params["agg_field"]:
-            self.search_params["agg_field"] = self.search_params["agg_field"].replace(".", "___")
         # 自动周期转换
         if self.search_params.get("interval", "auto") == "auto":
             interval = self.init_default_interval()
@@ -56,7 +55,7 @@ class UnifyQueryHandler(object):
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
                 "table_id": result_table_id,
                 "field_name": self.search_params["agg_field"],
-                "reference_name": reference_names[index],
+                "reference_name": REFERENCE_ALIAS[index],
                 "dimensions": [],
                 "time_field": "time",
                 "conditions": {"field_list": [], "condition_list": []},
@@ -77,7 +76,7 @@ class UnifyQueryHandler(object):
         }
 
     @staticmethod
-    def query_ts(search_dict):
+    def query_ts(search_dict, raise_exception=False):
         """
         查询时序型数据
         """
@@ -85,16 +84,23 @@ class UnifyQueryHandler(object):
             return UnifyQueryApi.query_ts(search_dict)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts error: %s, search params: %s", e, search_dict)
+            if raise_exception:
+                raise e
 
     @staticmethod
-    def query_ts_reference(search_dict):
+    def query_ts_reference(search_dict, raise_exception=False):
         """
         查询非时序型数据
         """
         try:
             return UnifyQueryApi.query_ts_reference(search_dict)
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception("query ts refrence error: %s, search params: %s", e, search_dict)
+            logger.exception("query ts reference error: %s, search params: %s", e, search_dict)
+            if raise_exception:
+                raise e
+
+    def transform_additions(self):
+        pass
 
     def get_total_count(self):
         search_dict = copy.deepcopy(self.base_dict)

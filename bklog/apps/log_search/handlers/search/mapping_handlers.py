@@ -252,7 +252,7 @@ class MappingHandlers(object):
         fields_list = self._combine_fields(fields_list)
 
         result_table_ids = list(
-            LogIndexSetData.objects.filter(index_set_id=self.index_set_id).values_list("result_table_id", flat=1)
+            LogIndexSetData.objects.filter(index_set_id=self.index_set_id).values_list("result_table_id", flat=True)
         )
         for field in fields_list:
             # 判断是否为内置字段

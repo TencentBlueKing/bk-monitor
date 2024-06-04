@@ -1075,6 +1075,8 @@ BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
 EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
 # UNIFYQUERY 日志数据源标签
 UNIFY_QUERY_DATA_SOURCE = "bklog"
+# UNIFYQUERY APIGW HOST
+UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
 
 # ==============================================================================
 # Templates

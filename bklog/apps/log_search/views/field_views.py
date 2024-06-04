@@ -14,13 +14,13 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
-from apps.log_search.constants import FieldTypeMap
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
     FetchStatisticsInfoSerializer,
     FetchTopkListSerializer,
 )
+from apps.log_unifyquery.constants import FIELD_TYPE_MAP
 from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.drf import list_route
 
@@ -90,7 +90,7 @@ class FieldViewSet(APIViewSet):
             "distinct_count": distinct_count,
             "field_percent": field_percent,
         }
-        if FieldTypeMap[params["field_type"]] == "int":
+        if FIELD_TYPE_MAP.get(params["field_type"], "string") == "int":
             max_value = query_handler.get_agg_value("max")
             min_value = query_handler.get_agg_value("min")
             avg_value = query_handler.get_agg_value("avg")
@@ -107,7 +107,7 @@ class FieldViewSet(APIViewSet):
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
         query_handler = UnifyQueryHandler(params)
-        if FieldTypeMap[params["field_type"]] == "int":
+        if FIELD_TYPE_MAP[params["field_type"]] == "int":
             if params["distinct_count"] < 10:
                 return Response(query_handler.get_topk_list(10))
             else:

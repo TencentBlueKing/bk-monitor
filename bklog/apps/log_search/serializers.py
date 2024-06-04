@@ -823,10 +823,10 @@ class QueryFieldBaseSerializer(serializers.Serializer):
     字段分析查询序列化
     """
 
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())
     result_table_ids = serializers.ListField(
-        label=_("结果表ID列表"), required=False, child=serializers.CharField(), default=[]
+        label=_("结果表ID列表"), required=False, child=serializers.CharField(), default=list
     )
     agg_field = serializers.CharField(label=_("字段名"), required=True)
 

@@ -18,8 +18,6 @@ from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request  # noqa
 from config.domains import UNIFYQUERY_APIGATEWAY_ROOT  # noqa
 
-UNIFYQUERY_APIGATEWAY_ROOT = "http://bkapi.bk-dev.woa.com/api/bk-unify-query/prod/"
-
 
 def add_unify_query_header_before(params):
     params = add_esb_info_before_request(params)
