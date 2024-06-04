@@ -19,21 +19,5 @@ export const hostInstanceDetailList = request('POST', 'apm/metric/metric/host_in
 export const serviceQueryException = request('POST', 'apm/metric/metric/service_query_exception/');
 
 export default {
-  errorListByTraceIds,
-  unifyQuery,
-  dynamicUnifyQuery,
-  serviceList,
-  serviceListAsync,
-  topNQuery,
-  apdexQuery,
-  alertQuery,
-  instanceList,
-  serviceInstances,
-  errorList,
-  collectService,
-  endpointList,
-  endpointDetailList,
-  exceptionDetailList,
-  hostInstanceDetailList,
-  serviceQueryException
+  errorListByTraceIds,unifyQuery,dynamicUnifyQuery,serviceList,serviceListAsync,topNQuery,apdexQuery,alertQuery,instanceList,serviceInstances,errorList,collectService,endpointList,endpointDetailList,exceptionDetailList,hostInstanceDetailList,serviceQueryException,
 };

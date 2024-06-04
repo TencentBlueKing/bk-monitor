@@ -18,20 +18,5 @@ export const getDemoActionDetail = request('GET', 'fta/action/instances/get_demo
 export const assignAlert = request('POST', 'fta/action/instances/assign_alert/');
 
 export default {
-  getPlugins,
-  getPluginTemplates,
-  getTemplateDetail,
-  getDimensions,
-  getConvergeFunction,
-  getVariables,
-  renderNoticeTemplate,
-  registerBkPlugin,
-  batchRegisterBkPlugin,
-  getActionParams,
-  batchCreate,
-  createChatGroup,
-  getActionConfigByAlerts,
-  createDemoAction,
-  getDemoActionDetail,
-  assignAlert
+  getPlugins,getPluginTemplates,getTemplateDetail,getDimensions,getConvergeFunction,getVariables,renderNoticeTemplate,registerBkPlugin,batchRegisterBkPlugin,getActionParams,batchCreate,createChatGroup,getActionConfigByAlerts,createDemoAction,getDemoActionDetail,assignAlert,
 };

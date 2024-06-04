@@ -26,6 +26,7 @@ export const getMetricListV2 = request('POST', 'rest/v2/strategies/v2/get_metric
 export const getStrategyListV2 = request('POST', 'rest/v2/strategies/v2/get_strategy_list/');
 export const getStrategyV2 = request('GET', 'rest/v2/strategies/v2/get_strategy/');
 export const deleteStrategyV2 = request('POST', 'rest/v2/strategies/v2/delete_strategy/');
+export const verifyStrategyName = request('POST', 'rest/v2/strategies/v2/verify_strategy_name/');
 export const saveStrategyV2 = request('POST', 'rest/v2/strategies/v2/save_strategy/');
 export const updatePartialStrategyV2 = request('POST', 'rest/v2/strategies/v2/update_partial_strategy/');
 export const cloneStrategyV2 = request('POST', 'rest/v2/strategies/v2/clone_strategy/');
@@ -40,42 +41,5 @@ export const updateMetricListByBiz = request('POST', 'rest/v2/strategies/update_
 export const multivariateAnomalyScenes = request('GET', 'rest/v2/strategies/multivariate_anomaly_scenes/');
 
 export default {
-  getScenarioList,
-  noticeVariableList,
-  getUnitList,
-  getUnitInfo,
-  strategyLabel,
-  strategyLabelList,
-  deleteStrategyLabel,
-  fetchItemStatus,
-  getTargetDetail,
-  getMetricList,
-  getDimensionValues,
-  strategyConfig,
-  cloneStrategyConfig,
-  deleteStrategyConfig,
-  strategyConfigList,
-  strategyConfigDetail,
-  bulkEditStrategy,
-  getDimensionList,
-  plainStrategyList,
-  strategyInfo,
-  getIndexSetList,
-  getLogFields,
-  getMetricListV2,
-  getStrategyListV2,
-  getStrategyV2,
-  deleteStrategyV2,
-  saveStrategyV2,
-  updatePartialStrategyV2,
-  cloneStrategyV2,
-  getPlainStrategyListV2,
-  queryConfigToPromql,
-  promqlToQueryConfig,
-  listIntelligentModels,
-  getIntelligentModel,
-  getIntelligentModelTaskStatus,
-  getIntelligentDetectAccessStatus,
-  updateMetricListByBiz,
-  multivariateAnomalyScenes
+  getScenarioList,noticeVariableList,getUnitList,getUnitInfo,strategyLabel,strategyLabelList,deleteStrategyLabel,fetchItemStatus,getTargetDetail,getMetricList,getDimensionValues,strategyConfig,cloneStrategyConfig,deleteStrategyConfig,strategyConfigList,strategyConfigDetail,bulkEditStrategy,getDimensionList,plainStrategyList,strategyInfo,getIndexSetList,getLogFields,getMetricListV2,getStrategyListV2,getStrategyV2,deleteStrategyV2,verifyStrategyName,saveStrategyV2,updatePartialStrategyV2,cloneStrategyV2,getPlainStrategyListV2,queryConfigToPromql,promqlToQueryConfig,listIntelligentModels,getIntelligentModel,getIntelligentModelTaskStatus,getIntelligentDetectAccessStatus,updateMetricListByBiz,multivariateAnomalyScenes,
 };

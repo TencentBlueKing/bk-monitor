@@ -8,10 +8,5 @@ export const noticeGroupList = request('GET', 'rest/v2/notice_group/notice_group
 export const noticeGroupDetail = request('GET', 'rest/v2/notice_group/notice_group_detail/');
 
 export default {
-  getReceiver,
-  getNoticeWay,
-  noticeGroupConfig,
-  deleteNoticeGroup,
-  noticeGroupList,
-  noticeGroupDetail
+  getReceiver,getNoticeWay,noticeGroupConfig,deleteNoticeGroup,noticeGroupList,noticeGroupDetail,
 };

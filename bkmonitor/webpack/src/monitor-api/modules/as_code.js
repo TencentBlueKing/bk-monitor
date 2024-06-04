@@ -7,9 +7,5 @@ export const exportConfigFile = request('POST', 'rest/v2/as_code/export_config_f
 export const importConfigFile = request('POST', 'rest/v2/as_code/import_config_file/');
 
 export default {
-  importConfig,
-  exportConfig,
-  exportAllConfigFile,
-  exportConfigFile,
-  importConfigFile
+  importConfig,exportConfig,exportAllConfigFile,exportConfigFile,importConfigFile,
 };

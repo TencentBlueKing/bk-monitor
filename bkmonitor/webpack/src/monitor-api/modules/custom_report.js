@@ -24,26 +24,5 @@ export const deleteCustomTimeSeries = request('POST', 'rest/v2/custom_metric_rep
 export const addCustomMetric = request('POST', 'rest/v2/custom_metric_report/add_custom_metric/');
 
 export default {
-  proxyHostInfo,
-  queryCustomEventGroup,
-  getCustomEventGroup,
-  validateCustomEventGroupName,
-  validateCustomEventGroupLabel,
-  createCustomEventGroup,
-  modifyCustomEventGroup,
-  deleteCustomEventGroup,
-  queryCustomEventTarget,
-  getCustomTimeSeriesLatestDataByFields,
-  customTimeSeriesList,
-  customTimeSeriesDetail,
-  customTsGroupingRuleList,
-  validateCustomTsGroupName,
-  validateCustomTsGroupLabel,
-  createCustomTimeSeries,
-  modifyCustomTimeSeries,
-  createOrUpdateGroupingRule,
-  groupCustomTsItem,
-  modifyCustomTsGroupingRuleList,
-  deleteCustomTimeSeries,
-  addCustomMetric
+  proxyHostInfo,queryCustomEventGroup,getCustomEventGroup,validateCustomEventGroupName,validateCustomEventGroupLabel,createCustomEventGroup,modifyCustomEventGroup,deleteCustomEventGroup,queryCustomEventTarget,getCustomTimeSeriesLatestDataByFields,customTimeSeriesList,customTimeSeriesDetail,customTsGroupingRuleList,validateCustomTsGroupName,validateCustomTsGroupLabel,createCustomTimeSeries,modifyCustomTimeSeries,createOrUpdateGroupingRule,groupCustomTsItem,modifyCustomTsGroupingRuleList,deleteCustomTimeSeries,addCustomMetric,
 };

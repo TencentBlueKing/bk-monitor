@@ -10,12 +10,5 @@ export const quickAlertShield = request('GET', 'rest/v1/event/alert/quick_shield
 export const quickAlertAck = request('GET', 'rest/v1/event/alert/quick_ack/');
 
 export default {
-  getAlarmDetail,
-  getEventDetail,
-  getEventGraphView,
-  quickShield,
-  getEventList,
-  ackEvent,
-  quickAlertShield,
-  quickAlertAck
+  getAlarmDetail,getEventDetail,getEventGraphView,quickShield,getEventList,ackEvent,quickAlertShield,quickAlertAck,
 };

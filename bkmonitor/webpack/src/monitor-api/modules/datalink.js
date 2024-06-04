@@ -8,10 +8,5 @@ export const transferLatestMsg = request('GET', 'rest/v2/datalink_status/transfe
 export const storageStatus = request('GET', 'rest/v2/datalink_status/storage_status/');
 
 export default {
-  alertStatus,
-  updateAlertUserGroups,
-  collectingTargetStatus,
-  transferCountSeries,
-  transferLatestMsg,
-  storageStatus
+  alertStatus,updateAlertUserGroups,collectingTargetStatus,transferCountSeries,transferLatestMsg,storageStatus,
 };

@@ -13,7 +13,6 @@ export const applicationInfo = request('GET', 'apm/meta/application/{pk}/applica
 export const applicationInfoByAppName = request('GET', 'apm/meta/application/application_info_by_app_name/');
 export const listApplicationAsync = request('POST', 'apm/meta/application/list_application_async/');
 export const instanceDiscoverKeys = request('POST', 'apm/meta/application/instance_discover_keys/');
-export const simpleServiceList = request('POST', 'apm/meta/application/simple_service_list/');
 export const serviceDetail = request('POST', 'apm/meta/application/service_detail/');
 export const serviceList = request('POST', 'apm/meta/application/service_list/');
 export const queryExceptionEvent = request('POST', 'apm/meta/application/query_exception_event/');
@@ -43,49 +42,8 @@ export const customServiceMatchList = request('POST', 'apm/meta/application/cust
 export const customServiceDataView = request('POST', 'apm/meta/application/{pk}/custom_service_data_view_config/');
 export const customServiceDataSource = request('POST', 'apm/meta/application/custom_service_url_list/');
 export const getDataEncoding = request('GET', 'apm/meta/application/data_encoding/');
+export const simpleServiceList = request('POST', 'apm/meta/application/simple_service_list/');
 
 export default {
-  listMetaEsClusterInfo,
-  metaConfigInfo,
-  pushUrl,
-  listEsClusterGroups,
-  listApplicationInfo,
-  listApplication,
-  metricInfo,
-  dimensionData,
-  modifyMetric,
-  applicationInfo,
-  applicationInfoByAppName,
-  listApplicationAsync,
-  instanceDiscoverKeys,
-  simpleServiceList,
-  serviceDetail,
-  serviceList,
-  queryExceptionEvent,
-  queryExceptionDetailEvent,
-  queryExceptionEndpoint,
-  queryExceptionTypeGraph,
-  queryEndpointStatistics,
-  queryBkDataToken,
-  checkDuplicateName,
-  indicesInfo,
-  createApplication,
-  deleteApplication,
-  setup,
-  samplingOptions,
-  start,
-  stop,
-  noDataStrategyInfo,
-  noDataStrategyEnable,
-  noDataStrategyDisable,
-  dataViewConfig,
-  dataSampling,
-  storageFieldInfo,
-  customServiceList,
-  customServiceConfig,
-  deleteCustomSerivice,
-  customServiceMatchList,
-  customServiceDataView,
-  customServiceDataSource,
-  getDataEncoding
+  listMetaEsClusterInfo,metaConfigInfo,pushUrl,listEsClusterGroups,listApplicationInfo,listApplication,metricInfo,dimensionData,modifyMetric,applicationInfo,applicationInfoByAppName,listApplicationAsync,instanceDiscoverKeys,serviceDetail,serviceList,queryExceptionEvent,queryExceptionDetailEvent,queryExceptionEndpoint,queryExceptionTypeGraph,queryEndpointStatistics,queryBkDataToken,checkDuplicateName,indicesInfo,createApplication,deleteApplication,setup,samplingOptions,start,stop,noDataStrategyInfo,noDataStrategyEnable,noDataStrategyDisable,dataViewConfig,dataSampling,storageFieldInfo,customServiceList,customServiceConfig,deleteCustomSerivice,customServiceMatchList,customServiceDataView,customServiceDataSource,getDataEncoding,simpleServiceList,
 };

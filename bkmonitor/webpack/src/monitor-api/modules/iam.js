@@ -18,20 +18,5 @@ export const getApplyRecordList = request('GET', 'rest/v2/external/get_apply_rec
 export const callback = request('GET', 'rest/v2/external/callback/');
 
 export default {
-  getAuthorityMeta,
-  checkAllowedByActionIds,
-  getAuthorityDetail,
-  checkAllowed,
-  checkAllowedByApmApplication,
-  getAuthorityApplyInfo,
-  test,
-  getExternalPermissionList,
-  getByAction,
-  createOrUpdateExternalPermission,
-  deleteExternalPermission,
-  createOrUpdateAuthorizer,
-  getAuthorizerByBiz,
-  getAuthorizerList,
-  getApplyRecordList,
-  callback
+  getAuthorityMeta,checkAllowedByActionIds,getAuthorityDetail,checkAllowed,checkAllowedByApmApplication,getAuthorityApplyInfo,test,getExternalPermissionList,getByAction,createOrUpdateExternalPermission,deleteExternalPermission,createOrUpdateAuthorizer,getAuthorizerByBiz,getAuthorizerList,getApplyRecordList,callback,
 };

@@ -9,11 +9,5 @@ export const importConfig = request('POST', 'rest/v2/export_import/import_config
 export const addMonitorTarget = request('POST', 'rest/v2/export_import/add_monitor_target/');
 
 export default {
-  getAllConfigList,
-  exportPackage,
-  historyList,
-  historyDetail,
-  uploadPackage,
-  importConfig,
-  addMonitorTarget
+  getAllConfigList,exportPackage,historyList,historyDetail,uploadPackage,importConfig,addMonitorTarget,
 };

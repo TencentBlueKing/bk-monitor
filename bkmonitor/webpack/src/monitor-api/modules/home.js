@@ -6,8 +6,5 @@ export const sticky = request('POST', 'fta/home/sticky/');
 export const bizWithAlertStatistics = request('GET', 'fta/home/biz_with_alert_statistics/');
 
 export default {
-  statistics,
-  favorite,
-  sticky,
-  bizWithAlertStatistics
+  statistics,favorite,sticky,bizWithAlertStatistics,
 };

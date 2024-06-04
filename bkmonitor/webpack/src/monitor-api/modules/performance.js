@@ -8,10 +8,5 @@ export const searchHostInfo = request('POST', 'rest/v2/performance/search_host_i
 export const searchHostMetric = request('POST', 'rest/v2/performance/search_host_metric/');
 
 export default {
-  hostPerformanceDetail,
-  hostTopoNodeDetail,
-  topoNodeProcessStatus,
-  hostPerformance,
-  searchHostInfo,
-  searchHostMetric
+  hostPerformanceDetail,hostTopoNodeDetail,topoNodeProcessStatus,hostPerformance,searchHostInfo,searchHostMetric,
 };

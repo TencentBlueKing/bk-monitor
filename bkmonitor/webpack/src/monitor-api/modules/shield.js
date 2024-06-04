@@ -13,15 +13,5 @@ export const disableShield = request('POST', 'rest/v2/shield/disable_shield/');
 export const updateFailureShieldContent = request('GET', 'rest/v2/shield/update_failure_shield_content/');
 
 export default {
-  shieldList,
-  frontendShieldList,
-  shieldDetail,
-  frontendShieldDetail,
-  frontendCloneInfo,
-  shieldSnapshot,
-  addShield,
-  bulkAddAlertShield,
-  editShield,
-  disableShield,
-  updateFailureShieldContent
+  shieldList,frontendShieldList,shieldDetail,frontendShieldDetail,frontendCloneInfo,shieldSnapshot,addShield,bulkAddAlertShield,editShield,disableShield,updateFailureShieldContent,
 };

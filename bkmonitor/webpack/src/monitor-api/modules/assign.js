@@ -6,8 +6,5 @@ export const getAssignConditionKeys = request('GET', 'fta/assign/rule_operate/ge
 export const searchObjectAttribute = request('GET', 'fta/assign/cmdb/search_object_attribute/');
 
 export default {
-  batchUpdate,
-  matchDebug,
-  getAssignConditionKeys,
-  searchObjectAttribute
+  batchUpdate,matchDebug,getAssignConditionKeys,searchObjectAttribute,
 };

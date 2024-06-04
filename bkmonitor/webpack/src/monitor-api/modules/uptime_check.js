@@ -14,16 +14,5 @@ export const selectCarrierOperator = request('GET', 'rest/v2/uptime_check/select
 export const uptimeCheckTargetDetail = request('POST', 'rest/v2/uptime_check/uptime_check_target_detail/');
 
 export default {
-  frontPageData,
-  getHttpHeaders,
-  getStrategyStatus,
-  taskDetail,
-  taskGraphAndMap,
-  exportUptimeCheckConf,
-  exportUptimeCheckNodeConf,
-  fileParse,
-  fileImportUptimeCheck,
-  selectUptimeCheckNode,
-  selectCarrierOperator,
-  uptimeCheckTargetDetail
+  frontPageData,getHttpHeaders,getStrategyStatus,taskDetail,taskGraphAndMap,exportUptimeCheckConf,exportUptimeCheckNodeConf,fileParse,fileImportUptimeCheck,selectUptimeCheckNode,selectCarrierOperator,uptimeCheckTargetDetail,
 };

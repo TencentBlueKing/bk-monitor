@@ -13,15 +13,5 @@ export const getVariables = request('GET', 'rest/v2/new_report/get_variables/');
 export const getExistReports = request('GET', 'rest/v2/new_report/get_exist_reports/');
 
 export default {
-  getReportList,
-  getReport,
-  cloneReport,
-  createOrUpdateReport,
-  deleteReport,
-  sendReport,
-  cancelOrResubscribeReport,
-  getSendRecords,
-  getApplyRecords,
-  getVariables,
-  getExistReports
+  getReportList,getReport,cloneReport,createOrUpdateReport,deleteReport,sendReport,cancelOrResubscribeReport,getSendRecords,getApplyRecords,getVariables,getExistReports,
 };

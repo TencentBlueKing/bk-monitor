@@ -44,50 +44,10 @@ export const graphTraceQuery = request('POST', 'rest/v2/grafana/time_series/unif
 export const updateMetricListByBiz = request('POST', 'rest/v2/grafana/update_metric_list_by_biz/');
 export const queryAsyncTaskResult = request('GET', 'rest/v2/grafana/query_async_task_result/');
 export const addCustomMetric = request('POST', 'rest/v2/grafana/add_custom_metric/');
+export const queryAlarmEventGraph = request('POST', 'rest/v2/grafana/query_alarm_event_graph/');
+export const getAlarmEventField = request('GET', 'rest/v2/grafana/get_alarm_event_field/');
+export const getAlarmEventDimensionValue = request('GET', 'rest/v2/grafana/get_alarm_event_dimension_value/');
 
 export default {
-  test,
-  bkLogSearchQuery,
-  bkLogSearchMetric,
-  bkLogSearchDimension,
-  bkLogSearchTargetTree,
-  bkLogSearchQueryLog,
-  bkLogSearchGetVariableField,
-  bkLogSearchGetVariableValue,
-  getLabel,
-  getTopoTree,
-  getDimensionValues,
-  getMetricListV2,
-  getDataSourceConfig,
-  getVariableValue,
-  getVariableField,
-  timeSeriesMetric,
-  timeSeriesMetricLevel,
-  logQuery,
-  getDashboardList,
-  setDefaultDashboard,
-  getDefaultDashboard,
-  getDirectoryTree,
-  createDashboardOrFolder,
-  deleteDashboard,
-  starDashboard,
-  unstarDashboard,
-  deleteFolder,
-  renameFolder,
-  quickImportDashboard,
-  saveToDashboard,
-  getFunctions,
-  graphUnifyQuery,
-  unifyQueryRaw,
-  dimensionUnifyQuery,
-  dimensionCountUnifyQuery,
-  queryConfigToPromql,
-  promqlToQueryConfig,
-  graphPromqlQuery,
-  dimensionPromqlQuery,
-  convertGrafanaPromqlDashboard,
-  graphTraceQuery,
-  updateMetricListByBiz,
-  queryAsyncTaskResult,
-  addCustomMetric
+  test,bkLogSearchQuery,bkLogSearchMetric,bkLogSearchDimension,bkLogSearchTargetTree,bkLogSearchQueryLog,bkLogSearchGetVariableField,bkLogSearchGetVariableValue,getLabel,getTopoTree,getDimensionValues,getMetricListV2,getDataSourceConfig,getVariableValue,getVariableField,timeSeriesMetric,timeSeriesMetricLevel,logQuery,getDashboardList,setDefaultDashboard,getDefaultDashboard,getDirectoryTree,createDashboardOrFolder,deleteDashboard,starDashboard,unstarDashboard,deleteFolder,renameFolder,quickImportDashboard,saveToDashboard,getFunctions,graphUnifyQuery,unifyQueryRaw,dimensionUnifyQuery,dimensionCountUnifyQuery,queryConfigToPromql,promqlToQueryConfig,graphPromqlQuery,dimensionPromqlQuery,convertGrafanaPromqlDashboard,graphTraceQuery,updateMetricListByBiz,queryAsyncTaskResult,addCustomMetric,queryAlarmEventGraph,getAlarmEventField,getAlarmEventDimensionValue,
 };
