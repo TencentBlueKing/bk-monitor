@@ -51,7 +51,7 @@ export interface IAlarmGroupDetail {
   id: number | string;
   show?: boolean;
   customEdit?: boolean;
-  isEdit?: boolean;
+  hasEditBtn?: boolean;
 }
 interface IEvent {
   onShowChange?: boolean;
@@ -90,7 +90,7 @@ const noticeTypeMap = {
 export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
   @Prop({ type: [String, Number], default: 0 }) id: number | string;
   @Prop({ type: Boolean, default: false }) customEdit: boolean;
-  @Prop({ type: Boolean, default: true }) isEdit: boolean;
+  @Prop({ type: Boolean, default: true }) hasEditBtn: boolean;
   @Model('showChange', { default: false, type: Boolean }) show: boolean;
 
   loading = false;
@@ -443,7 +443,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
               {this.title}
             </span>
           )}
-          {this.isEdit && (
+          {this.hasEditBtn && (
             <bk-button
               class={['header-edit', { disabled: !this.editAllowed }]}
               disabled={!this.editAllowed}
