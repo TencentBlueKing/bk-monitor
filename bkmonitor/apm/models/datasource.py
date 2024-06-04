@@ -99,6 +99,8 @@ class ApmDataSourceConfigBase(models.Model):
         )
 
     def create_data_id(self):
+        if self.bk_data_id != -1:
+            return self.bk_data_id
         try:
             data_id_info = resource.metadata.query_data_source({"data_name": self.data_name})
         except metadata_models.DataSource.DoesNotExist:
