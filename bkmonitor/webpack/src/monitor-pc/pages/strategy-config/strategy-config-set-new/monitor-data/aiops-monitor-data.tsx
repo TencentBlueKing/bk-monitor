@@ -394,6 +394,49 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     return this.metrics?.length >= 2;
   }
 
+  renderIpWrapper() {
+    if (this.targetList.length || this.target.desc.message.length) {
+      return [
+        <i class='icon-monitor icon-mc-tv'></i>,
+        <span
+          style='color: #63656e;'
+          class='subtitle'
+        >
+          {this.target.desc.message}
+          {this.target.desc.subMessage}
+        </span>,
+        this.readonly ? (
+          <span
+            class='ip-wrapper-title'
+            onClick={this.handleAddTarget}
+          >
+            {this.$t('查看监控目标')}
+          </span>
+        ) : (
+          <span
+            class='icon-monitor icon-bianji'
+            onClick={this.handleAddTarget}
+          ></span>
+        ),
+      ];
+    }
+
+    if (this.readonly) {
+      return <span>{this.$t('本业务')}</span>;
+    }
+
+    return [
+      <div
+        class='ip-wrapper-title'
+        on-click={this.handleAddTarget}
+      >
+        <i class='icon-monitor icon-mc-plus-fill'></i>
+        {this.$t('添加监控目标')}
+      </div>,
+      <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
+    ];
+  }
+
   render() {
     return (
       <div
@@ -521,47 +564,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
             error-display-type='normal'
             label={this.$t('监控目标')}
           >
-            <div class='ip-wrapper'>
-              {!this.targetList.length && !this.target.desc.message.length
-                ? [
-                    !this.readonly ? (
-                      <div
-                        class='ip-wrapper-title'
-                        on-click={this.handleAddTarget}
-                      >
-                        <i class='icon-monitor icon-mc-plus-fill'></i>
-                        {this.$t('添加监控目标')}
-                      </div>
-                    ) : (
-                      <span>{this.$t('未添加监控目标')}</span>
-                    ),
-                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
-                  ]
-                : [
-                    <i class='icon-monitor icon-mc-tv'></i>,
-                    <span
-                      style='color: #63656e;'
-                      class='subtitle'
-                    >
-                      {this.target.desc.message}
-                      {this.target.desc.subMessage}
-                    </span>,
-
-                    this.readonly ? (
-                      <span
-                        class='ip-wrapper-title'
-                        onClick={this.handleAddTarget}
-                      >
-                        {this.$t('查看监控目标')}
-                      </span>
-                    ) : (
-                      <span
-                        class='icon-monitor icon-bianji'
-                        onClick={this.handleAddTarget}
-                      ></span>
-                    ),
-                  ]}
-            </div>
+            <div class='ip-wrapper'>{this.renderIpWrapper()}</div>
           </bk-form-item>
           <bk-form-item
             desc={{
