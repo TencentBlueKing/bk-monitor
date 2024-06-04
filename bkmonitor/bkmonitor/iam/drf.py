@@ -255,7 +255,7 @@ def batch_create_instance(
     for future in futures:
         try:
             resources.append([future.get()])
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error(f"[APM] batch_create_instance error: {e}")
 
     return resources
