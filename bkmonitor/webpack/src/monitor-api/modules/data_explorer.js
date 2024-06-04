@@ -6,5 +6,8 @@ export const getEventViewConfig = request('POST', 'rest/v2/data_explorer/get_eve
 export const getGroupByCount = request('POST', 'rest/v2/data_explorer/get_group_by_count/');
 
 export default {
-  getGraphQueryConfig,getPromqlQueryConfig,getEventViewConfig,getGroupByCount,
+  getGraphQueryConfig,
+  getPromqlQueryConfig,
+  getEventViewConfig,
+  getGroupByCount,
 };

@@ -17,5 +17,19 @@ export const isHostExistsIndex = request('POST', 'rest/v2/event_center/is_host_e
 export const graphPoint = request('POST', 'rest/v2/event_center/graph_point/');
 
 export default {
-  listEvent,strategySnapshot,listAlertNotice,detailAlertNotice,ackEvent,getSolution,saveSolution,listEventLog,listSearchItem,listConvergeLog,stackedChart,shieldSnapshot,listIndexByHost,isHostExistsIndex,graphPoint,
+  listEvent,
+  strategySnapshot,
+  listAlertNotice,
+  detailAlertNotice,
+  ackEvent,
+  getSolution,
+  saveSolution,
+  listEventLog,
+  listSearchItem,
+  listConvergeLog,
+  stackedChart,
+  shieldSnapshot,
+  listIndexByHost,
+  isHostExistsIndex,
+  graphPoint,
 };

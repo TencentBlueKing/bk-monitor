@@ -7,5 +7,9 @@ export const getShareTokenList = request('POST', 'rest/v2/share/get_share_token_
 export const getShareParams = request('GET', 'rest/v2/get_token/get_share_params/');
 
 export default {
-  createShareToken,updateShareToken,deleteShareToken,getShareTokenList,getShareParams,
+  createShareToken,
+  updateShareToken,
+  deleteShareToken,
+  getShareTokenList,
+  getShareParams,
 };

@@ -14,5 +14,16 @@ export const getTimeZone = request('GET', 'calendars/get_time_zone/');
 export const getParentItemList = request('GET', 'calendars/get_parent_item_list/');
 
 export default {
-  saveCalendar,editCalendar,getCalendar,listCalendar,deleteCalendar,saveItem,deleteItem,editItem,itemDetail,itemList,getTimeZone,getParentItemList,
+  saveCalendar,
+  editCalendar,
+  getCalendar,
+  listCalendar,
+  deleteCalendar,
+  saveItem,
+  deleteItem,
+  editItem,
+  itemDetail,
+  itemList,
+  getTimeZone,
+  getParentItemList,
 };

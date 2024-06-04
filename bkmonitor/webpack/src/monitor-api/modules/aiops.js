@@ -6,5 +6,8 @@ export const hostIntelligenAnomaly = request('POST', 'rest/v2/host_monitor/host_
 export const hostIntelligenAnomalyRange = request('POST', 'rest/v2/host_monitor/host_intelligen_anomaly_range/');
 
 export default {
-  fetchAiSetting,saveAiSetting,hostIntelligenAnomaly,hostIntelligenAnomalyRange,
+  fetchAiSetting,
+  saveAiSetting,
+  hostIntelligenAnomaly,
+  hostIntelligenAnomalyRange,
 };

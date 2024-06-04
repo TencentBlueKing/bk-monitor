@@ -11,5 +11,13 @@ export const applicationList = request('POST', 'apm/service/application/applicat
 export const logServiceRelationBkLogIndexSet = request('POST', 'apm/service/application/log_service_relation_bk_log_index_set/');
 
 export default {
-  serviceConfig,serviceInfo,cmdbServiceTemplate,logServiceChoiceList,appQueryByIndexSet,uriregularVerify,serviceUrlList,applicationList,logServiceRelationBkLogIndexSet,
+  serviceConfig,
+  serviceInfo,
+  cmdbServiceTemplate,
+  logServiceChoiceList,
+  appQueryByIndexSet,
+  uriregularVerify,
+  serviceUrlList,
+  applicationList,
+  logServiceRelationBkLogIndexSet,
 };

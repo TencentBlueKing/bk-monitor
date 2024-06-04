@@ -8,5 +8,10 @@ export const importAlertRule = request('POST', 'rest/v2/promql_import/import_ale
 export const uploadFile = request('POST', 'rest/v2/promql_import/upload_file/');
 
 export default {
-  createMappingConfig,getMappingConfig,deleteMappingConfig,importGrafanaDashboard,importAlertRule,uploadFile,
+  createMappingConfig,
+  getMappingConfig,
+  deleteMappingConfig,
+  importGrafanaDashboard,
+  importAlertRule,
+  uploadFile,
 };

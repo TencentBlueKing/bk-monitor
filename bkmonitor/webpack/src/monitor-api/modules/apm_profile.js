@@ -5,5 +5,7 @@ export const queryProfileBarGraph = request('POST', 'apm/profile_api/query/servi
 export const queryServicesDetail = request('GET', 'apm/profile_api/query/services_detail/');
 
 export default {
-  listApplicationServices,queryProfileBarGraph,queryServicesDetail,
+  listApplicationServices,
+  queryProfileBarGraph,
+  queryServicesDetail,
 };

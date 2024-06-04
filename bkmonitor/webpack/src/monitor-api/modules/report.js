@@ -13,5 +13,15 @@ export const groupList = request('GET', 'rest/v2/report/group_list/');
 export const reportClone = request('GET', 'rest/v2/report/report_clone/');
 
 export default {
-  reportList,statusList,graphsListByBiz,getPanelsByDashboard,reportCreateOrUpdate,reportTest,buildInMetric,reportContent,reportDelete,groupList,reportClone,
+  reportList,
+  statusList,
+  graphsListByBiz,
+  getPanelsByDashboard,
+  reportCreateOrUpdate,
+  reportTest,
+  buildInMetric,
+  reportContent,
+  reportDelete,
+  groupList,
+  reportClone,
 };

@@ -21,5 +21,23 @@ export const listTraceComparison = request('POST', 'apm/trace_api/trace_query/li
 export const listSpanHostInstances = request('GET', 'apm/trace_api/trace_query/list_span_host_instances/');
 
 export default {
-  traceChats,traceOptions,listTrace,listSpan,listStandardFilterFields,traceStatistics,traceListById,traceListByHostInstance,traceDetail,spanDetail,traceDiagram,listOptionValues,getFieldOptionValues,listSpanStatistics,listServiceStatistics,applyTraceComparison,deleteTraceComparison,listTraceComparison,listSpanHostInstances,
+  traceChats,
+  traceOptions,
+  listTrace,
+  listSpan,
+  listStandardFilterFields,
+  traceStatistics,
+  traceListById,
+  traceListByHostInstance,
+  traceDetail,
+  spanDetail,
+  traceDiagram,
+  listOptionValues,
+  getFieldOptionValues,
+  listSpanStatistics,
+  listServiceStatistics,
+  applyTraceComparison,
+  deleteTraceComparison,
+  listTraceComparison,
+  listSpanHostInstances,
 };

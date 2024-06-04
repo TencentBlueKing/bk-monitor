@@ -9,5 +9,11 @@ export const pluginUpgradeInfo = request('GET', 'rest/v2/plugin_upgrade_info/');
 export const pluginType = request('GET', 'rest/v2/plugin_type/');
 
 export default {
-  dataDogPluginUpload,saveMetric,pluginRegister,saveAndReleasePlugin,getReservedWord,pluginUpgradeInfo,pluginType,
+  dataDogPluginUpload,
+  saveMetric,
+  pluginRegister,
+  saveAndReleasePlugin,
+  getReservedWord,
+  pluginUpgradeInfo,
+  pluginType,
 };

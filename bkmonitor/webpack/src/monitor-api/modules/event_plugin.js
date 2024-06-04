@@ -15,5 +15,17 @@ export const getEventPluginToken = request('GET', 'fta/plugin/event/{pk}/instanc
 export const disablePluginCollect = request('POST', 'fta/plugin/event/instance/disable_collect/');
 
 export default {
-  listEventPlugin,getEventPlugin,deployEventPlugin,createEventPlugin,importEventPlugin,updateEventPlugin,deleteEventPlugin,getEventPluginInstance,tailEventPluginData,createEventPluginInstance,updateEventPluginInstance,getEventPluginToken,disablePluginCollect,
+  listEventPlugin,
+  getEventPlugin,
+  deployEventPlugin,
+  createEventPlugin,
+  importEventPlugin,
+  updateEventPlugin,
+  deleteEventPlugin,
+  getEventPluginInstance,
+  tailEventPluginData,
+  createEventPluginInstance,
+  updateEventPluginInstance,
+  getEventPluginToken,
+  disablePluginCollect,
 };

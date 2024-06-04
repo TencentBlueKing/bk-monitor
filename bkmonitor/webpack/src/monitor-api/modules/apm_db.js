@@ -5,5 +5,7 @@ export const listDbSpan = request('POST', 'apm/service_db/db/list_db_span/');
 export const listDbSystem = request('POST', 'apm/service_db/db/list_db_system/');
 
 export default {
-  listDbStatistics,listDbSpan,listDbSystem,
+  listDbStatistics,
+  listDbSpan,
+  listDbSystem,
 };
