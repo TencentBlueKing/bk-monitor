@@ -34,7 +34,7 @@ class OriginTraceQuery(EsQueryBuilderMixin):
 
     def __init__(self, bk_biz_id, app_name, es_client, index_name):
         self.client = es_client
-        self.index_name = f"{index_name.replace('.', '_')}_*"
+        self.index_name = index_name
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
 
@@ -94,7 +94,6 @@ class OriginTraceQuery(EsQueryBuilderMixin):
 
     @classmethod
     def _translate_key(cls, key):
-
         if key in cls.KEY_REPLACE_FIELDS:
             return cls.KEY_REPLACE_FIELDS[key]
 
@@ -102,7 +101,6 @@ class OriginTraceQuery(EsQueryBuilderMixin):
 
     @classmethod
     def _add_logic_filter(cls, query, key, value):
-
         if key == "status_code":
             # 表头状态码特殊查询
             query = query.query(
