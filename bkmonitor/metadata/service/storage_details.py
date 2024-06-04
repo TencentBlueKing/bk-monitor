@@ -139,12 +139,12 @@ class ResultTableAndDataSource:
         """
         if self.table_id or self.vm_table_id or self.data_label:
             table_id = self.table_id
-            # 通过数据标签获取监控结果表
-            if self.data_label:
-                table_id = models.ResultTable.objects.get(data_label=self.data_label).table_id
             # 通过 vm 结果表获取监控结果表
             if self.vm_table_id:
                 table_id = models.AccessVMRecord.objects.get(vm_result_table_id=self.vm_table_id).result_table_id
+            # 通过数据标签获取监控结果表
+            elif self.data_label:
+                table_id = models.ResultTable.objects.get(data_label=self.data_label).table_id
 
             obj = models.DataSourceResultTable.objects.get(table_id=table_id)
             return {obj.table_id: obj.bk_data_id}
