@@ -1468,7 +1468,6 @@ class CollectorHandler(object):
             params={"subscription_id": self.data.subscription_id},
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
-            app="nodeman",
         )
         instance_status = self.format_task_instance_status(status_result)
 
@@ -1998,7 +1997,6 @@ class CollectorHandler(object):
             params={"subscription_id": self.data.subscription_id},
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
-            app="nodeman",
         )
 
         bk_host_ids = []
@@ -2009,7 +2007,6 @@ class CollectorHandler(object):
             params={"conditions": [], "bk_host_id": bk_host_ids},
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
-            app="nodeman",
         )
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
