@@ -386,6 +386,17 @@ export default class HostTree extends tsc<IProps, IEvents> {
           }, 10);
         }
         this.curNode.type === 'overview' && this.handleClickItem(null, true);
+        // 把已选择的节点滚动展示到容器的1/3的位置
+        this.$nextTick(() => {
+          const container = this.bigTreeRef.$el;
+          const { top, height } = container.getBoundingClientRect();
+          const { top: targetTop, height: targetHeight } = document
+            .querySelector('.bk-tree-node.active')
+            .getBoundingClientRect();
+          container.scrollTo({
+            top: targetTop - top - (height - targetHeight) / 3,
+          });
+        });
       })
       .catch(() => {
         this.emptyStatusType = '500';
