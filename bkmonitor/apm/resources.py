@@ -103,11 +103,6 @@ class CreateApplicationResource(Resource):
         es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置")
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.origin_objects.filter(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        ).first()
-        if application:
-            raise ValueError(_("应用名称: {}已被创建").format(validated_request_data['app_name']))
         return ApmApplication.create_application(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
