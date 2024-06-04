@@ -247,7 +247,12 @@ class ResultTableAndDataSource:
         table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id)
         if table_id_vm_obj:
             obj = table_id_vm_obj.first()
+            try:
+                vm_cluster_domain = models.ClusterInfo.objects.get(cluster_id=obj.vm_cluster_id).domain_name
+            except models.ClusterInfo.DoesNotExist:
+                vm_cluster_domain = ""
             storage_dict[models.ClusterInfo.TYPE_VM] = {
+                "vm_cluster_domain": vm_cluster_domain,
                 "vm_cluster_id": obj.vm_cluster_id,
                 "bk_base_data_id": obj.bk_base_data_id,
                 "vm_result_table_id": obj.vm_result_table_id,
