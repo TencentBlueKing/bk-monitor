@@ -34,12 +34,14 @@ class ResultTableAndDataSource:
         bcs_cluster_id: Optional[str] = None,
         vm_table_id: Optional[str] = None,
         metric_name: Optional[str] = None,
+        data_label: Optional[str] = None,
     ):
         self.bk_data_id = bk_data_id
         self.table_id = table_id
         self.bcs_cluster_id = bcs_cluster_id
         self.metric_name = metric_name
         self.vm_table_id = vm_table_id
+        self.data_label = data_label
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
@@ -135,10 +137,15 @@ class ResultTableAndDataSource:
         2. 否则，如果数据源存在，则通过数据源查询结果表，这里可能会存在多个
         3. 否则，则按照过滤对应的数据源，然后查询到相应的结果表，一个集群会存在两个必要数据源
         """
-        if self.table_id or self.vm_table_id:
+        if self.table_id or self.vm_table_id or self.data_label:
             table_id = self.table_id
+            # 通过数据标签获取监控结果表
+            if self.data_label:
+                table_id = models.ResultTable.objects.get(data_label=self.data_label).table_id
+            # 通过 vm 结果表获取监控结果表
             if self.vm_table_id:
                 table_id = models.AccessVMRecord.objects.get(vm_result_table_id=self.vm_table_id).result_table_id
+
             obj = models.DataSourceResultTable.objects.get(table_id=table_id)
             return {obj.table_id: obj.bk_data_id}
 
