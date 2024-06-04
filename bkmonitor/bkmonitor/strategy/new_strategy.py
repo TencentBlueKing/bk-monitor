@@ -1108,6 +1108,9 @@ class QueryConfig(AbstractConfig):
             promql=getattr(self, "promql", ""),
         )
 
+    def get_priority_key(self):
+        return
+
     def to_dict(self):
         # 自动生成metric_id
         if not self.metric_id:
@@ -1531,7 +1534,7 @@ class Strategy(AbstractConfig):
         labels: List[str] = None,
         app: str = "",
         path: str = "",
-        priority: int = 0,
+        priority: int = None,
         priority_group_key: str = None,
         metric_type: str = "",
         **kwargs,
@@ -2031,7 +2034,7 @@ class Strategy(AbstractConfig):
             create_user=self._get_username(),
             update_user=self._get_username(),
             priority=self.priority,
-            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items),
+            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else "",
         )
         self.id = strategy.id
 
@@ -2106,7 +2109,9 @@ class Strategy(AbstractConfig):
                 strategy.invalid_type = self.invalid_type
                 strategy.update_user = self._get_username()
                 strategy.priority = self.priority
-                strategy.priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
+                strategy.priority_group_key = (
+                    self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else ""
+                )
                 strategy.save()
             else:
                 self._create()
