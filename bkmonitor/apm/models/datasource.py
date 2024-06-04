@@ -31,7 +31,6 @@ from apm.constants import (
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.utils.es_search import EsSearch
-from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
@@ -709,19 +708,20 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         return res.get("index_set_id"), res.get("index_set_name")
 
-    @using_cache(CacheType.APM(60 * 60 * 24))
+    @cached_property
     def index_name(self) -> str:
         try:
             # 获取索引名称列表
             es_index_name = self.result_table_id.replace(".", "_")
-            routes = api.metadata.es_route(
-                {
-                    "es_storage_cluster": self.storage.storage_cluster_id,
-                    "url": f"_cat/indices/{es_index_name}_*_*?bytes=b&format=json",
-                }
+            routes = self.es_client.transport.perform_request(
+                "GET",
+                f"/_cat/indices/{es_index_name}_*_*?bytes=b&format=json",
             )
             # 过滤出有效的索引名称
-            index_names = self._filter_valid_index_names(self.app_name, [i["index"] for i in routes if i.get("index")])
+            index_names = self._filter_and_sort_valid_index_names(
+                self.app_name,
+                index_names=[i["index"] for i in routes if i.get("index")],
+            )
             if not index_names:
                 raise ValueError(f"[IndexName] valid indexName not found!")
             return ",".join(index_names)
@@ -731,7 +731,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             return res
 
     @classmethod
-    def _filter_valid_index_names(cls, app_name, index_names):
+    def _filter_and_sort_valid_index_names(cls, app_name, index_names):
         date_index_pairs = []
         pattern = re.compile(r".*_bkapm_trace_{0}_(\d{{8}})_\d+$".format(re.escape(app_name)))
 
