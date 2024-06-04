@@ -251,13 +251,12 @@ class ResultTableAndDataSource:
             storage_dict[storage_type] = config
 
         # 通过结果表追加 vm 配置
-        table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id)
+        table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id).first()
         if table_id_vm_obj:
-            obj = table_id_vm_obj.first()
             storage_dict[models.ClusterInfo.TYPE_VM] = {
-                "vm_cluster_id": obj.vm_cluster_id,
-                "bk_base_data_id": obj.bk_base_data_id,
-                "vm_result_table_id": obj.vm_result_table_id,
+                "vm_cluster_id": table_id_vm_obj.vm_cluster_id,
+                "bk_base_data_id": table_id_vm_obj.bk_base_data_id,
+                "vm_result_table_id": table_id_vm_obj.vm_result_table_id,
             }
         else:
             storage_dict[models.ClusterInfo.TYPE_VM] = {}
