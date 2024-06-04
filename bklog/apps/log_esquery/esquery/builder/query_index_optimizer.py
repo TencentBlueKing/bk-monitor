@@ -23,6 +23,8 @@ the project delivered to anyone in the future.
 from typing import Any, List
 
 import arrow
+
+from apps.log_databus.constants import INDEX_READ_SUFFIX
 from apps.log_esquery.type_constants import type_index_set_list, type_index_set_string
 from apps.log_search.models import Scenario
 from apps.utils.function import map_if
@@ -111,19 +113,19 @@ class QueryIndexOptimizer(object):
         filter_list: type_index_set_list = []
         if len(date_day_list) == 1:
             for x in date_day_list:
-                filter_list.append("{}_{}*".format(index, x.strftime("%Y%m%d")))
+                filter_list.append("{}_{}*{}".format(index, x.strftime("%Y%m%d"), INDEX_READ_SUFFIX))
         elif len(date_day_list) > 1 and len(date_month_list) == 1:
             if len(date_day_list) > 14:
                 for x in date_month_list:
-                    filter_list.append("{}_{}*".format(index, x.strftime("%Y%m")))
+                    filter_list.append("{}_{}*{}".format(index, x.strftime("%Y%m"), INDEX_READ_SUFFIX))
             else:
                 for x in date_day_list:
-                    filter_list.append("{}_{}*".format(index, x.strftime("%Y%m%d")))
+                    filter_list.append("{}_{}*{}".format(index, x.strftime("%Y%m%d"), INDEX_READ_SUFFIX))
         elif len(date_day_list) > 1 and len(date_month_list) > 1:
             if len(date_month_list) <= 6:
                 for x in date_month_list:
-                    filter_list.append("{}_{}*".format(index, x.strftime("%Y%m")))
+                    filter_list.append("{}_{}*{}".format(index, x.strftime("%Y%m"), INDEX_READ_SUFFIX))
             else:
                 for x in date_month_list[-6::1]:
-                    filter_list.append("{}_{}*".format(index, x.strftime("%Y%m")))
+                    filter_list.append("{}_{}*{}".format(index, x.strftime("%Y%m"), INDEX_READ_SUFFIX))
         return filter_list
