@@ -41,6 +41,12 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
     3. 根据Hash环，将同一云区域下的ip分配到不同的Proxy
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
+    if not settings.ENABLE_PING_ALARM:
+        cloud_areas = api.cmdb.search_cloud_area()
+        for cloud_area in cloud_areas:
+            PingServerSubscriptionConfig.create_subscription(cloud_area["bk_cloud_id"], {}, [], plugin_name)
+        return
+
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
     from alarm_backends.core.cache.cmdb.host import HostManager
 

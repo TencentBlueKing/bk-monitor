@@ -52,7 +52,6 @@
         <bk-form-item
           :label="$t('索引名')"
           class="form-inline-div"
-          :rules="rules.table_id"
           :property="'table_id'"
         >
           <!-- <div class="prefix">{{formData.table_id_prefix}}</div> -->
@@ -60,9 +59,7 @@
             v-model="formData.table_id"
             style="width: 320px"
             :placeholder="$t('英文或者数字，5～50长度')"
-            :disabled="isUnmodfyIndexName"
-            maxlength="50"
-            minlength="5"
+            disabled
           >
             <template slot="prepend">
               <div class="group-text">{{ formData.table_id_prefix }}</div>
@@ -422,24 +419,6 @@ export default {
       hotDataDaysList: [], // 冷热集群存储期限列表
       customHotDataDay: '', // 自定义冷热集群存储期限天数
       rules: {
-        table_id: [
-          {
-            required: true,
-            trigger: 'blur'
-          },
-          {
-            max: 50,
-            trigger: 'blur'
-          },
-          {
-            min: 5,
-            trigger: 'blur'
-          },
-          {
-            regex: /^[A-Za-z0-9_]+$/,
-            trigger: 'blur'
-          }
-        ],
         cluster_id: [
           {
             validator(val) {

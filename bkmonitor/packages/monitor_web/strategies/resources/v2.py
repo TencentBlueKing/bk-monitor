@@ -930,6 +930,7 @@ class GetStrategyListV2Resource(Resource):
                                 query_config["data_source_label"],
                                 query_config["data_type_label"],
                                 query_config["result_table_id"],
+                                "__INDEX__",
                             )
                         )
                 elif query_config["data_source_label"] == DataSourceLabel.BK_FTA:
