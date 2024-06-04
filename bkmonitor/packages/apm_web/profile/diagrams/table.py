@@ -9,25 +9,23 @@ specific language governing permissions and limitations under the License.
 """
 from dataclasses import dataclass
 
-from apm_web.profile.converter import Converter
-from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
+from apm_web.profile.diagrams.base import FunctionNode
 from apm_web.profile.diagrams.diff import ProfileDiffer
+from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 
 @dataclass
 class TableDiagrammer:
-    def draw(self, c: Converter, **options) -> dict:
-        tree = FunctionTree.load_from_profile(c)
-
-        nodes = list(tree.nodes_map.values())
+    def draw(self, c: TreeConverter, **options) -> dict:
+        nodes = list(c.tree.function_node_map.values())
         # 添加total节点
-        total_node = FunctionNode(id=0, value=tree.root.value, name="total", filename="", system_name="")
+        total_node = FunctionNode(id="", value=c.tree.root.value, name="total", filename="", system_name="")
         nodes.append(total_node)
         sort_map = {
-            "name": lambda x: x.display_name,
+            "name": lambda x: x.name,
             "self": lambda x: x.self_time,
             "total": lambda x: x.value,
-            "location": lambda x: x.display_name,
+            "location": lambda x: x.name,
         }
 
         if options.get("sort"):
@@ -37,10 +35,8 @@ class TableDiagrammer:
             sorted_nodes = sorted(nodes, key=lambda x: x.name, reverse=True)
         return {
             "table_data": {
-                "total": tree.root.value,
-                "items": [
-                    {"id": x.id, "name": x.display_name, "self": x.self_time, "total": x.value} for x in sorted_nodes
-                ],
+                "total": c.tree.root.value,
+                "items": [{"id": x.id, "name": x.name, "self": x.self_time, "total": x.value} for x in sorted_nodes],
             }
         }
 
@@ -57,8 +53,8 @@ class TableDiagrammer:
 
         return sorted_nodes
 
-    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
-        diff_tree = ProfileDiffer.from_raw(base_doris_converter, diff_doris_converter).diff_tree()
+    def diff(self, base_tree_converter: TreeConverter, diff_tree_converter: TreeConverter, **options) -> dict:
+        diff_tree = ProfileDiffer.from_raw(base_tree_converter, diff_tree_converter).diff_tree()
         table_data = []
         miss_value = {"id": 0, "value": 0, "self": 0, "name": "", "system_name": "", "filename": ""}
         for node in diff_tree.children_map.values():
