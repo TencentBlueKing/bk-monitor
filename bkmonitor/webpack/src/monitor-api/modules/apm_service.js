@@ -19,5 +19,5 @@ export default {
   uriregularVerify,
   serviceUrlList,
   applicationList,
-  logServiceRelationBkLogIndexSet
+  logServiceRelationBkLogIndexSet,
 };
