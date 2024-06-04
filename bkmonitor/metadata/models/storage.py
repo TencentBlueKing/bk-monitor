@@ -1869,7 +1869,7 @@ class ESStorage(models.Model, StorageResultTable):
         warm_phase_settings=None,
         time_zone=0,
         enable_create_index=True,
-        source_type=None,
+        source_type=constants.EsSourceType.LOG.value,
         index_set=None,
         **kwargs,
     ):
@@ -1888,7 +1888,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param warm_phase_settings: 暖数据切换配置，当 warm_phase_days > 0 时，此项必填
         :param time_zone: 时区设置，默认零时区
         :param enable_create_index: 启用创建索引，默认为 True；针对非内置的数据源，不能创建索引
-        :param source_type: 数据源类型
+        :param source_type: 数据源类型，默认日志自建
         :param index_set: 索引集
         :param kwargs: 其他配置参数
         :return:

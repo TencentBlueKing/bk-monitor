@@ -419,5 +419,9 @@ class QueryVmRtBySpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryVmRtBySpace)]
 
 
-class EsRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.EsRouter)]
+class CreateEsRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateEsRouter)]
+
+
+class UpdateEsRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.UpdateEsRouter)]
