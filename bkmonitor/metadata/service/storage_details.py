@@ -253,7 +253,12 @@ class ResultTableAndDataSource:
         # 通过结果表追加 vm 配置
         table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id).first()
         if table_id_vm_obj:
+            try:
+                vm_cluster_domain = models.ClusterInfo.objects.get(cluster_id=table_id_vm_obj.vm_cluster_id).domain_name
+            except models.ClusterInfo.DoesNotExist:
+                vm_cluster_domain = ""
             storage_dict[models.ClusterInfo.TYPE_VM] = {
+                "vm_cluster_domain": vm_cluster_domain,
                 "vm_cluster_id": table_id_vm_obj.vm_cluster_id,
                 "bk_base_data_id": table_id_vm_obj.bk_base_data_id,
                 "vm_result_table_id": table_id_vm_obj.vm_result_table_id,

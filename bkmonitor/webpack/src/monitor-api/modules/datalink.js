@@ -13,5 +13,5 @@ export default {
   collectingTargetStatus,
   transferCountSeries,
   transferLatestMsg,
-  storageStatus
+  storageStatus,
 };
