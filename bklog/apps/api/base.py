@@ -25,6 +25,7 @@ import math
 import re
 import time
 from copy import deepcopy
+from enum import Enum
 from multiprocessing.pool import ThreadPool
 from urllib import parse
 
@@ -190,6 +191,10 @@ class DataAPI(object):
 
     HTTP_STATUS_OK = 200
 
+    class PaginationStyle(Enum):
+        PAGE_NUMBER = "PageNumberPagination"
+        LIMIT_OFFSET = "LimitOffsetPagination"
+
     def __init__(
         self,
         method,
@@ -209,7 +214,7 @@ class DataAPI(object):
         default_timeout=60,
         data_api_retry_cls=None,
         use_superuser=False,
-        pagination_style="LimitOffsetPagination",
+        pagination_style=PaginationStyle.LIMIT_OFFSET,
     ):
         """
         初始化一个请求句柄
@@ -606,8 +611,9 @@ class DataAPI(object):
         :return: 请求结果
         """
         params = params or {}
+        pagination_style = self.PaginationStyle.PAGE_NUMBER
         # 请求第一次获取总数
-        if self.pagination_style == "PageNumberPagination":
+        if self.pagination_style == pagination_style:
             request_params = {"page": 1, "pagesize": limit, "no_request": True}
         else:
             request_params = {"page": {"start": 0, "limit": limit}, "no_request": True}
@@ -623,11 +629,11 @@ class DataAPI(object):
         request = None
         with ignored(Exception):
             request = get_request()
-        if self.pagination_style == "PageNumberPagination":
+        if self.pagination_style == pagination_style:
             start = 2
             count = math.ceil(count / limit) + 1
         while start < count:
-            if self.pagination_style == "PageNumberPagination":
+            if self.pagination_style == pagination_style:
                 request_params = {"page": start, "pagesize": limit, "no_request": True}
             else:
                 request_params = {"page": {"limit": limit, "start": start}, "no_request": True}
@@ -640,7 +646,7 @@ class DataAPI(object):
                     kwds={"request": request, "context": get_current()},
                 )
             )
-            if self.pagination_style == "PageNumberPagination":
+            if self.pagination_style == pagination_style:
                 start += 1
             else:
                 start += limit

@@ -78,11 +78,11 @@ class _BKNodeApi:
         )
         self.get_subscription_task_status = DataAPI(
             method="POST",
-            url=BK_NODE_APIGATEWAY_ROOT + "backend/api/subscription/task_result/?page=1&pagesize=1",
+            url=BK_NODE_APIGATEWAY_ROOT + "backend/api/subscription/task_result/",
             module=self.MODULE,
             description="查看订阅任务运行状态",
             before_request=get_bk_node_request_before,
-            pagination_style="PageNumberPagination",
+            pagination_style=DataAPI.PaginationStyle.PAGE_NUMBER,
         )
         self.plugin_search = DataAPI(
             method="POST",
@@ -90,7 +90,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查询插件列表",
             before_request=get_bk_node_request_before,
-            pagination_style="PageNumberPagination",
+            pagination_style=DataAPI.PaginationStyle.PAGE_NUMBER,
         )
         self.check_subscription_task_ready = DataAPI(
             method="POST",
