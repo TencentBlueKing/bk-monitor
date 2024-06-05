@@ -211,7 +211,7 @@ function handleResponse({ config, response, resolve, reject }) {
  * @return {Promise} promise 对象
  */
 function handleReject(error, config) {
-  if (axios.isCancel(error)) {
+  if (axios.isCancel(error) || config.getAllErrorValue) {
     return Promise.reject(error);
   }
   // const service = getHttpService(url, serviceList);
@@ -313,6 +313,8 @@ function initConfig(method, url, userConfig) {
     cancelPrevious: true,
     // 接口报错是否弹bkMessage弹窗
     catchIsShowMessage: true,
+    /** 获取完整的Error数据而不是字符串 */
+    getAllErrorValue: false,
     span: trace.getTracer('bk-log').startSpan('api')
   };
   return Object.assign(defaultConfig, userConfig);

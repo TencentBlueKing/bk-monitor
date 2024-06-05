@@ -196,30 +196,33 @@ export default class FieldItem extends tsc<{}> {
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
             {this.isShowFieldsAnalysis && (
-              <span
+              <div
                 v-bk-tooltips={{
-                  content: this.$t('该字段暂无匹配日志'),
-                  disabled: !!this.gatherFieldsCount
+                  content: !this.gatherFieldsCount ? this.$t('该字段暂无匹配日志') : this.$t('图表分析')
                 }}
-                class={{ 'analysis-disabled': !this.gatherFieldsCount }}
+                class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
                 onClick={e => {
                   e.stopPropagation();
                   if (!this.gatherFieldsCount) return;
                   this.handleClickAnalysisItem();
                 }}
               >
-                {this.$t('字段分析')}
-              </span>
+                <i class='log-icon icon-log-trend'></i>
+              </div>
             )}
             {/* 设置字段显示或隐藏 */}
-            <span
+            <div
+              class='operation-icon-box'
+              v-bk-tooltips={{
+                content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示')
+              }}
               onClick={e => {
                 e.stopPropagation();
                 this.handleShowOrHiddenItem();
               }}
             >
-              {this.type === 'visible' ? this.$t('隐藏') : this.$t('显示')}
-            </span>
+              <i class={['bk-icon include-icon', `${this.type !== 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+            </div>
           </div>
         </div>
         {/* 显示聚合字段图表信息 */}

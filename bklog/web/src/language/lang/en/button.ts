@@ -163,6 +163,5 @@ export default {
   确认收藏: 'Confirm',
   取消收藏: 'Cancel',
   查看配置: 'View Configuration',
-  测试发送: 'Test Send',
-  字段分析: 'Field Analysis'
+  测试发送: 'Test Send'
 };

@@ -136,12 +136,12 @@ const fieldFetchTopList = {
   url: '/field/index_set/fetch_topk_list/',
   method: 'post'
 };
-/** 获取字段分析信息 */
+/** 获取图表分析信息 */
 const fieldStatisticsInfo = {
   url: '/field/index_set/statistics/info/',
   method: 'post'
 };
-/** 获取字段分析图表 */
+/** 获取图表分析图表 */
 const fieldStatisticsGraph = {
   url: '/field/index_set/statistics/graph/',
   method: 'post'
