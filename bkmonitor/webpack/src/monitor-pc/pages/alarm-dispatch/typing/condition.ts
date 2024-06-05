@@ -211,18 +211,6 @@ export async function allKVOptions(
           };
         })
         .filter(item => item.id !== 'tags');
-      if (!keySet.has(NOTICE_USERS_KEY)) {
-        keys.push({
-          id: NOTICE_USERS_KEY,
-          name: window.i18n.tc('通知人员'),
-        });
-      }
-      if (!keySet.has(STRATEGY_LABELS)) {
-        keys.push({
-          id: STRATEGY_LABELS,
-          name: window.i18n.tc('策略标签'),
-        });
-      }
       setData('keys', '', keys);
       awaitAll();
     })
