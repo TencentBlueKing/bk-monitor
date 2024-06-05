@@ -130,7 +130,9 @@ class PatternHandler:
         for pattern in pattern_aggs:
             count = pattern["doc_count"]
             signature = pattern["key"]
-            signature_pattern = signature_map_pattern.get(signature, "")
+            if not signature_map_pattern.get(signature):
+                continue
+            signature_pattern = signature_map_pattern[signature]
             signature_origin_pattern = signature_map_origin_pattern.get(signature, "")
             group_key = f"{signature}|{pattern.get('group', '')}"
             year_on_year_compare = year_on_year_result.get(group_key, MIN_COUNT)
