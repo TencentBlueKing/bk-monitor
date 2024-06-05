@@ -1108,9 +1108,6 @@ class QueryConfig(AbstractConfig):
             promql=getattr(self, "promql", ""),
         )
 
-    def get_priority_key(self):
-        return
-
     def to_dict(self):
         # 自动生成metric_id
         if not self.metric_id:
