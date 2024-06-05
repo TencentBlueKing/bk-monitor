@@ -20,7 +20,7 @@ def generate_profile_id() -> str:
 
 
 @dataclass
-class Converter:
+class ProfileConverter:
     """Any input format should be converted to Profile"""
 
     profile: Optional[Profile] = None
@@ -52,6 +52,9 @@ class Converter:
 
         if self.init_first_empty_str:
             self.profile.string_table.append("")
+
+    def empty(self) -> bool:
+        return bool(self.profile.sample)
 
     def add_string(self, value: str) -> int:
         """add string to profile string table"""
@@ -89,19 +92,12 @@ class Converter:
         return {"type": self.get_string(target_sample_type.type), "unit": self.get_string(target_sample_type.unit)}
 
 
-_converters: Dict[str, Type[Converter]] = {}
+_profile_converters: Dict[str, Type[ProfileConverter]] = {}
 
 
-def register_converter(input_type: str, converter: Type[Converter]):
-    _converters[input_type] = converter
+def register_profile_converter(input_type: str, converter: Type[ProfileConverter]):
+    _profile_converters[input_type] = converter
 
 
-def get_converter_by_input_type(input_type: str):
-    if input_type not in _converters:
-        raise ValueError(f"Converter for {input_type} not found")
-
-    return _converters[input_type]
-
-
-def list_converter() -> Dict[str, Type[Converter]]:
-    return _converters
+def list_profile_converter() -> Dict[str, Type[ProfileConverter]]:
+    return _profile_converters
