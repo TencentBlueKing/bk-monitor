@@ -62,19 +62,19 @@ SEARCH_DICT = {
 
 SCROLL_DICT = {
     "scenario_id": Scenario.LOG,
-    "indices": "2_bklog_search_20200320*,2_bklog_search_20200321*,2_bklog_search_20200322*",
+    "indices": "2_bklog_search_20200320*_read,2_bklog_search_20200321*_read,2_bklog_search_20200322*_read",
     "scroll_id": "123213",
     "scroll": "1m",
 }
 
 DSL_DICT = {
     "scenario_id": Scenario.LOG,
-    "indices": "2_bklog_search_20200320*,2_bklog_search_20200321*,2_bklog_search_20200322*",
+    "indices": "2_bklog_search_20200320*_read,2_bklog_search_20200321*_read,2_bklog_search_20200322*_read",
 }
 
 MAPPING_DICT = {
     "scenario_id": Scenario.LOG,
-    "indices": "2_bklog_search_20200320*,2_bklog_search_20200321*,2_bklog_search_20200322*",
+    "indices": "2_bklog_search_20200320*_read,2_bklog_search_20200321*_read,2_bklog_search_20200322*_read",
 }
 
 MAPPING_DICT_TIME = {
@@ -93,7 +93,7 @@ GET_CLUSTER_INFO_EXCEPTION_DICT = {"scenario_id": Scenario.LOG, "indices": "2_bk
 
 SEARCH_RESULT = {
     "scenario": Scenario.LOG,
-    "indices": "2_bklog_search_20200322*,2_bklog_search_20200320*,2_bklog_search_20200321*",
+    "indices": "2_bklog_search_20200322*_read,2_bklog_search_20200320*_read,2_bklog_search_20200321*_read",
     "body": {
         "from": 0,
         "size": 1,
@@ -136,8 +136,8 @@ SEARCH_RESULT = {
     },
 }
 
-ES_QUERY_LOG_INDICES = "2_bklog_search_20200320*,2_bklog_search_20200321*,2_bklog_search_20200322*"
-ES_QUERY_BKDATA_INDICES = "2_bklog.search_20200321*,2_bklog.search_20200322*"
+ES_QUERY_LOG_INDICES = "2_bklog_search_20200320*_read,2_bklog_search_20200321*_read,2_bklog_search_20200322*_read"
+ES_QUERY_BKDATA_INDICES = "2_bklog.search_20200321*_read,2_bklog.search_20200322*_read"
 ES_QUERY_ES_INDICES = "2_bklog.search"
 
 ES_QUERY_INDICES = {
