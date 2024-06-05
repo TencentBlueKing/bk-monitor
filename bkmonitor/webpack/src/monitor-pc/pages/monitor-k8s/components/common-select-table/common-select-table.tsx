@@ -37,7 +37,6 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
-  filterSelectorPanelSearchList,
   transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
@@ -184,9 +183,9 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     return this.isOverview ? '' : this.panel.targets?.[0]?.handleCreateItemId?.(this.scopedVars, false) || '';
   }
   /** 过滤已选的搜索条件 */
-  get currentConditionList() {
-    return filterSelectorPanelSearchList(this.conditionList, this.searchCondition);
-  }
+  // get currentConditionList() {
+  //   return filterSelectorPanelSearchList(this.conditionList, this.searchCondition);
+  // }
   /** 是否启用状态筛选组件 */
   get isEnableStatusFilter() {
     return this.panel.options?.selector_list?.status_filter ?? false;
@@ -398,7 +397,24 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
   handleSearch(v) {
     this.searchCondition = v;
     this.handleResetTable();
-    const selectorSearch = transformConditionValueParams(this.searchCondition);
+    // multiple 属性需要传入 transformConditionValueParams
+    const conditionListMap = new Map();
+    this.conditionList.forEach(item => {
+      conditionListMap.set(item.id, item);
+    });
+    const searchConditionTemp = [];
+    this.searchCondition.forEach(sItem => {
+      let item = sItem;
+      const cItem = conditionListMap.get(sItem.id);
+      if (cItem) {
+        item = {
+          ...sItem,
+          multiple: cItem.multiple,
+        };
+      }
+      searchConditionTemp.push(item);
+    });
+    const selectorSearch = transformConditionValueParams(searchConditionTemp);
     this.handleUpdateQueryData({
       ...this.queryData,
       selectorSearch,
@@ -550,7 +566,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
             {this.conditionList.length ? (
               <SearchSelect
                 clearable={false}
-                data={this.currentConditionList}
+                data={this.conditionList}
                 modelValue={this.searchCondition}
                 placeholder={this.$t('搜索')}
                 onChange={this.handleSearch}
