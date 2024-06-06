@@ -254,9 +254,11 @@ class ResultTableFlow(BaseModelWithTime):
             logger.error("table_id: %s not found record rule", table_id)
             return False
         # 检测并授权结果表
-        batch_add_permission(
+        if not batch_add_permission(
             settings.BK_DATA_RECORD_RULE_PROJECT_ID, settings.BK_DATA_BK_BIZ_ID, rule_obj.src_vm_table_ids
-        )
+        ):
+            logger.error("batch add permission error, vm_table_id: %s", rule_obj.src_vm_table_ids)
+            return False
         nodes = cls.compose_source_node(rule_obj.src_vm_table_ids)
         # 添加预计算节点
         nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids))
