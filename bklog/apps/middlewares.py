@@ -27,8 +27,13 @@ import os
 import traceback
 from typing import Optional
 
+from apigw_manager.apigw.utils import get_configuration
+from django.utils.module_loading import import_string
+
+from apps.utils.local import get_request as get_local_request
+
 from apigw_manager.apigw.authentication import ApiGatewayJWTGenericMiddleware
-from apigw_manager.apigw.providers import CachePublicKeyProvider
+from apigw_manager.apigw.providers import CachePublicKeyProvider, SettingsPublicKeyProvider
 from blueapps.core.exceptions.base import BlueException
 
 try:
@@ -211,24 +216,22 @@ class HttpsMiddleware(MiddlewareMixin):
             return HttpResponseIndexRedirect(request.path)
 
 
-class CustomCachePublicKeyProvider(CachePublicKeyProvider):
-    def provide(self, api_name: str, jwt_issuer: Optional[str] = None) -> Optional[str]:
+class SettingsExternalPublicKeyProvider(SettingsPublicKeyProvider):
+    def provide(self, api_name, jwt_issuer=None):
         """Return the public key specified by Settings"""
-        external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
-        request_obj = get_request()
-        is_external = request_obj.headers.get("Is-External", "false")
-        if is_external == "true":
-            logger.info(
-                "This request is from external api gateway, use external public key: `EXTERNAL_APIGW_PUBLIC_KEY`."
+        public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
+        if not public_key:
+            logger.warning(
+                "No `EXTERNAL_APIGW_PUBLIC_KEY` can be found in settings, you should either configure it "
+                "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
             )
-            if not external_public_key:
-                logger.warning(
-                    "No `EXTERNAL_APIGW_PUBLIC_KEY` can be found in settings, you should either configure it "
-                    "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
-                )
-            return external_public_key
-        return super(CustomCachePublicKeyProvider, self).provide(api_name, jwt_issuer)
+        return public_key
 
 
 class ApiGatewayJWTMiddleware(ApiGatewayJWTGenericMiddleware):
-    PUBLIC_KEY_PROVIDER_CLS = CustomCachePublicKeyProvider
+    def __call__(self, request):
+        is_external = request.headers.get("Is-External", "false")
+        if is_external == "true":
+            self.provider.public_key_provider = SettingsExternalPublicKeyProvider(
+                default_api_name=self.provider.default_api_name)
+        super(ApiGatewayJWTMiddleware, self).__call__(request)
