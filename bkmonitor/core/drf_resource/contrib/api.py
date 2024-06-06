@@ -301,7 +301,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         """
         获取最终请求的url，也可以由子类进行重写
         """
-        return self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(**validated_request_data)
 
     def render_response_data(self, validated_request_data, response_data):
         """
