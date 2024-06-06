@@ -206,12 +206,8 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   /**
    * @description 校验策略名称是否重复
    */
-  async verifyStrategyName(v) {
-    console.log(v);
-    const code = await verifyStrategyName(
-      { name: this.baseConfig.name, id: this.id || undefined },
-      { needMessage: false }
-    )
+  async verifyStrategyName(value: string) {
+    const code = await verifyStrategyName({ name: value, id: this.id || undefined }, { needMessage: false })
       .then(data => {
         return String(data.code);
       })
