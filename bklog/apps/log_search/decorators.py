@@ -46,6 +46,7 @@ def search_history_record(func):
                 index_set_id=history_obj["index_set_id"],
                 params=history_obj["params"],
                 search_type=history_obj["search_type"],
+                from_favorite_id=history_obj["from_favorite_id"],
                 duration=time_consume,
             )
             # 当外部用户检索的时候, 将记录设置为外部用户
@@ -62,6 +63,7 @@ def search_history_record(func):
                 search_type=union_search_history_obj["search_type"],
                 duration=time_consume,
                 index_set_type=IndexSetType.UNION.value,
+                from_favorite_id=union_search_history_obj["from_favorite_id"],
             )
             del result.data["union_search_history_obj"]
 

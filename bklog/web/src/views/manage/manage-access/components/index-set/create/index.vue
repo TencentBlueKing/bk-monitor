@@ -712,9 +712,10 @@ export default {
       }
     },
     returnIndexList() {
+      const { editName: _, ...rest } = this.$route.query;
       this.$router.push({
         name: this.$route.name.replace(/create|edit/, 'list'),
-        query: { ...this.$route.query }
+        query: { ...rest }
       });
     },
     getIndexActive(resultTableId) {

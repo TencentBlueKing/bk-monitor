@@ -43,8 +43,6 @@ import {
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
-import PromqlMonacoEditor from '../../../components/promql-editor/promql-editor';
 import { ISpaceItem } from '../../../types';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
@@ -114,6 +112,8 @@ type EditModeType = 'Edit' | 'Source';
 @Component({
   components: {
     StrategyTargetTable,
+    PromqlMonacoEditor: () =>
+      import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../components/promql-editor/promql-editor'),
   },
 })
 export default class StrategyConfigDetailCommon extends tsc<object> {
@@ -1086,11 +1086,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         return (
                           <div class='promql-content'>
                             <div class='edit-wrap'>
-                              <PromqlMonacoEditor
+                              <promql-monaco-editor
                                 minHeight={160}
                                 readonly={true}
                                 value={this.sourceData.sourceCode}
-                              ></PromqlMonacoEditor>
+                              />
                               {/* <PromqlEditor
                                 class='promql-editor'
                                 readonly={true}

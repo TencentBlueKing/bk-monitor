@@ -43,15 +43,16 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
   needCheck = true;
   fromRouteName = '';
   refreshKey = random(10);
+  isActivated = false;
   @ProvideReactive('authority') authority: Record<string, boolean> = {};
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;
   @Provide('strategyType') strategyType: strategyType = 'monitor';
   beforeRouteEnter(to, from, next) {
-    next((vm: MonitorStrategyConfigSet & { _isMounted: boolean }) => {
+    next((vm: MonitorStrategyConfigSet) => {
       vm.needCheck = to.name !== 'strategy-config-detail';
       vm.fromRouteName = `${from.name}-${random(10)}`;
-      if (!allowJumpMap.includes(from.name) && vm._isMounted) {
+      if (!allowJumpMap.includes(from.name) && vm.isActivated) {
         vm.refreshKey = random(10);
       }
     });
@@ -86,6 +87,10 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
   handleSave() {
     this.needCheck = false;
     this.$router.push({ name: 'strategy-config' });
+  }
+  async activated() {
+    await this.$nextTick();
+    this.isActivated = true;
   }
   render() {
     return (

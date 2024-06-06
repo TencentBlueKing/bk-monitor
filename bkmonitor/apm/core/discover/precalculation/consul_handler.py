@@ -20,8 +20,9 @@ import traceback
 from dataclasses import asdict, dataclass
 from urllib.parse import urlunparse
 
-from core.drf_resource import resource
 from django.conf import settings
+
+from core.drf_resource import resource
 from metadata.models import ClusterInfo
 from metadata.utils import consul_tools
 
@@ -87,7 +88,8 @@ class ConsulHandler:
         from apm.core.discover.precalculation.storage import PrecalculateStorage
 
         data_id = trace_datasource.bk_data_id
-        trace_index_name = f"{trace_datasource.result_table_id.replace('.', '_')}*"
+        # 预计算任务中使用最新的索引进行查询 span
+        trace_index_name = trace_datasource.index_name.split(",")[0]
         datasource_info = resource.metadata.query_data_source(bk_data_id=data_id)
         result_table_config = datasource_info["result_table_list"][0]["shipper_list"][0]
         result_table_cluster_config = result_table_config["cluster_config"]

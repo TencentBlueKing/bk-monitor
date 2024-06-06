@@ -37,7 +37,10 @@
       slot="content"
       class="event-icons"
     >
-      <div class="event-box">
+      <div
+        v-if="isCluster"
+        class="event-box"
+      >
         <span
           class="event-btn"
           @click="handleClick('show original')"

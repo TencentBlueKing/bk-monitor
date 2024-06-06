@@ -103,6 +103,8 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.strategies.get_strategy_v2, endpoint="v2/get_strategy"),
         # 删除策略
         ResourceRoute("POST", resource.strategies.delete_strategy_v2, endpoint="v2/delete_strategy"),
+        # 校验策略名
+        ResourceRoute("POST", resource.strategies.verify_strategy_name, endpoint="v2/verify_strategy_name"),
         # 保存/创建策略
         ResourceRoute("POST", resource.strategies.save_strategy_v2, endpoint="v2/save_strategy"),
         # 批量更新策略

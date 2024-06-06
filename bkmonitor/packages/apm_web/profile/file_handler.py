@@ -18,7 +18,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from apm_web.models import ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.collector import CollectorHandler
-from apm_web.profile.converter import list_converter
+from apm_web.profile.profileconverter import list_profile_converter
 
 logger = logging.getLogger("apm_web")
 
@@ -50,7 +50,7 @@ class ProfilingFileHandler:
         # 从 bkrepo 中获取文件数据
         data = self.get_file_data(key)
 
-        for file_type, c in list_converter().items():
+        for file_type, c in list_profile_converter().items():
             try:
                 converter = c(
                     preset_profile_id=profile_id,

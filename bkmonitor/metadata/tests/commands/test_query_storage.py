@@ -49,6 +49,7 @@ def test_query_storage(create_and_delete_record):
     ]
     assert not (set(keys) - set(output[0].keys()))
     assert output[0]["kafka_config"]["topic"] == DEFAULT_NAME
+    assert "vm_cluster_domain" in output[0]["victoria_metrics"]
 
 
 def test_only_datasource_query_storage(create_and_delete_record):

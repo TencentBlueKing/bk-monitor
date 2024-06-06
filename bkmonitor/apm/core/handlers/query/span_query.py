@@ -23,14 +23,13 @@ from constants.apm import OtlpKey
 
 
 class SpanQuery(EsQueryBuilderMixin):
-
     DEFAULT_SORT_FIELD = "end_time"
 
     KEY_REPLACE_FIELDS = {"duration": "elapsed_time"}
 
     def __init__(self, es_client, index_name):
         self.client = es_client
-        self.index_name = f"{index_name.replace('.', '_')}_*"
+        self.index_name = index_name
 
     @property
     def search(self):

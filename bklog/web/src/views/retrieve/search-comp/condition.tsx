@@ -327,6 +327,12 @@ export default class Condition extends tsc<{}> {
     this.handleAdditionChange({ value: [] });
   }
 
+  /** 选中数据时，清空缓存的输入字符 */
+  handleValueSelect() {
+    this.catchTagInputStr = '';
+    this.emitInputChange('');
+  }
+
   /**
    * @desc: 更新操作元素和操作符
    * @param {boolean} operatorItem 操作符元素
@@ -592,6 +598,7 @@ export default class Condition extends tsc<{}> {
             onBlur={this.handleValueBlur}
             onRemoveAll={this.handleValueRemoveAll}
             onInputchange={v => (this.catchTagInputStr = v)}
+            onSelect={this.handleValueSelect}
             trigger='focus'
           ></TagInput>
         )}

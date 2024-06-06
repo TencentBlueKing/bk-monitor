@@ -34,12 +34,14 @@ class ResultTableAndDataSource:
         bcs_cluster_id: Optional[str] = None,
         vm_table_id: Optional[str] = None,
         metric_name: Optional[str] = None,
+        data_label: Optional[str] = None,
     ):
         self.bk_data_id = bk_data_id
         self.table_id = table_id
         self.bcs_cluster_id = bcs_cluster_id
         self.metric_name = metric_name
         self.vm_table_id = vm_table_id
+        self.data_label = data_label
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
@@ -135,10 +137,15 @@ class ResultTableAndDataSource:
         2. 否则，如果数据源存在，则通过数据源查询结果表，这里可能会存在多个
         3. 否则，则按照过滤对应的数据源，然后查询到相应的结果表，一个集群会存在两个必要数据源
         """
-        if self.table_id or self.vm_table_id:
+        if self.table_id or self.vm_table_id or self.data_label:
             table_id = self.table_id
+            # 通过 vm 结果表获取监控结果表
             if self.vm_table_id:
                 table_id = models.AccessVMRecord.objects.get(vm_result_table_id=self.vm_table_id).result_table_id
+            # 通过数据标签获取监控结果表
+            elif self.data_label:
+                table_id = models.ResultTable.objects.get(data_label=self.data_label).table_id
+
             obj = models.DataSourceResultTable.objects.get(table_id=table_id)
             return {obj.table_id: obj.bk_data_id}
 
@@ -244,13 +251,17 @@ class ResultTableAndDataSource:
             storage_dict[storage_type] = config
 
         # 通过结果表追加 vm 配置
-        table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id)
+        table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id).first()
         if table_id_vm_obj:
-            obj = table_id_vm_obj.first()
+            try:
+                vm_cluster_domain = models.ClusterInfo.objects.get(cluster_id=table_id_vm_obj.vm_cluster_id).domain_name
+            except models.ClusterInfo.DoesNotExist:
+                vm_cluster_domain = ""
             storage_dict[models.ClusterInfo.TYPE_VM] = {
-                "vm_cluster_id": obj.vm_cluster_id,
-                "bk_base_data_id": obj.bk_base_data_id,
-                "vm_result_table_id": obj.vm_result_table_id,
+                "vm_cluster_domain": vm_cluster_domain,
+                "vm_cluster_id": table_id_vm_obj.vm_cluster_id,
+                "bk_base_data_id": table_id_vm_obj.bk_base_data_id,
+                "vm_result_table_id": table_id_vm_obj.vm_result_table_id,
             }
         else:
             storage_dict[models.ClusterInfo.TYPE_VM] = {}

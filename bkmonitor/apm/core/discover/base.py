@@ -224,7 +224,6 @@ class TopoHandler:
 
         while True:
             query_body = self._get_after_key_body(after_key)
-
             response = self.datasource.es_client.search(
                 index=self.datasource.index_name, body=query_body, request_timeout=60
             )
@@ -302,27 +301,25 @@ class TopoHandler:
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
-        index_name = self.datasource.index_name
-        index_settings = self.datasource.es_client.indices.get_settings(index=self.datasource.index_name)
+        lastly_index_name = self.datasource.index_name.split(",")[0]
+        index_settings = self.datasource.es_client.indices.get_settings(index=lastly_index_name)
+        max_size_count = None
         if not index_settings:
             max_size_count = self._ES_MAX_RESULT_WINDOWS
         else:
-            lastly_index = max(
-                index_settings.keys(),
-                key=lambda i: index_settings[i].get("settings", {}).get("index", {}).get("creation_date", 0),
-            )
-
-            max_size_count = index_settings[lastly_index].get("settings", {}).get("index", {}).get("max_result_window")
-            index_name = lastly_index
+            if lastly_index_name in index_settings:
+                max_size_count = (
+                    index_settings[lastly_index_name].get("settings", {}).get("index", {}).get("max_result_window")
+                )
         # ES 1.x-7.x默认值为 10000
         max_size_count = int(max_size_count) if max_size_count else self._ES_MAX_RESULT_WINDOWS
 
         if max_size_count >= constants.DISCOVER_BATCH_SIZE:
-            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE, index_name
+            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE, lastly_index_name
 
         logger.info(f"[TopoHandler] found max_size_count: {max_size_count} < {constants.DISCOVER_BATCH_SIZE}")
 
-        return max_size_count, 1, index_name
+        return max_size_count, 1, lastly_index_name
 
     def discover(self):
         """application spans discover"""

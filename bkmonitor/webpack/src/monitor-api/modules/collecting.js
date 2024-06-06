@@ -67,5 +67,5 @@ export default {
   isTaskReady,
   checkAdjectiveCollect,
   fetchCollectConfigStat,
-  checkPluginVersion
+  checkPluginVersion,
 };
