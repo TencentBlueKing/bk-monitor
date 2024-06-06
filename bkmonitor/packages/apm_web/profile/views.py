@@ -404,7 +404,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         """判断此 profile 服务是否是大应用"""
 
         try:
-            response = api.apm_api.query_profile_service_detail(
+            response = api.apm_api.query_profile_services_detail(
                 **{
                     "bk_biz_id": bk_biz_id,
                     "app_name": app_name,
