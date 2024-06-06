@@ -247,8 +247,11 @@ export default class FieldAnalysis extends Vue {
         // 找到最小和最大时间戳
         const minTimestamp = Math.min.apply(null, allTimestamps);
         const maxTimestamp = Math.max.apply(null, allTimestamps);
-
+        const {
+          xAxis: { minInterval, splitNumber, ...resetxAxis }
+        } = lineOrBarOptions;
         Object.assign(lineOrBarOptions, {
+          useUTC: false,
           tooltip: {
             trigger: 'axis',
             axisPointer: {
@@ -263,7 +266,7 @@ export default class FieldAnalysis extends Vue {
           },
           color: lineColor,
           xAxis: {
-            ...lineOrBarOptions.xAxis,
+            ...resetxAxis,
             axisLabel: {
               color: '#979BA5',
               boundaryGap: false,
@@ -274,8 +277,6 @@ export default class FieldAnalysis extends Vue {
                 return dayjs.tz(value).format(formatStr);
               }
             },
-            minInterval: 0,
-            splitNumber: 5,
             scale: false,
             min: minTimestamp,
             max: maxTimestamp
@@ -335,19 +336,17 @@ export default class FieldAnalysis extends Vue {
 
   /** 设置时间戳类型Tooltips */
   handleSetTimeTooltip(params) {
-    const liHtmls = params
-      .sort((a, b) => b.value[1] - a.value[1])
-      .map((item, index) => {
-        let markColor = 'color: #fafbfd;';
-        if (index === 0) {
-          markColor = 'color: #fff;font-weight: bold;';
-        }
-        return `<li class="tooltips-content-item">
+    const liHtmls = params.map((item, index) => {
+      let markColor = 'color: #fafbfd;';
+      if (index === 0) {
+        markColor = 'color: #fff;font-weight: bold;';
+      }
+      return `<li class="tooltips-content-item">
                   <span class="item-series" style="background-color:${item.color};"></span>
                   <span class="item-name" style="${markColor}">${item.seriesName}:</span>
                   <span class="item-value" style="${markColor}">${item.value[1]}</span>
                 </li>`;
-      });
+    });
     const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     return `<div id="monitor-chart-tooltips">
         <p class="tooltips-header">
@@ -415,10 +414,12 @@ export default class FieldAnalysis extends Vue {
     const showSeriesName = this.legendData.filter(legend => legend.show).map(item => item.name);
     const showSeries = this.seriesData.filter(item => showSeriesName.includes(item.name));
     const options = this.chart.getOption();
+    const showColor = this.legendData.filter(legend => legend.show).map(item => item.color);
 
     this.chart.setOption(
       {
         ...options,
+        color: showColor,
         series: showSeries
       },
       {
