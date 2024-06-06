@@ -451,3 +451,11 @@ class ESScopeTypes(Enum):
 
 # 默认measurement
 DEFAULT_MEASUREMENT = "__default__"
+
+
+# 事件组状态
+class EventGroupStatus(Enum):
+    """事件组状态"""
+
+    NORMAL = "normal"
+    SLEEP = "sleep"

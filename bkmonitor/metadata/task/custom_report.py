@@ -13,17 +13,23 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 import traceback
+from datetime import timedelta
 from typing import Optional
 
 import billiard as multiprocessing
 from django import db
 from django.conf import settings
+from django.db.models import Q
+from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.version import compare_versions, get_max_version
 from core.drf_resource import api
 from metadata import models
 from metadata.config import PERIODIC_TASK_DEFAULT_TTL
+from metadata.models import EventGroup
+from metadata.models.constants import EventGroupStatus
+from metadata.service.es_storage import ESIndex
 from metadata.utils import es_tools
 
 logger = logging.getLogger("metadata")
@@ -196,3 +202,17 @@ def refresh_custom_log_config(log_group_id=None):
             logger.exception(
                 "[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id
             )
+
+
+def check_custom_event_group_sleep():
+    """
+    检查自定义事件组是否应该进行休眠
+    如果自定义事件超过半年没有被使用，则进行休眠，清理索引
+    """
+    event_groups = EventGroup.objects.filter(
+        Q(last_check_report_time__isnull=True) | Q(last_check_report_time__lt=timezone.now() - timedelta(days=180)),
+        status=EventGroupStatus.NORMAL,
+    )
+
+    for event_group in event_groups:
+        ESIndex().query_es_index([event_group.table_id])

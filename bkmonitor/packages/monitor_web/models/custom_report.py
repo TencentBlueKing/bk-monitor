@@ -13,14 +13,14 @@ import time
 from typing import Any, Dict, List
 
 from django.db import models
-from monitor_web.constants import EVENT_TYPE
-from monitor_web.models import OperateRecordModelBase
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.db import JsonField
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
+from monitor_web.constants import EVENT_TYPE
+from monitor_web.models import OperateRecordModelBase
 
 
 class CustomEventGroup(OperateRecordModelBase):
@@ -33,6 +33,11 @@ class CustomEventGroup(OperateRecordModelBase):
         (EVENT_TYPE.KEYWORDS, EVENT_TYPE.KEYWORDS),
     )
 
+    EVENT_GROUP_STATUS = (
+        ("normal", "正常"),
+        ("sleep", "休眠"),
+    )
+
     bk_event_group_id = models.IntegerField("事件分组ID", primary_key=True)
     bk_data_id = models.IntegerField("数据ID")
     bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
@@ -43,6 +48,10 @@ class CustomEventGroup(OperateRecordModelBase):
     type = models.CharField("事件组类型", max_length=128, choices=PLUGIN_TYPE_CHOICES, default="custom_event")
     is_platform = models.BooleanField("平台级", default=False)
     data_label = models.CharField("数据标签", max_length=128, default="")
+
+    # 事件组状态
+    status = models.CharField("状态", choices=EVENT_GROUP_STATUS, default="normal", max_length=16)
+    last_check_report_time = models.DateTimeField("最后检查报告时间", null=True, blank=True)
 
     def __str__(self):
         return f"{self.name}"  # noqa
