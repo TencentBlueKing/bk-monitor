@@ -28,7 +28,7 @@ FIELD_TYPE_MAP = {
     "conflict": "string",
 }
 
-OP_MAP = {
+BASE_OP_MAP = {
     "=": "eq",
     "!=": "ne",
     "=~": "req",

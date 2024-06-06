@@ -14,7 +14,7 @@ from typing import Any, Dict
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
-from apps.log_unifyquery.constants import REFERENCE_ALIAS
+from apps.log_unifyquery.constants import BASE_OP_MAP, OP_TRANSFORMER, REFERENCE_ALIAS
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
 
@@ -58,7 +58,7 @@ class UnifyQueryHandler(object):
                 "reference_name": REFERENCE_ALIAS[index],
                 "dimensions": [],
                 "time_field": "time",
-                "conditions": {"field_list": [], "condition_list": []},
+                "conditions": self.transform_additions(),
                 "function": [],
             }
             for index, result_table_id in enumerate(self.search_params.get("result_table_ids", []))
@@ -100,7 +100,25 @@ class UnifyQueryHandler(object):
                 raise e
 
     def transform_additions(self):
-        pass
+        field_list = []
+        condition_list = []
+        for addition in self.search_params["addition"]:
+            if addition["operator"] in BASE_OP_MAP:
+                field_list.append(
+                    {
+                        "field_name": addition["field"],
+                        "op": BASE_OP_MAP[addition["operator"]],
+                        "value": addition["value"],
+                    }
+                )
+            else:
+                transformer = OP_TRANSFORMER[addition["operator"]]
+                new_field_list, new_condition_list = transformer(addition)
+                field_list.extend(new_field_list)
+                condition_list.extend(new_condition_list)
+            if len(field_list) > 1:
+                condition_list.append("and")
+        return {"field_list": field_list, "condition_list": condition_list}
 
     def get_total_count(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -117,9 +135,9 @@ class UnifyQueryHandler(object):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
-            query["conditions"] = {
-                "field_list": [{"field_name": self.search_params["agg_field"], "value": [""], "op": "ncontains"}]
-            }
+            query["conditions"]["field_list"].append(
+                {"field_name": self.search_params["agg_field"], "value": [""], "op": "ncontains"}
+            )
             query["function"] = [{"method": "count"}]
         data = self.query_ts_reference(search_dict)
         if data.get("series", []):
@@ -131,13 +149,13 @@ class UnifyQueryHandler(object):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
-            query["conditions"] = {
-                "field_list": [
+            query["conditions"]["field_list"].extend(
+                [
                     {"field_name": self.search_params["agg_field"], "value": [str(start)], "op": "gte"},
                     {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"},
-                ],
-                "condition_list": ["and"],
-            }
+                ]
+            )
+            query["conditions"]["condition_list"].append("and")
             query["function"] = [{"method": "count"}]
         data = self.query_ts_reference(search_dict)
         if data.get("series", []):
@@ -165,6 +183,11 @@ class UnifyQueryHandler(object):
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
                 {"method": "topk", "vargs_list": [vargs]},
             ]
+            if len(query["conditions"]["field_list"]) > 0:
+                query["conditions"]["condition_list"].append("and")
+            query["conditions"]["field_list"].append(
+                {"field_name": self.search_params["agg_field"], "value": [""], "op": "neq"}
+            )
         data = self.query_ts(search_dict)
         return data
 
@@ -188,6 +211,11 @@ class UnifyQueryHandler(object):
         for query in search_dict["query_list"]:
             query["limit"] = limit
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
+            if len(query["conditions"]["field_list"]) > 0:
+                query["conditions"]["condition_list"].append("and")
+            query["conditions"]["field_list"].extend(
+                [{"field_name": self.search_params["agg_field"], "value": [""], "op": "neq"}]
+            )
         data = self.query_ts_reference(search_dict)
         series = data["series"]
         return sorted([[s["group_values"][0], s["values"][0][1]] for s in series], key=lambda x: x[1], reverse=True)
