@@ -76,7 +76,7 @@ class UnifyQueryHandler(object):
         }
 
     @staticmethod
-    def query_ts(search_dict, raise_exception=False):
+    def query_ts(search_dict, raise_exception=True):
         """
         查询时序型数据
         """
@@ -102,13 +102,13 @@ class UnifyQueryHandler(object):
     def transform_additions(self):
         field_list = []
         condition_list = []
-        for addition in self.search_params["addition"]:
+        for addition in self.search_params.get("addition", []):
             if addition["operator"] in BASE_OP_MAP:
                 field_list.append(
                     {
                         "field_name": addition["field"],
                         "op": BASE_OP_MAP[addition["operator"]],
-                        "value": addition["value"],
+                        "value": [addition["value"]],
                     }
                 )
             else:
@@ -135,6 +135,8 @@ class UnifyQueryHandler(object):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
+            if len(query["conditions"]["field_list"]) > 0:
+                query["conditions"]["condition_list"].append("and")
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": [""], "op": "ncontains"}
             )
@@ -149,13 +151,16 @@ class UnifyQueryHandler(object):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
+            if len(query["conditions"]["field_list"]) > 0:
+                query["conditions"]["condition_list"].extend(["and"] * 2)
+            else:
+                query["conditions"]["condition_list"].extend(["and"])
             query["conditions"]["field_list"].extend(
                 [
                     {"field_name": self.search_params["agg_field"], "value": [str(start)], "op": "gte"},
                     {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"},
                 ]
             )
-            query["conditions"]["condition_list"].append("and")
             query["function"] = [{"method": "count"}]
         data = self.query_ts_reference(search_dict)
         if data.get("series", []):
@@ -175,6 +180,7 @@ class UnifyQueryHandler(object):
         return 0
 
     def get_topk_ts_data(self, vargs: int = 5):
+        topk_group_values = [group[0] for group in self.get_topk_list()]
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
@@ -184,9 +190,14 @@ class UnifyQueryHandler(object):
                 {"method": "topk", "vargs_list": [vargs]},
             ]
             if len(query["conditions"]["field_list"]) > 0:
-                query["conditions"]["condition_list"].append("and")
-            query["conditions"]["field_list"].append(
-                {"field_name": self.search_params["agg_field"], "value": [""], "op": "neq"}
+                query["conditions"]["condition_list"].extend(["and"] * 2)
+            else:
+                query["conditions"]["condition_list"].extend(["and"])
+            query["conditions"]["field_list"].extend(
+                [
+                    {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"},
+                    {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"},
+                ]
             )
         data = self.query_ts(search_dict)
         return data
@@ -214,7 +225,7 @@ class UnifyQueryHandler(object):
             if len(query["conditions"]["field_list"]) > 0:
                 query["conditions"]["condition_list"].append("and")
             query["conditions"]["field_list"].extend(
-                [{"field_name": self.search_params["agg_field"], "value": [""], "op": "neq"}]
+                [{"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}]
             )
         data = self.query_ts_reference(search_dict)
         series = data["series"]
