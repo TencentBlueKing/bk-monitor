@@ -25,15 +25,9 @@ the project delivered to anyone in the future.
 import json
 import os
 import traceback
-from typing import Optional
-
-from apigw_manager.apigw.utils import get_configuration
-from django.utils.module_loading import import_string
-
-from apps.utils.local import get_request as get_local_request
 
 from apigw_manager.apigw.authentication import ApiGatewayJWTGenericMiddleware
-from apigw_manager.apigw.providers import CachePublicKeyProvider, SettingsPublicKeyProvider
+from apigw_manager.apigw.providers import SettingsPublicKeyProvider
 from blueapps.core.exceptions.base import BlueException
 
 try:
