@@ -174,18 +174,26 @@ export default class AggChart extends tsc<{}> {
               </div>
             </li>
           ))}
-          {!this.showAllList && this.shouldShowMore && (
+          {
             <li class='more-item'>
-              <span
-                onClick={() => {
-                  this.showAllList = !this.showAllList;
-                  this.queryFieldFetchTopList(100);
-                }}
-              >
-                {this.$t('更多')}
+              <div>
+                {!this.showAllList && this.shouldShowMore && (
+                  <span
+                    onClick={() => {
+                      this.showAllList = !this.showAllList;
+                      this.queryFieldFetchTopList(100);
+                    }}
+                  >
+                    {this.$t('更多')}
+                  </span>
+                )}
+              </div>
+              <span>
+                {/* <i class='bk-icon icon-download'></i>
+                <span>{this.$t('下载')}</span> */}
               </span>
             </li>
-          )}
+          }
         </ul>
       </div>
     );

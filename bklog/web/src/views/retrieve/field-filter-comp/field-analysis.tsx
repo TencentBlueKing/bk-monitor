@@ -21,12 +21,12 @@
  */
 
 import { Component, Prop, Ref, Vue, Emit, Watch } from 'vue-property-decorator';
+import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import $http from '../../../api';
 import { lineColor } from '../../../store/constant';
 import './field-analysis.scss';
 import dayjs from 'dayjs';
 import axios from 'axios';
-import EmptyStatus from '../../../components/empty-status';
 const CancelToken = axios.CancelToken;
 
 const timeSeriesBase = {
@@ -80,157 +80,6 @@ export default class FieldAnalysis extends Vue {
   emptyTipsStr = '';
   emptyStr = window.mainComponent.$t('暂无数据');
 
-  /** 折线图数据 */
-  lineChartOption = {
-    useUTC: false,
-    animationThreshold: 2000,
-    animationDurationUpdate: 0,
-    animationDuration: 20,
-    animationDelay: 300,
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'line',
-        lineStyle: {
-          type: 'dashed'
-        }
-      },
-      formatter: p => this.handleSetTimeTooltip(p),
-      position: this.handleSetPosition
-    },
-    color: lineColor,
-    legend: {
-      itemWidth: 10,
-      itemHeight: 10,
-      padding: 0,
-      bottom: 0,
-      icon: 'rect',
-      textStyle: {
-        fontSize: 12
-      },
-      formatter: name => {
-        // 限制显示文本的长度
-        return name.length > 10 ? `${name.slice(0, 10)}...` : name;
-      },
-      tooltip: {
-        show: true
-      },
-      data: []
-    },
-    grid: {
-      left: 0,
-      right: 30,
-      top: 10,
-      bottom: 0,
-      containLabel: true,
-      backgroundColor: 'transparent'
-    },
-    xAxis: {
-      axisLine: {
-        show: false
-      },
-      axisTick: {
-        show: false
-      },
-      axisLabel: {
-        color: '#979BA5',
-        boundaryGap: false,
-        showMinLabel: false,
-        showMaxLabel: false,
-        // rotate: -30,
-        fontSize: 12,
-        formatter: value => {
-          return dayjs.tz(value).format(formatStr);
-        }
-      },
-      splitLine: {
-        show: false
-      },
-      type: 'time'
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: {
-        color: '#979BA5'
-      },
-      axisLine: {
-        show: false
-      },
-      axisTick: {
-        show: false
-      },
-      splitLine: {
-        lineStyle: {
-          type: 'dashed',
-          color: '#F0F1F5'
-        },
-        show: true
-      }
-    },
-    series: []
-  };
-
-  /** 柱状图数据 */
-  pillarChartOption = {
-    tooltip: {
-      trigger: 'axis',
-      formatter: p => this.handleSetPillarTooltip(p),
-      position: this.handleSetPosition
-    },
-    xAxis: {
-      axisLine: {
-        show: false
-      },
-      axisTick: {
-        show: false
-      },
-      axisLabel: {
-        color: '#979BA5',
-        interval: 3,
-        formatter: value => {
-          if (value.length > 18) return `${value.slice(0, 18)}...`; // 只显示前18个字符
-          return value;
-        }
-      },
-      type: 'category',
-      data: []
-    },
-    yAxis: {
-      type: 'value',
-      axisTick: {
-        show: false
-      },
-      axisLine: {
-        show: false
-      },
-      splitLine: {
-        lineStyle: {
-          type: 'dashed',
-          color: '#F0F1F5'
-        },
-        show: true
-      },
-      axisLabel: {
-        color: '#979BA5'
-      }
-    },
-    grid: {
-      left: '0',
-      right: '4%',
-      top: '4%',
-      bottom: '0',
-      containLabel: true
-    },
-    series: [
-      {
-        data: [],
-        type: 'bar',
-        itemStyle: {
-          color: '#689DF3'
-        }
-      }
-    ]
-  };
   /** 基础信息数据 */
   fieldData = {
     total_count: 0,
@@ -335,13 +184,40 @@ export default class FieldAnalysis extends Vue {
           this.isShowEmpty = true;
           return;
         }
-        // 折线图初始化
-        this.pillarChartOption.series[0].data = res.data.map(item => item[1]);
-        this.pillarChartOption.xAxis.data = res.data.map((item, index) => {
+        const xAxisData = res.data.map((item, index) => {
           if (index === 0 || index === res.data.length - 1 || this.fieldData.distinct_count < 10) {
             return item[0];
           }
           return `${res.data[index - 1][0]} - ${item[0]}`;
+        });
+        // 柱状图初始化
+        Object.assign(pillarChartOption, {
+          tooltip: {
+            trigger: 'axis',
+            formatter: p => this.handleSetPillarTooltip(p),
+            position: this.handleSetPosition
+          },
+          xAxis: {
+            ...pillarChartOption.xAxis,
+            axisLabel: {
+              color: '#979BA5',
+              interval: 3,
+              formatter: value => {
+                if (value.length > 18) return `${value.slice(0, 18)}...`; // 只显示前18个字符
+                return value;
+              }
+            },
+            data: xAxisData
+          },
+          series: [
+            {
+              data: res.data.map(item => item[1]),
+              type: 'bar',
+              itemStyle: {
+                color: '#689DF3'
+              }
+            }
+          ]
         });
       } else {
         if (!res.data.series.length) {
@@ -372,12 +248,45 @@ export default class FieldAnalysis extends Vue {
         const minTimestamp = Math.min.apply(null, allTimestamps);
         const maxTimestamp = Math.max.apply(null, allTimestamps);
 
-        Object.assign(this.lineChartOption, {
+        Object.assign(lineOrBarOptions, {
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+              type: 'line',
+              lineStyle: {
+                type: 'dashed'
+              }
+            },
+            appendTo: () => document.body,
+            formatter: p => this.handleSetTimeTooltip(p),
+            position: this.handleSetPosition
+          },
+          color: lineColor,
           xAxis: {
-            ...this.lineChartOption.xAxis,
+            ...lineOrBarOptions.xAxis,
+            axisLabel: {
+              color: '#979BA5',
+              boundaryGap: false,
+              showMinLabel: false,
+              showMaxLabel: false,
+              fontSize: 12,
+              formatter: value => {
+                return dayjs.tz(value).format(formatStr);
+              }
+            },
+            minInterval: 0,
+            splitNumber: 5,
+            scale: false,
             min: minTimestamp,
             max: maxTimestamp
           },
+          yAxis: {
+            ...lineOrBarOptions.yAxis,
+            axisLine: {
+              show: false
+            }
+          },
+          legend: [],
           series
         });
 
@@ -418,11 +327,12 @@ export default class FieldAnalysis extends Vue {
     const chart: any = echarts.init(this.chartRef, null, {
       height: `${this.height}px`
     });
-    const getInitChartOption = this.isPillarChart ? this.pillarChartOption : this.lineChartOption;
+    const getInitChartOption = this.isPillarChart ? pillarChartOption : lineOrBarOptions;
     chart && chart.setOption(getInitChartOption);
     this.chart = chart;
     this.chart.resize();
   }
+
   /** 设置时间戳类型Tooltips */
   handleSetTimeTooltip(params) {
     const liHtmls = params
@@ -448,6 +358,7 @@ export default class FieldAnalysis extends Vue {
         </ul>
       </div>`;
   }
+
   /** 设置柱状图类型Tooltips */
   handleSetPillarTooltip(params) {
     return `<div id="monitor-chart-tooltips">
@@ -477,12 +388,13 @@ export default class FieldAnalysis extends Vue {
     } else {
       position.top = +pos[1] + canSetBottom - 20;
     }
-    const canSetLeft = window.innerWidth - posRect.x - contentSize[0] + 160;
+    const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
 
     position.left = +pos[0] + Math.min(20, canSetLeft);
 
     return position;
   }
+
   /** 点击分组 */
   handleLegendEvent(e: MouseEvent, actionType: LegendActionType, item) {
     if (this.legendData.length < 2) {
@@ -657,11 +569,11 @@ export default class FieldAnalysis extends Vue {
               class='not-data-empty'
               style={{ height: `${this.height}px` }}
             >
-              <EmptyStatus
-                empty-type={!!this.emptyTipsStr ? '500' : 'empty'}
-                show-text={false}
+              <bk-exception
+                type={!!this.emptyTipsStr ? '500' : 'empty'}
+                scene='part'
               >
-                <div style={{ marginTop: '-20px' }}>
+                <div style={{ marginTop: '10px' }}>
                   <span>{this.emptyStr}</span>
                   {!!this.emptyTipsStr && (
                     <i
@@ -672,7 +584,7 @@ export default class FieldAnalysis extends Vue {
                     ></i>
                   )}
                 </div>
-              </EmptyStatus>
+              </bk-exception>
             </div>
           )}
         </div>
