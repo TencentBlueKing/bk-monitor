@@ -37,6 +37,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
+  filterSelectorPanelSearchList,
   transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
@@ -183,9 +184,9 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     return this.isOverview ? '' : this.panel.targets?.[0]?.handleCreateItemId?.(this.scopedVars, false) || '';
   }
   /** 过滤已选的搜索条件 */
-  // get currentConditionList() {
-  //   return filterSelectorPanelSearchList(this.conditionList, this.searchCondition);
-  // }
+  get currentConditionList() {
+    return filterSelectorPanelSearchList(this.conditionList, this.searchCondition);
+  }
   /** 是否启用状态筛选组件 */
   get isEnableStatusFilter() {
     return this.panel.options?.selector_list?.status_filter ?? false;
@@ -566,7 +567,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
             {this.conditionList.length ? (
               <SearchSelect
                 clearable={false}
-                data={this.conditionList}
+                data={this.currentConditionList}
                 modelValue={this.searchCondition}
                 placeholder={this.$t('搜索')}
                 onChange={this.handleSearch}
