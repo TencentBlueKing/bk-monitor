@@ -33,7 +33,7 @@ import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import Schema from 'async-validator';
-import { strategyLabelList } from 'monitor-api/modules/strategies';
+import { strategyLabelList, verifyStrategyName } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import ErrorMsg from '../../../../components/error-msg/error-msg';
@@ -60,6 +60,7 @@ export interface IBaseConfig {
   labels: string[];
   isEnabled: boolean;
   priority: null | number | string;
+  id?: number | string;
 }
 @Component
 export default class BaseInfo extends tsc<IBaseConfigProps> {
@@ -69,6 +70,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
   @Prop({ type: Boolean, default: false }) scenarioReadonly: boolean;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
+  @Prop({ type: [String, Number], default: '' }) id: number | string;
 
   @Ref('strategyName') strategyNameEl;
   @Ref('strategyPriority') strategyPriorityEl;
@@ -201,6 +203,20 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     };
   }
 
+  /**
+   * @description 校验策略名称是否重复
+   */
+  async verifyStrategyName(value: string) {
+    const code = await verifyStrategyName({ name: value, id: this.id || undefined }, { needMessage: false })
+      .then(data => {
+        return String(data.code);
+      })
+      .catch(() => null);
+    if (code === '3313011') {
+      this.errorsMsg.name = this.$tc('策略名已存在');
+    }
+  }
+
   handleBaseConfigPriorityInput(value) {
     this.errorsMsg.priority = value < 0 || value > 10000 ? this.$tc('优先级应为 0 - 10000 之间的整数') : '';
   }
@@ -280,6 +296,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
               readonly={this.readonly}
               on-change={this.handleBaseConfigChange}
               on-input={() => (this.errorsMsg.name = '')}
+              onBlur={this.verifyStrategyName}
             />
           </ErrorMsg>
         </CommonItem>
