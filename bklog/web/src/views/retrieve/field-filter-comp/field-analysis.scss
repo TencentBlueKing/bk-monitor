@@ -1,7 +1,7 @@
 @import '@/scss/mixins/flex.scss';
 
 .field-analysis-container {
-  width: 324px;
+  width: 460px;
   padding: 4px;
   font-size: 12px;
   color: #63656E;
@@ -76,5 +76,148 @@
     margin: 12px 0;
     font-size: 12px;
     color: #313238;
+  }
+
+  .legend-box {
+    margin-top: 10px;
+    align-content: center;
+  
+    @include flex-justify(space-between);
+  
+    .common-legend {
+      flex: 1;
+      flex-wrap: wrap;
+      align-items: center;
+      overflow-y: hidden;
+  
+      @include flex-justify(start);
+  
+      &-item {
+        display: flex;
+        height: 20px;
+        margin-left: 10px;
+        font-size: 12px;
+        line-height: 16px;
+        white-space: nowrap;
+        flex: 1;
+        align-items: center;
+    
+        .legend-icon {
+          width: 12px;
+          height: 4px;
+          margin-right: 6px;
+        }
+    
+        .legend-name {
+          max-width: 180px;
+        }
+    
+        &:hover {
+          cursor: pointer;
+        }
+      }
+    }
+  
+    .legend-icon-box {
+      height: 34px;
+      margin-top: 2px;
+      flex-direction: column;
+      align-items: center;
+  
+      @include flex-justify(space-between);
+  
+      .last-page-up {
+        transform: rotateZ(180deg) translateY(-7px);
+      }
+  
+      .bk-icon {
+        font-size: 16px;
+        color: #63656E;
+        cursor: pointer;
+      }
+  
+      .disabled {
+        color: #C5C7CD;
+  
+        &:hover {
+          /* stylelint-disable-next-line declaration-no-important */
+          color: #C5C7CD !important;
+        }
+      }
+  
+      .legend-page {
+        width: 34px;
+        text-align: center;
+      }
+    }
+  }
+  
+
+  .not-data-empty {
+    color: #313238;
+
+    @include flex-center();
+
+    .bk-icon {
+      margin-left: 4px;
+      font-size: 14px;
+      color: #EB3941;
+    }
+  }
+}
+
+#monitor-chart-tooltips {
+  z-index: 12;
+  display: flex;
+  font-size: 12px; 
+  border-radius: 4px;
+  border-radius: 10px;
+  flex-direction: column;
+
+  .tooltips-header {
+    margin: 0 0 2px 6px;
+    font-weight: bold;
+    color: #f1f3fa;
+    text-align: left;
+  }
+
+  .tooltips-content {
+    padding: 0;
+    margin: 0;
+
+    &-item {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      height: 18px;
+      margin: 2px 4px;
+      margin-right: 5px;
+
+      .item-series {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 6px;
+        height: 6px;
+        margin-right: 6px;
+        border-radius: 50%;
+      }
+
+      .item-name {
+        margin-right: 5px;
+        color: #f1f3fa;
+      }
+
+      .item-value {
+        display: flex;
+        align-items: center;
+        height: 18px;
+        padding: 0 5px;
+        margin-left: auto;
+        color: rgba(255,255,255, .8);
+        background-color: rgba(1,1,1,.8);
+        border-radius: 3px;
+      }
+    }
   }
 }

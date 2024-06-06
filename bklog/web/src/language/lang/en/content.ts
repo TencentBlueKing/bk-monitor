@@ -762,5 +762,9 @@ export default {
   中位数: 'Median value',
   时序图: 'Related Pictures',
   数值分布直方图: 'Numeric Distribution Histogram',
-  该字段暂无匹配日志: 'There is no matching log for this field yet.'
+  该字段暂无匹配日志: 'There is no matching log for this field yet.',
+  查询异常: 'Query abnormal',
+  图表分析: 'Chart analysis',
+  点击隐藏: 'Click to hide',
+  点击显示: 'Click to display'
 };

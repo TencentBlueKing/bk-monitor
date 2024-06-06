@@ -78,7 +78,14 @@
     }
 
     .more-item {
-      margin-top: 4px;
+
+      display: flex;
+      margin: 6px 0 10px 0;
+      justify-content: space-between;
+
+      .bk-icon {
+        margin-right: 4px;
+      }
 
       span {
         color: #3a84ff;
