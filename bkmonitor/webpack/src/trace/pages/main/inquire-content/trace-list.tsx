@@ -1819,7 +1819,7 @@ export default defineComponent({
               onChange={this.handleTraceDetail}
               onLoadMore={() => this.$emit('scrollBottom')}
             />
-            <div class={`detail-box ${this.isFullscreen ? 'fullsreen-box' : ''}`}>
+            <div class='detail-box fullsreen-box'>
               <TraceDetail
                 ref='traceDetailElem'
                 appName={appName}
