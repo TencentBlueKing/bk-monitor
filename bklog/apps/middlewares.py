@@ -217,7 +217,7 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
         external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
         request_obj = get_request()
         is_external = request_obj.headers.get("Is-External", "false")
-        if is_external:
+        if is_external == "true":
             logger.info(
                 "This request is from external api gateway, use external public key: `EXTERNAL_APIGW_PUBLIC_KEY`."
             )
