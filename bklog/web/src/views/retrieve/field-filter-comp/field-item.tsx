@@ -25,7 +25,6 @@ import { Component, Prop, Emit } from 'vue-property-decorator';
 import './field-item.scss';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 @Component
 export default class FieldItem extends tsc<{}> {
@@ -105,14 +104,11 @@ export default class FieldItem extends tsc<{}> {
     this.analysisActive = true;
     this.fieldAnalysisInstance = new FieldAnalysis().$mount();
     const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
-    const tempList = handleTransformToTimestamp(this.datePickerValue);
     this.fieldAnalysisInstance.$props.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name,
-      start_time: tempList[0],
-      end_time: tempList[1]
+      agg_field: this.fieldItem.field_name
     };
     /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
     this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
@@ -200,30 +196,33 @@ export default class FieldItem extends tsc<{}> {
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
             {this.isShowFieldsAnalysis && (
-              <span
+              <div
                 v-bk-tooltips={{
-                  content: this.$t('该字段暂无匹配日志'),
-                  disabled: !!this.gatherFieldsCount
+                  content: !this.gatherFieldsCount ? this.$t('该字段暂无匹配日志') : this.$t('图表分析')
                 }}
-                class={{ 'analysis-disabled': !this.gatherFieldsCount }}
+                class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
                 onClick={e => {
                   e.stopPropagation();
                   if (!this.gatherFieldsCount) return;
                   this.handleClickAnalysisItem();
                 }}
               >
-                {this.$t('字段分析')}
-              </span>
+                <i class='log-icon icon-log-trend'></i>
+              </div>
             )}
             {/* 设置字段显示或隐藏 */}
-            <span
+            <div
+              class='operation-icon-box'
+              v-bk-tooltips={{
+                content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示')
+              }}
               onClick={e => {
                 e.stopPropagation();
                 this.handleShowOrHiddenItem();
               }}
             >
-              {this.type === 'visible' ? this.$t('隐藏') : this.$t('显示')}
-            </span>
+              <i class={['bk-icon include-icon', `${this.type !== 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+            </div>
           </div>
         </div>
         {/* 显示聚合字段图表信息 */}

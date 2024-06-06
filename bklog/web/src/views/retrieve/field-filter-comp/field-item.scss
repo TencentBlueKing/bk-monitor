@@ -83,16 +83,13 @@
     .operation-text {
       flex-shrink: 0;
       padding-right: 6px;
+      font-size: 14px;
       visibility: hidden;
 
       @include flex-justify(space-between);
 
-      :first-child {
-        padding-right: 12px;
-      }
-
-      span {
-        color: #3a84ff;
+      > :last-child {
+        margin-left: 8px;
       }
 
       .analysis-disabled {
@@ -103,14 +100,40 @@
           color: #979ba5 !important;
         }
       }
+
+      .operation-icon-box {
+        width: 22px;
+        height: 22px;
+        
+        border-radius: 2px;
+
+        @include flex-center();
+
+        &:hover {
+          background: #DCDEE5;
+        }
+
+        &.active {
+          color: #3A84FF;
+          background: #E1ECFF;
+        }
+      }
+
+      .include-icon {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        font-size: 14px;
+      }
     }
 
     .analysis-active {
       &.operation-text {
         visibility: visible;
 
-        &:first-child {
-          color: #699df4;
+        > :first-child {
+          color: #3A84FF;
+          background: #E1ECFF;
         }
       }
     }
@@ -121,8 +144,9 @@
       .operation-text {
         visibility: visible;
 
-        span:hover {
-          color: #699df4;
+        .operation-icon-box:hover {
+          color: #3A84FF;
+          background: #E1ECFF;
         }
       }
     }
