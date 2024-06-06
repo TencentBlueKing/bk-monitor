@@ -201,10 +201,8 @@ export async function allKVOptions(
   // 获取key (todo)
   getAssignConditionKeys()
     .then(keyRes => {
-      const keySet = new Set();
       const keys = keyRes
         .map(item => {
-          keySet.add(item.key);
           return {
             id: item.key,
             name: item.display_key,
