@@ -129,7 +129,7 @@ MIDDLEWARE = (
     # Auth middleware
     # "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",   # 与下面的 apigw_manager 中间件冲突，需要去掉
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
-    "apigw_manager.apigw.authentication.ApiGatewayJWTGenericMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
+    "apps.middlewares.ApiGatewayJWTMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",  # 根据 request.jwt，获取 request.app 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTUserMiddleware",  # 根据 request.jwt，获取 request.user 对象
     # "blueapps.account.middlewares.LoginRequiredMiddleware",
@@ -1073,6 +1073,9 @@ EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
 
 # 监控网关地址（新）
 MONITOR_APIGATEWAY_ROOT_NEW = os.getenv("BKAPP_BKMONITOR_APIGW_HOST", "")
+
+# 外部版网关密钥
+EXTERNAL_APIGW_PUBLIC_KEY = os.getenv("BKAPP_EXTERNAL_APIGW_PUBLIC_KEY", "")
 
 # ==============================================================================
 # Templates
