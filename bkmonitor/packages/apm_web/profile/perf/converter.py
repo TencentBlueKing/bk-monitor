@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from apm_web.profile.constants import InputType
-from apm_web.profile.converter import Converter, register_converter
 from apm_web.profile.models import (
     Function,
     Label,
@@ -23,10 +22,14 @@ from apm_web.profile.models import (
     Sample,
     ValueType,
 )
+from apm_web.profile.profileconverter import (
+    ProfileConverter,
+    register_profile_converter,
+)
 
 
 @dataclass
-class PerfScriptConverter(Converter):
+class PerfScriptProfileConverter(ProfileConverter):
     """Convert perf script to Profile object"""
 
     def convert(self, raw: bytes) -> Optional[Profile]:
@@ -158,4 +161,4 @@ class PerfScriptConverter(Converter):
         self.profile.sample.append(sample)
 
 
-register_converter(InputType.PERF_SCRIPT.value, PerfScriptConverter)
+register_profile_converter(InputType.PERF_SCRIPT.value, PerfScriptProfileConverter)

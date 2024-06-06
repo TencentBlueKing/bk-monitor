@@ -61,6 +61,7 @@ from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
+from core.errors.strategy import StrategyNameExist
 from monitor.models import ApplicationConfig
 from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.models import (
@@ -1753,6 +1754,27 @@ class GetMetricListV2Resource(Resource):
             "scenario_list": scenario_list,
             "count": count,
         }
+
+
+class VerifyStrategyNameResource(Resource):
+    """
+    策略名校验
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        name = serializers.CharField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+        id = serializers.IntegerField(required=False, default=0)
+
+        def validate(self, params):
+            qs = StrategyModel.objects.filter(name=params["name"], bk_biz_id=params["bk_biz_id"])
+            if params["id"]:
+                qs.exclude(id=params["id"])
+            if qs.exist():
+                raise StrategyNameExist(name=params["name"])
+
+    def perform_request(self, params):
+        return "ok"
 
 
 class SaveStrategyV2Resource(Resource):

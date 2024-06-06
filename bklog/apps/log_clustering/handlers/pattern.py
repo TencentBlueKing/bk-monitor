@@ -112,7 +112,7 @@ class PatternHandler:
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
         signature_map_origin_pattern = array_hash(pattern_map, "signature", "origin_pattern")
         signature_map_label = array_hash(pattern_map, "signature", "label")
-        sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs])
+        sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
         clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values(
@@ -130,6 +130,8 @@ class PatternHandler:
         for pattern in pattern_aggs:
             count = pattern["doc_count"]
             signature = pattern["key"]
+            if not signature:
+                continue
             signature_pattern = signature_map_pattern.get(signature, "")
             signature_origin_pattern = signature_map_origin_pattern.get(signature, "")
             group_key = f"{signature}|{pattern.get('group', '')}"
