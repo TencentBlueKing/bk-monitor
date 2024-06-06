@@ -64,7 +64,7 @@ export default defineComponent({
       setTimeout(() => {
         const index = props.data.findIndex(item => item.id === props.selectedId);
         listRef.value.scrollTo({
-          top: index * TRACE_TABLE_ROW_HEIGHT, // 38 - 表头高度
+          top: index * TRACE_TABLE_ROW_HEIGHT,
         });
         listRef.value?.addEventListener('scroll', onScroll);
       });
