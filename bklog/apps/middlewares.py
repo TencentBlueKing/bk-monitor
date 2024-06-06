@@ -227,5 +227,6 @@ class ApiGatewayJWTMiddleware(ApiGatewayJWTGenericMiddleware):
         is_external = request.headers.get("Is-External", "false")
         if is_external == "true":
             self.provider.public_key_provider = SettingsExternalPublicKeyProvider(
-                default_api_name=self.provider.default_api_name)
-        super(ApiGatewayJWTMiddleware, self).__call__(request)
+                default_gateway_name=self.provider.default_gateway_name
+            )
+        return super(ApiGatewayJWTMiddleware, self).__call__(request)
