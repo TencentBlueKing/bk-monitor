@@ -240,15 +240,13 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
       return;
     }
     this.cancelTokenSource = axios.CancelToken.source();
-    const code = await verifyStrategyName(
+    const validate = await verifyStrategyName(
       { name: value, id: this.id || undefined },
       { needMessage: false, cancelToken: this.cancelTokenSource.token }
     )
-      .then(data => {
-        return String(data.code);
-      })
-      .catch(() => null);
-    if (code === '3313011') {
+      .then(() => true)
+      .catch(() => false);
+    if (!validate) {
       this.errorsMsg.name = this.$tc('策略名已存在');
     }
   }
