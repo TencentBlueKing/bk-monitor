@@ -23,6 +23,8 @@ DEFAULT_BIZ_ID = 1
 DEFAULT_MQ_CLUSTER_ID = 10000
 DEFAULT_MQ_CLUSTER_ID_ONE = 10001
 DEFAULT_INFLUXDB_CLUSTER_ID = 9999
+DEFAULT_VM_CLUSTER_ID = 9998
+DEFAULT_VM_CLUSTER_ID_ONE = 9997
 DEFAULT_MQ_CONFIG_ID = 10001
 DEFAULT_HOST_NAME = "default_cluster"
 
@@ -101,10 +103,32 @@ def create_and_delete_record(mocker):
     models.ClusterInfo.objects.create(
         cluster_id=DEFAULT_INFLUXDB_CLUSTER_ID,
         cluster_name=f"{DEFAULT_NAME}_influxdb",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name=DEFAULT_NAME,
+        port=80,
+        is_default_cluster=False,
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=DEFAULT_VM_CLUSTER_ID,
+        cluster_name=f"{DEFAULT_NAME}_vm",
         cluster_type=models.ClusterInfo.TYPE_INFLUXDB,
         domain_name=DEFAULT_NAME,
         port=80,
         is_default_cluster=False,
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=DEFAULT_VM_CLUSTER_ID_ONE,
+        cluster_name=f"{DEFAULT_NAME}_vm_one",
+        cluster_type=models.ClusterInfo.TYPE_INFLUXDB,
+        domain_name=DEFAULT_NAME,
+        port=80,
+        is_default_cluster=False,
+    )
+    models.AccessVMRecord.objects.create(
+        result_table_id=DEFAULT_NAME,
+        vm_cluster_id=DEFAULT_VM_CLUSTER_ID,
+        bk_base_data_id=-1,
+        vm_result_table_id=DEFAULT_NAME,
     )
     setattr(settings, "INFLUXDB_DEFAULT_PROXY_CLUSTER_NAME", DEFAULT_NAME)
     models.InfluxDBClusterInfo.objects.create(
@@ -123,10 +147,17 @@ def create_and_delete_record(mocker):
     models.KafkaTopicInfo.objects.filter(bk_data_id=DEFAULT_DATA_ID).delete()
     models.DataSource.objects.filter(bk_data_id=DEFAULT_DATA_ID).delete()
     models.ClusterInfo.objects.filter(
-        cluster_id__in=[DEFAULT_MQ_CLUSTER_ID, DEFAULT_INFLUXDB_CLUSTER_ID, DEFAULT_MQ_CLUSTER_ID_ONE]
+        cluster_id__in=[
+            DEFAULT_MQ_CLUSTER_ID,
+            DEFAULT_INFLUXDB_CLUSTER_ID,
+            DEFAULT_MQ_CLUSTER_ID_ONE,
+            DEFAULT_VM_CLUSTER_ID,
+            DEFAULT_VM_CLUSTER_ID_ONE,
+        ]
     ).delete()
     models.InfluxDBClusterInfo.objects.filter(cluster_name=DEFAULT_NAME).delete()
     models.InfluxDBProxyStorage.objects.filter(instance_cluster_name=DEFAULT_NAME).delete()
+    models.AccessVMRecord.objects.filter(result_table_id=DEFAULT_NAME).delete()
 
 
 def consul_client(*args, **kwargs):
