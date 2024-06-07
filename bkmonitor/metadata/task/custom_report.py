@@ -242,8 +242,7 @@ def check_custom_event_group_sleep():
             re_result = index_re.match(index)
             current_datetime_str = re_result.group("datetime")
             current_datetime_object = datetime_str_to_datetime(current_datetime_str, es.date_format, es.time_zone)
-
-            if stats["docs"]["count"] > 0 and current_datetime_object >= timezone.now() - timedelta(
+            if stats["primaries"]["docs"]["count"] > 0 and current_datetime_object >= timezone.now() - timedelta(
                 days=EVENT_GROUP_SLEEP_THRESHOLD
             ):
                 if last_check_report_time is None or current_datetime_object > last_check_report_time:

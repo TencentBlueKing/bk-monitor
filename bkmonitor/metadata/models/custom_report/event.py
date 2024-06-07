@@ -248,6 +248,7 @@ class EventGroup(CustomGroupBase):
                 )
             ],
             "data_label": self.data_label,
+            "status": self.status,
         }
 
     @classmethod
