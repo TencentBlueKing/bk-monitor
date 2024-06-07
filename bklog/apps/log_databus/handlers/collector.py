@@ -1472,7 +1472,12 @@ class CollectorHandler(object):
             return {"task_ready": task_ready, "contents": []}
 
         status_result = NodeApi.get_subscription_task_status.bulk_request(
-            params={"subscription_id": self.data.subscription_id},
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
         )
@@ -2001,7 +2006,12 @@ class CollectorHandler(object):
                 ]
             }
         instance_data = NodeApi.get_subscription_task_status.bulk_request(
-            params={"subscription_id": self.data.subscription_id},
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
         )
