@@ -166,12 +166,18 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             asyncValidator: (_rule, value) => {
               return new Promise<void>(async (resolve, reject) => {
                 this.cancelTokenSource?.cancel?.();
+                if (this.oldStrategyName === value) {
+                  resolve();
+                  return;
+                }
                 const hasSameName = await verifyStrategyName(
                   { name: value, id: this.id || undefined },
-                  { needMessage: false }
+                  { needMessage: false, needRes: true }
                 )
                   .then(() => true)
-                  .catch(() => false);
+                  .catch(error => {
+                    return error?.status !== 400;
+                  });
                 if (!hasSameName) {
                   reject(this.$tc('策略名已存在'));
                 } else {
@@ -253,10 +259,12 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     this.cancelTokenSource = axios.CancelToken.source();
     const hasSameName = await verifyStrategyName(
       { name: value, id: this.id || undefined },
-      { needMessage: false, cancelToken: this.cancelTokenSource.token }
+      { needMessage: false, cancelToken: this.cancelTokenSource.token, needRes: true }
     )
       .then(() => true)
-      .catch(() => false);
+      .catch(error => {
+        return error?.status !== 400;
+      });
     if (!hasSameName) {
       this.errorsMsg.name = this.$tc('策略名已存在');
     }
