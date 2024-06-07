@@ -610,10 +610,7 @@ export default class FieldAnalysis extends Vue {
               )}
             </div>
           ) : (
-            <div
-              class='not-data-empty'
-              style={{ height: `${this.height}px` }}
-            >
+            <div class='not-data-empty'>
               <bk-exception
                 type={!!this.emptyTipsStr ? '500' : 'empty'}
                 scene='part'
