@@ -681,7 +681,11 @@
       </div>
     </div>
     <indicator-preview :options="options" />
-    <variable-table :is-show-variable-table.sync="isShowVariableTable" />
+    <variable-table
+      v-if="tipsData && tipsData.length"
+      :is-show-variable-table.sync="isShowVariableTable"
+      :variable-data="tipsData"
+    />
   </div>
 </template>
 
@@ -1031,6 +1035,7 @@ export default {
     if (!this.info.objectId && !this.$route.params.pluginId) {
       this.info.objectId = 'component';
     }
+    this.getVariableData();
   },
   mounted() {
     this.updateNav(this.config.mode === 'edit' ? this.$t('编辑') : this.$t('新建采集'));
@@ -1512,14 +1517,15 @@ export default {
       }
       // this.initFormLabelWidth()
     },
+    async getVariableData() {
+      if (!this.tipsData?.length) {
+        const data = await getCollectVariables().catch(() => []);
+        this.tipsData = data;
+      }
+    },
     async pluginTypeInfo(val, loading, needSetConfig) {
       // 获取提示输入数据
       this.loading = true;
-      if (!this.tipsData?.length) {
-        getCollectVariables().then(data => {
-          this.tipsData = data;
-        });
-      }
       // 先去获取有关的所有插件，并处理数据
       await this.getPluginInfo(val)
         .then(data => {
@@ -1919,6 +1925,11 @@ export default {
     },
     // 获取插件信息
     async getPluginInfo(id) {
+      // 编辑模式下的插件详细数据可以省略请求
+      if (this.config.mode === 'edit' && this.pluginSelectorObj.list.length) {
+        const pluginInfo = this.pluginSelectorObj.list.find(item => item.plugin_id === id);
+        if (pluginInfo?.metric_json) return pluginInfo;
+      }
       this.loading = true;
       return retrieveCollectorPlugin(id)
         .then(data => {
