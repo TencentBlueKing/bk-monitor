@@ -279,7 +279,7 @@ LONG_TASK_CRONTAB = [
     # 检查并执行接入vm命令, 每天执行一次
     ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
-    ("metadata.task.custom_report.check_custom_event_group_sleep", "0 3 * * *", "global"),
+    ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds
