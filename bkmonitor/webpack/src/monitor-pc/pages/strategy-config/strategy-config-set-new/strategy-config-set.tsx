@@ -398,7 +398,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
 
   get bizList(): ISpaceItem[] {
-    return this.$store.getters.bizList;
+    return this.$store.getters.bizList?.filter(item => +item.bk_biz_id === +this.bizId) || [];
   }
   get bizId(): number | string {
     return this.$store.getters.bizId;
