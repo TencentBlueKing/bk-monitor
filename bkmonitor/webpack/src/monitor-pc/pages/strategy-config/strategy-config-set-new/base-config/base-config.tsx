@@ -155,12 +155,13 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             asyncValidator: (_rule, value) => {
               return new Promise<void>(async (resolve, reject) => {
                 this.cancelTokenSource?.cancel?.();
-                const code = await verifyStrategyName({ name: value, id: this.id || undefined }, { needMessage: false })
-                  .then(data => {
-                    return String(data.code);
-                  })
-                  .catch(() => null);
-                if (code === '3313011') {
+                const hasSameName = await verifyStrategyName(
+                  { name: value, id: this.id || undefined },
+                  { needMessage: false }
+                )
+                  .then(() => true)
+                  .catch(() => false);
+                if (!hasSameName) {
                   reject(this.$tc('策略名已存在'));
                 } else {
                   resolve();
