@@ -319,7 +319,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "A"
                   }
                 ],
@@ -336,6 +336,15 @@
                   "bk_instance_id": "$bk_instance_id"
                 },
                 "functions": [
+                   {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
@@ -365,7 +374,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "A"
                   }
                 ],
@@ -382,6 +391,15 @@
                   "bk_instance_id": "$bk_instance_id"
                 },
                 "functions": [
+                   {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
@@ -411,7 +429,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "B"
                   }
                 ],
@@ -428,6 +446,15 @@
                   "bk_instance_id": "$bk_instance_id"
                 },
                 "functions": [
+                   {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
@@ -849,7 +876,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "A"
                   }
                 ],
@@ -867,6 +894,15 @@
                   "bk_instance_id": "$bk_instance_id"
                 },
                 "functions": [
+                   {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
@@ -896,7 +932,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "A"
                   }
                 ],
@@ -914,6 +950,15 @@
                   "bk_instance_id": "$bk_instance_id"
                 },
                 "functions": [
+                   {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
@@ -943,7 +988,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "B"
                   }
                 ],
@@ -961,6 +1006,15 @@
                   "bk_instance_id": "$bk_instance_id"
                 },
                 "functions": [
+                   {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
