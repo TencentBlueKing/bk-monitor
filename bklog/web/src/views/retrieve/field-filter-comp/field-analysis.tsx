@@ -33,6 +33,7 @@ const timeSeriesBase = {
   lineStyle: {
     width: 1
   },
+  transitionDuration: 750, // 动画响应毫秒数
   type: 'line',
   symbol: 'circle', // 设置数据点的形状
   symbolSize: 1, // 设置数据点的初始大小
@@ -48,8 +49,13 @@ const timeSeriesBase = {
 const PILLAR_CHART_BASE_HEIGHT = 236;
 /** 折线图图基础高度 */
 const LINE_CHART_BASE_HEIGHT = 270;
+/** 柱状图图高度盒子 保证图表出来后popover总高度不变 */
+const PILLAR_CHART_BOX_HEIGHT = 264;
+/** 折线图高度盒子 保证图表出来后popover总高度不变 */
+const LINE_CHART_BOX_HEIGHT = 348;
 /** 折线图分页的高度 */
 const LEGEND_BOX_HEIGHT = 40;
+// 264px
 let formatStr = 'HH:mm';
 type LegendActionType = 'click' | 'shift-click';
 
@@ -96,6 +102,16 @@ export default class FieldAnalysis extends Vue {
   /** 是否显示柱状图 是否是数字类型字段 */
   get isPillarChart() {
     return ['integer', 'long', 'double'].includes(this.queryParams?.field_type);
+  }
+
+  /** 获取数值类型查询时间段 */
+  get getPillarQueryTime() {
+    const { start_time: startTime, end_time: endTime } = this.queryParams;
+    if (startTime && endTime && this.isPillarChart) {
+      const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
+      return `${window.mainComponent.$t('查询时段')}: ${dayjs.unix(startTime).format(pillarFormatStr)} - ${dayjs.unix(endTime).format(pillarFormatStr)}`;
+    }
+    return '';
   }
 
   @Watch('currentPageNum')
@@ -170,7 +186,6 @@ export default class FieldAnalysis extends Vue {
           data
         },
         {
-          getAllErrorValue: true,
           catchIsShowMessage: false,
           cancelToken: new CancelToken(c => {
             this.getChartsCancelFn = c;
@@ -190,10 +205,19 @@ export default class FieldAnalysis extends Vue {
           }
           return `${res.data[index - 1][0]} - ${item[0]}`;
         });
+        const pillarInterval = Math.round(xAxisData.length / 2) - 1;
         // 柱状图初始化
         Object.assign(pillarChartOption, {
           tooltip: {
             trigger: 'axis',
+            transitionDuration: 0,
+            axisPointer: {
+              type: 'line',
+              lineStyle: {
+                type: 'dashed'
+              }
+            },
+            backgroundColor: 'rgba(0,0,0,0.8)',
             formatter: p => this.handleSetPillarTooltip(p),
             position: this.handleSetPosition
           },
@@ -201,7 +225,8 @@ export default class FieldAnalysis extends Vue {
             ...pillarChartOption.xAxis,
             axisLabel: {
               color: '#979BA5',
-              interval: 3,
+              interval: pillarInterval,
+              showMaxLabel: true,
               formatter: value => {
                 if (value.length > 18) return `${value.slice(0, 18)}...`; // 只显示前18个字符
                 return value;
@@ -220,17 +245,19 @@ export default class FieldAnalysis extends Vue {
           ]
         });
       } else {
-        if (!res.data.series.length) {
+        const seriesData = res.data.series;
+        if (!seriesData.length) {
           this.isShowEmpty = true;
           return;
         }
         this.height = LINE_CHART_BASE_HEIGHT;
         const series = [];
-        res.data.series.forEach(el => {
+        seriesData.forEach(el => {
           series.push({
             ...timeSeriesBase,
             name: el.group_values[0],
-            data: el.values
+            data: el.values,
+            z: 999
           });
         });
         this.seriesData = series;
@@ -260,6 +287,8 @@ export default class FieldAnalysis extends Vue {
                 type: 'dashed'
               }
             },
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            transitionDuration: 0,
             appendTo: () => document.body,
             formatter: p => this.handleSetTimeTooltip(p),
             position: this.handleSetPosition
@@ -336,17 +365,21 @@ export default class FieldAnalysis extends Vue {
 
   /** 设置时间戳类型Tooltips */
   handleSetTimeTooltip(params) {
-    const liHtmls = params.map((item, index) => {
-      let markColor = 'color: #fafbfd;';
-      if (index === 0) {
-        markColor = 'color: #fff;font-weight: bold;';
-      }
-      return `<li class="tooltips-content-item">
+    const liHtmls = params
+      .sort((a, b) => b.value[1] - a.value[1])
+      .map((item, index) => {
+        let markColor = 'color: #fafbfd;';
+        if (index === 0) {
+          markColor = 'color: #fff;font-weight: bold;';
+        }
+        return `<li class="tooltips-content-item">
                   <span class="item-series" style="background-color:${item.color};"></span>
-                  <span class="item-name" style="${markColor}">${item.seriesName}:</span>
-                  <span class="item-value" style="${markColor}">${item.value[1]}</span>
+                  <span class="item-name is-warp" style="${markColor}">${item.seriesName}:</span>
+                  <div class="item-value-box is-warp">
+                    <span class="item-value" style="${markColor}">${item.value[1]}</span>
+                  </div>
                 </li>`;
-    });
+      });
     const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     return `<div id="monitor-chart-tooltips">
         <p class="tooltips-header">
@@ -362,9 +395,11 @@ export default class FieldAnalysis extends Vue {
   handleSetPillarTooltip(params) {
     return `<div id="monitor-chart-tooltips">
       <ul class="tooltips-content">
-        <li class="tooltips-content-item">
+        <li class="tooltips-content-item" style="align-items: center;">
           <span class="item-name" style="color: #fff;font-weight: bold;">${params[0].axisValue}:</span>
-          <span class="item-value" style="color: #fff;font-weight: bold;">${params[0].value}</span>
+          <div class="item-value-box">
+            <span class="item-value"  style="color: #fff;font-weight: bold;">${params[0].value}</span>
+          </div>
         </li>
       </ul>
     </div>`;
@@ -372,7 +407,7 @@ export default class FieldAnalysis extends Vue {
   /** 设置定位 */
   handleSetPosition(pos: number[], params: any, dom: any, rect: any, size: any) {
     const { contentSize } = size;
-    const chartRect = dom.getBoundingClientRect();
+    const chartRect = this.chartRef.getBoundingClientRect();
     const posRect = {
       x: chartRect.x + +pos[0],
       y: chartRect.y + +pos[1]
@@ -497,13 +532,22 @@ export default class FieldAnalysis extends Vue {
             </div>
           )}
         </div>
-        <div v-bkloading={{ isLoading: this.chartLoading }}>
+        <div
+          v-bkloading={{ isLoading: this.chartLoading }}
+          style={{
+            height: this.isPillarChart ? `${PILLAR_CHART_BOX_HEIGHT}px` : `${LINE_CHART_BOX_HEIGHT}px`,
+            alignItems: 'center'
+          }}
+        >
           {!this.isShowEmpty ? (
             <div>
               <div class='chart-title'>
-                {!this.isPillarChart
-                  ? `TOP 5 ${window.mainComponent.$t('时序图')}`
-                  : window.mainComponent.$t('数值分布直方图')}
+                <span>
+                  {!this.isPillarChart
+                    ? `TOP 5 ${window.mainComponent.$t('时序图')}`
+                    : window.mainComponent.$t('数值分布直方图')}
+                </span>
+                <span>{this.getPillarQueryTime}</span>
               </div>
               <div
                 ref='fieldChart'

@@ -198,7 +198,11 @@ export default class FieldItem extends tsc<{}> {
             {this.isShowFieldsAnalysis && (
               <div
                 v-bk-tooltips={{
-                  content: !this.gatherFieldsCount ? this.$t('该字段暂无匹配日志') : this.$t('图表分析')
+                  content: this.isUnionSearch
+                    ? this.$t('暂不支持')
+                    : !this.gatherFieldsCount
+                      ? this.$t('该字段暂无匹配日志')
+                      : this.$t('图表分析')
                 }}
                 class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
                 onClick={e => {
