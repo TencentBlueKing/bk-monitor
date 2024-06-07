@@ -31,13 +31,14 @@
     >
       <template v-if="type + '' === '403'">
         <div class="exception-title">
-          {{ $t('您没有该资源的权限，请先申请或联系管理员!')
-          }}<bk-button
+          {{ $t('您没有该资源的权限，请先申请或联系管理员!') }}
+          <bk-button
             class="exception-btn"
             theme="primary"
             @click="handleGotoApply"
-            >{{ $t('去申请') }}</bk-button
           >
+            {{ $t('去申请') }}
+          </bk-button>
         </div>
         <table class="permission-table table-header">
           <thead>
@@ -105,38 +106,34 @@ export default class ExceptionPage extends Vue {
   @Prop({ default: '' }) queryUid: string;
   applyUrl = '';
   applyActions = [];
-  // beforeRouteEnter(to, from, next) {
-  //   next(async (vm: ExceptionPage) => {
-  //     const { actionId } = to.query
-  //     if (actionId) {
-  //       const data =  await getAuthorityDetail(
-  //         { action_ids: Array.isArray(actionId) ? actionId : [actionId] }
-  //         , { needMessage: false }
-  //       ).catch(() => false)
-  //       if (data) {
-  //         vm.applyUrl = data.apply_url
-  //       }
-  //     }
-  //   })
-  // }
-  @Watch('queryUid', { immediate: true })
+  isQuery = false;
+  @Watch('queryUid')
   async onQueryUidChange() {
+    if (this.isQuery) return;
     this.applyActions = [];
     const { actionId } = this.$route.query;
     if (actionId) {
+      this.isQuery = true;
       const data = await getAuthorityDetail(
         {
           action_ids: Array.isArray(actionId) ? actionId : [actionId],
           space_uid: window.space_uid || undefined,
-          bk_biz_id: !window.space_uid ? window.bk_biz_id : undefined,
+          bk_biz_id: !window.space_uid ? window.bk_biz_id || window.cc_biz_id : undefined,
         },
         { needMessage: false }
-      ).catch(() => false);
+      ).catch(e => {
+        console.error(e);
+        return false;
+      });
       if (data) {
         this.applyActions = data.authority_list?.actions;
         this.applyUrl = data.apply_url;
       }
+      this.isQuery = false;
     }
+  }
+  mounted() {
+    this.onQueryUidChange();
   }
 
   handleGotoApply() {
