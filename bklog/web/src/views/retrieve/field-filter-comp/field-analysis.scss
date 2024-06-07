@@ -156,6 +156,7 @@
   
 
   .not-data-empty {
+    height: 100%;
     color: #313238;
 
     @include flex-center();

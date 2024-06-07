@@ -34,6 +34,7 @@ export default class FieldItem extends tsc<{}> {
   @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Object, required: true }) retrieveParams: object;
+  @Prop({ type: Array, required: true }) filedCountArray: Array<any>;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
 
   isExpand = false;
@@ -55,7 +56,7 @@ export default class FieldItem extends tsc<{}> {
   }
   get gatherFieldsCount() {
     // 聚合字段有多少个
-    return this.fieldItem.field_count ?? 0;
+    return this.filedCountArray.find(item => item.field_name === this.fieldItem.field_name)?.distinct_count ?? 0;
   }
   // 显示融合字段统计比例图表
   get showFieldsChart() {
@@ -207,7 +208,7 @@ export default class FieldItem extends tsc<{}> {
                 class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
                 onClick={e => {
                   e.stopPropagation();
-                  if (!this.gatherFieldsCount) return;
+                  if (!this.gatherFieldsCount || this.isUnionSearch) return;
                   this.handleClickAnalysisItem();
                 }}
               >

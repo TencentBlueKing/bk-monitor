@@ -151,6 +151,7 @@
                   {{ $t('查询结果统计') }}
                 </div>
                 <field-filter
+                  ref="fieldFilterRef"
                   :retrieve-params="retrieveParams"
                   :total-fields="totalFields"
                   :visible-fields="visibleFields"
@@ -1738,6 +1739,7 @@ export default {
         this.requesting = false;
         this.tableLoading = false;
         this.isTablePagination = false;
+        this.$refs.fieldFilterRef.getFieldCount();
       }
     },
     // 首次加载设置表格默认宽度自适应

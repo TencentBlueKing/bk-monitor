@@ -146,7 +146,11 @@ const fieldStatisticsGraph = {
   url: '/field/index_set/statistics/graph/',
   method: 'post'
 };
-
+/** 获取字段去重数量 */
+const fieldDistinctCount = {
+  url: '/field/index_set/fetch_distinct_count_list/',
+  method: 'post'
+};
 export {
   getIndexSetList,
   getLogTableHead,
@@ -177,5 +181,6 @@ export {
   getAggsTerms,
   fieldFetchTopList,
   fieldStatisticsInfo,
-  fieldStatisticsGraph
+  fieldStatisticsGraph,
+  fieldDistinctCount
 };
