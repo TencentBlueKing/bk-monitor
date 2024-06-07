@@ -36,7 +36,6 @@ export default class FieldFilterComp extends tsc<{}> {
   @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: object;
-  @Prop({ type: Object, default: () => ({}) }) statisticalFieldsData: object;
   @Prop({ type: Boolean, default: false }) parentLoading: boolean;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
@@ -66,6 +65,7 @@ export default class FieldFilterComp extends tsc<{}> {
     '__ipv6__',
     '__ext'
   ];
+  filedCountArray = [];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
 
@@ -297,6 +297,24 @@ export default class FieldFilterComp extends tsc<{}> {
     return sortList;
   }
 
+  /**
+   * @desc: 获取字段去重count
+   */
+  async getFieldCount() {
+    try {
+      const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
+      const res = await $http.request('retrieve/fieldDistinctCount', {
+        data: {
+          ...this.retrieveParams,
+          index_set_ids: indexSetIDs
+        }
+      });
+      this.filedCountArray = res.data;
+    } catch (error) {
+      this.filedCountArray = [];
+    }
+  }
+
   render() {
     return (
       <div class='field-filter-container'>
@@ -360,6 +378,7 @@ export default class FieldFilterComp extends tsc<{}> {
                       key={item.field_name}
                       v-show={item.filterVisible}
                       type='visible'
+                      filed-count-array={this.filedCountArray}
                       retrieve-params={this.retrieveParams}
                       field-alias-map={this.fieldAliasMap}
                       show-field-alias={this.showFieldAlias}
@@ -385,6 +404,7 @@ export default class FieldFilterComp extends tsc<{}> {
                 <FieldItem
                   v-show={item.filterVisible}
                   type='hidden'
+                  filed-count-array={this.filedCountArray}
                   retrieve-params={this.retrieveParams}
                   field-alias-map={this.fieldAliasMap}
                   show-field-alias={this.showFieldAlias}
@@ -413,6 +433,7 @@ export default class FieldFilterComp extends tsc<{}> {
                 <FieldItem
                   v-show={item.filterVisible}
                   type='hidden'
+                  filed-count-array={this.filedCountArray}
                   retrieve-params={this.retrieveParams}
                   field-alias-map={this.fieldAliasMap}
                   show-field-alias={this.showFieldAlias}

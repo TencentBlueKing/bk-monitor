@@ -766,5 +766,7 @@ export default {
   查询异常: 'Query abnormal',
   图表分析: 'Chart analysis',
   点击隐藏: 'Click to hide',
-  点击显示: 'Click to display'
+  点击显示: 'Click to display',
+  暂不支持: 'Not supported',
+  查询时段: 'Query period'
 };
