@@ -29,7 +29,7 @@
  * @Description: 策略基本信息
  */
 
-import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import Schema from 'async-validator';
@@ -85,9 +85,20 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     labels: '',
   };
 
+  // 缓存获取焦点时的策略名
   cacheName = '';
-
+  // 编辑时旧的策略名
+  oldStrategyName = '';
+  watchNameFlag = false;
   cancelTokenSource = null;
+
+  @Watch('baseConfig.name', { immediate: true })
+  handleWatchStrategyNameChange(value) {
+    if (!this.watchNameFlag && !!value && !!this.id) {
+      this.oldStrategyName = value;
+      this.watchNameFlag = true;
+    }
+  }
 
   created() {
     this.getLabelListApi();
@@ -155,12 +166,18 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             asyncValidator: (_rule, value) => {
               return new Promise<void>(async (resolve, reject) => {
                 this.cancelTokenSource?.cancel?.();
+                if (this.oldStrategyName === value) {
+                  resolve();
+                  return;
+                }
                 const hasSameName = await verifyStrategyName(
                   { name: value, id: this.id || undefined },
-                  { needMessage: false }
+                  { needMessage: false, needRes: true }
                 )
                   .then(() => true)
-                  .catch(() => false);
+                  .catch(error => {
+                    return error?.status !== 400;
+                  });
                 if (!hasSameName) {
                   reject(this.$tc('策略名已存在'));
                 } else {
@@ -232,21 +249,23 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
    * @description 校验策略名称是否重复
    */
   async verifyStrategyName(value: string) {
-    if (this.cacheName === value) {
-      return;
-    }
     if (!value) {
       this.errorsMsg.name = this.$tc('必填项');
       return;
     }
+    if (this.cacheName === value || this.oldStrategyName === value) {
+      return;
+    }
     this.cancelTokenSource = axios.CancelToken.source();
-    const validate = await verifyStrategyName(
+    const hasSameName = await verifyStrategyName(
       { name: value, id: this.id || undefined },
-      { needMessage: false, cancelToken: this.cancelTokenSource.token }
+      { needMessage: false, cancelToken: this.cancelTokenSource.token, needRes: true }
     )
       .then(() => true)
-      .catch(() => false);
-    if (!validate) {
+      .catch(error => {
+        return error?.status !== 400;
+      });
+    if (!hasSameName) {
       this.errorsMsg.name = this.$tc('策略名已存在');
     }
   }
