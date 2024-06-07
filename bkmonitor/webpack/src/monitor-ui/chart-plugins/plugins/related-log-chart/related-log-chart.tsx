@@ -350,6 +350,7 @@ class RelatedLogChart extends CommonSimpleChart {
   handleQueryTable() {
     this.pagination.offset = 0;
     this.updateTableData();
+    this.updateBarChartData();
   }
   /**
    * @desc 链接跳转
@@ -481,13 +482,13 @@ class RelatedLogChart extends CommonSimpleChart {
                 <div class='query-tool'>
                   <bk-select
                     class='table-search-select'
+                    v-model={this.relatedIndexSetId}
                     v-bk-tooltips={{
                       content: this.selectedOptionAlias,
                       theme: 'light',
                       placement: 'top-start',
                       allowHTML: false,
                     }}
-                    v-model={this.relatedIndexSetId}
                     clearable={false}
                     onSelected={v => this.handleSelectIndexSet(v)}
                   >

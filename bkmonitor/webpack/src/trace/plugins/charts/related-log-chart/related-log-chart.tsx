@@ -512,6 +512,7 @@ export default defineComponent({
     const handleQueryTable = () => {
       pagination.value = 1;
       updateTableData();
+      updateBarChartData();
     };
 
     /**
