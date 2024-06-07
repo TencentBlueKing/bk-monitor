@@ -459,3 +459,7 @@ class EventGroupStatus(Enum):
 
     NORMAL = "normal"
     SLEEP = "sleep"
+
+
+# 事件组休眠阈值(天)
+EVENT_GROUP_SLEEP_THRESHOLD = 61
