@@ -33,7 +33,7 @@ const timeSeriesBase = {
   lineStyle: {
     width: 1
   },
-  transitionDuration: 750,
+  transitionDuration: 750, // 动画响应毫秒数
   type: 'line',
   symbol: 'circle', // 设置数据点的形状
   symbolSize: 1, // 设置数据点的初始大小
@@ -49,8 +49,13 @@ const timeSeriesBase = {
 const PILLAR_CHART_BASE_HEIGHT = 236;
 /** 折线图图基础高度 */
 const LINE_CHART_BASE_HEIGHT = 270;
+/** 柱状图图高度盒子 保证图表出来后popover总高度不变 */
+const PILLAR_CHART_BOX_HEIGHT = 264;
+/** 折线图高度盒子 保证图表出来后popover总高度不变 */
+const LINE_CHART_BOX_HEIGHT = 348;
 /** 折线图分页的高度 */
 const LEGEND_BOX_HEIGHT = 40;
+// 264px
 let formatStr = 'HH:mm';
 type LegendActionType = 'click' | 'shift-click';
 
@@ -529,7 +534,10 @@ export default class FieldAnalysis extends Vue {
         </div>
         <div
           v-bkloading={{ isLoading: this.chartLoading }}
-          style={{ height: this.isPillarChart ? '264px' : '348px' }}
+          style={{
+            height: this.isPillarChart ? `${PILLAR_CHART_BOX_HEIGHT}px` : `${LINE_CHART_BOX_HEIGHT}px`,
+            alignItems: 'center'
+          }}
         >
           {!this.isShowEmpty ? (
             <div>
