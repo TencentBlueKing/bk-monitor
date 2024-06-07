@@ -1772,6 +1772,7 @@ class VerifyStrategyNameResource(Resource):
                 qs.exclude(id=params["id"])
             if qs.exists():
                 raise StrategyNameExist(name=params["name"])
+            return super().validate(params)
 
     def perform_request(self, params):
         return "ok"
