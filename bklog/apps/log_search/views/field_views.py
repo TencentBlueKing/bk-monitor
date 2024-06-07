@@ -14,11 +14,13 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
+from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
+from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
     FetchStatisticsInfoSerializer,
-    FetchTopkListSerializer,
+    FetchTopkListSerializer, UnifyQueryBaseSerializer,
 )
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP
 from apps.log_unifyquery.handler import UnifyQueryHandler
@@ -41,6 +43,36 @@ class FieldViewSet(APIViewSet):
                 return []
 
         return [ViewBusinessPermission()]
+
+    @list_route(methods=["POST"], url_path="fetch_distinct_count_list")
+    def fetch_distinct_count_list(self, request, *args, **kwargs):
+        """
+        @api {get} /field/index_set/fetch_distinct_count_list/ 获取字段去重计数列表
+        @apiName fetch_topk_list
+        """
+        # count_list = []
+        params = self.params_valid(UnifyQueryBaseSerializer)
+        index_set_id = params["index_set_ids"]
+        index_set_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        index_set_data_obj: LogIndexSetData = LogIndexSetData.objects.filter(index_set_id=index_set_id).first()
+
+        mapping_handlers = MappingHandlers(
+            index_set_data_obj.result_table_id,
+            index_set_obj.index_set_id,
+            index_set_obj.scenario_id,
+            index_set_obj.storage_cluster_id,
+            "dtEventTimeStamp",
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+        )
+        mapping_results = mapping_handlers._get_mapping()
+        # for field in mapping_results:
+        #     query_handler = UnifyQueryHandler(params)
+        #     count_list.append({
+        #         "field_name": field["name"],
+        #         "distinct_count": query_handler.get_distinct_count()
+        #     })
+        return mapping_results
 
     @list_route(methods=["POST"], url_path="fetch_topk_list")
     def fetch_topk_list(self, request, *args, **kwargs):

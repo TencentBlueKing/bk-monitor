@@ -15,7 +15,7 @@ def transform_contains_addition(contains_addition: dict):
     operator = contains_addition["operator"]
     field = contains_addition["field"]
     value = contains_addition["value"]
-    value = value if isinstance(value, list) else [value]
+    value = value if isinstance(value, list) else value.split(",")
 
     op = (
         "contains"
