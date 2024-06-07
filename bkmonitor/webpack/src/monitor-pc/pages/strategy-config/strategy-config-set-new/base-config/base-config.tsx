@@ -33,6 +33,7 @@ import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import Schema from 'async-validator';
+import axios from 'axios';
 import { strategyLabelList, verifyStrategyName } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
@@ -83,6 +84,10 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     priority: '',
     labels: '',
   };
+
+  cacheName = '';
+
+  cancelTokenSource = null;
 
   created() {
     this.getLabelListApi();
@@ -144,7 +149,26 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   public validate(): Promise<any> {
     return new Promise((resolve, reject) => {
       const descriptor = {
-        name: [{ required: true, message: this.$tc('必填项') }],
+        name: [
+          { required: true, message: this.$tc('必填项') },
+          {
+            asyncValidator: (_rule, value) => {
+              return new Promise<void>(async (resolve, reject) => {
+                this.cancelTokenSource?.cancel?.();
+                const code = await verifyStrategyName({ name: value, id: this.id || undefined }, { needMessage: false })
+                  .then(data => {
+                    return String(data.code);
+                  })
+                  .catch(() => null);
+                if (code === '3313011') {
+                  reject(this.$tc('策略名已存在'));
+                } else {
+                  resolve();
+                }
+              });
+            },
+          },
+        ],
         priority: [
           {
             asyncValidator: (rule, value) => {
@@ -207,7 +231,18 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
    * @description 校验策略名称是否重复
    */
   async verifyStrategyName(value: string) {
-    const code = await verifyStrategyName({ name: value, id: this.id || undefined }, { needMessage: false })
+    if (this.cacheName === value) {
+      return;
+    }
+    if (!value) {
+      this.errorsMsg.name = this.$tc('必填项');
+      return;
+    }
+    this.cancelTokenSource = axios.CancelToken.source();
+    const code = await verifyStrategyName(
+      { name: value, id: this.id || undefined },
+      { needMessage: false, cancelToken: this.cancelTokenSource.token }
+    )
       .then(data => {
         return String(data.code);
       })
@@ -297,6 +332,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
               on-change={this.handleBaseConfigChange}
               on-input={() => (this.errorsMsg.name = '')}
               onBlur={this.verifyStrategyName}
+              onFocus={() => (this.cacheName = this.baseConfig.name)}
             />
           </ErrorMsg>
         </CommonItem>
