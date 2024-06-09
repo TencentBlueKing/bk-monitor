@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from apm_web.decorators import user_visit_record
 from apm_web.log.resources import ServiceLogInfoResource, ServiceRelationListResource
 from apm_web.models import Application
 
@@ -31,5 +32,9 @@ class LogViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("POST", ServiceLogInfoResource, endpoint="log_relation"),
-        ResourceRoute("POST", ServiceRelationListResource, endpoint="log_relation_list"),
+        ResourceRoute(
+            "POST", ServiceRelationListResource,
+            endpoint="log_relation_list",
+            decorators=[user_visit_record, ]
+        ),
     ]
