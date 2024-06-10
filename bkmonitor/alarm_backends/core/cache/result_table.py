@@ -14,7 +14,7 @@ from alarm_backends.core.cache.base import CacheManager
 from constants.data_source import DataSourceLabel
 from core.drf_resource import api
 
-MAX_FIELD_SUPPORTED = 2000
+MAX_FIELD_SUPPORTED = 200
 
 
 """
