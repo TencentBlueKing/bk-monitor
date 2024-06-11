@@ -86,6 +86,8 @@ export interface ITimeSeriesOption {
     custom_timerange?: boolean;
     nearSeriesNum?: number;
     noTransformVariables?: boolean;
+    hoverAllTooltips?: boolean;
+    YAxisLabelWidth?: number;
   };
 }
 

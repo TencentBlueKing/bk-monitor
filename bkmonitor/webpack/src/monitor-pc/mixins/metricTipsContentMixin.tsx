@@ -50,16 +50,17 @@ export default class metricTipsContentMixin extends Vue {
       { val: data.metric_field, label: this.$t('指标名') },
       { val: data.metric_field_name, label: this.$t('指标别名') },
     ];
+    const unit = !data?.unit || data.unit === 'none' ? '--' : data.unit;
     const elList = {
       bk_monitor_time_series: [
-        // 监控采集指标
+        // 监控采集指
         ...options,
         { val: data.related_id, label: this.$t('插件ID') },
         { val: data.related_name, label: this.$t('插件名') },
         { val: data.result_table_id, label: this.$t('分类ID') },
         { val: data.result_table_name, label: this.$t('分类名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') },
+        { val: unit, label: this.$t('单位') },
         { val: data.description, label: this.$t('含义') },
       ],
       log_time_series: [
@@ -70,7 +71,7 @@ export default class metricTipsContentMixin extends Vue {
         { val: data?.extend_fields?.scenario_name, label: this.$t('数据源类别') },
         { val: data?.extend_fields?.storage_cluster_name, label: this.$t('数据源名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') },
+        { val: unit, label: this.$t('单位') },
       ],
       bk_log_search_log: [
         // 日志平台指标
@@ -85,7 +86,7 @@ export default class metricTipsContentMixin extends Vue {
         ...options,
         { val: data.result_table_id, label: this.$t('表名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') },
+        { val: unit, label: this.$t('单位') },
       ],
       custom_time_series: [
         // 自定义指标
@@ -93,7 +94,7 @@ export default class metricTipsContentMixin extends Vue {
         { val: data?.extend_fields?.bk_data_id, label: this.$t('数据ID') },
         { val: data.result_table_name, label: this.$t('数据名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') },
+        { val: unit, label: this.$t('单位') },
       ],
       bk_apm_time_series: [
         // 应用监控trace指标
@@ -103,7 +104,7 @@ export default class metricTipsContentMixin extends Vue {
         { val: data.result_table_id, label: this.$t('分类ID') },
         { val: data.result_table_name, label: this.$t('分类名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') },
+        { val: unit, label: this.$t('单位') },
         { val: data.description, label: this.$t('含义') },
       ],
       custom_event: [

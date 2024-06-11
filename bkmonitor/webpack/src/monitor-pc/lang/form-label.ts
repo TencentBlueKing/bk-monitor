@@ -1849,4 +1849,5 @@ export default {
   默认敏感度: 'Default sensitivity',
   系统恢复: 'System recovery',
   系统关闭: 'System closed',
+  生成告警级别: 'Generate alarm levels',
 };
