@@ -197,6 +197,16 @@ export class LineChart
   get nearSeriesNum() {
     return Number(this.panel.options?.time_series?.nearSeriesNum || 0);
   }
+  // 同时hover显示多个tooltip
+  get hoverAllTooltips() {
+    return !!this.panel.options?.time_series?.hoverAllTooltips;
+  }
+
+  // Y轴刻度标签文字占位宽度
+  get YAxisLabelWidth() {
+    return this.panel.options?.time_series?.YAxisLabelWidth || 0;
+  }
+
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
   handleFieldDictChange(v: IViewOptions, o: IViewOptions) {
@@ -1292,6 +1302,7 @@ export class LineChart
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
