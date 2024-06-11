@@ -156,86 +156,78 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     this.strategyLabelsEl.focusInputer();
   }
 
+  getValidatorSchema() {
+    const descriptor = {
+      name: [
+        { required: true, message: this.$tc('必填项') },
+        {
+          asyncValidator: async (_rule, value) => {
+            this.cancelTokenSource?.cancel?.();
+            if (this.oldStrategyName === value) {
+              return Promise.resolve();
+            }
+            const hasSameName = await verifyStrategyName(
+              { name: value, id: this.id || undefined },
+              { needMessage: false, needRes: true }
+            )
+              .then(() => true)
+              .catch(error => {
+                return error?.status !== 400;
+              });
+            if (!hasSameName) {
+              return Promise.reject(this.$tc('策略名已存在'));
+            }
+            return Promise.resolve();
+          },
+        },
+      ],
+      priority: [
+        {
+          asyncValidator: async (rule, value) => {
+            if (value < 0 || value > 10000) {
+              return Promise.reject(this.$t('优先级应为 0 - 10000 之间的整数'));
+            } else {
+              return Promise.resolve();
+            }
+          },
+        },
+      ],
+      labels: [
+        {
+          validator: (rule, value) => {
+            return !value.some(item => item.length > 120);
+          },
+          message: this.$tc('标签长度不能超过 120 字符'),
+        },
+      ],
+    };
+    return new Schema(descriptor);
+  }
   // 校验方法
-  public validate(): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const descriptor = {
-        name: [
-          { required: true, message: this.$tc('必填项') },
-          {
-            asyncValidator: (_rule, value) => {
-              return new Promise<void>((resolve, reject) => {
-                (async () => {
-                  this.cancelTokenSource?.cancel?.();
-                  if (this.oldStrategyName === value) {
-                    resolve();
-                    return;
-                  }
-                  const hasSameName = await verifyStrategyName(
-                    { name: value, id: this.id || undefined },
-                    { needMessage: false, needRes: true }
-                  )
-                    .then(() => true)
-                    .catch(error => {
-                      return error?.status !== 400;
-                    });
-                  if (!hasSameName) {
-                    reject(this.$tc('策略名已存在'));
-                  } else {
-                    resolve();
-                  }
-                })();
-              });
-            },
-          },
-        ],
-        priority: [
-          {
-            asyncValidator: (rule, value) => {
-              return new Promise<void>((resolve, reject) => {
-                if (value < 0 || value > 10000) {
-                  reject(this.$t('优先级应为 0 - 10000 之间的整数'));
-                } else {
-                  resolve();
-                }
-              });
-            },
-          },
-        ],
-        labels: [
-          {
-            validator: (rule, value) => {
-              return !value.some(item => item.length > 120);
-            },
-            message: this.$tc('标签长度不能超过 120 字符'),
-          },
-        ],
-      };
-      const validator = new Schema(descriptor);
-      const { name, priority, labels } = this.baseConfig;
-      validator.validate({ name, priority, labels }, {}, (errors, fields) => {
-        if (!errors) {
-          this.errorsMsg = { name: '', priority: '', labels: '' };
-          resolve(null);
-        } else {
-          this.errorsMsg = { name: '', priority: '', labels: '' };
-          errors.forEach(item => {
-            this.errorsMsg[item.field] = item.message;
-          });
-
-          for (const field in fields) {
-            // 按顺序给依次给表单 input 聚焦。（仅执行一次）
-            const methodMap = {
-              name: () => this.handleFocusStrategyName(),
-              priority: () => this.handleFocusStrategyPriority(),
-              labels: () => this.handleStrategyLabels(),
-            };
-            methodMap[field]();
-            break;
-          }
-          reject({ errors, fields });
+  public async validate(): Promise<any> {
+    const validatorSchema = this.getValidatorSchema();
+    const { name, priority, labels } = this.baseConfig;
+    return await validatorSchema.validate({ name, priority, labels }, {}, (errors, fields) => {
+      if (!errors) {
+        this.clearErrorMsg();
+        return Promise.resolve(null);
+      } else {
+        this.clearErrorMsg();
+        errors.forEach(item => {
+          this.errorsMsg[item.field] = item.message;
+        });
+        const methodMap = {
+          name: () => this.handleFocusStrategyName(),
+          priority: () => this.handleFocusStrategyPriority(),
+          labels: () => this.handleStrategyLabels(),
+        };
+        for (const field in fields) {
+          // 按顺序给依次给表单 input 聚焦。（仅执行一次）
+          methodMap[field]();
+          break;
         }
-      });
+        return Promise.reject({ errors, fields });
+      }
     });
   }
   // 清除校验
