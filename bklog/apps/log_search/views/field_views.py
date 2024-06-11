@@ -21,7 +21,8 @@ from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
     FetchStatisticsInfoSerializer,
-    FetchTopkListSerializer, QueryFieldBaseSerializer,
+    FetchTopkListSerializer,
+    QueryFieldBaseSerializer,
 )
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP
 from apps.log_unifyquery.handler import UnifyQueryHandler
@@ -70,7 +71,7 @@ class FieldViewSet(APIViewSet):
         mapping_list = mapping_handlers._get_mapping()
         property_dict: dict = mapping_handlers.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
-        fields_set = set([field["name"] for field in fields_result])
+        fields_set = {field["field_name"] for field in fields_result}
         multi_execute_func = MultiExecuteFunc()
 
         for field_name in fields_set:
@@ -84,10 +85,7 @@ class FieldViewSet(APIViewSet):
                 GetMultiResultFailException.MESSAGE.format(func_name="fetch_distinct_count_list")
             )
         for field_name, distinct_count in multi_result.items():
-            count_list.append({
-                "field_name": field_name,
-                "distinct_count": distinct_count
-            })
+            count_list.append({"field_name": field_name, "distinct_count": distinct_count})
         return Response(count_list)
 
     @list_route(methods=["POST"], url_path="fetch_topk_list")
