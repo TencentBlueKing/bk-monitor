@@ -164,25 +164,27 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
           { required: true, message: this.$tc('必填项') },
           {
             asyncValidator: (_rule, value) => {
-              return new Promise<void>(async (resolve, reject) => {
-                this.cancelTokenSource?.cancel?.();
-                if (this.oldStrategyName === value) {
-                  resolve();
-                  return;
-                }
-                const hasSameName = await verifyStrategyName(
-                  { name: value, id: this.id || undefined },
-                  { needMessage: false, needRes: true }
-                )
-                  .then(() => true)
-                  .catch(error => {
-                    return error?.status !== 400;
-                  });
-                if (!hasSameName) {
-                  reject(this.$tc('策略名已存在'));
-                } else {
-                  resolve();
-                }
+              return new Promise<void>((resolve, reject) => {
+                (async () => {
+                  this.cancelTokenSource?.cancel?.();
+                  if (this.oldStrategyName === value) {
+                    resolve();
+                    return;
+                  }
+                  const hasSameName = await verifyStrategyName(
+                    { name: value, id: this.id || undefined },
+                    { needMessage: false, needRes: true }
+                  )
+                    .then(() => true)
+                    .catch(error => {
+                      return error?.status !== 400;
+                    });
+                  if (!hasSameName) {
+                    reject(this.$tc('策略名已存在'));
+                  } else {
+                    resolve();
+                  }
+                })();
               });
             },
           },
