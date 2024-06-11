@@ -75,6 +75,8 @@ def push_and_publish_es_space_router(space_type: str, space_id: str, table_id: s
 
 def push_and_publish_es_aliases(data_label: str):
     """推送并发布es别名"""
+    if not data_label:
+        return
     # 为避免覆盖，重新获取一遍数据
     table_id_list = list(models.ResultTable.objects.filter(data_label=data_label).values_list("table_id", flat=True))
     RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, {data_label: json.dumps(table_id_list)})
@@ -91,8 +93,9 @@ def push_and_publish_es_table_id(table_id: str, index_set: str, source_type: str
     - 第三方: 不追加任何，直接按照规则处理
     """
     table_id_db = ""
+    # 针对内建的索引，如果没有设置索引集，则按照结果表获取查询规则
     if source_type == EsSourceType.LOG.value:
-        _index_list = index_set.split(",")
+        _index_list = index_set.split(",") if index_set else [table_id]
         table_id_db = ",".join([f"{index.replace('.', '_')}_*_read" for index in _index_list])
     elif source_type == EsSourceType.BKDATA.value:
         _index_list = index_set.split(",")

@@ -30,10 +30,10 @@ class CreateEsRouter(Resource):
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="ES 结果表 ID")
-        data_label = serializers.CharField(required=True, label="数据标签")
+        data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
         cluster_id = serializers.CharField(required=True, label="ES 集群 ID")
-        index_set = serializers.CharField(required=False, label="索引集规则")
-        source_type = serializers.CharField(required=False, label="数据源类型")
+        index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
+        source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
     def perform_request(self, data: OrderedDict):
         # 创建结果表和ES存储记录
@@ -46,6 +46,7 @@ class CreateEsRouter(Resource):
             default_storage=models.ClusterInfo.TYPE_ES,
             creator="system",
             bk_biz_id=biz_id,
+            data_label=data.get("data_label") or "",
         )
         # 创建es存储记录
         models.ESStorage.create_table(
@@ -53,8 +54,8 @@ class CreateEsRouter(Resource):
             is_sync_db=False,
             cluster_id=data["cluster_id"],
             enable_create_index=False,
-            source_type=data["source_type"],
-            index_set=data["index_set"],
+            source_type=data.get("source_type") or "",
+            index_set=data.get("index_set") or "",
         )
         # 推送空间数据
         push_and_publish_es_space_router(space_type=data["space_type"], space_id=data["space_id"])

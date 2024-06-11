@@ -1768,23 +1768,6 @@ class ESStorage(models.Model, StorageResultTable):
     source_type = models.CharField("数据源类型", max_length=16, default="log", help_text="数据源类型，仅对日志内置集群索引进行生命周期管理")
     index_set = models.TextField("索引集", blank=True, null=True)
 
-    @property
-    def index_set_rule(self):
-        """查询规则
-
-        - 自有: 追加时间戳和read后缀
-        - 数据平台: 追加时间戳和read后缀
-        - 第三方: 不追加任何，直接按照规则处理
-        """
-        if self.source_type == constants.EsSourceType.LOG.value:
-            _index_list = self.index_set.split(",")
-            return ",".join([f"{index.replace('.', '_')}_*_read" for index in _index_list])
-        elif self.source_type == constants.EsSourceType.BKDATA.value:
-            _index_list = self.index_set.split(",")
-            return ",".join([f"{index}_*" for index in _index_list])
-        else:
-            return self.index_set
-
     @classmethod
     def refresh_consul_table_config(cls):
         """
