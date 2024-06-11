@@ -162,14 +162,14 @@ export default class TabContainer extends tsc<ITabContainerProps> {
     },
     {
       id: 'SYSTEM_RECOVER',
-      name: i18n.t('告警恢复'),
+      name: i18n.t('系统恢复'),
       checked: true,
       mockChecked: true,
       disabled: false,
     },
     {
       id: 'SYSTEM_CLOSE',
-      name: i18n.t('告警关闭'),
+      name: i18n.t('系统关闭'),
       checked: true,
       mockChecked: true,
       disabled: false,
