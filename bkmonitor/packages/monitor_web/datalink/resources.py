@@ -20,10 +20,9 @@ from bkmonitor.models.strategy import UserGroup
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from common.log import logger
-from constants.alert import EventStatus, EVENT_STATUS_DICT
+from constants.alert import EVENT_STATUS_DICT, EventStatus
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
-from core.errors.datalink import CollectorPluginMetaError
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from monitor_web.datalink.storage import get_storager
 from monitor_web.models.collecting import CollectConfigMeta
@@ -114,10 +113,6 @@ class BaseStatusResource(Resource):
                     continue
                 metric_names.append(field["name"])
             table["metric_names"] = metric_names
-        if len(metric_json) == 0:
-            raise CollectorPluginMetaError(
-                "No metric config in collector plugin({})".format(self.collect_config.plugin.plugin_id)
-            )
         return metric_json
 
     def get_result_table_id(self, table_name: str) -> str:
