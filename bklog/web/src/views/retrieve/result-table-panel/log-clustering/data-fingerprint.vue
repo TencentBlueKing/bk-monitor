@@ -100,7 +100,7 @@
         :render-header="$renderHeader"
         :width="getTableWidth.number"
         sortable
-        prop="number"
+        prop="count"
       >
         <template slot-scope="{ row }">
           <span
@@ -225,7 +225,7 @@
         :label="$t('责任人')"
         :render-header="renderUserHeader"
       >
-        <template slot-scope="{ row, $index }">
+        <template slot-scope="{ row }">
           <div
             v-bk-tooltips.top="{
               content: row.owners.join(', '),
@@ -241,7 +241,7 @@
               :value="row.owners"
               :api="userApi"
               :empty-text="$t('无匹配人员')"
-              @change="val => handleChangePrincipal(val, $index)"
+              @change="val => handleChangePrincipal(val, row)"
             >
             </bk-user-selector>
           </div>
@@ -254,10 +254,10 @@
         :label="$t('备注')"
         :render-header="renderRemarkHeader"
       >
-        <template slot-scope="{ row, $index }">
+        <template slot-scope="{ row }">
           <div
             class="auto-height-container"
-            @mouseenter="e => handleHoverRemarkIcon(e, row, $index)"
+            @mouseenter="e => handleHoverRemarkIcon(e, row)"
           >
             <span class="auto-height">
               {{ remarkContent(row.remark) }}
@@ -442,9 +442,8 @@ export default {
       selectList: [], // 当前选中的数组
       isRequestAlarm: false, // 是否正在请求告警接口
       checkValue: 0, // 0为不选 1为半选 2为全选
-      /** 当前编辑备注或标签的下标 */
-      editDialogIndex: -1,
-      hoverLabelIndex: -1,
+      /** 当前编辑备注或标签的 signature */
+      curEditSignature: '',
       /** 输入框弹窗的字符串 */
       verifyData: {
         textInputStr: ''
@@ -529,7 +528,7 @@ export default {
     },
     /** 获取当前编辑操作的数据 */
     getHoverRowValue() {
-      return this.fingerList[this.editDialogIndex];
+      return this.fingerList.find(item => item.signature === this.curEditSignature);
     },
     /** 获取当前hover操作的数据 */
     getHoverRowGroupsValue() {
@@ -834,8 +833,8 @@ export default {
       return str.match(/#.*?#/g) || [];
     },
     /** 设置负责人 */
-    handleChangePrincipal(val, index) {
-      this.editDialogIndex = index;
+    handleChangePrincipal(val, row) {
+      this.curEditSignature = row.signature;
       this.$http
         .request('/logClustering/setOwner', {
           params: {
@@ -855,7 +854,7 @@ export default {
               theme: 'success',
               message: this.$t('操作成功')
             });
-            this.editDialogIndex = -1;
+            this.curEditSignature = '';
           }
         });
     },
@@ -904,7 +903,7 @@ export default {
               theme: 'success',
               message: this.$t('操作成功')
             });
-            this.editDialogIndex = -1;
+            this.curEditSignature = '';
           }
         })
         .finally(() => {
@@ -919,7 +918,7 @@ export default {
         this.verifyData.textInputStr.trim()
       );
     },
-    handleHoverRemarkIcon(e, row, index) {
+    handleHoverRemarkIcon(e, row) {
       if (!this.popoverInstance) {
         this.currentRemarkList = row.remark
           .map(item => ({
@@ -944,7 +943,7 @@ export default {
           }
         });
       }
-      this.editDialogIndex = index;
+      this.curEditSignature = row.signature;
       this.popoverInstance.show();
     },
     /** 提交新的备注 */

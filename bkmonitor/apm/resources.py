@@ -103,11 +103,6 @@ class CreateApplicationResource(Resource):
         es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置")
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.origin_objects.filter(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        ).first()
-        if application:
-            raise ValueError(_("应用名称: {}已被创建").format(validated_request_data['app_name']))
         return ApmApplication.create_application(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -1630,6 +1625,8 @@ class QueryProfileServiceDetailResource(Resource):
         data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         sample_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         order = serializers.CharField(required=False, default="created_at")
+        is_large = serializers.BooleanField(required=False, allow_null=True)
+        last_check_time__gt = serializers.IntegerField(required=False, allow_null=True)
 
     class ResponseSerializer(serializers.ModelSerializer):
         last_check_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
@@ -1653,5 +1650,9 @@ class QueryProfileServiceDetailResource(Resource):
             params["data_type"] = validated_data["data_type"]
         if validated_data.get("sample_type"):
             params["sample_type"] = validated_data["sample_type"]
+        if validated_data.get("is_large"):
+            params["is_large"] = validated_data["is_large"]
+        if validated_data.get("last_check_time__gt"):
+            params["last_check_time__gt"] = datetime.datetime.fromtimestamp(validated_data["last_check_time__gt"])
 
         return ProfileService.objects.filter(**params).order_by(validated_data.get("order", "created_at"))

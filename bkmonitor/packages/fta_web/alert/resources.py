@@ -2047,6 +2047,7 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
                 anomaly_metrics = parse_anomaly(anomaly_sort, strategy_algorithm["config"])
 
                 base_graph_panel = AIOPSManager.get_graph_panel(alert, use_raw_query_config=True)
+                base_graph_panel["type"] = "performance-chart"
                 for anomaly_metric in anomaly_metrics:
                     graph_panel = self.generate_metric_graph_panel(
                         copy.deepcopy(base_graph_panel),

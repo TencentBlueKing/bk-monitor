@@ -25,6 +25,7 @@ from metadata.config import (
     KAFKA_SASL_PROTOCOL,
     PERIODIC_TASK_DEFAULT_TTL,
 )
+from metadata.models.constants import EsSourceType
 from metadata.utils import consul_tools
 
 from .tasks import manage_es_storage
@@ -261,7 +262,10 @@ def refresh_es_storage():
         manage_es_storage.delay(es_storage_data)
     # 设置每100条记录，拆分为一个任务
     start, step = 0, 100
-    es_storages = models.ESStorage.objects.exclude(storage_cluster_id__in=es_cluster_wl)
+    # 仅管理日志内建的集群索引
+    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value).exclude(
+        storage_cluster_id__in=es_cluster_wl
+    )
     # 添加一步过滤，用以减少任务的数量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False

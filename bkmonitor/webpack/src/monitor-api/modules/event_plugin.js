@@ -12,6 +12,7 @@ export const tailEventPluginData = request('GET', 'fta/plugin/event/{pk}/tail/')
 export const createEventPluginInstance = request('POST', 'fta/plugin/event/{pk}/instance/install/');
 export const updateEventPluginInstance = request('PUT', 'fta/plugin/event/{pk}/instance/');
 export const getEventPluginToken = request('GET', 'fta/plugin/event/{pk}/instance/token/');
+export const disablePluginCollect = request('POST', 'fta/plugin/event/instance/disable_collect/');
 
 export default {
   listEventPlugin,
@@ -25,5 +26,6 @@ export default {
   tailEventPluginData,
   createEventPluginInstance,
   updateEventPluginInstance,
-  getEventPluginToken
+  getEventPluginToken,
+  disablePluginCollect,
 };

@@ -78,7 +78,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   formModel = {
     level: [],
     scene: '',
-    sensitivity: 1,
+    sensitivity: 5,
   };
   target: any = {
     targetType: '',
@@ -290,7 +290,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
       } else {
         this.formModel.level = [];
       }
-      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0]?.config?.sensitivity || 1;
+      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0]?.config?.sensitivity || 5;
       this.metrics = this.metricData[0].sceneConfig.algorithms[0]?.config?.metrics?.map(item => item.metric_id) || [];
     }
     multivariateAnomalyScenes()

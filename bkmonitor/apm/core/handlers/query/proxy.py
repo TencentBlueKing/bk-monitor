@@ -49,7 +49,7 @@ class QueryProxy:
 
     @cached_property
     def span_query(self):
-        return SpanQuery(self.application.trace_datasource.es_client, self.application.trace_datasource.result_table_id)
+        return SpanQuery(self.application.trace_datasource.es_client, self.application.trace_datasource.index_name)
 
     @cached_property
     def origin_trace_query(self):
@@ -57,7 +57,7 @@ class QueryProxy:
             self.bk_biz_id,
             self.app_name,
             self.application.trace_datasource.es_client,
-            self.application.trace_datasource.result_table_id,
+            self.application.trace_datasource.index_name,
         )
 
     @cached_property
@@ -88,7 +88,7 @@ class QueryProxy:
         if EbpfHandler.is_ebpf_application(self.application):
             return FakeQuery()
 
-        return EbpfQuery(app.trace_datasource.es_client, app.trace_datasource.result_table_id)
+        return EbpfQuery(app.trace_datasource.es_client, app.trace_datasource.index_name)
 
     @cached_property
     def is_trace_query_valid(self):
@@ -128,7 +128,7 @@ class QueryProxy:
             ).first()
             if relation_app:
                 span_query = SpanQuery(
-                    relation_app.trace_datasource.es_client, relation_app.trace_datasource.result_table_id
+                    relation_app.trace_datasource.es_client, relation_app.trace_datasource.index_name
                 )
                 relation_spans = span_query.query_by_trace_id(trace_id)
                 client = Permission()

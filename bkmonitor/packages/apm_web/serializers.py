@@ -113,9 +113,9 @@ class AsyncSerializer(serializers.Serializer):
 
 
 class ServiceParamsSerializer(serializers.Serializer):
-    category = serializers.CharField(label="分类")
-    kind = serializers.CharField(label="类型")
-    predicate_value = serializers.CharField(label="分类具体值", allow_blank=True, default="")
+    category = serializers.CharField(label="分类", required=False, default="")
+    kind = serializers.CharField(label="类型", required=False, default="")
+    predicate_value = serializers.CharField(label="分类具体值", allow_blank=True, required=False, default="")
 
 
 class ComponentInstanceIdDynamicField(serializers.Field):

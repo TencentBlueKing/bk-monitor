@@ -19,7 +19,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.timezone import now as tz_now
 
-from bkmonitor.dataflow.auth import ensure_has_permission_with_rt_id
+from bkmonitor.dataflow.auth import batch_add_permission
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.time_format import parse_duration
 from constants.dataflow import ConsumingMode
@@ -253,11 +253,12 @@ class ResultTableFlow(BaseModelWithTime):
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return False
-        # 检测是否资源已经授权
-        for tid in rule_obj.src_vm_table_ids:
-            ensure_has_permission_with_rt_id(
-                settings.BK_DATA_PROJECT_MAINTAINER, tid, settings.BK_DATA_RECORD_RULE_PROJECT_ID
-            )
+        # 检测并授权结果表
+        if not batch_add_permission(
+            settings.BK_DATA_RECORD_RULE_PROJECT_ID, settings.BK_DATA_BK_BIZ_ID, rule_obj.src_vm_table_ids
+        ):
+            logger.error("batch add permission error, vm_table_id: %s", rule_obj.src_vm_table_ids)
+            return False
         nodes = cls.compose_source_node(rule_obj.src_vm_table_ids)
         # 添加预计算节点
         nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids))

@@ -227,6 +227,9 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
 
         result_json = result.json()
 
+        if not isinstance(result_json, dict):
+            return result_json
+
         ret_code = result_json.get("code")
         # 权限中心无权限结构特殊处理
         if ret_code in APIPermissionDeniedCodeList:
