@@ -217,7 +217,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             class='base-config-select simplicity-select'
             behavior='simplicity'
             clearable={false}
-            readonly={Number(this.bizId) > 0}
+            readonly={true}
             value={this.bizId}
             searchable
             on-change={this.handleBaseConfigChange}
