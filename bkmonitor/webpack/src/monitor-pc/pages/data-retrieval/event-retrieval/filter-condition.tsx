@@ -330,6 +330,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                     key={JSON.stringify(this.groupBy)}
                     vModel={this.currentValue.key}
                     clearable={false}
+                    allow-create
                     onSelected={this.handleGetVarList}
                   >
                     {this.groupBy.map(item => (
