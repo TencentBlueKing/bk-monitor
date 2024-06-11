@@ -93,7 +93,7 @@ export default class TableStore {
       const nodeType = item.target_node_type;
       const biz = bizList.find(v => v.id === item.bk_biz_id) || { text: '' };
       const noticeGroupList = item.notice.user_groups;
-      const noticeGroupNameList = item.notice.user_group_list.map(item => item?.name);
+      const noticeGroupNameList = item.notice.user_group_list.map(item => ({ name: item?.name, id: item?.id }));
       const intervalNotifyMode = intervalModeNames[item.notice.config.interval_notify_mode] || '';
       const queryConfigs = item.items[0].query_configs;
       const queryConfig = queryConfigs[0];
@@ -150,7 +150,12 @@ export default class TableStore {
         totalInstanceCount: item.total_instance_count,
         target: targetString,
         noticeGroupList: Array.from(new Set(noticeGroupList)), // 告警组id
-        noticeGroupNameList: Array.from(new Set(noticeGroupNameList)), // 告警组名
+        noticeGroupNameList: noticeGroupNameList.reduce((pre, cur) => {
+          if (!pre.find(item => item.id === cur.id)) {
+            pre.push(cur);
+          }
+          return pre;
+        }, []), // 告警组名
         labels: item.labels,
         categoryList: Array.isArray(item.service_category_data) ? item.service_category_data : [],
         updator: item.update_user,

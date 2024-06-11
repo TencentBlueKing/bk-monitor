@@ -429,15 +429,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       /* 已恢复 */
       iconName = 'icon-mc-check-fill';
       iconColor = '#2dcb56';
-      if (!isShielded) {
-        /* 已恢复未屏蔽 */
-        iconText = `${this.$t('已恢复')}`;
-        operateDom = <div class='status-operate'>{shieldedDom()}</div>;
-      } else {
-        /* 已恢复已屏蔽 */
-        iconText = `${this.$t('已恢复')}（${this.$t('已屏蔽')}）`;
-        operateDom = null;
-      }
+      iconText = `${this.$t('已恢复')}`;
+      operateDom = null;
     } else if (eventStatus === status[1]) {
       /* 未恢复 */
       if (!isAck && !isShielded) {
@@ -482,26 +475,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       /* 已关闭 */
       iconName = 'icon-mc-close-fill';
       iconColor = '#dcdee5';
-      if (!isShielded) {
-        /* 已关闭未屏蔽 */
-        iconText = `${this.$t('已关闭')}`;
-        operateDom = !this.readonly ? (
-          <div class='status-operate'>
-            <bk-button
-              outline={true}
-              size='small'
-              theme='primary'
-              on-click={this.handleQuickShield}
-            >
-              {this.$t('快捷屏蔽')}
-            </bk-button>
-          </div>
-        ) : undefined;
-      } else {
-        /* 已关闭已屏蔽 */
-        iconText = `${this.$t('已关闭')}（${this.$t('已屏蔽')}）`;
-        operateDom = null;
-      }
+      iconText = `${this.$t('已关闭')}`;
+      operateDom = null;
     }
     return (
       <div class='right-status'>
