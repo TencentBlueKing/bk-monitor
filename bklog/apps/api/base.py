@@ -595,6 +595,46 @@ class DataAPI(object):
         if cache.get(cache_key):
             return cache.get(cache_key)
 
+    def batch_request(
+        self,
+        params=None,
+        chunk_name="",
+        chunk_size=settings.BULK_REQUEST_LIMIT,
+        get_data=lambda x: x["list"],
+    ):
+        """
+        并发请求接口，用于需要切片多次请求的情况
+        :param params: 请求参数
+        :param chunk_name: 需要进行切片的参数名
+        :param chunk_size: 一次请求数量
+        :param get_data: 获取数据函数
+        :return: 请求结果
+        """
+        request_params = params or {}
+        data_list = request_params.pop("data_list")
+        request_params.update({"no_request": True})
+
+        data = []
+        count = math.ceil(len(data_list) / chunk_size)
+        futures = []
+        pool = ThreadPool()
+        request = None
+        with ignored(Exception):
+            request = get_request()
+        for i in range(count):
+            request_params.update({chunk_name: data_list[i * chunk_size : i * chunk_size + chunk_size]})
+            futures.append(
+                pool.apply_async(
+                    self.thread_activate_request,
+                    args=(deepcopy(request_params),),
+                    kwds={"request": request, "context": get_current()},
+                )
+            )
+        for future in futures:
+            data.extend(get_data(future.get()))
+
+        return data
+
     def bulk_request(
         self,
         params=None,

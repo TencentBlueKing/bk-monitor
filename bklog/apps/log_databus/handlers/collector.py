@@ -2020,11 +2020,11 @@ class CollectorHandler(object):
         for item in instance_data:
             bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
 
-        plugin_data = NodeApi.plugin_search.bulk_request(
-            params={"conditions": [], "bk_host_id": bk_host_ids},
-            get_data=lambda x: x["list"],
-            get_count=lambda x: x["total"],
+        plugin_data = NodeApi.plugin_search.batch_request(
+            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT, "data_list": bk_host_ids},
+            chunk_name="bk_host_id",
         )
+
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
         # 如果采集目标是HOST-INSTANCE
