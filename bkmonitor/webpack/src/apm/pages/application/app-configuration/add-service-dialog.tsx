@@ -526,7 +526,15 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               </div>
             ) : (
               <div class='auto-match-wrap'>
-                <div class='desc-contnet'>{this.$t('说明文案')}</div>
+                <div class='desc-contnet'>
+                  {`${this.$t('匹配规则支持通过在正则表达式中配置 `peer_service` 和 `span_name` 参数来提取自定义服务名称和 span_name。例如配置正则：')}`}
+                  <br />
+                  {'https://(?P<peer_service>[^/]+)/(?P<span_name>.*)'}
+                  <br />
+                  {this.$t(
+                    '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs`'
+                  )}
+                </div>
                 <bk-form-item
                   error-display-type='normal'
                   label={this.$t('匹配规则')}
