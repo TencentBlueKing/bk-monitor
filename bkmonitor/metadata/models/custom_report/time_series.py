@@ -13,7 +13,6 @@ import json
 import logging
 import math
 import time
-from queue import Full, Queue
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
@@ -39,7 +38,6 @@ from metadata.models.result_table import (
     ResultTableOption,
 )
 from metadata.models.storage import ClusterInfo
-from metadata.utils.bulk_handle import bulk_handle
 from metadata.utils.db import filter_model_by_in_page
 from metadata.utils.redis_tools import RedisTools
 from utils.redis_client import RedisClient
@@ -448,7 +446,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
     def get_metric_from_bkdata(self) -> List:
         """通过bkdata获取数据信息"""
-        from metadata.models import AccessVMRecord
+        from metadata.models import AccessVMRecord, BCSClusterInfo
 
         default_resp = []
         try:
@@ -456,47 +454,35 @@ class TimeSeriesGroup(CustomGroupBase):
         except AccessVMRecord.DoesNotExist:
             return default_resp
         # 获取指标
-        data = api.bkdata.query_ts_metrics(storage=config.VM_STORAGE_TYPE, result_table_id=vm_rt) or []
+        data = (
+            api.bkdata.query_metric_and_dimension(
+                storage=config.VM_STORAGE_TYPE,
+                result_table_id=vm_rt,
+                values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+            )
+            or []
+        )
         if not data:
             return default_resp
         # 组装数据
-        metric_list = [{"storage": config.VM_STORAGE_TYPE, "result_table_id": vm_rt, "metric": d[0]} for d in data]
-        # 批量请求接口查询数据
-        data_queue = Queue(maxsize=100000)
-        bulk_handle(self._handle_metric_info, metric_list, data_queue=data_queue)
-        # 判断是否为空
-        if data_queue.empty():
+        metric_dimension = data["metrics"]
+        if not metric_dimension:
             return default_resp
         ret_data = []
-        # 从队列中获取数据
-        while not data_queue.empty():
-            try:
-                ret_data.extend(data_queue.get(timeout=2))
-            except Exception as e:
-                logger.error("failed to get data from queue, err: %s", e)
-        return ret_data
-
-    def _handle_metric_info(self, metric_params: List, data_queue: Queue) -> List:
-        """处理metric_list, 获取指标和维度数据"""
-        data = []
-        for params in metric_params:
-            dimensions = api.bkdata.query_ts_dimensions(**params)
-            tag_value_list = [
-                {dimension[0]: {"last_update_time": dimension[1] // 1000, "values": None}} for dimension in dimensions
-            ]
-            data.append(
-                {
-                    "field_name": params["metric"],
-                    "tag_value_list": tag_value_list,
-                    "last_modify_time": dimensions[-1][-1] // 1000,  # 转换为秒，元数据为 毫秒
+        for md in metric_dimension:
+            tag_value_list = {}
+            for d in md["dimensions"]:
+                tag_value_list[d["name"]] = {
+                    "last_update_time": d["update_time"],
+                    "values": [v["value"] for v in d["values"]],
                 }
-            )
-        try:
-            data_queue.put(data)
-        except Full:
-            logger.exception("failed to put data into queue, queue is full")
-        except Exception as e:
-            logger.exception("failed to put data into queue, err: %s", e)
+            item = {
+                "field_name": md["name"],
+                "last_modify_time": md["update_time"] // 1000,
+                "tag_value_list": tag_value_list,
+            }
+            ret_data.append(item)
+        return ret_data
 
     def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
