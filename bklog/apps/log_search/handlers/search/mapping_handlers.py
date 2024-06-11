@@ -251,26 +251,10 @@ class MappingHandlers(object):
         fields_list = self._combine_description_field(fields_list)
         fields_list = self._combine_fields(fields_list)
 
-        result_table_ids = list(
-            LogIndexSetData.objects.filter(index_set_id=self.index_set_id).values_list("result_table_id", flat=True)
-        )
         for field in fields_list:
             # 判断是否为内置字段
             field_name = field.get("field_name", "").lower()
             field["is_built_in"] = field_name in built_in_fields or field_name.startswith("__ext.")
-
-            # 增加field_count字段计数
-            if field.get("field_name", "") and field["field_type"] != "text":
-                search_params = {
-                    "result_table_ids": result_table_ids,
-                    "start_time": self.start_time,
-                    "end_time": self.end_time,
-                    "agg_field": field["field_name"],
-                }
-                try:
-                    field["field_count"] = UnifyQueryHandler(search_params).get_distinct_count()
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.exception("get_field_count error: %s, search params: %s", e, search_params)
 
         return fields_list
 

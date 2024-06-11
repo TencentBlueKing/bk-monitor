@@ -25,7 +25,7 @@ class UnifyQueryHandler(object):
         self.start_time = params["start_time"]
         self.end_time = params["end_time"]
         self.base_dict = self.init_base_dict()
-        self.include_nested_fields: bool = params.get("include_nested_fields", True)
+        self.is_union_search: bool = len(params.get("result_table_ids", [])) > 1
 
     def init_default_interval(self):
         # 兼容查询时间段为默认近十五分钟的情况
@@ -170,10 +170,21 @@ class UnifyQueryHandler(object):
 
     def get_distinct_count(self):
         search_dict = copy.deepcopy(self.base_dict)
-        search_dict.update({"metric_merge": "a"})
-        for query in search_dict["query_list"]:
-            query["function"] = [{"method": "cardinality"}]
-        data = self.query_ts_reference(search_dict)
+        data = {}
+        if self.is_union_search:
+            reference_list = []
+            for query in search_dict["query_list"]:
+                query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}
+                query["function"] = [{"method": "sum", "dimensions": [self.search_params["agg_field"]]}]
+                reference_list.append(query["reference_name"])
+            metric_merge = "count(" + " or ".join(reference_list) + ")"
+            search_dict.update({"metric_merge": metric_merge, "instant": True})
+            data = self.query_ts(search_dict)
+        else:
+            for query in search_dict["query_list"]:
+                query["function"] = [{"method": "cardinality"}]
+                search_dict.update({"metric_merge": "a"})
+                data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
             return series["values"][0][1]
@@ -218,7 +229,7 @@ class UnifyQueryHandler(object):
 
     def get_topk_list(self, limit: int = 5):
         search_dict = copy.deepcopy(self.base_dict)
-        search_dict.update({"order_by": ["-_value"], "metric_merge": "a"})
+        reference_list = []
         for query in search_dict["query_list"]:
             query["limit"] = limit
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
@@ -227,9 +238,11 @@ class UnifyQueryHandler(object):
             query["conditions"]["field_list"].extend(
                 [{"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}]
             )
+            reference_list.append(query["reference_name"])
+        search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         series = data["series"]
-        return sorted([[s["group_values"][0], s["values"][0][1]] for s in series], key=lambda x: x[1], reverse=True)
+        return sorted([[s["group_values"][0], s["values"][0][1]] for s in series[:limit]], key=lambda x: x[1], reverse=True)
 
     def get_bucket_data(self, min_value: int, max_value: int):
         # 浮点数分桶区间精度默认为两位小数

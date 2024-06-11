@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
+from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.log_search.permission import Permission
@@ -25,6 +26,7 @@ from apps.log_search.serializers import (
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP
 from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.drf import list_route
+from apps.utils.thread import MultiExecuteFunc
 
 
 class FieldViewSet(APIViewSet):
@@ -68,11 +70,23 @@ class FieldViewSet(APIViewSet):
         mapping_list = mapping_handlers._get_mapping()
         property_dict: dict = mapping_handlers.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
-        for field in fields_result:
-            query_handler = UnifyQueryHandler({"agg_field": field["field_name"], **params})
+        fields_set = set([field["name"] for field in fields_result])
+        multi_execute_func = MultiExecuteFunc()
+
+        for field_name in fields_set:
+            query_handler = UnifyQueryHandler({"agg_field": field_name, **params})
+            multi_execute_func.append(field_name, query_handler.get_distinct_count)
+
+        multi_result = multi_execute_func.run()
+
+        if not multi_result:
+            raise GetMultiResultFailException(
+                GetMultiResultFailException.MESSAGE.format(func_name="fetch_distinct_count_list")
+            )
+        for field_name, distinct_count in multi_result.items():
             count_list.append({
-                "field_name": field["field_name"],
-                "distinct_count": query_handler.get_distinct_count()
+                "field_name": field_name,
+                "distinct_count": distinct_count
             })
         return Response(count_list)
 
