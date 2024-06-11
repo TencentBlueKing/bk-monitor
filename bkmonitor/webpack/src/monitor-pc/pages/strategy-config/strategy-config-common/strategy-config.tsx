@@ -2040,6 +2040,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               content: () => props.row.noticeGroupNameList.map(item => item.name).join('、'),
               delay: 200,
               allowHTML: false,
+              disabled: !props.row.overflow,
             }}
           >
             {props.row.noticeGroupNameList.map(item => (
@@ -2048,7 +2049,12 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 class='classifiy-label'
                 onClick={() => this.handleAlarmGroupClick(item.id)}
               >
-                <span class='text-overflow'>{item.name}</span>
+                <span
+                  class='text-overflow'
+                  v-bk-overflow-tips
+                >
+                  {item.name}
+                </span>
               </span>
             ))}
             {props.row.overflow ? <span class='classifiy-overflow'>...</span> : undefined}
