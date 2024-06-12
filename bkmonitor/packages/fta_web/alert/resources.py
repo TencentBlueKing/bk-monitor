@@ -83,6 +83,7 @@ from core.unit import load_unit
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
 from fta_web.alert.serializers import (
@@ -306,11 +307,14 @@ class AlertDateHistogramResource(Resource):
     def perform_request(self, validated_request_data):
         start_time = validated_request_data.pop("start_time")
         end_time = validated_request_data.pop("end_time")
+        interval = validated_request_data.pop("interval")
+        interval = BaseQueryHandler.calculate_agg_interval(start_time, end_time, interval)
         results = resource.alert.alert_date_histogram_result.bulk_request(
             [
                 {
                     "start_time": sliced_start_time,
                     "end_time": sliced_end_time,
+                    "interval": interval,
                     **validated_request_data,
                 }
                 for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
@@ -1639,7 +1643,8 @@ class AlertTopNResultResource(BaseTopNResource):
     handler_cls = AlertQueryHandler
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
-        pass
+        is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
+        is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
 
 
 class AlertTopNResource(Resource):
@@ -1651,14 +1656,17 @@ class AlertTopNResource(Resource):
     def perform_request(self, validated_request_data):
         start_time = validated_request_data.pop("start_time")
         end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
         results = resource.alert.alert_top_n_result.bulk_request(
             [
                 {
                     "start_time": sliced_start_time,
                     "end_time": sliced_end_time,
+                    "is_finaly_partition": True if index == len(slice_times) - 1 else False,
+                    "is_time_partitioned": True,
                     **validated_request_data,
                 }
-                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+                for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
             ]
         )
 
@@ -1666,25 +1674,37 @@ class AlertTopNResource(Resource):
             "doc_count": 0,
             "fields": [],
         }
+
+        # 创建字段映射和ID映射
         field_map = {}
         id_map = {}
+
+        # 处理每个部分结果
         for sliced_result in results:
+            result["doc_count"] += sliced_result["doc_count"]
+
             for field in sliced_result["fields"]:
                 if field["field"] not in field_map:
                     new_field = copy.deepcopy(field)
+                    new_field["buckets"] = []  # 清空buckets
+                    new_field["bucket_count"] = 0  # 初始化bucket_count
                     result["fields"].append(new_field)
-                    field_map[field["field"]] = len(result["fields"]) - 1
+                    field_index = len(result["fields"]) - 1
+                    field_map[field["field"]] = field_index
+                    id_map[field["field"]] = {}
                 else:
-                    index = field_map[field["field"]]
-                    for bucket in field["buckets"]:
-                        if bucket["id"] not in id_map:
-                            new_bucket = copy.deepcopy(bucket)
-                            result["fields"][index]["buckets"].append(new_bucket)
-                            id_map[bucket["id"]] = len(result["fields"][index]["buckets"]) - 1
-                            result["fields"][index]["bucket_count"] += 1
-                        else:
-                            bucket_index = id_map[bucket["id"]]
-                            result["fields"][index]["buckets"][bucket_index]["count"] += bucket["count"]
+                    field_index = field_map[field["field"]]
+
+                for bucket in field["buckets"]:
+                    if bucket["id"] not in id_map[field["field"]]:
+                        new_bucket = copy.deepcopy(bucket)
+                        result["fields"][field_index]["buckets"].append(new_bucket)
+                        bucket_index = len(result["fields"][field_index]["buckets"]) - 1
+                        id_map[field["field"]][bucket["id"]] = bucket_index
+                        result["fields"][field_index]["bucket_count"] += 1
+                    else:
+                        bucket_index = id_map[field["field"]][bucket["id"]]
+                        result["fields"][field_index]["buckets"][bucket_index]["count"] += bucket["count"]
         return result
 
 

@@ -218,28 +218,58 @@ class AlertQueryHandler(BaseBizQueryHandler):
     SHIELD_ABNORMAL_STATUS_NAME = "SHIELDED_ABNORMAL"
     NOT_SHIELD_ABNORMAL_STATUS_NAME = "NOT_SHIELDED_ABNORMAL"
 
-    def __init__(self, bk_biz_ids: List[int] = None, username: str = "", status: List[str] = None, **kwargs):
+    def __init__(
+        self,
+        bk_biz_ids: List[int] = None,
+        username: str = "",
+        status: List[str] = None,
+        is_time_partitioned: bool = False,
+        is_finaly_partition: bool = False,
+        **kwargs,
+    ):
         super(AlertQueryHandler, self).__init__(bk_biz_ids, username, **kwargs)
         self.must_exists_fields = kwargs.get("must_exists_fields", [])
         self.status = [status] if isinstance(status, str) else status
         if not self.ordering:
             # 默认排序
             self.ordering = ["status", "-create_time", "-seq_id"]
+        self.is_time_partitioned = is_time_partitioned
+        self.is_finaly_partition = is_finaly_partition
 
-    def get_search_object(self, start_time: int = None, end_time: int = None):
+    def get_search_object(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        is_time_partitioned: bool = False,
+        is_finaly_partition: bool = False,
+    ):
         """
         获取查询对象
         """
         start_time = start_time or self.start_time
         end_time = end_time or self.end_time
+        is_time_partitioned = is_time_partitioned or self.is_time_partitioned
+        is_finaly_partition = is_finaly_partition or self.is_finaly_partition
 
         search_object = AlertDocument.search(start_time=self.start_time, end_time=self.end_time)
 
         if start_time and end_time:
-            search_object = search_object.filter(
-                (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))
-                & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
-            )
+            if is_time_partitioned:
+                if is_finaly_partition:
+                    search_object = search_object.filter(
+                        (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))
+                        & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                    )
+                else:
+                    search_object = search_object.filter(
+                        (Q("range", end_time={"gte": start_time, "lte": end_time}) | ~Q("exists", field="end_time"))
+                        & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                    )
+            else:
+                search_object = search_object.filter(
+                    (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))
+                    & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                )
 
         search_object = self.add_biz_condition(search_object)
 
