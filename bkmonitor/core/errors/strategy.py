@@ -71,3 +71,9 @@ class IntelligentModelNotFound(StrategyError):
     code = 3313010
     name = _lazy("智能异常检测模型不存在")
     message_tpl = _lazy("智能异常检测模型不存在：{model_id}")
+
+
+class StrategyNameExist(StrategyError):
+    code = 3313011
+    name = _lazy("策略名称已存在")
+    message_tpl = _lazy("策略名称 [{name}] 已存在")

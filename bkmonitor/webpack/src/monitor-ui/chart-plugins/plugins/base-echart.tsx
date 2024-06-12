@@ -38,6 +38,8 @@ export interface IChartProps {
   width?: number;
   // echart 配置
   options: MonitorEchartOptions;
+  // hover是显示所有图标tooltips
+  hoverAllTooltips?: boolean;
 }
 export interface IChartEvent {
   // mouseover 事件

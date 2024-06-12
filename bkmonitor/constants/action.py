@@ -362,6 +362,7 @@ VARIABLES = [
             {"name": "alarm.level", "desc": _lazy("告警级别"), "example": "1"},
             {"name": "alarm.level_name", "desc": _lazy("告警级别名称"), "example": "致命"},
             {"name": "alarm.begin_time", "desc": _lazy("告警开始时间"), "example": "1970-01-01 00:00:00"},
+            {"name": "alarm.begin_timestamp", "desc": _lazy("告警开始时间戳"), "example": "1970-01-01 00:00:00"},
             {"name": "alarm.duration", "desc": _lazy("告警持续时间(秒)"), "example": "130"},
             {"name": "alarm.duration_string", "desc": _lazy("告警持续时间字符串"), "example": "2m 10s"},
             {"name": "alarm.description", "desc": _lazy("告警内容"), "example": "AVG(CPU使用率) >= 95.0%, 当前值96.317582%"},

@@ -31,7 +31,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Dialog } from 'bkui-vue';
 import { queryServicesDetail } from 'monitor-api/modules/apm_profile';
-import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 
 import { ISelectMenuOption } from '../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
@@ -61,7 +61,7 @@ export default defineComponent({
     /** 顶部工具栏数据 */
     const toolsFormData = ref<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: getDefautTimezone(),
+      timezone: getDefaultTimezone(),
       refreshInterval: -1,
     });
     provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);

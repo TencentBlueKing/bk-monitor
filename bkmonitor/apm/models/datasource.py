@@ -8,8 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import json
 import math
+import re
 from typing import Optional
 
 from django.conf import settings
@@ -97,6 +99,8 @@ class ApmDataSourceConfigBase(models.Model):
         )
 
     def create_data_id(self):
+        if self.bk_data_id != -1:
+            return self.bk_data_id
         try:
             data_id_info = resource.metadata.query_data_source({"data_name": self.data_name})
         except metadata_models.DataSource.DoesNotExist:
@@ -706,9 +710,49 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         return res.get("index_set_id"), res.get("index_set_name")
 
-    @property
+    @cached_property
     def index_name(self) -> str:
-        return f"{self.result_table_id.replace('.', '_')}_*"
+        try:
+            # 获取索引名称列表
+            es_index_name = self.result_table_id.replace(".", "_")
+            routes = self.es_client.transport.perform_request(
+                "GET",
+                f"/_cat/indices/{es_index_name}_*_*?bytes=b&format=json",
+            )
+            # 过滤出有效的索引名称
+            index_names = self._filter_and_sort_valid_index_names(
+                self.app_name,
+                index_names=[i["index"] for i in routes if i.get("index")],
+            )
+            if not index_names:
+                raise ValueError(f"[IndexName] valid indexName not found!")
+            return ",".join(index_names)
+        except Exception as e:  # noqa
+            res = f"{self.result_table_id.replace('.', '_')}_*"
+            logger.error(f"[IndexName] retrieve failed, error: {e}, use default: {res}")
+            return res
+
+    @classmethod
+    def _filter_and_sort_valid_index_names(cls, app_name, index_names):
+        date_index_pairs = []
+        pattern = re.compile(r".*_bkapm_trace_{0}_(\d{{8}})_\d+$".format(re.escape(app_name)))
+
+        for name in index_names:
+            match = pattern.search(name)
+            if match:
+                date_str = match.group(1)
+                # 检查 app_name 之后的格式是否是日期类型
+                try:
+                    date = datetime.datetime.strptime(date_str, "%Y%m%d")
+                    date_index_pairs.append((date, name))
+                except ValueError:
+                    logger.warning(f"[FilterValidIndexName] filter invalid indexName: {name} with wrong dateString")
+                    continue
+
+        # 按照时间排序 便于快捷获取最新的索引
+        date_index_pairs.sort(reverse=True, key=lambda x: x[0])
+
+        return [i[-1] for i in date_index_pairs]
 
     @cached_property
     def retention(self):

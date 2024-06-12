@@ -5,5 +5,5 @@ export const setGlobalConfig = request('POST', 'rest/v2/global_config/');
 
 export default {
   listGlobalConfig,
-  setGlobalConfig
+  setGlobalConfig,
 };

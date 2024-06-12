@@ -111,7 +111,7 @@ class MetricTranslator(AbstractTranslator):
                     }
                 )
             elif (metric.data_source_label, metric.data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
-                query_data["custom_event_name"] = query_data["metric_field_name"]
+                query_data["custom_event_name"] = metric.extend_fields.get("custom_event_name", "")
             metric_id = get_metric_id(**query_data)
             metric_translations.update({metric_id: metric.metric_field_name})
         return {value: metric_translations.get(value, value) for value in values}

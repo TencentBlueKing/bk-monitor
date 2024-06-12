@@ -34,7 +34,7 @@ class KernelSessionAuthentication(SessionAuthentication):
 class AppWhiteListModelBackend(ModelBackend):
     # 经过esb 鉴权， bktoken已经丢失，因此不再对用户名进行校验。
     def authenticate(self, request=None, username=None, password=None, **kwargs):
-        if not username:
+        if username is None:
             return None
         try:
             user_model = get_user_model()

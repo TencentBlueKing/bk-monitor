@@ -42,7 +42,8 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
   @Prop({ type: [String, Number] }) readonly id: number | string;
   needCheck = true;
   fromRouteName = '';
-  refleshKey = random(10);
+  refreshKey = random(10);
+  isActivated = false;
   @ProvideReactive('authority') authority: Record<string, boolean> = {};
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;
@@ -51,8 +52,8 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     next((vm: MonitorStrategyConfigSet) => {
       vm.needCheck = to.name !== 'strategy-config-detail';
       vm.fromRouteName = `${from.name}-${random(10)}`;
-      if (!allowJumpMap.includes(from.name)) {
-        vm.refleshKey = random(10);
+      if (!allowJumpMap.includes(from.name) && vm.isActivated) {
+        vm.refreshKey = random(10);
       }
     });
   }
@@ -87,11 +88,15 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     this.needCheck = false;
     this.$router.push({ name: 'strategy-config' });
   }
+  async activated() {
+    await this.$nextTick();
+    this.isActivated = true;
+  }
   render() {
     return (
       <StrategyConfigSet
         id={this.id}
-        key={this.refleshKey}
+        key={this.refreshKey}
         class={`strategy-config-set ${this.$route.name === 'strategy-config-detail' ? 'is-detail' : ''}`}
         fromRouteName={this.fromRouteName}
         onCancel={this.handleCancel}

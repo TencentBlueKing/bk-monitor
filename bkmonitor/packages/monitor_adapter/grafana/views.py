@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import re
 
 from blueapps.middleware.xss.decorators import escape_exempt
 from django.conf import settings
@@ -136,6 +137,14 @@ class GrafanaSwitchOrgView(SwitchOrgView):
 
 
 class GrafanaProxyView(ProxyView):
+    # 单仪表盘权限豁免API
+    exempt_apis = [
+        re.compile(r".*/api/annotations"),
+        re.compile(r".*/api/ds/query"),
+        re.compile(r".*/api/datasource/proxy"),
+        re.compile(r".*/api/(\d+|uid/[a-zA-Z0-9_-]+)/resources"),
+    ]
+
     @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
         org_name = self.get_org_name(request, *args, **kwargs)
@@ -173,8 +182,10 @@ class GrafanaProxyView(ProxyView):
     def get_request_headers(self, request):
         headers = super(GrafanaProxyView, self).get_request_headers(request)
         # 单仪表盘权限适配
-        if "/api/annotations" in request.path:
-            headers["X-WEBAUTH-USER"] = "admin"
+        for exempt_api in self.exempt_apis:
+            if exempt_api.match(request.path):
+                headers["X-WEBAUTH-USER"] = "admin"
+                break
         return headers
 
     def update_response(self, response, content):

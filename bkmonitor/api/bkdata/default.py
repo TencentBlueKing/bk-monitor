@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import abc
+import json
 
 import six
 from django.conf import settings
@@ -33,18 +34,19 @@ class UseSaaSAuthInfoMixin:
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
-        validated_request_data.update(
-            {
-                "bk_app_code": settings.SAAS_APP_CODE,
-                "bk_app_secret": settings.SAAS_SECRET_KEY,
-            }
-        )
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
         return validated_request_data
 
     def get_headers(self):
         headers = super(UseSaaSAuthInfoMixin, self).get_headers()
-        headers["X-Bk-App-Code"] = settings.SAAS_APP_CODE
-        headers["X-Bk-App-Secret"] = settings.SAAS_SECRET_KEY
+        auth_info = headers.get("x-bkapi-authorization")
+        if not auth_info:
+            return headers
+
+        auth_info = json.loads(auth_info)
+        auth_info["bk_app_code"] = settings.SAAS_APP_CODE
+        auth_info["bk_app_secret"] = settings.SAAS_SECRET_KEY
+        headers["x-bkapi-authorization"] = json.dumps(auth_info)
         return headers
 
 
@@ -1052,6 +1054,28 @@ class GetResourceSet(DataAccessAPIResource):
     method = "GET"
 
 
+class ApplyDataLink(DataAccessAPIResource):
+    """申请数据链路"""
+
+    action = "/v4/apply/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        config = serializers.ListField(default=list, label="资源描述")
+
+
+class GetDataLink(DataAccessAPIResource):
+    """获取数据链路"""
+
+    action = "/v4/namespaces/{namespace}/{kind}/{name}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        kind = serializers.CharField(label="资源类型")
+        namespace = serializers.CharField(label="命名空间")
+        name = serializers.CharField(label="资源名称")
+
+
 class ApplyDataFlow(DataAccessAPIResource):
     """创建计算平台流程"""
 
@@ -1062,3 +1086,73 @@ class ApplyDataFlow(DataAccessAPIResource):
         project_id = serializers.IntegerField(label="计算平台的项目 ID")
         flow_name = serializers.CharField(label="流程名称")
         nodes = serializers.ListField(label="流程节点")
+
+
+class QueryAuthProjectsData(DataAccessAPIResource):
+    """
+    批量检查项目是否有结果表权限
+
+    :returns: 结果表在项目下的权限信息{"permissions": ["xxx"], "no_permissions": ["xxx1"]}
+    """
+
+    action = "/v3/auth/projects/{project_id}/data/batch_check/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        project_id = serializers.IntegerField(required=True, label="计算平台项目")
+        object_ids = serializers.ListField(required=True, child=serializers.CharField(), label="计算平台结果表ID")
+        action_id = serializers.CharField(default="result_table.query_data", label="动作方式")
+
+
+class BatchAuthResultTable(BkDataAPIGWResource):
+    """
+    批量授权接口(管理员接口): 给项目加表权限
+    """
+
+    action = "/v3/auth/projects/{project_id}/data/batch_add/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        project_id = serializers.IntegerField(required=True, label="计算平台项目")
+        object_ids = serializers.ListField(required=True, child=serializers.CharField(), label="计算平台结果表ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+
+class QueryTsMetrics(BkDataAPIGWResource):
+    action = "/v3/dd/metrics/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+
+
+class QueryTsDimensions(BkDataAPIGWResource):
+    action = "/v3/dd/dimensions/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+
+
+class QueryTsDimensionValue(BkDataAPIGWResource):
+    action = "/v3/dd/values/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+        dimension = serializers.CharField(required=True, label="维度名称")
+
+
+class QueryMetricAndDimension(BkDataAPIGWResource):
+    action = "/v4/dd/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        values = serializers.ListField(required=True, label="维度列表")

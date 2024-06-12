@@ -18,6 +18,7 @@ from datetime import datetime
 from functools import reduce
 from typing import Dict, Generator, List
 
+import requests
 from django.conf import settings
 from django.db.models import Count, Max, Q
 from django.utils.translation import ugettext as _
@@ -938,7 +939,8 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
-            custom_event.bk_event_group_id for custom_event in CustomEventGroup.objects.filter(type="custom_event")
+            custom_event.bk_event_group_id
+            for custom_event in CustomEventGroup.objects.filter(type="custom_event").only("bk_event_group_id")
         ]
         # 增加自定义事件筛选，不在监控创建的策略配置时不展示
         for result in custom_event_result:
@@ -947,7 +949,15 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
-        bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+        try:
+            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+        except (requests.exceptions.ConnectionError, BKAPIError) as err:
+            logger.exception("[CustomEventCacheManager] fetch bcs_clusters error: %s" % err)
+            # bcs 未就绪，不影响自定义事件
+            bcs_clusters = []
+
+        if not bcs_clusters:
+            return
         # 启动监控的集群id 列表
         alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(bk_biz_id=self.bk_biz_id)
         cluster_map = {bcs_cluster["cluster_id"]: bcs_cluster for bcs_cluster in bcs_clusters}
@@ -961,7 +971,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     # 补充k8s事件对应dataid的用途:
                     # bcs_${cluster_id}_custom_event: 自定义(custom)
                     # bcs_${cluster_id}_k8s_event：k8s系统(system)
-                    usage = "custom" if result["event_group_name"].endswith("_custom_event") else "system"
+                    usage = "custom" if result["event_group_name"].endswith("_custom_event") else "k8s"
                     extend_cluster_info["usage"] = usage
                     # 更新补充信息
                     cluster_map[cluster_id].update(extend_cluster_info)
@@ -977,9 +987,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             table_display_name = (
                 f"{pre_fix}{table['k8s_cluster_info']['name']}" f"({table['k8s_cluster_info']['cluster_id']})"
             )
-            # todo k8s要区分系统事件和自定义事件。当前前端统一将系统事件内置，因此全放到自定义分类下先。
-            # if table["k8s_cluster_info"]["usage"] == "system":
-            #     data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
+            table_display_name = f"[{table['k8s_cluster_info']['usage']}]{table_display_name}"
 
         base_dict = {
             "result_table_id": table["table_id"],
@@ -1030,15 +1038,15 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             metric_detail = {
                 "default_dimensions": [],
                 "default_condition": [],
-                "metric_field": table_display_name,
-                "metric_field_name": f'{table_display_name}',
+                # "__INDEX__" 表示整个事件源索引
+                "metric_field": "__INDEX__",
+                "metric_field_name": f'{table_display_name}({table["bk_data_id"]})',
                 "dimensions": [{"id": "event_name", "name": "event_name"}],
                 "extend_fields": {
                     # 全局自定义事件指标， 不预定义事件名称
                     "custom_event_name": "",
                     "bk_data_id": table["bk_data_id"],
                     "bk_event_group_id": table["event_group_id"],
-                    "bk_event_id": metric_msg.get("event_id", 0),
                 },
             }
             metric_detail.update(base_dict)

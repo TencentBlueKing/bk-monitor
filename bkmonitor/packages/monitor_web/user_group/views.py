@@ -21,7 +21,7 @@ from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class UserGroupPermissionViewSet(viewsets.ModelViewSet):
+class PermissionMixin:
     def get_permissions(self):
         """
         获取权限
@@ -31,7 +31,7 @@ class UserGroupPermissionViewSet(viewsets.ModelViewSet):
         return [BusinessActionPermission([ActionEnum.MANAGE_NOTIFY_TEAM])]
 
 
-class UserGroupViewSet(UserGroupPermissionViewSet):
+class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
     """用户组配置视图"""
 
     queryset = UserGroup.objects.all()
@@ -58,7 +58,7 @@ class UserGroupViewSet(UserGroupPermissionViewSet):
         return self.serializer_class
 
 
-class DutyRuleViewSet(UserGroupPermissionViewSet):
+class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
     """用户组配置视图"""
 
     queryset = DutyRule.objects.all()

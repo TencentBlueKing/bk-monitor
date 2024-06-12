@@ -2898,3 +2898,25 @@
   name: metadata_query_vm_rt_by_space
   path: /v2/monitor_v3/metadata_query_vm_rt_by_space/
   method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_es_router/
+  is_hidden: false
+  label: 创建 es 路由配置
+  label_en: create es route config
+  name: metadata_create_es_router
+  path: /v2/monitor_v3/metadata_create_es_router/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/update_es_router/
+  is_hidden: false
+  label: 更新 es 路由配置
+  label_en: update es route config
+  name: metadata_update_es_router
+  path: /v2/monitor_v3/metadata_update_es_router/
+  method: POST

@@ -451,3 +451,11 @@ class ESScopeTypes(Enum):
 
 # 默认measurement
 DEFAULT_MEASUREMENT = "__default__"
+
+
+class EsSourceType(Enum):
+    """ES数据源的类型"""
+
+    LOG = "log"
+    BKDATA = "bkdata"
+    ES = "es"

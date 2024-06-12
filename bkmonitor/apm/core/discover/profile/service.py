@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import logging
 import re
 
@@ -22,6 +23,8 @@ logger = logging.getLogger("apm")
 
 class ServiceDiscover(Discover):
     """Profile 服务 + 采样类型发现"""
+
+    LARGE_SERVICE_SIZE = 10000
 
     @classmethod
     def get_name(cls):
@@ -108,6 +111,7 @@ class ServiceDiscover(Discover):
                             data_type=col_type,
                             last_check_time=check_time,
                             sample_type=sample_type["sample_type"],
+                            is_large=self.is_large_service(end_time, svr, col_type, sample_type["sample_type"]),
                         )
                     )
 
@@ -139,7 +143,7 @@ class ServiceDiscover(Discover):
 
         ProfileService.objects.bulk_create(create_instances)
         ProfileService.objects.bulk_update(
-            update_instances, fields=["period", "period_type", "frequency", "last_check_time", "updated_at"]
+            update_instances, fields=["period", "period_type", "frequency", "last_check_time", "is_large", "updated_at"]
         )
         logger.info(f"[ProfileDiscover] service update {len(update_instances)} create: {len(create_instances)}")
 
@@ -183,3 +187,34 @@ class ServiceDiscover(Discover):
                 return int(value) / (period * (duration_nanos / 1e9))
 
         return None
+
+    def is_large_service(self, end_timestamp, service, _type, sample_type):
+        """
+        判断此服务是否是大数据量应用
+        如果 10 分钟内超过 10000 条数据即认为是大数据量应用
+        """
+
+        end_time = datetime.datetime.fromtimestamp(end_timestamp / 1000)
+        start_time = end_time - datetime.timedelta(minutes=10)
+
+        response = (
+            self.get_builder()
+            .with_api_type(ProfileApiType.AGGREGATE)
+            .with_time(int(start_time.timestamp() * 1000), int(end_time.timestamp() * 1000))
+            .with_metric_fields("count(*) AS count")
+            .with_type(_type)
+            .with_service_filter(service)
+            .with_dimension_fields("service_name")
+            .with_general_filters(
+                {
+                    "sample_type": f"op_eq|{sample_type}",
+                }
+            )
+            .execute()
+        )
+
+        if not response:
+            return False
+
+        count = next((i.get("count", 0) for i in response if i.get("service_name") == service), None)
+        return count and count > self.LARGE_SERVICE_SIZE

@@ -468,6 +468,7 @@ export default defineComponent({
                             <Radio.Group
                               key={this.selectData.strategyList.length}
                               modelValue={this.selectData.strategy}
+                              size='small'
                               onChange={v => this.handleStrategyChange(v)}
                             >
                               {[{ id: ALL, name: this.$t('全部') }, ...this.selectData.strategyList].map(item => (

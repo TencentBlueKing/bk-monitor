@@ -41,6 +41,7 @@ class MonitorBaseEchart extends BaseEchart {
   // echarts图表实例分组id
   @Prop({ type: String, default: '' }) groupId: string;
   @Prop({ type: Boolean, default: false }) showRestore: boolean;
+  @Prop({ type: Boolean, default: false }) hoverAllTooltips: boolean;
   // hover视图上 当前对应最近点数据
   curPoint: ICurPoint = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
   // tooltips大小 [width, height]
@@ -217,9 +218,13 @@ class MonitorBaseEchart extends BaseEchart {
       });
     }
   }
+  isInViewPort() {
+    const { top, bottom } = this.$el.getBoundingClientRect();
+    return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);
+  }
   // 设置tooltip
   handleSetTooltip(params) {
-    if (!this.isMouseOver) return undefined;
+    if (!this.isMouseOver && !this.hoverAllTooltips) return undefined;
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
       this.curPoint = {
         color: '',
@@ -229,6 +234,9 @@ class MonitorBaseEchart extends BaseEchart {
         xAxis: '',
         yAxis: '',
       };
+      return;
+    }
+    if (!this.isInViewPort()) {
       return;
     }
     let liHtmls = [];

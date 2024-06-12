@@ -51,6 +51,15 @@ class _BcsApi:
             header_keys=["Authorization"],
             before_request=bcs_before_request,
         )
+        self.get_cluster_by_cluster_id = DataAPI(
+            method="GET",
+            url=f"{bcs_apigateway_host}bcsapi/v4/clustermanager/v1/cluster/{{cluster_id}}",
+            module=self.MODULE,
+            description="根据集群id获取集群信息",
+            header_keys=["Authorization"],
+            before_request=bcs_before_request,
+            url_keys=["cluster_id"],
+        )
         self.list_project = DataAPI(
             method="GET",
             url=f"{bcs_apigateway_host}bcsapi/v4/bcsproject/v1/projects",
@@ -58,5 +67,18 @@ class _BcsApi:
             description="获取项目列表",
             before_request=bcs_before_request,
             after_request=list_project_after,
+            header_keys=["Authorization"],
+        )
+        self.list_namespaces = DataAPI(
+            method="GET",
+            url=(
+                bcs_apigateway_host
+                + "bcsapi/v4/bcsproject/v1/projects/"
+                + "{project_code}/clusters/{cluster_id}/native/namespaces"
+            ),
+            module=self.MODULE,
+            description="获取集群命名空间",
+            before_request=bcs_before_request,
+            url_keys=["project_code", "cluster_id"],
             header_keys=["Authorization"],
         )

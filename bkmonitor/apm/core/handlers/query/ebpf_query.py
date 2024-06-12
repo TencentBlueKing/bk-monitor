@@ -33,7 +33,7 @@ class EbpfQuery(EsQueryBuilderMixin):
     def __init__(self, es_client, index_name):
         self.client = es_client
         self.client = es_client
-        self.index_name = f"{index_name.replace('.', '_')}_*"
+        self.index_name = index_name
 
     @property
     def search(self):
