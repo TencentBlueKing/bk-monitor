@@ -59,7 +59,6 @@ def requests_span_callback(span: Span, response):
     if req.body:
         try:
             body = req.body.decode() if isinstance(req.body, bytes) else str(body)
-            span.set_attribute("request.body", body)
         except Exception:  # noqa
             pass
 
