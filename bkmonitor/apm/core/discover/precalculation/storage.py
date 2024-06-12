@@ -384,7 +384,7 @@ class PrecalculateStorage:
         id_mapping = {}
         for i in cluster_config:
             key = f"{i['cluster_id']}-{i['table_name']}"
-            instance = ESStorage.objects.filter(table_id=i['table_name']).first()
+            instance = ESStorage.objects.filter(storage_cluster_id=i["cluster_id"], table_id=i["table_name"]).first()
 
             if not instance:
                 try:
