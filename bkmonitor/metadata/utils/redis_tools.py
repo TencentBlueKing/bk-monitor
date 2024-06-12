@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import json
 import logging
 import os
 from typing import Dict, List, Set
@@ -106,6 +108,13 @@ class RedisTools(object):
     @classmethod
     def smembers(cls, key: str) -> Set:
         return cls().client.smembers(key)
+
+    @classmethod
+    def get_list(cls, key: str) -> List:
+        data = cls().client.get(key)
+        if not data:
+            return []
+        return json.loads(data.decode("utf-8"))
 
 
 def setup_client():

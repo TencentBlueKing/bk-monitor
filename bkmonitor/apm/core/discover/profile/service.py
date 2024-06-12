@@ -194,7 +194,7 @@ class ServiceDiscover(Discover):
         如果 10 分钟内超过 10000 条数据即认为是大数据量应用
         """
 
-        end_time = datetime.datetime.fromtimestamp(end_timestamp)
+        end_time = datetime.datetime.fromtimestamp(end_timestamp / 1000)
         start_time = end_time - datetime.timedelta(minutes=10)
 
         response = (

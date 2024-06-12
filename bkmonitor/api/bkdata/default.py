@@ -1116,3 +1116,43 @@ class BatchAuthResultTable(BkDataAPIGWResource):
         project_id = serializers.IntegerField(required=True, label="计算平台项目")
         object_ids = serializers.ListField(required=True, child=serializers.CharField(), label="计算平台结果表ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+
+class QueryTsMetrics(BkDataAPIGWResource):
+    action = "/v3/dd/metrics/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+
+
+class QueryTsDimensions(BkDataAPIGWResource):
+    action = "/v3/dd/dimensions/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+
+
+class QueryTsDimensionValue(BkDataAPIGWResource):
+    action = "/v3/dd/values/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+        dimension = serializers.CharField(required=True, label="维度名称")
+
+
+class QueryMetricAndDimension(BkDataAPIGWResource):
+    action = "/v4/dd/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        values = serializers.ListField(required=True, label="维度列表")

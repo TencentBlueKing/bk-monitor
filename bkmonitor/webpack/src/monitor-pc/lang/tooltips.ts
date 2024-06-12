@@ -270,10 +270,12 @@ export default {
   起始日: 'Start date',
   设为起始日: 'Set as start date',
   AI设置: 'AI settings',
-  智能生成告警级别: 'Intelligent generation of alarm levels',
-  '将根据指标的异常程度、发生异常的指标数，为告警自动分配级别。':
-    'Alarm levels will be automatically assigned based on the degree of anomaly in the indicators and the number of indicators that have experienced anomalies.',
+  '告警生成后，将根据指标的异常程度、发生异常的指标数，为告警自动评级':
+    'After the alarm is generated, it will be automatically rated based on the degree of abnormality of the indicators and the number of abnormal indicators that have occurred',
   内置的分派规则组不允许修改: 'The built-in assignment rule group does not allow modification',
   内置策略不允许修改: 'The built-in strategy does not allow modification',
   关注人禁用此操作: 'The follower disables this action',
+  暂未开启主机智能异常检测: 'Host intelligent anomaly detection has not been enabled yet',
+  '主机场景检测数据源正在接入中，请稍后重试':
+    'The host scene detection data source is currently being connected, please try again later',
 };

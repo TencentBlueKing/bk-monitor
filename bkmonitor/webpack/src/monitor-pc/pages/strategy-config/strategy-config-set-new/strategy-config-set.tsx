@@ -2451,6 +2451,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
           onMetricChange={this.handleSceneConfigMetricChange}
+          onModelChange={this.handleModelChange}
           onTargetChange={this.handleTargetChange}
         ></AiopsMonitorData>
       );
@@ -2554,6 +2555,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               title={this.$t('基本信息')}
             >
               <BaseConfig
+                id={this.id && !this.isClone ? this.id : ''}
                 ref='base-config'
                 scenarioReadonly={
                   this.monitorDataEditMode === 'Source' ? false : !!this.metricData.some(item => !!item.metric_id)
