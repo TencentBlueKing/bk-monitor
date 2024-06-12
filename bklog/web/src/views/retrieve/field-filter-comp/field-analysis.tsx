@@ -55,7 +55,6 @@ const PILLAR_CHART_BOX_HEIGHT = 264;
 const LINE_CHART_BOX_HEIGHT = 348;
 /** 折线图分页的高度 */
 const LEGEND_BOX_HEIGHT = 40;
-// 264px
 let formatStr = 'HH:mm';
 type LegendActionType = 'click' | 'shift-click';
 
@@ -195,15 +194,21 @@ export default class FieldAnalysis extends Vue {
       this.isShowEmpty = false;
       // 分折线图和柱状图显示
       if (this.isPillarChart) {
-        if (!res.data.length) {
+        const resData = res.data;
+        if (!resData.length) {
           this.isShowEmpty = true;
           return;
         }
-        const xAxisData = res.data.map((item, index) => {
-          if (index === 0 || index === res.data.length - 1 || this.fieldData.distinct_count < 10) {
+        const xAxisData = resData.map((item, index) => {
+          // 去重小于10 直接展示单个
+          if (this.fieldData.distinct_count < 10) {
             return item[0];
           }
-          return `${res.data[index - 1][0]} - ${item[0]}`;
+          // 去重大于10 所有的值都是范围 最大的数字范围是info的max
+          if (index === resData.length - 1) {
+            return `${item[0]} - ${this.fieldData.value_analysis.max}`;
+          }
+          return `${item[0]} - ${resData[index + 1][0]}`;
         });
         const pillarInterval = Math.round(xAxisData.length / 2) - 1;
         // 柱状图初始化
@@ -372,9 +377,10 @@ export default class FieldAnalysis extends Vue {
         if (index === 0) {
           markColor = 'color: #fff;font-weight: bold;';
         }
+        /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
         return `<li class="tooltips-content-item">
                   <span class="item-series" style="background-color:${item.color};"></span>
-                  <span class="item-name is-warp" style="${markColor}">${item.seriesName}:</span>
+                  <span class="item-name is-warp" style="${markColor}">${item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n')}:</span>
                   <div class="item-value-box is-warp">
                     <span class="item-value" style="${markColor}">${item.value[1]}</span>
                   </div>
