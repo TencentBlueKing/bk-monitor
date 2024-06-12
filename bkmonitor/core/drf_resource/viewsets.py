@@ -76,7 +76,6 @@ class ResourceRoute(object):
 
 
 class ResourceViewSet(viewsets.GenericViewSet):
-
     EMPTY_ENDPOINT_METHODS = {
         "GET": "list",
         "POST": "create",
@@ -89,6 +88,7 @@ class ResourceViewSet(viewsets.GenericViewSet):
     resource_routes: List[ResourceRoute] = []
     filter_backends = []
     pagination_class = None
+    resource_mapping = {}
 
     def get_serializer_class(self):
         """
@@ -176,6 +176,7 @@ class ResourceViewSet(viewsets.GenericViewSet):
 
                 function = decorator_function(function)
                 setattr(cls, function.__name__, function)
+                cls.resource_mapping[(resource_route.method, resource_route.endpoint)] = resource_route.resource_class
 
     @classmethod
     def _generate_function_template(cls, resource_route: ResourceRoute):
