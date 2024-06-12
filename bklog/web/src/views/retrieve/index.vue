@@ -1386,6 +1386,8 @@ export default {
 
       // tags 参数用于匹配转换为 unionList 不保留
       if (queryObj.tags) delete queryObj.tags;
+      // 非收藏的点击删除检索参数内的from_favorite_id
+      if (!this.isFavoriteSearch) delete this.retrieveParams.from_favorite_id;
 
       this.$router.push({
         name: 'retrieve',
@@ -2051,7 +2053,8 @@ export default {
           ids: filterIDs,
           selectIsUnionSearch
         };
-        this.handleSelectIndex(setChangeValue, params, true);
+        const favoriteParams = { ...params, from_favorite_id: this.activeFavoriteID };
+        this.handleSelectIndex(setChangeValue, favoriteParams, true);
       } else {
         this.messageError(this.$t('没有找到该记录下相关索引集'));
       }

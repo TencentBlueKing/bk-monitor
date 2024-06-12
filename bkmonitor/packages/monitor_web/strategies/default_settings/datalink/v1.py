@@ -103,7 +103,7 @@ DEFAULT_DATALINK_STRATEGIES = [
                     {
                         "agg_condition": [
                             {"key": "bkm_up_code", "method": "nreg", "value": ["^2\\d{3}$"]},
-                            {"key": "bkm_up_code", "method": "neq", "value": ["0"], "condition": "and"},
+                            {"key": "bkm_up_code", "method": "neq", "value": ["0", "2302", "2502"], "condition": "and"},
                             {"key": "bk_collect_config_id", "method": "neq", "value": [""], "condition": "and"},
                             {"key": "bk_biz_id", "method": "eq", "value": ["${{bk_biz_id}}"], "condition": "and"},
                         ],
@@ -147,6 +147,7 @@ DEFAULT_DATALINK_STRATEGIES = [
                     {
                         "agg_condition": [
                             {"key": "bkm_up_code", "method": "reg", "value": ["^2\\d{3}$"]},
+                            {"key": "bkm_up_code", "method": "neq", "value": ["0", "2302", "2502"], "condition": "and"},
                             {"key": "bk_collect_config_id", "method": "neq", "value": [""], "condition": "and"},
                             {"key": "bk_biz_id", "method": "eq", "value": ["${{bk_biz_id}}"], "condition": "and"},
                         ],

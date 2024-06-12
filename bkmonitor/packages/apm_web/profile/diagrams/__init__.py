@@ -7,23 +7,35 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, Union
 
 from typing_extensions import Protocol
 
-from apm_web.profile.converter import Converter
-
-from .callgraph import CallGraphDiagrammer
-from .flamegraph import FlamegraphDiagrammer
-from .table import TableDiagrammer
-from .tendency import TendencyDiagrammer
+from apm_web.profile.diagrams.callgraph import CallGraphDiagrammer
+from apm_web.profile.diagrams.flamegraph import FlamegraphDiagrammer
+from apm_web.profile.diagrams.table import TableDiagrammer
+from apm_web.profile.diagrams.tendency import TendencyDiagrammer
+from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 
 class Diagrammer(Protocol):
-    def draw(self, c: Converter, **options) -> Any:
+    """
+    Profiling 图表绘制基类
+    每个 Diagrammer 都可以绘制各自的特定数据格式
+    源数据格式支持:
+    1. TreeConverter 适用于: 调用图、火焰图、表格
+    2. Dict 适用于: 趋势图
+    """
+
+    def draw(self, c: Union[TreeConverter, dict], **options) -> Any:
         raise NotImplementedError
 
-    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> Any:
+    def diff(
+        self,
+        base_doris_converter: Union[TreeConverter, dict],
+        diff_doris_converter: Union[TreeConverter, dict],
+        **options,
+    ) -> Any:
         raise NotImplementedError
 
 

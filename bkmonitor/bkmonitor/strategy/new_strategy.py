@@ -132,7 +132,7 @@ def get_metric_id(
         DataSourceLabel.PROMETHEUS: {DataTypeLabel.TIME_SERIES: promql[:125] + "..." if len(promql) > 128 else promql},
         DataSourceLabel.CUSTOM: {
             DataTypeLabel.EVENT: "{}.{}.{}.{}".format(
-                data_source_label, data_type_label, result_table_id, custom_event_name
+                data_source_label, data_type_label, result_table_id, custom_event_name or "__INDEX__"
             ),
             DataTypeLabel.TIME_SERIES: "{}.{}.{}".format(data_source_label, result_table_id, metric_field),
         },
@@ -1531,7 +1531,7 @@ class Strategy(AbstractConfig):
         labels: List[str] = None,
         app: str = "",
         path: str = "",
-        priority: int = 0,
+        priority: int = None,
         priority_group_key: str = None,
         metric_type: str = "",
         **kwargs,
@@ -1642,10 +1642,12 @@ class Strategy(AbstractConfig):
         user_group_ids = []
         for action_relation in action_relations:
             user_group_ids.extend(action_relation.validated_user_groups)
-        user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         if with_detail:
             user_groups_slz = UserGroupDetailSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
+        else:
+            user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         user_groups = {group["id"]: dict(group) for group in user_groups_slz}
+
         for config in configs:
             for action in config["actions"] + [config["notice"]]:
                 user_group_list = []
@@ -2029,7 +2031,7 @@ class Strategy(AbstractConfig):
             create_user=self._get_username(),
             update_user=self._get_username(),
             priority=self.priority,
-            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items),
+            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else "",
         )
         self.id = strategy.id
 
@@ -2104,7 +2106,9 @@ class Strategy(AbstractConfig):
                 strategy.invalid_type = self.invalid_type
                 strategy.update_user = self._get_username()
                 strategy.priority = self.priority
-                strategy.priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
+                strategy.priority_group_key = (
+                    self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else ""
+                )
                 strategy.save()
             else:
                 self._create()

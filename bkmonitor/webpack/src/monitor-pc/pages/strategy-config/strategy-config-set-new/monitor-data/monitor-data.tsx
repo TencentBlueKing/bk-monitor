@@ -35,12 +35,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
-import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
-import PromqlMonacoEditor from '../../../../components/promql-editor/promql-editor';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
@@ -94,6 +92,8 @@ interface IMonitorDataEvent {
   components: {
     MonitorDialog,
     StrategyTargetTable,
+    PromqlMonacoEditor: () =>
+      import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../../components/promql-editor/promql-editor'),
   },
 })
 export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEvent> {
@@ -123,7 +123,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   /* 是否展示实时选项 */
   @Prop({ default: false, type: Boolean }) showRealtimeStrategy: boolean;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
-  @Ref('promql-editor') promqlEditorRef: PromqlEditor;
+  @Ref('promql-editor') promqlEditorRef: any;
   modeList: { id: string; name: TranslateResult }[];
   // editMode: EditModeType = 'Edit'
   showTopoSelector = false;
@@ -538,6 +538,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     <span
                       key={item.id}
                       style={{ marginLeft: index > 0 ? '-1px' : '' }}
+                      v-en-style='width: 80px'
                       class={[
                         'tab-item',
                         {
@@ -566,7 +567,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly
                       }}
-                      v-en-style='width: 80px'
                       on-click={() => !this.readonly && !isTabDisabled(item.id) && this.handleChangeTab(item)}
                     >
                       <span class='bd-hover'>{item.name}</span>
@@ -662,7 +662,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 //   // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
                 //   onChange={this.handlePromsqlChange}
                 // />
-                <PromqlMonacoEditor
+                <promql-monaco-editor
                   ref='promql-editor'
                   class='mt-16'
                   executeQuery={this.handlePromqlEnter}
@@ -762,8 +762,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             (item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') && (
               <div class='monitor-event'>
                 <span
-                  class='monitor-event-title'
                   v-en-style='width: 105px'
+                  class='monitor-event-title'
                 >
                   {this.$t('告警级别')} :
                 </span>

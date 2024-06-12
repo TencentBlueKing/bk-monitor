@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.db import OperationalError, transaction
 from django.db.models import Q
 
@@ -661,7 +662,7 @@ class GroupDutyRuleManager:
         """
         分批更新失效的排班计划
         """
-        with transaction.atomic():
+        with transaction.atomic(using=settings.BACKEND_DATABASE_NAME):
             # 使用 select_for_update() 锁定相关记录
             duty_plans = DutyPlan.objects.select_for_update().filter(
                 duty_rule_id__in=disabled_duty_rules, user_group_id=user_group_id, is_effective=1

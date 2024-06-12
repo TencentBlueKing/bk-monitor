@@ -25,35 +25,35 @@
 -->
 <template>
   <bk-dialog
-    :value="isShowVariableTable"
-    theme="primary"
+    width="960px"
     :header-position="'left'"
     :show-footer="false"
     :title="$t('推荐变量')"
-    width="960px"
+    :value="isShowVariableTable"
+    theme="primary"
     @after-leave="handleAfterLeave"
   >
     <div class="variable-table">
       <div class="dialog-left">
         <bk-table
           style="margin-top: 15px"
-          :data="data"
+          :data="tableData"
           size="small"
         >
           <bk-table-column
             :label="$t('变量名')"
-            prop="name"
             min-width="100"
+            prop="name"
           />
           <bk-table-column
             :label="$t('含义')"
-            prop="description"
             min-width="70"
+            prop="description"
           />
           <bk-table-column
             :label="$t('示例')"
-            prop="example"
             min-width="70"
+            prop="example"
           />
         </bk-table>
       </div>
@@ -102,14 +102,23 @@ export default {
       type: Boolean,
       default: false,
     },
+    variableData: Array,
   },
   data() {
     return {
       data: [],
     };
   },
-  created() {
-    this.getTableData();
+  computed: {
+    tableData() {
+      if (Array.isArray(this.variableData) && this.variableData.length) return this.variableData;
+      return this.data;
+    },
+  },
+  mounted() {
+    if (!this.variableData?.length) {
+      this.getTableData();
+    }
   },
   methods: {
     getTableData() {

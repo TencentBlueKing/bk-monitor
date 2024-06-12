@@ -72,11 +72,12 @@
           color: #313238;
 
           .icon-mc-search {
-            font-size: 16px;
-            cursor: pointer;
+            font-size: 14px;
+            color: #979ba5;
 
             &:hover {
               color: #3a84ff;
+              cursor: pointer;
             }
           }
         }
@@ -97,6 +98,7 @@
           .icon-mc-search {
             padding-left: 8px;
             font-size: 16px;
+            color: #979ba5;
             background: #fff;
 
             &:hover {
@@ -155,6 +157,7 @@
         .icon-mc-search {
           margin-top: 2px;
           font-size: 18px;
+          color: #979ba5;
           background: #fff;
         }
       }
@@ -184,6 +187,7 @@
         align-items: center;
         justify-content: center;
         height: 40px;
+        color: #63656e;
         cursor: pointer;
         background: #fafbfd;
         border-top: 1px solid #dcdee5;

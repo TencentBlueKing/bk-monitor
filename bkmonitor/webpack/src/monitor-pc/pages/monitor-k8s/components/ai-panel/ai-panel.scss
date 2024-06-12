@@ -63,7 +63,7 @@
 
   .ai-panel-subtitle {
     display: flex;
-    margin: 6px 0 0 0;
+    margin: 6px 0 12px 0;
     line-height: 20px;
     color: #979ba5;
   }
@@ -85,8 +85,6 @@
   }
 
   .ai-panel-list {
-    margin-top: 4px;
-
     .ai-panel-list-item {
       height: 48px;
       padding: 4px 8px;
@@ -127,24 +125,35 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    height: 160px;
-    margin-top: 6px;
+    width: 248px;
+    height: 180px;
     background: #fafbfd;
     border-radius: 2px;
+
+    .exception-image {
+      width: 176px;
+      height: 80px;
+      margin-top: 24px;
+    }
 
     .no-data-img {
       width: 176px;
       height: 80px;
       margin-top: 24px;
-      background-image: url('../../../../static/images/png/success.png');
       object-fit: cover;
+      background-image: url('../../../../static/images/png/success.png');
+    }
+
+    .open-btn {
+      margin-top: 8px;
+      font-size: 12px;
     }
 
     .no-data-text {
       margin-top: 8px;
       font-size: 12px;
       line-height: 20px;
-      color: #c4c6cc;
+      color: #979ba5;
     }
   }
 }

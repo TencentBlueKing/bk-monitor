@@ -75,5 +75,5 @@ export default {
   metricRecommendationFeedback,
   multiAnomalyDetectGraph,
   quickAlertShield,
-  quickAlertAck
+  quickAlertAck,
 };

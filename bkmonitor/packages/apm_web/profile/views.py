@@ -29,15 +29,18 @@ from apm_web.profile.constants import (
     DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
     EXPORT_FORMAT_MAP,
+    LARGE_SERVICE_MAX_QUERY_SIZE,
+    NORMAL_SERVICE_MAX_QUERY_SIZE,
     PROFILE_EXPORT_FILE_NAME,
     PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
     CallGraphResponseDataMode,
 )
-from apm_web.profile.converter import generate_profile_id
 from apm_web.profile.diagrams import get_diagrammer
-from apm_web.profile.doris.converter import DorisConverter
-from apm_web.profile.doris.querier import APIParams, APIType, Query
+from apm_web.profile.diagrams.tree_converter import TreeConverter
+from apm_web.profile.doris.converter import DorisProfileConverter
+from apm_web.profile.doris.querier import APIParams, APIType, ConverterType, Query
 from apm_web.profile.file_handler import ProfilingFileHandler
+from apm_web.profile.profileconverter import generate_profile_id
 from apm_web.profile.resources import (
     ListApplicationServicesResource,
     QueryProfileBarGraphResource,
@@ -55,8 +58,10 @@ from apm_web.profile.serializers import (
 from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
+from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger("root")
 
@@ -156,7 +161,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     """Profile Query viewSet"""
 
     @staticmethod
-    def _query(
+    def query(
         bk_biz_id: int,
         app_name: str,
         service_name: str,
@@ -167,12 +172,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         api_type: APIType = APIType.QUERY_SAMPLE_BY_JSON,
         profile_id: Optional[str] = None,
         filter_labels: Optional[dict] = None,
-        converted: bool = True,
         dimension_fields: str = None,
         data_type: str = None,
         sample_type: str = None,
         order: str = None,
-    ) -> Union[DorisConverter, dict]:
+        converter: Optional[ConverterType] = None,
+    ) -> Union[DorisProfileConverter, TreeConverter, dict]:
         """
         获取 profile 数据
         """
@@ -244,13 +249,22 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         if r is None:
             raise ValueError(_("未查询到有效数据"))
 
-        if not converted or not r.get("list"):
+        if not converter:
             return r
 
-        c = DorisConverter()
-        p = c.convert(r)
-        if p is None:
-            raise ValueError(_("无法转换 profiling 数据"))
+        # 注意: 不同转换器有不同的返回结果
+        try:
+            if converter == ConverterType.Profile:
+                c = DorisProfileConverter()
+                c.convert(r)
+            elif converter == ConverterType.Tree:
+                c = TreeConverter()
+                c.convert(r)
+            else:
+                raise ValueError(f"不支持的 Profiling 转换器: {converter}")
+        except Exception as e:  # noqa
+            raise ValueError(f"无法使用 {converter} 转换 Profiling 数据，异常信息: {e}")
+
         return c
 
     def _get_essentials(self, validated_data: dict) -> dict:
@@ -312,7 +326,18 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     return Response(data=compare_tendency_result)
                 return Response(data=tendency_result)
 
-        doris_converter = self._query(
+        # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
+        if self.is_large_service(
+            essentials["bk_biz_id"],
+            essentials["app_name"],
+            essentials["service_name"],
+            data["data_type"],
+        ):
+            extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
+        else:
+            extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
+
+        tree_converter = self.query(
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
             service_name=essentials["service_name"],
@@ -322,9 +347,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             filter_labels=data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
             sample_type=data["data_type"],
+            converter=ConverterType.Tree,
+            extra_params=extra_params,
         )
 
-        if data["global_query"] and not doris_converter:
+        if data["global_query"] and not tree_converter:
             # 如果是全局搜索并且无返回结果 说明文件上传可能发生了异常
             # 文件查询时，如果搜索不到数，将会用文件上传记录的异常信息进行提示
             if data.get("profile_id"):
@@ -336,14 +363,14 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                         f"异常信息：{record.content}"
                     )
 
-        if (isinstance(doris_converter, dict) and not doris_converter.get("list")) or not doris_converter:
+        if tree_converter.empty():
             return Response(data={})
 
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         if data.get("is_compared"):
-            diff_doris_converter = self._query(
-                bk_biz_id=essentials['bk_biz_id'],
+            diff_tree_converter = self.query(
+                bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
                 service_name=essentials["service_name"],
                 start=start,
@@ -352,26 +379,47 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 filter_labels=data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],
                 sample_type=data["data_type"],
+                converter=ConverterType.Tree,
+                extra_params=extra_params,
             )
-            if (
-                isinstance(diff_doris_converter, dict) and not diff_doris_converter.get("list")
-            ) or not diff_doris_converter:
-                raise ValueError(_("当前对比项查询条件未查询到有效数据，请调整后再试"))
+            if diff_tree_converter.empty():
+                raise ValueError(_("当前对比项的查询条件未查询到有效数据，请调整后再试"))
 
             diff_diagram_dicts = (
-                get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)
-                for d_type in diagram_types
+                get_diagrammer(d_type).diff(tree_converter, diff_tree_converter, **options) for d_type in diagram_types
             )
             data = {k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()}
-            data.update(doris_converter.get_sample_type())
+            data.update(tree_converter.get_sample_type())
             data.update(compare_tendency_result)
             return Response(data=data)
 
-        diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
+        diagram_dicts = (get_diagrammer(d_type).draw(tree_converter, **options) for d_type in diagram_types)
         data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
-        data.update(doris_converter.get_sample_type())
+        data.update(tree_converter.get_sample_type())
         data.update(tendency_result)
         return Response(data=data)
+
+    @using_cache(CacheType.APM(60 * 60))
+    def is_large_service(self, bk_biz_id, app_name, service, sample_type):
+        """判断此 profile 服务是否是大应用"""
+
+        try:
+            response = api.apm_api.query_profile_services_detail(
+                **{
+                    "bk_biz_id": bk_biz_id,
+                    "app_name": app_name,
+                    "service_name": service,
+                    "sample_type": sample_type,
+                    "is_large": True,
+                }
+            )
+            return bool(response)
+        except BKAPIError as e:
+            logger.exception(
+                f"[ProfileIsLargeService] "
+                f"request ({bk_biz_id}){app_name}[{service}]({sample_type})service detail failed, error: {e}",
+            )
+            return False
 
     def _get_tendency_data(
         self,
@@ -387,7 +435,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     ):
         """获取时序表数据"""
 
-        tendency_data = self._query(
+        tendency_data = self.query(
             api_type=APIType.SELECT_COUNT,
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
@@ -398,7 +446,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             profile_id=profile_id,
             filter_labels=filter_labels,
             result_table_id=essentials["result_table_id"],
-            converted=False,
             dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
             extra_params={
                 "metric_fields": "sum(value)",
@@ -408,7 +455,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         compare_tendency_result = {}
         if is_compared:
-            compare_tendency_data = self._query(
+            compare_tendency_data = self.query(
                 api_type=APIType.SELECT_COUNT,
                 bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
@@ -419,7 +466,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 profile_id=diff_profile_id,
                 filter_labels=diff_filter_labels,
                 result_table_id=essentials["result_table_id"],
-                converted=False,
                 dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
                 extra_params={
                     "metric_fields": "sum(value)",
@@ -484,12 +530,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
 
         # 因为 bkbase label 接口已经改为返回原始格式的所以这里改成取前 5000条 label 进行提取 key 列表
-        results = self._query(
+        results = self.query(
             api_type=APIType.LABELS,
             app_name=app_name,
             bk_biz_id=bk_biz_id,
             service_name=service_name,
-            converted=False,
             result_table_id=result_table_id,
             start=start,
             end=end,
@@ -517,7 +562,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         result_table_id = essentials["result_table_id"]
 
         start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
-        results = self._query(
+        results = self.query(
             api_type=APIType.LABEL_VALUES,
             app_name=app_name,
             bk_biz_id=bk_biz_id,
@@ -529,7 +574,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
-            converted=False,
         )
 
         return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
@@ -549,7 +593,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         start, end = self._enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
-        doris_converter = self._query(
+        doris_converter = self.query(
             bk_biz_id=bk_biz_id,
             app_name=app_name,
             service_name=service_name,
@@ -559,6 +603,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             filter_labels=validated_data.get("filter_labels"),
             result_table_id=result_table_id,
             sample_type=validated_data["data_type"],
+            converter=ConverterType.Profile,
         )
 
         # transfer data

@@ -39,5 +39,5 @@ export default {
   applyTraceComparison,
   deleteTraceComparison,
   listTraceComparison,
-  listSpanHostInstances
+  listSpanHostInstances,
 };

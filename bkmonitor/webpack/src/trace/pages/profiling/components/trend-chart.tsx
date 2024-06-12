@@ -27,7 +27,7 @@ import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch }
 
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
-import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { setTraceTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
 import { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
@@ -75,7 +75,7 @@ export default defineComponent({
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
 
-    const timezone = ref<string>(getDefautTimezone());
+    const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     const defaultViewOptions = ref<IViewOptions>({});
     const collapse = ref(true);
