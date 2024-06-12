@@ -597,17 +597,17 @@ class DataAPI(object):
 
     def batch_request(
         self,
+        chunk_key,
+        chunk_values,
         params=None,
-        chunk_values=None,
-        chunk_key="",
         chunk_size=settings.BULK_REQUEST_LIMIT,
         get_data=lambda x: x["list"],
     ):
         """
         并发请求接口，用于需要切片多次请求的情况
-        :param params: 请求参数
-        :param chunk_values: 需要进行切片的参数值
         :param chunk_key: 需要进行切片的参数名
+        :param chunk_values: 需要进行切片的参数值
+        :param params: 请求参数
         :param chunk_size: 一次请求数量
         :param get_data: 获取数据函数
         :return: 请求结果
