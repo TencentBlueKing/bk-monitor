@@ -17,4 +17,4 @@ from whitenoise import WhiteNoise
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 
-application = WhiteNoise(OpenTelemetryMiddleware(get_wsgi_application()))
+application = OpenTelemetryMiddleware(WhiteNoise(get_wsgi_application()))
