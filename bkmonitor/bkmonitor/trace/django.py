@@ -71,7 +71,7 @@ def response_hook(span, request, response):
     else:
         try:
             result = json.loads(response.content)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             return
     if not isinstance(result, dict):
         return
