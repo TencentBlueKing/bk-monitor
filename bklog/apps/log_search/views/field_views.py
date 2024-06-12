@@ -71,7 +71,7 @@ class FieldViewSet(APIViewSet):
         mapping_list = mapping_handlers._get_mapping()
         property_dict: dict = mapping_handlers.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
-        fields_set = {field["field_name"] for field in fields_result}
+        fields_set = {field["field_name"] for field in fields_result if field["field_type"] != "text"}
         multi_execute_func = MultiExecuteFunc()
 
         for field_name in fields_set:
