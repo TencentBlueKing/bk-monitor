@@ -17,8 +17,8 @@ from typing import Any, List
 from graphviz import Digraph
 
 from apm_web.profile.constants import CallGraph, CallGraphResponseDataMode
-from apm_web.profile.converter import Converter
 from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
+from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 
 def build_edge_relation(node_list: List[FunctionNode]) -> list:
@@ -96,6 +96,7 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
     生成 svg 图片数据
     :param tree 功能树调用树
     :param data call_graph 数据
+    :param unit 单位
     """
 
     dot = Digraph(comment="The Round Table", format="svg")
@@ -123,10 +124,10 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
 
     for edge in call_graph_data.get("call_graph_relation", []):
         tooltip = (
-            tree.nodes_map.get(edge["source_id"]).name
-            if edge["source_id"] in tree.nodes_map
-            else "unknown" + "->" + tree.nodes_map.get(edge["target_id"]).name
-            if edge["target_id"] in tree.nodes_map
+            tree.function_node_map.get(edge["source_id"]).name
+            if edge["source_id"] in tree.function_node_map
+            else "unknown" + "->" + tree.function_node_map.get(edge["target_id"]).name
+            if edge["target_id"] in tree.function_node_map
             else "unknown"
         )
 
@@ -211,26 +212,24 @@ def convert_seconds(seconds):
 
 @dataclass
 class CallGraphDiagrammer:
-    def draw(self, c: Converter, **options) -> Any:
-        tree = FunctionTree.load_from_profile(c)
-        nodes = list(tree.nodes_map.values())
-        edges = build_edge_relation(tree.root.children)
+    def draw(self, c: TreeConverter, **options) -> Any:
+        nodes = list(c.tree.function_node_map.values())
+        edges = build_edge_relation(c.tree.root.children)
         data = {
             "call_graph_data": {
                 "call_graph_nodes": [
-                    {"id": node.id, "name": node.display_name, "value": node.value, "self": node.self_time}
-                    for node in nodes
+                    {"id": node.id, "name": node.name, "value": node.value, "self": node.self_time} for node in nodes
                 ],
                 "call_graph_relation": edges,
             },
-            "call_graph_all": tree.root.value,
+            "call_graph_all": c.tree.root.value,
         }
         if options.get("data_mode") and options.get("data_mode") == CallGraphResponseDataMode.IMAGE_DATA_MODE:
             # 补充 sample_type 信息
             sample_type_info = c.get_sample_type()
             data.update(sample_type_info)
-            return generate_svg_data(tree, data, unit=sample_type_info["unit"])
+            return generate_svg_data(c.tree, data, unit=sample_type_info["unit"])
         return data
 
-    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+    def diff(self, base_tree_converter: TreeConverter, diff_tree_converter: TreeConverter, **options) -> dict:
         raise ValueError("CallGraph not support diff mode")

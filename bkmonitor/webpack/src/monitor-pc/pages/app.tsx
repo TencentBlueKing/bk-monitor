@@ -691,7 +691,7 @@ export default class App extends tsc<object> {
       >
         {process.env.NODE_ENV !== 'development' && (
           <notice-component
-            apiUrl='/notice/announcements'
+            apiUrl='/notice/announcements/'
             onShowAlertChange={this.showAlertChange}
           />
         )}

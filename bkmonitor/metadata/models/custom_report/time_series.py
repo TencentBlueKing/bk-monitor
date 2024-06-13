@@ -25,6 +25,7 @@ from django.utils.timezone import now as tz_now
 from django.utils.translation import ugettext as _
 
 from bkmonitor.utils.db.fields import JsonField
+from core.drf_resource import api
 from metadata import config
 from metadata.models.constants import (
     BULK_CREATE_BATCH_SIZE,
@@ -38,6 +39,7 @@ from metadata.models.result_table import (
 )
 from metadata.models.storage import ClusterInfo
 from metadata.utils.db import filter_model_by_in_page
+from metadata.utils.redis_tools import RedisTools
 from utils.redis_client import RedisClient
 
 from .base import CustomGroupBase
@@ -442,11 +444,57 @@ class TimeSeriesGroup(CustomGroupBase):
     def metric_consul_path(self):
         return "{}/influxdb_metrics/{}/time_series_metric".format(config.CONSUL_PATH, self.bk_data_id)
 
+    def get_metric_from_bkdata(self) -> List:
+        """通过bkdata获取数据信息"""
+        from metadata.models import AccessVMRecord, BCSClusterInfo
+
+        default_resp = []
+        try:
+            vm_rt = AccessVMRecord.objects.get(result_table_id=self.table_id).vm_result_table_id
+        except AccessVMRecord.DoesNotExist:
+            return default_resp
+        # 获取指标
+        data = (
+            api.bkdata.query_metric_and_dimension(
+                storage=config.VM_STORAGE_TYPE,
+                result_table_id=vm_rt,
+                values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+            )
+            or []
+        )
+        if not data:
+            return default_resp
+        # 组装数据
+        metric_dimension = data["metrics"]
+        if not metric_dimension:
+            return default_resp
+        ret_data = []
+        for md in metric_dimension:
+            tag_value_list = {}
+            for d in md["dimensions"]:
+                tag_value_list[d["name"]] = {
+                    "last_update_time": d["update_time"],
+                    "values": [v["value"] for v in d["values"]],
+                }
+            item = {
+                "field_name": md["name"],
+                "last_modify_time": md["update_time"] // 1000,
+                "tag_value_list": tag_value_list,
+            }
+            ret_data.append(item)
+        return ret_data
+
     def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
 
         其中，redis 中数据有 transfer 上报
         """
+        # 从 bkdata 获取指标数据
+        data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
+        if self.table_id in data:
+            return self.get_metric_from_bkdata()
+
+        # 获取redis中数据
         client = RedisClient.from_envs(prefix="BK_MONITOR_TRANSFER")
         custom_metrics_key = f"{settings.METRICS_KEY_PREFIX}{self.bk_data_id}"
         metric_dimensions_key = f"{settings.METRIC_DIMENSIONS_KEY_PREFIX}{self.bk_data_id}"

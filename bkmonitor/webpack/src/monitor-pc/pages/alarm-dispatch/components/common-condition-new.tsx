@@ -1267,7 +1267,7 @@ export default class CommonCondition extends tsc<IProps> {
       <div
         id={this.componentId}
         class={['common-condition-new-component', { 'is-err': this.isErr || this.isRepeat }]}
-        v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini', zIndex: 10 }}
+        v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini', theme: 'primary', zIndex: 10 }}
         onClick={this.handleComponentClick}
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}

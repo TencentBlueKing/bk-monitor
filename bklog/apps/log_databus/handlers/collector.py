@@ -1472,7 +1472,12 @@ class CollectorHandler(object):
             return {"task_ready": task_ready, "contents": []}
 
         status_result = NodeApi.get_subscription_task_status.bulk_request(
-            params={"subscription_id": self.data.subscription_id},
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
         )
@@ -2001,7 +2006,12 @@ class CollectorHandler(object):
                 ]
             }
         instance_data = NodeApi.get_subscription_task_status.bulk_request(
-            params={"subscription_id": self.data.subscription_id},
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
         )
@@ -2010,11 +2020,12 @@ class CollectorHandler(object):
         for item in instance_data:
             bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
 
-        plugin_data = NodeApi.plugin_search.bulk_request(
-            params={"conditions": [], "bk_host_id": bk_host_ids},
-            get_data=lambda x: x["list"],
-            get_count=lambda x: x["total"],
+        plugin_data = NodeApi.plugin_search.batch_request(
+            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
+            chunk_values=bk_host_ids,
+            chunk_key="bk_host_id",
         )
+
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
         # 如果采集目标是HOST-INSTANCE

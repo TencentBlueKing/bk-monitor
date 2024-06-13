@@ -48,9 +48,10 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/e
 import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
-// import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
 import { downFile } from '../../../utils';
+// import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
+import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
@@ -62,8 +63,8 @@ import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util
 import DeleteSubtitle from './delete-subtitle';
 import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 
-import '@blueking/search-select-v3/vue2/vue2.css';
 import './strategy-config.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
@@ -173,6 +174,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   dialog = {
     show: false,
     selectList: [],
+  };
+  alarmGroupDialog = {
+    id: null,
+    show: false,
   };
   tableInstance: TableStore = {
     total: 0,
@@ -1812,6 +1817,11 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     }
   }
 
+  handleAlarmGroupClick(groupId: number) {
+    this.alarmGroupDialog.id = groupId;
+    this.alarmGroupDialog.show = true;
+  }
+
   getTableComponent() {
     const idSlot = {
       default: props => props.row.id,
@@ -2027,17 +2037,24 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             v-bk-tooltips={{
               placements: ['top-start'],
               boundary: 'window',
-              content: () => props.row.noticeGroupNameList.join('、'),
+              content: () => props.row.noticeGroupNameList.map(item => item.name).join('、'),
               delay: 200,
               allowHTML: false,
+              disabled: !props.row.overflow,
             }}
           >
             {props.row.noticeGroupNameList.map(item => (
               <span
-                key={item}
+                key={item.id}
                 class='classifiy-label'
+                onClick={() => this.handleAlarmGroupClick(item.id)}
               >
-                <span class='text-overflow'>{item}</span>
+                <span
+                  class='text-overflow'
+                  v-bk-overflow-tips
+                >
+                  {item.name}
+                </span>
               </span>
             ))}
             {props.row.overflow ? <span class='classifiy-overflow'>...</span> : undefined}
@@ -2570,6 +2587,11 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         strategyIds={this.targetSet.strategyIds}
         onCloseDialog={this.handleTargetShowChange}
         onSave={this.handleTargetSaveChange}
+      />,
+      <AlarmGroupDetail
+        id={this.alarmGroupDialog.id}
+        v-model={this.alarmGroupDialog.show}
+        hasEditBtn={false}
       />,
     ];
   }

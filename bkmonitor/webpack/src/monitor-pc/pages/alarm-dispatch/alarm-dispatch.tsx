@@ -244,6 +244,7 @@ export default class AlarmDispatch extends tsc<object> {
   }
 
   observerTableGroup() {
+    if (!this.itemFooterRef) return;
     this.intersectionObserver = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (entry.intersectionRatio <= 0) return;

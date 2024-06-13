@@ -27,7 +27,7 @@ logger = logging.getLogger("apm")
 class QueryServicesDetailResource(Resource):
     """查询Profile服务详情信息"""
 
-    COUNT_ALLOW_SAMPLE_TYPES = ["goroutine/count", "syscall/count", "allocations/count"]
+    COUNT_ALLOW_SAMPLE_TYPES = ["goroutine/count", "syscall/count", "allocations/count", "exception-samples/count"]
 
     class RequestSerializer(serializers.Serializer):
         view_mode_choices = (
@@ -93,7 +93,7 @@ class QueryServicesDetailResource(Resource):
         """
         将 service 转换为数据类型
         对于 count 类型 只允许以下:
-        goroutine/syscall/allocations
+        goroutine/syscall/allocations/exception-samples
         """
         res = []
         for svr in services:
@@ -107,7 +107,7 @@ class QueryServicesDetailResource(Resource):
             if sample_type_parts[-1] == "count" and key not in cls.COUNT_ALLOW_SAMPLE_TYPES:
                 continue
 
-            res.append({"key": key, "name": name})
+            res.append({"key": key, "name": name, "is_large": svr.get("is_large", False)})
 
         return res
 

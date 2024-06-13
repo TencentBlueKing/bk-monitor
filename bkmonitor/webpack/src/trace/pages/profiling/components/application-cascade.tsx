@@ -117,6 +117,10 @@ export default defineComponent({
 
     const showPopover = ref(false);
     function handlePopoverShowChange({ isShow }) {
+      if (isShow) {
+        selectValue.appName = props.value[0] || '';
+        selectValue.serviceName = props.value[1] || '';
+      }
       showPopover.value = isShow;
     }
 
@@ -127,7 +131,11 @@ export default defineComponent({
     function handleAppClick(val: ApplicationItem) {
       if (val.app_name === selectValue.appName) return;
       selectValue.appName = val.app_name;
-      selectValue.serviceName = null;
+      if (selectValue.appName === (props.value[0] || '')) {
+        selectValue.serviceName = props.value[1] || '';
+      } else {
+        selectValue.serviceName = null;
+      }
       token.value = '';
     }
     /**

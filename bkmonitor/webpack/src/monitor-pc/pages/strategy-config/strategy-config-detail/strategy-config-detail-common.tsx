@@ -344,7 +344,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
     const needMdDesc = this.detectionConfig.data.some(item =>
-      ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster'].includes(item.type)
+      ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster', 'HostAnomalyDetection'].includes(item.type)
     );
     return needMdDesc
       ? [
@@ -1061,6 +1061,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     metricData={this.metricData}
                     readonly={true}
                     onMetricChange={this.handleSceneConfigMetricChange}
+                    onModelChange={val => this.handleModelChange(val[0])}
                   ></AiopsMonitorData>
                 ) : (
                   <div class='query-configs-main'>

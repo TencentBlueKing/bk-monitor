@@ -998,33 +998,33 @@ PROJECT_CLUSTER_LIST = [
 
 
 LIST_NAMESPACES = [
-        {
-            "cluster_id": BCS_CLUSTER_ID,
-            "created_at": "2021-01-01T00:00:00+08:00",
-            "creator": "admin",
-            "description": "",
-            "env_type": "dev",
-            "has_image_secret": False,
-            "id": 2,
-            "name": "test-cluster-share-test1",
-            "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
-            "status": "",
-            "updated_at": "2021-01-01T00:00:00+08:00",
-        },
-        {
-            "cluster_id": BCS_CLUSTER_ID,
-            "created_at": "2021-01-01T00:00:00+08:00",
-            "creator": "admin",
-            "description": "",
-            "env_type": "dev",
-            "has_image_secret": False,
-            "id": 3,
-            "name": "test-cluster-share-test2",
-            "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
-            "status": "",
-            "updated_at": "2021-01-01T00:00:00+08:00",
-        },
-    ]
+    {
+        "cluster_id": BCS_CLUSTER_ID,
+        "created_at": "2021-01-01T00:00:00+08:00",
+        "creator": "admin",
+        "description": "",
+        "env_type": "dev",
+        "has_image_secret": False,
+        "id": 2,
+        "name": "test-cluster-share-test1",
+        "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
+        "status": "",
+        "updated_at": "2021-01-01T00:00:00+08:00",
+    },
+    {
+        "cluster_id": BCS_CLUSTER_ID,
+        "created_at": "2021-01-01T00:00:00+08:00",
+        "creator": "admin",
+        "description": "",
+        "env_type": "dev",
+        "has_image_secret": False,
+        "id": 3,
+        "name": "test-cluster-share-test2",
+        "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
+        "status": "",
+        "updated_at": "2021-01-01T00:00:00+08:00",
+    },
+]
 
 
 def subscription_statistic(params):
@@ -1205,12 +1205,10 @@ class TestCollector(TestCase):
         self.assertEqual(result, STATUS_DATA_RETURN)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
-    @patch("apps.api.base.DataAPI.bulk_request")
-    def _test_get_subscription_status(self, collector_config_id, mock_bulk_request):
+    @patch("apps.api.base.DataAPI.bulk_request", return_value=TASK_RESULT_DATA)
+    @patch("apps.api.base.DataAPI.batch_request", return_value=PLUGIN_RESULT_DATA)
+    def _test_get_subscription_status(self, collector_config_id, mock_bulk_request, mock_batch_request):
         collector = CollectorHandler(collector_config_id=collector_config_id)
-
-        # 设置 bulk_request 方法的模拟返回值
-        mock_bulk_request.side_effect = [TASK_RESULT_DATA, PLUGIN_RESULT_DATA, TASK_RESULT_DATA, PLUGIN_RESULT_DATA]
 
         # 采集目标是HOST-INSTANCE
         collector.data.target_node_type = "INSTANCE"

@@ -13,12 +13,15 @@ from dataclasses import dataclass
 from typing import Optional
 
 from apm_web.profile.constants import InputType
-from apm_web.profile.converter import Converter, register_converter
 from apm_web.profile.models import Label, Profile
+from apm_web.profile.profileconverter import (
+    ProfileConverter,
+    register_profile_converter,
+)
 
 
 @dataclass
-class PprofConverter(Converter):
+class PprofProfileConverter(ProfileConverter):
     """Convert binary to Profile object"""
 
     def convert(self, raw: bytes) -> Optional[Profile]:
@@ -53,4 +56,4 @@ class PprofConverter(Converter):
         return self.profile
 
 
-register_converter(InputType.PPROF.value, PprofConverter)
+register_profile_converter(InputType.PPROF.value, PprofProfileConverter)
