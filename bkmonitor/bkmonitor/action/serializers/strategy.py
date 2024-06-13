@@ -490,7 +490,6 @@ class DutyRuleDetailSlz(DutyRuleSlz):
                 try:
                     group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
                 except Exception:  # noqa
-                    logger.exception(f"Error managing snap for group {user_group.id} with rule {self.instance.id}")
                     continue
         else:
             # 如果是关闭了当前的规则, 则已有的排班计划都需要关闭掉
