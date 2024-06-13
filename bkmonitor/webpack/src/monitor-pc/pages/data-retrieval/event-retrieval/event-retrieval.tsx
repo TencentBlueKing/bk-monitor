@@ -473,7 +473,12 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                         name={item.name}
                       >
                         <span class='event-item-name'>
-                          <span>{item.name}</span>
+                          <span
+                            class='name-text'
+                            v-bk-overflow-tips
+                          >
+                            {item.name}
+                          </span>
                           {!!item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
                         </span>
                       </bk-option>
