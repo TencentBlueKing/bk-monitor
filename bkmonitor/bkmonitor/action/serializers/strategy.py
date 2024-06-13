@@ -479,7 +479,20 @@ class DutyRuleDetailSlz(DutyRuleSlz):
         super(DutyRuleDetailSlz, self).save(**kwargs)
 
         DutyArrange.bulk_create(duty_arranges, self.instance)
-        if not self.instance.enabled:
+
+        if self.instance.enabled:
+            # 快照和计划管理，以便预览能看到即时变化
+            user_groups = UserGroup.objects.filter(duty_rules__contains=self.instance.id).only(
+                "id", "bk_biz_id", "duty_rules", "duty_notice", "timezone"
+            )
+            for user_group in user_groups:
+                group_duty_manager = GroupDutyRuleManager(user_group, [self.data])
+                try:
+                    group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
+                except Exception:  # noqa
+                    logger.exception("Error managing snap for group %s with rule %s", user_group.id, self.instance.id)
+                    continue
+        else:
             # 如果是关闭了当前的规则, 则已有的排班计划都需要关闭掉
             # TODO 和产品确认下，是否要一个调整时间
             DutyRuleSnap.objects.filter(duty_rule_id=self.instance.id).update(enabled=False)
