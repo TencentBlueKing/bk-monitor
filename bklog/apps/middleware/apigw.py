@@ -57,13 +57,12 @@ class UserModelBackend(ModelBackend):
 
 
 class CustomCachePublicKeyProvider(CachePublicKeyProvider):
-    def provide(self, gateway_name: str, jwt_issuer: Optional[str] = None, **kwargs) -> Optional[str]:
+    def provide(self, gateway_name: str, jwt_issuer: Optional[str] = None, request: HttpRequest = None) -> Optional[str]:
         """Return the public key specified by Settings"""
         external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
-        request_obj = kwargs.get("request")
-        if not request_obj:
+        if not request:
             return super(CustomCachePublicKeyProvider, self).provide(gateway_name, jwt_issuer)
-        is_external = request_obj.headers.get("Is-External", "false")
+        is_external = request.headers.get("Is-External", "false")
         if is_external == "true":
             logger.info(
                 "This request is from external api gateway, use external public key: `EXTERNAL_APIGW_PUBLIC_KEY`."
@@ -87,7 +86,7 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
             jwt_header = self._decode_jwt_header(jwt_token)
             gateway_name = jwt_header.get("kid") or self.default_gateway_name
             public_key = CustomCachePublicKeyProvider(default_gateway_name=self.default_gateway_name).provide(
-                gateway_name, jwt_header.get("iss"), request=request
+                gateway_name=gateway_name, jwt_issuer=jwt_header.get("iss"), request=request
             )
             if not public_key:
                 logger.warning("no public key found, gateway=%s, issuer=%s", gateway_name, jwt_header.get("iss"))
