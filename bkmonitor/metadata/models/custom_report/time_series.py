@@ -1074,7 +1074,9 @@ class TimeSeriesMetric(models.Model):
             if (last_modify_time - obj.last_modify_time).days >= 1:
                 is_need_update = True
                 obj.last_modify_time = last_modify_time
-                # 时间变动时，也要更新路由；适用`指标重新启用`场景
+
+            # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
+            if (last_modify_time - obj.last_modify_time).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
                 need_push_router = True
 
             # 如果 tag 不一致，则进行更新
@@ -1231,7 +1233,10 @@ class TimeSeriesMetric(models.Model):
                 if (last_modify_time - metric_obj.last_modify_time).days >= 1:
                     metric_obj.last_modify_time = last_modify_time
                     need_save_op = True
-                    # 时间变动时，也要更新路由；适用`指标重新启用`场景
+                # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
+                if (
+                    last_modify_time - metric_obj.last_modify_time
+                ).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
                     is_updated = True
                 if need_save_op:
                     metric_obj.save()
