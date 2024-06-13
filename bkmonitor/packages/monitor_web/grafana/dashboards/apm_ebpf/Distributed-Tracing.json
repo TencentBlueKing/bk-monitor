@@ -27,28 +27,6 @@
   "panels": [
     {
       "datasource": "$datasource",
-      "gridPos": {
-        "h": 3,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 4,
-      "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "[English doc](https://deepflow.io/docs/features/distributed-tracing/auto-tracing/?from=deepflow_grafana) | [中文文档](https://deepflow.io/docs/zh/features/distributed-tracing/auto-tracing/?from=deepflow_grafana) \n",
-        "mode": "markdown"
-      },
-      "pluginVersion": "9.2.5",
-      "title": "Help doc",
-      "type": "text"
-    },
-    {
-      "datasource": "$datasource",
       "fieldConfig": {
         "defaults": {
           "color": {

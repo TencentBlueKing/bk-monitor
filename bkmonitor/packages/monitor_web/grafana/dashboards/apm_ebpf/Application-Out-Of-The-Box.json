@@ -28,42 +28,6 @@
   "liveNow": false,
   "panels": [
     {
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 16,
-      "panels": [
-        {
-          "datasource": "$datasource",
-          "gridPos": {
-            "h": 18,
-            "w": 24,
-            "x": 0,
-            "y": 1
-          },
-          "id": 15,
-          "options": {
-            "code": {
-              "language": "plaintext",
-              "showLineNumbers": false,
-              "showMiniMap": false
-            },
-            "content": "# 1. 变量说明\n\n以下变量作用于除`调用链追踪`以外的所有图表：\n- server：服务端服务\n- endpoint：端点，HTTP/RPC 类协议支持提取端点，其他协议为空\n- l7_protocol：应用协议，对应 HTTP/DNS/MySQL 等等应用协议\n- signal_source：信号源，目前支持进行区分的三种信号源为 Packet (cBPF)、eBPF、OTel\n  - eBPF：使用 eBPF 采集的函数调用数据，Dashboard 默认查看的是 eBPF 信号源（[对内核版本有要求](https://deepflow.io/docs/zh/ce-install/overview/#运行权限及内核要求)），如果此信号源无数据，可切换到 Packet 查看数据\n  - Packet：使用 AF_PACKET + cBPF 采集的网卡流量数据\n  - OTel：使用 OTEL 协议接收到的分布式追踪数据\n\n以下图表全部基于 DeepFlow 数据构建。\n\n# 2. 端点列表\n\n端点列表可查看`服务端服务 (auto_service_1)`、`端点 (endpoint)`、`应用协议 (l7_protocol)` 对应的`请求速率`、`响应异常`、`响应时延`指标量。表格支持的操作如下：\n- 点击指标量的表头可进行排序，快速过滤出异常比例高或响应时延大的服务端点\n- 点击表格某一行，将打开一个新页面，展示点击行对应的`服务端服务 + 端点 + 应用协议`的端点详情\n\n指标量的详细说明，请参考 [DeepFlow 官网上的指标量说明](https://deepflow.io/docs/zh/features/universal-map/metrics-and-operators/#应用性能指标)。\n\n# 3. 端点详情\n\n通过指标折线图、调用日志表格以及分布式追踪火焰图展示端点的详情信息。\n\n## 3.1. 指标折线图\n\n- **请求速率**：查看 `server + endpoint + l7_protcol` 变量对应的请求速率变化趋势，图例由`$服务端服务 $应用协议 $端点`组成。\n- **响应时延**：查看 `server + endpoint + l7_protcol` 变量对应的响应时延变化趋势，其中包含`P90 响应时延`及`P99 响应时延`两个指标量，图例由`$服务端服务 $应用协议 $端点-$指标量名称`组成。\n- **异常比例**：查看 `server + endpoint + l7_protcol` 变量对应的异常比例变化趋势，其中包含`客户端异常比例`及`服务端异常比例`两个指标量，图例由`$服务端服务 $应用协议 $端点-$指标量名称`组成。\n- **超时总数**：查看 `server + endpoint + l7_protcol` 变量对应的超时变化趋势，图例由`$服务端服务 $应用协议 $端点`组成。\n\n## 3.2. 调用列表\n\n查看 `server + endpoint + l7_protcol` 变量对应的调用详情列表，可查看客户端服务、响应码、响应异常描述等等信息。表格支持的操作如下：\n- 点击`响应状态`表头`漏斗 ICON`，支持根据响应状态过滤数据\n- 点击`响应时延`表头，支持按指标量进行排序\n- 点击表格中的某一行，可对当前调用进行追踪，结果可在`调用链追踪`对应的火焰图中查看\n\n## 3.3. 调用链追踪\n\n调用链追踪通过火焰图形式展示，对于火焰图的使用可参考 [DeepFlow 官网调用链追踪的说明](https://deepflow.io/docs/zh/guide/ee-tenant/dashboard/panel/flame/)。",
-            "mode": "markdown"
-          },
-          "pluginVersion": "10.1.5",
-          "title": "使用说明",
-          "type": "text"
-        }
-      ],
-      "title": "使用说明",
-      "type": "row"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,

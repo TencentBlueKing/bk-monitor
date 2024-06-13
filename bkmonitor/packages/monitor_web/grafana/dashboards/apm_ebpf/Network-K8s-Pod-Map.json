@@ -26,28 +26,6 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": "$datasource",
-      "gridPos": {
-        "h": 3,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 39,
-      "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "[English doc](https://deepflow.io/docs/features/universal-map/network-metrics/?from_metaflow_grafana) | [中文文档](https://deepflow.io/docs/zh/features/universal-map/network-metrics/?from_metaflow_grafana) ",
-        "mode": "markdown"
-      },
-      "pluginVersion": "10.2.3",
-      "title": "Help doc",
-      "type": "text"
-    },
-    {
       "collapsed": false,
       "datasource": "$datasource",
       "gridPos": {
