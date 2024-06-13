@@ -461,14 +461,30 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                 key={JSON.stringify(this.dataIdList)}
                 vModel={this.localValue.result_table_id}
                 clearable={false}
+                ext-popover-cls={'event-retrieval-data-id-select-popover'}
+                searchable={true}
                 onSelected={this.handleInitLocalValue}
               >
-                {this.dataIdList.map(item => (
-                  <bk-option
-                    id={item.id}
-                    name={item.name}
-                  />
-                ))}
+                {this.localValue.eventType === 'custom_event'
+                  ? this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      >
+                        <span class='event-item-name'>
+                          <span>{item.name}</span>
+                          {!!item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
+                        </span>
+                      </bk-option>
+                    ))
+                  : this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
               </bk-select>
             </div>
           ) : undefined}
