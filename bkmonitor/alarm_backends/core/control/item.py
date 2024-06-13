@@ -139,6 +139,23 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         return gen_condition_matcher(agg_condition)
 
     @cached_property
+    def origin_agg_condition_obj(self):
+        query_config = self.query_configs[0]
+        agg_condition = query_config.get("agg_condition", [])
+        if not agg_condition:
+            return
+
+        # 实时监控，需要将agg_condition转换成监控目标
+        if query_config.get("agg_method", "") != AGG_METHOD_REAL_TIME and not self.data_sources:
+            return
+
+        # 忽略第一个condition避免解析错误
+        if "condition" in agg_condition[0]:
+            del agg_condition[0]["condition"]
+
+        return gen_condition_matcher(agg_condition)
+
+    @cached_property
     def agg_methods(self) -> List[str]:
         """聚合方法列表"""
         methods = []
