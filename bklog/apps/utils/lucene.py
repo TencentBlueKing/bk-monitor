@@ -682,7 +682,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
     例如: A and B => A AND B
     """
 
-    RE = r'\b(and|or|not)\b'
+    RE = r'\b(and|or|not|to)\b'
 
     def __init__(self, query_string: str = ""):
         super().__init__(query_string)
@@ -701,7 +701,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         pattern = re.compile(self.RE)
         split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
         for i, part in enumerate(split_strings):
-            if ':' not in part:
+            if ':' not in part and not ('"' in part and '"' in split_strings[i - 1]):
                 split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
         return ''.join(split_strings)
 
@@ -723,7 +723,7 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     例如: A > 3 => A: { 3 TO * }
     """
 
-    RE = r'(?<=[a-zA-Z0-9_])\s*(>=|<=|>|<|=|!=)\s*([\d.]+)'
+    RE = r'(?<!["a-zA-Z0-9_])([a-zA-Z0-9_]+)\s*(>=|<=|>|<|=|!=)\s*([\d.]+)(?!["a-zA-Z0-9_])'
     ENHANCE_OPERATORS = [
         OperatorEnhanceEnum.LT.value,
         OperatorEnhanceEnum.LE.value,
@@ -742,7 +742,7 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     def transform(self) -> str:
         if not self.match():
             return self.query_string
-        return re.sub(self.RE, r': \1\2', self.query_string)
+        return re.sub(self.RE, r'\1: \2\3', self.query_string)
 
 
 class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
