@@ -127,7 +127,7 @@ MIDDLEWARE = (
     # 蓝鲸静态资源服务
     "whitenoise.middleware.WhiteNoiseMiddleware",
     # Auth middleware
-    "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",  # 与下面的 apigw_manager 中间件冲突，需要去掉
+    "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",   # 与下面的 apigw_manager 中间件冲突，需要去掉
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
     # "apps.middlewares.ApiGatewayJWTMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
     # "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",  # 根据 request.jwt，获取 request.app 对象
@@ -402,6 +402,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 BK_HOT_WARM_CONFIG_URL = (
     "https://www.elastic.co/guide/en/elasticsearch/reference/master/modules-cluster.html#shard-allocation-awareness"
 )
+BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 
@@ -1204,11 +1205,10 @@ for origin in allowed_cors_from_settings:
     if origin:
         CORS_ALLOWED_ORIGINS.append(origin)
 
-BK_API_URL_TMPL = "%s/api/{api_name}" % BK_COMPONENT_API_URL
 #  通知中心配置
 BK_NOTICE = {
     # 添加默认值防止本地调试无法启动
-    "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", BK_API_URL_TMPL)
+    "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
 }
 
 """
