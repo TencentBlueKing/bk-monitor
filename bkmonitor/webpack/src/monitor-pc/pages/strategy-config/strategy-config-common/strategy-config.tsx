@@ -2591,7 +2591,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       <AlarmGroupDetail
         id={this.alarmGroupDialog.id}
         v-model={this.alarmGroupDialog.show}
-        isEdit={false}
+        hasEditBtn={false}
       />,
     ];
   }
