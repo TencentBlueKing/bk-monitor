@@ -21,9 +21,32 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
+  "id": 24,
   "links": [],
   "liveNow": false,
   "panels": [
+    {
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "[English doc](https://deepflow.io/docs/features/distributed-tracing/auto-tracing/?from=deepflow_grafana) | [中文文档](https://deepflow.io/docs/zh/features/distributed-tracing/auto-tracing/?from=deepflow_grafana) \n",
+        "mode": "markdown"
+      },
+      "pluginVersion": "9.2.5",
+      "title": "Help doc",
+      "type": "text"
+    },
     {
       "datasource": "$datasource",
       "fieldConfig": {
@@ -39,7 +62,7 @@
           "links": [
             {
               "title": "Open in current dashboard",
-              "url": "/d/Distributed_Tracing/distributed-tracing?\ufefforgId=1&var-deepflow_tracing_id=${__data.fields._id}&${cluster:queryparam}&${namespace:queryparam}&${workload:queryparam}&${vm:queryparam}&${trace_id:queryparam}&${span_id:queryparam}&${request_resource:queryparam}&from=${__from}&to=${__to}&${datasource:queryparam}"
+              "url": "/d/Distributed_Tracing/distributed-tracing?var-deepflow_tracing_id=${__data.fields._id}&${cluster:queryparam}&${namespace:queryparam}&${workload:queryparam}&${vm:queryparam}&${trace_id:queryparam}&${span_id:queryparam}&${request_resource:queryparam}&from=${__from}&to=${__to}&${datasource:queryparam}"
             }
           ],
           "mappings": [],
@@ -401,7 +424,7 @@
           ]
         },
         "datasource": "$datasource",
-        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
         "hide": 0,
         "includeAll": false,
         "multi": true,
@@ -409,7 +432,7 @@
         "options": [],
         "query": {
           "database": "flow_metrics",
-          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
           "useAny": true,
           "useDisabled": false
         },
@@ -594,22 +617,5 @@
   "uid": "Distributed_Tracing",
   "version": 6,
   "weekStart": "",
-  "__inputs": [
-    {
-      "name": "DS_DeepFlow_-_uid",
-      "label": "蓝鲸监控 - DeepFlow数据",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "deepflowio-deepflow-datasource",
-      "pluginName": "DeepFlow Datasource"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "datasource",
-      "id": "deepflowio-deepflow-datasource",
-      "name": "DeepFlow Datasource"
-    }
-  ],
   "__path": "dashboards/DeepFlow-Templates/Distributed-Tracing.json"
 }

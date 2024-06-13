@@ -21,6 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
+  "id": 51,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -2038,7 +2039,7 @@
           "value": "__disabled"
         },
         "datasource": "$datasource",
-        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag chost values from vtap_app_port where display_name like '$db_wildcard'\",\"useDisabled\":true,\"useAny\":true}",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag chost values from vtap_app_port where display_name like '$dns_wildcard'\",\"useDisabled\":true,\"useAny\":true}",
         "hide": 0,
         "includeAll": false,
         "multi": false,
@@ -2046,7 +2047,7 @@
         "options": [],
         "query": {
           "database": "flow_metrics",
-          "sql": "show tag chost values from vtap_app_port where display_name like '$db_wildcard'",
+          "sql": "show tag chost values from vtap_app_port where display_name like '$dns_wildcard'",
           "useAny": true,
           "useDisabled": true
         },
@@ -2179,22 +2180,5 @@
   "uid": "application_DNS_Monitoring",
   "version": 1,
   "weekStart": "",
-  "__inputs": [
-    {
-      "name": "DS_DeepFlow_-_uid",
-      "label": "蓝鲸监控 - DeepFlow数据",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "deepflowio-deepflow-datasource",
-      "pluginName": "DeepFlow Datasource"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "datasource",
-      "id": "deepflowio-deepflow-datasource",
-      "name": "DeepFlow Datasource"
-    }
-  ],
   "__path": "dashboards/DeepFlow-Templates/Application-DNS-Monitoring.json"
 }

@@ -13,7 +13,7 @@ from django.utils.module_loading import import_string
 
 # 默认配置
 DEFAULTS = {
-    "HOST": "http://127.0.0.1:3000",
+    "HOST": getattr(settings, "GRAFANA_URL", "http://127.0.0.1:3000"),
     "PREFIX": "/",
     "ADMIN": ("admin", "admin"),
     "AUTHENTICATION_CLASSES": ["bk_dataview.authentication.SessionAuthentication"],
