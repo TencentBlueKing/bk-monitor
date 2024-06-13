@@ -86,7 +86,7 @@ class BaseScenario(object):
                         target_instances_exist.add(target_filters)
                 # 历史维度中不存在的目标实例
                 missing_target_instances = [
-                    dict(instance, **{"__NO_DATA_DIMENSION__": True})
+                    dict(instance, **{NO_DATA_TAG_DIMENSION: True})
                     for instance in target_instances_set - target_instances_exist
                 ]
         else:
