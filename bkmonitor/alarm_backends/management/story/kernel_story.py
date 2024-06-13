@@ -150,7 +150,7 @@ class CacheCronJobCheck(CheckStep):
     name = "check cron job cache"
 
     def check(self):
-        cache = Cache("cache")
+        cache = Cache("cache-cmdb")
         p_list = []
         # 1. cmdb
         cmdb_cache_types = [
