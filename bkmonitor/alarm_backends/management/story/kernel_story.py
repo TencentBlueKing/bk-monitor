@@ -185,6 +185,7 @@ class CacheCronJobCheck(CheckStep):
 
         # 2. strategy
         # 随机抽取一条策略缓存
+        cache = Cache("cache-strategy")
         _, random_key = cache.scan(0, f"{cache_key.KEY_PREFIX}.cache.strategy_*")
         ttl = cache.ttl(random_key[0]) if random_key else None
         if ttl and ttl < StrategyCacheManager.CACHE_TIMEOUT - 60 * 30:
