@@ -8,6 +8,7 @@ author: 蓝鲸智云
 tags:
   - TENCENT CLOUD
   - GOOGLE CLOUD
+  - AWS CLOUD
 
 ingest_config:
   source_format: json
@@ -18,6 +19,8 @@ ingest_config:
       name: 腾讯云
     - code: GOOGLE
       name: 谷歌云
+    - code: AWS
+      name: 亚马逊云
   is_external: true
   collect_type: bk_collector
 
