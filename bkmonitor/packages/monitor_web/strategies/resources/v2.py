@@ -1770,8 +1770,9 @@ class VerifyStrategyNameResource(Resource):
             qs = StrategyModel.objects.filter(name=params["name"], bk_biz_id=params["bk_biz_id"])
             if params["id"]:
                 qs.exclude(id=params["id"])
-            if qs.exist():
+            if qs.exists():
                 raise StrategyNameExist(name=params["name"])
+            return super().validate(params)
 
     def perform_request(self, params):
         return "ok"

@@ -129,7 +129,7 @@ MIDDLEWARE = (
     # Auth middleware
     # "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",   # 与下面的 apigw_manager 中间件冲突，需要去掉
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
-    "apigw_manager.apigw.authentication.ApiGatewayJWTGenericMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
+    "apps.middleware.apigw.ApiGatewayJWTMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",  # 根据 request.jwt，获取 request.app 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTUserMiddleware",  # 根据 request.jwt，获取 request.user 对象
     # "blueapps.account.middlewares.LoginRequiredMiddleware",
@@ -386,6 +386,7 @@ APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split("
 BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
+BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"
 
 # 日志归档文档
 BK_ARCHIVE_DOC_URL = os.getenv("BKAPP_ARCHIVE_DOC_URL", "")
@@ -527,7 +528,7 @@ LOCALE_PATHS = (os.path.join(PROJECT_ROOT, "locale"),)
 AUTH_USER_MODEL = "account.User"
 AUTHENTICATION_BACKENDS = (
     "apps.middleware.api_token_middleware.ApiTokenAuthBackend",
-    "apps.middleware.apigw.UserModelBackend",
+    # "apps.middleware.apigw.UserModelBackend",
     "blueapps.account.backends.BkJwtBackend",
     "blueapps.account.backends.UserBackend",
     "django.contrib.auth.backends.ModelBackend",
@@ -631,7 +632,7 @@ MENUS = [
                 "keyword": _("仪表盘"),
                 "children": [
                     {"id": "default_dashboard", "name": _("默认仪表盘"), "feature": "on", "icon": "block-shape"},
-                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "plus-circle-shape"},
+                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "log-plus-circle-shape"},
                     {"id": "create_folder", "name": _("新建目录"), "feature": "on", "icon": "folder-fill"},
                     {"id": "import_dashboard", "name": _("导入仪表盘"), "feature": "on", "icon": "topping-fill"},
                 ],
@@ -1073,6 +1074,9 @@ EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
 
 # 监控网关地址（新）
 MONITOR_APIGATEWAY_ROOT_NEW = os.getenv("BKAPP_BKMONITOR_APIGW_HOST", "")
+
+# 外部版网关密钥
+EXTERNAL_APIGW_PUBLIC_KEY = os.getenv("BKAPP_EXTERNAL_APIGW_PUBLIC_KEY", "")
 
 # ==============================================================================
 # Templates

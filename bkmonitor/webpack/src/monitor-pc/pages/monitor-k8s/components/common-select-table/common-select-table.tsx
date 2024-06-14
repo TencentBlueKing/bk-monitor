@@ -398,7 +398,24 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
   handleSearch(v) {
     this.searchCondition = v;
     this.handleResetTable();
-    const selectorSearch = transformConditionValueParams(this.searchCondition);
+    // multiple 属性需要传入 transformConditionValueParams
+    const conditionListMap = new Map();
+    this.conditionList.forEach(item => {
+      conditionListMap.set(item.id, item);
+    });
+    const searchConditionTemp = [];
+    this.searchCondition.forEach(sItem => {
+      let item = sItem;
+      const cItem = conditionListMap.get(sItem.id);
+      if (cItem) {
+        item = {
+          ...sItem,
+          multiple: cItem.multiple,
+        };
+      }
+      searchConditionTemp.push(item);
+    });
+    const selectorSearch = transformConditionValueParams(searchConditionTemp);
     this.handleUpdateQueryData({
       ...this.queryData,
       selectorSearch,

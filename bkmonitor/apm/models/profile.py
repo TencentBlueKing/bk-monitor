@@ -21,6 +21,7 @@ class ProfileService(models.Model):
     data_type = models.CharField("数据类型", max_length=128, null=True)
     sample_type = models.CharField("采样类型", max_length=128, null=True)
     last_check_time = models.DateTimeField("最近检查时间")
+    is_large = models.BooleanField("是否是大数据量服务", default=False)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", blank=True, null=True, auto_now=True)
 

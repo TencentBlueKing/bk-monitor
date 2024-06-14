@@ -463,3 +463,11 @@ class EventGroupStatus(Enum):
 
 # 事件组休眠阈值(天)
 EVENT_GROUP_SLEEP_THRESHOLD = 61
+
+
+class EsSourceType(Enum):
+    """ES数据源的类型"""
+
+    LOG = "log"
+    BKDATA = "bkdata"
+    ES = "es"

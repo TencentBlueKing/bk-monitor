@@ -164,7 +164,6 @@ export default {
   '{0}台主机Agent异常': '{0} agents abnormal',
   '已勾选{count}个': '{count} checked',
   '监控的数据主体、查询方式': 'Data subject and query method to be monitored',
-  已选择更低级告警级别: 'A lower alarm level is selected',
   '针对 综合拨测、APM、主机、K8s 等场景，提供该场景定制化的异常发现和告警功能':
     'For scenarios such as comprehensive dialing, APM, host, and K8s, it provides customized exception discovery and alarm functions',
   '以 主机 场景为例，将会对指定的主机下的 CPU使用率、网卡入流量、物理内存空闲 等多个关键指标进行智能异常检测，如果检出多个指标异常，将以发生异常的主机为单位生成告警':
@@ -217,4 +216,8 @@ export default {
   '暂无 AI 功能': 'No AI function yet',
   '支持单指标异常检测、时序预测、离群检测等智能检测算法':
     'Supports single-index anomaly detection, time series prediction, outlier detection and other intelligent detection algorithms',
+  '匹配规则支持通过在正则表达式中配置 `peer_service` 和 `span_name` 参数来提取自定义服务名称和 span_name。例如配置正则：':
+    'Matching rules support extracting custom service names and span_names by configuring the `peer_service` and `span_name` parameters in regular expressions. For example, configure regular expressions:',
+  '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
+    'When a span of HTTP type appears and the calling Url (attributes.http.url) is `https://example.com/path/to/docs`, the `example.com` custom service will be matched, and the span_name of this span will be overwritten with `path/to/docs',
 };

@@ -1297,7 +1297,7 @@ ENABLE_INFLUXDB_STORAGE = True
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
-    os.environ["BK_API_URL_TMPL"] = ""
+    os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
 
 # 内网collector域名
 INNER_COLLOCTOR_HOST = ""

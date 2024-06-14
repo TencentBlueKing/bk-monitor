@@ -310,7 +310,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "A"
                   }
                 ],
@@ -325,6 +325,15 @@
                 "filter_dict": {
                 },
                 "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
@@ -354,7 +363,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "A"
                   }
                 ],
@@ -369,6 +378,15 @@
                 "filter_dict": {
                 },
                 "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [
@@ -398,7 +416,7 @@
                 "metrics": [
                   {
                     "field": "bk_apm_duration_bucket",
-                    "method": "AVG",
+                    "method": "SUM",
                     "alias": "A"
                   }
                 ],
@@ -413,6 +431,15 @@
                 "filter_dict": {
                 },
                 "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                   {
                     "id": "histogram_quantile",
                     "params": [

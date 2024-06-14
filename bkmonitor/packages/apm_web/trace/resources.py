@@ -247,7 +247,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "data_type_label": "time_series",
                                     "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "B"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "B"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -255,6 +255,7 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
                                         {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.99}]}
                                     ],
                                 }
@@ -273,7 +274,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "table": f"{database}.__default__",
                                     "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -281,6 +282,7 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
                                         {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.95}]}
                                     ],
                                 }
@@ -299,7 +301,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "table": f"{database}.__default__",
                                     "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -307,6 +309,7 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
                                         {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.5}]}
                                     ],
                                 }
