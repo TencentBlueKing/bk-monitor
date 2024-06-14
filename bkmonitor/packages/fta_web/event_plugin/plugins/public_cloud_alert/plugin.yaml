@@ -1,5 +1,5 @@
 plugin_id: public_cloud_alert
-version: 0.1.0
+version: 0.2.0
 plugin_display_name: 公有云告警接收
 plugin_type: http_push
 summary: 接收公有云告警，目前支持腾讯云和谷歌云
@@ -217,3 +217,24 @@ clean_configs:
             alarmType: alarmType,
             policyName: alarmPolicyInfo.policyName
           }
+  - rules:
+    - key: __http_query_params__.source
+      value:
+        - "aws"
+    normalization_config:
+      - field: alert_name
+        expr: get_field(to_json(Message), 'AlarmName')
+      - field: event_id
+        expr: "['aws_cloud_alert_{{plugin_inst_biz_id}}', get_field(to_json(Message), 'AlarmArn')] | join('.', @)"
+      - field: description
+        expr: get_field(to_json(Message), 'NewStateReason')
+      - field: metric
+        expr: get_field(to_json(Message), 'Trigger.MetricName')
+      - field: status
+        expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', INSUFFICIENT_DATA: 'ABNORMAL'}, get_field(to_json(Message), 'NewStateValue'))"
+      - field: severity
+        expr: '1'
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: "zip((get_field(to_json(Message), 'Trigger.Dimensions') || [])[*].Name, zip((get_field(to_json(Message), 'Trigger.Dimensions') || [])[*].Value)"
