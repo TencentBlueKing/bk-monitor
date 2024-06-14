@@ -712,7 +712,8 @@ class GroupDutyRuleManager:
             # 结束时间获取当前有效的排班时间最后一天即可
             finished_time = max(duty_end_times)
             # 开始时间取当前时间取当前排班内容里的最小一位
-            start_time = min(duty_start_times)
+            # 通知用户时根据计划的开始时间和结束时间过滤计划，所以开始时间不能小于生效时间
+            start_time = max(min(duty_start_times), rule_snap.rule_snap["effective_time"])
             duty_plans.append(
                 DutyPlan(
                     start_time=start_time,

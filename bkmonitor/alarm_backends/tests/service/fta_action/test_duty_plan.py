@@ -1255,7 +1255,7 @@ class TestDutyPlan:
         duty_rule_data["id"] = duty_group.duty_rules[0]
         #  3天后才生效
         duty_rule_data["effective_time"] = (datetime.datetime.today() + datetime.timedelta(days=3)).strftime(
-            "%Y-%m-%d 00:00:00"
+            "%Y-%m-%d 12:00:00"
         )
         new_slz = DutyRuleDetailSlz(instance=origin_rule, data=duty_rule_data)
         new_slz.is_valid(raise_exception=True)
@@ -1279,6 +1279,11 @@ class TestDutyPlan:
             ).count()
             == 2
         )
+
+        # 生效那天，start_time 不能小于 effective_time
+        plan3 = DutyPlan.objects.filter(user_group_id=duty_group.id, is_effective=1)[2]
+        assert plan3.start_time == duty_rule_data["effective_time"]
+        assert duty_group.duty_plans[2].start_time == plan3.start_time[:-3]
 
     def test_disable_duty_rule(self, db_setup, duty_group, duty_rule_data):
         # 重新修改
@@ -1482,7 +1487,6 @@ class TestEffectiveTime:
         ],
     )
     def test_user_group_save(self, db_setup, duty_group_data, create_time, duty_user):
-
         create_time = time_tools.str2datetime(create_time)
         with mock.patch("bkmonitor.action.serializers.strategy.time_tools.datetime_today", return_value=create_time):
             g_slz = UserGroupDetailSlz(data=duty_group_data)
