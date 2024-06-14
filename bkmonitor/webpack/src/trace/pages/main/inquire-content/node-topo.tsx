@@ -56,6 +56,7 @@ const NodeTopoProps = {
 export default defineComponent({
   name: 'NodeTopo',
   props: NodeTopoProps,
+  emits: ['showSpanDetail', 'spanListChange', 'compareSpanListChange', 'update:loading'],
   setup() {
     const type = ref<EType>(EType.time);
 
@@ -83,7 +84,15 @@ export default defineComponent({
             </div>
           ))}
         </div>
-        {this.type === EType.time && <RelationTopo {...this.$props}></RelationTopo>}
+        {this.type === EType.time && (
+          <RelationTopo
+            {...this.$props}
+            onCompareSpanListChange={(...arg) => this.$emit('compareSpanListChange', ...arg)}
+            onShowSpanDetail={(...arg) => this.$emit('showSpanDetail', ...arg)}
+            onSpanListChange={(...arg) => this.$emit('spanListChange', ...arg)}
+            onUpdate:loading={(...arg) => this.$emit('update:loading', ...arg)}
+          ></RelationTopo>
+        )}
         {this.type === EType.service && <ServiceTopo></ServiceTopo>}
       </div>
     );
