@@ -45,7 +45,6 @@ import { copyText, typeTools } from 'monitor-common/utils/utils';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
-import RelationTopo from '../../../components/relation-topo/relation-topo';
 import StatisticsTable, { IFilterItem } from '../../../components/statistics-table/statistics-table';
 import TraceView from '../../../components/trace-view';
 import SearchBar from '../../../components/trace-view/search-bar';
@@ -60,6 +59,8 @@ import { useTraceStore } from '../../../store/modules/trace';
 import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
+// import RelationTopo from '../../../components/relation-topo/relation-topo';
+import NodeTopo from './node-topo';
 
 import './trace-detail.scss';
 
@@ -1020,7 +1021,7 @@ export default defineComponent({
                 )}
                 {/* 拓扑视图 */}
                 {this.activePanel === 'topo' && (
-                  <RelationTopo
+                  <NodeTopo
                     key={traceInfo?.root_span_id || ''}
                     ref='relationTopo'
                     compareTraceID={this.compareTraceID}
