@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref, watch } from 'vue';
+import { computed, defineComponent, PropType, ref, watch, reactive } from 'vue';
 
-import { Pagination } from 'bkui-vue';
+import { Pagination, Popover } from 'bkui-vue';
 
 import { Span } from '../../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
@@ -73,9 +73,12 @@ export default defineComponent({
     const pageLimit = 30;
     /** 当前页 */
     const currentPage = ref(1);
-    /** 分页当前显示的 span */
-    const renderList = ref([]);
     const spanListBody = ref(null);
+    const sortOrder = reactive({
+      type: 'time',
+      sort: 'desc',
+      popoverShow: false,
+    });
     /** 判断列表区域是否出现滚动条 */
     const isScrollBody = ref(false);
 
@@ -88,12 +91,33 @@ export default defineComponent({
       return list;
     });
 
+    /** 分页当前显示的 span */
+    const renderList = computed(() => {
+      const list = JSON.parse(JSON.stringify(localList.value));
+      const { type, sort } = sortOrder;
+      if (type === 'time') {
+        if (sort === 'desc') {
+          list.sort((a, b) => b.startTime - a.startTime);
+        } else {
+          list.sort((a, b) => a.startTime - b.startTime);
+        }
+      }
+      const start = (currentPage.value - 1) * pageLimit;
+      const end = currentPage.value * pageLimit;
+      return list.slice(start, end);
+    });
+
+    const handleSortChange = (type: 'show' | 'sort' | 'type', value?) => {
+      if (type === 'sort') {
+        sortOrder.sort = sortOrder.sort === 'desc' ? 'asc' : 'desc';
+      } else if (type == 'show') {
+        sortOrder.popoverShow = value;
+      }
+    };
+
     /** 切换分页 */
     const handlePageChange = val => {
       currentPage.value = val;
-      const start = (currentPage.value - 1) * pageLimit;
-      const end = currentPage.value * pageLimit;
-      renderList.value = localList.value.slice(start, end);
     };
 
     watch(
@@ -116,6 +140,8 @@ export default defineComponent({
       pageLimit,
       localList,
       renderList,
+      sortOrder,
+      handleSortChange,
       showSpanDetail,
       currentPage,
       handlePageChange,
@@ -143,12 +169,43 @@ export default defineComponent({
               </span>
             </span>
           ) : (
-            <span
-              class='title'
-              onClick={() => this.$emit('listChange', [])}
-            >
-              Span List
-            </span>
+            [
+              <span
+                class='title'
+                onClick={() => this.$emit('listChange', [])}
+              >
+                Span List
+              </span>,
+              <div class='filter-wrap'>
+                <i
+                  class={['icon-monitor', this.sortOrder.sort === 'desc' ? 'icon-paixu-xia' : 'icon-paixu-shang']}
+                  onClick={() => this.handleSortChange('sort')}
+                ></i>
+                <Popover
+                  is-show={this.sortOrder.popoverShow}
+                  theme='light'
+                  trigger='click'
+                  onAfterHidden={({ isShow }) => this.handleSortChange('show', isShow)}
+                  onAfterShow={({ isShow }) => this.handleSortChange('show', isShow)}
+                >
+                  {{
+                    default: () => (
+                      <div class='sort-select'>
+                        <span class='text'>{this.$t('产生时间')}</span>
+                        <i
+                          class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']}
+                        ></i>
+                      </div>
+                    ),
+                    content: () => (
+                      <div class=''>
+                        <div class='select-item'>{this.$t('产生时间')}</div>
+                      </div>
+                    ),
+                  }}
+                </Popover>
+              </div>,
+            ]
           )}
         </div>
         <div
