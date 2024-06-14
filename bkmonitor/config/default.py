@@ -1351,3 +1351,6 @@ ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
 # metadta请求es超时配置, 单位为秒，默认10秒
 # 格式: {default: 10, 集群域名: 20}
 METADATA_REQUEST_ES_TIMEOUT = {}
+
+# 是否启用自定义事件休眠
+ENABLE_CUSTOM_EVENT_SLEEP = False
