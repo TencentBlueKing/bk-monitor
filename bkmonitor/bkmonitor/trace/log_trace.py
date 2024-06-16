@@ -35,7 +35,8 @@ from opentelemetry.sdk.trace.sampling import DEFAULT_OFF, DEFAULT_ON
 from bkmonitor.trace.django import get_span_name
 from bkmonitor.trace.django import request_hook as django_request_hook
 from bkmonitor.trace.django import response_hook as django_response_hook
-from bkmonitor.trace.requests import requests_name_callback, requests_span_callback
+from bkmonitor.trace.logging import BkResourceLoggingInstrument
+from bkmonitor.trace.requests import requests_span_callback
 from bkmonitor.trace.threading import ThreadingInstrumentor
 from bkmonitor.utils.common_utils import get_local_ip
 
@@ -115,9 +116,9 @@ class BluekingInstrumentor(BaseInstrumentor):
         DjangoInstrumentor().instrument(request_hook=django_request_hook, response_hook=django_response_hook)
         RedisInstrumentor().instrument()
         ElasticsearchInstrumentor().instrument()
-        RequestsInstrumentor().instrument(span_callback=requests_span_callback, name_callback=requests_name_callback)
+        RequestsInstrumentor().instrument(span_callback=requests_span_callback)
         CeleryInstrumentor().instrument()
-        LoggingInstrumentor().instrument()
+        BkResourceLoggingInstrument().instrument()
         ThreadingInstrumentor().instrument()
         KafkaInstrumentor().instrument()
 

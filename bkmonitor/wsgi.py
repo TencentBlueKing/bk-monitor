@@ -12,9 +12,8 @@ specific language governing permissions and limitations under the License.
 import os
 
 from django.core.wsgi import get_wsgi_application
-from opentelemetry.instrumentation.wsgi import OpenTelemetryMiddleware
 from whitenoise import WhiteNoise
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 
-application = OpenTelemetryMiddleware(WhiteNoise(get_wsgi_application()))
+application = WhiteNoise(get_wsgi_application())

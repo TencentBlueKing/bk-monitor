@@ -39,17 +39,10 @@ def requests_span_callback(span: Span, response):
     if request_id:
         span.set_attribute("request_id", request_id)
 
-    try:
-        code_int = int(code)
-        if code_int == 0 or code // 100 == 2:
-            span.set_status(Status(StatusCode.OK))
-        else:
-            span.set_status(Status(StatusCode.ERROR))
-    except ValueError:
-        if response.status_code // 100 == 2:
-            span.set_status(Status(StatusCode.OK))
-        else:
-            span.set_status(Status(StatusCode.ERROR))
+    if str(code) in ["0", "00", "200"]:
+        span.set_status(Status(StatusCode.OK))
+    else:
+        span.set_status(Status(StatusCode.ERROR))
 
     span.set_attribute("result_code", code)
     span.set_attribute("result_message", json_result.get("message", ""))
@@ -76,7 +69,3 @@ def requests_span_callback(span: Span, response):
                     span.set_attribute("user.username", username)
             except (TypeError, json.JSONDecodeError):
                 pass
-
-
-def requests_name_callback(method, _):
-    return f"REQUESTS.HTTP {method.strip()}"

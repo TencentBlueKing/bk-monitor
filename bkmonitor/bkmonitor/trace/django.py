@@ -99,9 +99,6 @@ def get_span_name(_, request):
             if resource_clz:
                 return f"{resource_clz.__module__}.{resource_clz.__qualname__}"
 
-        if hasattr(match, "route"):
-            return match.route
-
         if hasattr(match, "_func_name"):
             return match._func_name  # pylint: disable=protected-access # noqa
 
