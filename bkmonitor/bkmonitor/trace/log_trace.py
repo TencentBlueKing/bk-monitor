@@ -98,12 +98,11 @@ class BluekingInstrumentor(BaseInstrumentor):
                 {
                     "service.name": settings.SERVICE_NAME,
                     "service.version": settings.VERSION,
-                    "bk_data_id": os.getenv("BKAPP_OTLP_BK_DATA_ID"),
-                    "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN"),
+                    "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", ""),
                     "net.host.ip": get_local_ip(),
                     "net.host.name": socket.gethostname(),
-                    "bcs.cluster.id": os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"),
-                    "bcs.cluster.namespace": os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE"),
+                    "bcs.cluster.id": os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID", ""),
+                    "bcs.cluster.namespace": os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE", ""),
                     "service.environment": settings.ENVIRONMENT,
                 }
             ),
@@ -143,15 +142,11 @@ class BluekingInstrumentor(BaseInstrumentor):
 
 @worker_process_init.connect(weak=False)
 def init_celery_worker_tracing(*args, **kwargs):
-    if os.getenv("BKAPP_OTLP_HTTP_HOST") and (
-        os.getenv("BKAPP_OTLP_BK_DATA_ID") or os.getenv("BKAPP_OTLP_BK_DATA_TOKEN")
-    ):
+    if os.getenv("BKAPP_OTLP_HTTP_HOST") and os.getenv("BKAPP_OTLP_BK_DATA_TOKEN"):
         BluekingInstrumentor().instrument()
 
 
 @beat_init.connect(weak=False)
 def init_celery_beat_tracing(*args, **kwargs):
-    if os.getenv("BKAPP_OTLP_HTTP_HOST") and (
-        os.getenv("BKAPP_OTLP_BK_DATA_ID") or os.getenv("BKAPP_OTLP_BK_DATA_TOKEN")
-    ):
+    if os.getenv("BKAPP_OTLP_HTTP_HOST") and os.getenv("BKAPP_OTLP_BK_DATA_TOKEN"):
         BluekingInstrumentor().instrument()

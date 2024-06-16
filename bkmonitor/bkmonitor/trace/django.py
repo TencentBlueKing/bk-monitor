@@ -61,7 +61,7 @@ def response_hook(span, request, response):
 
     user = getattr(request, "user", None)
     if user:
-        username = getattr(user, "username", "unknown")
+        username = getattr(user, "username", "")
     else:
         username = "unknown"
     span.set_attribute("user.username", username)

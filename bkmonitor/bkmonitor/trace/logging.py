@@ -69,7 +69,7 @@ class BkResourceLoggingInstrument(BaseInstrumentor):
         inject_logging_trace_info(
             settings.LOGGING,
             ("verbose", "standard"),
-            "  trace_id=%(otelTraceID)s span_id=%(otelSpanID)s",
+            "trace_id=%(otelTraceID)s span_id=%(otelSpanID)s",
         )
         configure_logging("logging.config.dictConfig", settings.LOGGING)
 
