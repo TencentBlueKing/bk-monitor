@@ -2101,6 +2101,8 @@ class QueryEndpointStatisticsResource(PageListResource):
             uri_queryset = UriServiceRelation.objects.filter(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
             )
+            if "resource.service.name" in validated_data.get("filter_params", {}):
+                uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         res = []
         summary_mappings = defaultdict(list)
