@@ -541,6 +541,8 @@ APM_TRPC_ENABLED = False
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
+# 拓扑发现允许的最大 Span 数量(预估值)
+PER_ROUND_SPAN_MAX_SIZE = 1000
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"

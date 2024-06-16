@@ -17,6 +17,7 @@ import traceback
 from abc import ABC
 from typing import List, NamedTuple, Tuple
 
+from django.conf import settings
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
@@ -172,8 +173,6 @@ class TopoHandler:
     TRACE_ID_MAX_SIZE = 50000
     # 每一轮最多分析多少个TraceId
     PER_ROUND_TRACE_ID_MAX_SIZE = 100
-    # 每一轮最多可以有多少个 Span (预估值)
-    PER_ROUND_SPAN_MAX_SIZE = 1000
     FILTER_KIND = [
         SpanKind.SPAN_KIND_SERVER,
         SpanKind.SPAN_KIND_CLIENT,
@@ -325,8 +324,8 @@ class TopoHandler:
     @classmethod
     def calculate_round_count(cls, avg_group_span_count):
         # 最大分析 Span 的数量不能超过 1000，防止每轮 Trace 数量增多导致OOM
-        if cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count > cls.PER_ROUND_SPAN_MAX_SIZE:
-            max_span_count = cls.PER_ROUND_SPAN_MAX_SIZE
+        if cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count > settings.PER_ROUND_SPAN_MAX_SIZE:
+            max_span_count = settings.PER_ROUND_SPAN_MAX_SIZE
         else:
             max_span_count = cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count
 
