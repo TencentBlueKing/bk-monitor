@@ -16,7 +16,7 @@ from django.apps import AppConfig, apps
 from django.conf import settings
 from django.db.models.signals import post_migrate
 
-from bkmonitor.log_trace import BluekingInstrumentor
+from bkmonitor.trace.log_trace import BluekingInstrumentor
 from bkmonitor.utils.dynamic_settings import hack_settings
 
 
