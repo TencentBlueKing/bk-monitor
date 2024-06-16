@@ -65,13 +65,13 @@ class BkResourceLoggingInstrument(BaseInstrumentor):
 
         logging.setLogRecordFactory(record_factory)
 
-        # 只修改 verbose 的输出
+        # 只修改 verbose/standard 的输出
         inject_logging_trace_info(
             settings.LOGGING,
-            ("verbose",),
+            ("verbose", "standard"),
             "  trace_id=%(otelTraceID)s span_id=%(otelSpanID)s",
         )
-        configure_logging('logging.config.dictConfig', settings.LOGGING)
+        configure_logging("logging.config.dictConfig", settings.LOGGING)
 
     def _uninstrument(self, **kwargs):
         if BkResourceLoggingInstrument._old_factory:
