@@ -19,9 +19,25 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from typing import Optional
 
+import jwt
+from apigw_manager.apigw.authentication import (
+    ApiGatewayJWTGenericMiddleware,
+    JWTTokenInvalid,
+)
+from apigw_manager.apigw.providers import (
+    CachePublicKeyProvider,
+    DecodedJWT,
+    DefaultJWTProvider,
+)
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
+from django.http import HttpRequest
+from six import raise_from
+
+from apps.utils.log import logger
 
 
 class UserModelBackend(ModelBackend):
@@ -38,3 +54,55 @@ class UserModelBackend(ModelBackend):
 
     def authenticate(self, request, gateway_name, bk_username, verified, **credentials):
         return self.user_maker(bk_username)
+
+
+class CustomCachePublicKeyProvider(CachePublicKeyProvider):
+    def provide(self, gateway_name: str, jwt_issuer: Optional[str] = None, request: HttpRequest = None) -> Optional[str]:
+        """Return the public key specified by Settings"""
+        external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
+        if not request:
+            return super(CustomCachePublicKeyProvider, self).provide(gateway_name, jwt_issuer)
+        is_external = request.headers.get("Is-External", "false")
+        if is_external == "true":
+            logger.info(
+                "This request is from external api gateway, use external public key: `EXTERNAL_APIGW_PUBLIC_KEY`."
+            )
+            if not external_public_key:
+                logger.warning(
+                    "No `EXTERNAL_APIGW_PUBLIC_KEY` can be found in settings, you should either configure it "
+                    "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
+                )
+            return external_public_key
+        return super(CustomCachePublicKeyProvider, self).provide(gateway_name, jwt_issuer)
+
+
+class ApiGatewayJWTProvider(DefaultJWTProvider):
+    def provide(self, request: HttpRequest) -> Optional[DecodedJWT]:
+        jwt_token = request.META.get(self.jwt_key_name, "")
+        if not jwt_token:
+            return None
+
+        try:
+            jwt_header = self._decode_jwt_header(jwt_token)
+            gateway_name = jwt_header.get("kid") or self.default_gateway_name
+            public_key = CustomCachePublicKeyProvider(default_gateway_name=self.default_gateway_name).provide(
+                gateway_name=gateway_name, jwt_issuer=jwt_header.get("iss"), request=request
+            )
+            if not public_key:
+                logger.warning("no public key found, gateway=%s, issuer=%s", gateway_name, jwt_header.get("iss"))
+                return None
+
+            algorithm = jwt_header.get("alg") or self.algorithm
+            decoded = self._decode_jwt(jwt_token, public_key, algorithm)
+
+            return DecodedJWT(gateway_name=gateway_name, payload=decoded)
+
+        except jwt.PyJWTError as e:
+            if not self.allow_invalid_jwt_token:
+                raise_from(JWTTokenInvalid, e)
+
+        return None
+
+
+class ApiGatewayJWTMiddleware(ApiGatewayJWTGenericMiddleware):
+    PUBLIC_KEY_PROVIDER_CLS = CustomCachePublicKeyProvider

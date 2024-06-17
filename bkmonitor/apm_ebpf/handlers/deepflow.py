@@ -430,5 +430,5 @@ class DeepflowHandler:
                 mapping = ApmEbpfProvisioning.get_dashboard_mapping(biz_id)
                 ApmEbpfProvisioning.upsert_dashboards(org_id, biz_id, mapping)
                 logger.info(f"[GrafanaInstaller] biz_id: {biz_id} dashboard registry finished")
-            except ApiException as e:
-                logger.error(f"[GrafanaInstaller] biz_id: {biz_id} occur exception: {e}")
+            except Exception as e:
+                logger.exception(f"[GrafanaInstaller] biz_id: {biz_id} occur exception: {e}")

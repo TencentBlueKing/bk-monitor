@@ -21,6 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
+  "id": 61,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -224,7 +225,7 @@
           ]
         },
         "datasource": "$datasource",
-        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useDisabled\":false,\"useAny\":true}",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useDisabled\":false,\"useAny\":true}",
         "hide": 0,
         "includeAll": false,
         "multi": true,
@@ -232,7 +233,7 @@
         "options": [],
         "query": {
           "database": "flow_metrics",
-          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
           "useAny": true,
           "useDisabled": false
         },
@@ -370,22 +371,5 @@
   "uid": "Event",
   "version": 11,
   "weekStart": "",
-  "__inputs": [
-    {
-      "name": "DS_DeepFlow_-_uid",
-      "label": "蓝鲸监控 - DeepFlow数据",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "deepflowio-deepflow-datasource",
-      "pluginName": "DeepFlow Datasource"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "datasource",
-      "id": "deepflowio-deepflow-datasource",
-      "name": "DeepFlow Datasource"
-    }
-  ],
   "__path": "dashboards/DeepFlow-Templates/Event.json"
 }

@@ -428,6 +428,9 @@ class StorageStatusResource(BaseStatusResource):
     def perform_request(self, validated_request_data):
         self.init_data(validated_request_data["collect_config_id"])
         metric_json = self.get_metrics_json()
+        if not metric_json:
+            return {}
+
         # 同一个采集项下所有表存储配置都是一致的，取第一个结果表即可
         storager = get_storager(metric_json[0]["table_id"])
         return {"info": storager.get_info(), "status": storager.get_status()}

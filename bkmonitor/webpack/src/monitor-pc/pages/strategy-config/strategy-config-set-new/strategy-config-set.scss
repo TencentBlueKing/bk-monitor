@@ -18,7 +18,7 @@
 
   .set-content {
     display: flex;
-    height: calc(100vh - 104px);
+    height: calc(100vh - 104px - var(--notice-alert-height));
     overflow: auto;
 
     &-left {
