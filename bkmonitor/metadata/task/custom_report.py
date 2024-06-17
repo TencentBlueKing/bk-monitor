@@ -212,6 +212,9 @@ def check_custom_event_group_sleep():
         Q(last_check_report_time__isnull=True)
         | Q(last_check_report_time__lt=timezone.now() - timedelta(days=EVENT_GROUP_SLEEP_THRESHOLD)),
         status=EventGroupStatus.NORMAL.value,
+    ).exclude(
+        Q(event_group_name__startswith="bcs_BCS-K8S-", event_group_name__endswith="_k8s_event")
+        | Q(event_group_name__startswith="Log_log_")
     )
 
     need_clean_es_storages: List[models.ESStorage] = []
