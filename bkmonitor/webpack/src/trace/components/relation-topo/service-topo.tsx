@@ -24,84 +24,93 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
-import { VueFlow } from '@vue-flow/core';
+import { VueFlow, useVueFlow } from '@vue-flow/core';
 
+import { useLayout } from '../../hooks/vue-flow-use-layout';
 import { useTraceStore } from '../../store/modules/trace';
 
 import './service-topo.scss';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 
+enum ENodeType {
+  component = 'component',
+  interface = 'interface',
+  service = 'service',
+}
+
 export default defineComponent({
   name: 'ServiceTopo',
   setup() {
+    // hooks
     const store = useTraceStore();
+    const { fitView, setViewport } = useVueFlow();
+    const { layout } = useLayout();
 
+    // dom
+    const graphContainer = ref<Element>();
+
+    // data
     const emptyText = ref<string>('加载中...');
     const empty = ref<boolean>(false);
-    const graphContainer = ref<Element>();
-    const traceData = computed(() => store.traceData);
+    const serviceTopoData = computed(() => store.traceData.streamline_service_topo);
 
-    const nodes = computed(() => [
-      {
-        id: '1',
-        type: 'input',
-        position: { x: 250, y: 5 },
-        data: { label: 'Node 1' },
+    const nodes = ref([]);
+    const edges = ref([]);
+
+    watch(
+      () => serviceTopoData.value,
+      data => {
+        nodes.value = data.nodes.map(item => ({
+          id: item.key,
+          type: item.node_type,
+          position: { x: 0, y: 0 },
+          data: {
+            ...item,
+          },
+        }));
+        edges.value = data.edges.map(item => ({
+          id: item.key,
+          source: item.source,
+          target: item.target,
+        }));
       },
-      {
-        id: '2',
-        position: { x: 100, y: 100 },
-        data: { label: 'Node 2' },
-      },
-      {
-        id: '3',
-        type: 'output',
-        position: { x: 400, y: 200 },
-        data: { label: 'Node 3' },
-      },
-      {
-        id: '4',
-        type: 'special', // <-- this is the custom node type name
-        position: { x: 400, y: 200 },
-        data: {
-          label: 'Node 4',
-          hello: 'world',
-        },
-      },
-    ]);
-    const edges = ref([
-      {
-        id: 'e1->2',
-        source: '1',
-        target: '2',
-      },
-      {
-        id: 'e2->3',
-        source: '2',
-        target: '3',
-        animated: true,
-      },
-      {
-        id: 'e3->4',
-        type: 'special',
-        source: '3',
-        target: '4',
-        data: {
-          hello: 'world',
-        },
-      },
-    ]);
+      { immediate: true }
+    );
+
+    /**
+     * @description 自动布局节点位置
+     * @param direction
+     */
+    function layoutGraph(direction: string) {
+      nodes.value = layout(nodes.value, edges.value, direction);
+      nextTick(() => {
+        fitView();
+        const wrapWidth = graphContainer.value.clientWidth;
+        const positionXs = nodes.value.map(item => item.position.x);
+        const positionXSort = positionXs.sort((a, b) => a - b);
+        const x =
+          wrapWidth / 2 -
+          ((positionXSort[positionXSort.length - 1] - positionXSort[0]) / 2 + positionXSort[0]) +
+          positionXSort[0] -
+          32;
+        setViewport({
+          zoom: 1,
+          x: x,
+          y: 16,
+        });
+      });
+    }
 
     return {
       emptyText,
       empty,
       graphContainer,
-      traceData,
       nodes,
       edges,
+      layoutGraph,
     };
   },
 
@@ -109,14 +118,47 @@ export default defineComponent({
     return (
       <div class='service-topo-component'>
         {this.empty && <div class='empty-chart'>{this.emptyText}</div>}
-        <div class='graph-container'>
+        <div
+          ref='graphContainer'
+          class='graph-container'
+        >
           <VueFlow
             edges={this.edges}
             nodes={this.nodes}
+            onNodesInitialized={() => this.layoutGraph('TB')}
           >
-            {{
-              'node-input': () => <div>asdfasdf</div>,
-            }}
+            {(() => ({
+              [`node-${ENodeType.interface}`]: data => (
+                <div
+                  style={{
+                    borderLeftColor: data.data.color,
+                  }}
+                  class='node-interface'
+                >
+                  <img
+                    class='node-interface-icon'
+                    src={data.data.icon}
+                  />
+                  <div class='node-interface-name'>{data.data.display_name}</div>
+                </div>
+              ),
+              [`node-${ENodeType.service}`]: data => (
+                <div class='node-service'>
+                  <div class='node-service-top'>
+                    <img src={data.data.icon}></img>
+                  </div>
+                  <div class='node-service-bottom'>{data.data.display_name}</div>
+                </div>
+              ),
+              [`node-${ENodeType.component}`]: data => (
+                <div class='node-service'>
+                  <div class='node-service-top'>
+                    <img src={data.data.icon}></img>
+                  </div>
+                  <div class='node-service-bottom'>{data.data.display_name}</div>
+                </div>
+              ),
+            }))()}
           </VueFlow>
         </div>
       </div>

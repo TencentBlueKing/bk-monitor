@@ -123,6 +123,10 @@ export interface ITraceData extends ITraceListItem {
   topo_nodes: ITopoNode[];
   topo_relation: ITopoRelation[];
   trace_tree?: ITraceTree;
+  streamline_service_topo?: {
+    nodes: any[];
+    edges: any[];
+  };
 }
 
 export interface OriginCrossAppSpanMap {

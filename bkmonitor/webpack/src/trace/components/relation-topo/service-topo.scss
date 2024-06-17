@@ -8,6 +8,57 @@
     width: 100%;
     height: 100%;
     background-color: #f5f7fa;
+
+    .node-interface {
+      display: flex;
+      align-items: center;
+      width: 224px;
+      height: 52px;
+      padding: 0 0 0 8px;
+      background: #FFFFFF;
+      border-left: 4px solid;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px 0 #00000029;
+
+      .node-interface-icon {
+        width: 24px;
+        margin-right: 8px;
+      }
+
+      .node-interface-name {
+        font-size: 12px;
+        line-height: 18px;
+        color: #313238;
+      }
+    }
+
+    .node-service {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .node-service-top {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 2px solid #DCDEE5;
+        border-radius: 50%;
+
+        & > img {
+          width: 18px;
+          height: 18px;
+        }
+      }
+
+      .node-service-bottom {
+        margin-top: 2px;
+        font-size: 12px;
+        line-height: 12px;
+        color: #313238;
+      }
+    }
   }
 
   .empty-chart {
