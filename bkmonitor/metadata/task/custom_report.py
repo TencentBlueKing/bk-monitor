@@ -211,7 +211,7 @@ def check_custom_event_group_sleep():
     event_groups = models.EventGroup.objects.filter(
         Q(last_check_report_time__isnull=True)
         | Q(last_check_report_time__lt=timezone.now() - timedelta(days=EVENT_GROUP_SLEEP_THRESHOLD)),
-        status=EventGroupStatus.NORMAL,
+        status=EventGroupStatus.NORMAL.value,
     )
 
     need_clean_es_storages: List[models.ESStorage] = []
@@ -221,14 +221,14 @@ def check_custom_event_group_sleep():
             es = models.ESStorage.objects.get(table_id=event_group.table_id)
         except models.ESStorage.DoesNotExist:
             logger.info(f"EventGroup {event_group.event_group_name} has no ESStorage, set status to SLEEP")
-            event_group.status = EventGroupStatus.SLEEP
+            event_group.status = EventGroupStatus.SLEEP.value
             need_update_event_groups.append(event_group)
             continue
 
         indices, index_version = es.get_index_stats()
         if not indices:
             logger.info(f"EventGroup {event_group.event_group_name} does not have any index, set status to SLEEP")
-            event_group.status = EventGroupStatus.SLEEP
+            event_group.status = EventGroupStatus.SLEEP.value
             need_update_event_groups.append(event_group)
             continue
 
@@ -254,7 +254,7 @@ def check_custom_event_group_sleep():
                 f"set status to SLEEP and delete index"
             )
             need_clean_es_storages.append(es)
-            event_group.status = EventGroupStatus.SLEEP
+            event_group.status = EventGroupStatus.SLEEP.value
             need_update_event_groups.append(event_group)
         else:
             logger.info(
