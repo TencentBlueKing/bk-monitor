@@ -131,7 +131,6 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
     # 策略增量更新
     ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
-    ("alarm_backends.core.cache.shield", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
@@ -193,6 +192,8 @@ if BCS_API_GATEWAY_HOST:
     ]
 
 ACTION_TASK_CRONTAB = [
+    # 策略缓存更新
+    ("alarm_backends.core.cache.shield.main", "* * * * *", "global"),
     # 分集群任务
     # 定期检测异常告警
     ("alarm_backends.service.alert.manager.tasks.check_abnormal_alert", "* * * * *", "cluster"),
