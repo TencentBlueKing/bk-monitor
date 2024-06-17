@@ -1212,6 +1212,9 @@ BK_NOTICE = {
     "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
 }
 
+# 平台全局配置
+BK_SHARED_RES_URL = os.environ.get("BKPAAS_SHARED_RES_URL", "")
+
 """
 以下为框架代码 请勿修改
 """
