@@ -110,12 +110,15 @@ def get_span_name(_, request):
 
 def _get_resource_clz_path(match, request):
     """寻找 resource 类并返回路径"""
-    resource_mapping = match.func.cls().resource_mapping
-    view_set_path = f"{match.func.cls.__module__}.{match.func.cls.__name__}"
-    resource_clz = resource_mapping.get(
-        (request.method, f"{view_set_path}-{match.func.actions.get(request.method.lower())}")
-    )
-    if resource_clz:
-        return f"{resource_clz.__module__}.{resource_clz.__qualname__}"
+    try:
+        resource_mapping = match.func.cls().resource_mapping
+        view_set_path = f"{match.func.cls.__module__}.{match.func.cls.__name__}"
+        resource_clz = resource_mapping.get(
+            (request.method, f"{view_set_path}-{match.func.actions.get(request.method.lower())}")
+        )
+        if resource_clz:
+            return f"{resource_clz.__module__}.{resource_clz.__qualname__}"
 
-    return None
+        return None
+    except Exception:  # noqa
+        return None
