@@ -321,13 +321,19 @@ class AlertDateHistogramResource(Resource):
             ]
         )
 
-        data = {}
+        data = {status: {} for status in EVENT_STATUS_DICT}
         for result in results:
-            for key, value in result.items():
-                if key not in data:
-                    data[key] = value
-                else:
-                    data[key].update(value)
+            for status, series in result.items():
+                if status == "default_time_series":
+                    interval = series["interval"]
+                    start_time = series["start_time"] // interval * interval
+                    end_time = series["end_time"] // interval * interval + interval
+                    default_time_series = {ts * 1000: 0 for ts in range(start_time, end_time, interval)}
+                    for sta in EVENT_STATUS_DICT:
+                        data[sta].update(default_time_series)
+                    continue
+
+                data[status].update(series)
         return {
             "series": [
                 {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
@@ -340,9 +346,14 @@ class AlertDateHistogramResource(Resource):
 class AlertDateHistogramResultResource(Resource):
     def perform_request(self, validated_request_data):
         interval = validated_request_data.pop("interval")
+        start_time = validated_request_data.get("start_time")
+        end_time = validated_request_data.get("end_time")
         handler = AlertQueryHandler(**validated_request_data)
-        data = list(handler.date_histogram(interval=interval).values())[0]
-        return data
+        datas = list(handler.date_histogram(interval=interval).values())
+        if not datas:
+            data = {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}
+            return data
+        return datas[0]
 
 
 class AlertDetailResource(Resource):
@@ -1135,69 +1146,6 @@ class SearchAlertResource(Resource):
         must_exists_fields = serializers.ListField(label="必要字段", child=serializers.CharField(), default=[])
 
     def perform_request(self, validated_request_data):
-        show_overview = validated_request_data.get("show_overview")
-        show_aggs = validated_request_data.get("show_aggs")
-        show_dsl = validated_request_data.get("show_dsl")
-        start_time = validated_request_data.pop("start_time")
-        end_time = validated_request_data.pop("end_time")
-        results = resource.alert.search_alert_result.bulk_request(
-            [
-                {
-                    "start_time": sliced_start_time,
-                    "end_time": sliced_end_time,
-                    **validated_request_data,
-                }
-                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
-            ]
-        )
-
-        result = {
-            "alerts": [],
-            "total": 0,
-        }
-        alert_id_map = {}
-        if show_aggs:
-            result["aggs"] = []
-            agg_id_map = {}
-        if show_dsl:
-            is_change = True
-        for sliced_result in results:
-            for alert in sliced_result["alerts"]:
-                if alert["id"] not in alert_id_map:
-                    result["alerts"].append(copy.deepcopy(alert))
-                    alert_id_map[alert["id"]] = len(result["alerts"]) - 1
-                else:
-                    alert_index = alert_id_map[alert["id"]]
-                    result["alerts"][alert_index] = alert
-
-            result["total"] += sliced_result["total"]
-
-            if show_overview:
-                add_overview(result, sliced_result)
-            if show_aggs:
-                add_aggs(agg_id_map, result, sliced_result)
-            if show_dsl:
-                if is_change:
-                    sliced_result["dsl"]["query"]["bool"]["filter"][0]["bool"]["should"][1]["range"]["end_time"][
-                        "gte"
-                    ] = start_time
-                    sliced_result["dsl"]["query"]["bool"]["filter"][0]["bool"]["must"][0]["bool"]["should"][0]["range"][
-                        "begin_time"
-                    ]["lte"] = end_time
-                    sliced_result["dsl"]["query"]["bool"]["filter"][0]["bool"]["must"][0]["bool"]["should"][1]["range"][
-                        "create_time"
-                    ]["lte"] = end_time
-                    result["dsl"] = sliced_result["dsl"]
-                    is_change = False
-
-        if show_overview:
-            result["overview"]["children"] = list(result["overview"]["children"].values())
-
-        return result
-
-
-class SearchAlertResultResource(Resource):
-    def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
@@ -1211,6 +1159,7 @@ class SearchAlertResultResource(Resource):
             enabled=record_history and validated_request_data.get("query_string"),
         ):
             result = handler.search(show_overview=show_overview, show_aggs=show_aggs, show_dsl=show_dsl)
+
         return result
 
 
@@ -1738,6 +1687,10 @@ class ListAlertTagsResultResource(Resource):
     获取告警标签
     """
 
+    class RequestSerializer(AlertSearchSerializer):
+        is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
+        is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
+
     def perform_request(self, validated_request_data):
         handler = AlertQueryHandler(**validated_request_data)
         return handler.list_tags()
@@ -1754,14 +1707,17 @@ class ListAlertTagsResource(Resource):
     def perform_request(self, validated_request_data):
         start_time = validated_request_data.pop("start_time")
         end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
         results = resource.alert.list_alert_tags_result.bulk_request(
             [
                 {
                     "start_time": sliced_start_time,
                     "end_time": sliced_end_time,
+                    "is_finaly_partition": True if index == len(slice_times) - 1 else False,
+                    "is_time_partitioned": True,
                     **validated_request_data,
                 }
-                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+                for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
             ]
         )
 

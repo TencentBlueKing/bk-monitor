@@ -459,27 +459,30 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 for status in EVENT_STATUS_DICT
             }
         )
-        for time_bucket in search_result.aggs.begin_time.time.buckets:
-            begin_time_result = {}
-            self._get_buckets(begin_time_result, {}, time_bucket, group_by)
-
-            key = int(time_bucket.key_as_string) * 1000
-            for dimension_tuple, bucket in begin_time_result.items():
-                if key in result[dimension_tuple][EventStatus.ABNORMAL]:
-                    result[dimension_tuple][EventStatus.ABNORMAL][key] = bucket.doc_count
-
-        for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
-            for status_bucket in time_bucket.status.buckets:
-                end_time_result = {}
-                self._get_buckets(end_time_result, {}, status_bucket, group_by)
+        if hasattr(search_result.aggs, 'begin_time'):
+            for time_bucket in search_result.aggs.begin_time.time.buckets:
+                begin_time_result = {}
+                self._get_buckets(begin_time_result, {}, time_bucket, group_by)
 
                 key = int(time_bucket.key_as_string) * 1000
-                for dimension_tuple, bucket in end_time_result.items():
-                    if key in result[dimension_tuple][status_bucket.key]:
-                        result[dimension_tuple][status_bucket.key][key] = bucket.doc_count
+                for dimension_tuple, bucket in begin_time_result.items():
+                    if key in result[dimension_tuple][EventStatus.ABNORMAL]:
+                        result[dimension_tuple][EventStatus.ABNORMAL][key] = bucket.doc_count
+
+        if hasattr(search_result.aggs, 'end_time') and hasattr(search_result.aggs.end_time, 'end_alert'):
+            for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
+                for status_bucket in time_bucket.status.buckets:
+                    end_time_result = {}
+                    self._get_buckets(end_time_result, {}, status_bucket, group_by)
+
+                    key = int(time_bucket.key_as_string) * 1000
+                    for dimension_tuple, bucket in end_time_result.items():
+                        if key in result[dimension_tuple][status_bucket.key]:
+                            result[dimension_tuple][status_bucket.key][key] = bucket.doc_count
 
         init_alert_result = {}
-        self._get_buckets(init_alert_result, {}, search_result.aggs.init_alert, group_by)
+        if hasattr(search_result.aggs, 'init_alert'):
+            self._get_buckets(init_alert_result, {}, search_result.aggs.init_alert, group_by)
 
         # 获取全部维度
         all_dimensions = set(result.keys()) | set(init_alert_result.keys())
