@@ -444,6 +444,8 @@ export interface IViewOptions {
   bk_target_ip?: string;
   // 用于动态判断panel是否显示
   matchFields?: Record<string, any>;
+  // 策略id 用于hostIntelligenAnomalyRange接口
+  strategy_id?: number | string;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式
