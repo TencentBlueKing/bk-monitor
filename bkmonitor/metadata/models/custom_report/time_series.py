@@ -1135,7 +1135,9 @@ class TimeSeriesMetric(models.Model):
             )
         # 批量更新
         if need_update_metrics:
-            need_push_router = cls._bulk_update_metrics(_metrics_dict, need_update_metrics, group_id, is_auto_discovery)
+            need_push_router |= cls._bulk_update_metrics(
+                _metrics_dict, need_update_metrics, group_id, is_auto_discovery
+            )
 
         return need_push_router
 
