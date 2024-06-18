@@ -99,8 +99,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   traceInfoTimeRange = {};
   errorMsg = '';
 
-  /* 是否为智能场景检测视图 */
-  isMultivariateAnomalyDetection = false;
+  /* 是否为主机智能场景检测视图 */
+  isHostAnomalyDetection = false;
 
   @Watch('detail', { immediate: true })
   handleDetailChange() {
@@ -200,7 +200,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   @Watch('show')
   handleShow(v) {
     if (v) {
-      this.isMultivariateAnomalyDetection =
+      this.isHostAnomalyDetection =
         this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.HostAnomalyDetection;
       if (!this.logData.length) {
         this.getData();
@@ -526,7 +526,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
 
   // 事件及日志来源告警视图
   getSeriesViewComponent() {
-    if (this.isMultivariateAnomalyDetection) {
+    if (this.isHostAnomalyDetection) {
       return <IntelligenceScene params={this.detail}></IntelligenceScene>;
     }
     /** 智能检测算法图表 */
