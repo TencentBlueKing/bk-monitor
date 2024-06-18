@@ -26,7 +26,7 @@
 
 import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
-import { VueFlow, useVueFlow } from '@vue-flow/core';
+import { Edge, VueFlow, useVueFlow } from '@vue-flow/core';
 import { MiniMap } from '@vue-flow/minimap';
 import { Popover } from 'bkui-vue';
 
@@ -34,11 +34,12 @@ import { useLayout } from '../../hooks/vue-flow-use-layout';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
+import EdgeLabelCustom from './edge-label-custom';
 
+import './service-topo.scss';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 import '@vue-flow/minimap/dist/style.css';
-import './service-topo.scss';
 
 enum ENodeType {
   component = 'component',
@@ -51,7 +52,7 @@ export default defineComponent({
   setup() {
     // hooks
     const store = useTraceStore();
-    const { fitView, setViewport } = useVueFlow();
+    const { fitView, setViewport, onEdgeClick, findEdge } = useVueFlow();
     const { layout } = useLayout();
 
     // dom
@@ -62,10 +63,12 @@ export default defineComponent({
     const emptyText = ref<string>('加载中...');
     const empty = ref<boolean>(false);
     const serviceTopoData = computed(() => store.traceData.streamline_service_topo);
+    /** 是否显示耗时 */
+    const isShowDuration = computed(() => store.traceViewFilters.includes('duration'));
 
     // 拓扑图数据
     const nodes = ref([]);
-    const edges = ref([]);
+    const edges = ref<Edge[]>([]);
     /** 是否显示缩略图 */
     const showThumbnail = ref<boolean>(false);
     /** 是否显示图例 */
@@ -86,9 +89,25 @@ export default defineComponent({
           },
         }));
         edges.value = data.edges.map(item => ({
+          type: 'label-custom',
           id: item.key,
           source: item.source,
           target: item.target,
+          label: item.num_of_operations > 1 ? String(item.num_of_operations) : '',
+          labelStyle: {
+            fontSize: 12,
+            fill: '#fff',
+          },
+          labelBgPadding: [4, 0] as [number, number],
+          labelBgBorderRadius: 50,
+          labelBgStyle: {
+            fill: '#A2AFD2',
+          },
+          style: {
+            stroke: '#C4C6CC',
+            strokeWidth: 1,
+          },
+          markerEnd: 'custom-marker-arrowhead',
         }));
       },
       { immediate: true }
@@ -128,6 +147,21 @@ export default defineComponent({
       showLegend.value = false;
     }
     function downloadAsImage() {}
+    /** 重置所有边的样式 */
+    function resetEdgeStyle() {
+      edges.value.forEach(e => {
+        const edge = findEdge(e.id);
+        edge.animated = false;
+        edge.markerEnd = 'custom-marker-arrowhead';
+      });
+    }
+
+    /** 边点击事件 */
+    onEdgeClick(({ edge }) => {
+      resetEdgeStyle();
+      edge.animated = true;
+      edge.markerEnd = 'custom-marker-arrowhead--selected';
+    });
 
     return {
       emptyText,
@@ -140,6 +174,7 @@ export default defineComponent({
       topoGraphContent,
       zoomValue,
       graphToolsRect,
+      isShowDuration,
       layoutGraph,
       handleGraphZoom,
       handleShowLegend,
@@ -201,6 +236,52 @@ export default defineComponent({
           ref='graphContainer'
           class='graph-container'
         >
+          <svg
+            style='position: absolute;'
+            width='0'
+            height='0'
+          >
+            <defs>
+              <marker
+                id='custom-marker-arrowhead'
+                class='custom-marker-arrowhead'
+                markerHeight='12.5'
+                markerWidth='12.5'
+                orient='auto'
+                refX='0'
+                refY='0'
+                viewBox='-10 -10 20 20'
+              >
+                <polyline
+                  fill='#626973'
+                  points='-7.5,-6 0,0 -7.5,6 -7.5,-6'
+                  stroke='#626973'
+                  stroke-linecap='round'
+                  stroke-linejoin='round'
+                  stroke-width='1'
+                ></polyline>
+              </marker>
+              <marker
+                id='custom-marker-arrowhead--selected'
+                class='custom-marker-arrowhead--selected'
+                markerHeight='12.5'
+                markerWidth='12.5'
+                orient='auto'
+                refX='0'
+                refY='0'
+                viewBox='-10 -10 20 20'
+              >
+                <polyline
+                  fill='#4ba0f3'
+                  points='-7.5,-6 0,0 -7.5,6 -7.5,-6'
+                  stroke='#4ba0f3'
+                  stroke-linecap='round'
+                  stroke-linejoin='round'
+                  stroke-width='1'
+                ></polyline>
+              </marker>
+            </defs>
+          </svg>
           <VueFlow
             edges={this.edges}
             nodes={this.nodes}
@@ -237,6 +318,15 @@ export default defineComponent({
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
               ),
+              'edge-label-custom': edgeProps => {
+                console.log(edgeProps);
+                return (
+                  <EdgeLabelCustom
+                    {...edgeProps}
+                    isShowDuration={this.isShowDuration}
+                  ></EdgeLabelCustom>
+                );
+              },
               default: () => [
                 this.showThumbnail && (
                   <MiniMap
