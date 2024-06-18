@@ -586,6 +586,9 @@ importers:
       '@vue-flow/core':
         specifier: ^1.36.0
         version: 1.36.0(vue@3.4.21)
+      '@vue-flow/minimap':
+        specifier: ^1.5.0
+        version: 1.5.0(@vue-flow/core@1.36.0)(vue@3.4.21)
       apm:
         specifier: workspace:*
         version: link:../apm
@@ -4120,6 +4123,18 @@ packages:
       vue: 3.4.21(typescript@5.4.5)
     transitivePeerDependencies:
       - '@vue/composition-api'
+    dev: false
+
+  /@vue-flow/minimap@1.5.0(@vue-flow/core@1.36.0)(vue@3.4.21):
+    resolution: {integrity: sha512-JhxXDF+8uTc7sgkZHDIvFpHqSl4wsK9xp8Kz5OHwNcXlgGcwqj4yad6jcc1B6bGxm+huESpNmoPotQbpMn6rVw==}
+    peerDependencies:
+      '@vue-flow/core': ^1.23.0
+      vue: ^3.3.0
+    dependencies:
+      '@vue-flow/core': 1.36.0(vue@3.4.21)
+      d3-selection: 3.0.0
+      d3-zoom: 3.0.0
+      vue: 3.4.21(typescript@5.4.5)
     dev: false
 
   /@vue/babel-helper-vue-jsx-merge-props@1.4.0:

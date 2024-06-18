@@ -27,6 +27,7 @@
 import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import { VueFlow, useVueFlow } from '@vue-flow/core';
+import { MiniMap } from '@vue-flow/minimap';
 import { Popover } from 'bkui-vue';
 
 import { useLayout } from '../../hooks/vue-flow-use-layout';
@@ -34,9 +35,10 @@ import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
 
-import './service-topo.scss';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
+import '@vue-flow/minimap/dist/style.css';
+import './service-topo.scss';
 
 enum ENodeType {
   component = 'component',
@@ -118,7 +120,13 @@ export default defineComponent({
 
     function handleGraphZoom() {}
     function handleShowLegend() {}
-    function handleShowThumbnail() {}
+    /**
+     * @description minimap 显示隐藏
+     */
+    function handleShowThumbnail() {
+      showThumbnail.value = !showThumbnail.value;
+      showLegend.value = false;
+    }
     function downloadAsImage() {}
 
     return {
@@ -229,6 +237,16 @@ export default defineComponent({
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
               ),
+              default: () => [
+                this.showThumbnail && (
+                  <MiniMap
+                    width={225}
+                    height={148}
+                    maskColor={'#ffffff'}
+                    pannable={true}
+                  ></MiniMap>
+                ),
+              ],
             }))()}
           </VueFlow>
         </div>

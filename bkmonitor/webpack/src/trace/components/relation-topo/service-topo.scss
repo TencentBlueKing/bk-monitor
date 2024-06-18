@@ -59,6 +59,14 @@
         color: #313238;
       }
     }
+
+    .vue-flow__panel.right {
+      right: -10px;
+    }
+
+    .vue-flow__panel.bottom {
+      bottom: 30px;
+    }
   }
 
   .topo-graph-tools {
