@@ -26,11 +26,11 @@
 
 import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
-import { Edge, VueFlow, useVueFlow } from '@vue-flow/core';
+import { Edge, ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
 import { MiniMap } from '@vue-flow/minimap';
 import { Popover } from 'bkui-vue';
 
-import { useLayout } from '../../hooks/vue-flow-use-layout';
+import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
@@ -52,8 +52,9 @@ export default defineComponent({
   setup() {
     // hooks
     const store = useTraceStore();
-    const { fitView, setViewport, onEdgeClick, findEdge } = useVueFlow();
+    const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef } = useVueFlow();
     const { layout } = useLayout();
+    const { capture } = useScreenshot();
 
     // dom
     const graphContainer = ref<Element>();
@@ -70,11 +71,11 @@ export default defineComponent({
     const nodes = ref([]);
     const edges = ref<Edge[]>([]);
     /** 是否显示缩略图 */
-    const showThumbnail = ref<boolean>(false);
+    const showThumbnail = ref<boolean>(true);
     /** 是否显示图例 */
     const showLegend = ref<boolean>(false);
     // 缩放比例
-    const zoomValue = ref(100);
+    const zoomValue = ref(80);
     const graphToolsRect = ref({ width: 0, height: 0 });
 
     watch(
@@ -130,15 +131,32 @@ export default defineComponent({
           positionXSort[0] -
           32;
         setViewport({
-          zoom: 1,
+          zoom: (zoomValue.value + 20) / 100,
           x: x,
           y: 16,
         });
       });
     }
 
-    function handleGraphZoom() {}
-    function handleShowLegend() {}
+    /**
+     * @description 处理缩放
+     * @param ratio
+     */
+    function handleGraphZoom(ratio: number) {
+      zoomValue.value = ratio;
+      const params = getViewport();
+      setViewport({
+        ...params,
+        zoom: (ratio + 20) / 100,
+      });
+    }
+    /**
+     * @description 图例显示隐藏
+     */
+    function handleShowLegend() {
+      showLegend.value = !showLegend.value;
+      showThumbnail.value = false;
+    }
     /**
      * @description minimap 显示隐藏
      */
@@ -146,7 +164,23 @@ export default defineComponent({
       showThumbnail.value = !showThumbnail.value;
       showLegend.value = false;
     }
-    function downloadAsImage() {}
+    /**
+     * @description 下载图片
+     */
+    function downloadAsImage() {
+      if (!vueFlowRef.value) {
+        console.warn('VueFlow element not found');
+        return;
+      }
+      capture(vueFlowRef.value, { shouldDownload: true });
+    }
+    /**
+     *
+     * @param value
+     */
+    function handleViewportChangeEnd(value: ViewportTransform) {
+      zoomValue.value = Math.round(value.zoom * 100) - 20;
+    }
     /** 重置所有边的样式 */
     function resetEdgeStyle() {
       edges.value.forEach(e => {
@@ -180,6 +214,7 @@ export default defineComponent({
       handleShowLegend,
       handleShowThumbnail,
       downloadAsImage,
+      handleViewportChangeEnd,
     };
   },
 
@@ -284,8 +319,11 @@ export default defineComponent({
           </svg>
           <VueFlow
             edges={this.edges}
+            maxZoom={1.2}
+            minZoom={0.2}
             nodes={this.nodes}
             onNodesInitialized={() => this.layoutGraph('TB')}
+            onViewportChangeEnd={this.handleViewportChangeEnd}
           >
             {(() => ({
               [`node-${ENodeType.interface}`]: data => (

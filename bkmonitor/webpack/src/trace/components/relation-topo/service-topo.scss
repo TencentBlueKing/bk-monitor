@@ -30,6 +30,10 @@
         line-height: 18px;
         color: #313238;
       }
+
+      &:hover {
+        box-shadow: 0 1px 6px 0 #C4C6CC;
+      }
     }
 
     .node-service {
