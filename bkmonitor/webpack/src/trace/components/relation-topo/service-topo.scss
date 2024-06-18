@@ -61,6 +61,13 @@
     }
   }
 
+  .topo-graph-tools {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    z-index: 999;
+  }
+
   .empty-chart {
     position: absolute;
     display: flex;

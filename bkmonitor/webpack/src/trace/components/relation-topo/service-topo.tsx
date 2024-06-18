@@ -27,8 +27,11 @@
 import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import { VueFlow, useVueFlow } from '@vue-flow/core';
+import { Popover } from 'bkui-vue';
 
 import { useLayout } from '../../hooks/vue-flow-use-layout';
+import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
+import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
 
 import './service-topo.scss';
@@ -51,14 +54,23 @@ export default defineComponent({
 
     // dom
     const graphContainer = ref<Element>();
+    const topoGraphContent = ref<Element>();
 
     // data
     const emptyText = ref<string>('加载中...');
     const empty = ref<boolean>(false);
     const serviceTopoData = computed(() => store.traceData.streamline_service_topo);
 
+    // 拓扑图数据
     const nodes = ref([]);
     const edges = ref([]);
+    /** 是否显示缩略图 */
+    const showThumbnail = ref<boolean>(false);
+    /** 是否显示图例 */
+    const showLegend = ref<boolean>(false);
+    // 缩放比例
+    const zoomValue = ref(100);
+    const graphToolsRect = ref({ width: 0, height: 0 });
 
     watch(
       () => serviceTopoData.value,
@@ -104,13 +116,27 @@ export default defineComponent({
       });
     }
 
+    function handleGraphZoom() {}
+    function handleShowLegend() {}
+    function handleShowThumbnail() {}
+    function downloadAsImage() {}
+
     return {
       emptyText,
       empty,
       graphContainer,
       nodes,
       edges,
+      showThumbnail,
+      showLegend,
+      topoGraphContent,
+      zoomValue,
+      graphToolsRect,
       layoutGraph,
+      handleGraphZoom,
+      handleShowLegend,
+      handleShowThumbnail,
+      downloadAsImage,
     };
   },
 
@@ -118,6 +144,51 @@ export default defineComponent({
     return (
       <div class='service-topo-component'>
         {this.empty && <div class='empty-chart'>{this.emptyText}</div>}
+        <Popover
+          width={this.graphToolsRect.width}
+          height={this.graphToolsRect.height}
+          extCls='topo-thumbnail-popover'
+          allowHtml={false}
+          arrow={false}
+          boundary={'parent'}
+          content={this.topoGraphContent}
+          isShow={this.showThumbnail || this.showLegend}
+          placement='top-start'
+          renderType='auto'
+          theme='light'
+          trigger='manual'
+          zIndex={1001}
+        >
+          {{
+            default: () => (
+              <GraphTools
+                class='topo-graph-tools'
+                legendActive={this.showLegend}
+                minScale={10}
+                scaleStep={10}
+                scaleValue={this.zoomValue}
+                thumbnailActive={this.showThumbnail}
+                onScaleChange={this.handleGraphZoom}
+                onShowLegend={this.handleShowLegend}
+                onShowThumbnail={this.handleShowThumbnail}
+                onStoreImg={this.downloadAsImage}
+              />
+            ),
+            content: () => (
+              <div
+                ref='topoGraphContent'
+                class='topo-graph-content'
+              >
+                <div
+                  ref='topoThumbnailRef'
+                  style={`display: ${this.showLegend ? 'none' : 'block'}`}
+                  class='topo-thumbnail'
+                ></div>
+                {this.showLegend && <ViewLegend />}
+              </div>
+            ),
+          }}
+        </Popover>
         <div
           ref='graphContainer'
           class='graph-container'

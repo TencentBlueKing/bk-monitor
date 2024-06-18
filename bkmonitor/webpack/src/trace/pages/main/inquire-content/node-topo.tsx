@@ -58,6 +58,8 @@ export default defineComponent({
   props: NodeTopoProps,
   emits: ['showSpanDetail', 'spanListChange', 'compareSpanListChange', 'update:loading'],
   setup() {
+    const relationTopo = ref();
+
     const type = ref<EType>(EType.time);
 
     function handleTypeChange(value: EType) {
@@ -66,9 +68,23 @@ export default defineComponent({
       }
     }
 
+    function handleKeywordFliter(value: string[]) {
+      relationTopo.value?.handleKeywordFliter?.(value);
+    }
+    function clearSearch() {
+      relationTopo.value?.clearSearch?.();
+    }
+    function handleClassifyFilter(matchedSpanIds: Set<string>) {
+      relationTopo.value?.handleClassifyFilter(matchedSpanIds);
+    }
+
     return {
       type,
+      relationTopo,
       handleTypeChange,
+      handleKeywordFliter,
+      clearSearch,
+      handleClassifyFilter,
     };
   },
   render() {
@@ -86,6 +102,7 @@ export default defineComponent({
         </div>
         {this.type === EType.time && (
           <RelationTopo
+            ref='relationTopo'
             {...this.$props}
             onCompareSpanListChange={(...arg) => this.$emit('compareSpanListChange', ...arg)}
             onShowSpanDetail={(...arg) => this.$emit('showSpanDetail', ...arg)}
