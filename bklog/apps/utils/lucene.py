@@ -701,6 +701,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         pattern = re.compile(self.RE)
         split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
         for i, part in enumerate(split_strings):
+            # 确保被"包裹的符号不会被转换-->如果字符串中包含",且前一个字符串中也包含",那么该字符串原本的样式为"xx and xx"
             if ':' not in part and not ('"' in part and '"' in split_strings[i - 1]):
                 split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
         return ''.join(split_strings)
@@ -723,6 +724,7 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     例如: A > 3 => A: { 3 TO * }
     """
 
+    # 匹配不是以引号、字母（大小写）、数字或下划线开头和结尾的字符串;确保"lineno=125"这样的字符串不会被匹配或被匹配成ineno=125
     RE = r'(?<!["a-zA-Z0-9_])([a-zA-Z0-9_]+)\s*(>=|<=|>|<|=|!=)\s*([\d.]+)(?!["a-zA-Z0-9_])'
     ENHANCE_OPERATORS = [
         OperatorEnhanceEnum.LT.value,
