@@ -950,12 +950,15 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         # 节点类型、节点名称
         bk_obj_id_to_name = {}
         bk_inst_id_to_name = {}
+        topo_tree = None
+        all_nodes = None
         for row in data:
             bk_obj_id = row["dimensions"].get("bk_obj_id")
             bk_inst_id = row["dimensions"].get("bk_inst_id")
             if bk_obj_id and bk_inst_id:
-                topo_tree = api.cmdb.get_topo_tree(bk_biz_id=params["bk_biz_id"])
-                all_nodes = topo_tree.get_all_nodes_with_relation()
+                if topo_tree is None or all_nodes is None:
+                    topo_tree = api.cmdb.get_topo_tree(bk_biz_id=params["bk_biz_id"])
+                    all_nodes = topo_tree.get_all_nodes_with_relation()
                 node_key = f"{bk_obj_id}|{bk_inst_id}"
                 node = all_nodes.get(node_key)
                 if node:
