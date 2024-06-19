@@ -116,7 +116,6 @@ export default defineComponent({
      * @param direction
      */
     function layoutGraph(direction: string) {
-      console.log('xxx');
       nodes.value = layout(nodes.value, edges.value, direction);
       nextTick(() => {
         fitView();
@@ -253,7 +252,7 @@ export default defineComponent({
           arrow={false}
           boundary={'parent'}
           content={this.topoGraphContent}
-          isShow={this.showThumbnail || this.showLegend}
+          isShow={this.showLegend}
           placement='top-start'
           renderType='auto'
           theme='light'
@@ -280,11 +279,6 @@ export default defineComponent({
                 ref='topoGraphContent'
                 class='topo-graph-content'
               >
-                <div
-                  ref='topoThumbnailRef'
-                  style={`display: ${this.showLegend ? 'none' : 'block'}`}
-                  class='topo-thumbnail'
-                ></div>
                 {this.showLegend && <ViewLegend />}
               </div>
             ),
