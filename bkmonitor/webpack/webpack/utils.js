@@ -170,6 +170,7 @@ window.show_realtime_strategy = "\${SHOW_REALTIME_STRATEGY}" == "True" ? true : 
 window.apm_ebpf_enabled = \${APM_EBPF_ENABLED}
 window.enable_apm_profiling = \${ENABLE_APM_PROFILING}
 window.bk_shared_res_url = \${BK_SHARED_RES_URL}
+window.footer_version = \${FOOTER_VERSION}
 </script>`;
 const externalBuildVariatesOld = `
 <script>
