@@ -59,7 +59,7 @@
               </div>
             </bk-form-item>
           </div>
-          <div :class="['row-container', 'second', showType === 'horizontal' && 'pl150']">
+          <div :class="['row-container', 'second', showType === 'horizontal' && 'ml115']">
             <i18n
               path="最多匹配{0}行，最大耗时{1}秒"
               class="i18n-style"
@@ -120,12 +120,12 @@
                   <i
                     class="bk-icon icon-plus-circle-shape icons"
                     data-test-id="sourceLogBox_i_newAddLogPath"
-                    @click="addLog"
+                    @click="addLog('paths')"
                   ></i>
                   <i
                     :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }]"
                     data-test-id="sourceLogBox_i_deleteAddLogPath"
-                    @click="delLog(index)"
+                    @click="delLog(index, 'paths')"
                   ></i>
                 </div>
               </div>
@@ -138,6 +138,60 @@
                 </i18n>
               </div>
             </bk-form-item>
+          </div>
+          <!-- 路径黑名单 -->
+          <div
+            v-en-class="'en-span'"
+            :class="['filter-content black-content', showType !== 'horizontal' && 'black-hori-title']"
+          >
+            <div class="black-list-title">
+              <div
+                class="list-title-btn"
+                @click="isShowBlackList = !isShowBlackList"
+              >
+                <i :class="['bk-icon icon-play-shape', isShowBlackList && 'icon-rotate']"></i>
+                <span>{{ $t('路径黑名单') }}</span>
+              </div>
+              <div class="black-title-tips">
+                <i class="bk-icon icon-info-circle"></i>
+                <span>{{ $t('设定排除路径，路径之间为或的关系') }}</span>
+              </div>
+            </div>
+            <template v-if="isShowBlackList">
+              <div
+                v-for="(log, index) in blackLogListPaths"
+                :key="index"
+                :class="['form-div log-paths', !!index && 'mt']"
+              >
+                <bk-form-item
+                  required
+                  label=""
+                  :property="'params.exclude_files.' + index + '.value'"
+                >
+                  <div class="log-path flex-ac">
+                    <bk-input
+                      v-model="log.value"
+                      data-test-id="sourceLogBox_input_addLogPath"
+                    ></bk-input>
+                    <div class="ml9">
+                      <i
+                        class="bk-icon icon-plus-circle-shape icons"
+                        data-test-id="sourceLogBox_i_newAddLogPath"
+                        @click="addLog('exclude_files')"
+                      ></i>
+                      <i
+                        :class="[
+                          'bk-icon icon-minus-circle-shape icons ml9',
+                          { disable: blackLogListPaths.length === 1 }
+                        ]"
+                        data-test-id="sourceLogBox_i_deleteAddLogPath"
+                        @click="delLog(index, 'exclude_files')"
+                      ></i>
+                    </div>
+                  </div>
+                </bk-form-item>
+              </div>
+            </template>
           </div>
           <!-- 日志字符集 -->
           <bk-form-item
@@ -162,151 +216,18 @@
             </bk-select>
           </bk-form-item>
         </template>
-      </div>
-      <!-- 过滤内容 -->
-      <div
-        v-en-class="'en-span'"
-        :class="['filter-content', showType === 'horizontal' && 'horizontal-item']"
-      >
-        <span v-bk-tooltips="$t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')">
-          <span class="filter-title">{{ $t('过滤内容') }}</span>
-        </span>
-        <bk-radio-group
-          v-model="subFormData.params.conditions.type"
-          @change="chooseType"
+        <!-- 日志过滤 -->
+        <bk-form-item
+          class="mt"
+          required
+          :label="$t('日志过滤')"
         >
-          <bk-radio
-            value="none"
-            style="margin-right: 12px"
-            >{{ $t('不过滤') }}</bk-radio
-          >
-          <bk-radio
-            value="match"
-            style="margin-right: 12px"
-            >{{ $t('字符串过滤') }}</bk-radio
-          >
-          <bk-radio value="separator">{{ $t('分隔符过滤') }}</bk-radio>
-        </bk-radio-group>
-        <template v-if="isClickTypeRadio">
-          <div class="flex-ac filter-select">
-            <bk-select
-              v-if="isString"
-              v-model="subFormData.params.conditions.match_type"
-              :clearable="false"
-              :popover-min-width="240"
-            >
-              <bk-option
-                id="include"
-                :name="$t('include(保留匹配字符串)')"
-              ></bk-option>
-              <bk-option
-                id="exclude"
-                :name="$t('exclude(过滤匹配字符串)')"
-                disabled
-              >
-                <span v-bk-tooltips.right="$t('正在开发中')">{{ $t('exclude(过滤匹配字符串)') }}</span>
-              </bk-option>
-            </bk-select>
-            <bk-input
-              v-show="isString"
-              v-model="subFormData.params.conditions.match_content"
-              style="width: 600px; margin-left: 8px"
-            ></bk-input>
-            <bk-select
-              v-if="!isString"
-              v-model="subFormData.params.conditions.separator"
-              style="width: 320px; height: 32px"
-            >
-              <bk-option
-                v-for="(option, index) in globalsData.data_delimiter"
-                :id="option.id"
-                :key="index"
-                :name="option.name"
-              >
-              </bk-option>
-            </bk-select>
-          </div>
-          <div
-            v-show="!isString"
-            class="tips"
-          >
-            {{ $t('复杂的过滤条件（超过5个）会影响机器性能') }}
-          </div>
-          <div
-            v-if="!isString"
-            class="form-div"
-          >
-            <div
-              class="choose-table"
-              style="width: 800px"
-            >
-              <div class="choose-table-item choose-table-item-head">
-                <div class="left">{{ $t('第几列') }}</div>
-                <div class="main">{{ $t('等于') }}</div>
-                <div class="right">{{ $t('增/删') }}</div>
-              </div>
-              <div class="choose-table-item-body">
-                <div
-                  v-for="(item, index) in separatorFilters"
-                  :key="index"
-                  class="choose-table-item"
-                >
-                  <div class="left">
-                    <bk-form-item
-                      label=""
-                      :rules="rules.separator_filters"
-                      :property="'params.conditions.separator_filters.' + index + '.fieldindex'"
-                    >
-                      <bk-input
-                        v-model="item.fieldindex"
-                        style="width: 100px"
-                      ></bk-input>
-                    </bk-form-item>
-                  </div>
-                  <div :class="['main', { line: separatorFilters.length > 1 }]">
-                    <bk-form-item
-                      label=""
-                      :rules="rules.separator_filters"
-                      :property="'params.conditions.separator_filters.' + index + '.word'"
-                    >
-                      <bk-input v-model="item.word"></bk-input>
-                    </bk-form-item>
-                  </div>
-                  <div class="right">
-                    <i
-                      class="bk-icon icon-plus-circle-shape icons"
-                      @click="addItem"
-                    ></i>
-                    <i
-                      :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: separatorFilters.length === 1 }]"
-                      @click="delItem(index)"
-                    >
-                    </i>
-                  </div>
-                </div>
-                <div
-                  v-if="separatorFilters && separatorFilters.length > 1"
-                  class="choose-select"
-                >
-                  <bk-select
-                    v-model="type"
-                    class="select-div"
-                    @selected="changeType"
-                  >
-                    <bk-option
-                      id="and"
-                      :name="$t('并')"
-                    ></bk-option>
-                    <bk-option
-                      id="or"
-                      :name="$t('或')"
-                    ></bk-option>
-                  </bk-select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
+          <log-filter
+            ref="logFilterRef"
+            :conditions="subFormData.params.conditions"
+            :conditions-change.sync="subFormData.params.conditions"
+          />
+        </bk-form-item>
       </div>
     </bk-form>
   </div>
@@ -416,11 +337,13 @@
 </template>
 <script>
 import MultilineRegDialog from './multiline-reg-dialog';
+import LogFilter from '../log-filter';
 import { mapGetters } from 'vuex';
 import { deepClone } from '../../../monitor-echarts/utils';
 export default {
   components: {
-    MultilineRegDialog
+    MultilineRegDialog,
+    LogFilter
   },
   props: {
     showType: {
@@ -460,19 +383,6 @@ export default {
           {
             required: true,
             trigger: 'change'
-          }
-        ],
-        separator_filters: [
-          // 分隔符过滤条件
-          {
-            validator: value => {
-              const isFillOneSide = this.separatorFilters.some(item => {
-                return (item.fieldindex && !item.word) || (!item.fieldindex && item.word);
-              });
-              if (isFillOneSide) return Boolean(value);
-              return true;
-            },
-            trigger: 'blur'
           }
         ],
         notEmptyForm: [
@@ -519,6 +429,10 @@ export default {
           multiline_timeout: '2', // 最大耗时, int
           paths: [
             // 日志路径
+            { value: '' }
+          ],
+          exclude_files: [
+            // 日志黑名单路径
             { value: '' }
           ],
           conditions: {
@@ -582,41 +496,21 @@ export default {
         }
       ],
       eventSettingList: [{ type: 'winlog_event_id', list: [], isCorrect: true }],
-      isFirst: true
+      isShowBlackList: false
     };
   },
   computed: {
     ...mapGetters('globals', ['globalsData']),
-    // 分隔符字段过滤条件
-    separatorFilters() {
-      const { params } = this.subFormData;
-      return (
-        params.conditions?.separator_filters || [
-          {
-            fieldindex: '',
-            word: '',
-            op: '=',
-            logic_op: this.type
-          }
-        ]
-      );
-    },
     // 是否打开行首正则功能
     hasMultilineReg() {
       return this.scenarioId === 'section';
     },
     // 日志路径
     logPaths() {
-      const { params } = this.subFormData;
-      return params.paths || [];
+      return this.subFormData.params.paths || [];
     },
-    // 是否为字符串过滤
-    isString() {
-      return this.subFormData.params.conditions.type === 'match';
-    },
-    // 是否点击过过滤内容单选框
-    isClickTypeRadio() {
-      return this.subFormData.params.conditions.type !== 'none';
+    blackLogListPaths() {
+      return this.subFormData.params?.exclude_files || [];
     },
     labelWidth() {
       return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
@@ -653,25 +547,17 @@ export default {
       }
     },
     configLength() {
-      Object.assign(this.subFormData, this.configData);
+      this.assignSubData(this.configData);
     }
   },
   created() {
-    Object.assign(this.subFormData, this.configData);
+    this.assignSubData(this.configData);
     if (this.isCloneOrUpdate) {
       const { params } = this.subFormData;
-      // 分隔符过滤条件 and/or 初始值
-      if (params.conditions?.type === 'separator') {
-        this.type = params.conditions.separator_filters[0].logic_op;
-      }
       if (this.scenarioId !== 'wineventlog') {
-        if (params.paths.length > 0) {
-          params.paths =
-            typeof params.paths[0] === 'string' ? params.paths.map(item => ({ value: item })) : params.paths;
-        } else {
-          // 兼容原日志路径为空列表
-          params.paths = [{ value: '' }];
-        }
+        this.initPathList(params, 'paths');
+        this.initPathList(params, 'exclude_files');
+        this.isShowBlackList = params.exclude_files.some(item => !!item.value);
       } else {
         const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
         if (otherList.length > 0) {
@@ -704,49 +590,21 @@ export default {
     }
   },
   methods: {
-    // 修改分隔符过滤的并&或
-    changeType(value) {
-      this.type = value;
-      this.subFormData.params.conditions.separator_filters.map(item => {
-        item.logic_op = value;
-      });
-    },
-    addLog() {
-      this.subFormData.params.paths.push({ value: '' });
-    },
-    delLog(index) {
-      if (this.subFormData.params.paths.length > 1) {
-        this.subFormData.params.paths.splice(
-          this.subFormData.params.paths.findIndex((item, ind) => ind === index),
-          1
-        );
+    initPathList(params, type = 'paths') {
+      if (params[type]?.length > 0) {
+        params[type] = typeof params[type][0] === 'string' ? params[type].map(item => ({ value: item })) : params[type];
+      } else {
+        // 兼容原日志路径为空列表
+        params[type] = [{ value: '' }];
       }
     },
-    chooseType(value) {
-      this.subFormData.params.conditions.type = value;
-      const conditions = this.subFormData.params.conditions || {};
-      if (!this.isString && !conditions?.separator_filters?.length) {
-        Object.assign(conditions, {
-          separator_filters: [
-            // 分隔符过滤条件
-            { fieldindex: '', word: '', op: '=', logic_op: this.type }
-          ]
-        });
-      }
+    addLog(type = 'paths') {
+      this.subFormData.params[type].push({ value: '' });
     },
-    addItem() {
-      this.subFormData.params.conditions.separator_filters.push({
-        fieldindex: '',
-        word: '',
-        op: '=',
-        logic_op: this.type
-      });
-    },
-    delItem(index) {
-      const { separator_filters: separatorFilters } = this.subFormData.params.conditions;
-      if (separatorFilters.length > 1) {
-        separatorFilters.splice(
-          separatorFilters.findIndex((item, ind) => index === ind),
+    delLog(index, type = 'paths') {
+      if (this.subFormData.params[type].length > 1) {
+        this.subFormData.params[type].splice(
+          this.subFormData.params[type].findIndex((item, ind) => ind === index),
           1
         );
       }
@@ -810,43 +668,93 @@ export default {
       const oldEventList = this.eventSettingList[index].list;
       const matchList = v.split(/\n/g); // 根据换行符进行切割
       this.eventSettingList[index].list = oldEventList.concat(matchList);
+    },
+    assignSubData(assignObj = {}) {
+      Object.assign(this.subFormData, assignObj);
+    },
+    async logFilterValidate() {
+      try {
+        await this.$refs.validateForm?.validate();
+        await this.$refs.logFilterRef?.inputValidate();
+        return true;
+      } catch (error) {
+        return false;
+      }
     }
   }
 };
 </script>
 <style lang="scss" scoped>
-/* stylelint-disable no-descending-specificity */
-.horizontal-item {
+@import '@/scss/mixins/flex.scss';
+
+.filter-content {
   position: relative;
   left: 115px;
   max-width: 80%;
   padding: 20px 0;
 
-  > span {
-    position: absolute;
-    top: 23px;
-    left: -80px;
-    font-size: 14px;
-    color: #90929a;
+  &.en-span {
+    left: 180px;
+
+    > span {
+      left: -110px;
+    }
   }
 
-  .filter-select {
-    margin-top: 11px;
+  .black-list-title {
+    margin-bottom: 6px;
+    font-size: 12px;
+
+    @include flex-align;
+
+    .list-title-btn {
+      color: #3a84ff;
+      cursor: pointer;
+
+      @include flex-align;
+
+      i {
+        display: inline-block;
+        margin-right: 6px;
+      }
+
+      .icon-info-circle {
+        display: inline-block;
+      }
+
+      .icon-rotate {
+        transform: rotateZ(90deg);
+      }
+    }
+
+    .black-title-tips {
+      margin-left: 14px;
+      color: #63656e;
+
+      .icon-info-circle {
+        font-size: 16px;
+        color: #979ba5;
+      }
+    }
   }
 
-  .bk-select {
-    width: 184px;
-    height: 32px;
-  }
-
-  .filter-title {
-    margin-left: 10px;
-  }
-}
-
-.filter-content {
   .bk-form-radio {
     font-size: 12px;
+  }
+
+  :deep(.bk-form-content) {
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-left: 0 !important;
+  }
+
+  &.black-content {
+    padding: 10px 0 0 0;
+  }
+
+  &.black-hori-title {
+    left: 0;
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
   }
 }
 
@@ -864,23 +772,8 @@ export default {
   left: 80px;
 }
 
-.en-span {
-  left: 180px;
-
-  > span {
-    left: -110px;
-  }
-}
-
 .i18n-style {
   display: flex;
   align-items: center;
-}
-
-.filter-title {
-  display: inline-block;
-  margin-bottom: 8px;
-  font-size: 12px;
-  border-bottom: 1px dashed #000;
 }
 </style>

@@ -475,8 +475,6 @@ export default {
     'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
   '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
-    "To reduce transmission and storage costs, some content can be filtered out, more complex filtering can be done in the 'parsing' function",
   '非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。':
     'Non-required fields, after filling in, will replace the field name; when the field name conflicts with the built-in field, it must be renamed.',
   '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
@@ -750,5 +748,16 @@ export default {
   '最大自定义分片数为: {n}': 'The maximum number of custom shards is: {n}',
   '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
   '是否保存本次操作？': 'Do you want to save this operation?',
-  '容量审核中，请等待': 'Capacity review is in progress, please wait.'
+  '容量审核中，请等待': 'Capacity review is in progress, please wait.',
+  '第{n}组': 'Group {n}',
+  不等于: 'Not equal to',
+  正则不匹配: 'Regular expression mismatch',
+  路径黑名单: 'Path blacklist',
+  '设定排除路径，路径之间为或的关系': 'Set exclusion paths, the relationship between paths is OR',
+  '过滤器支持采集时过滤不符合的日志内容，需采集器版本 XXXXXXXX':
+    'The filter supports filtering non-conforming log content during collection, requires collector version XXXXXXXX',
+  操作符: 'Operator',
+  新增过滤组: 'Add filter group',
+  请输入行数: 'Please enter the number of lines',
+  请输入日志样例: 'Please enter a log sample'
 };
