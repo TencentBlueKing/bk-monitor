@@ -843,10 +843,8 @@ export default {
           multiline_pattern: '', // 行首正则, char
           multiline_max_lines: '50', // 最多匹配行数, int
           multiline_timeout: '2', // 最大耗时, int
-          paths: [
-            // 日志路径
-            { value: '' }
-          ],
+          paths: [{ value: '' }], // 日志路径
+          exclude_files: [{ value: '' }], // 日志路径黑名单
           conditions: {
             type: 'none', // 过滤方式类型 match separator
             match_type: 'include', // 过滤方式 可选字段 include, exclude
@@ -912,6 +910,7 @@ export default {
             data_encoding: 'UTF-8',
             params: {
               paths: [{ value: '' }], // 日志路径
+              exclude_files: [{ value: '' }], // 日志路径黑名单
               conditions: {
                 type: 'none', // 过滤方式类型 none match separator
                 match_type: 'include', // 过滤方式 可选字段 include, exclude
@@ -1328,6 +1327,9 @@ export default {
           const { container_name: yamlContainerName, container_name_exclude: yamlContainerNameExclude } = yamlContainer;
           containerNameList = this.getContainerNameList(yamlContainerName || yamlContainerNameExclude);
           params.paths = params.paths.length ? params.paths.map(item => ({ value: item })) : [{ value: '' }];
+          params.exclude_files = params.exclude_files.length
+            ? params.exclude_files.map(item => ({ value: item }))
+            : [{ value: '' }];
         } else {
           labelSelector = [
             ...matchLabels.map(item => ({ ...item, id: random(10), type: 'match_labels' })),
@@ -1445,13 +1447,7 @@ export default {
       if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
       // 物理环境验证
       if (this.isPhysicsEnvironment) {
-        let formValidate = true;
-        try {
-          await this.$refs.formConfigRef.$refs.validateForm.validate();
-        } catch (error) {
-          formValidate = false;
-        }
-        return formValidate;
+        return await this.$refs.formConfigRef.logFilterValidate();
       }
       // 容器环境并且打开yaml模式时进行yaml语法检测
       if (this.isYaml && !this.isPhysicsEnvironment) {
@@ -1478,13 +1474,7 @@ export default {
         if (isCheckConfigItem || isHaveSeparator) {
           // 判断config列表里是否有需要校验的dom元素。
           for (const key in configList) {
-            const index = Number(key);
-            try {
-              // 这里如果表单没有校验的dom元素会一直是pending状态 没有返回值 则会卡在这里 所以需要判断是否有dom元素
-              await configList[index].$refs.validateForm?.validate();
-            } catch (error) {
-              containerConfigValidate = false;
-            }
+            if (containerConfigValidate) containerConfigValidate = await configList[Number(key)].logFilterValidate();
           }
         }
         // 附加日志标签是否只单独填写了一边
@@ -1674,7 +1664,10 @@ export default {
           delete item.labelSelector;
           delete item.containerNameList;
           // 若为标准输出 则直接清空日志路径
-          if (item.collector_type === 'std_log_config') item.params.paths = [];
+          if (item.collector_type === 'std_log_config') {
+            item.params.paths = [];
+            item.params.exclude_files = [];
+          }
           item.params = this.filterParams(item.params, isEdit);
         });
         containerFromData.extra_labels = extraLabels.filter(item => !(item.key === '' && item.value === ''));
@@ -1708,9 +1701,8 @@ export default {
     /**
      * @desc: 对表单的params传参参数进行处理
      * @param { Object } passParams
-     * @param { Boolean } isEdit 是否是编辑的参数
      */
-    filterParams(passParams, isEdit = false) {
+    filterParams(passParams) {
       let params = deepClone(passParams);
       if (!this.isWinEventLog) {
         if (!this.hasMultilineReg) {
@@ -1719,44 +1711,8 @@ export default {
           delete params.multiline_max_lines;
           delete params.multiline_timeout;
         }
-        const {
-          match_type,
-          match_content: matchContent,
-          separator,
-          separator_filters: separatorFilters,
-          type
-        } = params.conditions;
-        const separatorEffectiveArr = separatorFilters?.filter(item => item.fieldindex && item.word);
-        let isHaveValue = false; // 判断当前过滤项是否有值
-        switch (type) {
-          case 'match':
-            isHaveValue = !!matchContent;
-            break;
-          case 'separator':
-            isHaveValue = !!separatorEffectiveArr?.length;
-            break;
-          default:
-            break;
-        }
-        const isTest = isEdit || isHaveValue; // 是否需要检测是否有值 如果是获取编辑参数则不判断是否有值
-        params.conditions = { type: 'none' }; // 先设置为none
-        if (type === 'match' && isTest) {
-          // 字符串过滤且填写过滤内容
-          params.conditions = {
-            type,
-            match_type,
-            match_content: matchContent
-          };
-        }
-        if (type === 'separator' && isTest) {
-          // 分隔符过滤且填写过滤内容
-          params.conditions = {
-            type,
-            separator,
-            separator_filters: separatorEffectiveArr
-          };
-        }
-        params.paths = params.paths.map(item => (typeof item === 'object' ? item.value : item));
+        params.paths = params.paths.map(item => (typeof item === 'object' ? item.value : item)) || [];
+        params.exclude_files = params.exclude_files?.map(item => (typeof item === 'object' ? item.value : item)) || [];
       } else {
         params = this.$refs.formConfigRef.getWinParamsData;
       }
@@ -2397,7 +2353,7 @@ export default {
 
   .tips,
   .en-name-tips {
-    padding: 4px 0;
+    padding-top: 4px;
     font-size: 12px;
     color: #aeb0b7;
   }
@@ -2480,10 +2436,6 @@ export default {
       .king-button {
         margin-bottom: 4px;
       }
-
-      &.pl150 {
-        padding-left: 150px;
-      }
     }
   }
 
@@ -2549,115 +2501,6 @@ export default {
 
     .tag-input {
       width: 320px;
-    }
-  }
-
-  .choose-table {
-    width: 100%;
-    height: 100%;
-    max-width: 1170px;
-    padding-bottom: 14px;
-    background: #fff;
-    border: 1px solid #dcdee5;
-
-    .bk-form-content {
-      /* stylelint-disable-next-line declaration-no-important */
-      margin-left: 0 !important;
-    }
-
-    label {
-      /* stylelint-disable-next-line declaration-no-important */
-      width: 0 !important;
-    }
-
-    .choose-table-item {
-      position: relative;
-      display: flex;
-      height: 32px;
-      padding: 0 20px;
-      margin-top: 13px;
-      font-size: 13px;
-      line-height: 32px;
-      color: #858790;
-
-      .left {
-        width: 110px;
-      }
-
-      .main {
-        position: relative;
-        padding-right: 130px;
-        flex: 1;
-
-        .bk-form-control {
-          width: 88%;
-        }
-      }
-
-      .line {
-        .bk-form-control {
-          &::before {
-            position: absolute;
-            top: 16px;
-            left: 100%;
-            width: 25px;
-            height: 1px;
-            border-top: 1px dashed #c4c6cc;
-            content: '';
-          }
-        }
-      }
-
-      .right {
-        width: 60px;
-      }
-    }
-
-    .choose-table-item-head {
-      height: 42px;
-      margin-top: 0;
-      font-size: 12px;
-      line-height: 42px;
-      background: #fafbfd;
-      border-bottom: 1px solid #dcdee5;
-    }
-
-    .choose-table-item-body {
-      position: relative;
-      height: 100%;
-
-      .choose-select {
-        position: absolute;
-        top: 0;
-        left: calc(88% - 120px);
-        display: flex;
-        height: 100%;
-        align-items: center;
-
-        .select-div {
-          width: 80px;
-        }
-
-        &::before {
-          position: absolute;
-          top: 50%;
-          right: 80px;
-          width: 20px;
-          height: 1px;
-          border-top: 1px dashed #c4c6cc;
-          content: '';
-        }
-
-        &::after {
-          position: absolute;
-          top: 17px;
-          right: 100px;
-          width: 1px;
-          height: calc(100% - 32px);
-          border-left: 1px dashed #c4c6cc;
-          content: '';
-        }
-      }
     }
   }
 
@@ -2753,8 +2596,8 @@ export default {
     > span {
       position: absolute;
       top: 6px;
-      left: -80px;
-      font-size: 14px;
+      left: -76px;
+      font-size: 12px;
       color: #90929a;
     }
 
