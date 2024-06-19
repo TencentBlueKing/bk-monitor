@@ -64,6 +64,8 @@ export default defineComponent({
     const emptyText = ref<string>('加载中...');
     const empty = ref<boolean>(false);
     const serviceTopoData = computed(() => store.traceData.streamline_service_topo);
+    // 当前选中节点
+    const selectedNodeKey = ref('');
     /** 是否显示耗时 */
     const isShowDuration = computed(() => store.traceViewFilters.includes('duration'));
 
@@ -175,12 +177,21 @@ export default defineComponent({
       capture(vueFlowRef.value, { shouldDownload: true });
     }
     /**
-     *
+     *  @description 视窗变化结束
      * @param value
      */
     function handleViewportChangeEnd(value: ViewportTransform) {
       zoomValue.value = Math.round(value.zoom * 100) - 20;
     }
+
+    /**
+     * @description 节点点击事件
+     * @param node
+     */
+    function handleNodeClick(node) {
+      selectedNodeKey.value = node.data.key;
+    }
+
     /** 重置所有边的样式 */
     function resetEdgeStyle() {
       edges.value.forEach(e => {
@@ -209,12 +220,14 @@ export default defineComponent({
       zoomValue,
       graphToolsRect,
       isShowDuration,
+      selectedNodeKey,
       layoutGraph,
       handleGraphZoom,
       handleShowLegend,
       handleShowThumbnail,
       downloadAsImage,
       handleViewportChangeEnd,
+      handleNodeClick,
     };
   },
 
@@ -331,27 +344,46 @@ export default defineComponent({
                   style={{
                     borderLeftColor: data.data.color,
                   }}
-                  class='node-interface'
+                  class={['node-interface', { selected: data.data.key === this.selectedNodeKey }]}
+                  onClick={() => this.handleNodeClick(data)}
                 >
-                  <img
+                  <div
+                    style={{
+                      'background-image': `url(${data.data.icon})`,
+                    }}
                     class='node-interface-icon'
-                    src={data.data.icon}
-                  />
+                  ></div>
                   <div class='node-interface-name'>{data.data.display_name}</div>
                 </div>
               ),
               [`node-${ENodeType.service}`]: data => (
-                <div class='node-service'>
+                <div
+                  class={['node-service', { selected: data.data.key === this.selectedNodeKey }]}
+                  onClick={() => this.handleNodeClick(data)}
+                >
                   <div class='node-service-top'>
-                    <img src={data.data.icon}></img>
+                    <div
+                      style={{
+                        'background-image': `url(${data.data.icon})`,
+                      }}
+                      class='node-service-icon'
+                    ></div>
                   </div>
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
               ),
               [`node-${ENodeType.component}`]: data => (
-                <div class='node-service'>
+                <div
+                  class={['node-service', { selected: data.data.key === this.selectedNodeKey }]}
+                  onClick={() => this.handleNodeClick(data)}
+                >
                   <div class='node-service-top'>
-                    <img src={data.data.icon}></img>
+                    <div
+                      style={{
+                        'background-image': `url(${data.data.icon})`,
+                      }}
+                      class='node-service-icon'
+                    ></div>
                   </div>
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>

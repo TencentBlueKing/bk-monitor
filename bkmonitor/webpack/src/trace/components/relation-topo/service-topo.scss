@@ -22,7 +22,9 @@
 
       .node-interface-icon {
         width: 24px;
+        height: 24px;
         margin-right: 8px;
+        background-size: cover;
       }
 
       .node-interface-name {
@@ -32,7 +34,16 @@
       }
 
       &:hover {
+        cursor: pointer;
         box-shadow: 0 1px 6px 0 #C4C6CC;
+      }
+
+      &.selected {
+        background: #E1ECFF;
+
+        .node-interface-icon {
+          filter: invert(37%) sepia(83%) saturate(1043%) hue-rotate(196deg) brightness(105%) contrast(101%);
+        }
       }
     }
 
@@ -40,6 +51,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      cursor: pointer;
 
       .node-service-top {
         display: flex;
@@ -50,9 +62,10 @@
         border: 2px solid #dcdee5;
         border-radius: 50%;
 
-        & > img {
+        .node-service-icon {
           width: 18px;
           height: 18px;
+          background-size: cover;
         }
       }
 
@@ -61,6 +74,28 @@
         font-size: 12px;
         line-height: 12px;
         color: #313238;
+      }
+
+      &:hover {
+        cursor: pointer;
+
+        .node-service-top {
+          box-shadow: 0 1px 6px 0 #C4C6CC;
+        }
+      }
+
+      &.selected {
+        .node-service-top {
+          border-color: #3A84FF;
+
+          .node-service-icon {
+            filter: invert(37%) sepia(83%) saturate(1043%) hue-rotate(196deg) brightness(105%) contrast(101%);
+          }
+        }
+
+        .node-service-bottom {
+          color: #3A84FF;
+        }
       }
     }
 
