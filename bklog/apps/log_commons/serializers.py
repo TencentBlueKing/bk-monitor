@@ -67,8 +67,3 @@ class FrontendEventSerializer(serializers.Serializer):
     event_content = serializers.CharField(label="事件内容", allow_blank=True, default="")
     target = serializers.CharField(label="事件目标", required=True)
     timestamp = serializers.IntegerField(label="事件时间戳(ms)", required=False)
-
-
-class ESRouterListSerializer(serializers.Serializer):
-    space_uid = serializers.CharField(required=False, label="空间ID", default="")
-    scenario_id = serializers.CharField(required=False, label="数据源类型")

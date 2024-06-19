@@ -42,6 +42,7 @@ from apps.log_search.serializers import (
     CreateIndexSetTagSerializer,
     CreateOrUpdateDesensitizeConfigSerializer,
     DesensitizeConfigStateSerializer,
+    ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
 )
@@ -276,6 +277,29 @@ class IndexSetViewSet(ModelViewSet):
             raise ValueError(_("分页参数不能为空"))
         response = super().list(request, *args, **kwargs)
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
+        return response
+
+    @staticmethod
+    def get_rt_id(index_set):
+        return index_set["index_set_id"]
+
+    @list_route(methods=["GET"], url_path="list_es_router")
+    def list_es_router(self, request):
+        params = self.params_valid(ESRouterListSerializer)
+        router_list = []
+        response = self.list(request, **params)
+        for index_set in response.data["list"]:
+            router_list.append(
+                {
+                    "cluster_id": index_set["storage_cluster_id"],
+                    "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
+                    "source_type": index_set["scenario_id"],
+                    "data_label": index_set["scenario_id"] + "_index_set_" + index_set["index_set_id"],
+                    "table_id": self.get_rt_id(index_set),
+                    "space_uid": index_set["space_uid"],
+                }
+            )
+        response.data["list"] = router_list
         return response
 
     def retrieve(self, request, *args, **kwargs):

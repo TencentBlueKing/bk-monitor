@@ -43,7 +43,6 @@ from apps.log_commons.serializers import (
     CreateORUpdateExternalPermissionSLZ,
     CreateORUpdateMaintainersSLZ,
     DestroyExternalPermissionSLZ,
-    ESRouterListSerializer,
     FrontendEventSerializer,
     GetApplyRecordSLZ,
     GetAuthorizerSLZ,
@@ -51,8 +50,6 @@ from apps.log_commons.serializers import (
     ListExternalPermissionSLZ,
     ListMaintainersSLZ,
 )
-from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet
 from apps.utils.drf import list_route
 
 # 用户白皮书在文档中心的根路径
@@ -340,27 +337,3 @@ class FrontendEventViewSet(APIViewSet):
         }
         r = requests.post(url, json=report_data, timeout=3)
         return Response(r.json())
-
-
-class ESRouterViewSet(APIViewSet):
-    def get_rt_id(self, index_set):
-        return index_set["index_set_id"]
-
-    @action(detail=False, methods=["GET"], url_path="es_router_list")
-    def es_router_list(self, request):
-        params = self.params_valid(ESRouterListSerializer)
-        router_list = []
-        index_sets = list(LogIndexSet.objects.filter(**params).values())
-        index_sets = IndexSetHandler.post_list(index_sets)
-        for index_set in index_sets:
-            router_list.append(
-                {
-                    "cluster_id": index_set["storage_cluster_id"],
-                    "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
-                    "source_type": index_set["scenario_id"],
-                    "data_label": index_set["scenario_id"] + "_index_set_" + index_set["index_set_id"],
-                    "table_id": self.get_rt_id(index_set),
-                    "space_uid": index_set["space_uid"],
-                }
-            )
-        return Response(router_list)
