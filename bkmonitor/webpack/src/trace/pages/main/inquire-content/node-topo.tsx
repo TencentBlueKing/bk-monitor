@@ -77,6 +77,9 @@ export default defineComponent({
     function handleClassifyFilter(matchedSpanIds: Set<string>) {
       relationTopo.value?.handleClassifyFilter(matchedSpanIds);
     }
+    function viewCompare(traceID) {
+      relationTopo.value?.viewCompare(traceID);
+    }
 
     return {
       type,
@@ -85,6 +88,7 @@ export default defineComponent({
       handleKeywordFliter,
       clearSearch,
       handleClassifyFilter,
+      viewCompare,
     };
   },
   render() {

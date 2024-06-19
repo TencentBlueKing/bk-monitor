@@ -116,6 +116,7 @@ export default defineComponent({
      * @param direction
      */
     function layoutGraph(direction: string) {
+      console.log('xxx');
       nodes.value = layout(nodes.value, edges.value, direction);
       nextTick(() => {
         fitView();
@@ -131,6 +132,12 @@ export default defineComponent({
           zoom: (zoomValue.value + 20) / 100,
           x: x,
           y: 16,
+        });
+        /** 边点击事件 */
+        onEdgeClick(({ edge }) => {
+          resetEdgeStyle();
+          edge.animated = true;
+          edge.markerEnd = 'custom-marker-arrowhead--selected';
         });
       });
     }
@@ -185,6 +192,21 @@ export default defineComponent({
      */
     function handleNodeClick(node) {
       selectedNodeKey.value = node.data.key;
+      setEdgeSelected([node.data.key]);
+    }
+
+    function setEdgeSelected(targetKeys: string[]) {
+      resetEdgeStyle();
+      const sets = new Set(targetKeys);
+      edges.value.forEach(e => {
+        const edge = findEdge(e.id);
+        const has = sets.has(e.target);
+        edge.selected = has;
+        edge.animated = has;
+        if (has) {
+          edge.markerEnd = 'custom-marker-arrowhead--selected';
+        }
+      });
     }
 
     /** 重置所有边的样式 */
@@ -195,13 +217,6 @@ export default defineComponent({
         edge.markerEnd = 'custom-marker-arrowhead';
       });
     }
-
-    /** 边点击事件 */
-    onEdgeClick(({ edge }) => {
-      resetEdgeStyle();
-      edge.animated = true;
-      edge.markerEnd = 'custom-marker-arrowhead--selected';
-    });
 
     return {
       emptyText,
