@@ -281,7 +281,11 @@ class IndexSetViewSet(ModelViewSet):
 
     @staticmethod
     def get_rt_id(index_set):
-        return index_set["index_set_id"]
+        if index_set["scenario_id"] == Scenario.ES:
+            rt_id = "bklog_index_set_" + str(index_set["index_set_id"]) + ".__default__"
+        else:
+            rt_id = ",".join([index["result_table_id"] for index in index_set["indexes"]])
+        return rt_id
 
     @list_route(methods=["GET"], url_path="list_es_router")
     def list_es_router(self, request):
@@ -294,7 +298,7 @@ class IndexSetViewSet(ModelViewSet):
                     "cluster_id": index_set["storage_cluster_id"],
                     "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
                     "source_type": index_set["scenario_id"],
-                    "data_label": index_set["scenario_id"] + "_index_set_" + index_set["index_set_id"],
+                    "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set["index_set_id"]),
                     "table_id": self.get_rt_id(index_set),
                     "space_uid": index_set["space_uid"],
                 }
