@@ -801,7 +801,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Network - K8s Pod",
-  "uid": "L4_K8s_Pod",
+  "uid": "Network_K8s_Pod",
   "version": 27,
   "weekStart": "",
   "__inputs": [
