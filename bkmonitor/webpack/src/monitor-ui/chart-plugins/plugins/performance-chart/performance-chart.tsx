@@ -177,7 +177,11 @@ export default class PerformanceChart extends TimeSeries {
         let seriesList = this.handleTransformSeries(
           series.map((item, index) => {
             if (anomalyRange?.[item.metric_id]?.length) {
-              item.markTimeRange = anomalyRange[item.metric_id];
+              if (item.markTimeRange?.length && this.needAllAlertMarkArea) {
+                item.markTimeRange.push(...(anomalyRange[item.metric_id] || []));
+              } else {
+                item.markTimeRange = anomalyRange[item.metric_id];
+              }
             }
             return {
               name: item.name,

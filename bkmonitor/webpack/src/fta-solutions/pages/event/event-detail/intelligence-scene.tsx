@@ -133,6 +133,7 @@ export default class IntelligenceScene extends tsc<IProps> {
             custom_timerange: true,
             hoverAllTooltips: true,
             YAxisLabelWidth: 70,
+            needAllAlertMarkArea: true,
           },
         },
       };
