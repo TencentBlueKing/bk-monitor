@@ -2176,7 +2176,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Application - DNS Monitoring",
-  "uid": "L7_DNS_Monitoring",
+  "uid": "application_DNS_Monitoring",
   "version": 1,
   "weekStart": "",
   "__inputs": [
