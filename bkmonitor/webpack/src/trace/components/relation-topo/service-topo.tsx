@@ -96,16 +96,11 @@ export default defineComponent({
           id: item.key,
           source: item.source,
           target: item.target,
+          data: {
+            spans: item.spans || [],
+          },
           label: item.num_of_operations > 1 ? String(item.num_of_operations) : '',
-          labelStyle: {
-            fontSize: 12,
-            fill: '#fff',
-          },
           labelBgPadding: [4, 0] as [number, number],
-          labelBgBorderRadius: 50,
-          labelBgStyle: {
-            fill: '#A2AFD2',
-          },
           style: {
             stroke: '#C4C6CC',
             strokeWidth: 1,
@@ -388,15 +383,12 @@ export default defineComponent({
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
               ),
-              'edge-label-custom': edgeProps => {
-                console.log(edgeProps);
-                return (
-                  <EdgeLabelCustom
-                    {...edgeProps}
-                    isShowDuration={this.isShowDuration}
-                  ></EdgeLabelCustom>
-                );
-              },
+              'edge-label-custom': edgeProps => (
+                <EdgeLabelCustom
+                  {...edgeProps}
+                  isShowDuration={this.isShowDuration}
+                ></EdgeLabelCustom>
+              ),
               default: () => [
                 this.showThumbnail && (
                   <MiniMap

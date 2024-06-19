@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed } from 'vue';
+import { defineComponent, computed, ref } from 'vue';
 
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@vue-flow/core';
+
+import { formatDuration } from '../trace-view/utils/date';
 
 import './edge-label-custom.scss';
 export default defineComponent({
@@ -36,6 +38,14 @@ export default defineComponent({
     id: {
       type: String,
       required: true,
+    },
+    data: {
+      type: Object,
+      default: () => ({}),
+    },
+    label: {
+      type: String,
+      default: '',
     },
     sourceX: {
       type: Number,
@@ -67,37 +77,77 @@ export default defineComponent({
         targetY: props.targetY,
       });
     });
-    // const durationPath = computed(() => {
-    //   /** 相距宽度大于高度， */
-    //   if (Math.abs(props.sourceX - props.targetX) > Math.abs(props.sourceY - props.targetY)) {
-    //   } else {
-    //   }
-    //   return '';
-    // });
+
+    const page = ref(1);
+
+    const curSpan = computed(() => {
+      const spans = props.data.spans || [];
+      const maxDuration = Math.max(...spans.map(span => span.duration));
+      const span = spans[page.value - 1];
+      if (!span) return {};
+      return {
+        ...span,
+        text: formatDuration(span.duration),
+        isMax: span.duration === maxDuration && spans.length > 1,
+      };
+    });
+
+    function handlePageChange(e: Event, newPage: number) {
+      e.preventDefault();
+      console.log(newPage);
+      if (newPage < 1 || newPage > props.data.spans.length) return;
+      page.value = newPage;
+    }
 
     return {
       path,
+      page,
+      curSpan,
+      handlePageChange,
     };
   },
   render() {
     return [
       <BaseEdge
         id={this.id}
-        label-x={this.path[1]}
-        label-y={this.path[2]}
         path={this.path[0]}
         {...this.$attrs}
       />,
       this.isShowDuration && (
         <EdgeLabelRenderer>
-          <span
+          <div
             style={{
               transform: `translate(-50%, -50%) translate(${this.path[1]}px,${this.path[2]}px)`,
             }}
-            class='edge-label-custom-duration'
+            class='edge-label-custom-label'
           >
-            1231312131
-          </span>
+            {this.label}
+            {/* <div
+              class={{
+                'edge-label-custom-duration-header': true,
+                'show-max': this.curSpan.isMax,
+              }}
+            >
+              <i class='icon-monitor icon-mc-time duration-icon'></i>
+              <span class='duration'>{this.curSpan.text}</span>
+              {this.curSpan.isMax && <span class='max-icon'>MAX</span>}
+            </div>
+            {this.data.spans.length > 1 && (
+              <div class='edge-label-custom-duration-footer'>
+                <i
+                  class='icon-monitor icon-arrow-left page-btn'
+                  onClick={e => this.handlePageChange(e, this.page - 1)}
+                ></i>
+                <span class='page'>
+                  {this.page}/{this.data.spans?.length}
+                </span>
+                <i
+                  class='icon-monitor icon-arrow-right page-btn'
+                  onClick={e => this.handlePageChange(e, this.page + 1)}
+                ></i>
+              </div>
+            )} */}
+          </div>
         </EdgeLabelRenderer>
       ),
     ];
