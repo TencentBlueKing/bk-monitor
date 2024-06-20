@@ -52,7 +52,8 @@ export default defineComponent({
   setup() {
     // hooks
     const store = useTraceStore();
-    const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick } = useVueFlow();
+    const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } =
+      useVueFlow();
     const { layout } = useLayout();
     const { capture } = useScreenshot();
 
@@ -140,7 +141,10 @@ export default defineComponent({
         });
 
         onPaneClick(() => {
-          setEdgeSelected();
+          const ids = getSelectedEdges.value.map(item => item.id);
+          nextTick(() => {
+            setEdgeSelected(ids);
+          });
         });
       });
     }
@@ -201,6 +205,7 @@ export default defineComponent({
      * @param node
      */
     function handleNodeClick(node, _e: Event) {
+      _e.stopPropagation();
       selectedNodeKey.value = node.data.key;
       const edgesIds = edges.value.filter(e => e.target === node.data.key).map(e => e.id);
       setEdgeSelected(edgesIds);
