@@ -78,6 +78,8 @@ export default defineComponent({
     const showLegend = ref<boolean>(false);
     // 缩放比例
     const zoomValue = ref(80);
+    /** 缩放倍数 */
+    const scale = ref(1);
     const graphToolsRect = ref({ width: 0, height: 0 });
 
     watch(
@@ -185,6 +187,13 @@ export default defineComponent({
     function handleViewportChangeEnd(value: ViewportTransform) {
       zoomValue.value = Math.round(value.zoom * 100) - 20;
     }
+    /**
+     * 视口变化
+     * @param value 视口变化参数
+     */
+    function handleViewportChange(value: ViewportTransform) {
+      scale.value = value.zoom;
+    }
 
     /**
      * @description 节点点击事件
@@ -222,6 +231,7 @@ export default defineComponent({
       showLegend,
       topoGraphContent,
       zoomValue,
+      scale,
       graphToolsRect,
       isShowDuration,
       selectedNodeKey,
@@ -232,6 +242,7 @@ export default defineComponent({
       downloadAsImage,
       handleViewportChangeEnd,
       handleNodeClick,
+      handleViewportChange,
     };
   },
 
@@ -341,6 +352,7 @@ export default defineComponent({
             minZoom={0.2}
             nodes={this.nodes}
             onNodesInitialized={() => this.layoutGraph('TB')}
+            onViewportChange={this.handleViewportChange}
             onViewportChangeEnd={this.handleViewportChangeEnd}
           >
             {(() => ({
@@ -393,15 +405,13 @@ export default defineComponent({
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
               ),
-              'edge-label-custom': edgeProps => {
-                console.log('render');
-                return (
-                  <EdgeLabelCustom
-                    {...edgeProps}
-                    isShowDuration={this.isShowDuration}
-                  ></EdgeLabelCustom>
-                );
-              },
+              'edge-label-custom': edgeProps => (
+                <EdgeLabelCustom
+                  {...edgeProps}
+                  isShowDuration={this.isShowDuration}
+                  scale={this.scale}
+                ></EdgeLabelCustom>
+              ),
               default: () => [
                 this.showThumbnail && (
                   <MiniMap

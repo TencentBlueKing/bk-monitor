@@ -72,6 +72,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    scale: {
+      type: Number,
+      default: 1,
+    },
   },
   setup(props) {
     const path = computed(() => {
@@ -123,6 +127,7 @@ export default defineComponent({
           always={this.isShowDuration}
           arrow={false}
           boundary='parent'
+          disableTransform={true}
           is-show={this.isShowDuration}
           placement='top'
           theme={`light edge-duration-popover-theme ${this.selected ? 'selected' : ''}`}
@@ -143,7 +148,10 @@ export default defineComponent({
               </div>
             ),
             content: () => (
-              <div class='edge-duration-popover'>
+              <div
+                style={{ transform: `scale(${this.scale})` }}
+                class='edge-duration-popover'
+              >
                 <div
                   class={{
                     'edge-duration-popover-header': true,
