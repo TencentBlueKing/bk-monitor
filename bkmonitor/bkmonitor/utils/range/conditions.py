@@ -137,7 +137,10 @@ class GreaterOrEqualCondition(LesserCondition):
 
 class RegularCondition(SimpleCondition):
     def _is_match(self, data_field):
-        data_value = data_field.to_str_list()[0]
+        data_value = data_field.to_str_list()
+        if not data_value:
+            return False
+        data_value = data_value[0]
         cond_value = self.cond_field.to_str_list()
         for v in cond_value:
             try:
