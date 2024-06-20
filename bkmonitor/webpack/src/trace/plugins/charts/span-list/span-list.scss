@@ -135,6 +135,29 @@
           }
         }
 
+        .arrow-down-icon {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 8px;
+          height: 8px;
+          margin: 0 2.5px;
+
+          .rect {
+            width: 2px;
+            height: 4px;
+            background-color: #9b9da1;
+          }
+
+          .arrow {
+            width: 0;
+            height: 0;
+            border-top: 4px solid #9b9da1; /* 上边为实心 */
+            border-right: 4px solid transparent; /* 右边透明 */
+            border-left: 4px solid transparent; /* 左边透明 */
+          }
+        }
+
         &-body {
           display: flex;
           flex: 0 0 20px;

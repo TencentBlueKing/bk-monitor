@@ -241,6 +241,10 @@ export default defineComponent({
                     <span class='span-eplaced'>{formatDuration(original.duration)}</span>
                   )}
                 </div>
+                <div class='arrow-down-icon'>
+                  <div class='rect'></div>
+                  <div class='arrow'></div>
+                </div>
                 <div class='list-li-body'>
                   <img
                     class='span-icon'
