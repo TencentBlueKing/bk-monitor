@@ -115,7 +115,7 @@ export default defineComponent({
       const panelHeight = data.spans.length > 1 ? 40 : 24;
       /**
        * 1. x轴不变 向下直线  右边
-       * 2. x轴变小 向左下直线  下边
+       * 2. x轴变小 向左下直线  上边
        * 3. x轴变大 向右下直线  上边
        */
       if (targetX === sourceX) {
@@ -125,8 +125,8 @@ export default defineComponent({
         };
       } else if (targetX < sourceX) {
         return {
+          top: `${-panelHeight - 2}px`,
           right: 0,
-          transform: 'translateX(100%)',
         };
       }
       return {
