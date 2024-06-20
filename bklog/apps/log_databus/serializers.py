@@ -167,14 +167,14 @@ class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
         choices=PluginParamOpEnum.get_choices(),
         required=False,
         default=PluginParamOpEnum.OP_INCLUDE.value,
-        allow_blank=True
+        allow_blank=True,
     )
     syslog_logic_op = serializers.ChoiceField(
         label=_("逻辑操作符"),
         choices=PluginParamLogicOpEnum.get_choices(),
         required=False,
         default=PluginParamLogicOpEnum.AND.value,
-        allow_blank=True
+        allow_blank=True,
     )
 
 
@@ -1334,6 +1334,9 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
 
     path = serializers.ListField(
         label=_("日志采集路径"), child=serializers.CharField(allow_blank=True), required=False, allow_empty=True
+    )
+    exclude_files = serializers.ListField(
+        label=_("日志采集路径黑名单"), child=serializers.CharField(allow_blank=True), required=False, allow_empty=True
     )
     encoding = serializers.ChoiceField(label=_("日志字符集"), choices=EncodingsEnum.get_choices(), default="utf-8")
     multiline = MultilineSerializer(label=_("段日志配置"), required=False)

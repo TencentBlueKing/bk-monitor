@@ -25,7 +25,7 @@ from apps.log_databus.constants import PluginParamLogicOpEnum, PluginParamOpEnum
 def deal_collector_scenario_param(params):
     filters = []
     condition_type = params["conditions"]["type"]
-    if condition_type == "separator":
+    if condition_type == "separator" or condition_type == "match" and params["conditions"].get("separator_filters", []):
         condition = params["conditions"].get("separator_filters", [])
         filter_bucket = []
         for index, item in enumerate(condition):
