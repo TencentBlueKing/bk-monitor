@@ -140,7 +140,9 @@ export default defineComponent({
           setEdgeSelected([edge.id]);
         });
 
-        onPaneClick(() => {});
+        onPaneClick(() => {
+          setEdgeSelected();
+        });
       });
     }
 
@@ -210,7 +212,7 @@ export default defineComponent({
      * 设置边的选中状态
      * @param ids 需要选中的边id
      */
-    function setEdgeSelected(ids: string[]) {
+    function setEdgeSelected(ids: string[] = []) {
       const sets = new Set(ids);
       edges.value.forEach(e => {
         const edge = findEdge(e.id);
@@ -341,7 +343,6 @@ export default defineComponent({
             </defs>
           </svg>
           <VueFlow
-            apply-default={false}
             edges={this.edges}
             maxZoom={1.2}
             minZoom={0.2}

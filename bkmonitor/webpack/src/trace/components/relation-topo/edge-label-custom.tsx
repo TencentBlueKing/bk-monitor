@@ -27,7 +27,6 @@
 import { defineComponent, computed, ref } from 'vue';
 
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@vue-flow/core';
-import { Popover } from 'bkui-vue';
 
 import { formatDuration } from '../trace-view/utils/date';
 
@@ -108,10 +107,40 @@ export default defineComponent({
       page.value = newPage;
     }
 
+    /**
+     * 计算时间面板坐标
+     */
+    const calcPanelPosition = computed(() => {
+      const { targetX, sourceX, data } = props;
+      const panelHeight = data.spans.length > 1 ? 40 : 24;
+      /**
+       * 1. x轴不变 向下直线  右边
+       * 2. x轴变小 向左下直线  下边
+       * 3. x轴变大 向右下直线  上边
+       */
+      if (targetX === sourceX) {
+        return {
+          right: '-10px',
+          top: `${-panelHeight / 2}px`,
+        };
+      } else if (targetX < sourceX) {
+        return {
+          right: 0,
+          transform: 'translateX(100%)',
+        };
+      }
+      return {
+        top: `${-panelHeight - 2}px`,
+        right: 0,
+        transform: 'translateX(100%)',
+      };
+    });
+
     return {
       path,
       page,
       curSpan,
+      calcPanelPosition,
       handlePageChange,
     };
   },
@@ -123,66 +152,57 @@ export default defineComponent({
         {...this.$attrs}
       />,
       <EdgeLabelRenderer>
-        <Popover
-          always={this.isShowDuration}
-          arrow={false}
-          boundary='parent'
-          disableTransform={true}
-          is-show={this.isShowDuration}
-          placement='top'
-          theme={`light edge-duration-popover-theme ${this.selected ? 'selected' : ''}`}
-        >
-          {{
-            default: () => (
-              <div
-                style={{
-                  transform: `translate(-50%, -50%) translate(${this.path[1]}px,${this.path[2]}px)`,
-                }}
-                class={{
-                  'edge-label-custom-label': true,
-                  selected: this.selected,
-                  hidden: this.isShowDuration && Number(this.label) <= 1,
-                }}
-              >
-                {Number(this.label) > 1 ? this.label : ''}
-              </div>
-            ),
-            content: () => (
-              <div
-                style={{ transform: `scale(${this.scale})` }}
-                class='edge-duration-popover'
-              >
-                <div
-                  class={{
-                    'edge-duration-popover-header': true,
-                    'show-max': this.curSpan.isMax,
-                  }}
-                >
-                  <i class='icon-monitor icon-mc-time duration-icon'></i>
-                  <span class='duration'>{this.curSpan.text}</span>
-                  {this.curSpan.isMax && <span class='max-icon'>MAX</span>}
-                </div>
-                {this.data.spans.length > 1 && (
-                  <div class='edge-duration-popover-footer'>
-                    <i
-                      class='icon-monitor icon-arrow-left page-btn'
-                      onClick={e => this.handlePageChange(e, this.page - 1)}
-                    ></i>
-                    <span class='page'>
-                      <span>{this.page}</span>
-                      <span class='split-char'>/</span>
-                      <span>{this.data.spans?.length}</span>
-                    </span>
-                    <i
-                      class='icon-monitor icon-arrow-right page-btn'
-                      onClick={e => this.handlePageChange(e, this.page + 1)}
-                    ></i>
-                  </div>
-                )}
-              </div>
-            ),
+        <div
+          style={{
+            transform: `translate(-50%, -50%) translate(${this.path[1]}px,${this.path[2]}px)`,
           }}
-        </Popover>
+          class='edge-label-custom'
+        >
+          <div
+            class={{
+              'edge-label-custom-label': true,
+              selected: this.selected,
+              hidden: Number(this.label) <= 1,
+            }}
+          >
+            {Number(this.label) > 1 ? this.label : ''}
+          </div>
+          {this.isShowDuration && (
+            <div
+              style={this.calcPanelPosition}
+              class='edge-duration-panel'
+            >
+              <div
+                class={{
+                  'edge-duration-panel-header': true,
+                  'show-max': this.curSpan.isMax,
+                  transform: `scale(${this.scale})`,
+                }}
+              >
+                <i class='icon-monitor icon-mc-time duration-icon'></i>
+                <span class='duration'>{this.curSpan.text}</span>
+                {this.curSpan.isMax && <span class='max-icon'>MAX</span>}
+              </div>
+              {this.data.spans.length > 1 && (
+                <div class='edge-duration-panel-footer'>
+                  <i
+                    class='icon-monitor icon-arrow-left page-btn'
+                    onClick={e => this.handlePageChange(e, this.page - 1)}
+                  ></i>
+                  <span class='page'>
+                    <span>{this.page}</span>
+                    <span class='split-char'>/</span>
+                    <span>{this.data.spans?.length}</span>
+                  </span>
+                  <i
+                    class='icon-monitor icon-arrow-right page-btn'
+                    onClick={e => this.handlePageChange(e, this.page + 1)}
+                  ></i>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </EdgeLabelRenderer>,
     ];
   },

@@ -10,7 +10,6 @@
 }
 
 .edge-label-custom-label {
-  position: absolute;
   min-height: 14px;
   padding: 0 4px;
   color: #fff;
@@ -26,64 +25,67 @@
   }
 }
 
-.bk-popover.bk-pop2-content.edge-duration-popover-theme {
-  padding: 0;
-  box-shadow: none;
+.edge-label-custom {
+  position: absolute;
+}
 
-  .edge-duration-popover {
-    padding: 1px 0;
-    background: #e1ecff;
-    border: 1px solid #9ab7e9;
-    border-radius: 2px;
+.edge-duration-panel {
+  position: absolute;
+  z-index: 9;
+  padding: 1px 0;
+  pointer-events: all;
+  cursor: pointer;
+  background: #e1ecff;
+  border: 1px solid #9ab7e9;
+  border-radius: 2px;
 
-    &-header {
-      display: flex;
-      align-items: center;
-      height: 20px;
-      padding: 0 12px 0 9px;
+  &-header {
+    display: flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 12px 0 9px;
 
-      &.show-max {
-        padding-right: 8px;
-      }
-
-      .duration-icon {
-        font-size: 14px;
-        color: #3a84ff;
-      }
-
-      .duration {
-        margin-left: 5px;
-        font-size: 12px;
-        color: #63656e;
-      }
-
-      .max-icon {
-        width: 28px;
-        height: 12px;
-        margin-left: 5px;
-        font-size: 10px;
-        color: #ffffff;
-        text-align: center;
-        background-color: #699df4;
-        border-radius: 2px;
-      }
+    &.show-max {
+      padding-right: 8px;
     }
 
-    &-footer {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 16px;
+    .duration-icon {
+      font-size: 14px;
+      color: #3a84ff;
+    }
+
+    .duration {
+      margin-left: 5px;
+      font-size: 12px;
       color: #63656e;
+    }
 
-      .split-char {
-        margin: 0 4px;
-      }
+    .max-icon {
+      width: 28px;
+      height: 12px;
+      margin-left: 5px;
+      font-size: 10px;
+      color: #ffffff;
+      text-align: center;
+      background-color: #699df4;
+      border-radius: 2px;
+    }
+  }
 
-      .page-btn {
-        font-size: 16px;
-        cursor: pointer;
-      }
+  &-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 16px;
+    color: #63656e;
+
+    .split-char {
+      margin: 0 4px;
+    }
+
+    .page-btn {
+      font-size: 16px;
+      cursor: pointer;
     }
   }
 }
