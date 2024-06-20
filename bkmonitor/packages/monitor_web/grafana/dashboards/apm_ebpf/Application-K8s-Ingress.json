@@ -21,7 +21,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 83,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -3412,5 +3411,21 @@
   "uid": "Application_K8s_Ingress",
   "version": 9,
   "weekStart": "",
-  "__path": "dashboards/DeepFlow-Templates/Application-K8s-Ingress.json"
+  "__inputs": [
+    {
+      "name": "DS_DeepFlow_-_uid",
+      "label": "蓝鲸监控 - DeepFlow数据",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "deepflowio-deepflow-datasource",
+      "pluginName": "DeepFlow Datasource"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "deepflowio-deepflow-datasource",
+      "name": "DeepFlow Datasource"
+    }
+  ]
 }
