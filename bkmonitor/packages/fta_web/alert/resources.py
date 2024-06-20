@@ -1329,18 +1329,21 @@ class SearchActionResource(ApiAuthResource):
         show_overview = validated_request_data.get("show_overview")
         show_aggs = validated_request_data.get("show_aggs")
         show_dsl = validated_request_data.get("show_dsl")
-        start_time = validated_request_data.pop("start_time")
-        end_time = validated_request_data.pop("end_time")
-        results = resource.alert.search_action_result.bulk_request(
-            [
-                {
-                    "start_time": sliced_start_time,
-                    "end_time": sliced_end_time,
-                    **validated_request_data,
-                }
-                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
-            ]
-        )
+        start_time = validated_request_data.pop("start_time", None)
+        end_time = validated_request_data.pop("end_time", None)
+        if start_time and end_time:
+            results = resource.alert.search_action_result.bulk_request(
+                [
+                    {
+                        "start_time": sliced_start_time,
+                        "end_time": sliced_end_time,
+                        **validated_request_data,
+                    }
+                    for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+                ]
+            )
+        else:
+            results = [resource.alert.search_action_result.perform_request(validated_request_data)]
 
         result = {
             "actions": [],
