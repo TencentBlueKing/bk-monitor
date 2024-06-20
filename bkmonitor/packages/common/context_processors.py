@@ -144,6 +144,7 @@ def get_core_context(request):
         ),
         # 全局配置资源链接
         "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
+        "FOOTER_VERSION": settings.VERSION,
     }
 
 
