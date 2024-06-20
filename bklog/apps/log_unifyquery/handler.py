@@ -195,14 +195,14 @@ class UnifyQueryHandler(object):
         return 0
 
     def get_topk_ts_data(self, vargs: int = 5):
-        topk_group_values = [group[0] for group in self.get_topk_list()]
+        topk_list = self.get_topk_list(vargs)
+        topk_group_values = [group[0] for group in topk_list]
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
             query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}
             query["function"] = [
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
-                {"method": "topk", "vargs_list": [vargs]},
             ]
             if not topk_group_values:
                 continue
