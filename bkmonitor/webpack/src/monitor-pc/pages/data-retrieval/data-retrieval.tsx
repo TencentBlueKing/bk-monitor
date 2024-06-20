@@ -547,7 +547,7 @@ export default class DataRetrieval extends tsc<object> {
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
     this.compareValue.tools.timezone = getDefaultTimezone();
-    if (timezone) {
+    if (timezone && timezone !== 'undefined') {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);
     }
