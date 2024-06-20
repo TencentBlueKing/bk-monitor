@@ -27,6 +27,7 @@
 import { defineComponent, computed, ref } from 'vue';
 
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@vue-flow/core';
+import { Popover } from 'bkui-vue';
 
 import { formatDuration } from '../trace-view/utils/date';
 
@@ -46,6 +47,10 @@ export default defineComponent({
     label: {
       type: String,
       default: '',
+    },
+    selected: {
+      type: Boolean,
+      default: false,
     },
     sourceX: {
       type: Number,
@@ -113,43 +118,64 @@ export default defineComponent({
         path={this.path[0]}
         {...this.$attrs}
       />,
-      this.isShowDuration && (
-        <EdgeLabelRenderer>
-          <div
-            style={{
-              transform: `translate(-50%, -50%) translate(${this.path[1]}px,${this.path[2]}px)`,
-            }}
-            class='edge-label-custom-label'
-          >
-            {this.label}
-            {/* <div
-              class={{
-                'edge-label-custom-duration-header': true,
-                'show-max': this.curSpan.isMax,
-              }}
-            >
-              <i class='icon-monitor icon-mc-time duration-icon'></i>
-              <span class='duration'>{this.curSpan.text}</span>
-              {this.curSpan.isMax && <span class='max-icon'>MAX</span>}
-            </div>
-            {this.data.spans.length > 1 && (
-              <div class='edge-label-custom-duration-footer'>
-                <i
-                  class='icon-monitor icon-arrow-left page-btn'
-                  onClick={e => this.handlePageChange(e, this.page - 1)}
-                ></i>
-                <span class='page'>
-                  {this.page}/{this.data.spans?.length}
-                </span>
-                <i
-                  class='icon-monitor icon-arrow-right page-btn'
-                  onClick={e => this.handlePageChange(e, this.page + 1)}
-                ></i>
+      <EdgeLabelRenderer>
+        <Popover
+          always={this.isShowDuration}
+          arrow={false}
+          boundary='parent'
+          is-show={this.isShowDuration}
+          placement='top'
+          theme={`light edge-duration-popover-theme ${this.selected ? 'selected' : ''}`}
+        >
+          {{
+            default: () => (
+              <div
+                style={{
+                  transform: `translate(-50%, -50%) translate(${this.path[1]}px,${this.path[2]}px)`,
+                }}
+                class={{
+                  'edge-label-custom-label': true,
+                  selected: this.selected,
+                  hidden: this.isShowDuration && Number(this.label) <= 1,
+                }}
+              >
+                {Number(this.label) > 1 ? this.label : ''}
               </div>
-            )} */}
-          </div>
-        </EdgeLabelRenderer>
-      ),
+            ),
+            content: () => (
+              <div class='edge-duration-popover'>
+                <div
+                  class={{
+                    'edge-duration-popover-header': true,
+                    'show-max': this.curSpan.isMax,
+                  }}
+                >
+                  <i class='icon-monitor icon-mc-time duration-icon'></i>
+                  <span class='duration'>{this.curSpan.text}</span>
+                  {this.curSpan.isMax && <span class='max-icon'>MAX</span>}
+                </div>
+                {this.data.spans.length > 1 && (
+                  <div class='edge-duration-popover-footer'>
+                    <i
+                      class='icon-monitor icon-arrow-left page-btn'
+                      onClick={e => this.handlePageChange(e, this.page - 1)}
+                    ></i>
+                    <span class='page'>
+                      <span>{this.page}</span>
+                      <span class='split-char'>/</span>
+                      <span>{this.data.spans?.length}</span>
+                    </span>
+                    <i
+                      class='icon-monitor icon-arrow-right page-btn'
+                      onClick={e => this.handlePageChange(e, this.page + 1)}
+                    ></i>
+                  </div>
+                )}
+              </div>
+            ),
+          }}
+        </Popover>
+      </EdgeLabelRenderer>,
     ];
   },
 });

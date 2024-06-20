@@ -52,7 +52,7 @@ export default defineComponent({
   setup() {
     // hooks
     const store = useTraceStore();
-    const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef } = useVueFlow();
+    const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick } = useVueFlow();
     const { layout } = useLayout();
     const { capture } = useScreenshot();
 
@@ -99,7 +99,8 @@ export default defineComponent({
           data: {
             spans: item.spans || [],
           },
-          label: item.num_of_operations > 1 ? String(item.num_of_operations) : '',
+          selected: false,
+          label: String(item.num_of_operations),
           labelBgPadding: [4, 0] as [number, number],
           style: {
             stroke: '#C4C6CC',
@@ -116,7 +117,6 @@ export default defineComponent({
      * @param direction
      */
     function layoutGraph(direction: string) {
-      console.log('xxx');
       nodes.value = layout(nodes.value, edges.value, direction);
       nextTick(() => {
         fitView();
@@ -135,10 +135,10 @@ export default defineComponent({
         });
         /** 边点击事件 */
         onEdgeClick(({ edge }) => {
-          resetEdgeStyle();
-          edge.animated = true;
-          edge.markerEnd = 'custom-marker-arrowhead--selected';
+          setEdgeSelected([edge.id]);
         });
+
+        onPaneClick(() => {});
       });
     }
 
@@ -190,31 +190,25 @@ export default defineComponent({
      * @description 节点点击事件
      * @param node
      */
-    function handleNodeClick(node) {
+    function handleNodeClick(node, e: Event) {
+      e.stopPropagation();
       selectedNodeKey.value = node.data.key;
-      setEdgeSelected([node.data.key]);
+      const edgesIds = edges.value.filter(e => e.target === node.data.key).map(e => e.id);
+      setEdgeSelected(edgesIds);
     }
 
-    function setEdgeSelected(targetKeys: string[]) {
-      resetEdgeStyle();
-      const sets = new Set(targetKeys);
+    /**
+     * 设置边的选中状态
+     * @param ids 需要选中的边id
+     */
+    function setEdgeSelected(ids: string[]) {
+      const sets = new Set(ids);
       edges.value.forEach(e => {
         const edge = findEdge(e.id);
-        const has = sets.has(e.target);
+        const has = sets.has(e.id);
         edge.selected = has;
         edge.animated = has;
-        if (has) {
-          edge.markerEnd = 'custom-marker-arrowhead--selected';
-        }
-      });
-    }
-
-    /** 重置所有边的样式 */
-    function resetEdgeStyle() {
-      edges.value.forEach(e => {
-        const edge = findEdge(e.id);
-        edge.animated = false;
-        edge.markerEnd = 'custom-marker-arrowhead';
+        edge.markerEnd = has ? 'custom-marker-arrowhead--selected' : 'custom-marker-arrowhead';
       });
     }
 
@@ -341,6 +335,7 @@ export default defineComponent({
             </defs>
           </svg>
           <VueFlow
+            apply-default={false}
             edges={this.edges}
             maxZoom={1.2}
             minZoom={0.2}
@@ -355,7 +350,7 @@ export default defineComponent({
                     borderLeftColor: data.data.color,
                   }}
                   class={['node-interface', { selected: data.data.key === this.selectedNodeKey }]}
-                  onClick={() => this.handleNodeClick(data)}
+                  onClick={e => this.handleNodeClick(data, e)}
                 >
                   <div
                     style={{
@@ -369,7 +364,7 @@ export default defineComponent({
               [`node-${ENodeType.service}`]: data => (
                 <div
                   class={['node-service', { selected: data.data.key === this.selectedNodeKey }]}
-                  onClick={() => this.handleNodeClick(data)}
+                  onClick={e => this.handleNodeClick(data, e)}
                 >
                   <div class='node-service-top'>
                     <div
@@ -385,7 +380,7 @@ export default defineComponent({
               [`node-${ENodeType.component}`]: data => (
                 <div
                   class={['node-service', { selected: data.data.key === this.selectedNodeKey }]}
-                  onClick={() => this.handleNodeClick(data)}
+                  onClick={e => this.handleNodeClick(data, e)}
                 >
                   <div class='node-service-top'>
                     <div
@@ -398,12 +393,15 @@ export default defineComponent({
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
               ),
-              'edge-label-custom': edgeProps => (
-                <EdgeLabelCustom
-                  {...edgeProps}
-                  isShowDuration={this.isShowDuration}
-                ></EdgeLabelCustom>
-              ),
+              'edge-label-custom': edgeProps => {
+                console.log('render');
+                return (
+                  <EdgeLabelCustom
+                    {...edgeProps}
+                    isShowDuration={this.isShowDuration}
+                  ></EdgeLabelCustom>
+                );
+              },
               default: () => [
                 this.showThumbnail && (
                   <MiniMap
