@@ -60,7 +60,7 @@ export function useLayout() {
 
   const previousDirection = ref('LR');
 
-  function layout(nodes, edges, direction) {
+  function layout(nodes, edges, direction, ranksep?) {
     // we create a new graph instance, in case some nodes/edges were removed, otherwise dagre would act as if they were still there
     const dagreGraph = new dagre.graphlib.Graph();
 
@@ -69,7 +69,7 @@ export function useLayout() {
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
     const isHorizontal = direction === 'LR';
-    dagreGraph.setGraph({ rankdir: direction });
+    dagreGraph.setGraph({ rankdir: direction, ranksep: ranksep || 50 });
 
     previousDirection.value = direction;
 

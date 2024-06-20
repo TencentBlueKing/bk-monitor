@@ -119,7 +119,7 @@ export default defineComponent({
      * @param direction
      */
     function layoutGraph(direction: string) {
-      nodes.value = layout(nodes.value, edges.value, direction);
+      nodes.value = layout(nodes.value, edges.value, direction, 80);
       nextTick(() => {
         fitView();
         const wrapWidth = graphContainer.value.clientWidth;
