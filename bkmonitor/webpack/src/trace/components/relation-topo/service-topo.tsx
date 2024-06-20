@@ -80,7 +80,6 @@ export default defineComponent({
     const zoomValue = ref(80);
     /** 缩放倍数 */
     const scale = ref(1);
-    const graphToolsRect = ref({ width: 0, height: 0 });
 
     watch(
       () => serviceTopoData.value,
@@ -201,8 +200,7 @@ export default defineComponent({
      * @description 节点点击事件
      * @param node
      */
-    function handleNodeClick(node, e: Event) {
-      e.stopPropagation();
+    function handleNodeClick(node, _e: Event) {
       selectedNodeKey.value = node.data.key;
       const edgesIds = edges.value.filter(e => e.target === node.data.key).map(e => e.id);
       setEdgeSelected(edgesIds);
@@ -234,7 +232,6 @@ export default defineComponent({
       topoGraphContent,
       zoomValue,
       scale,
-      graphToolsRect,
       isShowDuration,
       selectedNodeKey,
       layoutGraph,
@@ -253,8 +250,6 @@ export default defineComponent({
       <div class='service-topo-component'>
         {this.empty && <div class='empty-chart'>{this.emptyText}</div>}
         <Popover
-          width={this.graphToolsRect.width}
-          height={this.graphToolsRect.height}
           extCls='topo-thumbnail-popover'
           allowHtml={false}
           arrow={false}
