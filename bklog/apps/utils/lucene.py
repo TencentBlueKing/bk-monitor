@@ -699,16 +699,21 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         if not self.match():
             return self.query_string
         pattern = re.compile(self.RE)
-        split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
+        pattern1 = re.compile(r'(:\s*\S+\s*)')
+        pattern2 = re.compile(r':\s*(and|or|not|to)')
+        split_strings = re.split(r'(".*?")', self.query_string)
         for i, part in enumerate(split_strings):
-            # 单独处理'a and b and d" or c'这样的字符串
-            if ':' not in part and '"' in part and '"' in split_strings[i - 1]:
-                left, right = part.rsplit('"', maxsplit=1)
-                right = pattern.sub(lambda m: m.group().upper(), right)
-                split_strings[i] = left + '"' + right
-            # 确保被"包裹的符号不会被转换-->如果字符串中包含",且前一个字符串中也包含",那么该字符串原本的样式为"xx and xx"
-            if ':' not in part and not ('"' in part and '"' in split_strings[i - 1]):
-                split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
+            if not (part.startswith('"') and part.endswith('"')):
+                match = pattern2.search(part)
+                # 处理log: and的情况,and不应该被转换
+                if match:
+                    part_strings = pattern1.split(part)
+                    for j, child_part in enumerate(part_strings):
+                        if ':' not in child_part:
+                            part_strings[j] = pattern.sub(lambda m: m.group().upper(), child_part)
+                    split_strings[i] = ''.join(part_strings)
+                else:
+                    split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
         return ''.join(split_strings)
 
 

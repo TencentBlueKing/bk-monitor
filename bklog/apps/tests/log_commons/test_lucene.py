@@ -457,7 +457,7 @@ SYNTAX_TRANSFORM_MAPPINGS = {
     'lineno:"go and some"': 'lineno:"go and some"',
     'lineno:"go or some"': 'lineno:"go or some"',
     'lineno:"go not some"': 'lineno:"go not some"',
-    'levelname:"a and b or c not d"': 'levelname:"a and b or c not d"',
+    'levelname:"a and b or c"': 'levelname:"a and b or c"',
     # 符号转换
     "lineno=1": "lineno: =1",
     'log : "lineno<125" AND lineno<126': 'log : "lineno<125" AND lineno: <126',
@@ -467,6 +467,7 @@ SYNTAX_TRANSFORM_MAPPINGS = {
     'lineno:[1 to 10]': 'lineno:[1 TO 10]',
     'lineno:[1 and 10]': 'lineno:[1 AND 10]',
     'lineno:[1 or 10]': 'lineno:[1 OR 10]',
+    'lineno: a and "b or c"': 'lineno: a AND "b or c"',
     'lineno:"go to some" and lineno:[1 to 10]': 'lineno:"go to some" AND lineno:[1 TO 10]',
     'levelname : "a and b or c not d" or lineno : [1 to 1000]': 'levelname : "a and b or c not d" '
     'OR lineno : [1 TO 1000]',
