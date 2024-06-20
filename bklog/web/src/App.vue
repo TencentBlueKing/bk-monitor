@@ -135,6 +135,8 @@ import NoviceGuide from '@/components/novice-guide';
 import jsCookie from 'js-cookie';
 import GlobalSettingDialog from '@/components/global-setting';
 import NoticeComponent from '@blueking/notice-component-vue2';
+import platformConfigStore from '@/store/modules/platform-config';
+
 import '@blueking/notice-component-vue2/dist/style.css';
 
 export default {
@@ -219,6 +221,7 @@ export default {
     }
   },
   created() {
+    platformConfigStore.fetchConfig();
     const platform = window.navigator.platform.toLowerCase();
     if (platform.indexOf('win') === 0) {
       document.body.style['font-family'] = 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif';
