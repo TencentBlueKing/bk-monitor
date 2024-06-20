@@ -208,7 +208,8 @@
 
       .item-name {
         margin-right: 5px;
-        color: #f1f3fa;
+        font-weight: bold;
+        color: #fff;
         flex-shrink: 0;
 
         &.is-warp {
@@ -226,13 +227,14 @@
 
         .item-value {
           display: flex;
-          align-items: center;
           height: 18px;
           padding: 0 5px;
           margin-left: auto;
-          color: rgba(255,255,255, .8);
+          font-weight: bold;
+          color: #fff;
           background-color: rgba(1,1,1,.8);
           border-radius: 3px;
+          align-items: center;
         }
 
         &.is-warp {
