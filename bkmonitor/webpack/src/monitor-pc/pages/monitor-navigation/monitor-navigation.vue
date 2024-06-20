@@ -867,7 +867,7 @@ export default {
     @include popover-panel-mxin(170px #63656e);
   }
 
-  :deep(.monitor-navigation-footer) {
+  :deep(.monitor-footer) {
     display: flex;
     flex-direction: column;
     align-items: center;

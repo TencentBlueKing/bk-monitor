@@ -23,46 +23,57 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue from 'vue';
-import VueI18n from 'vue-i18n';
+import { Action, Mutation, getModule, Module, VuexModule } from 'vuex-module-decorators';
+import { getPlatformConfig, setShortcutIcon, setDocumentTitle } from '@blueking/platform-config';
 
-import { lang, locale } from 'bk-magic-vue';
-import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
-import { docCookies } from 'monitor-common/utils/utils';
+import store from '@/store';
 
-import { mergeI18nJson } from './commmon';
-import './dayjs';
-// 获取语言偏好设置
-const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
+interface II18nData {
+  name: string;
+}
 
-// 判断当前语言是否为英文
-export const isEn = currentLang === 'en';
-document.documentElement.setAttribute('lang', currentLang);
+interface IPlatformConfig {
+  appLogo?: string;
+  name?: string;
+  nameEn?: string;
+  brandName?: string;
+  brandNameEn?: string;
+  i18n?: II18nData;
+}
 
-// 设置网页标题
-// document.title = window.page_title || (isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云');
+export const initialConfig = {
+  name: '日志平台',
+  nameEn: 'BK LOG SEARCH',
+  brandName: '腾讯蓝鲸智云',
+  brandNameEn: 'BlueKing',
+  version: window.VERSION
+};
 
-// 设置 VueI18n 使用的语言
-const i18nLocale = isEn ? 'enUS' : 'zhCN';
+@Module({ name: 'platform-config', dynamic: true, namespaced: true, store })
+class PlatformConfigStore extends VuexModule {
+  public publicConfig: IPlatformConfig = {};
 
-// 安装 VueI18n 插件
-Vue.use(VueI18n);
+  @Mutation
+  public updatePlatformConfig(data: IPlatformConfig) {
+    this.publicConfig = data;
+  }
 
-// 设置 locale 使用的语言
-locale.use(lang[i18nLocale]);
+  @Action
+  public async fetchConfig() {
+    let configPromise;
+    const bkRepoUrl = window.BK_SHARED_RES_URL;
+    if (bkRepoUrl) {
+      const repoUrl = bkRepoUrl.endsWith('/') ? bkRepoUrl : `${bkRepoUrl}/`;
+      configPromise = getPlatformConfig(`${repoUrl}/bk_log_search/base.js`, initialConfig);
+    } else {
+      configPromise = getPlatformConfig(initialConfig);
+    }
 
-// 初始化 VueI18n 实例
-const i18n = new VueI18n({
-  locale: i18nLocale, // 当前语言
-  fallbackLocale: 'zhCN', // 默认语言
-  silentTranslationWarn: false, // 是否警告翻译缺失
-  messages: {
-    // 翻译文件
-    ...mergeI18nJson(),
-  },
-});
+    const configData = await configPromise;
+    setShortcutIcon(configData.favIcon);
+    setDocumentTitle(configData.i18n);
+    this.updatePlatformConfig(configData);
+  }
+}
 
-// 将 VueI18n 实例挂载到全局变量 window.i18n 上
-window.i18n = i18n;
-// 导出 VueI18n 实例作为默认值
-export default i18n;
+export default getModule(PlatformConfigStore);

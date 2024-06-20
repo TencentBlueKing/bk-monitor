@@ -28,11 +28,11 @@
         @click.stop="jumpToHome"
       >
         <img
-          :src="require('@/images/log-logo.png')"
+          :src="platformData.logo"
           alt="logo"
           class="logo-image"
         />
-        <span class="logo-text">{{ logoText }}</span>
+        <span class="logo-text">{{ platformData.name }}</span>
       </div>
     </div>
     <div
@@ -255,6 +255,8 @@ import { menuArr } from './complete-menu';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import { jsonp } from '@/common/jsonp';
 import GlobalDialog from '@/components/global-dialog';
+import platformConfigStore from '@/store/modules/platform-config';
+import logoImg from '@/images/log-logo.png';
 
 export default {
   name: 'HeaderNav',
@@ -268,7 +270,6 @@ export default {
     return {
       isFirstLoad: true,
       isOpenVersion: window.RUN_VER.indexOf('open') !== -1,
-      logoText: window.TITLE_MENU || '',
       username: '',
       usernameRequested: false,
       isShowLanguageDropdown: false,
@@ -297,6 +298,13 @@ export default {
       globalSettingList: state => state.globalSettingList
     }),
     ...mapGetters('globals', ['globalsData']),
+    platformData() {
+      const { appLogo, i18n } = platformConfigStore.publicConfig;
+      return {
+        name: i18n?.name ?? window.TITLE_MENU,
+        logo: appLogo || logoImg
+      };
+    },
     envConfig() {
       const { paas_api_host: host, bk_domain: bkDomain } = this.globalsData;
       return {
