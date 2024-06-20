@@ -27,6 +27,7 @@ import { lineColor } from '../../../store/constant';
 import './field-analysis.scss';
 import dayjs from 'dayjs';
 import axios from 'axios';
+import { deepClone } from '../../../common/util';
 const CancelToken = axios.CancelToken;
 
 const timeSeriesBase = {
@@ -84,6 +85,8 @@ export default class FieldAnalysis extends Vue {
   /** 错误提示字符串 */
   emptyTipsStr = '';
   emptyStr = window.mainComponent.$t('暂无数据');
+  lineOptions = {};
+  pillarOption = {};
 
   /** 基础信息数据 */
   fieldData = {
@@ -211,8 +214,9 @@ export default class FieldAnalysis extends Vue {
           return `${item[0]} - ${resData[index + 1][0]}`;
         });
         const pillarInterval = Math.round(xAxisData.length / 2) - 1;
+        this.pillarOption = deepClone(pillarChartOption);
         // 柱状图初始化
-        Object.assign(pillarChartOption, {
+        Object.assign(this.pillarOption, {
           tooltip: {
             trigger: 'axis',
             transitionDuration: 0,
@@ -282,7 +286,8 @@ export default class FieldAnalysis extends Vue {
         const {
           xAxis: { minInterval, splitNumber, ...resetxAxis }
         } = lineOrBarOptions;
-        Object.assign(lineOrBarOptions, {
+        this.lineOptions = deepClone(lineOrBarOptions);
+        Object.assign(this.lineOptions, {
           useUTC: false,
           tooltip: {
             trigger: 'axis',
@@ -362,7 +367,7 @@ export default class FieldAnalysis extends Vue {
     const chart: any = echarts.init(this.chartRef, null, {
       height: `${this.height}px`
     });
-    const getInitChartOption = this.isPillarChart ? pillarChartOption : lineOrBarOptions;
+    const getInitChartOption = this.isPillarChart ? this.pillarOption : this.lineOptions;
     chart && chart.setOption(getInitChartOption);
     this.chart = chart;
     this.chart.resize();
@@ -372,17 +377,13 @@ export default class FieldAnalysis extends Vue {
   handleSetTimeTooltip(params) {
     const liHtmls = params
       .sort((a, b) => b.value[1] - a.value[1])
-      .map((item, index) => {
-        let markColor = 'color: #fafbfd;';
-        if (index === 0) {
-          markColor = 'color: #fff;font-weight: bold;';
-        }
+      .map(item => {
         /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
         return `<li class="tooltips-content-item">
                   <span class="item-series" style="background-color:${item.color};"></span>
-                  <span class="item-name is-warp" style="${markColor}">${item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n')}:</span>
+                  <span class="item-name is-warp">${item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n')}:</span>
                   <div class="item-value-box is-warp">
-                    <span class="item-value" style="${markColor}">${item.value[1]}</span>
+                    <span class="item-value">${item.value[1]}</span>
                   </div>
                 </li>`;
       });
