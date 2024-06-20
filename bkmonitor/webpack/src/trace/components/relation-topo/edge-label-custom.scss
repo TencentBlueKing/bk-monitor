@@ -27,11 +27,11 @@
 
 .edge-label-custom {
   position: absolute;
+  z-index: 1001;
 }
 
 .edge-duration-panel {
   position: absolute;
-  z-index: 9;
   padding: 1px 0;
   pointer-events: all;
   cursor: pointer;

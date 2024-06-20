@@ -182,6 +182,7 @@ export default defineComponent({
                   onClick={() => this.handleSortChange('sort')}
                 ></i>
                 <Popover
+                  disabled={true}
                   is-show={this.sortOrder.popoverShow}
                   theme='light'
                   trigger='click'
