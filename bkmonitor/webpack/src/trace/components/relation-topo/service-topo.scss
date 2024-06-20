@@ -28,9 +28,17 @@
       }
 
       .node-interface-name {
+        display: -webkit-box;
+        max-width: 168px;
+        overflow: hidden;
         font-size: 12px;
         line-height: 18px;
         color: #313238;
+        text-overflow: ellipsis;
+        word-break: break-word;
+        white-space: normal;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
       }
 
       &:hover {
