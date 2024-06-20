@@ -115,18 +115,18 @@
                 <bk-input
                   v-model="log.value"
                   data-test-id="sourceLogBox_input_addLogPath"
-                ></bk-input>
+                />
                 <div class="ml9">
                   <i
                     class="bk-icon icon-plus-circle-shape icons"
                     data-test-id="sourceLogBox_i_newAddLogPath"
                     @click="addLog('paths')"
-                  ></i>
+                  />
                   <i
                     :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }]"
                     data-test-id="sourceLogBox_i_deleteAddLogPath"
                     @click="delLog(index, 'paths')"
-                  ></i>
+                  />
                 </div>
               </div>
               <div
@@ -224,6 +224,7 @@
         >
           <log-filter
             ref="logFilterRef"
+            :is-clone-or-update="isCloneOrUpdate"
             :conditions="subFormData.params.conditions"
             :conditions-change.sync="subFormData.params.conditions"
           />

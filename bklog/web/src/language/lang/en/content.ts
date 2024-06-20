@@ -759,5 +759,6 @@ export default {
   操作符: 'Operator',
   新增过滤组: 'Add filter group',
   请输入行数: 'Please enter the number of lines',
-  请输入日志样例: 'Please enter a log sample'
+  请输入日志样例: 'Please enter a log sample',
+  '第{n}行': '{n} line'
 };

@@ -90,6 +90,8 @@
           border: 1px solid transparent;
           border-radius: 0;
 
+          transition: border-color 0.3s ease-in-out;
+
           &:hover {
             border-color: #A4C6FE;
           }
@@ -139,6 +141,11 @@
 
         .icon-plus-circle-shape {
           margin-right: 14px;
+        }
+
+        .disabled {
+          color: #dcdee5;
+          cursor: not-allowed;
         }
       }
 

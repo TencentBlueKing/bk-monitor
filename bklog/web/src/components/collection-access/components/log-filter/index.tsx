@@ -23,61 +23,19 @@
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import './index.scss';
-// import $http from '../../../../api';
-import { deepClone, Debounce } from '@/common/util';
+import {
+  btnType,
+  ISelectItem,
+  ITableRowItem,
+  operatorSelectList,
+  btnGroupList,
+  operatorMapping,
+  tableRowBaseObj
+} from './type';
+import $http from '../../../../api';
+import { deepClone, Debounce } from '../../../../common/util';
 import { Form } from 'bk-magic-vue';
 import ValidatorInput from './validator-input';
-
-/** 操作符列表 */
-const operatorSelectList = [
-  {
-    id: 'eq',
-    name: window.mainComponent.$t('等于')
-  },
-  {
-    id: 'neq',
-    name: window.mainComponent.$t('不等于')
-  },
-  {
-    id: 'include',
-    name: window.mainComponent.$t('包含')
-  },
-  {
-    id: 'exclude',
-    name: window.mainComponent.$t('不包含')
-  },
-  {
-    id: 'regex',
-    name: window.mainComponent.$t('正则匹配')
-  },
-  {
-    id: 'nregex',
-    name: window.mainComponent.$t('正则不匹配')
-  }
-];
-/** 过滤类型 */
-const btnGroupList = [
-  {
-    id: 'match',
-    name: window.mainComponent.$t('字符串')
-  },
-  {
-    id: 'separator',
-    name: window.mainComponent.$t('分隔符')
-  }
-];
-/** 操作符映射 */
-const operatorMapping = {
-  '=': 'eq',
-  '!=': 'neq'
-};
-
-const tableRowBaseObj = {
-  fieldindex: '',
-  word: '',
-  op: 'eq',
-  tableIndex: 0
-};
 
 const inputLogStyle = {
   backgroundColor: '#313238',
@@ -87,17 +45,18 @@ const inputLogStyle = {
   borderRadius: '2px'
 };
 
-type btnType = 'none' | 'match' | 'separator';
-
 @Component
 export default class LogFilter extends tsc<{}> {
   @Prop({ type: Object, required: true }) conditions: object;
+  @Prop({ type: Boolean, default: false }) isCloneOrUpdate: boolean;
+
   /** 日志过滤开关 */
   filterSwitcher = false;
+  isFirstClickFilterType = true;
   /** 当前过滤的日志类型 字符串或分隔符  */
   activeType: btnType = 'match';
   separator = '|';
-  filterData = [
+  filterData: Array<Array<ITableRowItem>> = [
     [
       {
         fieldindex: '',
@@ -112,13 +71,16 @@ export default class LogFilter extends tsc<{}> {
     match: deepClone(this.filterData),
     separator: deepClone(this.filterData)
   };
-  originalFilterItemSelect = [];
-  /** 分隔符日志 */
+  originalFilterItemSelect: Array<ISelectItem> = [];
+  /** 分隔符原始日志 */
   logOriginal = '';
   logOriginalLoading = false;
 
   get globalDataDelimiter() {
     return this.$store.getters['globals/globalsData']?.data_delimiter || [];
+  }
+  get curCollect() {
+    return this.$store.getters['collect/curCollect'] || {};
   }
   /** 是否是字符串类型 */
   get isMatchType() {
@@ -134,7 +96,7 @@ export default class LogFilter extends tsc<{}> {
   }
 
   @Debounce(100)
-  @Watch('shouldWatchValue', { deep: true })
+  @Watch('shouldWatchValue', { immediate: true, deep: true })
   watchShouldWatchValue() {
     this.conditionsChange();
   }
@@ -184,15 +146,16 @@ export default class LogFilter extends tsc<{}> {
         this.activeType = type;
         this.separator = separator || '|';
         this.filterData = this.splitFilters(separatorFilters);
+        this.isCloneOrUpdate && this.getLogOriginal();
         break;
       default:
         break;
     }
   }
   /** 设置过滤分组 */
-  splitFilters(filters) {
+  splitFilters(filters: Array<ITableRowItem>) {
     const groups = [];
-    let currentGroup = [];
+    let currentGroup: Array<ITableRowItem> = [];
 
     filters.forEach((filter, index) => {
       const mappingFilter = {
@@ -207,7 +170,6 @@ export default class LogFilter extends tsc<{}> {
         currentGroup = [];
       }
     });
-    // 如果最后一个 group 没有被 push
     if (currentGroup.length > 0) {
       groups.push(currentGroup);
     }
@@ -215,7 +177,7 @@ export default class LogFilter extends tsc<{}> {
     return groups;
   }
   /** 删除分组 */
-  async handleClickDeleteGroup(index) {
+  handleClickDeleteGroup(index: number) {
     if (this.filterData.length === 1) return;
     this.filterData.splice(index, 1);
   }
@@ -225,7 +187,7 @@ export default class LogFilter extends tsc<{}> {
     this.filterData.push([{ ...tableRowBaseObj, tableIndex: this.filterData.length }]);
   }
   /** 组内新增 */
-  handleAddNewSeparator(rowIndex, tableIndex, operateType = 'add') {
+  handleAddNewSeparator(rowIndex: number, tableIndex: number, operateType = 'add') {
     const currentGroup = this.filterData[tableIndex];
     if (operateType === 'add') {
       currentGroup.push({ ...tableRowBaseObj, tableIndex });
@@ -239,16 +201,24 @@ export default class LogFilter extends tsc<{}> {
     this.catchFilterData[this.activeType] = this.filterData;
     this.filterData = this.catchFilterData[type];
     this.activeType = type;
+    if (this.isCloneOrUpdate && this.isFirstClickFilterType && type === 'separator') {
+      this.isFirstClickFilterType = false;
+      this.getLogOriginal(false);
+    }
   }
   /** 输入框内数据Form验证 */
   async inputValidate() {
     return new Promise(async (resolve, reject) => {
-      if (this.activeType === 'none') resolve(true);
+      if (!this.filterSwitcher) {
+        resolve(true);
+        return;
+      }
       let isCanSubmit = true;
 
       for (const fIndex in this.filterData) {
         for (const iIndex in this.filterData[fIndex]) {
           let matchNotError = true;
+          // 字符串类型过滤暂时无过滤参数（全文）
           if (this.activeType === 'separator') {
             matchNotError = await (this.$refs[`match-${fIndex}-${iIndex}`] as Form)?.validate();
           }
@@ -268,8 +238,9 @@ export default class LogFilter extends tsc<{}> {
     const submitData = filterData
       .filter(item => !!item.length)
       .map((fItem, fIndex) => {
-        const newData = (fItem as any).map((item, index) => {
+        const newData = (fItem as any).map((item: ITableRowItem, index: number) => {
           const { tableIndex, ...reset } = item;
+          // 将数组中第一组的内容为and，后面的分组第一个logic_op参数为or来区分组与组
           return { ...reset, logic_op: fIndex === 0 || index !== 0 ? 'and' : 'or' };
         });
         return newData;
@@ -290,31 +261,46 @@ export default class LogFilter extends tsc<{}> {
     }
     return conditions;
   }
+  /** 获取分隔符调试的原始日志 */
+  getLogOriginal(isDebug = true) {
+    $http
+      .request(
+        'source/dataList',
+        {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id
+          }
+        },
+        {
+          catchIsShowMessage: false
+        }
+      )
+      .then(res => {
+        if (res.data && res.data.length) {
+          const firstData = res.data[0];
+          this.logOriginal = firstData.etl.data || '';
+          if (this.logOriginal && isDebug) this.logOriginDebug();
+        }
+      })
+      .catch(() => {});
+  }
+
   /** 获取分隔符调试后的下拉框 */
   async logOriginDebug() {
     try {
-      // this.logOriginalLoading = true;
-      // const res = await $http.request('clean/getEtlPreview', {
-      //   data: {
-      //     etl_config: 'bk_log_delimiter',
-      //     etl_params: { separator: this.separator },
-      //     data: this.logOriginal
-      //   }
-      // });
-      // const resDataFields = res.data.fields;
-      // this.originalFilterItemSelect = resDataFields.map(item => ({
-      //   name: `第${item.field_index}行 | ${item.value}`,
-      //   id: String(item.field_index),
-      //   value: item.value
-      // }));
-      // this.filterData = this.filterData.map(fItem => {
-      //   return fItem.map((item, iIndex) => ({
-      //     fieldindex: String(iIndex + 1),
-      //     word: item.word,
-      //     op: 'eq',
-      //     tableIndex: 0
-      //   }));
-      // });
+      this.logOriginalLoading = true;
+      const res = await $http.request('clean/getEtlPreview', {
+        data: {
+          etl_config: 'bk_log_delimiter',
+          etl_params: { separator: this.separator },
+          data: this.logOriginal
+        }
+      });
+      this.originalFilterItemSelect = res.data.fields.map(item => ({
+        name: `${this.$t('第{n}行', { n: item.field_index })} | ${item.value}`,
+        id: String(item.field_index),
+        value: item.value
+      }));
     } catch (error) {
     } finally {
       this.logOriginalLoading = false;
@@ -327,25 +313,23 @@ export default class LogFilter extends tsc<{}> {
         <ValidatorInput
           ref={`match-${row.tableIndex}-${$index}`}
           input-type={'number'}
-          ext-class='table-input'
           v-model={row.fieldindex}
           active-type={this.activeType}
           row-data={row}
           table-index={row.tableIndex}
           original-filter-item-select={this.originalFilterItemSelect}
           placeholder={this.$t('请输入行数')}
-        ></ValidatorInput>
+        />
       )
     };
     const valueInputSlot = {
       default: ({ $index, row }) => (
         <ValidatorInput
           ref={`value-${row.tableIndex}-${$index}`}
-          ext-class='table-input'
           v-model={row.word}
           active-type={this.activeType}
           row-data={row}
-        ></ValidatorInput>
+        />
       )
     };
     const selectSlot = {
@@ -359,24 +343,23 @@ export default class LogFilter extends tsc<{}> {
               <bk-option
                 id={option.id}
                 name={option.name}
-              ></bk-option>
+              />
             ))}
           </bk-select>
         </div>
       )
     };
-
     const operatorSlot = {
       default: ({ $index, row }) => (
         <div class='table-operator'>
           <i
             class='bk-icon icon-plus-circle-shape'
             onClick={() => this.handleAddNewSeparator($index, row.tableIndex, 'add')}
-          ></i>
+          />
           <i
-            class='bk-icon icon-minus-circle-shape'
+            class={['bk-icon icon-minus-circle-shape', { disabled: $index === 0 }]}
             onClick={() => this.handleAddNewSeparator($index, row.tableIndex, 'delete')}
-          ></i>
+          />
         </div>
       )
     };
@@ -390,7 +373,7 @@ export default class LogFilter extends tsc<{}> {
             size='large'
           ></bk-switcher>
           <div class='switcher-tips'>
-            <i class='bk-icon icon-info-circle'></i>
+            <i class='bk-icon icon-info-circle' />
             <span>{this.$t('过滤器支持采集时过滤不符合的日志内容，需采集器版本 XXXXXXXX')}</span>
           </div>
         </div>
@@ -418,7 +401,7 @@ export default class LogFilter extends tsc<{}> {
                       <bk-option
                         id={option.id}
                         name={option.name}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                   <bk-button
@@ -437,7 +420,7 @@ export default class LogFilter extends tsc<{}> {
                     type='textarea'
                     rows={3}
                     input-style={inputLogStyle}
-                  ></bk-input>
+                  />
                 </div>
               </div>
             )}
@@ -461,23 +444,23 @@ export default class LogFilter extends tsc<{}> {
                       label={this.$t('过滤参数')}
                       prop='fieldindex'
                       scopedSlots={fieldIndexInputSlot}
-                    ></bk-table-column>
+                    />
                   )}
                   <bk-table-column
                     label={this.$t('操作符')}
                     prop='op'
                     scopedSlots={selectSlot}
-                  ></bk-table-column>
+                  />
                   <bk-table-column
                     label='Value'
                     prop='word'
                     scopedSlots={valueInputSlot}
-                  ></bk-table-column>
+                  />
                   <bk-table-column
                     label={this.$t('操作')}
                     width='95'
                     scopedSlots={operatorSlot}
-                  ></bk-table-column>
+                  />
                 </bk-table>
               </div>
             ))}
@@ -485,7 +468,7 @@ export default class LogFilter extends tsc<{}> {
               class='add-new-group-btn'
               onClick={() => this.handleClickNewGroupBtn()}
             >
-              <i class='bk-icon icon-plus-line'></i>
+              <i class='bk-icon icon-plus-line' />
               <span>{this.$t('新增过滤组')}</span>
             </div>
           </div>
