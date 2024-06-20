@@ -50,6 +50,7 @@ from monitor_web.statistics.v2.query import unify_query_count
 
 from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
+from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
 
 logger = logging.getLogger(__name__)
@@ -543,6 +544,8 @@ class TraceDetailResource(Resource):
         topo_data = trace_data_to_topo_data(handled_data["original_data"])
         handled_data["topo_relation"] = topo_data["relations"]
         handled_data["topo_nodes"] = topo_data["nodes"]
+        service_topo_data = trace_data_to_service_topo(handled_data["original_data"])
+        handled_data.update(service_topo_data)
         return handled_data
 
 
