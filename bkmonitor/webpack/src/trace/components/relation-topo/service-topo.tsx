@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, nextTick, ref, watch } from 'vue';
+import { PropType, defineComponent, nextTick, ref, watch } from 'vue';
 
 import { Edge, ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
 import { MiniMap } from '@vue-flow/minimap';
@@ -33,7 +33,6 @@ import { Popover } from 'bkui-vue';
 import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
-import { useTraceStore } from '../../store/modules/trace';
 import EdgeLabelCustom from './edge-label-custom';
 
 import './service-topo.scss';
@@ -47,11 +46,46 @@ enum ENodeType {
   service = 'service',
 }
 
+function getRandomColor() {
+  // 生成随机的 RGB 值
+  const r = Math.floor(Math.random() * 225);
+  const g = Math.floor(Math.random() * 225);
+  const b = Math.floor(Math.random() * 225);
+  // 将 RGB 值转换为十六进制颜色代码
+  const color = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  return color;
+}
+
+interface IServiceTopoData {
+  nodes: {
+    key: string;
+    node_type: ENodeType;
+    display_name: string;
+    spans: any[];
+  }[];
+  edges: {
+    key: string;
+    target: string;
+    source: string;
+    spans: any[];
+    num_of_operations: number;
+  }[];
+}
+
 export default defineComponent({
   name: 'ServiceTopo',
-  setup() {
+  props: {
+    serviceTopoData: {
+      type: Object as PropType<IServiceTopoData>,
+      default: () => null,
+    },
+    isShowDuration: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props) {
     // hooks
-    const store = useTraceStore();
     const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } =
       useVueFlow();
     const { layout } = useLayout();
@@ -60,15 +94,10 @@ export default defineComponent({
     // dom
     const graphContainer = ref<Element>();
     const topoGraphContent = ref<Element>();
-
-    // data
     const emptyText = ref<string>('加载中...');
     const empty = ref<boolean>(false);
-    const serviceTopoData = computed(() => store.traceData.streamline_service_topo);
     // 当前选中节点
     const selectedNodeKey = ref('');
-    /** 是否显示耗时 */
-    const isShowDuration = computed(() => store.traceViewFilters.includes('duration'));
 
     // 拓扑图数据
     const nodes = ref([]);
@@ -83,14 +112,18 @@ export default defineComponent({
     const scale = ref(1);
 
     watch(
-      () => serviceTopoData.value,
+      () => props.serviceTopoData,
       data => {
+        if (!data) {
+          return;
+        }
         nodes.value = data.nodes.map(item => ({
           id: item.key,
           type: item.node_type,
           position: { x: 0, y: 0 },
           data: {
             ...item,
+            color: getRandomColor(),
           },
         }));
         edges.value = data.edges.map(item => ({
@@ -237,7 +270,6 @@ export default defineComponent({
       topoGraphContent,
       zoomValue,
       scale,
-      isShowDuration,
       selectedNodeKey,
       layoutGraph,
       handleGraphZoom,
@@ -259,7 +291,7 @@ export default defineComponent({
           allowHtml={false}
           arrow={false}
           boundary={'parent'}
-          content={this.topoGraphContent}
+          content={this.topoGraphContent as any}
           isShow={this.showLegend}
           placement='top-start'
           renderType='auto'

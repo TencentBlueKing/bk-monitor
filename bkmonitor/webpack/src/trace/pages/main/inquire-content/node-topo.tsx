@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { PropType, defineComponent, ref } from 'vue';
+import { PropType, computed, defineComponent, ref } from 'vue';
 
 import RelationTopo from '../../../components/relation-topo/relation-topo';
 import ServiceTopo from '../../../components/relation-topo/service-topo';
+import { useTraceStore } from '../../../store/modules/trace';
 
 import './node-topo.scss';
 
@@ -58,9 +59,15 @@ export default defineComponent({
   props: NodeTopoProps,
   emits: ['showSpanDetail', 'spanListChange', 'compareSpanListChange', 'update:loading'],
   setup() {
+    const store = useTraceStore();
     const relationTopo = ref();
 
     const type = ref<EType>(EType.time);
+
+    // 服务topo数据
+    const serviceTopoData = computed(() => store.traceData.streamline_service_topo);
+    /** 是否显示耗时 */
+    const isShowDuration = computed(() => store.traceViewFilters.includes('duration'));
 
     function handleTypeChange(value: EType) {
       if (type.value !== value) {
@@ -84,6 +91,8 @@ export default defineComponent({
     return {
       type,
       relationTopo,
+      serviceTopoData,
+      isShowDuration,
       handleTypeChange,
       handleKeywordFliter,
       clearSearch,
@@ -114,7 +123,12 @@ export default defineComponent({
             onUpdate:loading={(...arg) => this.$emit('update:loading', ...arg)}
           ></RelationTopo>
         )}
-        {this.type === EType.service && <ServiceTopo></ServiceTopo>}
+        {this.type === EType.service && (
+          <ServiceTopo
+            isShowDuration={this.isShowDuration}
+            serviceTopoData={this.serviceTopoData}
+          ></ServiceTopo>
+        )}
       </div>
     );
   },
