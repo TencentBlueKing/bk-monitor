@@ -849,14 +849,16 @@ export default {
         })
         .then(res => {
           if (res.result) {
-            this.getHoverRowValue.owners = res.data.owners;
+            const { signature, owners } = res.data;
+            this.curEditSignature = signature;
+            this.getHoverRowValue.owners = owners;
             this.$bkMessage({
               theme: 'success',
               message: this.$t('操作成功')
             });
-            this.curEditSignature = '';
           }
-        });
+        })
+        .finally(() => (this.curEditSignature = ''));
     },
     /** 设置备注  */
     remarkQuery(markType = 'add') {
@@ -898,15 +900,17 @@ export default {
         })
         .then(res => {
           if (res.result) {
-            this.getHoverRowValue.remark = res.data.remark;
+            const { signature, remark } = res.data;
+            this.curEditSignature = signature;
+            this.getHoverRowValue.remark = remark;
             this.$bkMessage({
               theme: 'success',
               message: this.$t('操作成功')
             });
-            this.curEditSignature = '';
           }
         })
         .finally(() => {
+          this.curEditSignature = '';
           this.verifyData.textInputStr = '';
           this.catchOperatorVal = {};
         });
@@ -926,7 +930,7 @@ export default {
             showTime: item.create_time > 0 ? formatDate(item.create_time) : ''
           }))
           .sort((a, b) => b.create_time - a.create_time);
-        this.popoverInstance = this.$bkPopover(event.target, {
+        this.popoverInstance = this.$bkPopover(e.target, {
           content: this.$refs.remarkTips,
           allowHTML: true,
           arrow: true,
@@ -937,13 +941,13 @@ export default {
           boundary: 'window',
           placement: 'top',
           width: 240,
+          onShow: () => (this.curEditSignature = row.signature),
           onHidden: () => {
             this.popoverInstance && this.popoverInstance.destroy();
             this.popoverInstance = null;
           }
         });
       }
-      this.curEditSignature = row.signature;
       this.popoverInstance.show();
     },
     /** 提交新的备注 */
