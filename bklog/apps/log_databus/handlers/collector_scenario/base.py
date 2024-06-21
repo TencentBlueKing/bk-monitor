@@ -253,6 +253,7 @@ class CollectorScenario(object):
         local_params.update(
             {
                 "paths": params["paths"],
+                "exclude_files": params["exclude_files"],
                 "encoding": params["encoding"],
                 "tail_files": params["tail_files"],
                 "ignore_older": params["ignore_older"],

@@ -190,6 +190,7 @@ class RowCollectorScenario(CollectorScenario):
 
             params = {
                 "paths": config["local"][0]["paths"],
+                "exclude_files": config["local"][0]["exclude_files"],
                 "conditions": conditions,
                 "encoding": config["local"][0]["encoding"],
             }
@@ -197,6 +198,7 @@ class RowCollectorScenario(CollectorScenario):
             logger.exception(f"解析订阅步骤失败，参数:{steps}，错误:{e}")
             params = {
                 "paths": [],
+                "exclude_files": [],
                 "conditions": {
                     "type": "none",
                     "match_type": "include",

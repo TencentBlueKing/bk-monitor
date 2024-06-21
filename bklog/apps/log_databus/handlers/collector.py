@@ -395,9 +395,6 @@ class CollectorHandler(object):
             subscription_config = result["subscription_config"][0]
             collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
             params = collector_scenario.parse_steps(subscription_config["steps"])
-            # 加入exclude_files字符
-            exclude_files = collector_config["params"].get("exclude_files", [])
-            params.update({"exclude_files": exclude_files})
             collector_config.update({"params": params})
             data_encoding = params.get("encoding")
             if data_encoding:
