@@ -62,7 +62,7 @@ def rebuild_strategy_priority_group_key(apps, schema_editor):
     Item = apps.get_model("bkmonitor", "ItemModel")
     QueryConfig = apps.get_model("bkmonitor", "QueryConfigModel")
 
-    for strategy in Strategy.objects.exclude(priority=None).exclude(priority=0):
+    for strategy in Strategy.objects.exclude(priority=None):
         items = Item.objects.filter(strategy_id=strategy.id)
         query_configs = QueryConfig.objects.filter(strategy_id=strategy.id)
         item_to_query_configs = defaultdict(list)
