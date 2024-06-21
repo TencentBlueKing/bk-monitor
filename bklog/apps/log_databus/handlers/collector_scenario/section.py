@@ -173,7 +173,7 @@ class SectionCollectorScenario(CollectorScenario):
                 # 兼容历史数据（历史数据 match_type 固定为 '=' ）
                 if match_type == "=":
                     match_type = "include"
-                separator_filters = []
+
             elif not separator_filters:
                 _type = "none"
             else:
@@ -193,6 +193,7 @@ class SectionCollectorScenario(CollectorScenario):
 
             params = {
                 "paths": config["local"][0]["paths"],
+                "exclude_files": config["local"][0]["exclude_files"],
                 "conditions": conditions,
                 "multiline_pattern": config["local"][0]["multiline_pattern"],
                 "multiline_max_lines": config["local"][0]["multiline_max_lines"],
@@ -203,6 +204,7 @@ class SectionCollectorScenario(CollectorScenario):
             logger.exception(f"解析订阅步骤失败，参数:{steps}，错误:{e}")
             params = {
                 "paths": [],
+                "exclude_files": [],
                 "conditions": {
                     "type": "none",
                     "match_type": "include",
