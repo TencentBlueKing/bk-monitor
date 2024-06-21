@@ -222,36 +222,29 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "keyword": """number < 83063 and title: "The Right Way" AND log: OR""",
         "expect": """number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
     },
-]
-# =================================== TEST SYNTAX TRANSFORM =================================== #
-SYNTAX_TRANSFORM_MAPPINGS = [
     {
-        "keyword": """log: "lineno=1""",
-        "expect": """log: "lineno=1""",
+        "keyword": """log: "lineno=1" and number < 83063 and title: "The Right Way" AND log: OR""",
+        "expect": """log: "lineno=1" AND number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """levelname:\"a and b or c\"""",
-        "expect": """levelname:\"a and b or c\"""",
+        "keyword": """log: lineno=1 and title: "The Right Way" AND log: OR""",
+        "expect": """log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """lineno=1""",
-        "expect": """lineno: =1""",
+        "keyword": """number >=83063 or levelname:\"a and b or c\" AND log: and""",
+        "expect": """number: >=83063 OR levelname:\"a and b or c\" AND log: \"and\"""",
     },
     {
-        "keyword": """log: a and \"b or c\"""",
-        "expect": """log: a AND \"b or c\"""",
+        "keyword": """number >=83063 or levelname: a and \"b or c\" AND log: and""",
+        "expect": """number: >=83063 OR levelname: a AND \"b or c\" AND log: \"and\"""",
     },
     {
-        "keyword": """log: \"a and b or c\"""",
-        "expect": """log: \"a and b or c\"""",
+        "keyword": """number < 83063 and levelname : \"a and b or c not d\" or lineno : [1 to 1000] AND log: and""",
+        "expect": """number: <83063 AND levelname : \"a and b or c not d\" OR lineno : [1 TO 1000] AND log: \"and\"""",
     },
     {
-        "keyword": """levelname : \"a and b or c not d\" or lineno : [1 to 1000]""",
-        "expect": """levelname : \"a and b or c not d\" OR lineno : [1 TO 1000]""",
-    },
-    {
-        "keyword": """log:\"go to some\" or title: "The Right Way" and lineno:[1 to 10] AND log: and""",
-        "expect": """log:\"go to some\" OR title: "The Right Way" AND lineno:[1 TO 10] AND log: \"and\"""",
+        "keyword": """number >=83063 and log:\"go to some\" and lineno:[1 to 10] AND log: and""",
+        "expect": """number: >=83063 AND log:\"go to some\" AND lineno:[1 TO 10] AND log: \"and\"""",
     },
 ]
 
@@ -541,15 +534,6 @@ class TestEnhanceLucene(TestCase):
         keyword = OperatorEnhanceLucene(keyword).transform()
         keyword = ReservedLogicalEnhanceLucene(keyword).transform()
         self.assertEqual(keyword, KEYWORD)
-
-    def test_symbols_transform(self):
-        # 测试符号转换
-        for i in SYNTAX_TRANSFORM_MAPPINGS:
-            keyword = i["keyword"]
-            adapter = EnhanceLuceneAdapter(keyword)
-            adapter.enhance()
-            self.assertEqual(adapter.origin_query_string, keyword)
-            self.assertEqual(adapter.query_string, i["expect"])
 
 
 class TestFavoriteWithEnhanceLucene(TestCase):
