@@ -173,7 +173,7 @@ class SectionCollectorScenario(CollectorScenario):
                 # 兼容历史数据（历史数据 match_type 固定为 '=' ）
                 if match_type == "=":
                     match_type = "include"
-                separator_filters = []
+
             elif not separator_filters:
                 _type = "none"
             else:

@@ -170,7 +170,7 @@ class RowCollectorScenario(CollectorScenario):
                 # 兼容历史数据（历史数据match_type固定为 '=' ）
                 if match_type == "=":
                     match_type = "include"
-                separator_filters = []
+
             elif not separator_filters:
                 _type = "none"
             else:
