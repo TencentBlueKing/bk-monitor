@@ -654,6 +654,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @return {*}
    */
   handleGetSearchParams(onlyOverview = false, commonParams = false) {
+    // 查询条件语法格式错误，清除查询条件
+    if (this.filterInputStatus === 'error') {
+      this.queryString = '';
+    }
     // const { startTime, endTime } = this.handleGetTimeRange();
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     let params: any = {
