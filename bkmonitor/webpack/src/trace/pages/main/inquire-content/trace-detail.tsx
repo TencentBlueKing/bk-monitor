@@ -56,10 +56,9 @@ import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph
 import SpanList from '../../../plugins/charts/span-list/span-list';
 import { DEFAULT_TRACE_DATA, TRACE_INFO_TOOL_FILTERS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings';
+import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree, ETopoType } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
-// import RelationTopo from '../../../components/relation-topo/relation-topo';
 import NodeTopo from './node-topo';
 
 import './trace-detail.scss';
@@ -216,6 +215,9 @@ export default defineComponent({
     );
     /** 是否展示 span list */
     const showSpanList = computed(() => ['sequence', 'topo'].includes(state.activePanel));
+
+    /* 节点拓扑类型 时间/服务 */
+    const topoType = ref<ETopoType>(ETopoType.time);
 
     // 复制操作
     const handleCopy = (content: string) => {
@@ -685,6 +687,15 @@ export default defineComponent({
       state.isCompareView = isCompare;
       isCompare && updateTemporaryCompareTrace(state.compareTraceID);
     };
+
+    /**
+     * @description 切换拓扑图类型
+     * @param value
+     */
+    function handleTopoChangeType(value: ETopoType) {
+      topoType.value = value;
+    }
+
     return {
       ...toRefs(state),
       isLoading,
@@ -734,6 +745,8 @@ export default defineComponent({
       handleCompareSpanListChange,
       filterKeywords,
       updateCompareStatus,
+      topoType,
+      handleTopoChangeType,
     };
   },
 
@@ -1025,10 +1038,12 @@ export default defineComponent({
                     key={traceInfo?.root_span_id || ''}
                     ref='relationTopo'
                     compareTraceID={this.compareTraceID}
+                    type={this.topoType}
                     updateMatchedSpanIds={this.updateMatchedSpanIds}
                     onCompareSpanListChange={this.handleCompareSpanListChange}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onSpanListChange={this.handleSpanListFilter}
+                    onTypeChange={this.handleTopoChangeType}
                     onUpdate:loading={this.contentLoadingChange}
                   />
                 )}

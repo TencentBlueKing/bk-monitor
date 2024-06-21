@@ -28,13 +28,10 @@ import { PropType, computed, defineComponent, ref } from 'vue';
 import RelationTopo from '../../../components/relation-topo/relation-topo';
 import ServiceTopo from '../../../components/relation-topo/service-topo';
 import { useTraceStore } from '../../../store/modules/trace';
+import { ETopoType as EType } from '../../../typings/trace';
 
 import './node-topo.scss';
 
-enum EType {
-  service = 'service',
-  time = 'time',
-}
 const typeList = [
   {
     id: EType.time,
@@ -51,14 +48,18 @@ const NodeTopoProps = {
     type: String,
     default: '',
   },
+  type: {
+    type: String as PropType<EType>,
+    default: EType.time,
+  },
   updateMatchedSpanIds: Function as PropType<(count: number) => void>,
 };
 
 export default defineComponent({
   name: 'NodeTopo',
   props: NodeTopoProps,
-  emits: ['showSpanDetail', 'spanListChange', 'compareSpanListChange', 'update:loading'],
-  setup() {
+  emits: ['showSpanDetail', 'spanListChange', 'compareSpanListChange', 'update:loading', 'typeChange'],
+  setup(props, { emit }) {
     const store = useTraceStore();
     const relationTopo = ref();
 
@@ -69,9 +70,16 @@ export default defineComponent({
     /** 是否显示耗时 */
     const isShowDuration = computed(() => store.traceViewFilters.includes('duration'));
 
+    init();
+
+    function init() {
+      type.value = props.type;
+    }
+
     function handleTypeChange(value: EType) {
       if (type.value !== value) {
         type.value = value;
+        emit('typeChange', value);
       }
     }
 

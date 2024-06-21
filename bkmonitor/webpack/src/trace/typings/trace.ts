@@ -343,3 +343,8 @@ export interface IQueryParams {
   diff_filter_labels?: any;
   is_compared?: boolean;
 }
+
+export enum ETopoType {
+  service = 'service',
+  time = 'time',
+}
