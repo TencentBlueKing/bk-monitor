@@ -326,3 +326,15 @@ class SearchPatternResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class ListEsRouterResource(LogSearchAPIGWResource):
+    """获取Es的结果表"""
+
+    action = "/index_set/list_es_router/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        page = serializers.IntegerField(required=False, default=1)
+        pagesize = serializers.IntegerField(required=False, default=10)
+        space_uid = serializers.CharField(required=False, allow_null=True, allow_blank=True)
