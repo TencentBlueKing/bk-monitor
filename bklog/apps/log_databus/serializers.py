@@ -38,6 +38,7 @@ from apps.log_databus.constants import (
     Environment,
     EsSourceType,
     EtlConfig,
+    KafkaInitialOffsetEnum,
     LabelSelectorOperator,
     PluginParamLogicOpEnum,
     PluginParamOpEnum,
@@ -167,14 +168,14 @@ class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
         choices=PluginParamOpEnum.get_choices(),
         required=False,
         default=PluginParamOpEnum.OP_INCLUDE.value,
-        allow_blank=True
+        allow_blank=True,
     )
     syslog_logic_op = serializers.ChoiceField(
         label=_("逻辑操作符"),
         choices=PluginParamLogicOpEnum.get_choices(),
         required=False,
         default=PluginParamLogicOpEnum.AND.value,
-        allow_blank=True
+        allow_blank=True,
     )
 
 
@@ -241,6 +242,24 @@ class PluginParamSerializer(serializers.Serializer):
     syslog_monitor_host = serializers.CharField(label=_("syslog监听服务器IP"), required=False, allow_blank=True)
     syslog_conditions = serializers.ListSerializer(
         label=_("syslog过滤条件"), required=False, default=[], child=SyslogPluginConditionFiltersSerializer()
+    )
+
+    # kafka 采集配置相关参数
+    kafka_hosts = serializers.ListField(
+        label=_("kafka地址"), required=False, default=[], child=serializers.CharField(max_length=255)
+    )
+    kafka_username = serializers.CharField(label=_("kafka用户名"), required=False, allow_blank=True)
+    kafka_password = serializers.CharField(label=_("kafka密码"), required=False, allow_blank=True)
+    kafka_topics = serializers.ListField(
+        label=_("kafka topic"), required=False, default=[], child=serializers.CharField()
+    )
+    kafka_group_id = serializers.CharField(label=_("kafka 消费组"), required=False, allow_blank=True, default="")
+    kafka_initial_offset = serializers.ChoiceField(
+        label=_("初始偏移量"),
+        choices=KafkaInitialOffsetEnum.get_choices(),
+        required=False,
+        default=KafkaInitialOffsetEnum.NEWEST.value,
+        allow_blank=True,
     )
 
     def validate(self, attrs):
