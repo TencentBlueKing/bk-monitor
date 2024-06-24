@@ -41,7 +41,7 @@ def request_hook(span: Span, request):
     if not request:
         return
 
-    if getattr(request, "FILES", None) and request.POST:
+    if getattr(request, "FILES", None) and request.method.upper() == "POST":
         # 请求中如果包含了文件 不取 Body 内容
         carrier = request.POST
     else:
