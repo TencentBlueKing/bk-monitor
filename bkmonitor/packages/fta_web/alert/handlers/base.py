@@ -586,8 +586,8 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
     @classmethod
     def parse_biz_item(self, bk_biz_ids, **kwargs):
         if "authorized_bizs" in kwargs:
-            authorized_bizs = kwargs["authorized_bizs"] or self.authorized_bizs
-            unauthorized_bizs = kwargs["unauthorized_bizs"] or self.unauthorized_bizs
+            authorized_bizs = kwargs["authorized_bizs"] or bk_biz_ids
+            unauthorized_bizs = kwargs["unauthorized_bizs"] or []
         else:
             try:
                 req = get_request()
