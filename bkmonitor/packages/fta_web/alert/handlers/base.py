@@ -581,7 +581,7 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         self.username = username
         self.request_username = username or get_request_username()
         if self.bk_biz_ids is not None:
-            self.authorized_bizs, self.unauthorized_bizs = self.parse_biz_item(**kwargs)
+            self.authorized_bizs, self.unauthorized_bizs = self.parse_biz_item(bk_biz_ids, **kwargs)
 
     @classmethod
     def parse_biz_item(self, bk_biz_ids, **kwargs):
