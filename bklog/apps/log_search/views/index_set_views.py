@@ -36,7 +36,7 @@ from apps.iam.handlers.drf import (
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet, Scenario, SpaceApi
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     CreateIndexSetTagSerializer,
@@ -291,6 +291,11 @@ class IndexSetViewSet(ModelViewSet):
     def list_es_router(self, request):
         params = self.params_valid(ESRouterListSerializer)
         router_list = []
+        if "space_uid" not in params:
+            space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
+            params["index_set_id_list"] = list(
+                LogIndexSet.objects.filter(space_uid__in=space_uids).values_list("index_set_id", flat=True)
+            )
         response = self.list(request, **params)
         for index_set in response.data["list"]:
             router_list.append(
