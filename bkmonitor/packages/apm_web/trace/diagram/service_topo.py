@@ -18,6 +18,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.handlers.trace_handler.base import TraceHandler
+from apm_web.trace.service_color import ServiceColorClassifier
 from constants.apm import OtlpKey, SpanKind
 
 
@@ -129,11 +130,12 @@ class DiscoverBase(ABC):
         return res
 
     @abc.abstractmethod
-    def discover(self, spans):
+    def discover(self, spans: list) -> list:
         pass
 
     @classmethod
     def get_base_item_to_span(cls, span: dict):
+        service_name = cls.get_service_name(span)
         return {
             "span_name": span[OtlpKey.SPAN_NAME],
             "span_id": span[OtlpKey.SPAN_ID],
@@ -142,7 +144,9 @@ class DiscoverBase(ABC):
             "start_time": span[OtlpKey.START_TIME],
             "display_name": span[OtlpKey.SPAN_NAME],
             "operation_name": span[OtlpKey.SPAN_NAME],
+            "service_name": service_name,
             "icon": TraceHandler._get_span_classify(span)[0],  # noqa
+            "color": ServiceColorClassifier().next(service_name),
         }
 
     @classmethod
@@ -226,7 +230,7 @@ class NodeDiscover(DiscoverBase):
             service_node_key = self.get_service_name(t)
             self.add_node_relation_span(service_node_key, t, NodeType.SERVICE)
 
-    def discover(self, spans):
+    def discover(self, spans) -> list:
         component_rules = [r for r in SERVICE_TOPO_RULES if r.node_type == NodeType.COMPONENT]
         relation_mapping = self.get_relation_map(spans)
         # 无对端span, kind in [2, 5]
@@ -249,12 +253,20 @@ class NodeDiscover(DiscoverBase):
         nodes = []
         root_spans = self.find_root_spans(spans)
         root_node_keys = self.get_root_node_key(root_spans)
+        # TODO 增加节点 icon
         for k, v in self.data_map.items():
             node_key, node_type = k
             display_name = node_key
             if node_type == NodeType.INTERFACE:
                 display_name = " ".join(str(node_key).split(":", 1))
-            node_info = {"key": node_key, "node_type": node_type, "display_name": display_name, "spans": v}
+            node_info = {
+                "key": node_key,
+                "node_type": node_type,
+                "display_name": display_name,
+                "spans": v,
+                "icon": v[0]["icon"],
+                "color": ServiceColorClassifier().next(node_type),
+            }
             if node_key in root_node_keys:
                 node_info["is_root"] = True
             else:
@@ -295,7 +307,7 @@ class EdgeDiscover(DiscoverBase):
             to_service_name = self.get_service_name(t)
             self.add_edge_relation_span(key, to_service_name, t)
 
-    def discover(self, spans: list):
+    def discover(self, spans: list) -> list:
         component_rules = [r for r in SERVICE_TOPO_RULES if r.node_type == NodeType.COMPONENT]
         relation_mapping = self.get_relation_map(spans)
         # 无对端span, kind in [2, 5]
@@ -346,7 +358,7 @@ def span_collapsed(data: list):
                 {
                     **first_span,
                     "span_name": span_name,
-                    "spans": span_ids,
+                    "span_ids": span_ids,
                     "collapsed": len(span_ids) > 1,
                     "collapsed_span_num": len(span_ids),
                 }
