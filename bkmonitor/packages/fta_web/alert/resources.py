@@ -1587,6 +1587,10 @@ class BaseTopNResource(Resource):
         size = serializers.IntegerField(label="获取的桶数量", default=10)
 
     def perform_request(self, validated_request_data):
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = self.handler_cls.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
         handler = self.handler_cls(**validated_request_data)
         return handler.top_n(fields=validated_request_data["fields"], size=validated_request_data["size"])
 
