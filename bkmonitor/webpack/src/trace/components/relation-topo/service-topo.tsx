@@ -29,6 +29,7 @@ import { PropType, defineComponent, nextTick, ref, watch } from 'vue';
 import { Edge, ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
 import { MiniMap } from '@vue-flow/minimap';
 import { Popover } from 'bkui-vue';
+import { random } from 'monitor-common/utils';
 
 import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
@@ -107,6 +108,8 @@ export default defineComponent({
 
     const miniMapUpdateKey = ref(0);
 
+    const vueFlowKey = ref(random(8));
+
     watch(
       () => props.serviceTopoData,
       data => {
@@ -138,6 +141,7 @@ export default defineComponent({
           },
           markerEnd: 'custom-marker-arrowhead',
         }));
+        vueFlowKey.value = random(8);
       },
       { immediate: true }
     );
@@ -264,6 +268,7 @@ export default defineComponent({
       selectedNodeKey,
       miniMapUpdateKey,
       miniMapPosition,
+      vueFlowKey,
       layoutGraph,
       handleGraphZoom,
       handleShowLegend,
@@ -377,6 +382,7 @@ export default defineComponent({
             </defs>
           </svg>
           <VueFlow
+            key={this.vueFlowKey}
             edges={this.edges}
             maxZoom={1.2}
             minZoom={0.2}
@@ -447,7 +453,7 @@ export default defineComponent({
                   <MiniMap
                     width={225}
                     height={148}
-                    maskColor={'#ffffff'}
+                    maskColor={'rgba(255, 255, 255, 0.6)'}
                     pannable={true}
                   ></MiniMap>
                 ),
