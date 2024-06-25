@@ -49,13 +49,13 @@ import { getDashboardCache } from './grafana/utils';
 import CommonNavBar from './monitor-k8s/components/common-nav-bar';
 import NavTools from './nav-tools';
 import IntelligentModelsStore from '../store/modules/intelligent-models';
+import platformConfigStore from '../store/modules/platform-config';
+import monitorLogo from '../static/images/svg/monitor-logo.svg';
 // #if APP !== 'external'
 import BizSelect from '../components/biz-select/biz-select';
 import NoticeGuide, { IStepItem } from '../components/novice-guide/notice-guide';
 import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
 import HeaderSettingModal from './header-setting-modal';
-import monitorLogo from '../static/images/svg/monitor-logo.svg';
-import platformConfigStore from '../store/modules/platform-config';
 
 // #endif
 

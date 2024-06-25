@@ -231,17 +231,17 @@ export default class SearchComp extends tsc<IProps> {
     return `${this.retrievedKeyword}_${this.fieldsKeyStrList.join(',')}_${this.unionIndexList.join(',')}`;
   }
 
-  @Watch('keywordAndFields', { immediate: true })
+  @Watch('keywordAndFields')
   getValueList() {
-    this.queryValueList(this.fieldsKeyStrList);
+    this.queryValueList();
   }
 
   @Watch('datePickerValue')
   handleDatePickerValueChange() {
-    this.queryValueList(this.fieldsKeyStrList);
+    this.queryValueList();
   }
 
-  @Watch('fieldLength', { immediate: true })
+  @Watch('fieldLength')
   setValueList() {
     this.initValueList();
   }
@@ -327,6 +327,7 @@ export default class SearchComp extends tsc<IProps> {
     }
     this.initAdditionDefault(addition);
     this.setRouteParams(isHaveIP ? { ipChooser } : {});
+    this.queryValueList();
   }
 
   setIPChooserFilter(ipChooser) {
@@ -585,7 +586,8 @@ export default class SearchComp extends tsc<IProps> {
     return ['exists', 'does not exists'].includes(operator);
   }
 
-  async queryValueList(fields = []) {
+  async queryValueList(fieldsParams = []) {
+    const fields = fieldsParams.length ? fieldsParams : this.fieldsKeyStrList;
     if (!fields.length) return;
     const tempList = handleTransformToTimestamp(this.datePickerValue);
     try {
