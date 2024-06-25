@@ -116,6 +116,14 @@ class RedisTools(object):
             return []
         return json.loads(data.decode("utf-8"))
 
+    @classmethod
+    def set(cls, key: str, value: str) -> bool:
+        return cls().client.set(key, value)
+
+    @classmethod
+    def delete(cls, key: str) -> int:
+        return cls().client.delete(key)
+
 
 def setup_client():
     RedisTools.metadata_redis_client = RedisClient.from_envs(
