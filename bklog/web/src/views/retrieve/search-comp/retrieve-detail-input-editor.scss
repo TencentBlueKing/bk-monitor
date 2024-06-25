@@ -22,9 +22,9 @@
       display: inline-block;
       width: 64px;
       height: 4px;
+      content: ' ';
       background: #dcdee5;
       border-radius: 3px;
-      content: ' ';
     }
 
     &.drag-ing,

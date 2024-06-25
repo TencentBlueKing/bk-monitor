@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Action, Mutation, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import { getPlatformConfig, setShortcutIcon, setDocumentTitle } from '@blueking/platform-config';
+import { Action, Mutation, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import store from '@/store';
 
@@ -46,7 +46,7 @@ export const initialConfig = {
   nameEn: 'BK LOG SEARCH',
   brandName: '腾讯蓝鲸智云',
   brandNameEn: 'BlueKing',
-  version: window.VERSION
+  version: window.VERSION,
 };
 
 @Module({ name: 'platform-config', dynamic: true, namespaced: true, store })

@@ -1,23 +1,28 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 /**
@@ -26,18 +31,20 @@
  */
 
 import Vue from 'vue';
-import axios from 'axios';
-import store from '@/store';
-import { bus } from '@/common/bus';
+
 import { messageError } from '@/common/bkmagic';
-import CachedPromise from './cached-promise';
-import RequestQueue from './request-queue';
-import HttpRequst from './_httpRequest';
-import serviceList from '@/services/index.js';
-import { context, trace } from '@opentelemetry/api';
+import { bus } from '@/common/bus';
 import { makeMessage } from '@/common/util';
 import i18n from '@/language/i18n';
+import serviceList from '@/services/index.js';
 import { showLoginModal } from '@blueking/login-modal';
+import { context, trace } from '@opentelemetry/api';
+import axios from 'axios';
+
+import HttpRequst from './_httpRequest';
+import CachedPromise from './cached-promise';
+import RequestQueue from './request-queue';
+import store from '@/store';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 // axios 实例
@@ -46,7 +53,7 @@ export const axiosInstance = axios.create({
   xsrfCookieName: 'bklog_csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
   withCredentials: true,
-  baseURL
+  baseURL,
 });
 
 /**
@@ -64,7 +71,7 @@ axiosInstance.interceptors.request.use(
     }
     return config;
   },
-  error => Promise.reject(error)
+  error => Promise.reject(error),
 );
 
 /**
@@ -72,7 +79,7 @@ axiosInstance.interceptors.request.use(
  */
 axiosInstance.interceptors.response.use(
   response => response.data,
-  error => Promise.reject(error)
+  error => Promise.reject(error),
 );
 
 const http = {
@@ -81,7 +88,7 @@ const http = {
   cache: new CachedPromise(),
   cancelRequest: requestId => http.queue.cancel(requestId),
   cancelCache: requestId => http.cache.delete(requestId),
-  cancel: requestId => Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)])
+  cancel: requestId => Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)]),
 };
 
 // const methodsWithoutData = ['delete', 'get', 'head', 'options']
@@ -91,7 +98,7 @@ const http = {
 Object.defineProperty(http, 'request', {
   get() {
     return getRequest('request');
-  }
+  },
 });
 
 /**
@@ -192,7 +199,7 @@ function handleResponse({ config, response, resolve, reject }) {
     reject({ message: response.message, code, data: response.data || {} });
     store.commit('updateAuthDialogData', {
       apply_url: response.data.apply_url,
-      apply_data: response.permission
+      apply_data: response.permission,
     });
   } else if (code !== 0 && config.globalError) {
     reject({ message: response.message, code, data: response.data || {} });
@@ -247,7 +254,7 @@ function handleReject(error, config) {
     }
     if (status === 500) {
       nextError.message = i18n.t('系统出现异常');
-    } else if (data && data.message) {
+    } else if (data?.message) {
       nextError.message = data.message;
     }
     const resMessage = makeMessage(nextError.message, traceparent);
@@ -313,7 +320,7 @@ function initConfig(method, url, userConfig) {
     cancelPrevious: true,
     // 接口报错是否弹bkMessage弹窗
     catchIsShowMessage: true,
-    span: trace.getTracer('bk-log').startSpan('api')
+    span: trace.getTracer('bk-log').startSpan('api'),
   };
   return Object.assign(defaultConfig, userConfig);
 }
@@ -330,7 +337,7 @@ function getCancelToken() {
   });
   return {
     cancelToken,
-    cancelExcutor
+    cancelExcutor,
   };
 }
 
