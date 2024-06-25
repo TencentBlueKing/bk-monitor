@@ -164,45 +164,42 @@ export default defineComponent({
               </span>
             </span>
           ) : (
-            [
-              <span
-                class='title'
-                onClick={() => this.$emit('listChange', [])}
-              >
-                Span List
-              </span>,
-              <div class='filter-wrap'>
-                <i
-                  class={['icon-monitor', this.sortOrder.sort === 'desc' ? 'icon-paixu-xia' : 'icon-paixu-shang']}
-                  onClick={() => this.handleSortChange('sort')}
-                ></i>
-                <Popover
-                  disabled={true}
-                  is-show={this.sortOrder.popoverShow}
-                  theme='light'
-                  trigger='click'
-                  onAfterHidden={({ isShow }) => this.handleSortChange('show', isShow)}
-                  onAfterShow={({ isShow }) => this.handleSortChange('show', isShow)}
-                >
-                  {{
-                    default: () => (
-                      <div class='sort-select'>
-                        <span class='text'>{this.$t('产生时间')}</span>
-                        <i
-                          class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']}
-                        ></i>
-                      </div>
-                    ),
-                    content: () => (
-                      <div class=''>
-                        <div class='select-item'>{this.$t('产生时间')}</div>
-                      </div>
-                    ),
-                  }}
-                </Popover>
-              </div>,
-            ]
+            <span
+              class='title'
+              onClick={() => this.$emit('listChange', [])}
+            >
+              Span List
+            </span>
           )}
+
+          <div class='filter-wrap'>
+            <i
+              class={['icon-monitor', this.sortOrder.sort === 'desc' ? 'icon-paixu-xia' : 'icon-paixu-shang']}
+              onClick={() => this.handleSortChange('sort')}
+            ></i>
+            <Popover
+              disabled={true}
+              is-show={this.sortOrder.popoverShow}
+              theme='light'
+              trigger='click'
+              onAfterHidden={({ isShow }) => this.handleSortChange('show', isShow)}
+              onAfterShow={({ isShow }) => this.handleSortChange('show', isShow)}
+            >
+              {{
+                default: () => (
+                  <div class='sort-select'>
+                    <span class='text'>{this.$t('产生时间')}</span>
+                    <i class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
+                  </div>
+                ),
+                content: () => (
+                  <div class=''>
+                    <div class='select-item'>{this.$t('产生时间')}</div>
+                  </div>
+                ),
+              }}
+            </Popover>
+          </div>
         </div>
         <div
           ref='spanListBody'
