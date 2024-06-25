@@ -42,6 +42,7 @@ import {
 } from '../../pages/main/inquire-content/table-settings';
 import {
   DirectionType,
+  IServiceSpanListItem,
   ISpanDetail,
   ISpanListItem,
   ITraceData,
@@ -96,6 +97,7 @@ export const useTraceStore = defineStore('trace', () => {
     interfaceStatistics: interfaceStatisticsSetting,
     serviceStatistics: serviceStatisticsSetting,
   });
+  const serviceSpanList = shallowRef<IServiceSpanListItem[]>([]);
 
   /** 更新页面 loading */
   function setPageLoaidng(v: boolean) {
@@ -168,6 +170,10 @@ export const useTraceStore = defineStore('trace', () => {
 
   function setTraceType(v) {
     traceType.value = v;
+  }
+
+  function setServiceSpanList(spanList: IServiceSpanListItem[]) {
+    serviceSpanList.value = spanList;
   }
 
   /** 更新 trace 过滤列表 */
@@ -321,6 +327,8 @@ export const useTraceStore = defineStore('trace', () => {
     traceTree,
     originTraceTree,
     originCrossAppSpanMaps,
+    serviceSpanList,
+    setServiceSpanList,
     setPageLoaidng,
     setTraceLoaidng,
     setTraceDetail,
