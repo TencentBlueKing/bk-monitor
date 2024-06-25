@@ -86,7 +86,7 @@ export default defineComponent({
     const graphContainer = ref<Element>();
     const topoGraphContent = ref<Element>();
     const emptyText = ref<string>('加载中...');
-    const empty = ref<boolean>(false);
+    const empty = ref<boolean>(true);
     // 当前选中节点
     const selectedNodeKey = ref('');
 
@@ -113,6 +113,7 @@ export default defineComponent({
         if (!data) {
           return;
         }
+        empty.value = false;
         nodes.value = data.nodes.map(item => ({
           id: item.key,
           type: item.node_type,
@@ -408,7 +409,12 @@ export default defineComponent({
                     }}
                     class='node-interface-icon'
                   ></div>
-                  <div class='node-interface-name'>{data.data.display_name}</div>
+                  <div
+                    class='node-interface-name'
+                    title={data.data.display_name}
+                  >
+                    {data.data.display_name}
+                  </div>
                 </div>
               ),
               [`node-${ENodeType.service}`]: data => (
