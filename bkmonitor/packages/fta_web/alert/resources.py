@@ -309,6 +309,10 @@ class AlertDateHistogramResource(Resource):
         end_time = validated_request_data.pop("end_time")
         interval = validated_request_data.pop("interval")
         interval = BaseQueryHandler.calculate_agg_interval(start_time, end_time, interval)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
         results = resource.alert.alert_date_histogram_result.bulk_request(
             [
                 {
@@ -1331,6 +1335,11 @@ class SearchActionResource(ApiAuthResource):
         show_dsl = validated_request_data.get("show_dsl")
         start_time = validated_request_data.pop("start_time", None)
         end_time = validated_request_data.pop("end_time", None)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
         if start_time and end_time:
             results = resource.alert.search_action_result.bulk_request(
                 [
@@ -1703,6 +1712,8 @@ class ListAlertTagsResultResource(Resource):
     class RequestSerializer(AlertSearchSerializer):
         is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
         is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
+        authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+        unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
 
     def perform_request(self, validated_request_data):
         handler = AlertQueryHandler(**validated_request_data)
@@ -1721,6 +1732,11 @@ class ListAlertTagsResource(Resource):
         start_time = validated_request_data.pop("start_time")
         end_time = validated_request_data.pop("end_time")
         slice_times = slice_time_interval(start_time, end_time)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
         results = resource.alert.list_alert_tags_result.bulk_request(
             [
                 {
