@@ -22,7 +22,7 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 
-class SyncBklogEsRouter(BaseCommand):
+class Command(BaseCommand):
     help = "sync bklog es router"
     PAGE_SIZE = 1000
     DEFAULT_QUEUE_MAX_SIZE = 100000
@@ -121,7 +121,8 @@ class SyncBklogEsRouter(BaseCommand):
         rt_obj_list, es_obj_list = [], []
         update_space_set, update_rt_set = set(), set()
         for tid, info in tid_info.items():
-            if tid in exist_tid_list:
+            # 过滤已经存在或者数据为空的数据
+            if tid in exist_tid_list or (not info.get("cluster_id")):
                 continue
             # 记录需要更新的空间
             update_space_set.add(tuple(info["space_uid"].split("__")))
@@ -140,7 +141,7 @@ class SyncBklogEsRouter(BaseCommand):
             es_obj_list.append(
                 models.ESStorage(
                     table_id=info["table_id"],
-                    storage_cluster_id=info["cluster_id"] or 0,
+                    storage_cluster_id=info["cluster_id"],
                     source_type=info["source_type"],
                     index_set=info["index_set"],
                 )
