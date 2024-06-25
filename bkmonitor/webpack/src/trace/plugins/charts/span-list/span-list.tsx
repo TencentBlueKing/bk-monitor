@@ -164,45 +164,42 @@ export default defineComponent({
               </span>
             </span>
           ) : (
-            [
-              <span
-                class='title'
-                onClick={() => this.$emit('listChange', [])}
-              >
-                Span List
-              </span>,
-              <div class='filter-wrap'>
-                <i
-                  class={['icon-monitor', this.sortOrder.sort === 'desc' ? 'icon-paixu-xia' : 'icon-paixu-shang']}
-                  onClick={() => this.handleSortChange('sort')}
-                ></i>
-                <Popover
-                  disabled={true}
-                  is-show={this.sortOrder.popoverShow}
-                  theme='light'
-                  trigger='click'
-                  onAfterHidden={({ isShow }) => this.handleSortChange('show', isShow)}
-                  onAfterShow={({ isShow }) => this.handleSortChange('show', isShow)}
-                >
-                  {{
-                    default: () => (
-                      <div class='sort-select'>
-                        <span class='text'>{this.$t('产生时间')}</span>
-                        <i
-                          class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']}
-                        ></i>
-                      </div>
-                    ),
-                    content: () => (
-                      <div class=''>
-                        <div class='select-item'>{this.$t('产生时间')}</div>
-                      </div>
-                    ),
-                  }}
-                </Popover>
-              </div>,
-            ]
+            <span
+              class='title'
+              onClick={() => this.$emit('listChange', [])}
+            >
+              Span List
+            </span>
           )}
+
+          <div class='filter-wrap'>
+            <i
+              class={['icon-monitor', this.sortOrder.sort === 'desc' ? 'icon-paixu-xia' : 'icon-paixu-shang']}
+              onClick={() => this.handleSortChange('sort')}
+            ></i>
+            <Popover
+              disabled={true}
+              is-show={this.sortOrder.popoverShow}
+              theme='light'
+              trigger='click'
+              onAfterHidden={({ isShow }) => this.handleSortChange('show', isShow)}
+              onAfterShow={({ isShow }) => this.handleSortChange('show', isShow)}
+            >
+              {{
+                default: () => (
+                  <div class='sort-select'>
+                    <span class='text'>{this.$t('产生时间')}</span>
+                    <i class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
+                  </div>
+                ),
+                content: () => (
+                  <div class=''>
+                    <div class='select-item'>{this.$t('产生时间')}</div>
+                  </div>
+                ),
+              }}
+            </Popover>
+          </div>
         </div>
         <div
           ref='spanListBody'
@@ -226,7 +223,14 @@ export default defineComponent({
                   ) : (
                     <i class={`icon-monitor span-icon span-kind icon-${getSpanKindIcon(original.kind)}`}></i>
                   )}
-                  <span class='span-name'>{original.name}</span>
+                  <span
+                    class='span-name'
+                    v-overflow-text={{
+                      text: original.name,
+                    }}
+                  >
+                    {original.name}
+                  </span>
                   {isCompare && ['removed', 'added'].includes(original.mark) ? (
                     <span class={`span-mark ${original.mark}`}>{original.mark}</span>
                   ) : (
@@ -243,7 +247,14 @@ export default defineComponent({
                     alt=''
                     src={original.icon}
                   />
-                  <span class='service-name'>{original.operationName}</span>
+                  <span
+                    class='service-name'
+                    v-overflow-text={{
+                      text: original.operationName,
+                    }}
+                  >
+                    {original.operationName}
+                  </span>
                   <span class='start-time'>
                     {`${formatDate(original.startTime)} ${formatTime(original.startTime)}`}
                   </span>

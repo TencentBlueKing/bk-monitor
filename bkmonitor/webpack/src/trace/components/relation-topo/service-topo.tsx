@@ -35,13 +35,13 @@ import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
+import { IServiceSpanListItem } from '../../typings/trace';
 import EdgeLabelCustom from './edge-label-custom';
 import ServiceTopoMiniMap from './service-topo-mini-map';
 
 import './service-topo.scss';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
-
 enum ENodeType {
   component = 'component',
   interface = 'interface',
@@ -52,13 +52,13 @@ interface IServiceTopoData {
     key: string;
     node_type: ENodeType;
     display_name: string;
-    spans: any[];
+    spans: IServiceSpanListItem[];
   }[];
   edges: {
     key: string;
     target: string;
     source: string;
-    spans: any[];
+    spans: IServiceSpanListItem[];
     num_of_operations: number;
   }[];
 }
@@ -161,7 +161,7 @@ export default defineComponent({
         });
 
         const rootNode = nodes.value.find(item => item.data.is_root);
-        const firstEdge = edges.value.find(item => item.source === rootNode.id);
+        const firstEdge = edges.value.find(item => item.source === rootNode?.id);
         if (firstEdge) {
           setEdgeSelected([firstEdge.id]);
           handleEditSpanList(firstEdge.data.spans);
