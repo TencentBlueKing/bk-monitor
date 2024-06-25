@@ -1,5 +1,27 @@
-.service-topo-mini-map {
+.service-topo-mini-map-warp {
   position: absolute;
-  z-index: 10;
+  right: 4px;
+  bottom: 50px;
   background: #fff;
+
+  .vue-flow__panel.right {
+    right: 0px;
+  }
+
+  .vue-flow__panel.bottom {
+    bottom: 0px;
+  }
+
+  .vue-flow__minimap {
+    margin: 0;
+  }
+
+  .mini-map-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    // background: #3a84ff1a;
+    // border: 1px solid #3A84FF;
+    // border-radius: 1px;
+  }
 }

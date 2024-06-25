@@ -106,14 +106,6 @@
         }
       }
     }
-
-    .vue-flow__panel.right {
-      right: -10px;
-    }
-
-    .vue-flow__panel.bottom {
-      bottom: 30px;
-    }
   }
 
   .topo-graph-tools {
@@ -121,11 +113,6 @@
     right: 4px;
     bottom: 4px;
     z-index: 999;
-  }
-
-  .service-topo-mini-map {
-    right: 4px;
-    bottom: 48px;
   }
 
   .empty-chart {

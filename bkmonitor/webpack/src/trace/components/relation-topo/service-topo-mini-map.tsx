@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { PropType, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent } from 'vue';
 
-import { toCanvas } from 'html-to-image';
-import { throttle } from 'throttle-debounce';
+import { getBoundsofRects, getRectOfNodes, useVueFlow } from '@vue-flow/core';
+import { MiniMap } from '@vue-flow/minimap';
 
 import './service-topo-mini-map.scss';
+import '@vue-flow/minimap/dist/style.css';
 
 export default defineComponent({
   name: 'ServiceTopoMiniMap',
@@ -41,61 +42,104 @@ export default defineComponent({
       type: Number,
       default: 148,
     },
-    refreshKey: {
-      type: [Number, String],
-      default: 0,
-    },
-    getTargetDom: {
-      type: Function,
-      default: () => {},
-    },
-    position: {
-      type: Object as PropType<{ x: number; y: number; zoom: number }>,
-      default: () => ({ x: 0, y: 0, zoom: 1 }),
-    },
   },
   setup(props) {
-    const canvasRef = ref<HTMLCanvasElement>();
-    const throttleInit = throttle(300, init, { noLeading: true });
+    const offsetScale = 5;
+    const maskBorderRadius = 0;
 
-    onMounted(() => {
-      throttleInit();
-    });
+    const { getNodesInitialized, viewport, dimensions } = useVueFlow();
 
-    watch(
-      () => props.refreshKey,
-      key => {
-        if (!!key) {
-          throttleInit();
-        }
-      }
+    const bb = computed(() => getRectOfNodes(getNodesInitialized.value));
+
+    const viewBB = computed(() => ({
+      x: -viewport.value.x / viewport.value.zoom,
+      y: -viewport.value.y / viewport.value.zoom,
+      width: dimensions.value.width / viewport.value.zoom,
+      height: dimensions.value.height / viewport.value.zoom,
+    }));
+
+    const boundingRect = computed(() =>
+      getNodesInitialized.value?.length ? getBoundsofRects(bb.value, viewBB.value) : viewBB.value
     );
 
-    function init() {
-      const targetEl = props.getTargetDom();
-      toCanvas(targetEl).then(canvas => {
-        const ctx = canvasRef.value.getContext('2d');
-        ctx.clearRect(0, 0, props.width, props.height);
-        ctx.drawImage(canvas, 0, 0, props.width, props.height);
-      });
-    }
+    const viewScale = computed(() => {
+      const scaledWidth = boundingRect.value.width / props.width;
+      const scaledHeight = boundingRect.value.height / props.height;
+
+      return Math.max(scaledWidth, scaledHeight);
+    });
+
+    const viewBox = computed(() => {
+      const viewWidth = viewScale.value * props.width;
+      const viewHeight = viewScale.value * props.height;
+      const offset = offsetScale * viewScale.value;
+
+      return {
+        offset,
+        x: boundingRect.value.x - (viewWidth - boundingRect.value.width) / 2 - offset,
+        y: boundingRect.value.y - (viewHeight - boundingRect.value.height) / 2 - offset,
+        width: viewWidth + offset * 2,
+        height: viewHeight + offset * 2,
+      };
+    });
+
+    const d = computed(() => {
+      if (!viewBox.value.x || !viewBox.value.y) {
+        return '';
+      }
+
+      return `
+        M${viewBB.value.x + maskBorderRadius},${viewBB.value.y}
+        h${viewBB.value.width - 2 * maskBorderRadius}
+        a${maskBorderRadius},${maskBorderRadius} 0 0 1 ${maskBorderRadius},${maskBorderRadius}
+        v${viewBB.value.height - 2 * maskBorderRadius}
+        a${maskBorderRadius},${maskBorderRadius} 0 0 1 -${maskBorderRadius},${maskBorderRadius}
+        h${-(viewBB.value.width - 2 * maskBorderRadius)}
+        a${maskBorderRadius},${maskBorderRadius} 0 0 1 -${maskBorderRadius},-${maskBorderRadius}
+        v${-(viewBB.value.height - 2 * maskBorderRadius)}
+        a${maskBorderRadius},${maskBorderRadius} 0 0 1 ${maskBorderRadius},-${maskBorderRadius}z`;
+    });
 
     return {
-      canvasRef,
+      viewBox,
+      d,
     };
   },
   render() {
     return (
-      <div class='service-topo-mini-map'>
-        <canvas
-          ref='canvasRef'
+      <div
+        style={{
+          width: `${this.width}px`,
+          height: `${this.height}px`,
+        }}
+        class='service-topo-mini-map-warp'
+      >
+        <MiniMap
+          width={this.width}
+          height={this.height}
+          maskColor={'rgb(0 0 0 / 0%)'}
+          pannable={true}
+        ></MiniMap>
+        <div
           style={{
-            height: `${this.height}px`,
             width: `${this.width}px`,
+            height: `${this.height}px`,
           }}
-          class='mini-map-container'
-        ></canvas>
-        <div class='mini-map-mask'></div>
+          class='mini-map-mask'
+        >
+          <svg
+            width={this.width}
+            height={this.height}
+            viewBox={[this.viewBox.x, this.viewBox.y, this.viewBox.width, this.viewBox.height].join(' ')}
+          >
+            <path
+              d={this.d}
+              fill={'#3a84ff1a'}
+              stroke={'#3A84FF'}
+              stroke-width={2}
+            ></path>
+          </svg>
+        </div>
       </div>
     );
   },

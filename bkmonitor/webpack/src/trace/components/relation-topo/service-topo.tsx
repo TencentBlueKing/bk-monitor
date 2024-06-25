@@ -27,8 +27,8 @@
 import { PropType, defineComponent, nextTick, ref, watch } from 'vue';
 
 import { Edge, ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
-import { MiniMap } from '@vue-flow/minimap';
 import { Popover } from 'bkui-vue';
+import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils';
 
 import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
@@ -36,12 +36,11 @@ import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
 import EdgeLabelCustom from './edge-label-custom';
+import ServiceTopoMiniMap from './service-topo-mini-map';
 
 import './service-topo.scss';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
-import '@vue-flow/minimap/dist/style.css';
-// import ServiceTopoMiniMap from './service-topo-mini-map';
 
 enum ENodeType {
   component = 'component',
@@ -102,15 +101,11 @@ export default defineComponent({
     const zoomValue = ref(80);
     /** 缩放倍数 */
     const scale = ref(1);
-    const miniMapPosition = ref({
-      x: 0,
-      y: 0,
-      zoom: 1,
-    });
-
-    const miniMapUpdateKey = ref(0);
 
     const vueFlowKey = ref(random(8));
+
+    const miniMapWrapWidth = 225;
+    const miniMapWrapHeight = 148;
 
     watch(
       () => props.serviceTopoData,
@@ -183,7 +178,6 @@ export default defineComponent({
             setEdgeSelected(ids);
           });
         });
-        miniMapUpdateKey.value += 1;
       });
     }
 
@@ -221,7 +215,8 @@ export default defineComponent({
         console.warn('VueFlow element not found');
         return;
       }
-      capture(vueFlowRef.value, { shouldDownload: true });
+      const fileName = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
+      capture(vueFlowRef.value, { shouldDownload: true, fileName });
     }
     /**
      *  @description 视窗变化结束
@@ -236,7 +231,6 @@ export default defineComponent({
      */
     function handleViewportChange(value: ViewportTransform) {
       scale.value = value.zoom;
-      miniMapPosition.value = value;
     }
 
     /**
@@ -282,9 +276,9 @@ export default defineComponent({
       zoomValue,
       scale,
       selectedNodeKey,
-      miniMapUpdateKey,
-      miniMapPosition,
       vueFlowKey,
+      miniMapWrapWidth,
+      miniMapWrapHeight,
       layoutGraph,
       handleGraphZoom,
       handleShowLegend,
@@ -338,15 +332,6 @@ export default defineComponent({
             ),
           }}
         </Popover>
-        {/* {this.showThumbnail && (
-          <ServiceTopoMiniMap
-            width={225}
-            height={148}
-            refreshKey={this.miniMapUpdateKey}
-            position={this.miniMapPosition}
-            getTargetDom={() => this.$el.querySelector('.vue-flow__transformationpane')}
-          ></ServiceTopoMiniMap>
-        )} */}
         <div
           ref='graphContainer'
           class='graph-container'
@@ -466,12 +451,10 @@ export default defineComponent({
               ),
               default: () => [
                 this.showThumbnail && (
-                  <MiniMap
-                    width={225}
-                    height={148}
-                    maskColor={'rgba(255, 255, 255, 0.6)'}
-                    pannable={true}
-                  ></MiniMap>
+                  <ServiceTopoMiniMap
+                    width={this.miniMapWrapWidth}
+                    height={this.miniMapWrapHeight}
+                  ></ServiceTopoMiniMap>
                 ),
               ],
             }))()}
