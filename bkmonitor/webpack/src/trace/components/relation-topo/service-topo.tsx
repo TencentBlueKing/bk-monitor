@@ -29,6 +29,7 @@ import { PropType, defineComponent, nextTick, ref, watch } from 'vue';
 import { Edge, ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
 import { MiniMap } from '@vue-flow/minimap';
 import { Popover } from 'bkui-vue';
+import { random } from 'monitor-common/utils';
 
 import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
@@ -40,23 +41,13 @@ import './service-topo.scss';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 import '@vue-flow/minimap/dist/style.css';
+// import ServiceTopoMiniMap from './service-topo-mini-map';
 
 enum ENodeType {
   component = 'component',
   interface = 'interface',
   service = 'service',
 }
-
-function getRandomColor() {
-  // 生成随机的 RGB 值
-  const r = Math.floor(Math.random() * 225);
-  const g = Math.floor(Math.random() * 225);
-  const b = Math.floor(Math.random() * 225);
-  // 将 RGB 值转换为十六进制颜色代码
-  const color = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-  return color;
-}
-
 interface IServiceTopoData {
   nodes: {
     key: string;
@@ -88,8 +79,7 @@ export default defineComponent({
   setup(props) {
     const store = useTraceStore();
     // hooks
-    const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } =
-      useVueFlow();
+    const { setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } = useVueFlow();
     const { layout } = useLayout();
     const { capture } = useScreenshot();
 
@@ -112,6 +102,15 @@ export default defineComponent({
     const zoomValue = ref(80);
     /** 缩放倍数 */
     const scale = ref(1);
+    const miniMapPosition = ref({
+      x: 0,
+      y: 0,
+      zoom: 1,
+    });
+
+    const miniMapUpdateKey = ref(0);
+
+    const vueFlowKey = ref(random(8));
 
     watch(
       () => props.serviceTopoData,
@@ -125,7 +124,6 @@ export default defineComponent({
           position: { x: 0, y: 0 },
           data: {
             ...item,
-            color: getRandomColor(),
           },
         }));
         edges.value = data.edges.map(item => ({
@@ -145,6 +143,7 @@ export default defineComponent({
           },
           markerEnd: 'custom-marker-arrowhead',
         }));
+        vueFlowKey.value = random(8);
       },
       { immediate: true }
     );
@@ -156,19 +155,13 @@ export default defineComponent({
     function layoutGraph(direction: string) {
       nodes.value = layout(nodes.value, edges.value, direction, 80);
       nextTick(() => {
-        fitView();
         const wrapWidth = graphContainer.value.clientWidth;
-        const positionXs = nodes.value.map(item => item.position.x);
-        const positionXSort = positionXs.sort((a, b) => a - b);
-        const x =
-          wrapWidth / 2 -
-          ((positionXSort[positionXSort.length - 1] - positionXSort[0]) / 2 + positionXSort[0]) +
-          positionXSort[0] -
-          32;
+        const rootX = nodes.value.filter(item => !!item?.data?.is_root)?.[0]?.position?.x || 0;
+        const x = wrapWidth / 2 - rootX - 56;
         setViewport({
-          zoom: (zoomValue.value + 20) / 100,
-          x: x,
+          x,
           y: 16,
+          zoom: (zoomValue.value + 20) / 100,
         });
 
         const rootNode = nodes.value.find(item => item.data.is_root);
@@ -190,6 +183,7 @@ export default defineComponent({
             setEdgeSelected(ids);
           });
         });
+        miniMapUpdateKey.value += 1;
       });
     }
 
@@ -242,6 +236,7 @@ export default defineComponent({
      */
     function handleViewportChange(value: ViewportTransform) {
       scale.value = value.zoom;
+      miniMapPosition.value = value;
     }
 
     /**
@@ -287,6 +282,9 @@ export default defineComponent({
       zoomValue,
       scale,
       selectedNodeKey,
+      miniMapUpdateKey,
+      miniMapPosition,
+      vueFlowKey,
       layoutGraph,
       handleGraphZoom,
       handleShowLegend,
@@ -340,6 +338,15 @@ export default defineComponent({
             ),
           }}
         </Popover>
+        {/* {this.showThumbnail && (
+          <ServiceTopoMiniMap
+            width={225}
+            height={148}
+            refreshKey={this.miniMapUpdateKey}
+            position={this.miniMapPosition}
+            getTargetDom={() => this.$el.querySelector('.vue-flow__transformationpane')}
+          ></ServiceTopoMiniMap>
+        )} */}
         <div
           ref='graphContainer'
           class='graph-container'
@@ -391,6 +398,7 @@ export default defineComponent({
             </defs>
           </svg>
           <VueFlow
+            key={this.vueFlowKey}
             edges={this.edges}
             maxZoom={1.2}
             minZoom={0.2}
@@ -461,7 +469,7 @@ export default defineComponent({
                   <MiniMap
                     width={225}
                     height={148}
-                    maskColor={'#ffffff'}
+                    maskColor={'rgba(255, 255, 255, 0.6)'}
                     pannable={true}
                   ></MiniMap>
                 ),
