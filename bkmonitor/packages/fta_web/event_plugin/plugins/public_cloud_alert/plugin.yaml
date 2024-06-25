@@ -222,22 +222,25 @@ clean_configs:
           }
   - rules:
     - key: __http_query_params__.source
+      method: eq
       value:
         - "aws"
     normalization_config:
       - field: alert_name
-        expr: get_field(to_json(Message), 'AlarmName')
+        expr: to_json(Message).AlarmName
       - field: event_id
-        expr: "['aws_cloud_alert_{{plugin_inst_biz_id}}', get_field(to_json(Message), 'AlarmArn')] | join('.', @)"
+        expr: "['aws_cloud_alert_{{plugin_inst_biz_id}}', to_json(Message).AlarmArn] | join('.', @)"
       - field: description
-        expr: get_field(to_json(Message), 'NewStateReason')
+        expr: to_json(Message).NewStateReason
       - field: metric
-        expr: get_field(to_json(Message), 'Trigger.MetricName')
+        expr: to_json(Message).Trigger.MetricName
       - field: status
-        expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', INSUFFICIENT_DATA: 'ABNORMAL'}, get_field(to_json(Message), 'NewStateValue'))"
+        expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', INSUFFICIENT_DATA: 'ABNORMAL'}, to_json(Message).NewStateValue)"
       - field: severity
-        expr: '1'
+        expr: "'1'"
       - field: bk_biz_id
         expr: "'{{plugin_inst_biz_id}}'"
       - field: dimensions
-        expr: "zip((get_field(to_json(Message), 'Trigger.Dimensions') || [])[*].Name, zip((get_field(to_json(Message), 'Trigger.Dimensions') || [])[*].Value)"
+        expr: "merge({source: 'AWS_CLOUD'}, zip((to_json(Message).Trigger.Dimensions || [])[*].name, (to_json(Message).Trigger.Dimensions || [])[*].value))"
+      - field: tags
+        expr: "{source: 'AWS_CLOUD'}"
