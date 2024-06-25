@@ -1720,6 +1720,7 @@ export default {
       const { id } = v.data;
       let collectDetail;
       const promiseList = [];
+      this.others = set.others || {};
       if (id) {
         promiseList.push(this.getConfigInfo(id).then(data => (collectDetail = data)));
       }
@@ -1757,7 +1758,6 @@ export default {
         }
       }
       await Promise.allSettled(promiseList);
-      this.others = set.others || {};
       // 从下一个页面跳转过来（上一步）
       if (set.mode === 'edit') {
         this.stepSetpluginSelector(set);
