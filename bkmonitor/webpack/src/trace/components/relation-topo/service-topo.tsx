@@ -168,6 +168,7 @@ export default defineComponent({
 
         /** 边点击事件 */
         onEdgeClick(({ edge }) => {
+          selectedNodeKey.value = '';
           setEdgeSelected([edge.id]);
           handleEditSpanList(edge.data.spans);
         });
