@@ -45,7 +45,6 @@ import { copyText, typeTools } from 'monitor-common/utils/utils';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
-import RelationTopo from '../../../components/relation-topo/relation-topo';
 import StatisticsTable, { IFilterItem } from '../../../components/statistics-table/statistics-table';
 import TraceView from '../../../components/trace-view';
 import SearchBar from '../../../components/trace-view/search-bar';
@@ -54,12 +53,13 @@ import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
 import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph';
-import SpanList from '../../../plugins/charts/span-list/span-list';
+import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import { DEFAULT_TRACE_DATA, TRACE_INFO_TOOL_FILTERS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings';
+import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree, ETopoType } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
+import NodeTopo from './node-topo';
 
 import './trace-detail.scss';
 
@@ -215,6 +215,9 @@ export default defineComponent({
     );
     /** 是否展示 span list */
     const showSpanList = computed(() => ['sequence', 'topo'].includes(state.activePanel));
+
+    /* 节点拓扑类型 时间/服务 */
+    const topoType = ref<ETopoType>(ETopoType.time);
 
     // 复制操作
     const handleCopy = (content: string) => {
@@ -684,6 +687,17 @@ export default defineComponent({
       state.isCompareView = isCompare;
       isCompare && updateTemporaryCompareTrace(state.compareTraceID);
     };
+
+    /**
+     * @description 切换拓扑图类型
+     * @param value
+     */
+    function handleTopoChangeType(value: ETopoType) {
+      topoType.value = value;
+      state.filterSpanIds = [];
+      state.filterSpanSubTitle = '';
+    }
+
     return {
       ...toRefs(state),
       isLoading,
@@ -733,6 +747,8 @@ export default defineComponent({
       handleCompareSpanListChange,
       filterKeywords,
       updateCompareStatus,
+      topoType,
+      handleTopoChangeType,
     };
   },
 
@@ -1020,14 +1036,16 @@ export default defineComponent({
                 )}
                 {/* 拓扑视图 */}
                 {this.activePanel === 'topo' && (
-                  <RelationTopo
+                  <NodeTopo
                     key={traceInfo?.root_span_id || ''}
                     ref='relationTopo'
                     compareTraceID={this.compareTraceID}
+                    type={this.topoType}
                     updateMatchedSpanIds={this.updateMatchedSpanIds}
                     onCompareSpanListChange={this.handleCompareSpanListChange}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onSpanListChange={this.handleSpanListFilter}
+                    onTypeChange={this.handleTopoChangeType}
                     onUpdate:loading={this.contentLoadingChange}
                   />
                 )}
@@ -1084,12 +1102,12 @@ export default defineComponent({
                 {{
                   main: () => <div></div>,
                   aside: () => (
-                    <SpanList
+                    <TopoSpanList
                       compareSpanList={this.compareSpanList}
                       filterSpanIds={this.filterSpanIds}
-                      isCollapsed={this.isCollapsefilter}
                       isCompare={this.isCompareView}
                       subTitle={this.filterSpanSubTitle}
+                      type={this.topoType}
                       onListChange={this.handleSpanListFilter}
                       onViewDetail={this.handleShowSpanDetails}
                     />
