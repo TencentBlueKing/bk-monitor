@@ -127,13 +127,12 @@ class StrategyTranslator(AbstractTranslator):
 
 class BizTranslator(AbstractTranslator):
     biz_map_cache = None
+    lock = threading.Lock()
 
     def biz_map(self):
-        lock = threading.Lock()
-        lock.acquire()
-        if self.__class__.biz_map_cache is None:
-            self.__class__.biz_map_cache = resource.cc.get_biz_map()
-        lock.release()
+        with self.__class__.lock:
+            if self.__class__.biz_map_cache is None:
+                self.__class__.biz_map_cache = resource.cc.get_biz_map()
         return self.__class__.biz_map_cache
 
     def translate(self, values: List[int]) -> Dict:
