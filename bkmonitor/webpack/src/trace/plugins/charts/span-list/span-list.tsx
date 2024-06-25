@@ -226,7 +226,14 @@ export default defineComponent({
                   ) : (
                     <i class={`icon-monitor span-icon span-kind icon-${getSpanKindIcon(original.kind)}`}></i>
                   )}
-                  <span class='span-name'>{original.name}</span>
+                  <span
+                    class='span-name'
+                    v-overflow-text={{
+                      text: original.name,
+                    }}
+                  >
+                    {original.name}
+                  </span>
                   {isCompare && ['removed', 'added'].includes(original.mark) ? (
                     <span class={`span-mark ${original.mark}`}>{original.mark}</span>
                   ) : (
@@ -243,7 +250,14 @@ export default defineComponent({
                     alt=''
                     src={original.icon}
                   />
-                  <span class='service-name'>{original.operationName}</span>
+                  <span
+                    class='service-name'
+                    v-overflow-text={{
+                      text: original.operationName,
+                    }}
+                  >
+                    {original.operationName}
+                  </span>
                   <span class='start-time'>
                     {`${formatDate(original.startTime)} ${formatTime(original.startTime)}`}
                   </span>
