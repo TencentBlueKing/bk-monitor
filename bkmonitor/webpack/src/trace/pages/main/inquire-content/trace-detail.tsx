@@ -53,7 +53,7 @@ import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
 import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph';
-import SpanList from '../../../plugins/charts/span-list/span-list';
+import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import { DEFAULT_TRACE_DATA, TRACE_INFO_TOOL_FILTERS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
 import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree, ETopoType } from '../../../typings';
@@ -694,6 +694,8 @@ export default defineComponent({
      */
     function handleTopoChangeType(value: ETopoType) {
       topoType.value = value;
+      state.filterSpanIds = [];
+      state.filterSpanSubTitle = '';
     }
 
     return {
@@ -1100,12 +1102,12 @@ export default defineComponent({
                 {{
                   main: () => <div></div>,
                   aside: () => (
-                    <SpanList
+                    <TopoSpanList
                       compareSpanList={this.compareSpanList}
                       filterSpanIds={this.filterSpanIds}
-                      isCollapsed={this.isCollapsefilter}
                       isCompare={this.isCompareView}
                       subTitle={this.filterSpanSubTitle}
+                      type={this.topoType}
                       onListChange={this.handleSpanListFilter}
                       onViewDetail={this.handleShowSpanDetails}
                     />

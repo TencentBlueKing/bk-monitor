@@ -133,6 +133,18 @@
               color: #46a28c;
             }
           }
+
+          .collapsed-number {
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            font-size: 12px;
+            line-height: 16px;
+            color: #fff;
+            text-align: center;
+            background-color: #a2afd2;
+            border-radius: 50%;
+          }
         }
 
         .arrow-down-icon {
@@ -208,6 +220,16 @@
 
           .start-time {
             color: #63656e;
+          }
+
+          .arrow-down-icon {
+            .rect {
+              background-color: #313238;
+            }
+
+            .arrow {
+              border-top-color: #313238;
+            }
           }
         }
       }

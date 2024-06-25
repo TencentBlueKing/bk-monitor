@@ -33,6 +33,7 @@ import { Popover } from 'bkui-vue';
 import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
+import { useTraceStore } from '../../store/modules/trace';
 import EdgeLabelCustom from './edge-label-custom';
 
 import './service-topo.scss';
@@ -85,6 +86,7 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const store = useTraceStore();
     // hooks
     const { fitView, setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } =
       useVueFlow();
@@ -132,7 +134,7 @@ export default defineComponent({
           source: item.source,
           target: item.target,
           data: {
-            spans: item.spans || [],
+            ...item,
           },
           selected: false,
           label: String(item.num_of_operations),
@@ -168,9 +170,18 @@ export default defineComponent({
           x: x,
           y: 16,
         });
+
+        const rootNode = nodes.value.find(item => item.data.is_root);
+        const firstEdge = edges.value.find(item => item.source === rootNode.id);
+        if (firstEdge) {
+          setEdgeSelected([firstEdge.id]);
+          handleEditSpanList(firstEdge.data.spans);
+        }
+
         /** 边点击事件 */
         onEdgeClick(({ edge }) => {
           setEdgeSelected([edge.id]);
+          handleEditSpanList(edge.data.spans);
         });
 
         onPaneClick(() => {
@@ -242,6 +253,11 @@ export default defineComponent({
       selectedNodeKey.value = node.data.key;
       const edgesIds = edges.value.filter(e => e.target === node.data.key).map(e => e.id);
       setEdgeSelected(edgesIds);
+      handleEditSpanList(node.data.spans);
+    }
+
+    function handleEditSpanList(spanList = []) {
+      store.setServiceSpanList(spanList);
     }
 
     /**

@@ -102,7 +102,6 @@ export default defineComponent({
 
     function handlePageChange(e: Event, newPage: number) {
       e.preventDefault();
-      console.log(newPage);
       if (newPage < 1 || newPage > props.data.spans.length) return;
       page.value = newPage;
     }

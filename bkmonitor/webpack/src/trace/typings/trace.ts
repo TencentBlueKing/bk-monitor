@@ -166,6 +166,22 @@ export interface ISpanListItem {
   };
 }
 
+export interface IServiceSpanListItem {
+  span_name: string;
+  span_id: string;
+  kind: number;
+  duration: number;
+  start_time: number;
+  display_name: string;
+  operation_name: string;
+  service_name: string;
+  icon: string;
+  color: string;
+  span_ids: string[];
+  collapsed: boolean;
+  collapsed_span_num: number;
+}
+
 export enum EListItemType {
   events = 'Events',
   process = 'Process',

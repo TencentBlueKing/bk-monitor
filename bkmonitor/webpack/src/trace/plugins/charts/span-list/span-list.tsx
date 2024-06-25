@@ -28,47 +28,48 @@ import { computed, defineComponent, PropType, ref, watch, reactive } from 'vue';
 
 import { Pagination, Popover } from 'bkui-vue';
 
-import { Span } from '../../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
-import { useTraceStore } from '../../../store/modules/trace';
 import { getSpanKindIcon } from '../../../utils';
 
 import './span-list.scss';
 
+export interface SpanListItem {
+  icon: string;
+  kind: number;
+  name: string;
+  operationName: string;
+  duration: number;
+  collapsed?: boolean;
+  collapsedSpanNum?: number;
+  spanIds?: string[];
+  spanId: string;
+  color: string;
+  bgColor?: string;
+  mark?: string;
+  startTime: number;
+}
+
 export default defineComponent({
   name: 'SpanList',
   props: {
-    // 过滤的 Span Id 列表
-    filterSpanIds: {
-      type: Array as PropType<string[]>,
-      default: () => [],
-    },
     // 子标题
     subTitle: {
       type: String,
       required: false,
       default: '',
     },
-    // 是否折叠
-    isCollapsed: {
-      type: Boolean,
-      required: false,
-    },
-    // 对比的 Span 列表
-    compareSpanList: {
-      type: Array as PropType<Span[]>,
-      default: () => [],
-    },
     // 对比状态
     isCompare: {
       type: Boolean,
       default: false,
     },
+    spanList: {
+      type: Array as PropType<SpanListItem[]>,
+      required: true,
+    },
   },
   emits: ['viewDetail', 'listChange'],
   setup(props, { emit }) {
-    const store = useTraceStore();
-
     /** 每页显示条数 */
     const pageLimit = 30;
     /** 当前页 */
@@ -82,18 +83,9 @@ export default defineComponent({
     /** 判断列表区域是否出现滚动条 */
     const isScrollBody = ref(false);
 
-    /** 当前trace的所有span */
-    const spanList = computed(() => store.traceTree?.spans || []);
-    /** 当前过滤的所有span */
-    const localList = computed(() => {
-      const list = props.isCompare && props.compareSpanList.length ? props.compareSpanList : spanList.value;
-      if (props.filterSpanIds.length) return list.filter(item => props.filterSpanIds.includes(item.span_id));
-      return list;
-    });
-
     /** 分页当前显示的 span */
-    const renderList = computed(() => {
-      const list = JSON.parse(JSON.stringify(localList.value));
+    const renderList = computed<SpanListItem[]>(() => {
+      const list = JSON.parse(JSON.stringify(props.spanList));
       const { type, sort } = sortOrder;
       if (type === 'time') {
         if (sort === 'desc') {
@@ -121,7 +113,7 @@ export default defineComponent({
     };
 
     watch(
-      () => localList.value,
+      () => props.spanList,
       () => {
         handlePageChange(1);
         setTimeout(() => {
@@ -132,13 +124,16 @@ export default defineComponent({
     );
 
     /** 查看 span 详情 */
-    const showSpanDetail = (span: Span) => {
-      emit('viewDetail', span);
+    const showSpanDetail = (span: SpanListItem) => {
+      if (span.collapsed) {
+        emit('listChange', span.spanIds, span);
+      } else {
+        emit('viewDetail', span);
+      }
     };
 
     return {
       pageLimit,
-      localList,
       renderList,
       sortOrder,
       handleSortChange,
@@ -214,17 +209,10 @@ export default defineComponent({
           style={`flex: ${this.isScrollBody ? 1 : 'unset'}`}
           class='span-list-body'
         >
-          {/* <VirtualRender
-          list={this.renderList}
-          lineHeight={48}
-          v-slots={{
-            default: ({ data }) => ()
-          }}>
-        </VirtualRender> */}
           <ul class='list-ul'>
             {this.renderList.map(original => (
               <li
-                key={original.spanID}
+                key={original.spanId}
                 style={`border-color: ${original.color}; background-color: ${isCompare ? original.bgColor : '#f5f7fa'}`}
                 class={['list-li', { 'is-compare': isCompare }]}
                 onClick={e => {
@@ -233,8 +221,12 @@ export default defineComponent({
                 }}
               >
                 <div class='list-li-header'>
-                  <i class={`icon-monitor span-icon span-kind icon-${getSpanKindIcon(original.kind)}`}></i>
-                  <span class='span-name'>{original.service_name}</span>
+                  {original.collapsed ? (
+                    <span class='collapsed-number'>{original.collapsedSpanNum}</span>
+                  ) : (
+                    <i class={`icon-monitor span-icon span-kind icon-${getSpanKindIcon(original.kind)}`}></i>
+                  )}
+                  <span class='span-name'>{original.name}</span>
                   {isCompare && ['removed', 'added'].includes(original.mark) ? (
                     <span class={`span-mark ${original.mark}`}>{original.mark}</span>
                   ) : (
@@ -261,12 +253,12 @@ export default defineComponent({
           </ul>
         </div>
         <div class='span-list-footer'>
-          <div class='list-total'>{this.$t('共{0}条', [this.localList.length])}</div>
+          <div class='list-total'>{this.$t('共{0}条', [this.spanList.length])}</div>
           {this.isScrollBody && (
             // 分页组件，用于处理页面切换
             <Pagination
               v-model={this.currentPage} // 当前页码
-              count={this.localList.length} // 总记录数
+              count={this.spanList.length} // 总记录数
               limit={this.pageLimit} // 当前每页显示的数据数量
               limit-list={[30]} // 每页显示的数据数量列表
               show-limit={false} // 是否显示每页显示数据数量选择器
