@@ -63,7 +63,6 @@ coverage.xml
 
 # Django stuff:
 *.log
-local_settings.py
 db.sqlite3
 
 # Flask stuff:
@@ -92,7 +91,6 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
-.env
 
 # virtualenv
 ENV/
@@ -185,7 +183,6 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
 
 # dist
 webpack/monitor

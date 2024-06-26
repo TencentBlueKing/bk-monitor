@@ -69,7 +69,7 @@ class MonitorAPIConfig(AppConfig):
             # healthz_metric.run(apps)
 
         # 迁移IAM
-        try:
-            Migrator("iam", "bkmonitor.iam.migrations").migrate()
-        except ProgrammingError:
-            pass
+        # try:
+        #     Migrator("iam", "bkmonitor.iam.migrations").migrate()
+        # except ProgrammingError:
+        #     pass

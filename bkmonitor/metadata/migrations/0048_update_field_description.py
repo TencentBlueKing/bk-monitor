@@ -56,8 +56,8 @@ def update_description(apps, schema_editor):
 
 
 def total_run(apps, schema_editor):
-
-    update_description(apps, schema_editor)
+    ...
+    # update_description(apps, schema_editor)
 
 
 class Migration(migrations.Migration):

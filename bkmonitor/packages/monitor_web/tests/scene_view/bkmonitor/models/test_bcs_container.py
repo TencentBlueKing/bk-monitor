@@ -16,7 +16,7 @@ from core.testing import assert_list_contains
 
 
 class TestBCSContainer:
-    @pytest.mark.django_db
+    @pytest.mark.django_db(databases=["default", "monitor_api"])
     def test_sync_resource_usage(
         self,
         add_bcs_containers,

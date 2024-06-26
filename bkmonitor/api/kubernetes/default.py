@@ -1594,7 +1594,6 @@ class FetchContainerUsage(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         usage_type = serializers.ChoiceField(choices=("cpu", "memory", "disk"))
-        bcs_cluster_id = serializers.CharField()
         namespace = serializers.CharField(required=False, allow_null=True)
         pod_name = serializers.ListField(required=False, allow_empty=True, allow_null=True)
         container_name = serializers.ListField(required=False, allow_empty=True, allow_null=True)
@@ -1617,9 +1616,7 @@ class FetchContainerUsage(Resource):
         # 时间区间：[-2分钟，-1分钟]
         end_time = int(params.get("end_time", (time.time() - 60)) * 1000)
         start_time = int(params.get("start_time", (time.time() - 120)) * 1000)
-        where = [
-            {"key": "bcs_cluster_id", "method": "eq", "value": bcs_cluster_id},
-        ]
+        where = []
         if pod_name:
             where.append({"key": "pod_name", "method": "eq", "value": pod_name})
         if namespace:
@@ -1847,7 +1844,7 @@ class BulkFetchUsageRatios(FetchKubernetesGrafanaMetricRecords):
                 bcs_cluster_id = record.get("bcs_cluster_id")
                 if not bcs_cluster_id:
                     continue
-                usage_by_cluster[bcs_cluster_id][usage_type] = record["_result_"]
+                usage_by_cluster[bcs_cluster_id][usage_type] = safe_round(record["_result_"], 2)
 
         return usage_by_cluster
 
@@ -1892,93 +1889,6 @@ class BulkFetchUsageRatios(FetchKubernetesGrafanaMetricRecords):
                     )
                 )
                 / sum by(bcs_cluster_id) (
-                    node_filesystem_size_bytes{{
-                        bcs_cluster_id=~"({cluster_ids_pattern})",
-                        fstype=~"ext[234]|btrfs|xfs|zfs"
-                    }}
-                )
-                * 100
-            ''',
-        }
-
-        usage_types = validated_request_data['usage_types']
-        bk_biz_id = validated_request_data['bk_biz_id']
-        start_time = validated_request_data.get('start_time')
-        end_time = validated_request_data.get('end_time')
-
-        return [
-            {
-                "bk_biz_id": bk_biz_id,
-                "start_time": start_time,
-                "end_time": end_time,
-                "data_source_params": {
-                    "key_name": usage_type,
-                    "promql": promql_queries[usage_type],
-                },
-            }
-            for usage_type in usage_types
-        ]
-
-
-class FetchUsageRatioSummary(FetchKubernetesGrafanaMetricRecords):
-    """批量获取集群的资源使用率（不分组）。"""
-
-    class RequestSerializer(FetchKubernetesGrafanaMetricRecords.TimeTransformSerializer):
-        bk_biz_id = serializers.IntegerField()
-        usage_types = serializers.ListField(
-            child=serializers.ChoiceField(choices=(["cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio"]))
-        )
-        bcs_cluster_ids = serializers.ListField(child=serializers.CharField())
-
-    def format_performance_data(self, performance_data):
-        summary = collections.defaultdict(dict)
-        for usage_type, records in performance_data:
-            for record in records:
-                summary[usage_type] = record["_result_"]
-
-        return summary
-
-    def build_graph_unify_query_iterable(self, validated_request_data: Dict) -> List[dict]:
-        # 正则匹配多个 bcs_cluster_id
-        cluster_ids_pattern = "|".join(validated_request_data["bcs_cluster_ids"])
-        promql_queries = {
-            "cpu_usage_ratio": f'''
-                (
-                    1 - avg(
-                        irate(
-                            node_cpu_seconds_total{{mode="idle", bcs_cluster_id=~"({cluster_ids_pattern})"}}[5m]
-                        )
-                    )
-                )
-                * 100
-            ''',
-            "memory_usage_ratio": f'''
-                (
-                    sum(node_memory_MemTotal_bytes{{bcs_cluster_id=~"({cluster_ids_pattern})"}})
-                    - sum(node_memory_MemFree_bytes{{bcs_cluster_id=~"({cluster_ids_pattern})"}})
-                    - sum(node_memory_Cached_bytes{{bcs_cluster_id=~"({cluster_ids_pattern})"}})
-                    - sum(node_memory_Buffers_bytes{{bcs_cluster_id=~"({cluster_ids_pattern})"}})
-                    + sum(node_memory_Shmem_bytes{{bcs_cluster_id=~"({cluster_ids_pattern})"}})
-                )
-                / sum(node_memory_MemTotal_bytes{{bcs_cluster_id=~"({cluster_ids_pattern})"}})
-                * 100
-            ''',
-            "disk_usage_ratio": f'''
-                (
-                    sum(
-                        node_filesystem_size_bytes{{
-                            bcs_cluster_id=~"({cluster_ids_pattern})",
-                            fstype=~"ext[234]|btrfs|xfs|zfs"
-                        }}
-                    )
-                    - sum(
-                        node_filesystem_free_bytes{{
-                            bcs_cluster_id=~"({cluster_ids_pattern})",
-                            fstype=~"ext[234]|btrfs|xfs|zfs"
-                        }}
-                    )
-                )
-                / sum(
                     node_filesystem_size_bytes{{
                         bcs_cluster_id=~"({cluster_ids_pattern})",
                         fstype=~"ext[234]|btrfs|xfs|zfs"
@@ -3139,3 +3049,10 @@ class HasBkmMetricbeatEndpointUpResource(CacheResource):
     def perform_request(self, params: Dict):
         bk_biz_id = params["bk_biz_id"]
         return MetricListCache.objects.filter(bk_biz_id=bk_biz_id, metric_field=BKM_METRICBEAT_ENDPOINT_UP).exists()
+
+
+def safe_round(n, digits):
+    """安全的四舍五入函数。"""
+    if not isinstance(n, float):
+        return n
+    return round(n, digits)

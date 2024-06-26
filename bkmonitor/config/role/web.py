@@ -75,6 +75,7 @@ INSTALLED_APPS += (
     "audit",
     "apigw_manager",
     'bk_notice_sdk',
+    'local_app',
 )
 
 MIDDLEWARE = (

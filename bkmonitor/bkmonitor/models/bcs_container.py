@@ -334,7 +334,7 @@ class BCSContainer(BCSBase, BCSBaseResources):
         """同步资源使用量和数据状态 ."""
         # 获得cpu, memory, disk使用量
         group_by = ["namespace", "pod_name", "container_name"]
-        usages = cls.fetch_container_usage(bk_biz_id, bcs_cluster_id, group_by)
+        usages = cls.fetch_container_usage(bk_biz_id, group_by, bcs_cluster_id=bcs_cluster_id)
         # 获得资源的数据状态
         usage_resource_map = cls.get_cpu_usage_resource(usages, group_by)
         # 获得采集器的采集健康状态

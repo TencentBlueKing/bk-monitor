@@ -644,12 +644,10 @@ def sync_bcs_pod_monitor(bcs_cluster_id):
 @share_lock(ttl=3600, identify="bcs_sync_bcs_cluster_resource")
 def sync_bcs_cluster_resource():
     """同步cluster的资源使用率 ."""
-    cluster_models = BCSCluster.objects.all()
-    for cluster_model in cluster_models:
-        bcs_cluster_id = cluster_model.bcs_cluster_id
-        bk_biz_id = cluster_model.bk_biz_id
+    bk_biz_ids = BCSCluster.objects.values_list("bk_biz_id", flat=True).distinct()
+    for bk_biz_id in bk_biz_ids:
         try:
-            BCSCluster.sync_resource_usage(bk_biz_id, bcs_cluster_id)
+            BCSCluster.sync_resource_usage(bk_biz_id)
         except Exception as exc_info:
             logger.exception(exc_info)
 
@@ -680,12 +678,10 @@ def sync_bcs_service_resource():
 
 @share_lock(ttl=3600, identify="bcs_sync_bcs_pod_resource")
 def sync_bcs_pod_resource():
-    cluster_models = BCSCluster.objects.all()
-    for cluster_model in cluster_models:
-        bcs_cluster_id = cluster_model.bcs_cluster_id
-        bk_biz_id = cluster_model.bk_biz_id
+    bk_biz_ids = BCSCluster.objects.values_list("bk_biz_id", flat=True).distinct()
+    for bk_biz_id in bk_biz_ids:
         try:
-            BCSPod.sync_resource_usage(bk_biz_id, bcs_cluster_id)
+            BCSPod.sync_resource_usage(bk_biz_id)
         except Exception as exc_info:
             logger.exception(exc_info)
 

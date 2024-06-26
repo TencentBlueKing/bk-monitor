@@ -712,13 +712,12 @@ class BCSBase(models.Model):
         return data
 
     @staticmethod
-    def fetch_container_usage(bk_biz_id: int, bcs_cluster_id: str, group_by: List) -> Dict:
+    def fetch_container_usage(bk_biz_id: int, group_by: List) -> Dict:
         """获得cpu,memory,disk使用量 ."""
         usage_types = ["cpu", "memory", "disk"]
         bulk_params = [
             {
                 "bk_biz_id": bk_biz_id,
-                "bcs_cluster_id": bcs_cluster_id,
                 "group_by": group_by,
                 "usage_type": usage_type,
             }

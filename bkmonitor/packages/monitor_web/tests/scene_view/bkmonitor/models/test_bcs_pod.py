@@ -86,14 +86,13 @@ class TestBCSPod:
         ]
         assert_list_contains(actual, expect)
 
-    @pytest.mark.django_db
+    @pytest.mark.django_db(databases=["default", "monitor_api"])
     def test_sync_resource_usage(
         self, monkeypatch_kubernetes_fetch_pod_usage, monkeypatch_fetch_k8s_bkm_metricbeat_endpoint_up, add_bcs_pods
     ):
-        bcs_cluster_id = "BCS-K8S-00000"
         bk_biz_id = 2
 
-        actual = BCSPod.sync_resource_usage(bk_biz_id, bcs_cluster_id)
+        actual = BCSPod.sync_resource_usage(bk_biz_id)
         assert actual is None
 
         actual = [model_to_dict(model) for model in BCSPod.objects.all()]
@@ -122,6 +121,7 @@ class TestBCSPod:
                 'workload_name': 'api-gateway',
                 'workload_type': 'StatefulSet',
             },
+            # 无 CPU 数据，状态为 disabled
             {
                 'bcs_cluster_id': 'BCS-K8S-00000',
                 'bk_biz_id': 2,
@@ -140,21 +140,22 @@ class TestBCSPod:
                 'resource_requests_cpu': 0.0,
                 'resource_requests_memory': 1073741824,
                 'resource_usage_cpu': None,
-                'resource_usage_disk': None,
-                'resource_usage_memory': None,
+                'resource_usage_disk': 5210112,
+                'resource_usage_memory': 195993600,
                 'restarts': 0,
                 'status': 'Completed',
                 'total_container_count': 2,
                 'workload_name': 'api-gateway',
                 'workload_type': 'StatefulSet',
             },
+            # 完全没数据，走重置逻辑，状态为 disabled
             {
                 'bcs_cluster_id': 'BCS-K8S-00002',
-                'bk_biz_id': 100,
+                'bk_biz_id': 2,
                 'deleted_at': None,
                 'images': 'host/namespace/apisix:latest,host/namespace/gateway-discovery:latest',
                 'labels': [],
-                'monitor_status': 'failed',
+                'monitor_status': 'disabled',
                 'name': 'api-gateway-2',
                 'namespace': 'namespace_a',
                 'node_ip': '1.1.1.1',
@@ -165,9 +166,9 @@ class TestBCSPod:
                 'resource_limits_memory': 9663676416,
                 'resource_requests_cpu': 0.0,
                 'resource_requests_memory': 1073741824,
-                'resource_usage_cpu': 0.03,
-                'resource_usage_disk': 330514432,
-                'resource_usage_memory': 826540032,
+                'resource_usage_cpu': None,
+                'resource_usage_disk': None,
+                'resource_usage_memory': None,
                 'restarts': 10,
                 'status': 'Completed',
                 'total_container_count': 2,

@@ -124,7 +124,7 @@ class TestBCSCluster:
         expect = ['BCS-K8S-00000', 'BCS-K8S-00001']
         assert actual == expect
 
-    @pytest.mark.django_db
+    @pytest.mark.django_db(databases=["default", "monitor_api"])
     def test_sync_resource_usage(
         self,
         monkeypatch,

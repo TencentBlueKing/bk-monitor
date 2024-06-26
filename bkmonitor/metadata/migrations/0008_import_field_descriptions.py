@@ -214,7 +214,7 @@ def total_run(apps, schema_editor):
     import_system_load(apps, schema_editor)
     add_ip_field(apps, schema_editor)
     update_field_info(apps, schema_editor)
-    import_description(apps, schema_editor)
+    # import_description(apps, schema_editor)
     update_etl_config(apps, schema_editor)
 
 

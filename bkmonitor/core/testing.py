@@ -18,7 +18,7 @@ def assert_dict_contains(data: dict, expect: dict):
         elif isinstance(value, list):
             assert_list_contains(data.get(key), value)
         else:
-            assert data.get(key) == value
+            assert data.get(key) == value, f"{key}, {data.get(key)} != {value}"
 
 
 def assert_list_contains(data: list, expect: list):
@@ -30,4 +30,4 @@ def assert_list_contains(data: list, expect: list):
         elif isinstance(value, list):
             assert_list_contains(data[index], value)
         else:
-            assert data[index] == value
+            assert data[index] == value, f"{index}, {data[index]} != {value}"
