@@ -46,6 +46,10 @@ export const DEFAULT_TRACE_DATA: ITraceData = {
     max_duration: 0,
     time_error: false,
   },
+  streamline_service_topo: {
+    nodes: [],
+    edges: [],
+  },
 };
 
 export const SPAN_KIND_MAPS: ISpanKindMaps = {
