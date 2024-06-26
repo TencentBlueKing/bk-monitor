@@ -54,7 +54,7 @@ export interface UseScreenshot {
 }
 
 export function useLayout() {
-  // @dagrejs/dagre  再为前端下面调用tostring(str)会报错  所以这里重写toString方法
+  // @dagrejs/dagre  此包在微前端下面调用tostring(str)会报错  所以这里重写toString方法
   window.toString = String;
 
   const { findNode } = useVueFlow();
