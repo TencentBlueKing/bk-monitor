@@ -2,8 +2,8 @@
 
 // 浏览器重置样式
 * {
-  outline: none;
   box-sizing: border-box;
+  outline: none;
 }
 
 html,
@@ -41,5 +41,5 @@ div,
 ul,
 section,
 article {
-  @include scroller
+  @include scroller;
 }

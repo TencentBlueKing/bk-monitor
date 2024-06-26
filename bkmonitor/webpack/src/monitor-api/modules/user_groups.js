@@ -7,5 +7,5 @@ export const previewUserGroupPlan = request('POST', 'rest/v2/duty_plan/preview_u
 export default {
   getBkchatGroup,
   previewDutyRulePlan,
-  previewUserGroupPlan
+  previewUserGroupPlan,
 };

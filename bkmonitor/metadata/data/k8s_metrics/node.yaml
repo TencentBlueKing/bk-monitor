@@ -17,6 +17,7 @@
   - {description: '', field_name: target}
   - {description: '', field_name: bcs_cluster_id}
   - {description: '', field_name: container}
+  - {description: '', field_name: node}
 - description: ''
   field_name: node_disk_io_time_seconds_total
   tag_list:
@@ -608,10 +609,6 @@
     type: string
     unit: ''
   - description: ''
-    field_name: bk_job
-    type: string
-    unit: ''
-  - description: ''
     field_name: monitor_type
     type: string
     unit: ''
@@ -702,10 +699,6 @@
     field_name: bk_biz_id
     type: string
     unit: ''
-  - description: ''
-    field_name: bk_job
-    type: string
-    unit: ''
 - description: ''
   field_name: node_vmstat_pgfault
   tag_list:
@@ -715,10 +708,6 @@
     unit: ''
   - description: ''
     field_name: instance
-    type: string
-    unit: ''
-  - description: ''
-    field_name: bk_job
     type: string
     unit: ''
   - description: ''
@@ -849,10 +838,6 @@
     type: string
     unit: ''
   - description: ''
-    field_name: bk_job
-    type: string
-    unit: ''
-  - description: ''
     field_name: bk_instance
     type: string
     unit: ''
@@ -885,10 +870,6 @@
     unit: ''
   - description: ''
     field_name: bk_instance
-    type: string
-    unit: ''
-  - description: ''
-    field_name: bk_job
     type: string
     unit: ''
   - description: ''
@@ -996,10 +977,6 @@
     unit: ''
   - description: ''
     field_name: bk_endpoint_url
-    type: string
-    unit: ''
-  - description: ''
-    field_name: bk_job
     type: string
     unit: ''
   - description: ''

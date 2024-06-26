@@ -407,19 +407,6 @@ class LogIndexSet(SoftDeleteModel):
         """
         return self.get_indexes()
 
-    @classmethod
-    def get_bcs_index_set(cls, space_uid, bcs_project_id, bcs_cluster_id):
-        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid, bcs_project_id=bcs_project_id)
-        bcs_path_index_set = None
-        bcs_std_index_set = None
-        for src_index in src_index_list:
-            if src_index.index_set_name == f"{bcs_cluster_id}_path":
-                bcs_path_index_set = src_index
-                continue
-            if src_index.index_set_name == f"{bcs_cluster_id}_std":
-                bcs_std_index_set = src_index
-        return bcs_path_index_set, bcs_std_index_set
-
     @property
     def scenario_name(self):
         return self.get_scenario_id_display()
@@ -713,6 +700,7 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    from_favorite_id = models.IntegerField(_("检索收藏ID"), default=0, db_index=True)
 
     class Meta:
         verbose_name = _("索引集用户检索记录")
@@ -1048,9 +1036,8 @@ class IndexSetTag(models.Model):
 
     @classmethod
     def get_tag_id(cls, name: str) -> int:
-        if cls.objects.filter(name=name).exists():
-            return cls.objects.get(name=name).tag_id
-        return cls.objects.create(name=name).tag_id
+        tag, created = cls.objects.get_or_create(name=name)
+        return tag.tag_id
 
     @classmethod
     def batch_get_tags(cls, tag_ids: set):

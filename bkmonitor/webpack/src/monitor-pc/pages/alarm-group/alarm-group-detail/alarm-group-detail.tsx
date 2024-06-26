@@ -47,10 +47,11 @@ import './alarm-group-detail.scss';
 const ALERT_NOTICE = 'alert_notice';
 const ACTION_NOTICE = 'action_notice';
 
-export interface IAlarmGroupDeatail {
+export interface IAlarmGroupDetail {
   id: number | string;
   show?: boolean;
   customEdit?: boolean;
+  hasEditBtn?: boolean;
 }
 interface IEvent {
   onShowChange?: boolean;
@@ -86,9 +87,10 @@ const noticeTypeMap = {
 };
 
 @Component
-export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
+export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
   @Prop({ type: [String, Number], default: 0 }) id: number | string;
   @Prop({ type: Boolean, default: false }) customEdit: boolean;
+  @Prop({ type: Boolean, default: true }) hasEditBtn: boolean;
   @Model('showChange', { default: false, type: Boolean }) show: boolean;
 
   loading = false;
@@ -441,15 +443,18 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
               {this.title}
             </span>
           )}
-          <bk-button
-            class={['header-edit', { disabled: !this.editAllowed }]}
-            disabled={!this.editAllowed}
-            outline={this.editAllowed}
-            theme={this.editAllowed ? 'primary' : 'default'}
-            onClick={this.handleEdit}
-          >
-            {this.$t('编辑')}
-          </bk-button>
+          {this.hasEditBtn && (
+            <bk-button
+              class={['header-edit', { disabled: !this.editAllowed }]}
+              disabled={!this.editAllowed}
+              outline={this.editAllowed}
+              theme={this.editAllowed ? 'primary' : 'default'}
+              onClick={this.handleEdit}
+            >
+              {this.$t('编辑')}
+            </bk-button>
+          )}
+
           <HistoryDialog
             style='margin: 0 24px 0 8px'
             list={this.historyList}

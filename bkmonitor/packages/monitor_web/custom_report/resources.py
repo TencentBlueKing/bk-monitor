@@ -322,6 +322,14 @@ class GetCustomEventGroup(Resource):
         )
         data["event_info_list"] = list()
 
+        # 如果自定义事件有人访问，则结束休眠策略
+        username = get_request_username()
+        if event_info_list.get("status") == "sleep":
+            try:
+                api.metadata.modify_event_group({"event_group_id": event_group_id, "operator": username})
+            except BKAPIError:
+                pass
+
         # 查询事件关联策略ID
         related_query_configs = (
             QueryConfigModel.objects.filter(
@@ -1154,7 +1162,9 @@ class AddCustomMetricResource(Resource):
         # 查询该任务是否已有执行任务
         table = CustomTSTable.objects.filter(table_id__startswith=validated_request_data['result_table_id'])
         if not table.exists():
-            raise ValidationError(f"结果表({validated_request_data['result_table_id']})不存在")
+            table = CustomTSTable.objects.filter(data_label=validated_request_data['result_table_id'])
+            if not table.exists():
+                raise ValidationError(f"结果表或datalabel({validated_request_data['result_table_id']})不存在")
         # 手动添加的自定义指标metric_md5特殊处理为0
         filter_params = {
             "data_source_label": DataSourceLabel.CUSTOM,
@@ -1171,6 +1181,7 @@ class AddCustomMetricResource(Resource):
             "metric_field": validated_request_data["metric_field"],
             "metric_field_name": validated_request_data["metric_field"],
             "metric_md5": "0",
+            "data_label": table.first().data_label,
             **filter_params,
         }
         if metric_list.first():

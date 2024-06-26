@@ -131,7 +131,6 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
     # 策略增量更新
     ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
-    ("alarm_backends.core.cache.shield", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
@@ -193,6 +192,8 @@ if BCS_API_GATEWAY_HOST:
     ]
 
 ACTION_TASK_CRONTAB = [
+    # 策略缓存更新
+    ("alarm_backends.core.cache.shield.main", "* * * * *", "global"),
     # 分集群任务
     # 定期检测异常告警
     ("alarm_backends.service.alert.manager.tasks.check_abnormal_alert", "* * * * *", "cluster"),
@@ -213,75 +214,72 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
 ]
 
-LONG_TASK_CRONTAB = []
-
-if os.getenv("DISABLE_METADATA_TASK") != "True":
-    DEFAULT_CRONTAB += [
-        # metadata
-        # metadata更新每个influxdb的存储RP，UTC时间的22点进行更新，待0点influxdb进行清理
-        ("metadata.task.refresh_default_rp", "0 22 * * *", "global"),
-        # metadata同步pingserver配置，下发iplist到proxy机器，每10分钟执行一次
-        ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
-        # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
-        ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
-        # metadata自动部署bkmonitorproxy
-        ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
-        ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
-        ("metadata.task.config_refresh.refresh_kafka_topic_info", "*/10 * * * *", "global"),
-        ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
-        ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
-        ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
-        # 刷新metadata降精度配置，10分钟一次
-        ("metadata.task.downsampled.refresh_influxdb_downsampled", "*/10 * * * *", "global"),
-        # 降精度计算，5分钟一次检测一次
-        ("metadata.task.downsampled.access_and_calc_for_downsample", "*/5 * * * *", "global"),
-        # 刷新回溯配置
-        ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),
-        # bcs信息刷新
-        ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
-        ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
-        ("metadata.task.bcs.discover_bcs_clusters", "*/10 * * * *", "global"),
-        # 同步空间信息
-        ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
-        ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
-        ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
-        # metadata同步自定义时序维度信息, 每5分钟将会从consul同步一次
-        ("metadata.task.custom_report.check_update_ts_metric", "*/5 * * * *", "global"),
-    ]
-    # 耗时任务单独队列处理
-    LONG_TASK_CRONTAB = [
-        # 清理任务耗时较久，半个小时执行一次
-        # ("metadata.task.config_refresh.clean_influxdb_tag", "*/30 * * * *", "global"),
-        # ("metadata.task.config_refresh.clean_influxdb_storage", "*/30 * * * *", "global"),
-        # ("metadata.task.config_refresh.clean_influxdb_cluster", "*/30 * * * *", "global"),
-        # ("metadata.task.config_refresh.clean_influxdb_host", "*/30 * * * *", "global"),
-        # 刷新数据源信息到 consul
-        ("metadata.task.config_refresh.refresh_datasource", "*/10 * * * *", "global"),
-        # 刷新 storage 信息给unify-query使用
-        # TODO: 待确认是否还有使用，如没使用可以删除
-        ("metadata.task.config_refresh.refresh_consul_influxdb_tableinfo", "*/10 * * * *", "global"),
-        # 刷新结果表路由配置
-        ("metadata.task.config_refresh.refresh_influxdb_route", "*/10 * * * *", "global"),
-        # 刷新空间信息，业务、BCS的关联资源
-        ("metadata.task.sync_space.refresh_cluster_resource", "*/30 * * * *", "global"),
-        ("metadata.task.sync_space.sync_bkcc_space_data_source", "* */1 * * *", "global"),
-        # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
-        ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
-        # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
-        ("metadata.task.sync_space.refresh_bkci_space_name", "0 3 * * *", "global"),
-        # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每天3点半执行一次
-        ("metadata.task.sync_space.refresh_bkcc_space_name", "30 3 * * *", "global"),
-        # metadata 刷新 unify_query 视图需要的字段，因为变动性很低，每天 4 点执行一次
-        # ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
-        # 删除数据库中已经不存在的数据源
-        ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
-        # 每天同步一次蓝鲸应用的使用的集群
-        ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
-        # 同步空间路由数据，1小时更新一次
-        ("metadata.task.sync_space.push_and_publish_space_router_task", "* */1 * * *", "global"),
-        # 检查并执行接入vm命令, 每天执行一次
-        ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
-    ]
+DEFAULT_CRONTAB += [
+    # metadata
+    # metadata更新每个influxdb的存储RP，UTC时间的22点进行更新，待0点influxdb进行清理
+    ("metadata.task.refresh_default_rp", "0 22 * * *", "global"),
+    # metadata同步pingserver配置，下发iplist到proxy机器，每10分钟执行一次
+    ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
+    # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
+    ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
+    # metadata自动部署bkmonitorproxy
+    ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
+    ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_kafka_topic_info", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
+    # 刷新metadata降精度配置，10分钟一次
+    ("metadata.task.downsampled.refresh_influxdb_downsampled", "*/10 * * * *", "global"),
+    # 降精度计算，5分钟一次检测一次
+    ("metadata.task.downsampled.access_and_calc_for_downsample", "*/5 * * * *", "global"),
+    # 刷新回溯配置
+    ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),
+    # bcs信息刷新
+    ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
+    ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
+    ("metadata.task.bcs.discover_bcs_clusters", "*/10 * * * *", "global"),
+    # 同步空间信息
+    ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
+    ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
+    ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
+]
+# 耗时任务单独队列处理
+LONG_TASK_CRONTAB = [
+    # 清理任务耗时较久，半个小时执行一次
+    # ("metadata.task.config_refresh.clean_influxdb_tag", "*/30 * * * *", "global"),
+    # ("metadata.task.config_refresh.clean_influxdb_storage", "*/30 * * * *", "global"),
+    # ("metadata.task.config_refresh.clean_influxdb_cluster", "*/30 * * * *", "global"),
+    # ("metadata.task.config_refresh.clean_influxdb_host", "*/30 * * * *", "global"),
+    # 刷新数据源信息到 consul
+    ("metadata.task.config_refresh.refresh_datasource", "*/10 * * * *", "global"),
+    # 刷新 storage 信息给unify-query使用
+    # TODO: 待确认是否还有使用，如没使用可以删除
+    ("metadata.task.config_refresh.refresh_consul_influxdb_tableinfo", "*/10 * * * *", "global"),
+    # 刷新结果表路由配置
+    ("metadata.task.config_refresh.refresh_influxdb_route", "*/10 * * * *", "global"),
+    # 刷新空间信息，业务、BCS的关联资源
+    ("metadata.task.sync_space.refresh_cluster_resource", "*/30 * * * *", "global"),
+    ("metadata.task.sync_space.sync_bkcc_space_data_source", "* */1 * * *", "global"),
+    # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
+    ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
+    # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
+    ("metadata.task.sync_space.refresh_bkci_space_name", "0 3 * * *", "global"),
+    # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每天3点半执行一次
+    ("metadata.task.sync_space.refresh_bkcc_space_name", "30 3 * * *", "global"),
+    # metadata 刷新 unify_query 视图需要的字段，因为变动性很低，每天 4 点执行一次
+    # ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
+    # 删除数据库中已经不存在的数据源
+    ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
+    # 每天同步一次蓝鲸应用的使用的集群
+    ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
+    # 同步空间路由数据，1小时更新一次
+    ("metadata.task.sync_space.push_and_publish_space_router_task", "* */1 * * *", "global"),
+    # 检查并执行接入vm命令, 每天执行一次
+    ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
+    # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
+    ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
+]
 
 # Timeout for image exporter service, default set to 10 seconds
 IMAGE_EXPORTER_TIMEOUT = 10

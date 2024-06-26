@@ -113,6 +113,7 @@ interface IProps {
   list?: IPluginItem[];
   id?: string;
   disabled?: boolean;
+  loading?: boolean;
 }
 interface IEvents {
   onChange?: IPluginItem;
@@ -123,6 +124,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) list: IPluginItem[];
   @Prop({ type: String, default: '' }) id: string;
   @Prop({ type: Boolean, default: false }) disabled: boolean;
+  @Prop({ type: Boolean, default: false }) loading: boolean;
 
   pluginId = '';
   realList: IPluginItem[] = [];
@@ -160,6 +162,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
           clearable={false}
           disabled={this.disabled}
           ext-popover-cls='collector-plugin-selector-component-options'
+          loading={this.loading}
           value={this.pluginId}
           searchable
           on-selected={value => this.handleSelector(value)}

@@ -21,17 +21,20 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "iteration": 1658716570765,
   "links": [],
   "liveNow": false,
   "panels": [
     {
+      "datasource": "$datasource",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 1,
@@ -43,6 +46,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -96,6 +100,7 @@
           ],
           "displayMode": "table",
           "placement": "bottom",
+          "showLegend": true,
           "sortBy": "Mean",
           "sortDesc": true
         },
@@ -111,16 +116,19 @@
         }
       ],
       "title": "Throughput (bps)",
-      "type": "timeseries",
-      "datasource": "$datasource"
+      "type": "timeseries"
     },
     {
+      "datasource": "$datasource",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 1,
@@ -132,6 +140,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -185,6 +194,7 @@
           ],
           "displayMode": "table",
           "placement": "bottom",
+          "showLegend": true,
           "sortBy": "Mean",
           "sortDesc": true
         },
@@ -200,16 +210,19 @@
         }
       ],
       "title": "Retrans rate",
-      "type": "timeseries",
-      "datasource": "$datasource"
+      "type": "timeseries"
     },
     {
+      "datasource": "$datasource",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 1,
@@ -221,6 +234,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -274,6 +288,7 @@
           ],
           "displayMode": "table",
           "placement": "bottom",
+          "showLegend": true,
           "sortBy": "Mean",
           "sortDesc": true
         },
@@ -289,16 +304,19 @@
         }
       ],
       "title": "TCP conn. establishment fail rate",
-      "type": "timeseries",
-      "datasource": "$datasource"
+      "type": "timeseries"
     },
     {
+      "datasource": "$datasource",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 1,
@@ -310,6 +328,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -363,6 +382,7 @@
           ],
           "displayMode": "table",
           "placement": "bottom",
+          "showLegend": true,
           "sortBy": "Mean",
           "sortDesc": true
         },
@@ -378,10 +398,10 @@
         }
       ],
       "title": "TCP conn. establishment latency",
-      "type": "timeseries",
-      "datasource": "$datasource"
+      "type": "timeseries"
     },
     {
+      "datasource": "$datasource",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -389,7 +409,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "mappings": [],
@@ -433,8 +455,10 @@
                 "value": "percent"
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -465,8 +489,10 @@
                 "value": "percent"
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -497,8 +523,10 @@
                 "value": "µs"
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -529,8 +557,10 @@
                 "value": "µs"
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -584,7 +614,9 @@
       },
       "id": 11,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -599,7 +631,7 @@
           }
         ]
       },
-      "pluginVersion": "9.0.3",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_port\",\"select\":[{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c3caae88-02f5-c7eb-b5b6-08de63bc2bb5\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"packet\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"70af606d-0625-3c20-833f-65ee31ba1af5\",\"subFuncs\":[{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"new_flow\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"04e6711f-39e9-fbf1-3aaf-9ac58f42b10c\",\"subFuncs\":[{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7b00dc97-48cd-f519-40d1-ea863ab58d8b\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2cd816df-3c0f-0ff4-79d5-07192edc9153\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"81221280-4466-5a76-246c-5d47e569fced\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"art\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"dc8a5917-0306-0df1-a145-b88318ae6ec4\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"0c6f49a3-c287-7923-b0dc-f4848e81fd15\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"pod_cluster\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$cluster\",\"value\":\"cluster\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"3dad4a80-972d-9a63-d63c-ff717514e75b\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_ns\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$namespace\",\"value\":\"namespace\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"35ce9d9e-058e-997b-b72e-676199717c2f\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_group\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$workload\",\"value\":\"workload\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"d913aa27-42bf-07c8-cf8b-ad486092214a\",\"subFuncs\":[]}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"f4abe24a-c5d0-8470-d973-d90e360b47ca\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"pod\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"01ba9039-1c67-7e2b-466c-ce88938c6b47\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"0bc3c024-df50-02ca-d17b-9ca5f5886119\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\"}",
@@ -618,20 +650,25 @@
               "time_1": true,
               "time_60": true
             },
+            "includeByName": {},
             "indexByName": {
-              "pod": 0,
-              "pod_id": 1,
-              "node_type": 2,
-              "icon_id": 3,
-              "PerSecond(Math(Avg(byte)*8))": 4,
-              "PerSecond(Avg(packet))": 5,
-              "PerSecond(Avg(new_flow))": 6,
+              "Avg(art)": 10,
               "Avg(retrans_ratio)": 7,
-              "Avg(tcp_establish_fail_ratio)": 8,
               "Avg(rtt)": 9,
-              "Avg(art)": 10
+              "Avg(tcp_establish_fail_ratio)": 8,
+              "PerSecond(Avg(new_flow))": 6,
+              "PerSecond(Avg(packet))": 5,
+              "PerSecond(Math(Avg(byte)*8))": 4,
+              "icon_id": 3,
+              "node_type": 2,
+              "pod": 0,
+              "pod_id": 1
             },
             "renameByName": {
+              "Avg(Avg Data Delay)": "TCP/UDP data latency",
+              "Avg(Avg TCP Est. Delay)": "TCP conn. establishment latency",
+              "Avg(Error %)": "TCP conn. establishment fail rate",
+              "Avg(TCP Retrans. %)": "TCP retrans rate",
               "Avg(TCP重传比例)": "TCP retrans rate ",
               "Avg(art)": "TCP/UDP data latency",
               "Avg(retrans_ratio)": "TCP retrans rate",
@@ -642,10 +679,13 @@
               "Avg(平均数据时延)": "TCP/UDP data  latency ",
               "Avg(建连-失败比例)": "TCP conn. establishment fail rate ",
               "Avg(新建连接)": "TCP new conn",
+              "PerSecond(Avg(New Flow))": "TCP new conn.",
+              "PerSecond(Avg(Packet))": "Throughput(pps)",
               "PerSecond(Avg(new_flow))": "TCP new conn.",
               "PerSecond(Avg(packet))": "Throughput(pps)",
               "PerSecond(Avg(包数))": "Throughput (pps)",
               "PerSecond(Avg(新建连接))": "TCP new conn.",
+              "PerSecond(Math(Avg(Byte)*8))": "Throughput(bps)",
               "PerSecond(Math(Avg(byte)*8))": "Throughput(bps)",
               "PerSecond(Math(Avg(字节)*8))": "Throughput (bps)",
               "pod": "Pod name",
@@ -655,13 +695,11 @@
           }
         }
       ],
-      "type": "table",
-      "datasource": "$datasource"
+      "type": "table"
     }
   ],
   "refresh": "",
-  "schemaVersion": 36,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
@@ -685,15 +723,10 @@
       {
         "current": {
           "selected": true,
-          "text": [
-            "__any"
-          ],
-          "value": [
-            "__any"
-          ]
+          "value": "1"
         },
         "datasource": "$datasource",
-        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
         "hide": 0,
         "includeAll": false,
         "multi": true,
@@ -701,7 +734,7 @@
         "options": [],
         "query": {
           "database": "flow_metrics",
-          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
           "useAny": true,
           "useDisabled": false
         },
@@ -714,12 +747,7 @@
       {
         "current": {
           "selected": true,
-          "text": [
-            "__any"
-          ],
-          "value": [
-            "__any"
-          ]
+          "value": "1"
         },
         "datasource": "$datasource",
         "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_ns as value, pod_ns as display_name FROM `vtap_flow_port.1m` WHERE  ('$cluster' IN ('__disabled')  OR  '$cluster' IN ('__any')  OR pod_cluster IN (${cluster:singlequote}))  AND  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
@@ -743,12 +771,7 @@
       {
         "current": {
           "selected": true,
-          "text": [
-            "__any"
-          ],
-          "value": [
-            "__any"
-          ]
+          "value": "1"
         },
         "datasource": "$datasource",
         "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_group as `value`, pod_group as `display_name` FROM `vtap_flow_port.1m` WHERE ('$cluster' IN ('__any', '__disabled') OR pod_cluster IN (${cluster:singlequote})) AND ('$namespace' IN ('__any', '__disabled') OR pod_ns IN (${namespace:singlequote})) AND  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
@@ -779,7 +802,7 @@
   "timezone": "",
   "title": "Network - K8s Pod",
   "uid": "Network_K8s_Pod",
-  "version": 15,
+  "version": 27,
   "weekStart": "",
   "__inputs": [
     {
@@ -797,6 +820,5 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ],
-  "__path": "dashboards/DeepFlow-Templates/Network-K8s-Pod.json"
+  ]
 }

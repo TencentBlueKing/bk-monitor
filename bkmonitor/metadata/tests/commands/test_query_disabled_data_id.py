@@ -67,7 +67,7 @@ def create_and_delete_data(mocker):
 
 def test_query_data(create_and_delete_data):
     out = StringIO()
-    call_command("query_disabled_data_id", stdout=out)
+    call_command("query_disabled_data_id", "--all", stdout=out)
     output = out.getvalue()
     data = json.loads(output)
     assert data["count"] == 2

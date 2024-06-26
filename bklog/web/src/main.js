@@ -1,57 +1,65 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import './public-path';
+
 import Vue from 'vue';
-import App from './App';
-import router from './router';
-import store from './store';
-import http from './api';
-import { bus } from './common/bus';
-import i18n from '@/language/i18n';
-import methods from './plugins/methods';
 import VueJsonPretty from 'vue-json-pretty';
-import 'vue-json-pretty/lib/styles.css';
-import './directives/index';
+
 import LogButton from '@/components/log-button';
+import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-import { renderHeader } from './common/util';
-import './static/icons/log-icons.css';
-// 接入OTLP
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+import { ZoneContextManager } from '@opentelemetry/context-zone';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
-import { ZoneContextManager } from '@opentelemetry/context-zone';
+// 接入OTLP
+import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+
+import App from './App';
+import http from './api';
+import { bus } from './common/bus';
+import { renderHeader } from './common/util';
+import './directives/index';
+import methods from './plugins/methods';
+import router from './router';
+import store from './store';
+
+import './static/icons/log-icons.css';
+import 'vue-json-pretty/lib/styles.css';
 
 const provider = new WebTracerProvider();
 provider.register({
-  contextManager: new ZoneContextManager()
+  contextManager: new ZoneContextManager(),
 });
 registerInstrumentations({
   instrumentations: [
     new XMLHttpRequestInstrumentation({
       // propagateTraceHeaderCorsUrls: new RegExp('.*'),
-    })
-  ]
+    }),
+  ],
 });
 const tracer = provider.getTracer('bk-log');
 Vue.prototype.$renderHeader = renderHeader;
@@ -64,7 +72,7 @@ try {
       id, // 项目key
       reportApiSpeed: true, // 接口测速
       reportAssetSpeed: true, // 静态资源测速
-      spa: true
+      spa: true,
     });
     window.__aegisInstance = aegis;
     Vue.config.errorHandler = function (err, vm, info) {
@@ -104,9 +112,9 @@ if (process.env.NODE_ENV === 'development') {
       store,
       i18n,
       components: {
-        App
+        App,
       },
-      template: '<App/>'
+      template: '<App/>',
     });
     Vue.config.devtools = true;
   });
@@ -118,9 +126,9 @@ if (process.env.NODE_ENV === 'development') {
     store,
     i18n,
     components: {
-      App
+      App,
     },
-    template: '<App/>'
+    template: '<App/>',
   });
   Vue.config.devtools = true;
 }

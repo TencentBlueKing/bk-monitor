@@ -255,9 +255,9 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
 
 
 class DutyArrangeSlz(DutyBaseInfoSlz):
-    id = serializers.IntegerField(required=False)
-    user_group_id = serializers.IntegerField(required=False)
-    duty_rule_id = serializers.IntegerField(required=False)
+    id = serializers.IntegerField(required=False, read_only=True)
+    user_group_id = serializers.IntegerField(required=False, allow_null=True)
+    duty_rule_id = serializers.IntegerField(required=False, allow_null=True)
     need_rotation = serializers.BooleanField(required=False, default=False)
 
     users = serializers.ListField(required=False, child=UserSerializer())
@@ -450,10 +450,6 @@ class DutyRuleSlz(serializers.ModelSerializer):
 
 class DutyRuleDetailSlz(DutyRuleSlz):
     duty_arranges = serializers.ListField(child=DutyArrangeSlz(), required=False, default=list)
-    code_hash = serializers.CharField(default="")
-    app = serializers.CharField(default="")
-    path = serializers.CharField(default="")
-    snippet = serializers.CharField(default="")
 
     class Meta:
         model = DutyRule
@@ -483,7 +479,19 @@ class DutyRuleDetailSlz(DutyRuleSlz):
         super(DutyRuleDetailSlz, self).save(**kwargs)
 
         DutyArrange.bulk_create(duty_arranges, self.instance)
-        if not self.instance.enabled:
+
+        if self.instance.enabled:
+            # 快照和计划管理，以便预览能看到即时变化
+            user_groups = UserGroup.objects.filter(duty_rules__contains=self.instance.id).only(
+                "id", "bk_biz_id", "duty_rules", "duty_notice", "timezone"
+            )
+            for user_group in user_groups:
+                group_duty_manager = GroupDutyRuleManager(user_group, [self.data])
+                try:
+                    group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
+                except Exception:  # noqa
+                    continue
+        else:
             # 如果是关闭了当前的规则, 则已有的排班计划都需要关闭掉
             # TODO 和产品确认下，是否要一个调整时间
             DutyRuleSnap.objects.filter(duty_rule_id=self.instance.id).update(enabled=False)
@@ -848,9 +856,9 @@ class UserGroupDetailSlz(UserGroupSlz):
             duty_arranges_mapping = defaultdict(list)
             if duty_rule_ids:
                 # 获取对应的规则ID信息，用来做展示
+                duty_rules = DutyRule.objects.filter(id__in=duty_rule_ids)
                 kwargs["duty_rules"] = {
-                    rule_data["id"]: rule_data
-                    for rule_data in DutyRuleSlz(instance=DutyRule.objects.filter(id__in=duty_rule_ids), many=True).data
+                    rule_data["id"]: rule_data for rule_data in DutyRuleDetailSlz(instance=duty_rules, many=True).data
                 }
 
             for item in duty_arranges:

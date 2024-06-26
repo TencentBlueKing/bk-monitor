@@ -110,7 +110,7 @@ class GetAlarmEventField(Resource):
             {"id": "status", "name": _("告警状态"), "is_dimension": True},
             {"id": "alert_name", "name": _("告警名称"), "is_dimension": True},
             {"id": "strategy_id", "name": _("策略ID"), "is_dimension": True},
-            {"id": "event.ip", "name": _("IP"), "is_dimension": True},
+            {"id": "event.ip", "name": "IP", "is_dimension": True},
             {"id": "event.bk_cloud_id", "name": _("云区域ID"), "is_dimension": True},
             *tags,
         ]

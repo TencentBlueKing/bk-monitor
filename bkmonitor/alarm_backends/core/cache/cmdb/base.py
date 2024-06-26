@@ -19,6 +19,7 @@ from django.core.cache import caches
 
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.cache.base import CacheManager
+from alarm_backends.core.storage.redis import Cache
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -34,6 +35,7 @@ class CMDBCacheManager(CacheManager):
     CACHE_KEY = ""
     CACHE_TIMEOUT = 7 * CONST_ONE_DAY
     ObjectClass = None
+    cache = Cache("cache-cmdb")
 
     @classmethod
     def serialize(cls, obj):

@@ -35,5 +35,5 @@ export default {
   endpointDetailList,
   exceptionDetailList,
   hostInstanceDetailList,
-  serviceQueryException
+  serviceQueryException,
 };

@@ -23,5 +23,5 @@ export default {
   reportContent,
   reportDelete,
   groupList,
-  reportClone
+  reportClone,
 };

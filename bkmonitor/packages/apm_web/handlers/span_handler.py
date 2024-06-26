@@ -87,7 +87,7 @@ class SpanHandler:
                 }
             },
             "aggs": {
-                "unique_urls": {"terms": {"field": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL), "size": 100}}
+                "unique_urls": {"terms": {"field": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL), "size": 500}}
             },
         }
         if service_name:

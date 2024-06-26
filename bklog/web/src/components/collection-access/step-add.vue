@@ -1,24 +1,29 @@
+<!-- eslint-disable vue/no-deprecated-slot-attribute -->
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div class="add-collection-container">
@@ -28,8 +33,8 @@
       closable
     >
       <div
-        slot="title"
         class="slot-title-container"
+        slot="title"
       >
         <i18n path="接入前请查看 {0} ，尤其是在日志量大的情况下请务必提前沟通。">
           <a
@@ -51,38 +56,40 @@
       <div data-test-id="acquisitionConfig_div_baseMessageBox">
         <div class="add-collection-title">{{ $t('基础信息') }}</div>
         <bk-form-item
+          ext-cls="en-bk-form"
+          :icon-offset="120"
           :label="$t('采集名')"
+          :property="'collector_config_name'"
           :required="true"
           :rules="rules.collector_config_name"
-          :property="'collector_config_name'"
         >
           <bk-input
-            v-model="formData.collector_config_name"
             class="w520"
+            v-model="formData.collector_config_name"
             data-test-id="baseMessage_input_fillName"
-            show-word-limit
             maxlength="50"
+            show-word-limit
           >
           </bk-input>
         </bk-form-item>
         <bk-form-item
           ext-cls="en-bk-form"
+          :icon-offset="120"
           :label="$t('数据名')"
+          :property="'collector_config_name_en'"
           :required="true"
           :rules="rules.collector_config_name_en"
-          :icon-offset="120"
-          :property="'collector_config_name_en'"
         >
           <div class="en-name-box">
             <div>
               <bk-input
-                v-model="formData.collector_config_name_en"
                 class="w520"
-                show-word-limit
-                maxlength="50"
-                data-test-id="baseMessage_input_fillEnglishName"
+                v-model="formData.collector_config_name_en"
                 :disabled="isUpdate && !!formData.collector_config_name_en"
                 :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"
+                data-test-id="baseMessage_input_fillEnglishName"
+                maxlength="50"
+                show-word-limit
               >
               </bk-input>
               <span
@@ -101,19 +108,19 @@
             </span>
           </div>
           <p
-            slot="tip"
             class="en-name-tips"
+            slot="tip"
           >
             {{ $t('数据名用于索引和数据源') }}
           </p>
         </bk-form-item>
         <bk-form-item :label="$t('备注说明')">
           <bk-input
-            v-model="formData.description"
             class="w520"
-            type="textarea"
+            v-model="formData.description"
             data-test-id="baseMessage_input_fillDetails"
             maxlength="100"
+            type="textarea"
           >
           </bk-input>
         </bk-form-item>
@@ -124,8 +131,8 @@
         <div class="add-collection-title original-title">
           <span>{{ $t('源日志信息') }}</span>
           <div
-            v-show="!isPhysicsEnvironment"
             class="flex-ac"
+            v-show="!isPhysicsEnvironment"
           >
             <span>{{ $t('Yaml模式') }}</span>
             <div
@@ -133,11 +140,11 @@
               :disabled="!!formData.bcs_cluster_id"
             >
               <bk-switcher
-                v-model="isYaml"
                 class="ml10"
-                theme="primary"
+                v-model="isYaml"
                 :disabled="!formData.bcs_cluster_id"
                 :pre-check="handelChangeYaml"
+                theme="primary"
               >
               </bk-switcher>
             </div>
@@ -151,19 +158,19 @@
           <div class="environment-box">
             <div
               v-for="(fItem, fIndex) of environmentList"
-              :key="fIndex"
               class="environment-container"
+              :key="fIndex"
             >
               <span class="environment-category">{{ fItem.category }}</span>
               <div class="button-box">
                 <div
                   v-for="(sItem, index) of fItem.btnList"
-                  :key="index"
                   :class="{
                     'environment-button': true,
                     active: sItem.id === currentEnvironment,
-                    disable: sItem.isDisable
+                    disable: sItem.isDisable,
                   }"
+                  :key="index"
                   @click="handleSelectEnvironment(sItem.id, sItem.isDisable)"
                 >
                   <img :src="sItem.img" />
@@ -175,16 +182,16 @@
         </bk-form-item>
         <!-- 数据分类 -->
         <bk-form-item
-          required
           :label="$t('数据分类')"
-          :rules="rules.category_id"
           :property="'category_id'"
+          :rules="rules.category_id"
+          required
         >
           <bk-select
-            v-model="formData.category_id"
             style="width: 320px"
-            data-test-id="sourceLogBox_div_selectDataClassification"
+            v-model="formData.category_id"
             :disabled="isUpdate"
+            data-test-id="sourceLogBox_div_selectDataClassification"
             @selected="chooseDataClass"
           >
             <template>
@@ -210,17 +217,17 @@
         <bk-form-item
           v-if="!isPhysicsEnvironment"
           class="cluster-select-box"
-          required
           :label="$t('集群选择')"
-          :rules="rules.bcs_cluster_id"
           :property="'bcs_cluster_id'"
+          :rules="rules.bcs_cluster_id"
+          required
         >
           <div class="cluster-select">
             <bk-select
               v-model="formData.bcs_cluster_id"
-              searchable
-              :disabled="isUpdate || isRequestCluster"
               :clearable="false"
+              :disabled="isUpdate || isRequestCluster"
+              searchable
               @change="handelClusterChange"
             >
               <bk-option
@@ -244,14 +251,14 @@
           <div class="bk-button-group log-type">
             <bk-button
               v-for="(item, index) in getCollectorScenario"
-              :key="index"
-              :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
-              :disabled="isUpdate"
               :class="{
                 disable: !item.is_active,
                 'is-selected': item.id === formData.collector_scenario_id,
-                'is-updated': isUpdate && item.id === formData.collector_scenario_id
+                'is-updated': isUpdate && item.id === formData.collector_scenario_id,
               }"
+              :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
+              :disabled="isUpdate"
+              :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </bk-button>
@@ -266,11 +273,11 @@
           <div class="bk-button-group log-type">
             <bk-button
               v-for="(item, index) in getCollectorScenario"
-              :key="index"
-              :data-test-id="`sourceLogBox_buttom_checkoutType${item.id}`"
               :class="{
-                'is-selected': item.id === formData.collector_scenario_id
+                'is-selected': item.id === formData.collector_scenario_id,
               }"
+              :data-test-id="`sourceLogBox_buttom_checkoutType${item.id}`"
+              :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </bk-button>
@@ -285,27 +292,27 @@
           <bk-form-item
             ref="formItemTarget"
             class="item-target"
-            required
             :label="$t('采集目标')"
-            :rules="rules.nodes"
             :property="'target_nodes'"
+            :rules="rules.nodes"
+            required
           >
             <bk-button
-              theme="default"
-              icon="plus"
               style="font-size: 12px"
-              data-test-id="sourceLogBox_button_addCollectionTarget"
-              :title="$t('新增')"
               :class="colorRules ? 'rulesColor' : ''"
               :disabled="!formData.category_id"
+              :title="$t('新增')"
+              data-test-id="sourceLogBox_button_addCollectionTarget"
+              icon="plus"
+              theme="default"
               @click="showIpSelectorDialog = true"
             >
               {{ $t('选择目标') }}
             </bk-button>
             <input
-              type="text"
-              :value="formData.target_nodes"
               style="display: none"
+              :value="formData.target_nodes"
+              type="text"
             />
           </bk-form-item>
           <div
@@ -321,15 +328,15 @@
           </div>
           <!-- 目标选择器 -->
           <log-ip-selector
-            :key="bkBizId"
-            mode="dialog"
-            allow-host-list-miss-host-id
             :height="670"
-            :show-dialog.sync="showIpSelectorDialog"
-            :value="selectorNodes"
-            :show-view-diff="isUpdate"
+            :key="bkBizId"
             :original-value="ipSelectorOriginalValue"
             :panel-list="ipSelectorPanelList"
+            :show-dialog.sync="showIpSelectorDialog"
+            :show-view-diff="isUpdate"
+            :value="selectorNodes"
+            mode="dialog"
+            allow-host-list-miss-host-id
             @change="handleTargetChange"
           />
           <!-- <ip-selector-dialog
@@ -344,12 +351,12 @@
         <config-log-set-item
           v-if="isPhysicsEnvironment"
           ref="formConfigRef"
+          :config-data="formData"
+          :current-environment="currentEnvironment"
           :en-label-width="enLabelWidth"
           :is-clone-or-update="isCloneOrUpdate"
           :scenario-id="formData.collector_scenario_id"
-          :current-environment="currentEnvironment"
-          :config-data="formData"
-          @configChange="val => handelFormChange(val, 'formConfig')"
+          @config-change="val => handelFormChange(val, 'formConfig')"
         >
         </config-log-set-item>
 
@@ -357,9 +364,9 @@
           v-if="isYaml && !isPhysicsEnvironment"
           ref="yamlEditorRef"
           v-model="formData.yaml_config"
-          value-type="base64"
-          :yaml-form-data.sync="yamlFormData"
           :cluster-id="formData.bcs_cluster_id"
+          :yaml-form-data.sync="yamlFormData"
+          value-type="base64"
         ></yaml-editor>
 
         <template v-else>
@@ -371,10 +378,10 @@
           >
             <div
               v-for="(conItem, conIndex) of formData.configs"
-              :key="conIndex"
               v-en-style="'width: 900px;'"
-              v-bkloading="{ isLoading: nameSpaceRequest, zIndex: 10 }"
               class="config-box"
+              v-bkloading="{ isLoading: nameSpaceRequest, zIndex: 10 }"
+              :key="conIndex"
             >
               <div class="config-title">
                 <span>{{ getFromCharCode(conItem.noQuestParams.letterIndex) }}</span>
@@ -389,8 +396,8 @@
                 <div class="config-cluster-box">
                   <bk-alert
                     v-if="isShowContainerTips(conItem)"
-                    type="info"
                     :show-icon="false"
+                    type="info"
                   >
                     <div slot="title">
                       <i class="bk-icon icon-info"></i>
@@ -434,17 +441,17 @@
                       </span>
                     </div>
                     <div
+                      class="operator-box"
                       v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
                       :disabled="!!formData.bcs_cluster_id"
-                      class="operator-box"
                     >
                       <bk-select
-                        v-model="conItem.noQuestParams.namespacesExclude"
                         class="operate-select"
-                        placeholder=" "
-                        :popover-width="100"
+                        v-model="conItem.noQuestParams.namespacesExclude"
                         :clearable="false"
                         :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest"
+                        :popover-width="100"
+                        placeholder=" "
                       >
                         <bk-option
                           v-for="oItem in operatorSelectList"
@@ -455,10 +462,10 @@
                       </bk-select>
                       <bk-select
                         v-model="conItem.namespaces"
-                        multiple
-                        display-tag
-                        searchable
                         :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest"
+                        display-tag
+                        multiple
+                        searchable
                         @selected="option => handleNameSpaceSelect(option, conIndex)"
                       >
                         <bk-option
@@ -504,22 +511,22 @@
                     </div>
                     <match-label-item
                       v-else
-                      only-show-select-edit
                       :label-selector="conItem.labelSelector"
                       :match-item="conItem.noQuestParams.editLabelValue"
                       :submit-edit="val => handleSubmitExpressions(conIndex, val)"
-                      @cancelEdit="handleEnterLabel(conIndex, false)"
+                      @cancel-edit="handleEnterLabel(conIndex, false)"
+                      only-show-select-edit
                     />
                     <div class="specify-domain">
                       <template>
                         <match-label-item
                           v-for="labItem in conItem.labelSelector"
                           :key="labItem.id"
-                          show-edit
                           :label-selector="conItem.labelSelector"
                           :match-item="labItem"
                           :submit-edit="val => handleLabelEdit(conIndex, labItem.id, val)"
-                          @deleteItem="deleteLabItem(conIndex, labItem.id)"
+                          show-edit
+                          @delete-item="deleteLabItem(conIndex, labItem.id)"
                         />
                       </template>
                     </div>
@@ -538,9 +545,9 @@
                       </span>
                     </div>
                     <container-target-item
-                      :container.sync="conItem.container"
                       :bcs-cluster-id="formData.bcs_cluster_id"
                       :con-item="conItem"
+                      :container.sync="conItem.container"
                       :type-list="typeList"
                     />
                   </div>
@@ -559,11 +566,11 @@
                     </div>
                     <div class="operator-box">
                       <bk-select
-                        v-model="conItem.noQuestParams.containerExclude"
                         class="operate-select"
-                        placeholder=" "
-                        :popover-width="100"
+                        v-model="conItem.noQuestParams.containerExclude"
                         :clearable="false"
+                        :popover-width="100"
+                        placeholder=" "
                       >
                         <bk-option
                           v-for="oItem in operatorSelectList"
@@ -573,11 +580,11 @@
                         ></bk-option>
                       </bk-select>
                       <bk-tag-input
+                        ext-cls="container-input"
                         v-model="conItem.containerNameList"
                         allow-create
                         free-paste
                         has-delete-icon
-                        ext-cls="container-input"
                         @blur="(inputStr, list) => handleContainerNameBlur(inputStr, list, conIndex)"
                       >
                       </bk-tag-input>
@@ -595,19 +602,19 @@
                         :disabled="!!formData.bcs_cluster_id"
                       >
                         <bk-button
-                          theme="primary"
-                          size="small"
-                          outline
-                          icon="plus"
                           :disabled="!formData.bcs_cluster_id"
+                          icon="plus"
+                          size="small"
+                          theme="primary"
+                          outline
                         >
                           {{ $t('添加范围') }}
                         </bk-button>
                       </div>
                     </div>
                     <ul
-                      slot="dropdown-content"
                       class="bk-dropdown-list"
+                      slot="dropdown-content"
                     >
                       <li
                         v-for="(isShowScope, scopeStr) in conItem.noQuestParams.scopeSelectShow"
@@ -628,13 +635,13 @@
                   <!-- 容器环境 配置项 -->
                   <config-log-set-item
                     ref="containerConfigRef"
-                    show-type="vertical"
-                    :is-clone-or-update="isCloneOrUpdate"
-                    :scenario-id="formData.collector_scenario_id"
-                    :current-environment="currentEnvironment"
                     :config-data="conItem"
                     :config-length="formData.configs.length"
-                    @configChange="val => handelFormChange(val, 'containerConfig', conIndex)"
+                    :current-environment="currentEnvironment"
+                    :is-clone-or-update="isCloneOrUpdate"
+                    :scenario-id="formData.collector_scenario_id"
+                    show-type="vertical"
+                    @config-change="val => handelFormChange(val, 'containerConfig', conIndex)"
                   >
                   </config-log-set-item>
                 </div>
@@ -661,8 +668,8 @@
             <bk-form-item :label="$t('附加日志标签')">
               <div
                 v-for="(item, index) in formData.extra_labels"
-                :key="index"
                 class="add-log-label form-div"
+                :key="index"
               >
                 <bk-input
                   v-model.trim="item.key"
@@ -684,16 +691,16 @@
                     :class="[
                       'bk-icon icon-minus-circle-shape icons ml9',
                       {
-                        disable: formData.extra_labels.length === 1
-                      }
+                        disable: formData.extra_labels.length === 1,
+                      },
                     ]"
                     @click="handleDeleteExtraLabel(index)"
                   ></i>
                 </div>
               </div>
               <bk-checkbox
-                v-model="formData.add_pod_label"
                 class="mt8"
+                v-model="formData.add_pod_label"
               >
                 {{ $t('自动添加Pod中的labels') }}
               </bk-checkbox>
@@ -706,17 +713,17 @@
       <template v-if="!isCloseDataLink">
         <div class="add-collection-title">{{ $t('链路配置') }}</div>
         <bk-form-item
-          required
-          property="data_link_id"
           :label="$t('上报链路')"
           :rules="rules.linkConfig"
+          property="data_link_id"
+          required
         >
           <bk-select
-            v-model="formData.data_link_id"
-            data-test-id="acquisitionConfig_div_selectReportLink"
             class="w520"
+            v-model="formData.data_link_id"
             :clearable="false"
             :disabled="isUpdate"
+            data-test-id="acquisitionConfig_div_selectReportLink"
           >
             <bk-option
               v-for="item in linkConfigurationList"
@@ -730,10 +737,10 @@
       </template>
 
       <label-target-dialog
+        :cluster-list="clusterList"
         :is-show-dialog.sync="isShowLabelTargetDialog"
         :label-params="currentSelector"
-        :cluster-list="clusterList"
-        @configLabelChange="val => handelFormChange(val, 'dialogChange')"
+        @config-label-change="val => handelFormChange(val, 'dialogChange')"
       />
 
       <config-view-dialog
@@ -752,20 +759,20 @@
 
       <div class="page-operate">
         <bk-button
-          theme="primary"
-          data-test-id="acquisitionConfig_div_nextPage"
-          :title="isFinishCreateStep ? $t('保存') : $t('开始采集')"
-          :loading="isHandle"
           :disabled="!collectProject"
+          :loading="isHandle"
+          :title="isFinishCreateStep ? $t('保存') : $t('开始采集')"
+          data-test-id="acquisitionConfig_div_nextPage"
+          theme="primary"
           @click.stop.prevent="startCollect()"
         >
           {{ isFinishCreateStep ? $t('保存') : $t('下一步') }}
         </bk-button>
         <bk-button
-          theme="default"
-          data-test-id="acquisitionConfig_div_cancel"
           class="ml10"
           :title="$t('取消')"
+          data-test-id="acquisitionConfig_div_cancel"
+          theme="default"
           @click="cancel"
         >
           {{ $t('取消') }}
@@ -776,2406 +783,2416 @@
 </template>
 
 <script>
-import ContainerSvg from '@/images/container-icons/Container.svg';
-import LinuxSvg from '@/images/container-icons/Linux.svg';
-import NodeSvg from '@/images/container-icons/Node.svg';
-import StdoutSvg from '@/images/container-icons/Stdout.svg';
-import WindowsSvg from '@/images/container-icons/Windows.svg';
-import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector';
-// import ipSelectorDialog from './ip-selector-dialog';
-import configLogSetItem from './components/step-add/config-log-set-item';
-import labelTargetDialog from './components/step-add/label-target-dialog';
-import containerTargetItem from './components/step-add/container-target-item';
-import yamlEditor from './components/step-add/yaml-editor';
-import matchLabelItem from './components/step-add/match-label-item';
-import configViewDialog from './components/step-add/config-view-dialog';
-import { mapGetters } from 'vuex';
-import { projectManages, random, deepEqual, deepClone } from '@/common/util';
+  import { projectManages, random, deepEqual, deepClone } from '@/common/util';
+  import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector';
+  import ContainerSvg from '@/images/container-icons/Container.svg';
+  import LinuxSvg from '@/images/container-icons/Linux.svg';
+  import NodeSvg from '@/images/container-icons/Node.svg';
+  import StdoutSvg from '@/images/container-icons/Stdout.svg';
+  import WindowsSvg from '@/images/container-icons/Windows.svg';
+  import { mapGetters } from 'vuex';
 
-export default {
-  components: {
-    LogIpSelector,
-    // ipSelectorDialog,
-    labelTargetDialog,
-    configLogSetItem,
-    containerTargetItem,
-    yamlEditor,
-    matchLabelItem,
-    configViewDialog
-  },
-  props: {
-    isUpdate: {
-      type: Boolean,
-      require: true
+  // import ipSelectorDialog from './ip-selector-dialog';
+  import configLogSetItem from './components/step-add/config-log-set-item';
+  import configViewDialog from './components/step-add/config-view-dialog';
+  import containerTargetItem from './components/step-add/container-target-item';
+  import labelTargetDialog from './components/step-add/label-target-dialog';
+  import matchLabelItem from './components/step-add/match-label-item';
+  import yamlEditor from './components/step-add/yaml-editor';
+
+  export default {
+    components: {
+      LogIpSelector,
+      // ipSelectorDialog,
+      labelTargetDialog,
+      configLogSetItem,
+      containerTargetItem,
+      yamlEditor,
+      matchLabelItem,
+      configViewDialog,
     },
-    /** 是否是容器步骤 */
-    isContainerStep: {
-      type: Boolean,
-      require: true
+    props: {
+      isUpdate: {
+        type: Boolean,
+        require: true,
+      },
+      /** 是否是容器步骤 */
+      isContainerStep: {
+        type: Boolean,
+        require: true,
+      },
+      /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
+      isFinishCreateStep: {
+        type: Boolean,
+        require: true,
+      },
     },
-    /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
-    isFinishCreateStep: {
-      type: Boolean,
-      require: true
-    }
-  },
-  data() {
-    return {
-      guideUrl: window.COLLECTOR_GUIDE_URL,
-      colorRules: false,
-      isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
-      showRegDialog: false, // 显示段日志调试弹窗
-      linkConfigurationList: [], // 链路配置列表
-      formData: {
-        collector_config_name: '', // 采集项名称
-        collector_config_name_en: '', // 采集项数据名称
-        category_id: '', // 数据分类
-        collector_scenario_id: 'row',
-        data_encoding: 'UTF-8', // 日志字符集
-        data_link_id: '', // 链路配置
-        description: '', // 备注
-        target_object_type: 'HOST', // 目前固定为 HOST
-        target_node_type: 'TOPO', // 动态 TOPO 静态 INSTANCE 服务模版 SERVICE_TEMPLATE 集群模板 SET_TEMPLATE
-        target_nodes: [], // 采集目标
-        params: {
-          multiline_pattern: '', // 行首正则, char
-          multiline_max_lines: '50', // 最多匹配行数, int
-          multiline_timeout: '2', // 最大耗时, int
-          paths: [
-            // 日志路径
-            { value: '' }
-          ],
-          conditions: {
-            type: 'none', // 过滤方式类型 match separator
-            match_type: 'include', // 过滤方式 可选字段 include, exclude
-            match_content: '',
-            separator: '|',
-            separator_filters: [
-              // 分隔符过滤条件
-              { fieldindex: '', word: '', op: '=', logic_op: 'and' }
-            ]
+    data() {
+      return {
+        guideUrl: window.COLLECTOR_GUIDE_URL,
+        colorRules: false,
+        isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
+        showRegDialog: false, // 显示段日志调试弹窗
+        linkConfigurationList: [], // 链路配置列表
+        formData: {
+          collector_config_name: '', // 采集项名称
+          collector_config_name_en: '', // 采集项数据名称
+          category_id: '', // 数据分类
+          collector_scenario_id: 'row',
+          data_encoding: 'UTF-8', // 日志字符集
+          data_link_id: '', // 链路配置
+          description: '', // 备注
+          target_object_type: 'HOST', // 目前固定为 HOST
+          target_node_type: 'TOPO', // 动态 TOPO 静态 INSTANCE 服务模版 SERVICE_TEMPLATE 集群模板 SET_TEMPLATE
+          target_nodes: [], // 采集目标
+          params: {
+            multiline_pattern: '', // 行首正则, char
+            multiline_max_lines: '50', // 最多匹配行数, int
+            multiline_timeout: '2', // 最大耗时, int
+            paths: [
+              // 日志路径
+              { value: '' },
+            ],
+            conditions: {
+              type: 'none', // 过滤方式类型 match separator
+              match_type: 'include', // 过滤方式 可选字段 include, exclude
+              match_content: '',
+              separator: '|',
+              separator_filters: [
+                // 分隔符过滤条件
+                { fieldindex: '', word: '', op: '=', logic_op: 'and' },
+              ],
+            },
+            winlog_name: [], // windows事件名称
+            winlog_level: [], // windows事件等级
+            winlog_event_id: [], // windows事件id
           },
-          winlog_name: [], // windows事件名称
-          winlog_level: [], // windows事件等级
-          winlog_event_id: [] // windows事件id
+          environment: 'linux', // 容器环境
+          bcs_cluster_id: '', // 集群ID
+          add_pod_label: false, // 是否自动添加Pod中的labels
+          extra_labels: [
+            // 附加日志标签
+            {
+              key: '',
+              value: '',
+            },
+          ],
+          yaml_config: '', // yaml base64
+          yaml_config_enabled: false, // 是否以yaml模式结尾
+          configs: [
+            // 配置项列表
+            {
+              namespaces: [],
+              noQuestParams: {
+                letterIndex: 0,
+                handleEditLabel: false,
+                editLabelValue: {
+                  key: '',
+                  operator: '',
+                  value: '',
+                },
+                scopeSelectShow: {
+                  namespace: false,
+                  label: true,
+                  load: true,
+                  containerName: true,
+                },
+                namespaceStr: '',
+                namespacesExclude: '=',
+                containerExclude: '=',
+              },
+              container: {
+                workload_type: '',
+                workload_name: '',
+                container_name: '',
+              }, // 容器
+              containerNameList: [], // 容器名列表
+              labelSelector: [], // 展示用的标签或表达式数组
+              label_selector: {
+                // 指定标签或表达式
+                match_labels: [],
+                match_expressions: [],
+              },
+              match_labels: [],
+              match_expressions: [], // config 为空时回填的标签数组
+              data_encoding: 'UTF-8',
+              params: {
+                paths: [{ value: '' }], // 日志路径
+                conditions: {
+                  type: 'none', // 过滤方式类型 none match separator
+                  match_type: 'include', // 过滤方式 可选字段 include, exclude
+                  match_content: '',
+                  separator: '|',
+                  separator_filters: [
+                    // 分隔符过滤条件
+                    { fieldindex: '', word: '', op: '=', logic_op: 'and' },
+                  ],
+                },
+                multiline_pattern: '', // 行首正则, char
+                multiline_max_lines: '50', // 最多匹配行数, int
+                multiline_timeout: '2', // 最大耗时, int
+                winlog_name: [], // windows事件名称
+                winlog_level: [], // windows事件等级
+                winlog_event_id: [], // windows事件id
+              },
+            },
+          ],
         },
-        environment: 'linux', // 容器环境
-        bcs_cluster_id: '', // 集群ID
-        add_pod_label: false, // 是否自动添加Pod中的labels
-        extra_labels: [
-          // 附加日志标签
+        rules: {
+          category_id: [
+            // 数据分类
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
+          collector_config_name: [
+            // 采集名称
+            {
+              required: true,
+              trigger: 'blur',
+            },
+            {
+              max: 50,
+              message: this.$t('不能多于{n}个字符', { n: 50 }),
+              trigger: 'blur',
+            },
+          ],
+          collector_config_name_en: [
+            // 采集数据名称
+            {
+              required: true,
+              trigger: 'blur',
+            },
+            {
+              validator: this.checkEnNameLength,
+              message: this.$t('不能多于{n}个字符', { n: 50 }),
+              trigger: 'blur',
+            },
+            {
+              min: 5,
+              message: this.$t('不能少于5个字符'),
+              trigger: 'blur',
+            },
+            {
+              validator: this.checkEnNameValidator,
+              message: this.$t('只支持输入字母，数字，下划线'),
+              trigger: 'blur',
+            },
+            {
+              // 检查数据名是否可用
+              validator: this.checkEnNameRepeat,
+              message: () => this.enNameErrorMessage,
+              trigger: 'blur',
+            },
+          ],
+          // 上报链路配置
+          linkConfig: [
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
+          nodes: [
+            {
+              validator: this.checkNodes,
+              trigger: 'change',
+            },
+          ],
+          bcs_cluster_id: [
+            // 集群
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
+        },
+        isTextValid: true,
+        isHandle: false,
+        isClone: false,
+        globals: {},
+        localParams: {}, // 缓存的初始数据 用于对比编辑时表单是否有属性更改
+        editComparedData: {}, // 编辑保存时 保存不判断基本信息 去除基本信息后的所有值
+        showIpSelectorDialog: false,
+        collectTargetTarget: {
+          // 已(动态)选择 静态主机 节点 服务模板 集群模板
+          INSTANCE: '已选择{0}个静态主机',
+          TOPO: '已动态选择{0}个节点',
+          SERVICE_TEMPLATE: '已选择{0}个服务模板',
+          SET_TEMPLATE: '已选择{0}个集群模板',
+        },
+        configBaseObj: {}, // 新增配置项的基础对象
+        isYaml: false, // 是否是yaml模式
+        yamlFormData: {}, // yaml请求成功时的表格数据
+        currentEnvironment: 'linux', // 当前选中的环境
+        environmentList: [
           {
-            key: '',
-            value: ''
-          }
+            category: this.$t('物理环境'),
+            btnList: [
+              { id: 'linux', img: LinuxSvg, name: 'Linux', isDisable: false },
+              { id: 'windows', img: WindowsSvg, name: 'Windows', isDisable: false },
+            ],
+          },
+          {
+            category: this.$t('容器环境'),
+            btnList: [
+              { id: 'container_log_config', img: ContainerSvg, name: 'Container', isDisable: false },
+              { id: 'node_log_config', img: NodeSvg, name: 'Node', isDisable: false },
+              { id: 'std_log_config', img: StdoutSvg, name: this.$t('标准输出'), isDisable: false },
+            ],
+          },
         ],
-        yaml_config: '', // yaml base64
-        yaml_config_enabled: false, // 是否以yaml模式结尾
-        configs: [
-          // 配置项列表
+        typeList: [],
+        scopeNameList: {
+          namespace: this.$t('按命名空间选择'),
+          label: this.$t('按标签选择'),
+          load: this.$t('按工作负载选择'),
+          containerName: this.$t('直接指定{n}', { n: 'Container' }),
+        },
+        baseLabelSelector: {
+          // 指定标签或表达式
+          match_labels: [],
+          match_expressions: [],
+        },
+        viewQueryParams: {}, // 预览弹窗传参
+        isRequestCluster: false, // 集群列表是否正在请求
+        // isConfigConflict: false, // 配置项是否有冲突
+        conflictList: [], // 冲突列表
+        conflictMessage: '', // 冲突信息
+        /** 英文名错误信息 */
+        enNameErrorMessage: '',
+        clusterList: [], // 集群列表
+        nameSpacesSelectList: [], // namespace 列表
+        operatorSelectList: [
           {
-            namespaces: [],
+            id: '=',
+            name: '=',
+          },
+          {
+            id: '!=',
+            name: '!=',
+          },
+        ],
+        allContainer: {
+          // 所有容器时指定容器默认传空
+          workload_type: '',
+          workload_name: '',
+          container_name: '',
+        },
+        publicLetterIndex: 0, // 公共的字母下标
+        isShowLabelTargetDialog: false, // 是否展示指定标签dialog
+        isShowViewDialog: false, // 是否展预览dialog
+        formTime: null, // form更改防抖timer
+        currentSelector: {}, // 当前操作的配置项指定标签值
+        currentSetIndex: 0, // 当前操作的配置项的下标
+        isExtraError: false, // 附加标签是否有出错
+        nameSpaceRequest: false, // 是否正在请求namespace接口
+        uiconfigToYamlData: {}, // 切换成yaml时当前保存的ui配置
+        // ip选择器面板
+        ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'],
+        // 编辑态ip选择器初始值
+        ipSelectorOriginalValue: null,
+        enLabelWidth: 180,
+      };
+    },
+    computed: {
+      ...mapGetters({
+        bkBizId: 'bkBizId',
+        mySpaceList: 'mySpaceList',
+      }),
+      ...mapGetters('collect', ['curCollect']),
+      ...mapGetters('globals', ['globalsData']),
+      collectProject() {
+        return projectManages(this.$store.state.topMenu, 'collection-item');
+      },
+      isCloseDataLink() {
+        // 没有可上报的链路时，编辑采集配置链路ID为0或null时，隐藏链路配置框，并且不做空值校验。
+        return !this.linkConfigurationList.length || (this.isUpdate && !this.curCollect.data_link_id);
+      },
+      // 是否打开行首正则功能
+      hasMultilineReg() {
+        return this.formData.collector_scenario_id === 'section';
+      },
+      // 是否是wineventlog日志
+      isWinEventLog() {
+        return this.formData.collector_scenario_id === 'wineventlog';
+      },
+      // 是否是物理环境
+      isPhysicsEnvironment() {
+        const isPhysics = ['linux', 'windows'].includes(this.currentEnvironment);
+        this.$emit('update:isPhysics', isPhysics);
+        return isPhysics;
+      },
+      // 是否是Node环境
+      isNode: {
+        get() {
+          return this.currentEnvironment === 'node_log_config';
+        },
+        set(newVal) {
+          if (newVal) {
+            this.formData.configs.forEach(item => {
+              item.container = this.allContainer;
+              item.namespaces = [];
+            });
+          }
+          this.scopeNameList.label = this.$t('按标签选择');
+        },
+      },
+      // 获取日志类型列表
+      getCollectorScenario() {
+        try {
+          const activeScenario = this.globalsData.collector_scenario.filter(item => item.is_active);
+          if (this.currentEnvironment === 'windows') return activeScenario;
+          const winIndex = activeScenario.findIndex(item => item.id === 'wineventlog');
+          activeScenario.splice(winIndex, 1);
+          return activeScenario;
+        } catch (error) {
+          return [];
+        }
+      },
+      // 是否是编辑或者克隆
+      isCloneOrUpdate() {
+        return this.isUpdate || this.isClone;
+      },
+      localClusterList() {
+        return this.clusterList.filter(val => (this.isNode ? !val.is_shared : true));
+      },
+      // ip选择器选中节点
+      selectorNodes() {
+        return this.getSelectorNodes();
+      },
+      updateCollectorConfigID() {
+        // 若是新增容器日志 返回上一步 则使用curCollect缓存的collector_config_id更新;
+        const { collectorId } = this.$route.params;
+        return !!collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
+      },
+      labelWidth() {
+        return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
+      },
+    },
+    watch: {
+      currentEnvironment(nVal, oVal) {
+        if (oVal === 'windows' && this.isWinEventLog) {
+          this.formData.collector_scenario_id = this.globalsData.collector_scenario[0].id;
+        }
+        if (['std_log_config', 'container_log_config', 'node_log_config'].includes(nVal)) {
+          this.formData.environment = 'container';
+          this.isNode = nVal === 'node_log_config';
+          !this.clusterList.length && this.getBcsClusterList();
+          !this.typeList.length && this.getWorkLoadTypeList();
+          if (nVal === 'node_log_config' && this.getIsSharedCluster()) {
+            // 选中node环境时 如果存在已选的共享集群 则清空
+            this.formData.bcs_cluster_id = '';
+          }
+          return;
+        }
+        this.formData.environment = nVal;
+      },
+      'formData.bcs_cluster_id'(nVal, oVal) {
+        this.getNameSpaceList(nVal, oVal === '');
+      },
+      'formData.extra_labels.length'() {
+        this.isExtraError = false;
+      },
+      yamlFormData: {
+        deep: true,
+        handler(val) {
+          if (val?.configs.length) {
+            this.currentEnvironment = val.configs[0].collector_type;
+          }
+        },
+      },
+    },
+    created() {
+      this.isClone = this.$route.query?.type === 'clone';
+      this.$store.commit('updateRouterLeaveTip', false);
+      this.configBaseObj = deepClone(this.formData.configs[0]); // 生成配置项的基础对象
+      this.getLinkData();
+      // 克隆与编辑均进行数据回填
+      if (this.isUpdate || this.isClone) {
+        const cloneCollect = deepClone(this.curCollect);
+        if (cloneCollect.environment === 'container') {
+          // 容器环境
+          this.getWorkLoadTypeList();
+          this.isYaml = cloneCollect.yaml_config_enabled;
+          // yaml模式可能会有多种容器环境 选择第一项配置里的环境作为展示
+          if (cloneCollect.configs[0]) {
+            // 如果采集项不为空 则回显
+            this.currentEnvironment = cloneCollect.configs[0].collector_type;
+            this.publicLetterIndex = cloneCollect.configs.length - 1;
+          } else {
+            // 为空 重新赋值 标准输出
+            this.currentEnvironment = 'std_log_config';
+            this.publicLetterIndex = 0;
+            cloneCollect.configs = [this.configBaseObj];
+          }
+          const initFormData = this.initContainerFormData(cloneCollect);
+          Object.assign(this.formData, initFormData);
+          // 若是容器环境 克隆时 初始化物理环境的值
+          this.formData.params = this.configBaseObj.params;
+          this.formData.data_encoding = 'UTF-8';
+        } else {
+          // 物理环境
+          this.currentEnvironment = cloneCollect.environment;
+          this.formData = this.getInitFormData(cloneCollect);
+          Object.assign(this.formData, cloneCollect);
+          if (this.formData.target_nodes?.length) {
+            // IP 选择器预览结果回填
+            this.ipSelectorOriginalValue = this.getSelectorNodes();
+          }
+          if (!this.formData.collector_config_name_en) {
+            // 兼容旧数据数据名称为空
+            this.formData.collector_config_name_en = this.formData.table_id || '';
+          }
+        }
+        // 克隆采集项的时候 清空以下回显或者重新赋值 保留其余初始数据
+        if (this.isClone) {
+          this.formData.collector_config_name = `${this.formData.collector_config_name}_clone`;
+          this.formData.collector_config_name_en = '';
+          this.formData.target_nodes = [];
+        } else {
+          // 编辑且非克隆则禁用另一边的环境按钮
+          this.initBtnListDisable();
+          this.$nextTick(() => {
+            // 克隆时不缓存初始数据
+            // 编辑采集项时缓存初始数据 用于对比提交时是否发生变化 未修改则不重新提交 update 接口
+            this.localParams = this.handleParams(true);
+            const { description, collector_config_name, ...otherVal } = this.localParams;
+            this.editComparedData = otherVal;
+          });
+        }
+      }
+    },
+    methods: {
+      async getLinkData() {
+        try {
+          this.tableLoading = true;
+          const res = await this.$http.request('linkConfiguration/getLinkList', {
+            query: {
+              bk_biz_id: this.$store.state.bkBizId,
+            },
+          });
+          this.linkConfigurationList = res.data.filter(item => item.is_active);
+          if (this.linkConfigurationList.length && !this.isCloneOrUpdate) {
+            this.formData.data_link_id = this.linkConfigurationList[0].data_link_id;
+          }
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          this.tableLoading = false;
+        }
+      },
+      /**
+       * @desc: 初始化容器的编辑的form表单值
+       * @param { Object } formData 基础表单
+       * @param { Boolean } isYamlData 是否是yaml解析出的表单数据
+       * @returns { Object } 返回初始化后的Form表单
+       */
+      initContainerFormData(formData, isYamlData = false) {
+        const curFormData = deepClone(formData);
+        if (!curFormData.extra_labels.length) {
+          curFormData.extra_labels = [
+            {
+              key: '',
+              value: '',
+            },
+          ];
+        }
+        const filterConfigs = curFormData.configs.map((item, index) => {
+          const {
+            workload_name,
+            workload_type,
+            container_name: containerName,
+            container_name_exclude: containerNameExclude,
+            match_expressions: matchExpressions,
+            match_labels: matchLabels,
+            data_encoding,
+            params,
+            namespaces: itemNamespace,
+            namespaces_exclude: itemNamespacesExclude,
+            container: yamlContainer,
+            label_selector: yamlSelector,
+            collector_type,
+          } = item;
+          const showNameSpace = itemNamespacesExclude?.length ? itemNamespacesExclude : itemNamespace;
+          const namespaces = item.any_namespace ? ['*'] : showNameSpace;
+          const container = {
+            workload_type,
+            workload_name,
+            container_name: containerName,
+            container_name_exclude: containerNameExclude,
+          };
+
+          let labelSelector = [];
+          let containerNameList = this.getContainerNameList(containerName || containerNameExclude);
+          if (isYamlData) {
+            Object.assign(container, yamlContainer);
+            labelSelector = Object.entries(yamlSelector).reduce((pre, [labelKey, labelVal]) => {
+              pre.push(...labelVal.map(item => ({ ...item, id: random(10), type: labelKey })));
+              return pre;
+            }, []);
+            const { container_name: yamlContainerName, container_name_exclude: yamlContainerNameExclude } =
+              yamlContainer;
+            containerNameList = this.getContainerNameList(yamlContainerName || yamlContainerNameExclude);
+            params.paths = params.paths.length ? params.paths.map(item => ({ value: item })) : [{ value: '' }];
+          } else {
+            labelSelector = [
+              ...matchLabels.map(item => ({ ...item, id: random(10), type: 'match_labels' })),
+              ...matchExpressions.map(item => ({ ...item, id: random(10), type: 'match_expressions' })),
+            ];
+            if (!params.conditions?.separator_filters) {
+              params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
+            }
+          }
+          const scopeNameSpaceShow = Boolean(namespaces.length);
+          const scopeLabelShow = Boolean(labelSelector.length);
+          const scopeContainerNameShow = Boolean(containerNameList.length);
+          const scopeLoadNameShow = Boolean(container.workload_type) || Boolean(container.workload_name);
+          const containerExclude = !!containerNameExclude ? '!=' : '=';
+          const namespacesExclude = itemNamespacesExclude?.length ? '!=' : '=';
+          const namespaceStr = this.getNameSpaceStr(namespaces);
+          return {
+            namespaces,
             noQuestParams: {
-              letterIndex: 0,
+              letterIndex: index, // 配置项字母下标
               handleEditLabel: false,
               editLabelValue: {
                 key: '',
                 operator: '',
-                value: ''
+                value: '',
               },
               scopeSelectShow: {
-                namespace: false,
-                label: true,
-                load: true,
-                containerName: true
+                namespace: !scopeNameSpaceShow,
+                label: !scopeLabelShow,
+                load: !scopeLoadNameShow,
+                containerName: !scopeContainerNameShow,
               },
-              namespaceStr: '',
-              namespacesExclude: '=',
-              containerExclude: '='
+              namespaceStr,
+              containerExclude,
+              namespacesExclude,
             },
-            container: {
-              workload_type: '',
-              workload_name: '',
-              container_name: ''
-            }, // 容器
-            containerNameList: [], // 容器名列表
-            labelSelector: [], // 展示用的标签或表达式数组
-            label_selector: {
-              // 指定标签或表达式
-              match_labels: [],
-              match_expressions: []
-            },
-            match_labels: [],
-            match_expressions: [], // config 为空时回填的标签数组
-            data_encoding: 'UTF-8',
-            params: {
-              paths: [{ value: '' }], // 日志路径
-              conditions: {
-                type: 'none', // 过滤方式类型 none match separator
-                match_type: 'include', // 过滤方式 可选字段 include, exclude
-                match_content: '',
-                separator: '|',
-                separator_filters: [
-                  // 分隔符过滤条件
-                  { fieldindex: '', word: '', op: '=', logic_op: 'and' }
-                ]
-              },
-              multiline_pattern: '', // 行首正则, char
-              multiline_max_lines: '50', // 最多匹配行数, int
-              multiline_timeout: '2', // 最大耗时, int
-              winlog_name: [], // windows事件名称
-              winlog_level: [], // windows事件等级
-              winlog_event_id: [] // windows事件id
+            data_encoding,
+            container,
+            labelSelector,
+            containerNameList,
+            params,
+            collector_type,
+          };
+        });
+        curFormData.configs = filterConfigs;
+        return curFormData;
+      },
+      /**
+       * @desc: 初始化物理环境编辑的的form表单值
+       * @param { Object } formData 基础表单
+       * @returns { Object } 返回初始化后的Form表单
+       */
+      getInitFormData(formData) {
+        const curFormData = deepClone(formData);
+        // win_event类型不需要初始化分隔符的过滤条件
+        if (!curFormData.params.conditions?.separator_filters && curFormData.collector_scenario_id !== 'wineventlog') {
+          curFormData.params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
+        }
+        return curFormData;
+      },
+      getContainerNameList(containerName = '') {
+        const splitList = containerName.split(',');
+        if (splitList.length === 1 && splitList[0] === '') return [];
+        return splitList;
+      },
+      /** 导航切换提交函数 */
+      stepSubmitFun(callback) {
+        this.startCollect(callback);
+      },
+      // 开始采集
+      async startCollect(callback) {
+        const isCanSubmit = await this.submitDataValidate();
+        if (!isCanSubmit) {
+          callback?.(false);
+          return;
+        }
+        const params = this.handleParams();
+        if (deepEqual(this.localParams, params)) {
+          this.isHandle = false;
+          if (this.isFinishCreateStep) {
+            // 保存的情况下, 没有任何改变, 回退到列表
+            if (callback) {
+              callback(true);
+              return;
+            }
+            this.cancel();
+          } else {
+            // 未修改表单 直接跳转下一步
+            this.$emit('stepChange');
+          }
+          return;
+        }
+        this.$refs.validateForm.validate().then(
+          () => {
+            this.isCloseDataLink && delete params.data_link_id;
+            this.isPhysicsEnvironment
+              ? this.setCollection(params, callback)
+              : this.setContainerCollection(params, callback);
+          },
+          () => {
+            callback?.(false);
+          },
+        );
+      },
+      /**
+       * @desc: 提交表格时验证是否通过
+       * @return { Boolean } 是否可以提交
+       */
+      async submitDataValidate() {
+        try {
+          // 基础信息表格验证
+          await this.$refs.validateForm.validate();
+        } catch (error) {}
+        // win日志类型验证
+        if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
+        // 物理环境验证
+        if (this.isPhysicsEnvironment) {
+          let formValidate = true;
+          try {
+            await this.$refs.formConfigRef.$refs.validateForm.validate();
+          } catch (error) {
+            formValidate = false;
+          }
+          return formValidate;
+        }
+        // 容器环境并且打开yaml模式时进行yaml语法检测
+        if (this.isYaml && !this.isPhysicsEnvironment) {
+          if (!this.$refs.yamlEditorRef.getSubmitState || this.formData.yaml_config === '') {
+            let message = this.$refs.yamlEditorRef.isHaveCannotSubmitWaring
+              ? this.$t('yaml缺少必要的字段')
+              : this.$t('yaml语法出错');
+            this.formData.yaml_config === '' && (message = this.$t('yaml不能为空'));
+            this.$bkMessage({ theme: 'error', message });
+            return false;
+          }
+          return true;
+        }
+        // 容器环境时 进行配置项检查
+        if (!this.isPhysicsEnvironment) {
+          let containerConfigValidate = true;
+          const configList = this.$refs.containerConfigRef;
+          // 标准输出环境下配置项里过滤内容是否有分隔符过滤 有则进行配置项form校验
+          const isCheckConfigItem = !(
+            this.currentEnvironment === 'std_log_config' && this.formData.collector_scenario_id === 'row'
+          );
+          // 检查配置项中是否有分隔符过滤
+          const isHaveSeparator = configList.some(item => item.subFormData.params.conditions.type === 'separator');
+          if (isCheckConfigItem || isHaveSeparator) {
+            // 判断config列表里是否有需要校验的dom元素。
+            for (const key in configList) {
+              const index = Number(key);
+              try {
+                // 这里如果表单没有校验的dom元素会一直是pending状态 没有返回值 则会卡在这里 所以需要判断是否有dom元素
+                await configList[index].$refs.validateForm?.validate();
+              } catch (error) {
+                containerConfigValidate = false;
+              }
             }
           }
-        ]
-      },
-      rules: {
-        category_id: [
-          // 数据分类
-          {
-            required: true,
-            trigger: 'blur'
-          }
-        ],
-        collector_config_name: [
-          // 采集名称
-          {
-            required: true,
-            trigger: 'blur'
-          },
-          {
-            max: 50,
-            message: this.$t('不能多于{n}个字符', { n: 50 }),
-            trigger: 'blur'
-          }
-        ],
-        collector_config_name_en: [
-          // 采集数据名称
-          {
-            required: true,
-            trigger: 'blur'
-          },
-          {
-            max: 50,
-            message: this.$t('不能多于{n}个字符', { n: 50 }),
-            trigger: 'blur'
-          },
-          {
-            min: 5,
-            message: this.$t('不能少于5个字符'),
-            trigger: 'blur'
-          },
-          {
-            validator: this.checkEnNameValidator,
-            message: this.$t('只支持输入字母，数字，下划线'),
-            trigger: 'blur'
-          },
-          {
-            // 检查数据名是否可用
-            validator: this.checkEnNameRepeat,
-            message: () => this.enNameErrorMessage,
-            trigger: 'blur'
-          }
-        ],
-        // 上报链路配置
-        linkConfig: [
-          {
-            required: true,
-            trigger: 'blur'
-          }
-        ],
-        nodes: [
-          {
-            validator: this.checkNodes,
-            trigger: 'change'
-          }
-        ],
-        bcs_cluster_id: [
-          // 集群
-          {
-            required: true,
-            trigger: 'blur'
-          }
-        ]
-      },
-      isTextValid: true,
-      isHandle: false,
-      isClone: false,
-      globals: {},
-      localParams: {}, // 缓存的初始数据 用于对比编辑时表单是否有属性更改
-      editComparedData: {}, // 编辑保存时 保存不判断基本信息 去除基本信息后的所有值
-      showIpSelectorDialog: false,
-      collectTargetTarget: {
-        // 已(动态)选择 静态主机 节点 服务模板 集群模板
-        INSTANCE: '已选择{0}个静态主机',
-        TOPO: '已动态选择{0}个节点',
-        SERVICE_TEMPLATE: '已选择{0}个服务模板',
-        SET_TEMPLATE: '已选择{0}个集群模板'
-      },
-      configBaseObj: {}, // 新增配置项的基础对象
-      isYaml: false, // 是否是yaml模式
-      yamlFormData: {}, // yaml请求成功时的表格数据
-      currentEnvironment: 'linux', // 当前选中的环境
-      environmentList: [
-        {
-          category: this.$t('物理环境'),
-          btnList: [
-            { id: 'linux', img: LinuxSvg, name: 'Linux', isDisable: false },
-            { id: 'windows', img: WindowsSvg, name: 'Windows', isDisable: false }
-          ]
-        },
-        {
-          category: this.$t('容器环境'),
-          btnList: [
-            { id: 'container_log_config', img: ContainerSvg, name: 'Container', isDisable: false },
-            { id: 'node_log_config', img: NodeSvg, name: 'Node', isDisable: false },
-            { id: 'std_log_config', img: StdoutSvg, name: this.$t('标准输出'), isDisable: false }
-          ]
-        }
-      ],
-      typeList: [],
-      scopeNameList: {
-        namespace: this.$t('按命名空间选择'),
-        label: this.$t('按标签选择'),
-        load: this.$t('按工作负载选择'),
-        containerName: this.$t('直接指定{n}', { n: 'Container' })
-      },
-      baseLabelSelector: {
-        // 指定标签或表达式
-        match_labels: [],
-        match_expressions: []
-      },
-      viewQueryParams: {}, // 预览弹窗传参
-      isRequestCluster: false, // 集群列表是否正在请求
-      // isConfigConflict: false, // 配置项是否有冲突
-      conflictList: [], // 冲突列表
-      conflictMessage: '', // 冲突信息
-      /** 英文名错误信息 */
-      enNameErrorMessage: '',
-      clusterList: [], // 集群列表
-      nameSpacesSelectList: [], // namespace 列表
-      operatorSelectList: [
-        {
-          id: '=',
-          name: '='
-        },
-        {
-          id: '!=',
-          name: '!='
-        }
-      ],
-      allContainer: {
-        // 所有容器时指定容器默认传空
-        workload_type: '',
-        workload_name: '',
-        container_name: ''
-      },
-      publicLetterIndex: 0, // 公共的字母下标
-      isShowLabelTargetDialog: false, // 是否展示指定标签dialog
-      isShowViewDialog: false, // 是否展预览dialog
-      formTime: null, // form更改防抖timer
-      currentSelector: {}, // 当前操作的配置项指定标签值
-      currentSetIndex: 0, // 当前操作的配置项的下标
-      isExtraError: false, // 附加标签是否有出错
-      nameSpaceRequest: false, // 是否正在请求namespace接口
-      uiconfigToYamlData: {}, // 切换成yaml时当前保存的ui配置
-      // ip选择器面板
-      ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'],
-      // 编辑态ip选择器初始值
-      ipSelectorOriginalValue: null,
-      enLabelWidth: 180
-    };
-  },
-  computed: {
-    ...mapGetters({
-      bkBizId: 'bkBizId',
-      mySpaceList: 'mySpaceList'
-    }),
-    ...mapGetters('collect', ['curCollect']),
-    ...mapGetters('globals', ['globalsData']),
-    collectProject() {
-      return projectManages(this.$store.state.topMenu, 'collection-item');
-    },
-    isCloseDataLink() {
-      // 没有可上报的链路时，编辑采集配置链路ID为0或null时，隐藏链路配置框，并且不做空值校验。
-      return !this.linkConfigurationList.length || (this.isUpdate && !this.curCollect.data_link_id);
-    },
-    // 是否打开行首正则功能
-    hasMultilineReg() {
-      return this.formData.collector_scenario_id === 'section';
-    },
-    // 是否是wineventlog日志
-    isWinEventLog() {
-      return this.formData.collector_scenario_id === 'wineventlog';
-    },
-    // 是否是物理环境
-    isPhysicsEnvironment() {
-      const isPhysics = ['linux', 'windows'].includes(this.currentEnvironment);
-      this.$emit('update:isPhysics', isPhysics);
-      return isPhysics;
-    },
-    // 是否是Node环境
-    isNode: {
-      get() {
-        return this.currentEnvironment === 'node_log_config';
-      },
-      set(newVal) {
-        if (newVal) {
-          this.formData.configs.forEach(item => {
-            item.container = this.allContainer;
-            item.namespaces = [];
+          // 附加日志标签是否只单独填写了一边
+          this.isExtraError = this.formData.extra_labels.some(item => {
+            const extraFillLength = Object.values(item).reduce((pre, cur) => {
+              cur === '' && (pre += 1);
+              return pre;
+            }, 0);
+            return extraFillLength === 1;
           });
-        }
-        this.scopeNameList.label = this.$t('按标签选择');
-      }
-    },
-    // 获取日志类型列表
-    getCollectorScenario() {
-      try {
-        const activeScenario = this.globalsData.collector_scenario.filter(item => item.is_active);
-        if (this.currentEnvironment === 'windows') return activeScenario;
-        const winIndex = activeScenario.findIndex(item => item.id === 'wineventlog');
-        activeScenario.splice(winIndex, 1);
-        return activeScenario;
-      } catch (error) {
-        return [];
-      }
-    },
-    // 是否是编辑或者克隆
-    isCloneOrUpdate() {
-      return this.isUpdate || this.isClone;
-    },
-    localClusterList() {
-      return this.clusterList.filter(val => (this.isNode ? !val.is_shared : true));
-    },
-    // ip选择器选中节点
-    selectorNodes() {
-      return this.getSelectorNodes();
-    },
-    updateCollectorConfigID() {
-      // 若是新增容器日志 返回上一步 则使用curCollect缓存的collector_config_id更新;
-      const { collectorId } = this.$route.params;
-      return !!collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
-    },
-    labelWidth() {
-      return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
-    }
-  },
-  watch: {
-    currentEnvironment(nVal, oVal) {
-      if (oVal === 'windows' && this.isWinEventLog) {
-        this.formData.collector_scenario_id = this.globalsData.collector_scenario[0].id;
-      }
-      if (['std_log_config', 'container_log_config', 'node_log_config'].includes(nVal)) {
-        this.formData.environment = 'container';
-        this.isNode = nVal === 'node_log_config';
-        !this.clusterList.length && this.getBcsClusterList();
-        !this.typeList.length && this.getWorkLoadTypeList();
-        if (nVal === 'node_log_config' && this.getIsSharedCluster()) {
-          // 选中node环境时 如果存在已选的共享集群 则清空
-          this.formData.bcs_cluster_id = '';
-        }
-        return;
-      }
-      this.formData.environment = nVal;
-    },
-    'formData.bcs_cluster_id'(nVal, oVal) {
-      this.getNameSpaceList(nVal, oVal === '');
-    },
-    'formData.extra_labels.length'() {
-      this.isExtraError = false;
-    },
-    yamlFormData: {
-      deep: true,
-      handler(val) {
-        if (val && val.configs.length) {
-          this.currentEnvironment = val.configs[0].collector_type;
-        }
-      }
-    }
-  },
-  created() {
-    this.isClone = this.$route.query?.type === 'clone';
-    this.$store.commit('updateRouterLeaveTip', false);
-    this.configBaseObj = deepClone(this.formData.configs[0]); // 生成配置项的基础对象
-    this.getLinkData();
-    // 克隆与编辑均进行数据回填
-    if (this.isUpdate || this.isClone) {
-      const cloneCollect = deepClone(this.curCollect);
-      if (cloneCollect.environment === 'container') {
-        // 容器环境
-        this.getWorkLoadTypeList();
-        this.isYaml = cloneCollect.yaml_config_enabled;
-        // yaml模式可能会有多种容器环境 选择第一项配置里的环境作为展示
-        if (cloneCollect.configs[0]) {
-          // 如果采集项不为空 则回显
-          this.currentEnvironment = cloneCollect.configs[0].collector_type;
-          this.publicLetterIndex = cloneCollect.configs.length - 1;
-        } else {
-          // 为空 重新赋值 标准输出
-          this.currentEnvironment = 'std_log_config';
-          this.publicLetterIndex = 0;
-          cloneCollect.configs = [this.configBaseObj];
-        }
-        const initFormData = this.initContainerFormData(cloneCollect);
-        Object.assign(this.formData, initFormData);
-        // 若是容器环境 克隆时 初始化物理环境的值
-        this.formData.params = this.configBaseObj.params;
-        this.formData.data_encoding = 'UTF-8';
-      } else {
-        // 物理环境
-        this.currentEnvironment = cloneCollect.environment;
-        this.formData = this.getInitFormData(cloneCollect);
-        Object.assign(this.formData, cloneCollect);
-        if (this.formData.target_nodes?.length) {
-          // IP 选择器预览结果回填
-          this.ipSelectorOriginalValue = this.getSelectorNodes();
-        }
-        if (!this.formData.collector_config_name_en) {
-          // 兼容旧数据数据名称为空
-          this.formData.collector_config_name_en = this.formData.table_id || '';
-        }
-      }
-      // 克隆采集项的时候 清空以下回显或者重新赋值 保留其余初始数据
-      if (this.isClone) {
-        this.formData.collector_config_name = `${this.formData.collector_config_name}_clone`;
-        this.formData.collector_config_name_en = '';
-        this.formData.target_nodes = [];
-      } else {
-        // 编辑且非克隆则禁用另一边的环境按钮
-        this.initBtnListDisable();
-        this.$nextTick(() => {
-          // 克隆时不缓存初始数据
-          // 编辑采集项时缓存初始数据 用于对比提交时是否发生变化 未修改则不重新提交 update 接口
-          this.localParams = this.handleParams(true);
-          const { description, collector_config_name, ...otherVal } = this.localParams;
-          this.editComparedData = otherVal;
-        });
-      }
-    }
-  },
-  methods: {
-    async getLinkData() {
-      try {
-        this.tableLoading = true;
-        const res = await this.$http.request('linkConfiguration/getLinkList', {
-          query: {
-            bk_biz_id: this.$store.state.bkBizId
+          if (!containerConfigValidate || this.isExtraError) return false;
+          if (this.getIsSharedCluster() && this.formData.configs.some(conf => !conf.namespaces.length)) {
+            // 容器环境下选择了共享集群 但NameSpace为空
+            this.$bkMessage({ theme: 'error', message: this.$t('配置项命名空间不能为空') });
+            return false;
           }
-        });
-        this.linkConfigurationList = res.data.filter(item => item.is_active);
-        if (this.linkConfigurationList.length && !this.isCloneOrUpdate) {
-          this.formData.data_link_id = this.linkConfigurationList[0].data_link_id;
-        }
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        this.tableLoading = false;
-      }
-    },
-    /**
-     * @desc: 初始化容器的编辑的form表单值
-     * @param { Object } formData 基础表单
-     * @param { Boolean } isYamlData 是否是yaml解析出的表单数据
-     * @returns { Object } 返回初始化后的Form表单
-     */
-    initContainerFormData(formData, isYamlData = false) {
-      const curFormData = deepClone(formData);
-      if (!curFormData.extra_labels.length) {
-        curFormData.extra_labels = [
-          {
-            key: '',
-            value: ''
-          }
-        ];
-      }
-      const filterConfigs = curFormData.configs.map((item, index) => {
-        const {
-          workload_name,
-          workload_type,
-          container_name: containerName,
-          container_name_exclude: containerNameExclude,
-          match_expressions: matchExpressions,
-          match_labels: matchLabels,
-          data_encoding,
-          params,
-          namespaces: itemNamespace,
-          namespaces_exclude: itemNamespacesExclude,
-          container: yamlContainer,
-          label_selector: yamlSelector,
-          collector_type
-        } = item;
-        const showNameSpace = itemNamespacesExclude?.length ? itemNamespacesExclude : itemNamespace;
-        const namespaces = item.any_namespace ? ['*'] : showNameSpace;
-        const container = {
-          workload_type,
-          workload_name,
-          container_name: containerName,
-          container_name_exclude: containerNameExclude
-        };
-        // eslint-disable-next-line camelcase
-        let labelSelector = [];
-        let containerNameList = this.getContainerNameList(containerName || containerNameExclude);
-        if (isYamlData) {
-          Object.assign(container, yamlContainer);
-          labelSelector = Object.entries(yamlSelector).reduce((pre, [labelKey, labelVal]) => {
-            pre.push(...labelVal.map(item => ({ ...item, id: random(10), type: labelKey })));
-            return pre;
-          }, []);
-          const { container_name: yamlContainerName, container_name_exclude: yamlContainerNameExclude } = yamlContainer;
-          containerNameList = this.getContainerNameList(yamlContainerName || yamlContainerNameExclude);
-          params.paths = params.paths.length ? params.paths.map(item => ({ value: item })) : [{ value: '' }];
-        } else {
-          labelSelector = [
-            ...matchLabels.map(item => ({ ...item, id: random(10), type: 'match_labels' })),
-            ...matchExpressions.map(item => ({ ...item, id: random(10), type: 'match_expressions' }))
-          ];
-          if (!params.conditions?.separator_filters) {
-            params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
-          }
-        }
-        const scopeNameSpaceShow = Boolean(namespaces.length);
-        const scopeLabelShow = Boolean(labelSelector.length);
-        const scopeContainerNameShow = Boolean(containerNameList.length);
-        const scopeLoadNameShow = Boolean(container.workload_type) || Boolean(container.workload_name);
-        const containerExclude = !!containerNameExclude ? '!=' : '=';
-        const namespacesExclude = itemNamespacesExclude?.length ? '!=' : '=';
-        const namespaceStr = this.getNameSpaceStr(namespaces);
-        return {
-          namespaces,
-          noQuestParams: {
-            letterIndex: index, // 配置项字母下标
-            handleEditLabel: false,
-            editLabelValue: {
-              key: '',
-              operator: '',
-              value: ''
-            },
-            scopeSelectShow: {
-              namespace: !scopeNameSpaceShow,
-              label: !scopeLabelShow,
-              load: !scopeLoadNameShow,
-              containerName: !scopeContainerNameShow
-            },
-            namespaceStr,
-            containerExclude,
-            namespacesExclude
-          },
-          data_encoding,
-          container,
-          labelSelector,
-          containerNameList,
-          params,
-          collector_type
-        };
-      });
-      curFormData.configs = filterConfigs;
-      return curFormData;
-    },
-    /**
-     * @desc: 初始化物理环境编辑的的form表单值
-     * @param { Object } formData 基础表单
-     * @returns { Object } 返回初始化后的Form表单
-     */
-    getInitFormData(formData) {
-      const curFormData = deepClone(formData);
-      // win_event类型不需要初始化分隔符的过滤条件
-      if (!curFormData.params.conditions?.separator_filters && curFormData.collector_scenario_id !== 'wineventlog') {
-        curFormData.params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
-      }
-      return curFormData;
-    },
-    getContainerNameList(containerName = '') {
-      const splitList = containerName.split(',');
-      if (splitList.length === 1 && splitList[0] === '') return [];
-      return splitList;
-    },
-    /** 导航切换提交函数 */
-    stepSubmitFun(callback) {
-      this.startCollect(callback);
-    },
-    // 开始采集
-    async startCollect(callback) {
-      const isCanSubmit = await this.submitDataValidate();
-      if (!isCanSubmit) {
-        callback?.(false);
-        return;
-      }
-      const params = this.handleParams();
-      if (deepEqual(this.localParams, params)) {
-        this.isHandle = false;
-        if (this.isFinishCreateStep) {
-          // 保存的情况下, 没有任何改变, 回退到列表
-          if (callback) {
-            callback(true);
-            return;
-          }
-          this.cancel();
-        } else {
-          // 未修改表单 直接跳转下一步
-          this.$emit('stepChange');
-        }
-        return;
-      }
-      this.$refs.validateForm.validate().then(
-        () => {
-          this.isCloseDataLink && delete params.data_link_id;
-          this.isPhysicsEnvironment
-            ? this.setCollection(params, callback)
-            : this.setContainerCollection(params, callback);
-        },
-        () => {
-          callback?.(false);
-        }
-      );
-    },
-    /**
-     * @desc: 提交表格时验证是否通过
-     * @return { Boolean } 是否可以提交
-     */
-    async submitDataValidate() {
-      try {
-        // 基础信息表格验证
-        await this.$refs.validateForm.validate();
-      } catch (error) {}
-      // win日志类型验证
-      if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
-      // 物理环境验证
-      if (this.isPhysicsEnvironment) {
-        let formValidate = true;
-        try {
-          await this.$refs.formConfigRef.$refs.validateForm.validate();
-        } catch (error) {
-          formValidate = false;
-        }
-        return formValidate;
-      }
-      // 容器环境并且打开yaml模式时进行yaml语法检测
-      if (this.isYaml && !this.isPhysicsEnvironment) {
-        if (!this.$refs.yamlEditorRef.getSubmitState || this.formData.yaml_config === '') {
-          let message = this.$refs.yamlEditorRef.isHaveCannotSubmitWaring
-            ? this.$t('yaml缺少必要的字段')
-            : this.$t('yaml语法出错');
-          this.formData.yaml_config === '' && (message = this.$t('yaml不能为空'));
-          this.$bkMessage({ theme: 'error', message });
-          return false;
         }
         return true;
-      }
-      // 容器环境时 进行配置项检查
-      if (!this.isPhysicsEnvironment) {
-        let containerConfigValidate = true;
-        const configList = this.$refs.containerConfigRef;
-        // 标准输出环境下配置项里过滤内容是否有分隔符过滤 有则进行配置项form校验
-        const isCheckConfigItem = !(
-          this.currentEnvironment === 'std_log_config' && this.formData.collector_scenario_id === 'row'
-        );
-        // 检查配置项中是否有分隔符过滤
-        const isHaveSeparator = configList.some(item => item.subFormData.params.conditions.type === 'separator');
-        if (isCheckConfigItem || isHaveSeparator) {
-          // 判断config列表里是否有需要校验的dom元素。
-          for (const key in configList) {
-            const index = Number(key);
-            try {
-              // 这里如果表单没有校验的dom元素会一直是pending状态 没有返回值 则会卡在这里 所以需要判断是否有dom元素
-              await configList[index].$refs.validateForm?.validate();
-            } catch (error) {
-              containerConfigValidate = false;
-            }
-          }
+      },
+      // 新增/修改采集
+      setCollection(params, callback) {
+        this.isHandle = true;
+        const urlParams = {};
+        let requestUrl;
+        if (this.isUpdate) {
+          urlParams.collector_config_id = this.updateCollectorConfigID;
+          requestUrl = 'collect/updateCollection';
+        } else {
+          requestUrl = 'collect/addCollection';
         }
-        // 附加日志标签是否只单独填写了一边
-        this.isExtraError = this.formData.extra_labels.some(item => {
-          const extraFillLength = Object.values(item).reduce((pre, cur) => {
-            cur === '' && (pre += 1);
-            return pre;
-          }, 0);
-          return extraFillLength === 1;
-        });
-        if (!containerConfigValidate || this.isExtraError) return false;
-        if (this.getIsSharedCluster() && this.formData.configs.some(conf => !conf.namespaces.length)) {
-          // 容器环境下选择了共享集群 但NameSpace为空
-          this.$bkMessage({ theme: 'error', message: this.$t('配置项命名空间不能为空') });
-          return false;
-        }
-      }
-      return true;
-    },
-    // 新增/修改采集
-    setCollection(params, callback) {
-      this.isHandle = true;
-      const urlParams = {};
-      let requestUrl;
-      if (this.isUpdate) {
-        urlParams.collector_config_id = this.updateCollectorConfigID;
-        requestUrl = 'collect/updateCollection';
-      } else {
-        requestUrl = 'collect/addCollection';
-      }
-      const updateData = { params: urlParams, data: params };
-      this.$http
-        .request(requestUrl, updateData)
-        .then(res => {
-          if (res.code === 0) {
-            this.$store.commit(
-              `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
-              Object.assign({}, this.formData, params, res.data)
-            );
-            this.setDetail(res.data.collector_config_id);
-            // 物理环境编辑情况
-            if (this.isFinishCreateStep) {
-              // 修改过非基本信息的值 重新下发 不改变步骤 直接展示下发组件 否则直接回列表
-              if (this.isUpdateIssuedShowValue() && !this.isContainerStep) {
-                this.$emit('update:force-show-component', 'stepIssued');
-                callback?.(false);
+        const updateData = { params: urlParams, data: params };
+        this.$http
+          .request(requestUrl, updateData)
+          .then(res => {
+            if (res.code === 0) {
+              this.$store.commit(
+                `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
+                Object.assign({}, this.formData, params, res.data),
+              );
+              this.setDetail(res.data.collector_config_id);
+              // 物理环境编辑情况
+              if (this.isFinishCreateStep) {
+                // 修改过非基本信息的值 重新下发 不改变步骤 直接展示下发组件 否则直接回列表
+                if (this.isUpdateIssuedShowValue() && !this.isContainerStep) {
+                  this.$emit('update:force-show-component', 'stepIssued');
+                  callback?.(false);
+                } else {
+                  if (callback) {
+                    callback(true);
+                    return;
+                  }
+                  this.cancel();
+                }
               } else {
+                // 新增情况直接下一步
+                this.$emit('stepChange');
+              }
+            }
+          })
+          .catch(() => callback?.(false))
+          .finally(() => {
+            this.isHandle = false;
+          });
+      },
+      // 容器日志新增/修改采集
+      setContainerCollection(params, callback) {
+        this.isHandle = true;
+        this.$emit('update:container-loading', true);
+        const urlParams = {};
+        let requestUrl;
+        if (this.isUpdate) {
+          urlParams.collector_config_id = this.updateCollectorConfigID;
+          requestUrl = 'container/update';
+        } else {
+          requestUrl = 'container/create';
+        }
+        const data = Object.assign(params, this.isYaml ? this.yamlFormData : {}, { yaml_config_enabled: this.isYaml });
+        const updateData = { params: urlParams, data };
+        this.$http
+          .request(requestUrl, updateData)
+          .then(res => {
+            if (res.code === 0) {
+              this.$store.commit(
+                `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
+                Object.assign({}, this.formData, params, res.data),
+              );
+              this.setDetail(res.data.collector_config_id);
+              // 容器环境没有下发步骤 直接回到列表或者下一步
+              if (this.isFinishCreateStep) {
                 if (callback) {
                   callback(true);
                   return;
                 }
                 this.cancel();
+              } else {
+                this.$emit('stepChange');
               }
-            } else {
-              // 新增情况直接下一步
-              this.$emit('stepChange');
             }
-          }
-        })
-        .catch(() => callback?.(false))
-        .finally(() => {
-          this.isHandle = false;
-        });
-    },
-    // 容器日志新增/修改采集
-    setContainerCollection(params, callback) {
-      this.isHandle = true;
-      this.$emit('update:container-loading', true);
-      const urlParams = {};
-      let requestUrl;
-      if (this.isUpdate) {
-        urlParams.collector_config_id = this.updateCollectorConfigID;
-        requestUrl = 'container/update';
-      } else {
-        requestUrl = 'container/create';
-      }
-      const data = Object.assign(params, this.isYaml ? this.yamlFormData : {}, { yaml_config_enabled: this.isYaml });
-      const updateData = { params: urlParams, data };
-      this.$http
-        .request(requestUrl, updateData)
-        .then(res => {
-          if (res.code === 0) {
-            this.$store.commit(
-              `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
-              Object.assign({}, this.formData, params, res.data)
-            );
-            this.setDetail(res.data.collector_config_id);
-            // 容器环境没有下发步骤 直接回到列表或者下一步
-            if (this.isFinishCreateStep) {
-              if (callback) {
-                callback(true);
-                return;
-              }
-              this.cancel();
-            } else {
-              this.$emit('stepChange');
-            }
-          }
-        })
-        .catch(error => {
-          console.warn(error);
-          callback?.(false);
-          // this.isShowSubmitErrorDialog = true;
-          // this.submitErrorMessage = error.message;
-        })
-        .finally(() => {
-          this.isHandle = false;
-          this.$emit('update:containerLoading', false);
-        });
-    },
-    /**
-     * @desc: 获取提交参数
-     * @param {Boolean} isEdit 是否时编辑的参数
-     * @returns {Object} 返回提交参数数据
-     */
-    handleParams(isEdit = false) {
-      const formData = deepClone(this.formData);
-      const {
-        collector_config_name,
-        collector_config_name_en,
-        category_id,
-        collector_scenario_id,
-        description,
-        target_object_type,
-        target_node_type,
-        target_nodes,
-        data_encoding,
-        data_link_id,
-        params,
-        environment,
-        bcs_cluster_id,
-        add_pod_label,
-        extra_labels: extraLabels,
-        configs,
-        yaml_config
-      } = formData;
-      const containerFromData = {}; // 容器环境From数据
-      const physicsFromData = {}; // 物理环境From数据
-      const publicFromData = {
-        // 通用From数据
-        collector_config_name,
-        collector_config_name_en,
-        collector_scenario_id,
-        description,
-        environment,
-        data_link_id,
-        category_id
-      };
-      // 容器环境
-      if (!this.isPhysicsEnvironment) {
-        Object.assign(containerFromData, publicFromData, {
+          })
+          .catch(error => {
+            console.warn(error);
+            callback?.(false);
+            // this.isShowSubmitErrorDialog = true;
+            // this.submitErrorMessage = error.message;
+          })
+          .finally(() => {
+            this.isHandle = false;
+            this.$emit('update:containerLoading', false);
+          });
+      },
+      /**
+       * @desc: 获取提交参数
+       * @param {Boolean} isEdit 是否时编辑的参数
+       * @returns {Object} 返回提交参数数据
+       */
+      handleParams(isEdit = false) {
+        const formData = deepClone(this.formData);
+        const {
+          collector_config_name,
+          collector_config_name_en,
+          category_id,
+          collector_scenario_id,
+          description,
+          target_object_type,
+          target_node_type,
+          target_nodes,
+          data_encoding,
+          data_link_id,
+          params,
+          environment,
           bcs_cluster_id,
           add_pod_label,
           extra_labels: extraLabels,
           configs,
           yaml_config,
-          yaml_config_enabled: this.isYaml
-        });
-        containerFromData.configs.forEach((item, index) => {
-          const containerKey =
-            item.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-          const namespacesKey = item.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
-          JSON.stringify(item.namespaces) === '["*"]' && (item.namespaces = []);
-          const { namespace, label, load, containerName } = this.getScopeSelectShow(index);
-          item.collector_type = this.currentEnvironment;
-          if (namespace || this.isNode) item.namespaces = [];
-          if (load || this.isNode) {
-            item.container.workload_type = '';
-            item.container.workload_name = '';
-          }
-          const cloneNamespaces = deepClone(item.namespaces);
-          delete item.namespaces;
-          item[namespacesKey] = cloneNamespaces;
+        } = formData;
+        const containerFromData = {}; // 容器环境From数据
+        const physicsFromData = {}; // 物理环境From数据
+        const publicFromData = {
+          // 通用From数据
+          collector_config_name,
+          collector_config_name_en,
+          collector_scenario_id,
+          description,
+          environment,
+          data_link_id,
+          category_id,
+        };
+        // 容器环境
+        if (!this.isPhysicsEnvironment) {
+          Object.assign(containerFromData, publicFromData, {
+            bcs_cluster_id,
+            add_pod_label,
+            extra_labels: extraLabels,
+            configs,
+            yaml_config,
+            yaml_config_enabled: this.isYaml,
+          });
+          containerFromData.configs.forEach((item, index) => {
+            const containerKey =
+              item.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+            const namespacesKey = item.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+            JSON.stringify(item.namespaces) === '["*"]' && (item.namespaces = []);
+            const { namespace, label, load, containerName } = this.getScopeSelectShow(index);
+            item.collector_type = this.currentEnvironment;
+            if (namespace || this.isNode) item.namespaces = [];
+            if (load || this.isNode) {
+              item.container.workload_type = '';
+              item.container.workload_name = '';
+            }
+            const cloneNamespaces = deepClone(item.namespaces);
+            delete item.namespaces;
+            item[namespacesKey] = cloneNamespaces;
 
-          // node 情况下由于只有标签选择 所以不判断是否有选中标签操作
-          item.label_selector =
-            label && !this.isNode ? this.baseLabelSelector : this.getLabelSelectorQueryParams(item.labelSelector);
+            // node 情况下由于只有标签选择 所以不判断是否有选中标签操作
+            item.label_selector =
+              label && !this.isNode ? this.baseLabelSelector : this.getLabelSelectorQueryParams(item.labelSelector);
 
-          item.container = {
-            workload_type: item.container.workload_type,
-            workload_name: item.container.workload_name,
-            [containerKey]: item.containerNameList.join(',')
-          };
-          if (containerName || this.isNode) item.container[containerKey] = '';
+            item.container = {
+              workload_type: item.container.workload_type,
+              workload_name: item.container.workload_name,
+              [containerKey]: item.containerNameList.join(','),
+            };
+            if (containerName || this.isNode) item.container[containerKey] = '';
 
-          delete item.noQuestParams;
-          delete item.labelSelector;
-          delete item.containerNameList;
-          // 若为标准输出 则直接清空日志路径
-          if (item.collector_type === 'std_log_config') item.params.paths = [];
-          item.params = this.filterParams(item.params, isEdit);
-        });
-        containerFromData.extra_labels = extraLabels.filter(item => !(item.key === '' && item.value === ''));
-        return Object.assign(containerFromData, {
-          // 容器环境更新
-          bk_biz_id: this.bkBizId
-        });
-      }
-      const physicsParams = this.filterParams(params, isEdit);
-      // 物理环境
-      Object.assign(physicsFromData, publicFromData, {
-        target_node_type,
-        target_object_type,
-        target_nodes,
-        data_encoding,
-        params: physicsParams
-      });
-      if (this.isUpdate) {
-        // 物理环境编辑
-        physicsFromData.collector_config_id = this.updateCollectorConfigID;
-        delete physicsFromData.category_id;
-        delete physicsFromData.collector_scenario_id;
-        return Object.assign(physicsFromData, {
-          bk_biz_id: this.bkBizId
-        });
-      } // 物理环境新增
-      return Object.assign(physicsFromData, {
-        bk_biz_id: this.bkBizId
-      });
-    },
-    /**
-     * @desc: 对表单的params传参参数进行处理
-     * @param { Object } passParams
-     * @param { Boolean } isEdit 是否是编辑的参数
-     */
-    filterParams(passParams, isEdit = false) {
-      let params = deepClone(passParams);
-      if (!this.isWinEventLog) {
-        if (!this.hasMultilineReg) {
-          // 行首正则未开启
-          delete params.multiline_pattern;
-          delete params.multiline_max_lines;
-          delete params.multiline_timeout;
+            delete item.noQuestParams;
+            delete item.labelSelector;
+            delete item.containerNameList;
+            // 若为标准输出 则直接清空日志路径
+            if (item.collector_type === 'std_log_config') item.params.paths = [];
+            item.params = this.filterParams(item.params, isEdit);
+          });
+          containerFromData.extra_labels = extraLabels.filter(item => !(item.key === '' && item.value === ''));
+          return Object.assign(containerFromData, {
+            // 容器环境更新
+            bk_biz_id: this.bkBizId,
+          });
         }
+        const physicsParams = this.filterParams(params, isEdit);
+        // 物理环境
+        Object.assign(physicsFromData, publicFromData, {
+          target_node_type,
+          target_object_type,
+          target_nodes,
+          data_encoding,
+          params: physicsParams,
+        });
+        if (this.isUpdate) {
+          // 物理环境编辑
+          physicsFromData.collector_config_id = this.updateCollectorConfigID;
+          delete physicsFromData.category_id;
+          delete physicsFromData.collector_scenario_id;
+          return Object.assign(physicsFromData, {
+            bk_biz_id: this.bkBizId,
+          });
+        } // 物理环境新增
+        return Object.assign(physicsFromData, {
+          bk_biz_id: this.bkBizId,
+        });
+      },
+      /**
+       * @desc: 对表单的params传参参数进行处理
+       * @param { Object } passParams
+       * @param { Boolean } isEdit 是否是编辑的参数
+       */
+      filterParams(passParams, isEdit = false) {
+        let params = deepClone(passParams);
+        if (!this.isWinEventLog) {
+          if (!this.hasMultilineReg) {
+            // 行首正则未开启
+            delete params.multiline_pattern;
+            delete params.multiline_max_lines;
+            delete params.multiline_timeout;
+          }
+          const {
+            match_type,
+            match_content: matchContent,
+            separator,
+            separator_filters: separatorFilters,
+            type,
+          } = params.conditions;
+          const separatorEffectiveArr = separatorFilters?.filter(item => item.fieldindex && item.word);
+          let isHaveValue = false; // 判断当前过滤项是否有值
+          switch (type) {
+            case 'match':
+              isHaveValue = !!matchContent;
+              break;
+            case 'separator':
+              isHaveValue = !!separatorEffectiveArr?.length;
+              break;
+            default:
+              break;
+          }
+          const isTest = isEdit || isHaveValue; // 是否需要检测是否有值 如果是获取编辑参数则不判断是否有值
+          params.conditions = { type: 'none' }; // 先设置为none
+          if (type === 'match' && isTest) {
+            // 字符串过滤且填写过滤内容
+            params.conditions = {
+              type,
+              match_type,
+              match_content: matchContent,
+            };
+          }
+          if (type === 'separator' && isTest) {
+            // 分隔符过滤且填写过滤内容
+            params.conditions = {
+              type,
+              separator,
+              separator_filters: separatorEffectiveArr,
+            };
+          }
+          params.paths = params.paths.map(item => (typeof item === 'object' ? item.value : item));
+        } else {
+          params = this.$refs.formConfigRef.getWinParamsData;
+        }
+        return params;
+      },
+      // 选择日志类型
+      chooseLogType(item) {
+        if (item.is_active) this.formData.collector_scenario_id = item.id;
+      },
+      // 选择数据分类
+      chooseDataClass() {
+        // console.log(val)
+        /**
+         * 以下为预留逻辑
+         */
+        // 当父类为services时，仅能选取动态类型目标；其他父类型目标为静态类型时，切换为serveices时需要做清空判断操作
+        // if (['services', 'module'].includes(val)) {
+        //     if (this.formData.target_object_type === 'SERVICE') {
+        //         this.formData.target_nodes = []
+        //     }
+        //     this.formData.target_object_type = 'SERVICE'
+        // } else {
+        //     this.formData.target_object_type = 'HOST'
+        // }
+      },
+      // 取消操作
+      cancel() {
+        // 保存, 回退到列表
+        if (this.isFinishCreateStep) {
+          this.$emit('changeSubmit', true);
+        }
+        let routeName;
+        const { backRoute, ...reset } = this.$route.query;
+        if (backRoute) {
+          routeName = backRoute;
+        } else {
+          routeName = 'collection-item';
+        }
+        this.$router.push({
+          name: routeName,
+          query: {
+            ...reset,
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+      },
+      // 采集目标选择内容变更
+      targetChange(params) {
+        // bk_biz_id, target_object_type, target_node_type, target_nodes
+        // this.formData.target_object_type = params.target_object_type
+        this.formData.target_node_type = params.target_node_type;
+        this.formData.target_nodes = params.target_nodes;
+        this.showIpSelectorDialog = false;
+        // 触发 bk-form 的表单验证
+        this.$refs.formItemTarget.validate('change');
+      },
+      // 采集目标选择内容变更
+      handleTargetChange(value) {
         const {
-          match_type,
-          match_content: matchContent,
-          separator,
-          separator_filters: separatorFilters,
-          type
-        } = params.conditions;
-        const separatorEffectiveArr = separatorFilters?.filter(item => item.fieldindex && item.word);
-        let isHaveValue = false; // 判断当前过滤项是否有值
-        switch (type) {
-          case 'match':
-            isHaveValue = !!matchContent;
+          host_list: hostList,
+          node_list: nodeList,
+          service_template_list: serviceTemplateList,
+          set_template_list: setTemplateList,
+        } = value;
+        let type = '';
+        let nodes = [];
+        if (nodeList?.length) {
+          type = 'TOPO';
+          nodes = nodeList;
+        }
+        if (hostList?.length) {
+          type = 'INSTANCE';
+          nodes = hostList;
+        }
+        if (serviceTemplateList?.length) {
+          type = 'SERVICE_TEMPLATE';
+          nodes = serviceTemplateList;
+        }
+        if (setTemplateList?.length) {
+          type = 'SET_TEMPLATE';
+          nodes = setTemplateList;
+        }
+        if (!type) return;
+
+        this.formData.target_node_type = type;
+        this.formData.target_nodes = toTransformNode(nodes, type);
+        // 触发 bk-form 的表单验证
+        this.$refs.formItemTarget.validate('change');
+      },
+      checkNodes() {
+        this.colorRules = !this.formData.target_nodes?.length;
+        return this.formData.target_nodes.length;
+      },
+      // 新增的时候更新详情
+      setDetail(id) {
+        this.$http
+          .request('collect/details', {
+            params: { collector_config_id: id },
+          })
+          .then(res => {
+            if (res.data) {
+              this.$store.commit('collect/setCurCollect', res.data);
+            }
+          });
+      },
+      async checkEnNameRepeat(val) {
+        if (this.isUpdate) return true;
+        const result = await this.getEnNameIsRepeat(val);
+        return result;
+      },
+      // 检测数据名称是否可用
+      async getEnNameIsRepeat(val) {
+        try {
+          const res = await this.$http.request('collect/getPreCheck', {
+            params: { collector_config_name_en: val, bk_biz_id: this.$store.state.bkBizId },
+          });
+          if (res.data) {
+            this.enNameErrorMessage = res.data.message;
+            return res.data.allowed;
+          }
+        } catch (error) {
+          return false;
+        }
+      },
+      /**
+       * @desc: 环境选择
+       * @param { String } name 环境名称
+       * @param { Boolean } isDisable 是否禁用
+       */
+      handleSelectEnvironment(name, isDisable) {
+        if (this.isUpdate && isDisable) return;
+        this.currentEnvironment = name;
+        if (!['linux', 'windows'].includes(this.currentEnvironment)) {
+          this.formData.configs.forEach(item => (item.labelSelector = [])); // 切换环境清空label
+        }
+      },
+      handleAddExtraLabel() {
+        this.formData.extra_labels.push({ key: '', value: '' });
+      },
+      handleDeleteExtraLabel(index) {
+        this.formData.extra_labels.length > 1 && this.formData.extra_labels.splice(index, 1);
+      },
+      /**
+       * @desc: 用户操作合并form数据
+       * @param { Object } val 操作后返回值对象
+       * @param { String } operator 配置项还是form本身
+       * @param { Number } index 配置项下标
+       */
+      handelFormChange(val, operator, index) {
+        const setIndex = index ? index : this.currentSetIndex;
+        const setTime = operator === 'dialogChange' ? 10 : 500;
+        clearTimeout(this.formTime);
+        this.formTime = setTimeout(() => {
+          switch (operator) {
+            case 'formConfig':
+              Object.assign(this.formData, val);
+              break;
+            case 'dialogChange':
+            case 'containerConfig':
+              Object.assign(this.formData.configs[setIndex], val);
+              break;
+          }
+        }, setTime);
+      },
+      /**
+       * @desc: 配置项点击所有容器
+       * @param { Number } index 下标
+       * @param { Boolean } state 状态
+       */
+      getWorkLoadTypeList() {
+        this.$http
+          .request('container/getWorkLoadType')
+          .then(res => {
+            if (res.code === 0) this.typeList = res.data.map(item => ({ id: item, name: item }));
+          })
+          .catch(err => {
+            console.warn(err);
+          });
+      },
+      /**
+       * @desc: 指定操作弹窗
+       * @param { Number } index 下标
+       * @param { String } dialogType 标签或预览
+       */
+      handelShowDialog(index, dialogType = 'label') {
+        if (!this.formData.bcs_cluster_id) return;
+        this.currentSetIndex = index;
+        const type = this.isNode ? 'node' : 'pod';
+        const config = this.formData.configs[index];
+        const containerKey =
+          config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+        const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+        if (dialogType === 'label') {
+          this.currentSelector = {
+            bk_biz_id: this.bkBizId,
+            bcs_cluster_id: this.formData.bcs_cluster_id,
+            type,
+            namespaceStr: config.noQuestParams.namespaceStr,
+            labelSelector: config.labelSelector,
+          };
+        } else if (dialogType === 'view') {
+          const { workload_type: workloadType, workload_name: workloadName } = config.container;
+          const namespaces = config.namespaces.length === 1 && config.namespaces[0] === '*' ? [] : config.namespaces;
+          this.viewQueryParams = {
+            bk_biz_id: this.bkBizId,
+            bcs_cluster_id: this.formData.bcs_cluster_id,
+            type,
+            [namespacesKey]: namespaces,
+            label_selector: this.getLabelSelectorQueryParams(config.labelSelector, true),
+            container: {
+              workload_type: workloadType,
+              workload_name: workloadName,
+              [containerKey]: config.containerNameList.join(','),
+            },
+          };
+        }
+        dialogType === 'label' ? (this.isShowLabelTargetDialog = true) : (this.isShowViewDialog = true);
+      },
+      handleAddNewContainerConfig() {
+        // 添加配置项
+        const newContainerConfig = deepClone(this.configBaseObj);
+        this.publicLetterIndex += 1;
+        newContainerConfig.noQuestParams.letterIndex = this.publicLetterIndex;
+        this.formData.configs.push(newContainerConfig);
+      },
+      handleDeleteConfig(index, letterIndex) {
+        // 删除配置项
+        this.$bkInfo({
+          subTitle: this.$t('确定要删除配置项{n}？', { n: this.getFromCharCode(letterIndex) }),
+          type: 'warning',
+          confirmFn: () => {
+            this.formData.configs.splice(index, 1);
+          },
+        });
+      },
+      handleNameSpaceSelect(option, index) {
+        const config = this.formData.configs[index];
+        if (option[option.length - 1] === '*') {
+          // 如果最后一步选择所有，则清空数组填所有
+          const nameSpacesLength = config.namespaces.length;
+          config.namespaces.splice(0, nameSpacesLength, '*');
+          config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
+          return;
+        }
+        if (option.length > 1 && option.includes('*')) {
+          // 如果选中其他的值 包含所有则去掉所有选项
+          const allIndex = option.findIndex(item => item === '*');
+          config.namespaces.splice(allIndex, 1);
+        }
+        config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
+      },
+      // 当前所选集群是否共享集群
+      getIsSharedCluster() {
+        return this.clusterList?.find(cluster => cluster.id === this.formData.bcs_cluster_id)?.is_shared ?? false;
+      },
+      getNameSpaceList(clusterID, isFirstUpdateSelect = false) {
+        if (!clusterID || (this.isPhysicsEnvironment && this.isUpdate)) return;
+        const query = { bcs_cluster_id: clusterID, bk_biz_id: this.bkBizId };
+        this.nameSpaceRequest = true;
+        this.$http
+          .request('container/getNameSpace', { query })
+          .then(res => {
+            // 判断是否是第一次切换集群 如果是 则进行详情页namespace数据回显
+            if (isFirstUpdateSelect) {
+              const namespaceList = [];
+              this.formData.configs.forEach(configItem => {
+                namespaceList.push(...configItem.namespaces);
+              });
+              const resIDList = res.data.map(item => item.id);
+              const setList = new Set([...namespaceList, ...resIDList]);
+              setList.delete('*');
+              const allList = [...setList].map(item => ({ id: item, name: item }));
+              this.nameSpacesSelectList = [...allList];
+              if (!this.getIsSharedCluster()) {
+                this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
+              }
+              return;
+            }
+            this.nameSpacesSelectList = [...res.data];
+            if (!this.getIsSharedCluster()) {
+              this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
+            }
+          })
+          .catch(err => {
+            console.warn(err);
+          })
+          .finally(() => {
+            this.nameSpaceRequest = false;
+          });
+      },
+      showNameSpacesSelectList(conIndex) {
+        const config = this.formData.configs[conIndex];
+        const operate = config.noQuestParams.namespacesExclude;
+        if (!this.nameSpacesSelectList.length) return [];
+        if (operate === '!=' && this.nameSpacesSelectList.some(item => item.id === '*')) {
+          if (config.namespaces.length === 1 && config.namespaces[0] === '*') config.namespaces = [];
+          return this.nameSpacesSelectList.slice(1);
+        }
+        return this.nameSpacesSelectList;
+      },
+      /**
+       * @desc: 获取bcs集群列表
+       */
+      getBcsClusterList() {
+        if (this.isRequestCluster) return;
+        this.isRequestCluster = true;
+        const query = { bk_biz_id: this.bkBizId };
+        this.$http
+          .request('container/getBcsList', { query })
+          .then(res => {
+            if (res.code === 0) {
+              this.clusterList = res.data;
+            }
+          })
+          .catch(err => {
+            console.warn(err);
+          })
+          .finally(() => {
+            this.isRequestCluster = false;
+          });
+      },
+      /**
+       * @desc: 切换ui模式或yaml模式
+       * @param { Boolean } val
+       */
+      handelChangeYaml(val) {
+        return new Promise((resolve, reject) => {
+          if (val) {
+            const { add_pod_label, extra_labels, configs } = this.handleParams();
+            const data = { add_pod_label, extra_labels, configs };
+            // 传入处理后的参数 请求ui配置转yaml的数据
+            this.$http
+              .request('container/containerConfigsToYaml', { data })
+              .then(res => {
+                this.formData.yaml_config = res.data;
+                // 保存进入yaml模式之前的ui配置参数
+                Object.assign(this.uiconfigToYamlData, {
+                  add_pod_label: this.formData.add_pod_label,
+                  extra_labels: this.formData.extra_labels,
+                  configs: this.formData.configs,
+                });
+                resolve(true);
+              })
+              .catch(err => {
+                console.warn(err);
+                reject(false);
+              });
+          } else {
+            try {
+              // 若有报错 则回填进入yaml模式之前的ui配置参数
+              if (!this.$refs.yamlEditorRef.getSubmitState) {
+                Object.assign(this.formData, this.uiconfigToYamlData);
+              } else {
+                // 无报错 回填yamlData的参数
+                const assignData = this.initContainerFormData(this.yamlFormData, true);
+                Object.assign(this.formData, assignData);
+              }
+              resolve(true);
+            } catch (error) {
+              resolve(false);
+            }
+          }
+        });
+      },
+      /**
+       * @desc: 编进进入时判断当前环境 禁用另一边环境选择
+       */
+      initBtnListDisable() {
+        const operateIndex = ['linux', 'windows'].includes(this.currentEnvironment) ? 1 : 0;
+        this.environmentList[operateIndex].btnList.forEach(item => (item.isDisable = true));
+      },
+      getFromCharCode(index) {
+        return String.fromCharCode(index + 65);
+      },
+      handelClusterChange() {
+        // 切换集群清空 namespaces
+        this.formData.configs = this.formData.configs.map(conf => {
+          return {
+            ...conf,
+            namespaces: [],
+          };
+        });
+      },
+      checkEnNameValidator(val) {
+        this.isTextValid = new RegExp(/^[A-Za-z0-9_]+$/).test(val);
+        return this.isTextValid;
+      },
+      checkEnNameLength(val) {
+        // 编辑时，不需要验证采集项英文名
+        if (this.isUpdate) return true;
+        // 判断字符串长度是否大于50
+        return val.length <= 50;
+      },
+      handleEnConvert() {
+        const str = this.formData.collector_config_name_en;
+        const convertStr = str.split('').reduce((pre, cur) => {
+          if (cur === '-') cur = '_'; // 中划线转化成下划线
+          if (!/\w/.test(cur)) cur = ''; // 不符合的值去掉
+          return (pre += cur);
+        }, '');
+        this.formData.collector_config_name_en = convertStr;
+        this.$refs.validateForm
+          .validate()
+          .then(() => {
+            this.isTextValid = true;
+          })
+          .catch(() => {
+            if (convertStr.length < 5) this.isTextValid = true;
+          });
+      },
+      getSelectorNodes() {
+        const { target_node_type: type, target_nodes: nodes } = this.formData;
+        const targetList = toSelectorNode(nodes, type);
+        return {
+          host_list: type === 'INSTANCE' ? targetList : [],
+          node_list: type === 'TOPO' ? targetList : [],
+          service_template_list: type === 'SERVICE_TEMPLATE' ? targetList : [],
+          set_template_list: type === 'SET_TEMPLATE' ? targetList : [],
+        };
+      },
+      deleteLabItem(conIndex, matchID) {
+        const { labelSelector } = this.formData.configs[conIndex];
+        const labelIndex = labelSelector.findIndex(item => item.id === matchID);
+        labelSelector.splice(labelIndex, 1);
+      },
+      handleLabelEdit(conIndex, matchID, newValue) {
+        const { labelSelector } = this.formData.configs[conIndex];
+
+        const isRepeat = labelSelector.some(item => {
+          return newValue.key === item.key && newValue.value === item.value && newValue.operator === item.operator;
+        });
+
+        const type = newValue.operator === '=' ? 'match_labels' : 'match_expressions';
+
+        return new Promise(resolve => {
+          const labelIndex = labelSelector.findIndex(item => item.id === matchID);
+          if (!isRepeat) {
+            const newMatchObject = { ...labelSelector[labelIndex], ...newValue, type };
+            labelSelector.splice(labelIndex, 1, newMatchObject);
+          } else {
+            if (newValue?.isExternal) labelSelector.splice(labelIndex, 1);
+          }
+          resolve(true);
+        });
+      },
+      // 手动添加表达式
+      handleSubmitExpressions(conIndex, val) {
+        const configs = this.formData.configs[conIndex];
+        const isRepeat = configs.labelSelector.some(item => {
+          return val.key === item.key && val.value === item.value && val.operator === item.operator;
+        });
+        return new Promise(resolve => {
+          if (!isRepeat) {
+            const type = val.operator === '=' ? 'match_labels' : 'match_expressions';
+            configs.labelSelector.unshift({
+              ...val,
+              id: random(10),
+              type,
+            });
+          }
+          configs.noQuestParams.handleEditLabel = false;
+          resolve(true);
+        });
+      },
+      handleEnterLabel(conIndex, isShow = true) {
+        this.formData.configs[conIndex].noQuestParams.handleEditLabel = isShow;
+      },
+      getScopeName(conItem) {
+        return this.scopeNameList[conItem];
+      },
+      // 是否显示对应模块的列表的按钮
+      isShowScopeButton(conIndex, scope) {
+        // 当前环境为node时， 除了label列表全部不显示
+        if (this.isNode && scope !== 'label') return false;
+        return this.getScopeSelectShow(conIndex)[scope];
+      },
+      // 点击添加范围的列表 显示对应模块
+      handleAddNewScope(conIndex, scope) {
+        this.getScopeSelectShow(conIndex)[scope] = false;
+      },
+      // 是否展示添加范围的按钮
+      isShowAddScopeButton(conIndex) {
+        // 当前为node环境时 隐藏按钮直接显示操作范围模块
+        if (this.isNode) return false;
+        return Object.values(this.getScopeSelectShow(conIndex)).some(Boolean);
+      },
+      // 是否展示对应操作范围模块
+      isShowScopeItem(conIndex, scope) {
+        if (this.isNode) return scope === 'label'; // 当前环境为node时 若是标签模块则直接显示 其余均不显示
+        return !this.getScopeSelectShow(conIndex)[scope];
+      },
+      // 点击删除icon 隐藏对应范围模块 初始化对应的值
+      handleDeleteConfigParamsItem(conIndex, scope) {
+        const config = this.formData.configs[conIndex];
+        switch (scope) {
+          case 'namespace':
+            config.namespaces = [];
             break;
-          case 'separator':
-            isHaveValue = !!separatorEffectiveArr?.length;
+          case 'load':
+            config.container.workload_type = '';
+            config.container.workload_name = '';
+            break;
+          case 'label':
+            config.labelSelector = [];
+            break;
+          case 'containerName':
+            config.containerNameList = [];
             break;
           default:
             break;
         }
-        const isTest = isEdit || isHaveValue; // 是否需要检测是否有值 如果是获取编辑参数则不判断是否有值
-        params.conditions = { type: 'none' }; // 先设置为none
-        if (type === 'match' && isTest) {
-          // 字符串过滤且填写过滤内容
-          params.conditions = {
-            type,
-            match_type,
-            match_content: matchContent
-          };
-        }
-        if (type === 'separator' && isTest) {
-          // 分隔符过滤且填写过滤内容
-          params.conditions = {
-            type,
-            separator,
-            separator_filters: separatorEffectiveArr
-          };
-        }
-        params.paths = params.paths.map(item => (typeof item === 'object' ? item.value : item));
-      } else {
-        params = this.$refs.formConfigRef.getWinParamsData;
-      }
-      return params;
-    },
-    // 选择日志类型
-    chooseLogType(item) {
-      if (item.is_active) this.formData.collector_scenario_id = item.id;
-    },
-    // 选择数据分类
-    chooseDataClass() {
-      // console.log(val)
+        if (scope === 'label' && this.isNode) return;
+        this.getScopeSelectShow(conIndex)[scope] = true;
+      },
+      handleContainerNameBlur(input, list, conIndex) {
+        if (!input) return;
+        const config = this.formData.configs[conIndex];
+        config.containerNameList = !list.length ? [input] : [...new Set([...config.containerNameList, input])];
+      },
+      // 获取config里添加范围的列表
+      getScopeSelectShow(conIndex) {
+        return this.formData.configs[conIndex].noQuestParams.scopeSelectShow;
+      },
+      getNameSpaceStr(namespaces) {
+        return namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+      },
       /**
-       * 以下为预留逻辑
+       * @desc: 展示用的标签格式转化成存储或传参的标签格式
+       * @param {Object} labelSelector 主页展示用的label_selector
+       * @param {Boolean} isViewType 是否是预览传参 in notin 操作符需要加括号
+       * @returns {Object} 返回传参用的label_selector
        */
-      // 当父类为services时，仅能选取动态类型目标；其他父类型目标为静态类型时，切换为serveices时需要做清空判断操作
-      // if (['services', 'module'].includes(val)) {
-      //     if (this.formData.target_object_type === 'SERVICE') {
-      //         this.formData.target_nodes = []
-      //     }
-      //     this.formData.target_object_type = 'SERVICE'
-      // } else {
-      //     this.formData.target_object_type = 'HOST'
-      // }
-    },
-    // 取消操作
-    cancel() {
-      // 保存, 回退到列表
-      if (this.isFinishCreateStep) {
-        this.$emit('changeSubmit', true);
-      }
-      let routeName;
-      const { backRoute, ...reset } = this.$route.query;
-      if (backRoute) {
-        routeName = backRoute;
-      } else {
-        routeName = 'collection-item';
-      }
-      this.$router.push({
-        name: routeName,
-        query: {
-          ...reset,
-          spaceUid: this.$store.state.spaceUid
-        }
-      });
-    },
-    // 采集目标选择内容变更
-    targetChange(params) {
-      // bk_biz_id, target_object_type, target_node_type, target_nodes
-      // this.formData.target_object_type = params.target_object_type
-      this.formData.target_node_type = params.target_node_type;
-      this.formData.target_nodes = params.target_nodes;
-      this.showIpSelectorDialog = false;
-      // 触发 bk-form 的表单验证
-      this.$refs.formItemTarget.validate('change');
-    },
-    // 采集目标选择内容变更
-    handleTargetChange(value) {
-      const {
-        host_list: hostList,
-        node_list: nodeList,
-        service_template_list: serviceTemplateList,
-        set_template_list: setTemplateList
-      } = value;
-      let type = '';
-      let nodes = [];
-      if (nodeList?.length) {
-        type = 'TOPO';
-        nodes = nodeList;
-      }
-      if (hostList?.length) {
-        type = 'INSTANCE';
-        nodes = hostList;
-      }
-      if (serviceTemplateList?.length) {
-        type = 'SERVICE_TEMPLATE';
-        nodes = serviceTemplateList;
-      }
-      if (setTemplateList?.length) {
-        type = 'SET_TEMPLATE';
-        nodes = setTemplateList;
-      }
-      if (!type) return;
-
-      this.formData.target_node_type = type;
-      this.formData.target_nodes = toTransformNode(nodes, type);
-      // 触发 bk-form 的表单验证
-      this.$refs.formItemTarget.validate('change');
-    },
-    checkNodes() {
-      this.colorRules = !(this.formData.target_nodes && this.formData.target_nodes.length);
-      return this.formData.target_nodes.length;
-    },
-    // 新增的时候更新详情
-    setDetail(id) {
-      this.$http
-        .request('collect/details', {
-          params: { collector_config_id: id }
-        })
-        .then(res => {
-          if (res.data) {
-            this.$store.commit('collect/setCurCollect', res.data);
-          }
-        });
-    },
-    async checkEnNameRepeat(val) {
-      if (this.isUpdate) return true;
-      const result = await this.getEnNameIsRepeat(val);
-      return result;
-    },
-    // 检测数据名称是否可用
-    async getEnNameIsRepeat(val) {
-      try {
-        const res = await this.$http.request('collect/getPreCheck', {
-          params: { collector_config_name_en: val, bk_biz_id: this.$store.state.bkBizId }
-        });
-        if (res.data) {
-          this.enNameErrorMessage = res.data.message;
-          return res.data.allowed;
-        }
-      } catch (error) {
-        return false;
-      }
-    },
-    /**
-     * @desc: 环境选择
-     * @param { String } name 环境名称
-     * @param { Boolean } isDisable 是否禁用
-     */
-    handleSelectEnvironment(name, isDisable) {
-      if (this.isUpdate && isDisable) return;
-      this.currentEnvironment = name;
-      if (!['linux', 'windows'].includes(this.currentEnvironment)) {
-        this.formData.configs.forEach(item => (item.labelSelector = [])); // 切换环境清空label
-      }
-    },
-    handleAddExtraLabel() {
-      this.formData.extra_labels.push({ key: '', value: '' });
-    },
-    handleDeleteExtraLabel(index) {
-      this.formData.extra_labels.length > 1 && this.formData.extra_labels.splice(index, 1);
-    },
-    /**
-     * @desc: 用户操作合并form数据
-     * @param { Object } val 操作后返回值对象
-     * @param { String } operator 配置项还是form本身
-     * @param { Number } index 配置项下标
-     */
-    handelFormChange(val, operator, index) {
-      const setIndex = index ? index : this.currentSetIndex;
-      const setTime = operator === 'dialogChange' ? 10 : 500;
-      clearTimeout(this.formTime);
-      this.formTime = setTimeout(() => {
-        switch (operator) {
-          case 'formConfig':
-            Object.assign(this.formData, val);
-            break;
-          case 'dialogChange':
-          case 'containerConfig':
-            Object.assign(this.formData.configs[setIndex], val);
-            break;
-        }
-      }, setTime);
-    },
-    /**
-     * @desc: 配置项点击所有容器
-     * @param { Number } index 下标
-     * @param { Boolean } state 状态
-     */
-    getWorkLoadTypeList() {
-      this.$http
-        .request('container/getWorkLoadType')
-        .then(res => {
-          if (res.code === 0) this.typeList = res.data.map(item => ({ id: item, name: item }));
-        })
-        .catch(err => {
-          console.warn(err);
-        });
-    },
-    /**
-     * @desc: 指定操作弹窗
-     * @param { Number } index 下标
-     * @param { String } dialogType 标签或预览
-     */
-    handelShowDialog(index, dialogType = 'label') {
-      if (!this.formData.bcs_cluster_id) return;
-      this.currentSetIndex = index;
-      const type = this.isNode ? 'node' : 'pod';
-      const config = this.formData.configs[index];
-      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-      const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
-      if (dialogType === 'label') {
-        this.currentSelector = {
-          bk_biz_id: this.bkBizId,
-          bcs_cluster_id: this.formData.bcs_cluster_id,
-          type,
-          namespaceStr: config.noQuestParams.namespaceStr,
-          labelSelector: config.labelSelector
-        };
-      } else if (dialogType === 'view') {
-        const { workload_type: workloadType, workload_name: workloadName } = config.container;
-        const namespaces = config.namespaces.length === 1 && config.namespaces[0] === '*' ? [] : config.namespaces;
-        this.viewQueryParams = {
-          bk_biz_id: this.bkBizId,
-          bcs_cluster_id: this.formData.bcs_cluster_id,
-          type,
-          [namespacesKey]: namespaces,
-          label_selector: this.getLabelSelectorQueryParams(config.labelSelector, true),
-          container: {
-            workload_type: workloadType,
-            workload_name: workloadName,
-            [containerKey]: config.containerNameList.join(',')
-          }
-        };
-      }
-      dialogType === 'label' ? (this.isShowLabelTargetDialog = true) : (this.isShowViewDialog = true);
-    },
-    handleAddNewContainerConfig() {
-      // 添加配置项
-      const newContainerConfig = deepClone(this.configBaseObj);
-      this.publicLetterIndex += 1;
-      newContainerConfig.noQuestParams.letterIndex = this.publicLetterIndex;
-      this.formData.configs.push(newContainerConfig);
-    },
-    handleDeleteConfig(index, letterIndex) {
-      // 删除配置项
-      this.$bkInfo({
-        subTitle: this.$t('确定要删除配置项{n}？', { n: this.getFromCharCode(letterIndex) }),
-        type: 'warning',
-        confirmFn: () => {
-          this.formData.configs.splice(index, 1);
-        }
-      });
-    },
-    handleNameSpaceSelect(option, index) {
-      const config = this.formData.configs[index];
-      if (option[option.length - 1] === '*') {
-        // 如果最后一步选择所有，则清空数组填所有
-        const nameSpacesLength = config.namespaces.length;
-        config.namespaces.splice(0, nameSpacesLength, '*');
-        config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
-        return;
-      }
-      if (option.length > 1 && option.includes('*')) {
-        // 如果选中其他的值 包含所有则去掉所有选项
-        const allIndex = option.findIndex(item => item === '*');
-        config.namespaces.splice(allIndex, 1);
-      }
-      config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
-    },
-    // 当前所选集群是否共享集群
-    getIsSharedCluster() {
-      return this.clusterList?.find(cluster => cluster.id === this.formData.bcs_cluster_id)?.is_shared ?? false;
-    },
-    getNameSpaceList(clusterID, isFirstUpdateSelect = false) {
-      if (!clusterID || (this.isPhysicsEnvironment && this.isUpdate)) return;
-      const query = { bcs_cluster_id: clusterID, bk_biz_id: this.bkBizId };
-      this.nameSpaceRequest = true;
-      this.$http
-        .request('container/getNameSpace', { query })
-        .then(res => {
-          // 判断是否是第一次切换集群 如果是 则进行详情页namespace数据回显
-          if (isFirstUpdateSelect) {
-            const namespaceList = [];
-            this.formData.configs.forEach(configItem => {
-              namespaceList.push(...configItem.namespaces);
+      getLabelSelectorQueryParams(labelSelector, isViewType = false) {
+        return labelSelector.reduce(
+          (pre, cur) => {
+            const value = isViewType && ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
+            pre[cur.type].push({
+              key: cur.key,
+              operator: cur.operator,
+              value,
             });
-            const resIDList = res.data.map(item => item.id);
-            const setList = new Set([...namespaceList, ...resIDList]);
-            setList.delete('*');
-            const allList = [...setList].map(item => ({ id: item, name: item }));
-            this.nameSpacesSelectList = [...allList];
-            if (!this.getIsSharedCluster()) {
-              this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
-            }
-            return;
-          }
-          this.nameSpacesSelectList = [...res.data];
-          if (!this.getIsSharedCluster()) {
-            this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
-          }
-        })
-        .catch(err => {
-          console.warn(err);
-        })
-        .finally(() => {
-          this.nameSpaceRequest = false;
-        });
+            return pre;
+          },
+          {
+            match_labels: [],
+            match_expressions: [],
+          },
+        );
+      },
+      isShowContainerTips(configItem) {
+        const { containerExclude, namespacesExclude } = configItem.noQuestParams;
+        return [containerExclude, namespacesExclude].includes('!=');
+      },
+      handleUpdateCollector() {
+        const projectItem = this.localClusterList.find(item => item.id === this.formData.bcs_cluster_id);
+        const findSpace = this.mySpaceList.find(item => item.space_code === projectItem.project_id);
+        const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_id}/log-collector`;
+        window.open(url, '_blank');
+      },
+      /** 判断除基本信息外是否有更改过值 */
+      isUpdateIssuedShowValue() {
+        const params = this.handleParams();
+        const { description, collector_config_name, ...otherVal } = params;
+        return !deepEqual(this.editComparedData, otherVal);
+      },
+      /** 判断是否有改值 */
+      getIsUpdateSubmitValue() {
+        const params = this.handleParams();
+        return !deepEqual(this.localParams, params);
+      },
     },
-    showNameSpacesSelectList(conIndex) {
-      const config = this.formData.configs[conIndex];
-      const operate = config.noQuestParams.namespacesExclude;
-      if (!this.nameSpacesSelectList.length) return [];
-      if (operate === '!=' && this.nameSpacesSelectList.some(item => item.id === '*')) {
-        if (config.namespaces.length === 1 && config.namespaces[0] === '*') config.namespaces = [];
-        return this.nameSpacesSelectList.slice(1);
-      }
-      return this.nameSpacesSelectList;
-    },
-    /**
-     * @desc: 获取bcs集群列表
-     */
-    getBcsClusterList() {
-      if (this.isRequestCluster) return;
-      this.isRequestCluster = true;
-      const query = { bk_biz_id: this.bkBizId };
-      this.$http
-        .request('container/getBcsList', { query })
-        .then(res => {
-          if (res.code === 0) {
-            this.clusterList = res.data;
-          }
-        })
-        .catch(err => {
-          console.warn(err);
-        })
-        .finally(() => {
-          this.isRequestCluster = false;
-        });
-    },
-    /**
-     * @desc: 切换ui模式或yaml模式
-     * @param { Boolean } val
-     */
-    handelChangeYaml(val) {
-      return new Promise((resolve, reject) => {
-        if (val) {
-          const { add_pod_label, extra_labels, configs } = this.handleParams();
-          const data = { add_pod_label, extra_labels, configs };
-          // 传入处理后的参数 请求ui配置转yaml的数据
-          this.$http
-            .request('container/containerConfigsToYaml', { data })
-            .then(res => {
-              this.formData.yaml_config = res.data;
-              // 保存进入yaml模式之前的ui配置参数
-              Object.assign(this.uiconfigToYamlData, {
-                add_pod_label: this.formData.add_pod_label,
-                extra_labels: this.formData.extra_labels,
-                configs: this.formData.configs
-              });
-              resolve(true);
-            })
-            .catch(err => {
-              console.warn(err);
-              reject(false);
-            });
-        } else {
-          try {
-            // 若有报错 则回填进入yaml模式之前的ui配置参数
-            if (!this.$refs.yamlEditorRef.getSubmitState) {
-              Object.assign(this.formData, this.uiconfigToYamlData);
-            } else {
-              // 无报错 回填yamlData的参数
-              const assignData = this.initContainerFormData(this.yamlFormData, true);
-              Object.assign(this.formData, assignData);
-            }
-            resolve(true);
-          } catch (error) {
-            resolve(false);
-          }
-        }
-      });
-    },
-    /**
-     * @desc: 编进进入时判断当前环境 禁用另一边环境选择
-     */
-    initBtnListDisable() {
-      const operateIndex = ['linux', 'windows'].includes(this.currentEnvironment) ? 1 : 0;
-      this.environmentList[operateIndex].btnList.forEach(item => (item.isDisable = true));
-    },
-    getFromCharCode(index) {
-      return String.fromCharCode(index + 65);
-    },
-    handelClusterChange() {
-      // 切换集群清空 namespaces
-      this.formData.configs = this.formData.configs.map(conf => {
-        return {
-          ...conf,
-          namespaces: []
-        };
-      });
-    },
-    checkEnNameValidator(val) {
-      this.isTextValid = new RegExp(/^[A-Za-z0-9_]+$/).test(val);
-      return this.isTextValid;
-    },
-    handleEnConvert() {
-      const str = this.formData.collector_config_name_en;
-      const convertStr = str.split('').reduce((pre, cur) => {
-        if (cur === '-') cur = '_'; // 中划线转化成下划线
-        if (!/\w/.test(cur)) cur = ''; // 不符合的值去掉
-        return (pre += cur);
-      }, '');
-      this.formData.collector_config_name_en = convertStr;
-      this.$refs.validateForm
-        .validate()
-        .then(() => {
-          this.isTextValid = true;
-        })
-        .catch(() => {
-          if (convertStr.length < 5) this.isTextValid = true;
-        });
-    },
-    getSelectorNodes() {
-      const { target_node_type: type, target_nodes: nodes } = this.formData;
-      const targetList = toSelectorNode(nodes, type);
-      return {
-        host_list: type === 'INSTANCE' ? targetList : [],
-        node_list: type === 'TOPO' ? targetList : [],
-        service_template_list: type === 'SERVICE_TEMPLATE' ? targetList : [],
-        set_template_list: type === 'SET_TEMPLATE' ? targetList : []
-      };
-    },
-    deleteLabItem(conIndex, matchID) {
-      const { labelSelector } = this.formData.configs[conIndex];
-      const labelIndex = labelSelector.findIndex(item => item.id === matchID);
-      labelSelector.splice(labelIndex, 1);
-    },
-    handleLabelEdit(conIndex, matchID, newValue) {
-      const { labelSelector } = this.formData.configs[conIndex];
-
-      const isRepeat = labelSelector.some(item => {
-        return newValue.key === item.key && newValue.value === item.value && newValue.operator === item.operator;
-      });
-
-      const type = newValue.operator === '=' ? 'match_labels' : 'match_expressions';
-
-      return new Promise(resolve => {
-        const labelIndex = labelSelector.findIndex(item => item.id === matchID);
-        if (!isRepeat) {
-          const newMatchObject = { ...labelSelector[labelIndex], ...newValue, type };
-          labelSelector.splice(labelIndex, 1, newMatchObject);
-        } else {
-          if (newValue?.isExternal) labelSelector.splice(labelIndex, 1);
-        }
-        resolve(true);
-      });
-    },
-    // 手动添加表达式
-    handleSubmitExpressions(conIndex, val) {
-      const configs = this.formData.configs[conIndex];
-      const isRepeat = configs.labelSelector.some(item => {
-        return val.key === item.key && val.value === item.value && val.operator === item.operator;
-      });
-      return new Promise(resolve => {
-        if (!isRepeat) {
-          const type = val.operator === '=' ? 'match_labels' : 'match_expressions';
-          configs.labelSelector.unshift({
-            ...val,
-            id: random(10),
-            type
-          });
-        }
-        configs.noQuestParams.handleEditLabel = false;
-        resolve(true);
-      });
-    },
-    handleEnterLabel(conIndex, isShow = true) {
-      this.formData.configs[conIndex].noQuestParams.handleEditLabel = isShow;
-    },
-    getScopeName(conItem) {
-      return this.scopeNameList[conItem];
-    },
-    // 是否显示对应模块的列表的按钮
-    isShowScopeButton(conIndex, scope) {
-      // 当前环境为node时， 除了label列表全部不显示
-      if (this.isNode && scope !== 'label') return false;
-      return this.getScopeSelectShow(conIndex)[scope];
-    },
-    // 点击添加范围的列表 显示对应模块
-    handleAddNewScope(conIndex, scope) {
-      this.getScopeSelectShow(conIndex)[scope] = false;
-    },
-    // 是否展示添加范围的按钮
-    isShowAddScopeButton(conIndex) {
-      // 当前为node环境时 隐藏按钮直接显示操作范围模块
-      if (this.isNode) return false;
-      return Object.values(this.getScopeSelectShow(conIndex)).some(Boolean);
-    },
-    // 是否展示对应操作范围模块
-    isShowScopeItem(conIndex, scope) {
-      if (this.isNode) return scope === 'label'; // 当前环境为node时 若是标签模块则直接显示 其余均不显示
-      return !this.getScopeSelectShow(conIndex)[scope];
-    },
-    // 点击删除icon 隐藏对应范围模块 初始化对应的值
-    handleDeleteConfigParamsItem(conIndex, scope) {
-      const config = this.formData.configs[conIndex];
-      switch (scope) {
-        case 'namespace':
-          config.namespaces = [];
-          break;
-        case 'load':
-          config.container.workload_type = '';
-          config.container.workload_name = '';
-          break;
-        case 'label':
-          config.labelSelector = [];
-          break;
-        case 'containerName':
-          config.containerNameList = [];
-          break;
-        default:
-          break;
-      }
-      if (scope === 'label' && this.isNode) return;
-      this.getScopeSelectShow(conIndex)[scope] = true;
-    },
-    handleContainerNameBlur(input, list, conIndex) {
-      if (!input) return;
-      const config = this.formData.configs[conIndex];
-      config.containerNameList = !list.length ? [input] : [...new Set([...config.containerNameList, input])];
-    },
-    // 获取config里添加范围的列表
-    getScopeSelectShow(conIndex) {
-      return this.formData.configs[conIndex].noQuestParams.scopeSelectShow;
-    },
-    getNameSpaceStr(namespaces) {
-      return namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
-    },
-    /**
-     * @desc: 展示用的标签格式转化成存储或传参的标签格式
-     * @param {Object} labelSelector 主页展示用的label_selector
-     * @param {Boolean} isViewType 是否是预览传参 in notin 操作符需要加括号
-     * @returns {Object} 返回传参用的label_selector
-     */
-    getLabelSelectorQueryParams(labelSelector, isViewType = false) {
-      return labelSelector.reduce(
-        (pre, cur) => {
-          const value = isViewType && ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
-          pre[cur.type].push({
-            key: cur.key,
-            operator: cur.operator,
-            value
-          });
-          return pre;
-        },
-        {
-          match_labels: [],
-          match_expressions: []
-        }
-      );
-    },
-    isShowContainerTips(configItem) {
-      const { containerExclude, namespacesExclude } = configItem.noQuestParams;
-      return [containerExclude, namespacesExclude].includes('!=');
-    },
-    handleUpdateCollector() {
-      const projectItem = this.localClusterList.find(item => item.id === this.formData.bcs_cluster_id);
-      const findSpace = this.mySpaceList.find(item => item.space_code === projectItem.project_id);
-      const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_id}/log-collector`;
-      window.open(url, '_blank');
-    },
-    /** 判断除基本信息外是否有更改过值 */
-    isUpdateIssuedShowValue() {
-      const params = this.handleParams();
-      const { description, collector_config_name, ...otherVal } = params;
-      return !deepEqual(this.editComparedData, otherVal);
-    },
-    /** 判断是否有改值 */
-    getIsUpdateSubmitValue() {
-      const params = this.handleParams();
-      return !deepEqual(this.localParams, params);
-    }
-  }
-};
+  };
 </script>
 
 <style lang="scss">
-@import '@/scss/mixins/flex.scss';
-/* stylelint-disable no-descending-specificity */
-.add-collection-container {
-  max-height: 100%;
-  min-width: 950px;
-  padding: 0 42px 42px;
-  overflow: auto;
+  @import '@/scss/mixins/flex.scss';
 
-  .en-bk-form {
-    width: 710px;
+  /* stylelint-disable no-descending-specificity */
+  .add-collection-container {
+    min-width: 950px;
+    max-height: 100%;
+    padding: 0 42px 42px;
+    overflow: auto;
 
-    .en-name-box {
-      align-items: center;
+    .en-bk-form {
+      width: 710px;
 
-      @include flex-justify(space-between);
-    }
-
-    .text-error {
-      position: absolute;
-      top: 6px;
-      left: 12px;
-      display: inline-block;
-      font-size: 12px;
-      color: transparent;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      text-decoration: red wavy underline !important;
-      pointer-events: none;
-    }
-  }
-
-  .bk-form-content {
-    line-height: 20px;
-  }
-
-  .king-alert {
-    margin: 24px 0 -18px;
-
-    .link {
-      color: #3a84ff;
-      cursor: pointer;
-    }
-  }
-
-  .add-collection-title {
-    width: 100%;
-    padding-top: 36px;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #63656e;
-    border-bottom: 1px solid #dcdee5;
-  }
-
-  .original-title {
-    @include flex-justify(flex-start);
-
-    > div {
-      margin-left: 40px;
-      font-weight: 500;
-    }
-  }
-
-  .tips,
-  .en-name-tips {
-    padding: 4px 0;
-    font-size: 12px;
-    color: #aeb0b7;
-  }
-
-  .en-name-tips {
-    margin-top: 8px;
-    margin-left: 0;
-    line-height: 12px;
-  }
-
-  .hight-setting {
-    width: 100%;
-    min-height: 60px;
-
-    .icons-downs {
-      display: inline-block;
-      width: 9px;
-      height: 5px;
-      margin-top: -3px;
-      margin-right: 6px;
-      vertical-align: middle;
-      background: url('../../images/icons/triangle.png');
-      background-size: 100% 100%;
-    }
-
-    .icon-left {
-      transform: rotate(-90deg);
-    }
-
-    .log-paths {
-      .bk-form-control {
-        width: 460px;
-      }
-    }
-  }
-
-  .bk-label {
-    color: #90929a;
-  }
-
-  .w520 {
-    &.bk-form-control {
-      width: 520px;
-    }
-
-    &.bk-select {
-      width: 520px;
-    }
-  }
-
-  .multiline-log-container {
-    margin-top: 4px;
-
-    .row-container {
-      display: flex;
-      align-items: center;
-
-      &.second {
-        // padding-left: 115px;
-        margin-top: 10px;
-        font-size: 12px;
-        color: #63656e;
-
-        .bk-form-item {
-          /* stylelint-disable-next-line declaration-no-important */
-          margin: 0 !important;
-
-          .bk-form-content {
-            /* stylelint-disable-next-line declaration-no-important */
-            margin: 0 !important;
-
-            .bk-form-control {
-              width: 64px;
-              margin: 0 6px;
-            }
-          }
-        }
-      }
-
-      .king-button {
-        margin-bottom: 4px;
-      }
-
-      &.pl150 {
-        padding-left: 150px;
-      }
-    }
-  }
-
-  .form-div {
-    display: flex;
-
-    .form-inline-div {
-      .bk-form-content {
-        display: flex;
-      }
-    }
-
-    .prefix {
-      margin-right: 8px;
-      font-size: 14px;
-      line-height: 32px;
-      color: #858790;
-    }
-
-    .count {
-      margin-left: 8px;
-      font-size: 12px;
-      line-height: 32px;
-      color: #7a7c85;
-    }
-
-    .font-blue {
-      font-weight: bold;
-      color: #4e99ff;
-    }
-
-    .font-gray {
-      color: #858790;
-    }
-
-    .icons {
-      font-size: 21px;
-      line-height: 32px;
-      color: #c4c6cb;
-      vertical-align: middle;
-      cursor: pointer;
-    }
-
-    .disable {
-      color: #dcdee5;
-      cursor: not-allowed;
-    }
-
-    .item-target {
-      &.is-error .bk-form-content {
-        padding-right: 30px;
-      }
-    }
-  }
-
-  .win-filter {
-    margin-top: 8px;
-
-    .select-div {
-      width: 129px;
-      margin-right: 8px;
-    }
-
-    .tag-input {
-      width: 320px;
-    }
-  }
-
-  .choose-table {
-    width: 100%;
-    height: 100%;
-    max-width: 1170px;
-    padding-bottom: 14px;
-    background: #fff;
-    border: 1px solid #dcdee5;
-
-    .bk-form-content {
-      /* stylelint-disable-next-line declaration-no-important */
-      margin-left: 0 !important;
-    }
-
-    label {
-      /* stylelint-disable-next-line declaration-no-important */
-      width: 0 !important;
-    }
-
-    .choose-table-item {
-      position: relative;
-      display: flex;
-      height: 32px;
-      padding: 0 20px;
-      margin-top: 13px;
-      font-size: 13px;
-      line-height: 32px;
-      color: #858790;
-
-      .left {
-        width: 110px;
-      }
-
-      .main {
-        position: relative;
-        padding-right: 130px;
-        flex: 1;
-
-        .bk-form-control {
-          width: 88%;
-        }
-      }
-
-      .line {
-        .bk-form-control {
-          &::before {
-            position: absolute;
-            top: 16px;
-            left: 100%;
-            width: 25px;
-            height: 1px;
-            border-top: 1px dashed #c4c6cc;
-            content: '';
-          }
-        }
-      }
-
-      .right {
-        width: 60px;
-      }
-    }
-
-    .choose-table-item-head {
-      height: 42px;
-      margin-top: 0;
-      font-size: 12px;
-      line-height: 42px;
-      background: #fafbfd;
-      border-bottom: 1px solid #dcdee5;
-    }
-
-    .choose-table-item-body {
-      position: relative;
-      height: 100%;
-
-      .choose-select {
-        position: absolute;
-        top: 0;
-        left: calc(88% - 120px);
-        display: flex;
-        height: 100%;
+      .en-name-box {
         align-items: center;
 
-        .select-div {
-          width: 80px;
-        }
-
-        &::before {
-          position: absolute;
-          top: 50%;
-          right: 80px;
-          width: 20px;
-          height: 1px;
-          border-top: 1px dashed #c4c6cc;
-          content: '';
-        }
-
-        &::after {
-          position: absolute;
-          top: 17px;
-          right: 100px;
-          width: 1px;
-          height: calc(100% - 32px);
-          border-left: 1px dashed #c4c6cc;
-          content: '';
-        }
+        @include flex-justify(space-between);
       }
-    }
-  }
 
-  .log-type {
-    height: 32px;
-    border-radius: 2px;
-
-    .bk-button {
-      min-width: 106px;
-      font-size: 12px;
-
-      span {
-        padding: 0 1px;
-      }
-    }
-
-    .disable {
-      color: #dcdee5;
-      cursor: not-allowed;
-      border-color: #dcdee5;
-    }
-
-    .is-updated {
-      color: #63656e;
-      background: #fafbfd;
-      border-color: #dcdee5;
-    }
-  }
-
-  .species-item {
-    margin-bottom: -30px;
-
-    .bk-form-checkbox {
-      display: flex;
-      width: 320px;
-      height: 30px;
-      align-items: center;
-    }
-
-    .bk-tag-selector {
-      width: 320px;
-      transform: translate3d(66px, -30px, 0);
-    }
-  }
-
-  .ml {
-    margin-left: -115px;
-  }
-
-  .mt {
-    margin-top: 20px;
-  }
-
-  .ml9 {
-    margin-left: 8px;
-  }
-
-  .ml10 {
-    margin-left: 10px;
-  }
-
-  .ml115 {
-    margin-left: 115px;
-  }
-
-  .mt8 {
-    margin-top: 8px;
-  }
-
-  .is-selected {
-    /* stylelint-disable-next-line declaration-no-important */
-    z-index: 2 !important;
-  }
-
-  .rulesColor {
-    /* stylelint-disable-next-line declaration-no-important */
-    border-color: #ff5656 !important;
-  }
-
-  .tagRulesColor {
-    .bk-tag-input {
-      /* stylelint-disable-next-line declaration-no-important */
-      border-color: #ff5656 !important;
-    }
-  }
-
-  .win-content {
-    position: relative;
-    left: 118px;
-    width: 76%;
-    padding-bottom: 20px;
-
-    > span {
-      position: absolute;
-      top: 6px;
-      left: -80px;
-      font-size: 14px;
-      color: #90929a;
-    }
-
-    &.en-span span {
-      left: -112px;
-    }
-
-    .filter-select {
-      margin-top: 11px;
-    }
-
-    .bk-select {
-      width: 184px;
-      height: 32px;
-      margin: 0 8px 12px 0;
-    }
-  }
-
-  .icon-close-circle {
-    display: inline-block;
-    font-size: 14px;
-    transform: rotateZ(45deg);
-  }
-
-  .environment-box {
-    display: flex;
-    align-items: center;
-    margin-bottom: 30px;
-
-    .environment-container {
-      height: 68px;
-      margin-right: 8px;
-
-      .environment-category {
+      .text-error {
+        position: absolute;
+        top: 6px;
+        left: 12px;
         display: inline-block;
-        margin: 6px 0;
         font-size: 12px;
-        font-weight: 400;
-        color: #63656e;
-      }
+        color: transparent;
 
-      .button-box {
-        display: flex;
-
-        .environment-button {
-          display: flex;
-          width: 120px;
-          height: 40px;
-          margin-right: 16px;
-          font-size: 12px;
-          color: #313238;
-          cursor: pointer;
-          border: 1px solid #dcdee5;
-          border-radius: 2px;
-          user-select: none;
-          align-items: center;
-
-          img {
-            padding: 0 8px 0 4px;
-          }
-
-          &.disable {
-            cursor: no-drop;
-            background: #fafbfd;
-          }
-
-          &.active {
-            background: #e1ecff;
-            border: 1px solid #3a84ff;
-          }
-        }
-      }
-
-      &:not(:first-child) {
-        position: relative;
-        margin-left: 24px;
-
-        &::before {
-          position: absolute;
-          top: 36px;
-          left: -24px;
-          width: 1px;
-          height: 32px;
-          background-color: #dcdee5;
-          content: ' ';
-        }
-      }
-    }
-  }
-
-  .cluster-select-box {
-    margin-top: 20px;
-
-    .bk-select {
-      width: 382px;
-    }
-
-    .tips {
-      font-size: 12px;
-      color: #979ba5;
-    }
-  }
-
-  .config-box {
-    width: 730px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    background: #fff;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-
-    .config-title {
-      display: flex;
-      height: 31px;
-      padding: 0 16px;
-      background: #f0f1f5;
-      border-radius: 1px 1px 0 0;
-      justify-content: space-between;
-      align-items: center;
-
-      .icon-delete {
-        font-size: 16px;
-        color: #ea3636;
-        cursor: pointer;
+        /* stylelint-disable-next-line declaration-no-important */
+        text-decoration: red wavy underline !important;
+        pointer-events: none;
       }
     }
 
-    .config-container {
-      padding: 16px 24px;
-      color: #63656e;
-      background: #fafbfd;
+    .bk-form-content {
+      line-height: 20px;
+    }
 
-      .config-cluster-box {
-        padding: 8px 12px 16px;
-        font-size: 12px;
-        background: #fff;
-        border: 1px solid #eaebf0;
-        border-radius: 2px;
+    .king-alert {
+      margin: 24px 0 -18px;
 
-        .config-cluster-title {
-          padding: 8px 12px;
-
-          .title {
-            margin-right: 14px;
-            font-weight: 700;
-          }
-
-          .bk-icon {
-            font-size: 14px;
-          }
-
-          .disable {
-            /* stylelint-disable-next-line declaration-no-important */
-            color: #63656e !important;
-
-            /* stylelint-disable-next-line declaration-no-important */
-            cursor: no-drop !important;
-          }
-
-          .preview {
-            color: #3a84ff;
-            cursor: pointer;
-          }
-        }
-      }
-
-      .tips-btn {
+      .link {
         color: #3a84ff;
         cursor: pointer;
       }
+    }
 
-      .config-item-title {
-        padding-bottom: 8px;
+    .add-collection-title {
+      width: 100%;
+      padding-top: 36px;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #63656e;
+      border-bottom: 1px solid #dcdee5;
+    }
 
-        :last-child {
-          margin-left: 8px;
-          cursor: pointer;
+    .original-title {
+      @include flex-justify(flex-start);
+
+      > div {
+        margin-left: 40px;
+        font-weight: 500;
+      }
+    }
+
+    .tips,
+    .en-name-tips {
+      padding: 4px 0;
+      font-size: 12px;
+      color: #aeb0b7;
+    }
+
+    .en-name-tips {
+      margin-top: 8px;
+      margin-left: 0;
+      line-height: 12px;
+    }
+
+    .hight-setting {
+      width: 100%;
+      min-height: 60px;
+
+      .icons-downs {
+        display: inline-block;
+        width: 9px;
+        height: 5px;
+        margin-top: -3px;
+        margin-right: 6px;
+        vertical-align: middle;
+        background: url('../../images/icons/triangle.png');
+        background-size: 100% 100%;
+      }
+
+      .icon-left {
+        transform: rotate(-90deg);
+      }
+
+      .log-paths {
+        .bk-form-control {
+          width: 460px;
+        }
+      }
+    }
+
+    .bk-label {
+      color: #90929a;
+    }
+
+    .w520 {
+      &.bk-form-control {
+        width: 520px;
+      }
+
+      &.bk-select {
+        width: 520px;
+      }
+    }
+
+    .multiline-log-container {
+      margin-top: 4px;
+
+      .row-container {
+        display: flex;
+        align-items: center;
+
+        &.second {
+          // padding-left: 115px;
+          margin-top: 10px;
+          font-size: 12px;
+          color: #63656e;
+
+          .bk-form-item {
+            /* stylelint-disable-next-line declaration-no-important */
+            margin: 0 !important;
+
+            .bk-form-content {
+              /* stylelint-disable-next-line declaration-no-important */
+              margin: 0 !important;
+
+              .bk-form-control {
+                width: 64px;
+                margin: 0 6px;
+              }
+            }
+          }
         }
 
+        .king-button {
+          margin-bottom: 4px;
+        }
+
+        &.pl150 {
+          padding-left: 150px;
+        }
+      }
+    }
+
+    .form-div {
+      display: flex;
+
+      .form-inline-div {
+        .bk-form-content {
+          display: flex;
+        }
+      }
+
+      .prefix {
+        margin-right: 8px;
+        font-size: 14px;
+        line-height: 32px;
+        color: #858790;
+      }
+
+      .count {
+        margin-left: 8px;
+        font-size: 12px;
+        line-height: 32px;
+        color: #7a7c85;
+      }
+
+      .font-blue {
+        font-weight: bold;
+        color: #4e99ff;
+      }
+
+      .font-gray {
+        color: #858790;
+      }
+
+      .icons {
+        font-size: 21px;
+        line-height: 32px;
+        color: #c4c6cb;
+        vertical-align: middle;
+        cursor: pointer;
+      }
+
+      .disable {
+        color: #dcdee5;
+        cursor: not-allowed;
+      }
+
+      .item-target {
+        &.is-error .bk-form-content {
+          padding-right: 30px;
+        }
+      }
+    }
+
+    .win-filter {
+      margin-top: 8px;
+
+      .select-div {
+        width: 129px;
+        margin-right: 8px;
+      }
+
+      .tag-input {
+        width: 320px;
+      }
+    }
+
+    .choose-table {
+      width: 100%;
+      max-width: 1170px;
+      height: 100%;
+      padding-bottom: 14px;
+      background: #fff;
+      border: 1px solid #dcdee5;
+
+      .bk-form-content {
+        /* stylelint-disable-next-line declaration-no-important */
+        margin-left: 0 !important;
+      }
+
+      label {
+        /* stylelint-disable-next-line declaration-no-important */
+        width: 0 !important;
+      }
+
+      .choose-table-item {
+        position: relative;
+        display: flex;
+        height: 32px;
+        padding: 0 20px;
+        margin-top: 13px;
+        font-size: 13px;
+        line-height: 32px;
+        color: #858790;
+
+        .left {
+          width: 110px;
+        }
+
+        .main {
+          position: relative;
+          flex: 1;
+          padding-right: 130px;
+
+          .bk-form-control {
+            width: 88%;
+          }
+        }
+
+        .line {
+          .bk-form-control {
+            &::before {
+              position: absolute;
+              top: 16px;
+              left: 100%;
+              width: 25px;
+              height: 1px;
+              content: '';
+              border-top: 1px dashed #c4c6cc;
+            }
+          }
+        }
+
+        .right {
+          width: 60px;
+        }
+      }
+
+      .choose-table-item-head {
+        height: 42px;
+        margin-top: 0;
+        font-size: 12px;
+        line-height: 42px;
+        background: #fafbfd;
+        border-bottom: 1px solid #dcdee5;
+      }
+
+      .choose-table-item-body {
+        position: relative;
+        height: 100%;
+
+        .choose-select {
+          position: absolute;
+          top: 0;
+          left: calc(88% - 120px);
+          display: flex;
+          align-items: center;
+          height: 100%;
+
+          .select-div {
+            width: 80px;
+          }
+
+          &::before {
+            position: absolute;
+            top: 50%;
+            right: 80px;
+            width: 20px;
+            height: 1px;
+            content: '';
+            border-top: 1px dashed #c4c6cc;
+          }
+
+          &::after {
+            position: absolute;
+            top: 17px;
+            right: 100px;
+            width: 1px;
+            height: calc(100% - 32px);
+            content: '';
+            border-left: 1px dashed #c4c6cc;
+          }
+        }
+      }
+    }
+
+    .log-type {
+      height: 32px;
+      border-radius: 2px;
+
+      .bk-button {
+        min-width: 106px;
+        font-size: 12px;
+
+        span {
+          padding: 0 1px;
+        }
+      }
+
+      .disable {
+        color: #dcdee5;
+        cursor: not-allowed;
+        border-color: #dcdee5;
+      }
+
+      .is-updated {
+        color: #63656e;
+        background: #fafbfd;
+        border-color: #dcdee5;
+      }
+    }
+
+    .species-item {
+      margin-bottom: -30px;
+
+      .bk-form-checkbox {
+        display: flex;
+        align-items: center;
+        width: 320px;
+        height: 30px;
+      }
+
+      .bk-tag-selector {
+        width: 320px;
+        transform: translate3d(66px, -30px, 0);
+      }
+    }
+
+    .ml {
+      margin-left: -115px;
+    }
+
+    .mt {
+      margin-top: 20px;
+    }
+
+    .ml9 {
+      margin-left: 8px;
+    }
+
+    .ml10 {
+      margin-left: 10px;
+    }
+
+    .ml115 {
+      margin-left: 115px;
+    }
+
+    .mt8 {
+      margin-top: 8px;
+    }
+
+    .is-selected {
+      /* stylelint-disable-next-line declaration-no-important */
+      z-index: 2 !important;
+    }
+
+    .rulesColor {
+      /* stylelint-disable-next-line declaration-no-important */
+      border-color: #ff5656 !important;
+    }
+
+    .tagRulesColor {
+      .bk-tag-input {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-color: #ff5656 !important;
+      }
+    }
+
+    .win-content {
+      position: relative;
+      left: 118px;
+      width: 76%;
+      padding-bottom: 20px;
+
+      > span {
+        position: absolute;
+        top: 6px;
+        left: -80px;
+        font-size: 14px;
+        color: #90929a;
+      }
+
+      &.en-span span {
+        left: -112px;
+      }
+
+      .filter-select {
+        margin-top: 11px;
+      }
+
+      .bk-select {
+        width: 184px;
+        height: 32px;
+        margin: 0 8px 12px 0;
+      }
+    }
+
+    .icon-close-circle {
+      display: inline-block;
+      font-size: 14px;
+      transform: rotateZ(45deg);
+    }
+
+    .environment-box {
+      display: flex;
+      align-items: center;
+      margin-bottom: 30px;
+
+      .environment-container {
+        height: 68px;
+        margin-right: 8px;
+
+        .environment-category {
+          display: inline-block;
+          margin: 6px 0;
+          font-size: 12px;
+          font-weight: 400;
+          color: #63656e;
+        }
+
+        .button-box {
+          display: flex;
+
+          .environment-button {
+            display: flex;
+            align-items: center;
+            width: 120px;
+            height: 40px;
+            margin-right: 16px;
+            font-size: 12px;
+            color: #313238;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid #dcdee5;
+            border-radius: 2px;
+
+            img {
+              padding: 0 8px 0 4px;
+            }
+
+            &.disable {
+              cursor: no-drop;
+              background: #fafbfd;
+            }
+
+            &.active {
+              background: #e1ecff;
+              border: 1px solid #3a84ff;
+            }
+          }
+        }
+
+        &:not(:first-child) {
+          position: relative;
+          margin-left: 24px;
+
+          &::before {
+            position: absolute;
+            top: 36px;
+            left: -24px;
+            width: 1px;
+            height: 32px;
+            content: ' ';
+            background-color: #dcdee5;
+          }
+        }
+      }
+    }
+
+    .cluster-select-box {
+      margin-top: 20px;
+
+      .bk-select {
+        width: 382px;
+      }
+
+      .tips {
+        font-size: 12px;
+        color: #979ba5;
+      }
+    }
+
+    .config-box {
+      width: 730px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      background: #fff;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+
+      .config-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 31px;
+        padding: 0 16px;
+        background: #f0f1f5;
+        border-radius: 1px 1px 0 0;
+
         .icon-delete {
-          display: none;
-          font-size: 14px;
+          font-size: 16px;
           color: #ea3636;
           cursor: pointer;
         }
       }
 
-      .operator-box {
-        width: 100%;
+      .config-container {
+        padding: 16px 24px;
+        color: #63656e;
+        background: #fafbfd;
 
-        @include flex-center();
+        .config-cluster-box {
+          padding: 8px 12px 16px;
+          font-size: 12px;
+          background: #fff;
+          border: 1px solid #eaebf0;
+          border-radius: 2px;
 
-        > :nth-child(2) {
-          position: relative;
-          left: -1px;
-          border-radius: 0 2px 2px 0;
-          flex: 1;
-        }
+          .config-cluster-title {
+            padding: 8px 12px;
 
-        .operate-select {
-          width: 30px;
-          border-radius: 2px 0 0 2px;
+            .title {
+              margin-right: 14px;
+              font-weight: 700;
+            }
 
-          & .bk-select-angle {
-            display: none;
-          }
-        }
+            .bk-icon {
+              font-size: 14px;
+            }
 
-        .is-focus {
-          position: relative;
-          z-index: 999;
-        }
-      }
+            .disable {
+              /* stylelint-disable-next-line declaration-no-important */
+              color: #63656e !important;
 
-      .config-item {
-        padding: 8px 12px;
-        margin-bottom: 12px;
-        font-size: 12px;
-        border-radius: 2px;
+              /* stylelint-disable-next-line declaration-no-important */
+              cursor: no-drop !important;
+            }
 
-        .select-label {
-          margin-top: 4px;
-          color: #3a84ff;
-
-          .manually {
-            margin-right: 15px;
-            cursor: pointer;
-          }
-
-          .select {
-            position: relative;
-            margin-left: 15px;
-            cursor: pointer;
-
-            &::before {
-              position: absolute;
-              top: 4px;
-              left: -14px;
-              display: inline-block;
-              width: 1px;
-              height: 14px;
-              background: #eaebf0;
-              content: ' ';
+            .preview {
+              color: #3a84ff;
+              cursor: pointer;
             }
           }
         }
 
-        &.hover-light:hover {
-          background: #f5f7fa;
-        }
-
-        &:hover .icon-delete {
-          display: inline-block;
-        }
-      }
-
-      .container-input {
-        .input {
-          max-width: none;
-        }
-
-        .bk-tag-input {
-          border-radius: 0 2px 2px 0;
-        }
-      }
-
-      .container-btn-container {
-        align-items: center;
-        position: relative;
-
-        .span-box {
-          margin-right: 24px;
-
-          &:not(:first-child) {
-            position: relative;
-            margin-right: 0;
-
-            &::before {
-              position: absolute;
-              top: 3px;
-              left: -11px;
-              width: 1px;
-              height: 16px;
-              background-color: #dcdee5;
-              content: ' ';
-            }
-          }
-        }
-
-        .container-btn {
+        .tips-btn {
           color: #3a84ff;
           cursor: pointer;
+        }
 
-          &.disable {
-            color: #c4c6cc;
-            cursor: not-allowed;
+        .config-item-title {
+          padding-bottom: 8px;
+
+          :last-child {
+            margin-left: 8px;
+            cursor: pointer;
           }
 
-          &.cluster-not-select {
-            cursor: not-allowed;
+          .icon-delete {
+            display: none;
+            font-size: 14px;
+            color: #ea3636;
+            cursor: pointer;
           }
         }
-      }
 
-      .filter-content {
-        margin-top: 24px;
-        color: #979ba5;
+        .operator-box {
+          width: 100%;
 
-        > span {
-          margin-bottom: 0;
+          @include flex-center();
+
+          > :nth-child(2) {
+            position: relative;
+            left: -1px;
+            flex: 1;
+            border-radius: 0 2px 2px 0;
+          }
+
+          .operate-select {
+            width: 30px;
+            border-radius: 2px 0 0 2px;
+
+            & .bk-select-angle {
+              display: none;
+            }
+          }
+
+          .is-focus {
+            position: relative;
+            z-index: 999;
+          }
+        }
+
+        .config-item {
+          padding: 8px 12px;
+          margin-bottom: 12px;
+          font-size: 12px;
+          border-radius: 2px;
+
+          .select-label {
+            margin-top: 4px;
+            color: #3a84ff;
+
+            .manually {
+              margin-right: 15px;
+              cursor: pointer;
+            }
+
+            .select {
+              position: relative;
+              margin-left: 15px;
+              cursor: pointer;
+
+              &::before {
+                position: absolute;
+                top: 4px;
+                left: -14px;
+                display: inline-block;
+                width: 1px;
+                height: 14px;
+                content: ' ';
+                background: #eaebf0;
+              }
+            }
+          }
+
+          &.hover-light:hover {
+            background: #f5f7fa;
+          }
+
+          &:hover .icon-delete {
+            display: inline-block;
+          }
+        }
+
+        .container-input {
+          .input {
+            max-width: none;
+          }
+
+          .bk-tag-input {
+            border-radius: 0 2px 2px 0;
+          }
+        }
+
+        .container-btn-container {
+          position: relative;
+          align-items: center;
+
+          .span-box {
+            margin-right: 24px;
+
+            &:not(:first-child) {
+              position: relative;
+              margin-right: 0;
+
+              &::before {
+                position: absolute;
+                top: 3px;
+                left: -11px;
+                width: 1px;
+                height: 16px;
+                content: ' ';
+                background-color: #dcdee5;
+              }
+            }
+          }
+
+          .container-btn {
+            color: #3a84ff;
+            cursor: pointer;
+
+            &.disable {
+              color: #c4c6cc;
+              cursor: not-allowed;
+            }
+
+            &.cluster-not-select {
+              cursor: not-allowed;
+            }
+          }
+        }
+
+        .filter-content {
+          margin-top: 24px;
+          color: #979ba5;
+
+          > span {
+            margin-bottom: 0;
+            color: #63656e;
+          }
+        }
+
+        .filter-select {
+          margin-top: 11px;
+
+          .bk-select {
+            width: 184px;
+            height: 32px;
+          }
+        }
+
+        .specify-domain {
+          max-height: 210px;
+          margin-top: 8px;
+          overflow-y: auto;
+
+          > div {
+            padding: 4px 0;
+          }
+        }
+
+        .bk-select {
+          background: #fff;
+        }
+
+        .bk-label {
           color: #63656e;
         }
       }
+    }
 
-      .filter-select {
-        margin-top: 11px;
+    .conflict-container {
+      width: 730px;
+      height: 32px;
+      padding: 0 11px;
+      margin: 12px 0 14px 115px;
+      font-size: 12px;
+      background: #fff4e2;
+      border: 1px solid #ffdfac;
+      border-radius: 2px;
 
-        .bk-select {
-          width: 184px;
-          height: 32px;
-        }
+      .icon-exclamation-circle {
+        font-size: 16px;
+        color: #ff9c01;
       }
 
-      .specify-domain {
-        max-height: 210px;
-        margin-top: 8px;
-        overflow-y: auto;
-
-        > div {
-          padding: 4px 0;
-        }
-      }
-
-      .bk-select {
-        background: #fff;
-      }
-
-      .bk-label {
+      .conflict-message {
+        margin: 0 16px 0 9px;
         color: #63656e;
       }
+
+      .collection-item {
+        margin-left: 24px;
+        color: #3a84ff;
+      }
+    }
+
+    .add-config-item {
+      justify-content: center;
+      width: 730px;
+      height: 42px;
+      margin: 0 0 14px 115px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #fafbfd;
+      border: 1px dashed #dcdee5;
+
+      @include flex-align();
+
+      > div {
+        color: #63656e;
+
+        @include flex-center;
+      }
+
+      .icon-plus {
+        font-size: 22px;
+        color: #989ca7;
+      }
+    }
+
+    .extra-error {
+      .bk-form-input {
+        border-color: #ff5656;
+      }
+    }
+
+    .add-log-label {
+      display: flex;
+      align-items: center;
+
+      &:not(:first-child) {
+        margin-top: 20px;
+      }
+
+      span {
+        margin: 0 7px;
+        color: #ff9c01;
+      }
+
+      .bk-form-control {
+        width: 240px;
+      }
+    }
+
+    .page-operate {
+      margin-top: 36px;
+    }
+
+    .justify-bt {
+      align-items: center;
+
+      @include flex-justify(space-between);
+    }
+
+    .flex-ac {
+      @include flex-align();
     }
   }
-
-  .conflict-container {
-    width: 730px;
-    height: 32px;
-    padding: 0 11px;
-    margin: 12px 0 14px 115px;
-    font-size: 12px;
-    background: #fff4e2;
-    border: 1px solid #ffdfac;
-    border-radius: 2px;
-
-    .icon-exclamation-circle {
-      font-size: 16px;
-      color: #ff9c01;
-    }
-
-    .conflict-message {
-      margin: 0 16px 0 9px;
-      color: #63656e;
-    }
-
-    .collection-item {
-      margin-left: 24px;
-      color: #3a84ff;
-    }
-  }
-
-  .add-config-item {
-    width: 730px;
-    height: 42px;
-    margin: 0 0 14px 115px;
-    font-size: 12px;
-    cursor: pointer;
-    background: #fafbfd;
-    border: 1px dashed #dcdee5;
-    justify-content: center;
-
-    @include flex-align();
-
-    > div {
-      color: #63656e;
-
-      @include flex-center;
-    }
-
-    .icon-plus {
-      font-size: 22px;
-      color: #989ca7;
-    }
-  }
-
-  .extra-error {
-    .bk-form-input {
-      border-color: #ff5656;
-    }
-  }
-
-  .add-log-label {
-    display: flex;
-    align-items: center;
-
-    &:not(:first-child) {
-      margin-top: 20px;
-    }
-
-    span {
-      margin: 0 7px;
-      color: #ff9c01;
-    }
-
-    .bk-form-control {
-      width: 240px;
-    }
-  }
-
-  .page-operate {
-    margin-top: 36px;
-  }
-
-  .justify-bt {
-    align-items: center;
-
-    @include flex-justify(space-between);
-  }
-
-  .flex-ac {
-    @include flex-align();
-  }
-}
 </style>

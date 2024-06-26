@@ -22,6 +22,7 @@ from .custom_report import (
     TimeSeriesMetric,
     TimeSeriesTag,
 )
+from .data_link import DataLinkResource, DataLinkResourceConfig
 from .data_pipeline import (
     DataPipeline,
     DataPipelineDataSource,
@@ -139,6 +140,9 @@ __all__ = [
     "DataPipelineDataSource",
     "AccessVMRecord",
     "SpaceVMInfo",
+    # vm data link
+    "DataLinkResource",
+    "DataLinkResourceConfig",
     # record rule
     "RecordRule",
     "ResultTableFlow",

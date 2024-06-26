@@ -316,7 +316,7 @@ class CustomEventSerializer(QueryConfigSerializer):
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
     agg_dimension = serializers.ListField(allow_empty=True)
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
-    custom_event_name = serializers.CharField(label="事件名")
+    custom_event_name = serializers.CharField(label="事件名", required=False, allow_blank=True)
 
 
 class CustomTimeSeriesSerializer(BkMonitorTimeSeriesSerializer):

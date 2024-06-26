@@ -1,38 +1,47 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Inject, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import _escape from 'lodash/escape';
+
 import $http from '@/api';
+
 import './agg-chart.scss';
 
+interface IProps {}
+
 @Component
-export default class AggChart extends tsc<{}> {
+export default class AggChart extends tsc<IProps> {
   @Prop({ type: String, required: true }) fieldName: string;
   @Prop({ type: String, required: true }) fieldType: string;
   @Prop({ type: Boolean, default: false }) parentExpand: boolean;
   @Prop({ type: Object, required: true }) retrieveParams: any;
-  @Prop({ type: Array, required: true }) datePickerValue: Array<string | number>;
+  @Prop({ type: Array, required: true }) datePickerValue: Array<number | string>;
 
   @Inject('addFilterCondition') addFilterCondition;
 
@@ -42,7 +51,7 @@ export default class AggChart extends tsc<{}> {
   mappingKay = {
     // is is not 值映射
     is: '=',
-    'is not': '!='
+    'is not': '!=',
   };
   limitSize = 5;
   fieldValueData = {
@@ -52,7 +61,7 @@ export default class AggChart extends tsc<{}> {
     limit: 5,
     total_count: 0,
     field_count: 0,
-    values: []
+    values: [],
   };
 
   get unionIndexList() {
@@ -111,10 +120,10 @@ export default class AggChart extends tsc<{}> {
         ...this.retrieveParams,
         agg_field: this.fieldName,
         limit,
-        index_set_ids: indexSetIDs
+        index_set_ids: indexSetIDs,
       };
       const res = await $http.request('retrieve/fieldFetchTopList', {
-        data
+        data,
       });
       if (res.code === 0) {
         await this.$nextTick();
@@ -146,8 +155,8 @@ export default class AggChart extends tsc<{}> {
               <div class='chart-content'>
                 <div class='text-container'>
                   <div
-                    v-bk-overflow-tips
                     class='text-value'
+                    v-bk-overflow-tips
                   >
                     {item[0]}
                   </div>
@@ -155,20 +164,20 @@ export default class AggChart extends tsc<{}> {
                 </div>
                 <div class='percent-bar-container'>
                   <div
-                    class='percent-bar'
                     style={{ width: this.computePercent(item[1]) }}
+                    class='percent-bar'
                   ></div>
                 </div>
               </div>
               <div class='operation-container'>
                 <span
-                  v-bk-tooltips={this.getIconPopover('=', item[0])}
                   class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
+                  v-bk-tooltips={this.getIconPopover('=', item[0])}
                   onClick={() => this.addCondition('is', item[0])}
                 ></span>
                 <span
-                  v-bk-tooltips={this.getIconPopover('!=', item[0])}
                   class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
+                  v-bk-tooltips={this.getIconPopover('!=', item[0])}
                   onClick={() => this.addCondition('is not', item[0])}
                 ></span>
               </div>

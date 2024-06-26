@@ -31,6 +31,7 @@ from alarm_backends.core.cache.cmdb import (
     SetTemplateManager,
     TopoManager,
 )
+from alarm_backends.core.storage.redis import Cache
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.models import (
     AlgorithmModel,
@@ -69,6 +70,8 @@ class StrategyCacheManager(CacheManager):
     BK_BIZ_IDS_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".bk_biz_ids"
     # real time 走实时数据相关的策略
     REAL_TIME_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".real_time_strategy_ids"
+    # no data 策略
+    NO_DATA_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".no_data_strategy_ids"
     # gse事件
     GSE_ALARM_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".gse_alarm_strategy_ids"
     # 自愈关联告警策略
@@ -81,6 +84,7 @@ class StrategyCacheManager(CacheManager):
     fake_event_agg_interval = 60
     # 实例维度
     instance_dimensions = {"bk_target_ip", "bk_target_service_instance_id", "bk_host_id"}
+    cache = Cache("cache-strategy")
 
     @classmethod
     def transform_template_to_topo_nodes(cls, target, template_node_type, cache_manager):
@@ -410,7 +414,8 @@ class StrategyCacheManager(CacheManager):
                 params["data_source_label"] == DataSourceLabel.CUSTOM
                 and params["data_type_label"] == DataTypeLabel.EVENT
             ):
-                params["custom_event_name"] = query_config["custom_event_name"]
+                if query_config["custom_event_name"]:
+                    params["custom_event_name"] = query_config["custom_event_name"]
             elif params["data_source_label"] == DataSourceLabel.BK_FTA:
                 params["alert_name"] = query_config["alert_name"]
             elif (
@@ -624,6 +629,13 @@ class StrategyCacheManager(CacheManager):
         return json.loads(cls.cache.get(cls.GSE_ALARM_CACHE_KEY) or "{}")
 
     @classmethod
+    def get_nodata_strategy_ids(cls) -> List[int]:
+        """
+        获取无数据策略ID列表
+        """
+        return json.loads(cls.cache.get(cls.NO_DATA_CACHE_KEY) or "[]")
+
+    @classmethod
     def get_fta_alert_strategy_ids(cls, strategy_id=None, alert_name=None) -> Dict:
         """
         获取自愈关联告警策略
@@ -722,6 +734,21 @@ class StrategyCacheManager(CacheManager):
                 logger.exception("refresh strategy error when refresh_real_time_strategy_ids: %s", e)
 
         cls.cache.set(cls.REAL_TIME_CACHE_KEY, json.dumps(real_time_strategys), cls.CACHE_TIMEOUT)
+
+    @classmethod
+    def refresh_nodata_strategy_ids(cls, strategies: List[Dict]):
+        """
+        刷新无数据策略ID列表缓存
+        """
+        nodata_strategy_ids = []
+        for strategy in strategies:
+            for item in strategy["items"]:
+                no_data_config = item.get("no_data_config")
+                if no_data_config and no_data_config.get("is_enabled"):
+                    nodata_strategy_ids.append(strategy["id"])
+                    continue
+
+        cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(nodata_strategy_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
     def refresh_gse_alarm_strategy_ids(cls, strategies: List[Dict]):
@@ -952,6 +979,7 @@ class StrategyCacheManager(CacheManager):
             cls.refresh_real_time_strategy_ids,
             cls.refresh_gse_alarm_strategy_ids,
             cls.refresh_fta_alert_strategy_ids,
+            cls.refresh_nodata_strategy_ids,
         ]
 
         for processor in processors:
@@ -1037,11 +1065,32 @@ class StrategyCacheManager(CacheManager):
                 _strategies, old_groups=[ids[1] for ids in to_be_deleted_strategy_ids if ids[1]]
             )
 
+        def refresh_nodata_strategy_ids(_strategies):
+            #
+            nodata_strategy_ids, without_nodata_strategy_ids = set(), set()
+            for s in strategies:
+                for i in s["items"]:
+                    no_data_config = i.get("no_data_config")
+                    if no_data_config and no_data_config.get("is_enabled"):
+                        nodata_strategy_ids.add(s["id"])
+                        break
+                else:
+                    without_nodata_strategy_ids.add(s["id"])
+
+            # 增量更新
+            old_nodata_strategy_ids = set(cls.get_nodata_strategy_ids())
+            old_nodata_strategy_ids.update(nodata_strategy_ids)
+            old_nodata_strategy_ids -= without_nodata_strategy_ids
+            old_nodata_strategy_ids -= {ids[0] for ids in to_be_deleted_strategy_ids}
+
+            cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(list(old_nodata_strategy_ids)), cls.CACHE_TIMEOUT)
+
         processors: List[Callable[[List[Dict]], None]] = [
             cls.add_target_shield_condition,
             cls.add_enabled_cluster_condition,
             refresh_strategy_ids,
             refresh_bk_biz_ids,
+            refresh_nodata_strategy_ids,
             refresh_strategy,
         ]
 

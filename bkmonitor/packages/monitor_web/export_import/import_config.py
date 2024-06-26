@@ -17,8 +17,8 @@ from django.db import transaction
 from django.utils.translation import ugettext as _
 from six.moves import map
 
-from bkmonitor.action.serializers import UserGroupDetailSlz
-from bkmonitor.models import ActionConfig, StrategyModel, UserGroup
+from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
+from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.local import local
 from core.drf_resource import api, resource
@@ -252,6 +252,11 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
         for strategy_dict in list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values("name", "id"))
     }
 
+    # 已存在的轮值规则
+    existed_hash_to_rule = {
+        duty_rule.hash: duty_rule for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id, hash__isnull=False)
+    }
+
     for strategy_config in strategy_config_list:
         try:
             parse_instance = ImportParse.objects.get(id=strategy_config.parse_id)
@@ -272,23 +277,26 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             user_groups_mapping = {}
             action_list = create_config["actions"] + [create_config["notice"]]
             user_groups_dict = {}
-            user_group_ids = []
             user_groups_new = []
             for action_detail in action_list:
                 for group_detail in action_detail.get("user_group_list", []):
-                    if group_detail["id"] not in user_group_ids:
-                        user_group_ids.append(group_detail["id"])
-                        user_groups_dict[group_detail["name"]] = group_detail
+                    user_groups_dict[group_detail["name"]] = group_detail
 
-                    for duty_arrange in group_detail.get("duty_arranges") or []:
-                        duty_arrange.pop("id", None)
-                        duty_arrange.pop("user_group_id", None)
-                        duty_arrange.pop("duty_rule_id", None)
-
-            # TODO(crayon) 目前导入功能没有考虑轮值，预设方案：
-            # 1. 导出：group_detail["duty_rules_info"] 增加 duty_arranges 信息
-            # 1. 创建用户组之前，要把 group_detail["duty_rules_info"] 先创建好，得到 duty_rule_id old - new ID 映射关系
-            # 2. 将 group_detail["duty_rules"]: List[int] 按映射关系进行替换
+            # 创建用户组关联的 duty_rules 及规则关联的 duty_arranges
+            for name, group_detail in user_groups_dict.items():
+                rule_id_mapping = {}
+                for rule_info in group_detail["duty_rules_info"]:
+                    # 优先沿用 hash 相同的旧 duty_rule 记录
+                    rule = existed_hash_to_rule.get(rule_info["hash"])
+                    rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
+                    rule_serializer.is_valid(raise_exception=True)
+                    new_rule = rule_serializer.save()
+                    # 记录新旧 id 对应关系
+                    rule_id_mapping[rule_info["id"]] = new_rule.id
+                # 更新用户组与规则的关联
+                group_detail["duty_rules"] = [
+                    rule_id_mapping.get(old_id, old_id) for old_id in group_detail["duty_rules"]
+                ]
 
             qs = UserGroup.objects.filter(name__in=list(user_groups_dict.keys()), bk_biz_id=bk_biz_id)
             for user_group in qs:

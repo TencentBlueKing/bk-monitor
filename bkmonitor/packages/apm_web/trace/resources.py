@@ -247,7 +247,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "data_type_label": "time_series",
                                     "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "B"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "B"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -255,6 +255,7 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
                                         {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.99}]}
                                     ],
                                 }
@@ -273,7 +274,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "table": f"{database}.__default__",
                                     "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -281,6 +282,7 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
                                         {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.95}]}
                                     ],
                                 }
@@ -299,7 +301,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "table": f"{database}.__default__",
                                     "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -307,6 +309,7 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
                                         {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.5}]}
                                     ],
                                 }
@@ -412,7 +415,6 @@ class ListTraceResource(Resource):
             "end_time": data["end_time"],
             "offset": data["offset"],
             "limit": data["limit"],
-            "es_dsl": QueryHandler(TraceQueryTransformer, data["sort"], data["query"]).es_dsl,
             "filters": data["filters"],
         }
 
@@ -427,17 +429,21 @@ class ListTraceResource(Resource):
         )
 
         if is_contain_non_standard_fields:
-            # 查询包含了非标准字段 -> 走原始表
+            # 如果查询包含了非标准字段 -> 走原始表（预计算表无法查询非标准字段）
             qm = TraceListQueryMode.ORIGIN
+            params["es_dsl"] = QueryHandler(SpanQueryTransformer, data["sort"], data["query"]).es_dsl
         else:
             qm = TraceListQueryMode.PRE_CALCULATION
+            params["es_dsl"] = QueryHandler(TraceQueryTransformer, data["sort"], data["query"]).es_dsl
 
         params["query_mode"] = qm
         try:
             response = api.apm_api.query_trace_list(params)
             if qm == TraceListQueryMode.PRE_CALCULATION and not response["data"] and not is_has_specific_fields:
+                # 如果本次为预计算查询但是无数据时 切换为原始表再次查询 同时 es_dsl 也需要切换为 Span 表的 DSL 转换器
                 qm = TraceListQueryMode.ORIGIN
                 params["query_mode"] = qm
+                params["es_dsl"] = QueryHandler(SpanQueryTransformer, data["sort"], data["query"]).es_dsl
                 response = api.apm_api.query_trace_list(params)
         except BKAPIError as e:
             raise ValueError(_lazy(f"Trace列表请求失败: {e.data.get('message')}"))

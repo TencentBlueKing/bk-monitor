@@ -34,12 +34,12 @@
   .filed-title {
     position: relative;
     display: flex;
-    height: 26px;
-    cursor: pointer;
-    border-radius: 2px;
     flex: 1;
     flex-shrink: 0;
     align-items: center;
+    height: 26px;
+    cursor: pointer;
+    border-radius: 2px;
 
     .bk-icon {
       width: 12px;
@@ -104,18 +104,18 @@
       .operation-icon-box {
         width: 22px;
         height: 22px;
-        
+
         border-radius: 2px;
 
         @include flex-center();
 
         &:hover {
-          background: #DCDEE5;
+          background: #dcdee5;
         }
 
         &.active {
-          color: #3A84FF;
-          background: #E1ECFF;
+          color: #3a84ff;
+          background: #e1ecff;
         }
       }
 
@@ -132,8 +132,8 @@
         visibility: visible;
 
         > :first-child {
-          color: #3A84FF;
-          background: #E1ECFF;
+          color: #3a84ff;
+          background: #e1ecff;
         }
       }
     }
@@ -145,8 +145,8 @@
         visibility: visible;
 
         .operation-icon-box:hover {
-          color: #3A84FF;
-          background: #E1ECFF;
+          color: #3a84ff;
+          background: #e1ecff;
         }
       }
     }
@@ -155,8 +155,8 @@
       background-color: #f0f1f5;
 
       .icon-right-shape {
-        transform: rotate(90deg);
         transition: transform 0.3s;
+        transform: rotate(90deg);
       }
     }
   }

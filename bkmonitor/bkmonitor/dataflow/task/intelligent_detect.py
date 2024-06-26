@@ -340,7 +340,7 @@ class MetricRecommendTask(BaseTask):
 
 
 class HostAnomalyIntelligentDetectTask(BaseTask):
-    FLOW_NAME_KEY = _("主机异常检测结果评级")
+    FLOW_NAME_KEY = "主机异常检测结果评级"
 
     def __init__(self, strategy_id, access_bk_biz_id, scene_id, plan_id, metric_field, agg_dimensions, plan_args):
         self.strategy_id = strategy_id

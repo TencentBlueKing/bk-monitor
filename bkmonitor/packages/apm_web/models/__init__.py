@@ -11,3 +11,5 @@ specific language governing permissions and limitations under the License.
 from .application import *  # noqa
 from .profile import *  # noqa
 from .service import *  # noqa
+from .visit_record import *  # noqa
+from .trace import *  # noqa

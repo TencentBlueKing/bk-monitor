@@ -75,7 +75,7 @@ def readable_name_alias_to_id(node: SearchField):
         result_table_id=metric.result_table_id,
         metric_field=metric.metric_field,
         index_set_id=metric.related_id,
-        custom_event_name=metric.metric_field_name,
+        custom_event_name=metric.extend_fields.get("custom_event_name"),
     )
     node.expr = Phrase(f'"{metric_id}"')
     return
@@ -218,28 +218,58 @@ class AlertQueryHandler(BaseBizQueryHandler):
     SHIELD_ABNORMAL_STATUS_NAME = "SHIELDED_ABNORMAL"
     NOT_SHIELD_ABNORMAL_STATUS_NAME = "NOT_SHIELDED_ABNORMAL"
 
-    def __init__(self, bk_biz_ids: List[int] = None, username: str = "", status: List[str] = None, **kwargs):
+    def __init__(
+        self,
+        bk_biz_ids: List[int] = None,
+        username: str = "",
+        status: List[str] = None,
+        is_time_partitioned: bool = False,
+        is_finaly_partition: bool = False,
+        **kwargs,
+    ):
         super(AlertQueryHandler, self).__init__(bk_biz_ids, username, **kwargs)
         self.must_exists_fields = kwargs.get("must_exists_fields", [])
         self.status = [status] if isinstance(status, str) else status
         if not self.ordering:
             # 默认排序
             self.ordering = ["status", "-create_time", "-seq_id"]
+        self.is_time_partitioned = is_time_partitioned
+        self.is_finaly_partition = is_finaly_partition
 
-    def get_search_object(self, start_time: int = None, end_time: int = None):
+    def get_search_object(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        is_time_partitioned: bool = False,
+        is_finaly_partition: bool = False,
+    ):
         """
         获取查询对象
         """
         start_time = start_time or self.start_time
         end_time = end_time or self.end_time
+        is_time_partitioned = is_time_partitioned or self.is_time_partitioned
+        is_finaly_partition = is_finaly_partition or self.is_finaly_partition
 
         search_object = AlertDocument.search(start_time=self.start_time, end_time=self.end_time)
 
         if start_time and end_time:
-            search_object = search_object.filter(
-                (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))
-                & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
-            )
+            if is_time_partitioned:
+                if is_finaly_partition:
+                    search_object = search_object.filter(
+                        (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))
+                        & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                    )
+                else:
+                    search_object = search_object.filter(
+                        (Q("range", end_time={"gte": start_time, "lte": end_time}) | ~Q("exists", field="end_time"))
+                        & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                    )
+            else:
+                search_object = search_object.filter(
+                    (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))
+                    & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                )
 
         search_object = self.add_biz_condition(search_object)
 
@@ -429,27 +459,30 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 for status in EVENT_STATUS_DICT
             }
         )
-        for time_bucket in search_result.aggs.begin_time.time.buckets:
-            begin_time_result = {}
-            self._get_buckets(begin_time_result, {}, time_bucket, group_by)
-
-            key = int(time_bucket.key_as_string) * 1000
-            for dimension_tuple, bucket in begin_time_result.items():
-                if key in result[dimension_tuple][EventStatus.ABNORMAL]:
-                    result[dimension_tuple][EventStatus.ABNORMAL][key] = bucket.doc_count
-
-        for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
-            for status_bucket in time_bucket.status.buckets:
-                end_time_result = {}
-                self._get_buckets(end_time_result, {}, status_bucket, group_by)
+        if hasattr(search_result.aggs, 'begin_time'):
+            for time_bucket in search_result.aggs.begin_time.time.buckets:
+                begin_time_result = {}
+                self._get_buckets(begin_time_result, {}, time_bucket, group_by)
 
                 key = int(time_bucket.key_as_string) * 1000
-                for dimension_tuple, bucket in end_time_result.items():
-                    if key in result[dimension_tuple][status_bucket.key]:
-                        result[dimension_tuple][status_bucket.key][key] = bucket.doc_count
+                for dimension_tuple, bucket in begin_time_result.items():
+                    if key in result[dimension_tuple][EventStatus.ABNORMAL]:
+                        result[dimension_tuple][EventStatus.ABNORMAL][key] = bucket.doc_count
+
+        if hasattr(search_result.aggs, 'end_time') and hasattr(search_result.aggs.end_time, 'end_alert'):
+            for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
+                for status_bucket in time_bucket.status.buckets:
+                    end_time_result = {}
+                    self._get_buckets(end_time_result, {}, status_bucket, group_by)
+
+                    key = int(time_bucket.key_as_string) * 1000
+                    for dimension_tuple, bucket in end_time_result.items():
+                        if key in result[dimension_tuple][status_bucket.key]:
+                            result[dimension_tuple][status_bucket.key][key] = bucket.doc_count
 
         init_alert_result = {}
-        self._get_buckets(init_alert_result, {}, search_result.aggs.init_alert, group_by)
+        if hasattr(search_result.aggs, 'init_alert'):
+            self._get_buckets(init_alert_result, {}, search_result.aggs.init_alert, group_by)
 
         # 获取全部维度
         all_dimensions = set(result.keys()) | set(init_alert_result.keys())

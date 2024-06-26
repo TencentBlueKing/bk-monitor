@@ -108,6 +108,10 @@ class BkmMetricbeatEndpointUpStatus:
     BeatScriptRunOuterError = 2301
     # 脚本打印的 Prom 数据格式异常 (按正常处理)
     BeatScriptPromFormatOuterError = 2302
+    # 脚本没有输出内容
+    BeatScriptNoOutputErr = 2303
+    # 脚本执行超时
+    BeatScriptTimeoutErr = 2304
     # PID文件不存在
     BeaterProcPIDFileNotFountOuterError = 2401
     # 单个进程状态信息读取失败

@@ -1,29 +1,34 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { mapState } from 'vuex';
-import { menuArr } from '../components/nav/complete-menu';
-import * as authorityMap from '../common/authority-map';
 import reportLogStore from '@/store/modules/report-log';
+import { mapState } from 'vuex';
+
+import * as authorityMap from '../common/authority-map';
+import { menuArr } from '../components/nav/complete-menu';
 
 export default {
   data() {
@@ -36,8 +41,8 @@ export default {
         manage_data_link: 'linkConfiguration',
         manage_user_group: 'permissionGroup',
         manage_migrate: 'migrate',
-        manage_extract: 'manageExtract'
-      }
+        manage_extract: 'manageExtract',
+      },
     };
   },
   computed: {
@@ -49,8 +54,8 @@ export default {
       bkBizId: state => state.bkBizId,
       mySpaceList: state => state.mySpaceList,
       isExternal: state => state.isExternal,
-      externalMenu: state => state.externalMenu
-    })
+      externalMenu: state => state.externalMenu,
+    }),
   },
   watch: {
     '$route.query'(val) {
@@ -59,7 +64,7 @@ export default {
         this.$store.commit('updateAsIframe', queryObj.from);
         this.$store.commit('updateIframeQuery', queryObj);
       }
-    }
+    },
   },
   methods: {
     async requestMySpaceList() {
@@ -88,7 +93,7 @@ export default {
           // 没有一个业务或只有一个demo业务显示欢迎页面
           const args = {
             newBusiness: { url: window.BIZ_ACCESS_URL },
-            getAccess: {}
+            getAccess: {},
           };
           if (isOnlyDemo) {
             this.$store.commit('updateMySpaceList', spaceList);
@@ -97,7 +102,7 @@ export default {
               return this.checkSpaceChange(demoProject.space_uid);
             }
             args.demoBusiness = {
-              url: demoProjectUrl
+              url: demoProjectUrl,
             };
           }
           if (spaceUid || bizId) {
@@ -107,15 +112,15 @@ export default {
               this.$http.request('/meta/getMaintainerApi', { query }),
               this.$store.dispatch('getApplyData', {
                 action_ids: [authorityMap.VIEW_BUSINESS],
-                resources: [] // todo 需要将 url query 改成 bizId
-              })
+                resources: [], // todo 需要将 url query 改成 bizId
+              }),
             ]);
             args.getAccess.businessName = betaRes.data.bk_biz_name;
             args.getAccess.url = authRes.data.apply_url;
           } else {
             const authRes = await this.$store.dispatch('getApplyData', {
               action_ids: [authorityMap.VIEW_BUSINESS],
-              resources: []
+              resources: [],
             });
             args.getAccess.url = authRes.data.apply_url;
           }
@@ -126,7 +131,7 @@ export default {
           // 正常业务
           this.$store.commit('updateMySpaceList', spaceList);
           // 首先从查询参数找，然后从storage里面找，还找不到就返回第一个不是demo的业务
-          // eslint-disable-next-line max-len
+
           const firstRealSpaceUid = spaceList.find(item => item.bk_biz_id !== demoId).space_uid;
           if (spaceUid || bizId) {
             const matchProject = spaceList.find(item => item.space_uid === spaceUid || item.bk_biz_id === bizId);
@@ -159,7 +164,7 @@ export default {
           },
           cancelFn: () => {
             this.$store.commit('updateRouterLeaveTip', false);
-          }
+          },
         });
         return;
       }
@@ -190,14 +195,13 @@ export default {
         const { name, meta } = this.$route;
         reportLogStore.reportRouteLog({
           route_id: name,
-          nav_id: meta.navId
+          nav_id: meta.navId,
         });
       }
     },
     // 选择的业务是否有权限
     async checkSpaceAuth(space) {
-      // eslint-disable-next-line camelcase
-      if (space && space.permission && space.permission[authorityMap.VIEW_BUSINESS]) {
+      if (space?.permission?.[authorityMap.VIEW_BUSINESS]) {
         // 有权限 不显示无业务权限的页面
         this.$store.commit('globals/updateAuthContainerInfo', null);
         return;
@@ -209,9 +213,9 @@ export default {
           resources: [
             {
               type: 'space',
-              id: space.space_uid
-            }
-          ]
+              id: space.space_uid,
+            },
+          ],
         });
         this.$store.commit('globals/updateAuthContainerInfo', res.data);
       } catch (err) {
@@ -262,13 +266,13 @@ export default {
             {
               id: 'collection-item',
               name: this.$t('采集项'),
-              project_manage: logCollectionNav.project_manage
+              project_manage: logCollectionNav.project_manage,
             },
             {
               id: 'log-index-set',
               name: this.$t('索引集'),
-              project_manage: logCollectionNav.project_manage
-            }
+              project_manage: logCollectionNav.project_manage,
+            },
           ];
         }
 
@@ -313,8 +317,8 @@ export default {
             // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('腾讯蓝鲸智云')}`;
           },
           {
-            immediate: true
-          }
+            immediate: true,
+          },
         );
 
         return menuList;
@@ -337,7 +341,7 @@ export default {
           const RoutingHop = meta.needBack && !this.isFirstLoad ? meta.backName : name ? name : 'retrieve';
           const newQuery = {
             ...query,
-            spaceUid
+            spaceUid,
           };
           if (query.bizId) {
             newQuery.spaceUid = spaceUid;
@@ -348,9 +352,9 @@ export default {
           this.$router.push({
             name: RoutingHop,
             params: {
-              ...params
+              ...params,
             },
-            query: newQuery
+            query: newQuery,
           });
         }
         setTimeout(() => {
@@ -394,6 +398,6 @@ export default {
         }
       });
       return list;
-    }
-  }
+    },
+  },
 };

@@ -7,5 +7,5 @@ export const monitorInfo = request('GET', 'rest/v2/overview/monitor_info/');
 export default {
   alarmRank,
   alarmCountInfo,
-  monitorInfo
+  monitorInfo,
 };

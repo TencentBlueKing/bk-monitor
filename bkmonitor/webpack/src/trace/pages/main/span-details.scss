@@ -44,6 +44,7 @@
       .download-btn {
         padding: 3px 11px;
         margin-left: 24px;
+
         span {
           margin-left: 4px;
         }
@@ -59,8 +60,10 @@
     position: fixed;
     top: 0;
     z-index: 99;
-    height: 100%;
+
+    /* stylelint-disable-next-line declaration-no-important */
     width: auto !important;
+    height: 100%;
 
     .bk-modal-content {
       width: 960px;
@@ -92,7 +95,7 @@
 
 .span-details-sideslider-content {
   position: relative;
-  height: 100%;
+  height: calc(100vh - 52px);
 
   // padding: 24px 40px;
   .info-tab {
@@ -218,7 +221,7 @@
   .content-list {
     box-sizing: border-box;
     // margin-top: 24px;
-    height: calc(100% - 164px);
+    height: calc(100% - 166px);
     padding: 0 40px 14px;
     overflow: auto;
     background: #fff;
@@ -732,6 +735,7 @@
       .download-btn {
         padding: 3px 11px;
         margin-left: 24px;
+
         span {
           margin-left: 4px;
         }
@@ -749,6 +753,7 @@
   }
 
   .graph-tools {
+    /* stylelint-disable-next-line declaration-no-important */
     left: 60px !important;
   } 
 }

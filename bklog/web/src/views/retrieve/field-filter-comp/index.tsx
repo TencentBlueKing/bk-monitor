@@ -1,36 +1,44 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
-import FieldItem from './field-item';
-import FieldFilterPopover from './field-filter-popover';
-import VueDraggable from 'vuedraggable';
-import $http from '@/api';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import VueDraggable from 'vuedraggable';
+
+import FieldFilterPopover from './field-filter-popover';
+import FieldItem from './field-item';
+import $http from '@/api';
+
 import './index.scss';
+interface IProps {}
 
 @Component
-export default class FieldFilterComp extends tsc<{}> {
+export default class FieldFilterComp extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) totalFields: Array<any>;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
@@ -50,7 +58,7 @@ export default class FieldFilterComp extends tsc<{}> {
     animation: 150,
     tag: 'ul',
     handle: '.icon-drag-dots',
-    'ghost-class': 'sortable-ghost-class'
+    'ghost-class': 'sortable-ghost-class',
   };
   dragVisibleFields = [];
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
@@ -63,7 +71,7 @@ export default class FieldFilterComp extends tsc<{}> {
     '__dist_07',
     '__dist_09',
     '__ipv6__',
-    '__ext'
+    '__ext',
   ];
   filedCountArray = [];
   isShowAllBuiltIn = false;
@@ -101,7 +109,7 @@ export default class FieldFilterComp extends tsc<{}> {
     });
     return {
       builtInHiddenFields,
-      indexHiddenFields
+      indexHiddenFields,
     };
   }
   /** 排序后的内置字段 */
@@ -123,8 +131,8 @@ export default class FieldFilterComp extends tsc<{}> {
       },
       {
         headerList: [],
-        filterHeaderBuiltFields: []
-      }
+        filterHeaderBuiltFields: [],
+      },
     );
     return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
@@ -141,8 +149,8 @@ export default class FieldFilterComp extends tsc<{}> {
       },
       {
         initHiddenList: [],
-        otherList: []
-      }
+        otherList: [],
+      },
     );
     const visibleBuiltLength = this.builtInFields.filter(item => item.filterVisible).length;
     const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length;
@@ -150,7 +158,7 @@ export default class FieldFilterComp extends tsc<{}> {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
       // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
-      builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9)
+      builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9),
     };
   }
   get getIsShowIndexSetExpand() {
@@ -272,8 +280,8 @@ export default class FieldFilterComp extends tsc<{}> {
           config_id: this.filedSettingConfigID,
           index_set_id: this.$route.params.indexId,
           index_set_ids: this.unionIndexList,
-          index_set_type: this.isUnionSearch ? 'union' : 'single'
-        }
+          index_set_type: this.isUnionSearch ? 'union' : 'single',
+        },
       })
       .catch(e => {
         console.warn(e);
@@ -306,8 +314,8 @@ export default class FieldFilterComp extends tsc<{}> {
       const res = await $http.request('retrieve/fieldDistinctCount', {
         data: {
           ...this.retrieveParams,
-          index_set_ids: indexSetIDs
-        }
+          index_set_ids: indexSetIDs,
+        },
       });
       this.filedCountArray = res.data;
     } catch (error) {
@@ -320,25 +328,25 @@ export default class FieldFilterComp extends tsc<{}> {
       <div class='field-filter-container'>
         <div class='form-container'>
           <bk-input
-            v-model={this.searchKeyword}
-            clearable
             class='king-input'
-            right-icon='icon-search'
-            placeholder={this.$t('搜索字段名')}
+            v-model={this.searchKeyword}
             data-test-id='fieldFilter_input_searchFieldName'
+            placeholder={this.$t('搜索字段名')}
+            right-icon='icon-search'
+            clearable
             onChange={() => this.handleSearch}
           ></bk-input>
           <bk-popover
             ref='filterPopover'
-            trigger='click'
+            animation='slide-toggle'
+            distance={15}
+            offset={0}
             placement='bottom-start'
             theme='light'
-            animation='slide-toggle'
             tippy-options={{ hideOnClick: false }}
-            offset={0}
-            distance={15}
-            onShow={() => this.handlePopoverShow()}
+            trigger='click'
             onHide={() => this.handlePopoverHide()}
+            onShow={() => this.handlePopoverShow()}
           >
             <slot name='trigger'>
               <div
@@ -354,8 +362,8 @@ export default class FieldFilterComp extends tsc<{}> {
             <FieldFilterPopover
               slot='content'
               value={this.showFilterPopover}
-              onConfirm={v => this.handleFilter(v)}
               onClosePopover={() => this.closePopoverIfOpened()}
+              onConfirm={v => this.handleFilter(v)}
             />
           </bk-popover>
         </div>
@@ -365,9 +373,9 @@ export default class FieldFilterComp extends tsc<{}> {
             <div class='title'>{this.$t('已添加字段')}</div>
             {!!this.visibleFields.length ? (
               <VueDraggable
-                v-bind={this.dragOptions}
-                v-model={this.dragVisibleFields}
                 class='filed-list'
+                v-model={this.dragVisibleFields}
+                v-bind={this.dragOptions}
                 animation='150'
                 handle='.icon-drag-dots'
                 on-end={this.handleVisibleMoveEnd}
@@ -377,14 +385,14 @@ export default class FieldFilterComp extends tsc<{}> {
                     <FieldItem
                       key={item.field_name}
                       v-show={item.filterVisible}
-                      type='visible'
+                      date-picker-value={this.datePickerValue}
+                      field-alias-map={this.fieldAliasMap}
+                      field-item={item}
                       filed-count-array={this.filedCountArray}
                       retrieve-params={this.retrieveParams}
-                      field-alias-map={this.fieldAliasMap}
                       show-field-alias={this.showFieldAlias}
+                      type='visible'
                       visible-fields={this.visibleFields}
-                      date-picker-value={this.datePickerValue}
-                      field-item={item}
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                     />
                   ))}
@@ -403,13 +411,13 @@ export default class FieldFilterComp extends tsc<{}> {
               {this.showIndexSetFields.map(item => (
                 <FieldItem
                   v-show={item.filterVisible}
-                  type='hidden'
+                  date-picker-value={this.datePickerValue}
+                  field-alias-map={this.fieldAliasMap}
+                  field-item={item}
                   filed-count-array={this.filedCountArray}
                   retrieve-params={this.retrieveParams}
-                  field-alias-map={this.fieldAliasMap}
                   show-field-alias={this.showFieldAlias}
-                  date-picker-value={this.datePickerValue}
-                  field-item={item}
+                  type='hidden'
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                 />
               ))}
@@ -432,13 +440,13 @@ export default class FieldFilterComp extends tsc<{}> {
               {this.builtInFieldsShowObj.builtInShowFields.map(item => (
                 <FieldItem
                   v-show={item.filterVisible}
-                  type='hidden'
+                  date-picker-value={this.datePickerValue}
+                  field-alias-map={this.fieldAliasMap}
+                  field-item={item}
                   filed-count-array={this.filedCountArray}
                   retrieve-params={this.retrieveParams}
-                  field-alias-map={this.fieldAliasMap}
                   show-field-alias={this.showFieldAlias}
-                  date-picker-value={this.datePickerValue}
-                  field-item={item}
+                  type='hidden'
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                 />
               ))}

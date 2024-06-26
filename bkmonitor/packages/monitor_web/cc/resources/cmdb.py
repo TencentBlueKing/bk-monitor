@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import collections
 import logging
 import time
 from collections import defaultdict
@@ -21,8 +20,7 @@ from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
-from bkmonitor.utils.host import Host as OldHost
-from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -31,49 +29,6 @@ from core.drf_resource import api
 from monitor.constants import AGENT_STATUS
 
 logger = logging.getLogger(__name__)
-
-
-def agent_status(cc_biz_id, host_list, ip_info_list=None):
-    """获取agent状态信息
-    agent状态详细分成4个状态：正常，离线，未安装。已安装，无数据。
-    """
-    result = collections.defaultdict(int)
-    if ip_info_list is None:
-        ip_info_list = list()
-    for host in host_list:
-        if host.bk_host_innerip:
-            ip_info_list.append({"ip": host.bk_host_innerip, "bk_cloud_id": host.bk_cloud_id[0]["bk_inst_id"]})
-    if not ip_info_list:
-        return {}
-
-    def batch_get_agent_status(ips, output_dict):
-        try:
-            api_result = api.gse.get_agent_status(hosts=ips)
-            output_dict.update(api_result)
-        except Exception:
-            pass
-
-    status_dict = dict()
-    bath_size = 1000
-    # fmt: off
-    th_list = [
-        InheritParentThread(target=batch_get_agent_status, args=(ip_info_list[i: (i + bath_size)], status_dict))
-        for i in range(0, len(ip_info_list), bath_size)
-    ]
-    # fmt: on
-    list([t.start() for t in th_list])
-    list([t.join() for t in th_list])
-
-    for key, value in list(status_dict.items()):
-        host_id = OldHost(dict(ip=value["ip"], bk_cloud_id=value["bk_cloud_id"]), cc_biz_id).host_id
-        exist = bool(value["bk_agent_alive"])
-        if not exist:
-            result[host_id] = AGENT_STATUS.NOT_EXIST
-            continue
-        else:
-            result[host_id] = AGENT_STATUS.ON
-
-    return result
 
 
 def topo_tree(bk_biz_id):
