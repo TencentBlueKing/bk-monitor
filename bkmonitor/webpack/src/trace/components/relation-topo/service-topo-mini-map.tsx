@@ -44,6 +44,7 @@ export default defineComponent({
     },
   },
   setup(props) {
+    /* 以下逻辑来源于 @vue-flow/minimap 仅用于缩略图蓝色窗口的实现 */
     const offsetScale = 5;
     const maskBorderRadius = 0;
 

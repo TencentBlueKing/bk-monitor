@@ -54,6 +54,9 @@ export interface UseScreenshot {
 }
 
 export function useLayout() {
+  // @dagrejs/dagre  再为前端下面调用tostring(str)会报错  所以这里重写toString方法
+  window.toString = String;
+
   const { findNode } = useVueFlow();
 
   const graph = ref(new dagre.graphlib.Graph());
