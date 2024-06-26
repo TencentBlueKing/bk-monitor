@@ -76,13 +76,13 @@ export default defineComponent({
       type.value = props.type;
     }
 
+    /* 以下函数皆为RelationTopo组件的emit  */
     function handleTypeChange(value: EType) {
       if (type.value !== value) {
         type.value = value;
         emit('typeChange', value);
       }
     }
-
     function handleKeywordFliter(value: string[]) {
       relationTopo.value?.handleKeywordFliter?.(value);
     }
