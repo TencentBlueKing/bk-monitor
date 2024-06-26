@@ -142,3 +142,9 @@ def split_by_interval(start_time, end_time, interval):
         min_time = max_time = None
 
     return split_points, min_time, max_time
+
+
+def divide_biscuit(iterator, interval):
+    """分段"""
+    for i in range(0, len(iterator), interval):
+        yield iterator[i : i + interval]

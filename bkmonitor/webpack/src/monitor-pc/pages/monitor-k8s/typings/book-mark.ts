@@ -100,6 +100,7 @@ export interface IBookMarkOptions {
     split_switcher?: boolean; // 是否需要合并、分割视图开关
     method_select?: boolean; // 是否需要汇聚周期选择器
     need_compare_target?: boolean; // 是否需要目标对比
+    full_table?: boolean; // 是否需要全屏表格
   };
   // 是否开启图表索引列表功能
   enable_index_list?: boolean;
@@ -443,6 +444,8 @@ export interface IViewOptions {
   bk_target_ip?: string;
   // 用于动态判断panel是否显示
   matchFields?: Record<string, any>;
+  // 策略id 用于hostIntelligenAnomalyRange接口
+  strategy_id?: number | string;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式

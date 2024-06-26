@@ -99,4 +99,6 @@ def mysetting(request):
         "ENABLE_CHECK_COLLECTOR": "true" if request.user.is_superuser else "false",
         "IS_EXTERNAL": request.headers.get("Is-External", "false"),
         "BCS_WEB_CONSOLE_DOMAIN": settings.BCS_WEB_CONSOLE_DOMAIN,
+        "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
+        "VERSION": settings.VERSION,
     }

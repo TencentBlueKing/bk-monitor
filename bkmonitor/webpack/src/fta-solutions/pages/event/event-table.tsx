@@ -338,7 +338,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         },
         this.bizIds.length > 1 || this.bizIds?.[0] === -1
           ? {
-              id: 'bizName',
+              id: 'bk_biz_name',
               name: this.$t('空间名'),
               disabled: true,
               checked: true,
@@ -802,7 +802,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
         window.open(
           `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
-          '__blank'
+          '_blank'
         );
         return;
       // 监控数据检索
@@ -812,7 +812,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${origin}${location.pathname
             .toString()
             .replace('fta/', '')}?bizId=${bizId}#/data-retrieval/?targets=${JSON.stringify(targets)}`,
-          '__blank'
+          '_blank'
         );
         return;
       // 日志检索
@@ -834,7 +834,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${origin}${location.pathname
             .toString()
             .replace('fta/', '')}?bizId=${bizId}#/custom-escalation-detail/event/${id}`,
-          '__blank'
+          '_blank'
         );
         return;
     }

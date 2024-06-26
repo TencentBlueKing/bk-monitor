@@ -28,7 +28,7 @@ import { Component, InjectReactive, Vue } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
-import { deepClone } from 'monitor-common/utils/utils';
+import { deepClone, isObject } from 'monitor-common/utils/utils';
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
@@ -40,7 +40,7 @@ import { VariablesService } from '../utils/variable';
 function removeUndefined(obj) {
   Object.keys(obj).forEach(key => {
     const value = obj[key];
-    if (typeof value === 'object') {
+    if (isObject(value)) {
       // 如果属性值为对象或数组，则递归调用该函数
       removeUndefined(value);
     } else if (value === undefined || (Array.isArray(obj) && value === 'undefined')) {

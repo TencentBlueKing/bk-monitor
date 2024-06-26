@@ -17,6 +17,7 @@ import traceback
 from abc import ABC
 from typing import List, NamedTuple, Tuple
 
+from django.conf import settings
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
@@ -172,7 +173,6 @@ class TopoHandler:
     TRACE_ID_MAX_SIZE = 50000
     # 每一轮最多分析多少个TraceId
     PER_ROUND_TRACE_ID_MAX_SIZE = 100
-
     FILTER_KIND = [
         SpanKind.SPAN_KIND_SERVER,
         SpanKind.SPAN_KIND_CLIENT,
@@ -224,7 +224,6 @@ class TopoHandler:
 
         while True:
             query_body = self._get_after_key_body(after_key)
-
             response = self.datasource.es_client.search(
                 index=self.datasource.index_name, body=query_body, request_timeout=60
             )
@@ -249,7 +248,7 @@ class TopoHandler:
 
     @limits(calls=100, period=1)
     def list_span_by_trace_ids(self, trace_ids, max_result_count, index_name):
-        if max_result_count >= constants.DISCOVER_BATCH_SIZE * len(trace_ids):
+        if max_result_count > constants.DISCOVER_BATCH_SIZE * len(trace_ids):
             # 直接获取
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
@@ -263,7 +262,7 @@ class TopoHandler:
             res = []
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
-                "size": constants.DISCOVER_BATCH_SIZE * len(trace_ids),
+                "size": max_result_count,
             }
             response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
             hits = response["hits"]["hits"]
@@ -302,27 +301,39 @@ class TopoHandler:
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
-        index_name = self.datasource.index_name
-        index_settings = self.datasource.es_client.indices.get_settings(index=self.datasource.index_name)
+        lastly_index_name = self.datasource.index_name.split(",")[0]
+        index_settings = self.datasource.es_client.indices.get_settings(index=lastly_index_name)
+        max_size_count = None
         if not index_settings:
             max_size_count = self._ES_MAX_RESULT_WINDOWS
         else:
-            lastly_index = max(
-                index_settings.keys(),
-                key=lambda i: index_settings[i].get("settings", {}).get("index", {}).get("creation_date", 0),
-            )
-
-            max_size_count = index_settings[lastly_index].get("settings", {}).get("index", {}).get("max_result_window")
-            index_name = lastly_index
-        # ES 1.x-7.x默认值
+            if lastly_index_name in index_settings:
+                max_size_count = (
+                    index_settings[lastly_index_name].get("settings", {}).get("index", {}).get("max_result_window")
+                )
+        # ES 1.x-7.x默认值为 10000
         max_size_count = int(max_size_count) if max_size_count else self._ES_MAX_RESULT_WINDOWS
 
         if max_size_count >= constants.DISCOVER_BATCH_SIZE:
-            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE, index_name
+            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE, lastly_index_name
 
         logger.info(f"[TopoHandler] found max_size_count: {max_size_count} < {constants.DISCOVER_BATCH_SIZE}")
 
-        return max_size_count, 1, index_name
+        return max_size_count, 1, lastly_index_name
+
+    @classmethod
+    def calculate_round_count(cls, avg_group_span_count):
+        # 最大分析 Span 的数量不能超过 1000，防止每轮 Trace 数量增多导致OOM
+        if cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count > settings.PER_ROUND_SPAN_MAX_SIZE:
+            max_span_count = settings.PER_ROUND_SPAN_MAX_SIZE
+        else:
+            max_span_count = cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count
+
+        per_trace_size = int(max_span_count / avg_group_span_count)
+        if per_trace_size > cls.PER_ROUND_TRACE_ID_MAX_SIZE:
+            per_trace_size = cls.PER_ROUND_TRACE_ID_MAX_SIZE
+
+        return 1 if not per_trace_size else per_trace_size
 
     def discover(self):
         """application spans discover"""
@@ -334,6 +345,9 @@ class TopoHandler:
         max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
 
         for round_index, trace_ids in enumerate(self.list_trace_ids()):
+            if not trace_ids:
+                continue
+
             trace_id_count += len(trace_ids)
 
             pool = ThreadPool()
@@ -342,20 +356,8 @@ class TopoHandler:
             all_spans_group = [i for i in results if i]
             all_spans = list(itertools.chain(*all_spans_group))
             avg_group_span_count = len(all_spans) / len(get_spans_params)
-            if round_index == 0:
-                # 如果每个 Trace 的 span 数量都远小于最大分析数量 那么可以增大每轮的并发数量
-                if avg_group_span_count * self.PER_ROUND_TRACE_ID_MAX_SIZE * 2 < constants.DISCOVER_BATCH_SIZE:
-                    # 平均每组 span 总数 * 当前轮次 trace 数量 远少于 单 trace 最大数量 认为可以直接使用一次并发就可以解决
-                    per_trace_size = self.PER_ROUND_TRACE_ID_MAX_SIZE
-                else:
-                    # 如果span 数量较多 使用 最大分析数量 / 2 / 每组 span 数量作为之后轮次的并发 trace 数
-                    # 预留一半空间防止真的出现单 trace 超过最大数量问题
-                    per_trace_size = int(
-                        min(
-                            constants.DISCOVER_BATCH_SIZE / 2 / avg_group_span_count,
-                            len(get_spans_params) / 2,
-                        )
-                    )
+            if round_index == 0 and avg_group_span_count:
+                per_trace_size = self.calculate_round_count(avg_group_span_count)
 
                 logger.info(
                     f"[TopoHandler] "

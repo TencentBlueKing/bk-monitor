@@ -57,6 +57,7 @@ export default [
       route: {
         parent: 'manager',
       },
+      pageCls: 'page-ai-settings-set',
     },
   },
 ].filter(Boolean) as RouteConfig[];

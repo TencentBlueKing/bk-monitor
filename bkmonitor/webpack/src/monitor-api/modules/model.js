@@ -282,7 +282,6 @@ export default {
   listUserGroup,
   partialUpdateUserGroup,
   retrieveUserGroup,
-  switchDutyRule,
   updateUserGroup,
   createDutyRule,
   destroyDutyRule,
@@ -320,5 +319,5 @@ export default {
   listAssignRule,
   partialUpdateAssignRule,
   retrieveAssignRule,
-  updateAssignRule
+  updateAssignRule,
 };

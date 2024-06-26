@@ -1,698 +1,698 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "target": {
-          "limit": 100,
-          "matchAny": false,
-          "tags": [],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": {
+            "limit": 100,
+            "matchAny": false,
+            "tags": [],
+            "type": "dashboard"
+          },
           "type": "dashboard"
-        },
-        "type": "dashboard"
-      }
-    ]
-  },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "links": [],
-  "liveNow": false,
-  "panels": [
-    {
-      "datasource": "$datasource",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "decimals": 2,
-          "mappings": [],
-          "noValue": "--",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "Delay.*"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "µs"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1000000
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Client Error Ratio"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 1
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Server Error Ratio"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Request Rate"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "reqps"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 12,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Server Error Ratio"
-          }
-        ]
-      },
-      "pluginVersion": "9.4.3",
-      "targets": [
-        {
-          "datasource": "$datasource",
-          "debug": false,
-          "metaExtra": {},
-          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_port\",\"select\":[{\"key\":\"app_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7998acf4-9c0c-05bb-f070-f85cefecdb15\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3bec8c6c-df3d-5005-413c-0c0889503abe\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7b0ea3f0-6ea9-1fa4-e24a-4a8cdfc2e105\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Request Rate\",\"params\":[],\"uuid\":\"16c0195d-d0a7-e88d-5358-b966db83a4e4\",\"subFuncs\":[{\"func\":\"PerSecond\"}],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[],\"subFuncs\":[{\"func\":\"PerSecond\"}]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay Avg\",\"params\":[],\"uuid\":\"0dc54e76-560a-cea4-11d7-0a5f13e348c4\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P75\",\"params\":[\"75\"],\"uuid\":\"c1a72723-c880-2651-3c87-376e7a0d2ded\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"75\"]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P90\",\"params\":[\"90\"],\"uuid\":\"4d69bad9-1abd-2abd-3193-54de30aa6ae0\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"90\"]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P99\",\"params\":[\"99\"],\"uuid\":\"61698a1c-6f78-2460-3d8e-df8ffefbb4fc\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"99\"]}},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Client Error Ratio\",\"params\":[],\"uuid\":\"c01ac305-1333-2ffe-757c-0ab1e92dec74\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Server Error Ratio\",\"params\":[],\"uuid\":\"3f0617f5-8688-0fac-ce0a-ffe841530db1\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}}],\"where\":[{\"key\":\"auto_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$auto_service\",\"value\":\"auto_service\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f0e0e5a9-add0-9047-bcec-e04068ecb430\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"app_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$app_service\",\"value\":\"app_service\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"37e6b5eb-7871-34a1-8725-0ec6f3e8cdfe\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"6edfb94d-8d92-a75b-1b74-856b80bf4dc2\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"241f1aaa-bfff-b64b-e558-dea1ba03c07b\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"auto_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5b6cb8a5-d968-5486-3154-1998240f0aaf\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"app_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fc1c78f6-955c-b60d-1f61-0d7cd93f5a97\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"f5a2d3e9-ab68-67f5-e31e-95f65201edd2\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"83b6e474-4cbc-5ee3-b3c1-ef149c2b9091\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
-          "refId": "A",
-          "returnMetrics": [
-            {
-              "displayName": "Request Rate",
-              "name": "Request Rate",
-              "type": 1,
-              "unit": "/s"
-            },
-            {
-              "displayName": "Delay Avg",
-              "name": "Delay Avg",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Delay P75",
-              "name": "Delay P75",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Delay P90",
-              "name": "Delay P90",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Delay P99",
-              "name": "Delay P99",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Client Error Ratio",
-              "name": "Client Error Ratio",
-              "type": 4,
-              "unit": "%"
-            },
-            {
-              "displayName": "Server Error Ratio",
-              "name": "Server Error Ratio",
-              "type": 4,
-              "unit": "%"
-            }
-          ],
-          "returnTags": [
-            {
-              "displayName": "Application Service",
-              "isResource": false,
-              "name": "app_service"
-            },
-            {
-              "displayName": "Instance - K8s Service First",
-              "isResource": false,
-              "name": "auto_service"
-            },
-            {
-              "displayName": "Signal Source",
-              "isResource": false,
-              "name": "Enum(signal_source)"
-            },
-            {
-              "displayName": "Instance - K8s Service First",
-              "isResource": false,
-              "name": "auto_service_id"
-            },
-            {
-              "displayName": "节点类型",
-              "isResource": false,
-              "name": "`node_type`"
-            },
-            {
-              "displayName": "图标",
-              "isResource": false,
-              "name": "`icon_id`"
-            },
-            {
-              "displayName": "Signal Source",
-              "isResource": false,
-              "name": "signal_source"
-            }
-          ],
-          "sql": "SELECT PerSecond(Avg(`request`)) AS `Request Rate`, Avg(`rrt`) AS `Delay Avg`, Percentile(`rrt`,0.75) AS `Delay P75`, Percentile(`rrt`,0.9) AS `Delay P90`, Percentile(`rrt`,0.99) AS `Delay P99`, Avg(`client_error_ratio`) AS `Client Error Ratio`, Avg(`server_error_ratio`) AS `Server Error Ratio`, app_service, auto_service, Enum(signal_source), auto_service_id, node_type(auto_service) AS `node_type`, icon_id(auto_service) AS `icon_id`, signal_source FROM vtap_app_port WHERE auto_service_id!=0 AND app_service LIKE('*') AND (Enum(signal_source) = 'Packet' OR Enum(signal_source) = 'xFlow' OR Enum(signal_source) = 'eBPF' OR Enum(signal_source) = 'OTel') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY auto_service, app_service, signal_source, auto_service_id, `node_type` LIMIT 1000"
         }
-      ],
-      "title": "Service List",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "auto_instance_id": true,
-              "auto_instance_type": true,
-              "auto_service_id": true,
-              "auto_service_type": true,
-              "icon_id": true,
-              "node_type": true,
-              "signal_source": true
-            },
-            "indexByName": {
-              "Client Error Ratio": 8,
-              "Delay Avg": 4,
-              "Delay P75": 5,
-              "Delay P90": 6,
-              "Delay P99": 7,
-              "Enum(signal_source)": 2,
-              "Request Rate": 3,
-              "Server Error Ratio": 9,
-              "app_service": 1,
-              "auto_service": 0,
-              "auto_service_id": 11,
-              "auto_service_type": 12,
-              "icon_id": 13,
-              "node_type": 14,
-              "signal_source": 10
-            },
-            "renameByName": {
-              "Enum(signal_source)": "Signal Source",
-              "app_service": "App Service",
-              "auto_service": "Auto Service"
-            }
-          }
-        }
-      ],
-      "type": "table"
+      ]
     },
-    {
-      "datasource": "$datasource",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "decimals": 2,
-          "mappings": [],
-          "noValue": "--",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "Delay.*"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "µs"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1000000
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Client Error Ratio"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 1
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Server Error Ratio"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Reuesut Sum"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 12,
-        "w": 24,
-        "x": 0,
-        "y": 12
-      },
-      "id": 3,
-      "options": {
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "9.4.3",
-      "targets": [
-        {
-          "datasource": "$datasource",
-          "debug": false,
-          "metaExtra": {},
-          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_log\",\"sources\":\"\",\"from\":\"l7_flow_log\",\"select\":[{\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7998acf4-9c0c-05bb-f070-f85cefecdb15\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"df17b648-c780-3c6d-e750-fb0610e4ae9a\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"Reuesut Sum\",\"params\":[],\"uuid\":\"b9384b44-4e10-d160-0a0a-f3fa0f521ddd\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[],\"subFuncs\":[]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay Avg\",\"params\":[],\"uuid\":\"05e6eeee-c040-41ff-9275-fea7a943b5aa\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P75\",\"params\":[\"75\"],\"uuid\":\"85eb556e-ffaf-b183-2c98-0a9cfab4e09b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"75\"]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P90\",\"params\":[\"90\"],\"uuid\":\"3ca3a29b-11b4-5d3b-49f6-b3d5f4016250\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"90\"]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P99\",\"params\":[\"99\"],\"uuid\":\"d0905664-24b2-9f2b-4ada-9428aed9760d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"99\"]}},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Client Error Ratio\",\"params\":[],\"uuid\":\"d9bf8491-fe0b-e8a6-ae13-ead1c7b96bb5\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Server Error Ratio\",\"params\":[],\"uuid\":\"7b143d95-1ca9-3717-3ae8-df16b7dd809d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}}],\"where\":[{\"key\":\"signal_source\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f0e0e5a9-add0-9047-bcec-e04068ecb430\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$auto_service\",\"value\":\"auto_service\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"918876ae-284e-c8ce-be69-8cea5dd72a60\",\"subFuncs\":[],\"whereOnly\":true,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"app_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$app_service\",\"value\":\"app_service\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"a0c72ce0-569e-b014-d029-145a186c158a\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"241f1aaa-bfff-b64b-e558-dea1ba03c07b\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5b6cb8a5-d968-5486-3154-1998240f0aaf\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d1ee38f3-c52c-ed29-ebba-4299262ef3cd\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"83b6e474-4cbc-5ee3-b3c1-ef149c2b9091\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
-          "refId": "A",
-          "returnMetrics": [
-            {
-              "displayName": "Reuesut Sum",
-              "name": "Reuesut Sum",
-              "type": 1,
-              "unit": ""
-            },
-            {
-              "displayName": "Delay Avg",
-              "name": "Delay Avg",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Delay P75",
-              "name": "Delay P75",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Delay P90",
-              "name": "Delay P90",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Delay P99",
-              "name": "Delay P99",
-              "type": 3,
-              "unit": "us"
-            },
-            {
-              "displayName": "Client Error Ratio",
-              "name": "Client Error Ratio",
-              "type": 4,
-              "unit": "%"
-            },
-            {
-              "displayName": "Server Error Ratio",
-              "name": "Server Error Ratio",
-              "type": 4,
-              "unit": "%"
-            }
-          ],
-          "returnTags": [
-            {
-              "displayName": "API Endpoint",
-              "isResource": false,
-              "name": "endpoint"
-            },
-            {
-              "displayName": "Signal Source",
-              "isResource": false,
-              "name": "Enum(signal_source)"
-            },
-            {
-              "displayName": "Signal Source",
-              "isResource": false,
-              "name": "signal_source"
-            }
-          ],
-          "sql": "SELECT Sum(`request`) AS `Reuesut Sum`, Avg(`response_duration`) AS `Delay Avg`, Percentile(`response_duration`,0.75) AS `Delay P75`, Percentile(`response_duration`,0.9) AS `Delay P90`, Percentile(`response_duration`,0.99) AS `Delay P99`, Avg(`client_error_ratio`) AS `Client Error Ratio`, Avg(`server_error_ratio`) AS `Server Error Ratio`, endpoint, Enum(signal_source), signal_source FROM l7_flow_log WHERE (Enum(signal_source) = 'Packet' OR Enum(signal_source) = 'xFlow' OR Enum(signal_source) = 'eBPF' OR Enum(signal_source) = 'OTel') AND (auto_service_id_0!=0 OR auto_service_id_1!=0) AND app_service LIKE('*') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY endpoint, signal_source LIMIT 1000"
-        }
-      ],
-      "title": "Endpoint List",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "auto_instance_id": true,
-              "auto_instance_type": true,
-              "auto_service_id": true,
-              "auto_service_type": true,
-              "icon_id": true,
-              "node_type": true,
-              "signal_source": true
-            },
-            "indexByName": {
-              "Client Error Ratio": 7,
-              "Delay Avg": 3,
-              "Delay P75": 4,
-              "Delay P90": 5,
-              "Delay P99": 6,
-              "Enum(signal_source)": 2,
-              "Reuesut Sum": 8,
-              "Server Error Ratio": 9,
-              "app_service": 0,
-              "endpoint": 1,
-              "signal_source": 10
-            },
-            "renameByName": {
-              "Enum(signal_source)": "Signal Source",
-              "app_service": "App Service",
-              "auto_service": "Auto Service",
-              "endpoint": "Endpoint"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    }
-  ],
-  "refresh": "",
-  "revision": 1,
-  "schemaVersion": 38,
-  "style": "dark",
-  "tags": [],
-  "templating": {
-    "list": [
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "links": [],
+    "liveNow": false,
+    "panels": [
       {
-        "current": {
-          "selected": true,
-          "value": "1"
-        },
-        "hide": 0,
-        "includeAll": false,
-        "label": "Data Source",
-        "multi": false,
-        "name": "datasource",
-        "options": [],
-        "query": "deepflowio-deepflow-datasource",
-        "queryValue": "",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "datasource"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": [
-            "Any"
-          ],
-          "value": [
-            "__any"
+        "datasource": "$datasource",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "auto"
+              },
+              "inspect": false
+            },
+            "decimals": 2,
+            "mappings": [],
+            "noValue": "--",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byRegexp",
+                "options": "Delay.*"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "µs"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1000000
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Client Error Ratio"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "orange",
+                        "value": 1
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "mode": "basic",
+                    "type": "color-background"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Server Error Ratio"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "mode": "basic",
+                    "type": "color-background"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Request Rate"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "reqps"
+                }
+              ]
+            }
           ]
         },
-        "datasource": "$datasource",
-        "definition": "{\"sql\":\"show tag auto_service values from vtap_app_port\",\"database\":\"flow_metrics\",\"useAny\":true}",
-        "hide": 0,
-        "includeAll": false,
-        "multi": true,
-        "name": "auto_service",
-        "options": [],
-        "query": {
-          "database": "flow_metrics",
-          "sql": "show tag auto_service values from vtap_app_port",
-          "useAny": true
+        "gridPos": {
+          "h": 12,
+          "w": 24,
+          "x": 0,
+          "y": 0
         },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "*",
-          "value": "*"
+        "id": 2,
+        "options": {
+          "footer": {
+            "countRows": false,
+            "fields": "",
+            "reducer": [
+              "sum"
+            ],
+            "show": false
+          },
+          "showHeader": true,
+          "sortBy": [
+            {
+              "desc": true,
+              "displayName": "Server Error Ratio"
+            }
+          ]
         },
-        "hide": 0,
-        "name": "app_service",
-        "options": [
+        "pluginVersion": "9.4.3",
+        "targets": [
           {
-            "selected": true,
-            "text": "*",
-            "value": "*"
+            "datasource": "$datasource",
+            "debug": false,
+            "metaExtra": {},
+            "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_port\",\"select\":[{\"key\":\"app_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7998acf4-9c0c-05bb-f070-f85cefecdb15\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3bec8c6c-df3d-5005-413c-0c0889503abe\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7b0ea3f0-6ea9-1fa4-e24a-4a8cdfc2e105\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Request Rate\",\"params\":[],\"uuid\":\"16c0195d-d0a7-e88d-5358-b966db83a4e4\",\"subFuncs\":[{\"func\":\"PerSecond\"}],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[],\"subFuncs\":[{\"func\":\"PerSecond\"}]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay Avg\",\"params\":[],\"uuid\":\"0dc54e76-560a-cea4-11d7-0a5f13e348c4\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P75\",\"params\":[\"75\"],\"uuid\":\"c1a72723-c880-2651-3c87-376e7a0d2ded\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"75\"]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P90\",\"params\":[\"90\"],\"uuid\":\"4d69bad9-1abd-2abd-3193-54de30aa6ae0\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"90\"]}},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P99\",\"params\":[\"99\"],\"uuid\":\"61698a1c-6f78-2460-3d8e-df8ffefbb4fc\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"99\"]}},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Client Error Ratio\",\"params\":[],\"uuid\":\"c01ac305-1333-2ffe-757c-0ab1e92dec74\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Server Error Ratio\",\"params\":[],\"uuid\":\"3f0617f5-8688-0fac-ce0a-ffe841530db1\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}}],\"where\":[{\"key\":\"auto_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$auto_service\",\"value\":\"auto_service\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f0e0e5a9-add0-9047-bcec-e04068ecb430\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"app_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$app_service\",\"value\":\"app_service\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"37e6b5eb-7871-34a1-8725-0ec6f3e8cdfe\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"6edfb94d-8d92-a75b-1b74-856b80bf4dc2\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"241f1aaa-bfff-b64b-e558-dea1ba03c07b\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"auto_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5b6cb8a5-d968-5486-3154-1998240f0aaf\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"app_service\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fc1c78f6-955c-b60d-1f61-0d7cd93f5a97\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"f5a2d3e9-ab68-67f5-e31e-95f65201edd2\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"83b6e474-4cbc-5ee3-b3c1-ef149c2b9091\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+            "refId": "A",
+            "returnMetrics": [
+              {
+                "displayName": "Request Rate",
+                "name": "Request Rate",
+                "type": 1,
+                "unit": "/s"
+              },
+              {
+                "displayName": "Delay Avg",
+                "name": "Delay Avg",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Delay P75",
+                "name": "Delay P75",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Delay P90",
+                "name": "Delay P90",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Delay P99",
+                "name": "Delay P99",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Client Error Ratio",
+                "name": "Client Error Ratio",
+                "type": 4,
+                "unit": "%"
+              },
+              {
+                "displayName": "Server Error Ratio",
+                "name": "Server Error Ratio",
+                "type": 4,
+                "unit": "%"
+              }
+            ],
+            "returnTags": [
+              {
+                "displayName": "Application Service",
+                "isResource": false,
+                "name": "app_service"
+              },
+              {
+                "displayName": "Instance - K8s Service First",
+                "isResource": false,
+                "name": "auto_service"
+              },
+              {
+                "displayName": "Signal Source",
+                "isResource": false,
+                "name": "Enum(signal_source)"
+              },
+              {
+                "displayName": "Instance - K8s Service First",
+                "isResource": false,
+                "name": "auto_service_id"
+              },
+              {
+                "displayName": "节点类型",
+                "isResource": false,
+                "name": "`node_type`"
+              },
+              {
+                "displayName": "图标",
+                "isResource": false,
+                "name": "`icon_id`"
+              },
+              {
+                "displayName": "Signal Source",
+                "isResource": false,
+                "name": "signal_source"
+              }
+            ],
+            "sql": "SELECT PerSecond(Avg(`request`)) AS `Request Rate`, Avg(`rrt`) AS `Delay Avg`, Percentile(`rrt`,0.75) AS `Delay P75`, Percentile(`rrt`,0.9) AS `Delay P90`, Percentile(`rrt`,0.99) AS `Delay P99`, Avg(`client_error_ratio`) AS `Client Error Ratio`, Avg(`server_error_ratio`) AS `Server Error Ratio`, app_service, auto_service, Enum(signal_source), auto_service_id, node_type(auto_service) AS `node_type`, icon_id(auto_service) AS `icon_id`, signal_source FROM vtap_app_port WHERE auto_service_id!=0 AND app_service LIKE('*') AND (Enum(signal_source) = 'Packet' OR Enum(signal_source) = 'xFlow' OR Enum(signal_source) = 'eBPF' OR Enum(signal_source) = 'OTel') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY auto_service, app_service, signal_source, auto_service_id, `node_type` LIMIT 1000"
           }
         ],
-        "query": "*",
-        "skipUrlSync": false,
-        "type": "textbox"
+        "title": "Service List",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "auto_instance_id": true,
+                "auto_instance_type": true,
+                "auto_service_id": true,
+                "auto_service_type": true,
+                "icon_id": true,
+                "node_type": true,
+                "signal_source": true
+              },
+              "indexByName": {
+                "Client Error Ratio": 8,
+                "Delay Avg": 4,
+                "Delay P75": 5,
+                "Delay P90": 6,
+                "Delay P99": 7,
+                "Enum(signal_source)": 2,
+                "Request Rate": 3,
+                "Server Error Ratio": 9,
+                "app_service": 1,
+                "auto_service": 0,
+                "auto_service_id": 11,
+                "auto_service_type": 12,
+                "icon_id": 13,
+                "node_type": 14,
+                "signal_source": 10
+              },
+              "renameByName": {
+                "Enum(signal_source)": "Signal Source",
+                "app_service": "App Service",
+                "auto_service": "Auto Service"
+              }
+            }
+          }
+        ],
+        "type": "table"
       },
       {
-        "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
+        "datasource": "$datasource",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "auto"
+              },
+              "inspect": false
+            },
+            "decimals": 2,
+            "mappings": [],
+            "noValue": "--",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byRegexp",
+                "options": "Delay.*"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "µs"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1000000
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Client Error Ratio"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "orange",
+                        "value": 1
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "mode": "basic",
+                    "type": "color-background"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Server Error Ratio"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "mode": "basic",
+                    "type": "color-background"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Reuesut Sum"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "short"
+                }
+              ]
+            }
           ]
         },
-        "datasource": "$datasource",
-        "definition": "{\"sql\":\"show tag signal_source values from vtap_app_port\",\"database\":\"flow_metrics\"}",
-        "hide": 0,
-        "includeAll": true,
-        "multi": true,
-        "name": "signal_source",
-        "options": [],
-        "query": {
-          "database": "flow_metrics",
-          "sql": "show tag signal_source values from vtap_app_port"
+        "gridPos": {
+          "h": 12,
+          "w": 24,
+          "x": 0,
+          "y": 12
         },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "id": 3,
+        "options": {
+          "footer": {
+            "countRows": false,
+            "fields": "",
+            "reducer": [
+              "sum"
+            ],
+            "show": false
+          },
+          "showHeader": true,
+          "sortBy": []
+        },
+        "pluginVersion": "9.4.3",
+        "targets": [
+          {
+            "datasource": "$datasource",
+            "debug": false,
+            "metaExtra": {},
+            "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_log\",\"sources\":\"\",\"from\":\"l7_flow_log\",\"select\":[{\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7998acf4-9c0c-05bb-f070-f85cefecdb15\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"df17b648-c780-3c6d-e750-fb0610e4ae9a\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"Reuesut Sum\",\"params\":[],\"uuid\":\"b9384b44-4e10-d160-0a0a-f3fa0f521ddd\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[],\"subFuncs\":[]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay Avg\",\"params\":[],\"uuid\":\"05e6eeee-c040-41ff-9275-fea7a943b5aa\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P75\",\"params\":[\"75\"],\"uuid\":\"85eb556e-ffaf-b183-2c98-0a9cfab4e09b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"75\"]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P90\",\"params\":[\"90\"],\"uuid\":\"3ca3a29b-11b4-5d3b-49f6-b3d5f4016250\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"90\"]}},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"Delay P99\",\"params\":[\"99\"],\"uuid\":\"d0905664-24b2-9f2b-4ada-9428aed9760d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"99\"]}},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Client Error Ratio\",\"params\":[],\"uuid\":\"d9bf8491-fe0b-e8a6-ae13-ead1c7b96bb5\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"Server Error Ratio\",\"params\":[],\"uuid\":\"7b143d95-1ca9-3717-3ae8-df16b7dd809d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}}],\"where\":[{\"key\":\"signal_source\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f0e0e5a9-add0-9047-bcec-e04068ecb430\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$auto_service\",\"value\":\"auto_service\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"918876ae-284e-c8ce-be69-8cea5dd72a60\",\"subFuncs\":[],\"whereOnly\":true,\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"app_service\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$app_service\",\"value\":\"app_service\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"a0c72ce0-569e-b014-d029-145a186c158a\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"241f1aaa-bfff-b64b-e558-dea1ba03c07b\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5b6cb8a5-d968-5486-3154-1998240f0aaf\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d1ee38f3-c52c-ed29-ebba-4299262ef3cd\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"83b6e474-4cbc-5ee3-b3c1-ef149c2b9091\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+            "refId": "A",
+            "returnMetrics": [
+              {
+                "displayName": "Reuesut Sum",
+                "name": "Reuesut Sum",
+                "type": 1,
+                "unit": ""
+              },
+              {
+                "displayName": "Delay Avg",
+                "name": "Delay Avg",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Delay P75",
+                "name": "Delay P75",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Delay P90",
+                "name": "Delay P90",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Delay P99",
+                "name": "Delay P99",
+                "type": 3,
+                "unit": "us"
+              },
+              {
+                "displayName": "Client Error Ratio",
+                "name": "Client Error Ratio",
+                "type": 4,
+                "unit": "%"
+              },
+              {
+                "displayName": "Server Error Ratio",
+                "name": "Server Error Ratio",
+                "type": 4,
+                "unit": "%"
+              }
+            ],
+            "returnTags": [
+              {
+                "displayName": "API Endpoint",
+                "isResource": false,
+                "name": "endpoint"
+              },
+              {
+                "displayName": "Signal Source",
+                "isResource": false,
+                "name": "Enum(signal_source)"
+              },
+              {
+                "displayName": "Signal Source",
+                "isResource": false,
+                "name": "signal_source"
+              }
+            ],
+            "sql": "SELECT Sum(`request`) AS `Reuesut Sum`, Avg(`response_duration`) AS `Delay Avg`, Percentile(`response_duration`,0.75) AS `Delay P75`, Percentile(`response_duration`,0.9) AS `Delay P90`, Percentile(`response_duration`,0.99) AS `Delay P99`, Avg(`client_error_ratio`) AS `Client Error Ratio`, Avg(`server_error_ratio`) AS `Server Error Ratio`, endpoint, Enum(signal_source), signal_source FROM l7_flow_log WHERE (Enum(signal_source) = 'Packet' OR Enum(signal_source) = 'xFlow' OR Enum(signal_source) = 'eBPF' OR Enum(signal_source) = 'OTel') AND (auto_service_id_0!=0 OR auto_service_id_1!=0) AND app_service LIKE('*') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY endpoint, signal_source LIMIT 1000"
+          }
+        ],
+        "title": "Endpoint List",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "auto_instance_id": true,
+                "auto_instance_type": true,
+                "auto_service_id": true,
+                "auto_service_type": true,
+                "icon_id": true,
+                "node_type": true,
+                "signal_source": true
+              },
+              "indexByName": {
+                "Client Error Ratio": 7,
+                "Delay Avg": 3,
+                "Delay P75": 4,
+                "Delay P90": 5,
+                "Delay P99": 6,
+                "Enum(signal_source)": 2,
+                "Reuesut Sum": 8,
+                "Server Error Ratio": 9,
+                "app_service": 0,
+                "endpoint": 1,
+                "signal_source": 10
+              },
+              "renameByName": {
+                "Enum(signal_source)": "Signal Source",
+                "app_service": "App Service",
+                "auto_service": "Auto Service",
+                "endpoint": "Endpoint"
+              }
+            }
+          }
+        ],
+        "type": "table"
       }
-    ]
-  },
-  "time": {
-    "from": "now-15m",
-    "to": "now"
-  },
-  "timepicker": {},
-  "timezone": "",
-  "title": "Applicaiton - Service List",
-  "uid": "Applicaiton_Service_List",
-  "version": 5,
-  "weekStart": "",
+    ],
+    "refresh": "",
+    "revision": 1,
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": true,
+            "value": "1"
+          },
+          "hide": 0,
+          "includeAll": false,
+          "label": "Data Source",
+          "multi": false,
+          "name": "datasource",
+          "options": [],
+          "query": "deepflowio-deepflow-datasource",
+          "queryValue": "",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "type": "datasource"
+        },
+        {
+          "current": {
+            "selected": true,
+            "text": [
+              "Any"
+            ],
+            "value": [
+              "__any"
+            ]
+          },
+          "datasource": "$datasource",
+          "definition": "{\"sql\":\"show tag auto_service values from vtap_app_port\",\"database\":\"flow_metrics\",\"useAny\":true}",
+          "hide": 0,
+          "includeAll": false,
+          "multi": true,
+          "name": "auto_service",
+          "options": [],
+          "query": {
+            "database": "flow_metrics",
+            "sql": "show tag auto_service values from vtap_app_port",
+            "useAny": true
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        },
+        {
+          "current": {
+            "selected": false,
+            "text": "*",
+            "value": "*"
+          },
+          "hide": 0,
+          "name": "app_service",
+          "options": [
+            {
+              "selected": true,
+              "text": "*",
+              "value": "*"
+            }
+          ],
+          "query": "*",
+          "skipUrlSync": false,
+          "type": "textbox"
+        },
+        {
+          "current": {
+            "selected": true,
+            "text": [
+              "All"
+            ],
+            "value": [
+              "$__all"
+            ]
+          },
+          "datasource": "$datasource",
+          "definition": "{\"sql\":\"show tag signal_source values from vtap_app_port\",\"database\":\"flow_metrics\"}",
+          "hide": 0,
+          "includeAll": true,
+          "multi": true,
+          "name": "signal_source",
+          "options": [],
+          "query": {
+            "database": "flow_metrics",
+            "sql": "show tag signal_source values from vtap_app_port"
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        }
+      ]
+    },
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Application - Service List",
+    "uid": "Application_Service_List",
+    "version": 5,
+    "weekStart": "",
   "__inputs": [
     {
       "name": "DS_DeepFlow_-_uid",
@@ -709,6 +709,5 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ],
-  "__path": "dashboards/DeepFlow-Templates/Application-Service-List.json"
+  ]
 }

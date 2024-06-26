@@ -5,6 +5,7 @@
 
     .header-name {
       max-width: 280px;
+      margin-right: auto;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -12,7 +13,6 @@
 
     .header-edit {
       width: 88px;
-      margin-left: auto;
       font-size: 12px;
       font-weight: normal;
       color: #3a84ff;
@@ -26,7 +26,7 @@
 
     .header-record {
       margin: 0 40px 0 16px;
-  
+
       /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
       @extend .header-edit;
     }

@@ -65,13 +65,13 @@ export default defineComponent({
     const goToApply = () => {
       try {
         if (self === top) {
-          window.open(applyUrl.value, '__blank');
+          window.open(applyUrl.value, '_blank');
         } else {
           (top as any).BLUEKING.api.open_app_by_other('bk_iam', applyUrl.value);
         }
       } catch (_) {
         // 防止跨域问题
-        window.open(applyUrl.value, '__blank');
+        window.open(applyUrl.value, '_blank');
       }
     };
     const handleCloseDialog = () => {

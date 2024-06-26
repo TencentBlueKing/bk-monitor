@@ -30,7 +30,7 @@ class Command(BaseCommand):
         """
         选择应用进行新版预计算灰度
         用法:
-        manage.py set_ebpf_config add 2 (queue1) 触发应用ID为2的应用(发送到queue1队列)进行新版预计算 旧版预计算将会忽略此应用
+        manage.py pre_calculate add 2 (queue1) 触发应用ID为2的应用(发送到queue1队列)进行新版预计算 旧版预计算将会忽略此应用
         """
         params = options.get("params")
 

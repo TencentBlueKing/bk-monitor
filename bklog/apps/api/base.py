@@ -21,9 +21,11 @@ the project delivered to anyone in the future.
 """
 import hashlib
 import json
+import math
 import re
 import time
 from copy import deepcopy
+from enum import Enum
 from multiprocessing.pool import ThreadPool
 from urllib import parse
 
@@ -189,6 +191,10 @@ class DataAPI(object):
 
     HTTP_STATUS_OK = 200
 
+    class PaginationStyle(Enum):
+        PAGE_NUMBER = "PageNumberPagination"
+        LIMIT_OFFSET = "LimitOffsetPagination"
+
     def __init__(
         self,
         method,
@@ -208,6 +214,7 @@ class DataAPI(object):
         default_timeout=60,
         data_api_retry_cls=None,
         use_superuser=False,
+        pagination_style=PaginationStyle.LIMIT_OFFSET.value,
     ):
         """
         初始化一个请求句柄
@@ -226,6 +233,7 @@ class DataAPI(object):
         @param {int} cache_time 缓存时间
         @param {int} default_timeout 默认超时时间
         @param {DataApiRetryClass} data_api_retry_cls 超时配置
+        @param {string} pagination_style 分页方式
         """
         self.url = url
         self.module = module
@@ -255,6 +263,7 @@ class DataAPI(object):
         self.default_timeout = default_timeout
         self.data_api_retry_cls = data_api_retry_cls
         self.use_superuser = use_superuser
+        self.pagination_style = pagination_style
 
     def __call__(
         self,
@@ -586,6 +595,48 @@ class DataAPI(object):
         if cache.get(cache_key):
             return cache.get(cache_key)
 
+    def batch_request(
+        self,
+        chunk_key,
+        chunk_values,
+        params=None,
+        chunk_size=settings.BULK_REQUEST_LIMIT,
+        get_data=lambda x: x["list"],
+    ):
+        """
+        并发请求接口，用于需要切片多次请求的情况
+        :param chunk_key: 需要进行切片的参数名
+        :param chunk_values: 需要进行切片的参数值
+        :param params: 请求参数
+        :param chunk_size: 一次请求数量
+        :param get_data: 获取数据函数
+        :return: 请求结果
+        """
+        request_params = params or {}
+        chunk_values = chunk_values or []
+        request_params.update({"no_request": True})
+
+        data = []
+        count = math.ceil(len(chunk_values) / chunk_size)
+        futures = []
+        pool = ThreadPool()
+        request = None
+        with ignored(Exception):
+            request = get_request()
+        for i in range(count):
+            request_params.update({chunk_key: chunk_values[i * chunk_size : i * chunk_size + chunk_size]})
+            futures.append(
+                pool.apply_async(
+                    self.thread_activate_request,
+                    args=(deepcopy(request_params),),
+                    kwds={"request": request, "context": get_current()},
+                )
+            )
+        for future in futures:
+            data.extend(get_data(future.get()))
+
+        return data
+
     def bulk_request(
         self,
         params=None,
@@ -602,9 +653,12 @@ class DataAPI(object):
         :return: 请求结果
         """
         params = params or {}
-
+        pagination_style = self.PaginationStyle.PAGE_NUMBER.value
         # 请求第一次获取总数
-        request_params = {"page": {"start": 0, "limit": limit}, "no_request": True}
+        if self.pagination_style == pagination_style:
+            request_params = {"page": 1, "pagesize": limit, "no_request": True}
+        else:
+            request_params = {"page": {"start": 0, "limit": limit}, "no_request": True}
         request_params.update(params)
         result = self.__call__(request_params)
         count = get_count(result)
@@ -617,8 +671,14 @@ class DataAPI(object):
         request = None
         with ignored(Exception):
             request = get_request()
+        if self.pagination_style == pagination_style:
+            start = 2
+            count = math.ceil(count / limit) + 1
         while start < count:
-            request_params = {"page": {"limit": limit, "start": start}, "no_request": True}
+            if self.pagination_style == pagination_style:
+                request_params = {"page": start, "pagesize": limit, "no_request": True}
+            else:
+                request_params = {"page": {"limit": limit, "start": start}, "no_request": True}
             request_params.update(params)
             # request_params["requests"] = get_request()
             futures.append(
@@ -628,8 +688,10 @@ class DataAPI(object):
                     kwds={"request": request, "context": get_current()},
                 )
             )
-
-            start += limit
+            if self.pagination_style == pagination_style:
+                start += 1
+            else:
+                start += limit
 
         pool.close()
         pool.join()

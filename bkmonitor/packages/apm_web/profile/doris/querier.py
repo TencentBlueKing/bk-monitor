@@ -11,7 +11,7 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 
 import curlify
 import requests
@@ -38,6 +38,15 @@ class APIType(Enum):
     COL_TYPE = "col_type"
     SERVICE_NAME = "service_name"
     SELECT_COUNT = "select_aggregate"
+
+
+class ConverterType:
+    """Bkbase 原始 profile 可以转换的数据类型"""
+
+    # Profile 类型使用 DorisConverter 转换
+    Profile = "profile"
+    # Tree 类型使用 TreeConverter
+    Tree = "tree"
 
 
 @dataclass
@@ -134,6 +143,8 @@ class Query:
                 span.set_attribute("profile.query.url", url)
                 span.set_attribute("profile.query.params", json.dumps(params))
                 response = requests.post(url=url, json=params, headers={"Content-Type": "application/json"})
+                logger.info(f"[ProfileDatasource] request elapsed: {response.elapsed.total_seconds()}s")
+                span.set_attribute("profile.query.elapsed", response.elapsed.total_seconds())
                 span.set_attribute("profile.query.curl", curlify.to_curl(response.request))
                 res = response.json()
             except RequestException as e:
@@ -169,44 +180,38 @@ class QueryTemplate:
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
 
-    def get_sample_info(
-        self, start: int, end: int, sample_types: List[str], service_name: str, label_filter: dict = None
-    ):
-        """查询样本基本信息"""
+    def get_sample_info(self, start: int, end: int, sample_type: str, service_name: str, label_filter: dict = None):
+        """根据 sample_type 查询最新的数据时间（最近上报时间）"""
         label_filter = label_filter or {}
 
-        res = {}
-        for sample_type in sample_types:
-            if not sample_type:
-                continue
+        if not sample_type:
+            return None
 
-            info = Query(
-                api_type=APIType.QUERY_SAMPLE_BY_JSON,
-                api_params=APIParams(
-                    biz_id=self.bk_biz_id,
-                    app=self.app_name,
-                    general_filters={"sample_type": f"op_eq|{sample_type}"},
-                    start=start,
-                    end=end,
-                    service_name=service_name,
-                    limit={"offset": 0, "rows": 1},
-                    order={"expr": "dtEventTimeStamp", "sort": "desc"},
-                    label_filter=label_filter,
-                    dimension_fields="dtEventTimeStamp",
-                ),
-                result_table_id=self.result_table_id,
-            ).execute()
+        info = Query(
+            api_type=APIType.QUERY_SAMPLE_BY_JSON,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
+                start=start,
+                end=end,
+                service_name=service_name,
+                limit={"offset": 0, "rows": 1},
+                order={"expr": "dtEventTimeStamp", "sort": "desc"},
+                label_filter=label_filter,
+                dimension_fields="dtEventTimeStamp",
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
 
-            if not info or not info.get("list", []):
-                continue
+        if not info or not info.get("list", []):
+            return None
 
-            ts = info["list"][0].get("dtEventTimeStamp")
-            if not ts:
-                continue
+        ts = info["list"][0].get("dtEventTimeStamp")
+        if not ts:
+            return None
 
-            res[sample_type] = {"last_report_time": ts}
-
-        return res
+        return ts
 
     def exist_data(self, start: int, end: int) -> bool:
         """查询 Profile 是否有数据上报"""

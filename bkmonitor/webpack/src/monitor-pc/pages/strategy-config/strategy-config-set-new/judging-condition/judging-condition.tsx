@@ -188,6 +188,9 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
       this.localData.noDataConfig.dimensions =
         deepClone(this.localData.noDataConfig.dimensions.filter(dim => this.aggDimensionCollection.includes(dim))) ||
         [];
+    } else {
+      this.curDimensions = [];
+      this.localData.noDataConfig.dimensions = [];
     }
   }
 
@@ -480,12 +483,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               >
                 <bk-switcher
                   class='small-switch'
+                  v-model={this.localData.noDataConfig.isEnabled}
                   v-bk-tooltips={{
                     content: this.$t('只有监控指标及日志关键字可配置无数据'),
                     placements: ['top'],
                     disabled: !this.isNoDataDisable,
                   }}
-                  v-model={this.localData.noDataConfig.isEnabled}
                   disabled={this.isNoDataDisable}
                   size='small'
                   theme='primary'
@@ -493,12 +496,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 ></bk-switcher>
                 <bk-input
                   class='small-input'
+                  v-model={this.localData.noDataConfig.continuous}
                   v-bk-tooltips={
                     !this.localData.noDataConfig.isEnabled
                       ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
                       : { disabled: true }
                   }
-                  v-model={this.localData.noDataConfig.continuous}
                   behavior='simplicity'
                   disabled={!this.localData.noDataConfig.isEnabled}
                   max={60}
@@ -512,12 +515,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                     return (
                       <bk-tag-input
                         class='small-select'
+                        v-model={this.promqlDimensions}
                         v-bk-tooltips={
                           !this.localData.noDataConfig.isEnabled
                             ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
                             : { disabled: true }
                         }
-                        v-model={this.promqlDimensions}
                         allow-create={true}
                         disabled={!this.localData.noDataConfig.isEnabled}
                         has-delete-icon={true}
@@ -530,6 +533,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   return Array.isArray(this.localData.noDataConfig.dimensions) ? (
                     <bk-select
                       class='small-select'
+                      v-model={this.localData.noDataConfig.dimensions}
                       v-bk-tooltips={
                         !this.localData.noDataConfig.isEnabled
                           ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
@@ -541,7 +545,6 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                               allowHTML: false,
                             }
                       }
-                      v-model={this.localData.noDataConfig.dimensions}
                       behavior='simplicity'
                       clearable={false}
                       disabled={!this.localData.noDataConfig.isEnabled}
@@ -573,12 +576,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 })()}
                 <bk-select
                   class='small-select'
+                  v-model={this.localData.noDataConfig.level}
                   v-bk-tooltips={
                     !this.localData.noDataConfig.isEnabled
                       ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
                       : { disabled: true }
                   }
-                  v-model={this.localData.noDataConfig.level}
                   behavior='simplicity'
                   clearable={false}
                   disabled={!this.localData.noDataConfig.isEnabled}

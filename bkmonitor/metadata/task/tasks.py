@@ -15,6 +15,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
+from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from alarm_backends.service.scheduler.app import app
@@ -301,6 +302,18 @@ def multi_push_space_table_ids(space_list: List[Dict]):
     logger.info("multi push space table ids successfully")
 
 
+def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
+    """接入计算平台 VM 任务
+    NOTE: 根据环境变量判断是否启用新版vm链路
+    """
+    from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
+
+    if settings.ENABLE_V2_VM_DATA_LINK:
+        access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+    else:
+        access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+
+
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def access_bkdata_vm(
     bk_biz_id: int, table_id: str, data_id: int, space_type: Optional[str] = None, space_id: Optional[str] = None
@@ -308,9 +321,7 @@ def access_bkdata_vm(
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
     try:
-        from metadata.models.vm.utils import access_bkdata
-
-        access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        _access_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     except Exception as e:
         logger.error(
             "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e

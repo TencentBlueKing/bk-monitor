@@ -16,7 +16,7 @@ from django.apps import AppConfig, apps
 from django.conf import settings
 from django.db.models.signals import post_migrate
 
-from bkmonitor.log_trace import BluekingInstrumentor
+from bkmonitor.trace.log_trace import BluekingInstrumentor
 from bkmonitor.utils.dynamic_settings import hack_settings
 
 
@@ -53,8 +53,8 @@ class Config(AppConfig):
             os.getenv("BKAPP_OTLP_BK_DATA_ID") or os.getenv("BKAPP_OTLP_BK_DATA_TOKEN")
         ):
             BluekingInstrumentor().instrument()
-            # continues profiling support
-            if os.environ.get("BKAPP_CONTINUOUS_PROFILING_ENABLED", False):
+            # continues profiling support, only enabled in web service
+            if os.environ.get("BKAPP_CONTINUOUS_PROFILING_ENABLED", False) and settings.ROLE == "web":
                 # those data collecting may cause 2-5% overhead
                 # enabling manually is a safer way to do in production
                 try:

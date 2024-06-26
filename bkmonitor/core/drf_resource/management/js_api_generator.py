@@ -262,9 +262,7 @@ NEW_TEMPLATE = """import { request } from '../base';
 
 {% for resource in resources %}export const {{ resource.function_name }} = request('{{ resource.method }}', '{{ resource.request_url | safe }}');
 {% endfor %}
-export default {
-  {% for resource in resources %}{{ resource.function_name }},
-  {% endif %}{% endfor %}
+export default {{% for resource in resources %}\n  {{ resource.function_name }},{% endfor %}
 };
 """  # noqa
 

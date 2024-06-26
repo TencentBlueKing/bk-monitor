@@ -26,8 +26,8 @@
 <template>
   <div
     ref="configSet"
-    v-bkloading="{ isLoading: loading }"
     class="config-set"
+    v-bkloading="{ isLoading: loading }"
   >
     <div class="set-edit">
       <div
@@ -57,10 +57,10 @@
             :validator="{ content: rules.bizId.message }"
           >
             <bk-select
-              v-model="info.bizId"
               class="reset-big-width"
-              :placeholder="$t('选择业务')"
+              v-model="info.bizId"
               :disabled="!canSelectBusiness"
+              :placeholder="$t('选择业务')"
               @change="handleSelectToggle(arguments, info.bizId, rules.bizId)"
             >
               <bk-option
@@ -86,8 +86,8 @@
             :validator="{ content: rules.name.message }"
           >
             <bk-input
-              v-model.trim="info.name"
               class="reset-big-width"
+              v-model.trim="info.name"
               :placeholder="$t('输入采集任务名')"
               @change="validateField(info.name, rules.name)"
             />
@@ -103,10 +103,11 @@
         </div>
         <div class="item-container">
           <plugin-selector
+            :disabled="disabled"
             :id="pluginSelectorObj.id"
             :key="pluginSelectorObj.key"
             :list="pluginSelectorObj.list"
-            :disabled="disabled"
+            :loading="pluginListLoading"
             @change="handlePluginChange"
           />
         </div>
@@ -120,10 +121,11 @@
         </div>
         <div class="item-container">
           <bk-select
-            v-model="info.objectId"
             class="reset-big-width"
+            v-model="info.objectId"
             :clearable="false"
             :disabled="disabled || pluginSelectorObj.objectIdDisable"
+            :loading="pluginListLoading"
             @selected="handleObjectIdChange"
           >
             <bk-option-group
@@ -163,10 +165,10 @@
               </bk-option>
             </bk-select> -->
             <cycle-input
+              class="reset-width custom-cycle"
               v-model="info.period"
               :need-auto="false"
               default-unit="m"
-              class="reset-width custom-cycle"
             />
           </verify-input>
         </div>
@@ -184,10 +186,10 @@
             :validator="{ content: rules.timeout.message }"
           >
             <bk-input
-              v-model.number="info.timeout"
               class="reset-width"
-              type="number"
+              v-model.number="info.timeout"
               :show-controls="false"
+              type="number"
               @blur="validateField(info.timeout, rules.timeout)"
             >
               <template slot="append">
@@ -339,8 +341,8 @@
       </div> -->
       <template v-if="info.plugin.type === 'Exporter'">
         <div
-          v-show="Object.keys(info.host).length"
           class="edit-item edit-item-host"
+          v-show="Object.keys(info.host || {}).length"
         >
           <div
             v-en-style="'min-width: 100px'"
@@ -357,14 +359,14 @@
                 position="right"
               >
                 <bk-input
-                  v-model.trim="info.host.default"
                   class="reset-big-width"
+                  v-model.trim="info.host.default"
                   @blur="validateHost"
                 >
                   <template slot="prepend">
                     <bk-popover
-                      placement="top"
                       :tippy-options="tippyOptions"
+                      placement="top"
                     >
                       <div class="prepend-text">${host}=</div>
                       <div slot="content">
@@ -380,8 +382,8 @@
           </div>
         </div>
         <div
-          v-show="Object.keys(info.port).length"
           class="edit-item edit-item-port"
+          v-show="Object.keys(info.port).length"
         >
           <div
             v-en-style="'min-width: 100px'"
@@ -398,14 +400,14 @@
                 position="right"
               >
                 <bk-input
-                  v-model.trim="info.port.default"
                   class="reset-big-width"
+                  v-model.trim="info.port.default"
                   @blur="info.port.default !== '' && validateParam(info.port)"
                 >
                   <template slot="prepend">
                     <bk-popover
-                      placement="top"
                       :tippy-options="tippyOptions"
+                      placement="top"
                     >
                       <div class="prepend-text">${port}=</div>
                       <div slot="content">
@@ -422,8 +424,8 @@
         </div>
       </template>
       <div
-        v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType)"
         class="edit-item"
+        v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType)"
       >
         <div
           v-en-style="'min-width: 100px'"
@@ -445,12 +447,12 @@
               <template v-if="item.auth_json !== undefined">
                 <!-- snmp多用户 -->
                 <auto-multi
-                  :key="index"
-                  :template-data="SnmpAuthTemplate"
-                  :souce-data="item.auth_json"
-                  :tips-data="tipsData"
-                  :param-type="paramType"
                   :allow-add="!(info.collectType === 'SNMP')"
+                  :key="index"
+                  :param-type="paramType"
+                  :souce-data="item.auth_json"
+                  :template-data="SnmpAuthTemplate"
+                  :tips-data="tipsData"
                   @canSave="snmpAuthCanSave"
                   @triggerData="triggerAuthData"
                 />
@@ -458,28 +460,28 @@
               <template v-else-if="item.auth_priv">
                 <verify-input
                   v-if="item.auth_priv[curAuthPriv] && item.auth_priv[curAuthPriv].need"
-                  :key="index"
                   class="param-item"
+                  :key="index"
                   :show-validate.sync="item.validate.isValidate"
                   :validator="item.validate"
                   position="right"
                 >
                   <!-- 自动补全 -->
                   <auto-complete-input
-                    v-model.trim="item.default"
                     class="reset-big-width"
-                    :tips-data="tipsData"
-                    :type="item.type"
+                    v-model.trim="item.default"
                     :config="item"
                     :cur-auth-priv="curAuthPriv"
+                    :tips-data="tipsData"
+                    :type="item.type"
                     @autoHandle="autoHandle"
-                    @curAuthPriv="handleAuthPriv"
                     @blur="handleParamValidate(item)"
+                    @curAuthPriv="handleAuthPriv"
                   >
                     <template slot="prepend">
                       <bk-popover
-                        placement="top"
                         :tippy-options="tippyOptions"
+                        placement="top"
                       >
                         <div class="prepend-text">
                           {{ item.name || item.description }}
@@ -497,31 +499,31 @@
               <template v-else-if="item.type === 'service' || item.type === 'host'" />
               <template v-else>
                 <verify-input
-                  :key="index"
                   class="param-item"
+                  :key="index"
                   :show-validate.sync="item.validate.isValidate"
                   :validator="item.validate"
                   position="right"
                 >
                   <!-- 自动补全 -->
                   <auto-complete-input
-                    v-model.trim="item.default"
                     class="reset-big-width"
-                    :tips-data="tipsData"
-                    :type="item.type"
+                    v-model.trim="item.default"
                     :config="item"
                     :cur-auth-priv="curAuthPriv"
+                    :tips-data="tipsData"
+                    :type="item.type"
                     @autoHandle="autoHandle"
-                    @passwordInputName="handlePasswordInputName"
+                    @blur="handleParamValidate(item)"
+                    @curAuthPriv="handleAuthPriv"
                     @error-message="msg => handleErrorMessage(msg, item)"
                     @file-change="file => configJsonFileChange(file, item)"
-                    @curAuthPriv="handleAuthPriv"
-                    @blur="handleParamValidate(item)"
+                    @passwordInputName="handlePasswordInputName"
                   >
                     <template slot="prepend">
                       <bk-popover
-                        placement="top"
                         :tippy-options="tippyOptions"
+                        placement="top"
                       >
                         <div class="prepend-text">
                           {{ item.name || item.description }}
@@ -550,8 +552,8 @@
         </div>
       </div>
       <div
-        v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType) && showDmsInsert"
         class="edit-item"
+        v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType) && showDmsInsert"
       >
         <div
           v-en-style="'min-width: 100px'"
@@ -563,8 +565,8 @@
           <template v-for="(item, index) in info.plugin.configJson">
             <template v-if="item.type === 'service'">
               <div
-                :key="index"
                 class="dms-insert-category"
+                :key="index"
               >
                 <div class="container-tips">
                   {{ $t('服务实例标签') }}
@@ -573,23 +575,23 @@
                   <tag-switch
                     v-for="(value, key) in item.default"
                     :key="key"
-                    :value="item.default[key]"
-                    :tag-label="key"
                     :show-validate="item.validate.isValidate"
+                    :tag-label="key"
+                    :value="item.default[key]"
                     @input="val => handleTagInput(item, key, val)"
                   />
                 </div>
                 <span
-                  v-show="item.validate.isValidate"
                   style="color: #ff5656"
+                  v-show="item.validate.isValidate"
                   >{{ item.validate.content }}</span
                 >
               </div>
             </template>
             <template v-else-if="item.type === 'host'">
               <div
-                :key="index"
                 class="dms-insert-category"
+                :key="index"
               >
                 <div class="container-tips">
                   {{ $t('主机字段') }}
@@ -598,15 +600,15 @@
                   <tag-switch
                     v-for="(value, key) in item.default"
                     :key="key"
-                    :value="item.default[key]"
-                    :tag-label="key"
                     :show-validate="item.validate.isValidate"
+                    :tag-label="key"
+                    :value="item.default[key]"
                     @input="val => handleTagInput(item, key, val)"
                   />
                 </div>
                 <span
-                  v-show="item.validate.isValidate"
                   style="color: #ff5656"
+                  v-show="item.validate.isValidate"
                   >{{ item.validate.content }}</span
                 >
               </div>
@@ -623,8 +625,8 @@
           <div class="btn-container">
             <bk-button
               v-if="!['Log', 'Process'].includes(info.collectType) && info.collectType !== 'SNMP_Trap'"
-              v-show="isShowPreview"
               class="btn-preview"
+              v-show="isShowPreview"
               theme="default"
               @click="handlePreview"
             >
@@ -632,8 +634,8 @@
             </bk-button>
             <bk-button
               :class="['btn-next', { disabled: !canNext }]"
-              theme="primary"
               :disabled="!canNext"
+              theme="primary"
               @click="handleNext"
             >
               {{ $t('下一步') }}
@@ -646,12 +648,12 @@
       </div>
     </div>
     <div
-      class="set-desc"
       :style="{ right: !btn.show ? -(descWidth + 1) + 'px' : '0px' }"
+      class="set-desc"
     >
       <div
-        class="set-desc-btn"
         :style="{ left: btn.show ? '-23px' : '-24px' }"
+        class="set-desc-btn"
         @click="handleIntroductionShow"
       >
         <div
@@ -663,8 +665,8 @@
         <!-- <div class="text"> {{ $t('插件说明') }} </div> -->
       </div>
       <div
-        class="set-desc-box"
         :style="{ 'flex-basis': descWidth + 'px', width: descWidth + 'px' }"
+        class="set-desc-box"
         data-tag="resizeTarget"
         @mousedown="handleMouseDown"
         @mousemove="handleMouseMove"
@@ -672,14 +674,18 @@
       >
         <collector-introduction :introduction="introduction" />
         <div
-          v-show="resizeState.show"
-          class="resize-line"
           :style="{ left: descWidth - resizeState.left + 'px' }"
+          class="resize-line"
+          v-show="resizeState.show"
         />
       </div>
     </div>
     <indicator-preview :options="options" />
-    <variable-table :is-show-variable-table.sync="isShowVariableTable" />
+    <variable-table
+      v-if="tipsData && tipsData.length"
+      :is-show-variable-table.sync="isShowVariableTable"
+      :variable-data="tipsData"
+    />
   </div>
 </template>
 
@@ -930,11 +936,15 @@ export default {
         key: random(8),
         objectIdDisable: false,
       },
+      pluginListLoading: false, // 新增情况下判断是否正在获取插件列表
     };
   },
   computed: {
     ...mapGetters(['infoData']),
     businessList() {
+      if (!this.canSelectBusiness) {
+        return this.$store.getters.bizList.filter(biz => +biz.id === +this.info.bizId);
+      }
       return this.$store.getters.bizList;
     },
     // 是否显示指标预览
@@ -960,7 +970,7 @@ export default {
     },
     // 编辑模式下，采集方式和采集配置不可变
     disabled() {
-      return this.config.mode === 'edit' && !this.isClone;
+      return this.pluginListLoading || (this.config.mode === 'edit' && !this.isClone);
     },
     canSelectBusiness() {
       return !this.disabled && this.$store.getters.bizId === 0; // window.bizId === 0 全业务
@@ -985,7 +995,6 @@ export default {
         introduction = this.getSnmpIntroduction();
         return introduction;
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { configJson, metricJson, id, descMd, ...others } = this.info.plugin;
       if (id) {
         introduction = {
@@ -1026,6 +1035,7 @@ export default {
     if (!this.info.objectId && !this.$route.params.pluginId) {
       this.info.objectId = 'component';
     }
+    this.getVariableData();
   },
   mounted() {
     this.updateNav(this.config.mode === 'edit' ? this.$t('编辑') : this.$t('新建采集'));
@@ -1507,12 +1517,15 @@ export default {
       }
       // this.initFormLabelWidth()
     },
+    async getVariableData() {
+      if (!this.tipsData?.length) {
+        const data = await getCollectVariables().catch(() => []);
+        this.tipsData = data;
+      }
+    },
     async pluginTypeInfo(val, loading, needSetConfig) {
       // 获取提示输入数据
       this.loading = true;
-      await getCollectVariables().then(data => {
-        this.tipsData = data;
-      });
       // 先去获取有关的所有插件，并处理数据
       await this.getPluginInfo(val)
         .then(data => {
@@ -1686,18 +1699,67 @@ export default {
         this.$emit('next');
       }
     },
+    async setEditOrCloneConfig(v, collectDetail) {
+      // 编辑
+      const {
+        updateParams: { pluginId },
+      } = v.data;
+      if (collectDetail) {
+        this.setPluginSelector(collectDetail);
+        await this.handlePluginClick(pluginId, true, true);
+      }
+      if (collectDetail.collect_type === 'SNMP') {
+        this.snmpIsOk = this.handleSnmpParamValidate();
+        this.SnmpAuthCanSave = true;
+      }
+    },
     //
     async handleConfig(v) {
       this.loading = true;
-      await this.getPluginList()
-        .then(() => {
-          this.info.collectType && this.handleCollectTypeChange(this.info.collectType);
-        })
-        .catch(() => {});
       const { set } = v;
+      const { id } = v.data;
+      let collectDetail;
+      const promiseList = [];
       this.others = set.others || {};
+      if (id) {
+        promiseList.push(this.getConfigInfo(id).then(data => (collectDetail = data)));
+      }
+      // 编辑的时候只获取单个插件
+      if (this.config.mode === 'edit') {
+        const pulginId = this.config.data?.updateParams?.pluginId;
+        promiseList.push(
+          retrieveCollectorPlugin(pulginId)
+            .then(v => {
+              this.pluginSelectorObj.list = [v];
+              this.pluginSelectorObj.key = random(8);
+              this.allPluginList = this.handlePluginList([v]);
+            })
+            .catch(() => {
+              this.pluginSelectorObj.list = [];
+              this.pluginSelectorObj.key = random(8);
+              this.allPluginList = this.handlePluginList([]);
+            })
+        );
+      } else {
+        // 异步获取所有的插件列表 加速渲染
+        if (!this.pluginSelectorObj.list?.length) {
+          this.pluginListLoading = true;
+          this.getPluginList()
+            .then(() => {
+              this.info.collectType && this.handleCollectTypeChange(this.info.collectType);
+            })
+            .catch(() => {})
+            .finally(() => {
+              if (this.isClone) {
+                this.setEditOrCloneConfig(v, collectDetail);
+              }
+              this.pluginListLoading = false;
+            });
+        }
+      }
+      await Promise.allSettled(promiseList);
+      // 从下一个页面跳转过来（上一步）
       if (set.mode === 'edit') {
-        // 从下一个页面跳转过来（上一步）
         this.stepSetpluginSelector(set);
         this.info = set.data;
         if (set.data.log) {
@@ -1724,23 +1786,10 @@ export default {
           this.snmpIsOk = this.handleSnmpParamValidate();
           this.SnmpAuthCanSave = true;
         }
-      } else if (v.mode === 'edit' || this.isClone) {
+      } else if (v.mode === 'edit') {
         // 编辑
-        const {
-          id,
-          updateParams: { pluginId },
-        } = v.data;
-        const data = await this.getConfigInfo(id);
-        if (data) {
-          this.setPluginSelector(data);
-          await this.handlePluginClick(pluginId, true, true);
-        }
-        if (data.collect_type === 'SNMP') {
-          this.snmpIsOk = this.handleSnmpParamValidate();
-          this.SnmpAuthCanSave = true;
-        }
-        // await Promise.all([this.handlePluginClick(pluginId), this.getConfigInfo(id)]).catch(() => {})
-      } else if (v.mode === 'add' && v.data?.updateParams?.pluginId) {
+        this.setEditOrCloneConfig(v, collectDetail);
+      } else if (!this.isClone && v.mode === 'add' && v.data?.updateParams?.pluginId) {
         // 插件详情跳转过来
         const res = this.pluginSelectorObj.list.find(item => item.plugin_id === v.data.updateParams.pluginId);
         res && this.handlePluginChange(res);
@@ -1875,18 +1924,21 @@ export default {
       return res;
     },
     // 获取插件信息
-    getPluginInfo(id) {
+    async getPluginInfo(id) {
+      // 编辑模式下的插件详细数据可以省略请求
+      if (this.config.mode === 'edit' && this.pluginSelectorObj.list.length) {
+        const pluginInfo = this.pluginSelectorObj.list.find(item => item.plugin_id === id);
+        if (pluginInfo?.metric_json) return pluginInfo;
+      }
       this.loading = true;
-      return new Promise((resolve, reject) => {
-        retrieveCollectorPlugin(id)
-          .then(data => {
-            resolve(data);
-          })
-          .catch(err => {
-            this.loading = false;
-            reject(err);
-          });
-      });
+      return retrieveCollectorPlugin(id)
+        .then(data => {
+          this.pluginSelectorObj.list.push(data);
+          return data;
+        })
+        .finally(() => {
+          this.loading = false;
+        });
     },
     setNavTitle(data) {
       this.$store.commit(

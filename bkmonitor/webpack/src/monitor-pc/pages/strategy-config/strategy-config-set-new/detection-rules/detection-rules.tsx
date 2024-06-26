@@ -38,6 +38,7 @@ import RingRatio from '../../../../static/images/svg/ring-ratio.svg';
 import Threshold from '../../../../static/images/svg/threshold.svg';
 import TimeSeriesForecasting from '../../../../static/images/svg/time-series-forecasting.svg';
 import YearRound from '../../../../static/images/svg/year-round.svg';
+import IntelligentModelsStore, { IntelligentModelsType } from '../../../../store/modules/intelligent-models';
 import { createOnlyId } from '../../../../utils';
 import {
   dataModeType,
@@ -285,10 +286,11 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
           item.disabled = true;
           item.disabledTip = this.$tc('只支持监控平台和计算平台的单指标数据');
         }
-        if (!window.enable_aiops) {
-          item.disabled = true;
-          item.disabledTip = this.$tc('该功能依赖AIOps平台');
-        }
+        item.disabled = !(
+          window.enable_aiops &&
+          IntelligentModelsStore.intelligentModelsMap.get(item.id.toString() as IntelligentModelsType)?.length > 0
+        );
+        item.disabledTip = '';
       }
 
       // 智能算法规则

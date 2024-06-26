@@ -13,6 +13,7 @@ from typing import List
 
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.alert import AlertKey
+from alarm_backends.core.cache import clear_mem_cache
 from alarm_backends.core.cache.key import ALERT_UPDATE_LOCK
 from alarm_backends.core.lock.service_lock import multi_service_lock
 from alarm_backends.service.alert.manager.checker.ack import AckChecker
@@ -23,10 +24,9 @@ from alarm_backends.service.alert.manager.checker.recover import RecoverStatusCh
 from alarm_backends.service.alert.manager.checker.shield import ShieldStatusChecker
 from alarm_backends.service.alert.manager.checker.upgrade import UpgradeChecker
 from alarm_backends.service.alert.processor import BaseAlertProcessor
-from core.prometheus import metrics
-
 from bkmonitor.documents import AlertDocument
 from bkmonitor.documents.base import BulkActionType
+from core.prometheus import metrics
 
 INSTALLED_CHECKERS = (
     NextStatusChecker,
@@ -134,6 +134,8 @@ class AlertManager(BaseAlertProcessor):
         for alert in saved_alerts:
             metrics.ALERT_MANAGE_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG, signal=alert.status).inc()
 
+        # 8. 清理内存缓存
+        clear_mem_cache("host_cache")
         # #### 需要检测的告警，处理结束
 
         if alerts_to_update_directly:

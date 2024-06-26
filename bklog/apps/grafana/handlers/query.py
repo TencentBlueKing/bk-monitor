@@ -368,6 +368,7 @@ class GrafanaQueryHandler:
             "size": query_dict.get("size", 10),
             "bk_biz_id": self.bk_biz_id,
             "keyword": query_dict.get("query_string", ""),
+            "sort_list": query_dict.get("sort_list", []),
         }
         search_handler = SearchHandler(query_dict["result_table_id"], search_dict)
         result = search_handler.search(search_type=None)
@@ -726,7 +727,7 @@ class GrafanaQueryHandler:
         start_time: int,
         end_time: int,
         query_string: str = "",
-        size: int = 500,
+        size: int = 65535,
         where_conditions: list = None,
     ):
         data = {

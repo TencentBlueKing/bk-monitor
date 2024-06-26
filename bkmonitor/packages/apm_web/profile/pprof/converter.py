@@ -7,17 +7,21 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import gzip
 from dataclasses import dataclass
 from typing import Optional
 
 from apm_web.profile.constants import InputType
-from apm_web.profile.converter import Converter, register_converter
 from apm_web.profile.models import Label, Profile
+from apm_web.profile.profileconverter import (
+    ProfileConverter,
+    register_profile_converter,
+)
 
 
 @dataclass
-class PprofConverter(Converter):
+class PprofProfileConverter(ProfileConverter):
     """Convert binary to Profile object"""
 
     def convert(self, raw: bytes) -> Optional[Profile]:
@@ -46,7 +50,10 @@ class PprofConverter(Converter):
                     )
                 )
 
+        if not self.profile.time_nanos:
+            self.profile.time_nanos = int(datetime.datetime.now().timestamp() * 10**9)
+
         return self.profile
 
 
-register_converter(InputType.PPROF.value, PprofConverter)
+register_profile_converter(InputType.PPROF.value, PprofProfileConverter)

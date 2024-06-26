@@ -18,6 +18,7 @@ from django.conf import settings
 from django.db.models import Q
 
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
 from metadata.models.vm.config import BkDataStorageWithDataID
 from metadata.models.vm.constants import BKDATA_NS_TIMESTAMP_DATA_ID_LIST, TimestampLen
@@ -267,7 +268,9 @@ def get_data_type_cluster(data_id: int) -> Dict:
     return {"data_type": data_type, "bcs_cluster_id": bcs_cluster_id}
 
 
-def get_vm_cluster_id_name(space_type: str, space_id: str, vm_cluster_name: Optional[str] = "") -> Dict:
+def get_vm_cluster_id_name(
+    space_type: Optional[str] = "", space_id: Optional[str] = "", vm_cluster_name: Optional[str] = ""
+) -> Dict:
     """获取 vm 集群 ID 和名称
 
     1. 如果 vm 集群名称存在，则需要查询到对应的ID，如果查询不到，则需要抛出异常
@@ -343,3 +346,62 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
         return TimestampLen.NANOSECOND_LEN.value
 
     return TimestampLen.MILLISECOND_LEN.value
+
+
+def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
+    """接入 v2 版本的 bkdata vm"""
+    logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
+
+    from metadata.models import AccessVMRecord, DataSource, Space, SpaceVMInfo
+    from metadata.models.data_link.service import create_vm_data_link
+
+    # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
+    space_data = {}
+    try:
+        # NOTE: 这里 bk_biz_id 为整型
+        space_data = Space.objects.get_space_info_by_biz_id(int(bk_biz_id))
+    except Exception as e:
+        logger.error("get space error by biz_id: %s, error: %s", bk_biz_id, e)
+
+    vm_cluster = get_vm_cluster_id_name(
+        space_type=space_data.get("space_type", ""), space_id=space_data.get("space_id", "")
+    )
+    # 校验是否存在，如果不存在，则进行创建记录
+    if (
+        space_data
+        and not SpaceVMInfo.objects.filter(
+            space_type=space_data["space_type"], space_id=space_data["space_id"]
+        ).exists()
+    ):
+        SpaceVMInfo.objects.create_record(
+            space_type=space_data["space_type"], space_id=space_data["space_id"], vm_cluster_id=vm_cluster["cluster_id"]
+        )
+
+    # 检查是否已经写入 kafka storage，如果已经存在，认为已经接入 vm，则直接返回
+    if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
+        logger.info("table_id: %s has already been created", table_id)
+        return
+
+    # 获取 vm 集群名称
+    vm_cluster_name = vm_cluster.get("cluster_name")
+
+    # 获取数据源对应的集群 ID
+    data_type_cluster = get_data_type_cluster(data_id=data_id)
+    # 接入 vm 链路
+    try:
+        data_name = DataSource.objects.get(bk_data_id=data_id).data_name
+        create_vm_data_link(
+            table_id=table_id,
+            data_name=data_name,
+            vm_cluster_name=vm_cluster_name,
+            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+        )
+    except DataSource.DoesNotExist:
+        logger.error("create vm data link error, data_id: %s not found", data_id)
+        return
+    except BKAPIError as e:
+        logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
+        return
+    except Exception as e:
+        logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
+        return

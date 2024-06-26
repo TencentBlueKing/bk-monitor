@@ -18,6 +18,8 @@ from metadata import models
 # 这里添加需要更新的指标名
 TARGET_METRIC_NAME_LIST = []
 
+IGNORE_DIMENSIONS = ["bk_instance", "bk_job"]
+
 
 class Command(BaseCommand):
     """
@@ -56,7 +58,7 @@ class Command(BaseCommand):
             metric = {
                 "description": metric["description"],
                 "field_name": metric["field_name"],
-                "tag_list": metric["tag_list"],
+                "tag_list": [tag for tag in metric["tag_list"] if tag["field_name"] not in IGNORE_DIMENSIONS],
             }
             if TARGET_METRIC_NAME_LIST and metric["field_name"] not in TARGET_METRIC_NAME_LIST:
                 continue
