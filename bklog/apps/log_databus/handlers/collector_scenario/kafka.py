@@ -58,6 +58,7 @@ class KafkaScenario(CollectorScenario):
             "password": params.get("kafka_password", ""),
             "group_id": params.get("kafka_group_id", data_id),
             "initial_offset": params.get("kafka_initial_offset", KafkaInitialOffsetEnum.NEWEST.value),
+            "ssl": params.get("kafka_ssl_params", {}),
             "filters": filters,
             "delimiter": params["conditions"].get("separator") or "",
         }
@@ -195,6 +196,7 @@ class KafkaScenario(CollectorScenario):
                 "kafka_password": config["local"][0]["password"],
                 "kafka_group_id": config["local"][0]["group_id"],
                 "kafka_initial_offset": config["local"][0]["initial_offset"],
+                "kafka_ssl_params": config["local"][0]["ssl"],
             }
 
         except (IndexError, KeyError, ValueError) as e:
@@ -207,6 +209,7 @@ class KafkaScenario(CollectorScenario):
                 "kafka_password": "",
                 "kafka_group_id": "",
                 "kafka_initial_offset": "",
+                "kafka_ssl_params": {},
             }
         return params
 
