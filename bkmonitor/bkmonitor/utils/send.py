@@ -266,7 +266,7 @@ class BaseSender(object):
             if succeed_count:
                 metrics.ACTION_NOTICE_API_CALL_COUNT.labels(
                     notice_way=notice_way, status=metrics.StatusEnum.SUCCESS
-                ).inc(failed_count)
+                ).inc(succeed_count)
 
         return notice_results
 
