@@ -244,3 +244,31 @@ clean_configs:
         expr: "merge({source: 'AWS_CLOUD'}, zip((to_json(Message).Trigger.Dimensions || [])[*].name, (to_json(Message).Trigger.Dimensions || [])[*].value))"
       - field: tags
         expr: "{source: 'AWS_CLOUD'}"
+  - rules:
+    - key: __http_query_params__.source
+      method: eq
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "Platform"
+    normalization_config:
+      - field: alert_name
+        expr: to_json(data).essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', to_json(data).essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: to_json(data).essentials.description
+      - field: metric
+        expr: "[to_json(data).alertContext.condition.allOf[0].metricNamespace || to_json(data).alertContext.condition.allOf[0].webTestName, to_json(data).alertContext.condition.allOf[0].metricName] | join('/', @)"
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, to_json(data).essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, to_json(data).essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: "zip(to_json(data).alertContext.condition.allOf[0].dimensions.[*].name, to_json(data).alertContext.condition.allOf[0].dimensions.[*].value)"
+      - field: tags
+        expr: "data.alertContext.properties"
