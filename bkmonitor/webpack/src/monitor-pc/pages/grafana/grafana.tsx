@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
-import { Debounce } from 'monitor-common/utils/utils';
 
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
 import { getDashboardCache } from './utils';
@@ -67,7 +66,6 @@ export default class MyComponent extends tsc<object> {
     this.iframeRef?.contentWindow.postMessage(v.split('-')[0], '*');
   }
   @Watch('url', { immediate: true })
-  @Debounce(300)
   async handleUrlChange() {
     if (this.$store.getters.bizIdChangePedding) {
       this.loading = true;
