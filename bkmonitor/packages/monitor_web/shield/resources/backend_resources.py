@@ -115,7 +115,10 @@ class ShieldListResource(Resource):
                 value = [value]
             filter_dict[f"{key}__in"].extend(value)
         if filter_dict:
-            shields = shields.filter(**filter_dict)
+            try:
+                shields = shields.filter(**filter_dict)
+            except ValueError:
+                shields = shields.none()
         shields = shields.order_by(order)
 
         # 筛选屏蔽中，根据范围进行筛选

@@ -13,8 +13,8 @@
 
   .tag-card {
     display: inline-block;
-    height: 22px;
     max-width: 100px;
+    height: 22px;
     padding: 0 9px;
     margin-left: 6px;
     font-size: 12px;
@@ -25,40 +25,39 @@
 
     &-gray {
       color: #63656e;
-      background-color: rgba(151,155,165,.1);
+      background-color: rgba(151, 155, 165, 0.1);
       border-color: #dcdee5;
     }
 
     &-blue {
       color: #3a84ff;
-      background-color: rgba(58,132,255,.1);
+      background-color: rgba(58, 132, 255, 0.1);
       border-color: #3a84ff;
     }
 
     &-yellow {
       color: #fe9c00;
-      background-color: rgba(254,156,0,.1);
+      background-color: rgba(254, 156, 0, 0.1);
       border-color: #fe9c00;
     }
 
     &-green {
       color: #63656e;
       background-color: #f0f1f5;
-      border: none;;
+      border: none;
     }
 
     &-red {
       color: #ea3536;
-      background-color: rgba(234,53,54,.1);
+      background-color: rgba(234, 53, 54, 0.1);
       border-color: #ea3536;
     }
   }
 
   .index-info {
-    flex: 1;
-
     /* stylelint-disable-next-line declaration-no-important */
     display: inline-flex !important;
+    flex: 1;
     flex-wrap: nowrap;
     align-items: center;
 
@@ -136,6 +135,7 @@
 
     /* stylelint-disable-next-line declaration-no-important */
     margin: 0 !important;
+
     /* stylelint-disable-next-line declaration-no-important */
     background: #fff !important;
   }
@@ -195,8 +195,8 @@
       position: fixed;
       top: 7px;
       right: 12px;
-      height: 26px;
       min-width: 82px;
+      height: 26px;
       padding: 1px;
       background: #f5f7fa;
       border: 1px solid #dcdee5;
@@ -205,12 +205,12 @@
       @include flex-center();
 
       div {
+        flex: 1;
         height: 22px;
         line-height: 22px;
         color: #63656e;
         cursor: pointer;
         border-radius: 2px;
-        flex: 1;
 
         @include flex-center();
       }
@@ -228,10 +228,10 @@
     .label-tag-container {
       position: relative;
       z-index: 999;
+      align-items: center;
       height: 100%;
       background: #fff;
       box-shadow: 0 2px 8px 0 #0000001a;
-      align-items: center;
 
       @include flex-center();
 
@@ -252,10 +252,10 @@
       }
 
       .tag-box {
+        flex-wrap: nowrap;
+        align-items: center;
         width: 550px;
         overflow-x: auto;
-        align-items: center;
-        flex-wrap: nowrap;
 
         @include flex-justify(start);
 
@@ -273,12 +273,12 @@
       }
 
       .tag-item {
+        box-sizing: border-box;
         padding: 2px 6px;
         cursor: pointer;
         background: #f0f1f5;
         border: 1px solid transparent;
         border-radius: 2px;
-        box-sizing: border-box;
 
         &:hover {
           color: #3a84ff;
@@ -328,23 +328,24 @@
       color: #ffb848;
     }
   }
-  %favorite-list, .favorite-list {
+  %favorite-list,
+  .favorite-list {
     height: 360px;
     padding: 4px 0;
     overflow-y: auto;
 
     li {
-      padding: 0 12px;
       flex-wrap: nowrap;
-      cursor: pointer;
       align-items: center;
+      padding: 0 12px;
+      cursor: pointer;
 
       @include flex-justify(space-between);
 
       .not-val {
         display: inline-block;
-        margin: 0 4px 0 0;
         flex-shrink: 0;
+        margin: 0 4px 0 0;
       }
 
       &:hover {
@@ -362,9 +363,9 @@
 
       .cancel {
         display: none;
+        flex-shrink: 0;
         margin-left: 4px;
         color: #3a84ff;
-        flex-shrink: 0;
       }
     }
   }
@@ -430,11 +431,11 @@
         box-shadow: 0 2px 6px 0 #19192914;
 
         .tag-box {
+          flex-wrap: wrap;
           max-height: 83px;
           margin: 8px;
           overflow-x: hidden;
           overflow-y: auto;
-          flex-wrap: wrap;
 
           @include flex-justify(start);
 
@@ -453,8 +454,8 @@
         }
 
         .bk-tag {
-          cursor: pointer;
           flex-shrink: 0;
+          cursor: pointer;
         }
 
         .icon-close-circle-shape {
@@ -483,8 +484,8 @@
     background: #f5f7fa;
 
     .title {
-      padding: 6px 12px 0;
       align-items: center;
+      padding: 6px 12px 0;
 
       @include flex-justify(space-between);
     }
@@ -520,11 +521,11 @@
     }
 
     .index-tag-box {
+      flex-wrap: wrap;
+      align-items: center;
       max-height: 54px;
       padding-bottom: 2px;
       overflow-y: auto;
-      align-items: center;
-      flex-wrap: wrap;
 
       @include flex-justify(start);
 
@@ -565,6 +566,7 @@
 
   .bk-tab-label-list {
     width: 100%;
+
     /* stylelint-disable-next-line declaration-no-important */
     height: 36px !important;
 
@@ -576,14 +578,15 @@
         z-index: 999;
         width: 119px;
         height: 2px;
-        background: #3a84ff;
         content: ' ';
+        background: #3a84ff;
       }
     }
   }
 
   .bk-tab-section {
     padding: 0;
+
     /* stylelint-disable-next-line declaration-no-important */
     border-top: 2px solid #eaebf0 !important;
   }
@@ -607,12 +610,12 @@
     .icon-exclamation-circle-shape {
       top: 38px;
     }
-  
+
     .operate-button {
+      justify-content: flex-end;
       margin-top: 6px;
       font-size: 12px;
       color: #979ba5;
-      justify-content: flex-end;
 
       @include flex-align(center);
 

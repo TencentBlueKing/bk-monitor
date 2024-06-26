@@ -21,8 +21,8 @@
 
         .text-container {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
           line-height: 20px;
 
           .text-value {
@@ -32,9 +32,9 @@
           }
 
           .percent-value {
+            flex-shrink: 0;
             margin-left: 6px;
             color: #2dcb56;
-            flex-shrink: 0;
           }
         }
 
@@ -53,8 +53,8 @@
       }
 
       .operation-container {
-        flex-shrink: 0;
         display: flex;
+        flex-shrink: 0;
         justify-content: space-between;
         width: 36px;
         margin-left: 10px;
@@ -78,10 +78,9 @@
     }
 
     .more-item {
-
       display: flex;
-      margin: 6px 0 10px 0;
       justify-content: space-between;
+      margin: 6px 0 10px 0;
 
       .bk-icon {
         margin-right: 4px;

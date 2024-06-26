@@ -83,7 +83,7 @@
   &::-webkit-scrollbar-thumb {
     background: #a5a5a5;
     border-radius: 20px;
-    box-shadow: inset 0 0 6px rgba(204,204,204,.3);
+    box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
   }
 }
 
@@ -105,25 +105,30 @@
     &.active {
       color: $failColor;
       background-color: #fff4f4;
+
       /* stylelint-disable-next-line declaration-no-important */
       border-color: $failColor !important;
     }
   }
 
   .bk-selector {
-    ::input-placeholder { /* WebKit browsers */
+    ::input-placeholder {
+      /* WebKit browsers */
       color: $failColor;
     }
 
-    :placeholder { /* Mozilla Firefox 4 to 18 */
+    :placeholder {
+      /* Mozilla Firefox 4 to 18 */
       color: $failColor;
     }
 
-    ::placeholder { /* Mozilla Firefox 19+ */
+    ::placeholder {
+      /* Mozilla Firefox 19+ */
       color: $failColor;
     }
 
-    :input-placeholder { /* Internet Explorer 10+ */
+    :input-placeholder {
+      /* Internet Explorer 10+ */
       color: $failColor;
     }
   }
@@ -153,11 +158,14 @@ button[disabled='disabled'] {
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   margin: 0;
+
   /* stylelint-disable-next-line declaration-no-important */
   appearance: none !important;
 }
 
-input[type='number'] {appearance: textfield;}
+input[type='number'] {
+  appearance: textfield;
+}
 
 input[disabled='disabled'] {
   /* stylelint-disable-next-line declaration-no-important */
@@ -189,10 +197,10 @@ input[disabled='disabled'] {
     top: -3px;
     left: 0;
     display: block;
+    content: '';
     border-top: 4px solid transparent;
     border-right: 4px solid $primaryColor;
     border-bottom: 4px solid transparent;
-    content: '';
   }
 
   &:after {
@@ -201,8 +209,8 @@ input[disabled='disabled'] {
     left: 4px;
     display: block;
     width: 10px;
-    border-top: 2px solid $primaryColor;
     content: '';
+    border-top: 2px solid $primaryColor;
   }
 }
 
@@ -216,5 +224,5 @@ input[disabled='disabled'] {
 
 .bk-options .bk-option-content .bk-option-content-default {
   /* stylelint-disable-next-line declaration-no-important */
-  padding: 0!important;
+  padding: 0 !important;
 }

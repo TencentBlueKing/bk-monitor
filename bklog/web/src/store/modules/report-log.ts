@@ -25,9 +25,9 @@
  */
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
+import $http from '../../api';
 import { getRouteConfigById } from '../../router';
 import store from '@/store';
-import $http from '../../api';
 
 let oldRouteId = '';
 let oldNavId = '';
@@ -70,13 +70,13 @@ class ReportLogStore extends VuexModule {
               space_name: space?.space_name || bkBizId,
               user_name: username,
               nav_name: params.nav_name || routeConfig?.meta?.title,
-              ...params
-            }
-          }
+              ...params,
+            },
+          },
         },
         {
-          catchIsShowMessage: false
-        }
+          catchIsShowMessage: false,
+        },
       )
       .catch(() => false);
   }

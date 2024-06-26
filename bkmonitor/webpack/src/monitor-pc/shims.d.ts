@@ -132,6 +132,8 @@ declare global {
     wxwork_bot_send_image?: boolean;
     showLoginModal: (option: ShowLoginModalOption) => void;
     BLUEKING?: Record<string, any>;
+    bk_shared_res_url: string;
+    footer_version: string;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

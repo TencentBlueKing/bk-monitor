@@ -10,13 +10,13 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import datetime
+import re
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
-import re
 
-from rest_framework.exceptions import ValidationError
 from django.conf import settings
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz
 from bkmonitor.as_code.constants import MaxVersion
@@ -644,13 +644,16 @@ class StrategyConfigParser(BaseConfigParser):
             code_query_config = {"metric": get_metric_id(data_source, data_type, query_config)}
             # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID部分替换为 data_label
             data_label = query_config.get("data_label", None)
-            if settings.ENABLE_DATA_LABEL_EXPORT and data_label and \
-                    (query_config.get("data_source_label", None) in
-                     [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]):
+            if (
+                settings.ENABLE_DATA_LABEL_EXPORT
+                and data_label
+                and (
+                    query_config.get("data_source_label", None)
+                    in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
+                )
+            ):
                 code_query_config["metric"] = re.sub(
-                    rf"\b{query_config['result_table_id']}\b",
-                    data_label,
-                    code_query_config["metric"]
+                    rf"\b{query_config['result_table_id']}\b", data_label, code_query_config["metric"]
                 )
             field_mapping = {
                 "query_string": "query_string",
@@ -1011,8 +1014,9 @@ class NoticeGroupConfigParser(BaseConfigParser):
 
         if not config["need_duty"]:
             notice_group["users"] = []
-            for user in config["duty_arranges"][0]["users"]:
-                notice_group["users"].append(f"group#{user['id']}" if user["type"] == "group" else user["id"])
+            if config["duty_arranges"]:
+                for user in config["duty_arranges"][0]["users"]:
+                    notice_group["users"].append(f"group#{user['id']}" if user["type"] == "group" else user["id"])
         notice_group["duty_rules"] = [
             self.reverse_duty_rules[duty_id] for duty_id in config["duty_rules"] if duty_id in self.reverse_duty_rules
         ]
