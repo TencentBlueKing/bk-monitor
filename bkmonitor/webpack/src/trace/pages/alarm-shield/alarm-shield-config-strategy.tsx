@@ -31,7 +31,7 @@ import { getMetricListV2, getStrategyListV2, getStrategyV2, plainStrategyList } 
 import { random } from 'monitor-common/utils';
 
 import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
-import DimensionConditionInput from './components/dimension-input';
+import DimensionConditionInput from './components/dimension-input/dimension-input';
 import FormItem from './components/form-item';
 import StrategyDetail from './components/strategy-detail';
 import WhereDisplay from './components/where-display';

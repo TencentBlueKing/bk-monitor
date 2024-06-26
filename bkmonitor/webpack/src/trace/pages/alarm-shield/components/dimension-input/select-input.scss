@@ -122,7 +122,8 @@
             height: 32px;
             margin: 0 0 0 12px;
 
-            .bk-radio-label {
+            .radio-label {
+              display: inline-block;
               max-width: 155px;
               overflow: hidden;
               text-overflow: ellipsis;
@@ -178,6 +179,29 @@
           &:hover {
             color: #3a84ff;
             background: #e1ecff;
+          }
+        }
+
+        .no-data {
+          .bk-exception {
+            top: -30px;
+          }
+
+          .bk-exception-page .bk-exception-img {
+            width: 230px;
+            height: 194px;
+
+            .exception-image {
+              width: 230px;
+            }
+          }
+
+          .empty-status-container {
+            padding: 0;
+          }
+
+          .empty-status-container .bk-exception-footer {
+            height: 0;
           }
         }
       }
