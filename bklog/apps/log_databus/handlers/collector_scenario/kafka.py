@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
+
 from django.utils.translation import ugettext as _
 
 from apps.log_databus.constants import EtlConfig, KafkaInitialOffsetEnum, LogPluginInfo
@@ -58,7 +60,7 @@ class KafkaScenario(CollectorScenario):
             "password": params.get("kafka_password", ""),
             "group_id": params.get("kafka_group_id", data_id),
             "initial_offset": params.get("kafka_initial_offset", KafkaInitialOffsetEnum.NEWEST.value),
-            "ssl": params.get("kafka_ssl_params", {}),
+            "ssl": json.dumps(params.get("kafka_ssl_params", {})),
             "filters": filters,
             "delimiter": params["conditions"].get("separator") or "",
         }
@@ -188,6 +190,8 @@ class KafkaScenario(CollectorScenario):
                 else {"type": _type}
             )
 
+            ssl_params = config["local"][0]["ssl"]
+
             params = {
                 "conditions": conditions,
                 "kafka_hosts": config["local"][0]["hosts"],
@@ -196,7 +200,7 @@ class KafkaScenario(CollectorScenario):
                 "kafka_password": config["local"][0]["password"],
                 "kafka_group_id": config["local"][0]["group_id"],
                 "kafka_initial_offset": config["local"][0]["initial_offset"],
-                "kafka_ssl_params": config["local"][0]["ssl"],
+                "kafka_ssl_params": ssl_params if isinstance(ssl_params, str) else ssl_params,
             }
 
         except (IndexError, KeyError, ValueError) as e:
