@@ -1,24 +1,28 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div class="welcome-page-container">
@@ -32,8 +36,8 @@
       >
         <img
           class="card-img"
-          src="../../images/icons/new-business.svg"
           alt=""
+          src="../../images/icons/new-business.svg"
         />
         <p class="card-title">{{ $t('新业务接入') }}</p>
         <p class="card-detail">{{ $t('新业务接入详情') }}</p>
@@ -62,8 +66,8 @@
       >
         <img
           class="card-img"
-          src="../../images/icons/get-access.svg"
           alt=""
+          src="../../images/icons/get-access.svg"
         />
         <p class="card-title">{{ $t('获取权限') }}</p>
         <!-- 权限中心 -->
@@ -89,7 +93,7 @@
           {{
             $t('您当前没有业务--${x}的权限，请先联系运维同学{n}进行角色的添加', {
               x: data.getAccess.businessName,
-              n: data.getAccess.operatorId ? `(${data.getAccess.operatorId})` : ''
+              n: data.getAccess.operatorId ? `(${data.getAccess.operatorId})` : '',
             })
           }}
         </p>
@@ -109,8 +113,8 @@
       >
         <img
           class="card-img"
-          src="../../images/icons/demo-business.svg"
           alt=""
+          src="../../images/icons/demo-business.svg"
         />
         <p class="card-title">{{ $t('业务DEMO') }}</p>
         <p class="card-detail">{{ $t('您当前想快速体验下平台的功能') }}</p>
@@ -125,138 +129,138 @@
 </template>
 
 <script>
-export default {
-  props: {
-    data: {
-      type: Object,
-      default: () => ({
-        newBusiness: {
-          url: '' // 新业务接入链接
-        },
-        getAccess: {
-          url: '', // 权限申请链接（接入权限中心时必填）
-          businessName: '', // 业务ID对应的业务名（URL带ID时找到对应业务）
-          operatorId: '' // 业务ID对应的运维人员ID（没有接入权限中心时URL带ID找到运维人员）
-        },
-        demoBusiness: {
-          url: '' // 业务DEMO链接
+  export default {
+    props: {
+      data: {
+        type: Object,
+        default: () => ({
+          newBusiness: {
+            url: '', // 新业务接入链接
+          },
+          getAccess: {
+            url: '', // 权限申请链接（接入权限中心时必填）
+            businessName: '', // 业务ID对应的业务名（URL带ID时找到对应业务）
+            operatorId: '', // 业务ID对应的运维人员ID（没有接入权限中心时URL带ID找到运维人员）
+          },
+          demoBusiness: {
+            url: '', // 业务DEMO链接
+          },
+        }),
+      },
+    },
+    methods: {
+      handleMouseEnter(e) {
+        const button = e.target.querySelector('.king-button');
+        if (button) {
+          button.classList.remove('bk-default');
+          button.classList.add('bk-primary');
         }
-      })
-    }
-  },
-  methods: {
-    handleMouseEnter(e) {
-      const button = e.target.querySelector('.king-button');
-      if (button) {
-        button.classList.remove('bk-default');
-        button.classList.add('bk-primary');
-      }
+      },
+      handleMouseLeave(e) {
+        const button = e.target.querySelector('.king-button');
+        if (button) {
+          button.classList.remove('bk-primary');
+          button.classList.add('bk-default');
+        }
+      },
+      handleNewBusiness() {
+        window.open(this.data.newBusiness.url);
+      },
+      handleDemoBusiness() {
+        window.open(this.data.demoBusiness.url);
+      },
+      handleGetAccess() {
+        window.open(this.data.getAccess.url);
+      },
     },
-    handleMouseLeave(e) {
-      const button = e.target.querySelector('.king-button');
-      if (button) {
-        button.classList.remove('bk-primary');
-        button.classList.add('bk-default');
-      }
-    },
-    handleNewBusiness() {
-      window.open(this.data.newBusiness.url);
-    },
-    handleDemoBusiness() {
-      window.open(this.data.demoBusiness.url);
-    },
-    handleGetAccess() {
-      window.open(this.data.getAccess.url);
-    }
-  }
-};
+  };
 </script>
 
 <style lang="scss" scoped>
-.welcome-page-container {
-  display: flow-root;
-  height: 100%;
-  background: #f4f7fa;
+  .welcome-page-container {
+    display: flow-root;
+    height: 100%;
+    background: #f4f7fa;
 
-  .title {
-    height: 26px;
-    margin: 70px 0 35px;
-    font-size: 20px;
-    font-weight: normal;
-    line-height: 26px;
-    color: #313238;
-    text-align: center;
-  }
+    .title {
+      height: 26px;
+      margin: 70px 0 35px;
+      font-size: 20px;
+      font-weight: normal;
+      line-height: 26px;
+      color: #313238;
+      text-align: center;
+    }
 
-  .card-container {
-    display: flex;
-    justify-content: center;
-
-    .card {
-      position: relative;
+    .card-container {
       display: flex;
-      flex-flow: column;
-      align-items: center;
-      width: 260px;
-      height: 400px;
-      background: #fff;
-      border-radius: 2px;
-      transition: box-shadow 0.3s;
+      justify-content: center;
 
-      .outside-link-icon {
-        position: absolute;
-        top: 333px;
-        left: 162px;
-        width: 10px;
-        height: 10px;
-        cursor: pointer;
-        fill: #63656e;
-      }
-
-      &:not(:last-child) {
-        margin-right: 40px;
-      }
-
-      &:hover {
-        box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.1);
+      .card {
+        position: relative;
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+        width: 260px;
+        height: 400px;
+        background: #fff;
+        border-radius: 2px;
         transition: box-shadow 0.3s;
 
         .outside-link-icon {
-          fill: #fff;
+          position: absolute;
+          top: 333px;
+          left: 162px;
+          width: 10px;
+          height: 10px;
+          cursor: pointer;
+          fill: #63656e;
         }
-      }
 
-      .card-img {
-        width: 220px;
-        height: 160px;
-        margin: 28px 0 20px;
-      }
+        &:not(:last-child) {
+          margin-right: 40px;
+        }
 
-      .card-title {
-        font-size: 16px;
-        font-weight: 500;
-        line-height: 22px;
-        color: #313238;
-      }
+        &:hover {
+          box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.1);
+          transition: box-shadow 0.3s;
 
-      .card-detail {
-        display: flex;
-        width: 200px;
-        height: 60px;
-        margin: 11px 0 21px;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-        text-align: center;
-        justify-content: center;
-        align-items: center;
-      }
+          .outside-link-icon {
+            fill: #fff;
+          }
+        }
 
-      .king-button {
-        width: 200px;
-        font-size: 12px;
+        .card-img {
+          width: 220px;
+          height: 160px;
+          margin: 28px 0 20px;
+        }
+
+        .card-title {
+          font-size: 16px;
+          font-weight: 500;
+          line-height: 22px;
+          color: #313238;
+        }
+
+        .card-detail {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 200px;
+          height: 60px;
+          margin: 11px 0 21px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+          text-align: center;
+        }
+
+        .king-button {
+          width: 200px;
+          font-size: 12px;
+        }
       }
     }
   }
-}
 </style>

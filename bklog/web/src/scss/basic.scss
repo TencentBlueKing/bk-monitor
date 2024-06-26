@@ -1,7 +1,7 @@
 .condition-stylex {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   margin-top: 16px;
 
   > div:nth-child(1) {
@@ -38,8 +38,8 @@
           position: absolute;
           left: 5px;
           z-index: 100;
-          max-width: 200px;
           min-width: 50px;
+          max-width: 200px;
           padding: 0 5px;
 
           /* stylelint-disable-next-line declaration-no-important */
