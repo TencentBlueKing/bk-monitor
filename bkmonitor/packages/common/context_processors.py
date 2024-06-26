@@ -136,11 +136,15 @@ def get_core_context(request):
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
         "LANGUAGES": settings.LANGUAGES,
         # 页面title
+        # todo 后续弃用(使用：全局配置资源链接）
         "PAGE_TITLE": (
             settings.HEADER_FOOTER_CONFIG["header"][0]["en"]
             if get_language() == "en"
             else settings.HEADER_FOOTER_CONFIG["header"][0]["zh-cn"]
         ),
+        # 全局配置资源链接
+        "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
+        "FOOTER_VERSION": settings.VERSION,
     }
 
 

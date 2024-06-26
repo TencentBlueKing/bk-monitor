@@ -1,30 +1,37 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, PropSync, Prop, Emit, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Select, Option, Tag, Form, FormItem, Input } from 'bk-magic-vue';
+
 import $http from '../../api';
 import { xssFilter } from '../../common/util';
+
 import './index.scss';
 
 interface IProps {
@@ -44,9 +51,6 @@ export default class QueryStatement extends tsc<IProps> {
   @PropSync('label', { type: Array }) propLabelList: Array<IPropLabelList>;
   @Prop({ type: Object, required: true }) rowData: any;
   @Prop({ type: Array, required: true }) selectLabelList: Array<IPropLabelList>;
-  @Ref('checkInputForm') private readonly checkInputFormRef: Form;
-  @Ref('tagSelect') private readonly tagSelectRef: Select;
-  @Ref('labelEditInput') private readonly labelEditInputRef: HTMLElement;
 
   /** 是否展示添加标签 */
   isShowNewGroupInput = false;
@@ -54,7 +58,7 @@ export default class QueryStatement extends tsc<IProps> {
   isShowAllLabel = false;
 
   verifyData = {
-    labelEditName: ''
+    labelEditName: '',
   };
 
   rules = {
@@ -62,20 +66,24 @@ export default class QueryStatement extends tsc<IProps> {
       {
         validator: this.checkTagName,
         message: window.mainComponent.$t('已有同名标签'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkBuiltInTagName,
         message: window.mainComponent.$t('内置标签名，请重新填写'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
+
+  @Ref('checkInputForm') private readonly checkInputFormRef: Form;
+  @Ref('tagSelect') private readonly tagSelectRef: Select;
+  @Ref('labelEditInput') private readonly labelEditInputRef: HTMLElement;
 
   get isDisabledAddNewTag() {
     return this.rowData?.status === 'terminated';
@@ -106,7 +114,7 @@ export default class QueryStatement extends tsc<IProps> {
     const propIDlist = this.propLabelList.map(item => item.tag_id);
     return this.filterBuiltInList.map(item => ({
       ...item,
-      disabled: propIDlist.includes(item.tag_id)
+      disabled: propIDlist.includes(item.tag_id),
     }));
   }
 
@@ -129,18 +137,18 @@ export default class QueryStatement extends tsc<IProps> {
     $http
       .request('unionSearch/unionAddLabel', {
         params: {
-          index_set_id: this.rowData.index_set_id
+          index_set_id: this.rowData.index_set_id,
         },
         data: {
-          tag_id: tagID
-        }
+          tag_id: tagID,
+        },
       })
       .then(() => {
         const newLabel = this.selectLabelList.find(item => item.tag_id === tagID);
         this.propLabelList.push(newLabel);
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('操作成功')
+          message: this.$t('操作成功'),
         });
       })
       .finally(() => {});
@@ -154,8 +162,8 @@ export default class QueryStatement extends tsc<IProps> {
           $http
             .request('unionSearch/unionCreateLabel', {
               data: {
-                name: this.verifyData.labelEditName.trim()
-              }
+                name: this.verifyData.labelEditName.trim(),
+              },
             })
             .then(res => {
               this.initLabelSelectList();
@@ -167,7 +175,7 @@ export default class QueryStatement extends tsc<IProps> {
               this.tagSelectRef.close();
             });
         },
-        () => {}
+        () => {},
       );
     } else {
       this.isShowNewGroupInput = false;
@@ -183,17 +191,17 @@ export default class QueryStatement extends tsc<IProps> {
     $http
       .request('unionSearch/unionDeleteLabel', {
         params: {
-          index_set_id: this.rowData.index_set_id
+          index_set_id: this.rowData.index_set_id,
         },
         data: {
-          tag_id: tagID
-        }
+          tag_id: tagID,
+        },
       })
       .then(() => {
         this.propLabelList = this.propLabelList.filter(item => item.tag_id !== tagID);
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('操作成功')
+          message: this.$t('操作成功'),
         });
       })
       .finally(() => {});
@@ -214,8 +222,8 @@ export default class QueryStatement extends tsc<IProps> {
     return (
       <div class='label-select'>
         <div
-          class='label-tag-box'
           style={{ width: this.showLabelList.length ? '190px' : '0' }}
+          class='label-tag-box'
         >
           <span class='tag-container'>
             {this.filterLabelList.map((item, index) => {
@@ -224,8 +232,8 @@ export default class QueryStatement extends tsc<IProps> {
                   <Tag>
                     <span class='label-tag'>
                       <span
-                        v-bk-overflow-tips
                         class='title-overflow'
+                        v-bk-overflow-tips
                       >
                         {xssFilter(item.name)}
                       </span>
@@ -242,7 +250,7 @@ export default class QueryStatement extends tsc<IProps> {
                         content: `${this.showLabelList
                           .slice(3)
                           .map(item => xssFilter(item.name))
-                          .join(', ')}`
+                          .join(', ')}`,
                       }}
                       onClick={() => (this.isShowAllLabel = true)}
                     >
@@ -254,32 +262,32 @@ export default class QueryStatement extends tsc<IProps> {
             })}
           </span>
           <Select
-            searchable
-            popover-min-width={240}
-            popover-options={{ boundary: 'window', distance: 30 }}
-            disabled={this.isDisabledAddNewTag}
-            onSelected={this.addLabelToIndexSet}
-            onToggle={this.toggleSelect}
             ref='tagSelect'
             scopedSlots={{
               trigger: () => (
                 <div
-                  v-bk-tooltips={{
-                    disabled: !this.isDisabledAddNewTag,
-                    content: this.$t('停用状态下无法添加标签'),
-                    delay: 300
-                  }}
                   class={[
                     'add-label-btn',
                     {
-                      disabled: this.isDisabledAddNewTag
-                    }
+                      disabled: this.isDisabledAddNewTag,
+                    },
                   ]}
+                  v-bk-tooltips={{
+                    disabled: !this.isDisabledAddNewTag,
+                    content: this.$t('停用状态下无法添加标签'),
+                    delay: 300,
+                  }}
                 >
                   <i class='bk-icon icon-plus-line'></i>
                 </div>
-              )
+              ),
             }}
+            disabled={this.isDisabledAddNewTag}
+            popover-min-width={240}
+            popover-options={{ boundary: 'window', distance: 30 }}
+            searchable
+            onSelected={this.addLabelToIndexSet}
+            onToggle={this.toggleSelect}
           >
             <div
               class='new-label-container'
@@ -288,21 +296,21 @@ export default class QueryStatement extends tsc<IProps> {
               {this.isShowNewGroupInput ? (
                 <div class='new-label-input'>
                   <Form
-                    labelWidth={0}
-                    style={{ width: '100%' }}
                     ref='checkInputForm'
+                    style={{ width: '100%' }}
+                    labelWidth={0}
                     {...{
                       props: {
                         model: this.verifyData,
-                        rules: this.rules
-                      }
+                        rules: this.rules,
+                      },
                     }}
                   >
                     <FormItem property='labelEditName'>
                       <Input
-                        clearable
                         ref='labelEditInput'
                         vModel={this.verifyData.labelEditName}
+                        clearable
                         onEnter={v => this.handleLabelKeyDown(v)}
                       ></Input>
                     </FormItem>
@@ -336,10 +344,10 @@ export default class QueryStatement extends tsc<IProps> {
             <div class='group-list'>
               {this.showGroupSelectLabelList.map(item => (
                 <Option
-                  class='label-option'
                   id={item.tag_id}
-                  name={item.name}
+                  class='label-option'
                   disabled={item.disabled}
+                  name={item.name}
                 ></Option>
               ))}
             </div>

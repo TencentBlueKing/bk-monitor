@@ -159,10 +159,12 @@ export default class PerformanceChart extends TimeSeries {
           // 主机ai异常指标检查
           anomalyRange = await this.$api.aiops
             .hostIntelligenAnomalyRange({
+              ...(this.bkBizId ? { bk_biz_id: this.bkBizId } : {}),
               start_time: params.start_time,
               end_time: params.end_time,
               interval: isNaN(+this.viewOptions.interval) ? this.viewOptions.interval : this.viewOptions.interval + 's', // 默认 interval 单位 s
               metric_ids: metrics?.map(item => item.metric_id),
+              strategy_id: this.viewOptions?.strategy_id || undefined,
               host: [
                 {
                   ...this.viewOptions.current_target,
@@ -175,7 +177,11 @@ export default class PerformanceChart extends TimeSeries {
         let seriesList = this.handleTransformSeries(
           series.map((item, index) => {
             if (anomalyRange?.[item.metric_id]?.length) {
-              item.markTimeRange = anomalyRange[item.metric_id];
+              if (item.markTimeRange?.length && this.needAllAlertMarkArea) {
+                item.markTimeRange.push(...(anomalyRange[item.metric_id] || []));
+              } else {
+                item.markTimeRange = anomalyRange[item.metric_id];
+              }
             }
             return {
               name: item.name,

@@ -213,7 +213,7 @@ class SaveNoticeGroupResource(Resource):
                                 },
                                 "query_params": [],
                                 "need_poll": True,
-                                "notify_interval": 2 * 60,  # 默认2小时回调一次
+                                "notify_interval": 2 * 60 * 60,  # 默认2小时回调一次
                                 "failed_retry": {
                                     "is_enabled": True,
                                     "max_retry_times": 3,

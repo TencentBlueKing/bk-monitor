@@ -2082,7 +2082,7 @@ class ESStorage(models.Model, StorageResultTable):
             # 查找发现，1. 这个es存储是归属于自定义事件的，而且 2. 不是在启动且未被删除的，那么不需要创建这个索引
             event_group = EventGroup.objects.get(table_id=self.table_id)
 
-            if not event_group.is_enable or event_group.is_delete or event_group.status == EventGroupStatus.SLEEP:
+            if not event_group.is_enable or event_group.is_delete or event_group.status == EventGroupStatus.SLEEP.value:
                 logger.info(
                     "table_id->[%s] is belong to event group and is disable or deleted, no index will create",
                     self.table_id,

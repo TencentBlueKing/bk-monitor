@@ -1,24 +1,28 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div
@@ -48,8 +52,8 @@
           >{{ $t('返回列表') }}</bk-button
         >
         <bk-button
-          theme="primary"
           data-test-id="finishBox_button_goToSearch"
+          theme="primary"
           @click="routeChange('search')"
           >{{ $t('日志检索') }}</bk-button
         >
@@ -67,10 +71,10 @@
       <div class="approval-text">
         <span>{{ $t('容量评估进行中') }}</span>
         <a
-          :href="applyData.iframe_ticket_url"
           class="button-text"
-          target="_blank"
+          :href="applyData.iframe_ticket_url"
           data-test-id="capacityContaineBox_a_viewApprovalDetails"
+          target="_blank"
         >
           {{ $t('点击查看审批详情') }}
           <span class="log-icon icon-lianjie"></span>
@@ -81,152 +85,152 @@
 </template>
 
 <script>
-export default {
-  name: 'StepResult',
-  props: {
-    operateType: String,
-    isSwitch: Boolean,
-    indexSetId: {
-      type: [String, Number],
-      default: ''
-    },
-    type: {
-      type: String,
-      default: 'create'
-    },
-    host: {
-      type: Object,
-      default() {
-        return {};
-      }
-    },
-    applyData: {
-      type: Object,
-      require: true
-    }
-  },
-  data() {
-    return {
-      finish: {
-        add: this.$t('采集项创建完成'),
-        edit: this.$t('采集项修改完成'),
-        editFinish: this.$t('采集项修改完成'),
-        field: this.$t('采集项修改完成'),
-        start: this.$t('采集项启用完成'),
-        stop: this.$t('采集项停用完成'),
-        storage: this.$t('采集项修改完成'),
-        container: this.$t('采集项修改完成'),
-        masking: this.$t('采集项修改完成')
-      }
-    };
-  },
-  computed: {
-    // title () {
-    //     const titleText = {
-    //         add: '采集配置创建完成',
-    //         edit: '采集配置修改完成',
-    //         start: '启用采集配置任务完成',
-    //         stop: '停用采集配置任务完成'
-    //     }
-    //     return titleText[this.operateType]
-    // }
-    finishText() {
-      return this.finish[this.operateType];
-    },
-    isNotApplyPage() {
-      return this.applyData.itsm_ticket_status !== 'applying';
-    }
-  },
-  methods: {
-    routeChange(type) {
-      let routeName = 'collection-item';
-      if (type === 'search' || type === 'clear') {
-        routeName = 'retrieve';
-      }
-      this.$router.replace({
-        name: routeName,
-        params: {
-          indexId: type === 'search' && this.indexSetId ? this.indexSetId : ''
+  export default {
+    name: 'StepResult',
+    props: {
+      operateType: String,
+      isSwitch: Boolean,
+      indexSetId: {
+        type: [String, Number],
+        default: '',
+      },
+      type: {
+        type: String,
+        default: 'create',
+      },
+      host: {
+        type: Object,
+        default() {
+          return {};
         },
-        query: {
-          spaceUid: this.$store.state.spaceUid
+      },
+      applyData: {
+        type: Object,
+        require: true,
+      },
+    },
+    data() {
+      return {
+        finish: {
+          add: this.$t('采集项创建完成'),
+          edit: this.$t('采集项修改完成'),
+          editFinish: this.$t('采集项修改完成'),
+          field: this.$t('采集项修改完成'),
+          start: this.$t('采集项启用完成'),
+          stop: this.$t('采集项停用完成'),
+          storage: this.$t('采集项修改完成'),
+          container: this.$t('采集项修改完成'),
+          masking: this.$t('采集项修改完成'),
+        },
+      };
+    },
+    computed: {
+      // title () {
+      //     const titleText = {
+      //         add: '采集配置创建完成',
+      //         edit: '采集配置修改完成',
+      //         start: '启用采集配置任务完成',
+      //         stop: '停用采集配置任务完成'
+      //     }
+      //     return titleText[this.operateType]
+      // }
+      finishText() {
+        return this.finish[this.operateType];
+      },
+      isNotApplyPage() {
+        return this.applyData.itsm_ticket_status !== 'applying';
+      },
+    },
+    methods: {
+      routeChange(type) {
+        let routeName = 'collection-item';
+        if (type === 'search' || type === 'clear') {
+          routeName = 'retrieve';
         }
-      });
-    }
-  }
-};
+        this.$router.replace({
+          name: routeName,
+          params: {
+            indexId: type === 'search' && this.indexSetId ? this.indexSetId : '',
+          },
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+      },
+    },
+  };
 </script>
 
 <style lang="scss">
-@import '@/scss/conf';
+  @import '@/scss/conf';
 
-.step-result-wrapper {
-  position: relative;
-  padding-top: 105px;
+  .step-result-wrapper {
+    position: relative;
+    padding-top: 105px;
 
-  .step-result-container {
-    width: 500px;
-    margin: 0 auto;
-    text-align: center;
+    .step-result-container {
+      width: 500px;
+      margin: 0 auto;
+      text-align: center;
 
-    .icon-check-circle {
-      font-size: 56px;
-      color: $successColor;
+      .icon-check-circle {
+        font-size: 56px;
+        color: $successColor;
+      }
+
+      .title {
+        padding: 0;
+        margin: 21px 0 0 0;
+        font-size: 16px;
+        color: #000;
+      }
+
+      .info {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #6e7079;
+      }
+
+      .host-number {
+        margin: 0 3px;
+      }
+
+      .text-primary {
+        color: $primaryColor;
+      }
+
+      .text-success {
+        color: $successColor;
+      }
+
+      .text-failed {
+        color: $failColor;
+      }
     }
 
-    .title {
-      padding: 0;
-      margin: 21px 0 0 0;
+    .result-button-group {
+      margin-top: 36px;
+      font-size: 0;
+
+      .bk-button + .bk-button {
+        margin-left: 10px;
+      }
+    }
+  }
+
+  .approval-detail-container {
+    height: 100%;
+    padding-top: 100px;
+    font-size: 14px;
+
+    .approval-text {
+      display: flex;
+      flex-flow: column;
       font-size: 16px;
-      color: #000;
-    }
 
-    .info {
-      margin-top: 10px;
-      font-size: 12px;
-      color: #6e7079;
-    }
-
-    .host-number {
-      margin: 0 3px;
-    }
-
-    .text-primary {
-      color: $primaryColor;
-    }
-
-    .text-success {
-      color: $successColor;
-    }
-
-    .text-failed {
-      color: $failColor;
+      .button-text {
+        margin-top: 16px;
+      }
     }
   }
-
-  .result-button-group {
-    margin-top: 36px;
-    font-size: 0;
-
-    .bk-button + .bk-button {
-      margin-left: 10px;
-    }
-  }
-}
-
-.approval-detail-container {
-  height: 100%;
-  padding-top: 100px;
-  font-size: 14px;
-
-  .approval-text {
-    display: flex;
-    flex-flow: column;
-    font-size: 16px;
-
-    .button-text {
-      margin-top: 16px;
-    }
-  }
-}
 </style>

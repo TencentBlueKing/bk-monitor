@@ -2,8 +2,8 @@
 @import '../../scss/mixins/scroller.scss';
 
 .masking-rule-slider {
-  height: calc(100vh - 60px);
   flex-direction: column;
+  height: calc(100vh - 60px);
 
   @include flex-justify(space-between);
 
@@ -30,9 +30,9 @@
     top: 0;
     left: -28px;
     display: flex;
+    align-items: center;
     height: 108px;
     font-size: 12px;
-    align-items: center;
 
     > div {
       position: relative;
@@ -51,8 +51,8 @@
         bottom: -31px;
         width: 17px;
         height: 1px;
-        border-top: 1px solid #c4c6cc;
         content: '';
+        border-top: 1px solid #c4c6cc;
       }
     }
 
@@ -62,8 +62,8 @@
       right: -10px;
       width: 17px;
       height: 1px;
-      border-top: 1px solid #c4c6cc;
       content: '';
+      border-top: 1px solid #c4c6cc;
     }
 
     &::after {
@@ -72,8 +72,8 @@
       right: 5px;
       width: 1px;
       height: calc(100% - 32px);
-      border-left: 1px solid #c4c6cc;
       content: '';
+      border-left: 1px solid #c4c6cc;
     }
   }
 
@@ -92,9 +92,9 @@
   }
 
   .replace-item {
+    align-items: center;
     height: 32px;
     margin-top: 12px;
-    align-items: center;
 
     @include flex-justify(space-between);
 
@@ -113,8 +113,8 @@
 
     .bk-form-input {
       display: block;
-      border-bottom-left-radius: 0;
       border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
     }
   }
 
@@ -210,8 +210,8 @@
       .icon-play-shape {
         margin-right: 4px;
         font-size: 12px;
-        transform: scale(.8);
         transition: transform .3s;
+        transform: scale(.8);
       }
 
       .is-active {

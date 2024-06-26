@@ -40,12 +40,14 @@ def request_hook(span: Span, request):
 
     if not request:
         return
-
-    if getattr(request, "FILES", None) and request.POST:
-        # 请求中如果包含了文件 不取 Body 内容
-        carrier = request.POST
-    else:
-        carrier = request.body
+    try:
+        if getattr(request, "FILES", None) and request.method.upper() == "POST":
+            # 请求中如果包含了文件 不取 Body 内容
+            carrier = request.POST
+        else:
+            carrier = request.body
+    except Exception:  # noqa
+        carrier = {}
 
     body_str = jsonify(carrier) if carrier else ""
     param_str = jsonify(dict(request.GET)) if request.GET else ""
@@ -88,17 +90,37 @@ def get_span_name(_, request):
     """获取 django instrument 生成的 span 的 span_name 返回 Resource的路径"""
     try:
         match = resolve(request.path)
+    except Resolver404:
+        if request.path.endswith("/"):
+            # 如果无法解析 直接返回 path
+            return request.path
+        try:
+            match = resolve(f"{request.path}/")
+        except Resolver404:
+            return request.path
 
-        if hasattr(match, "func"):
-            resource_clz = match.func.cls().resource_mapping.get(
-                (request.method, match.func.actions.get(request.method.lower()))
-            )
-            if resource_clz:
-                return f"{resource_clz.__module__}.{resource_clz.__qualname__}"
+    if hasattr(match, "func"):
+        resource_path = _get_resource_clz_path(match, request)
+        if resource_path:
+            return resource_path
 
-        if hasattr(match, "_func_name"):
-            return match._func_name  # pylint: disable=protected-access # noqa
+    if hasattr(match, "_func_name"):
+        return match._func_name  # pylint: disable=protected-access # noqa
 
-        return match.view_name
-    except (Resolver404, AttributeError):
-        return request.path
+    return match.view_name
+
+
+def _get_resource_clz_path(match, request):
+    """寻找 resource 类并返回路径"""
+    try:
+        resource_mapping = match.func.cls().resource_mapping
+        view_set_path = f"{match.func.cls.__module__}.{match.func.cls.__name__}"
+        resource_clz = resource_mapping.get(
+            (request.method, f"{view_set_path}-{match.func.actions.get(request.method.lower())}")
+        )
+        if resource_clz:
+            return f"{resource_clz.__module__}.{resource_clz.__qualname__}"
+
+        return None
+    except Exception:  # noqa
+        return None

@@ -322,7 +322,7 @@ class EventGroup(CustomGroupBase):
         :param data_label: 数据标签
         :return: True or raise
         """
-        self.status = EventGroupStatus.NORMAL
+        self.status = EventGroupStatus.NORMAL.value
         return self.modify_custom_group(
             operator=operator,
             custom_group_name=event_group_name,

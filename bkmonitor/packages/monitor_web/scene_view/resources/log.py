@@ -21,6 +21,7 @@ from rest_framework import serializers
 
 from apm_web.utils import get_interval
 from core.drf_resource import Resource, api
+from core.errors.api import BKAPIError
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import StringTableFormat, TimestampTableFormat
 
@@ -40,7 +41,10 @@ class HostIndexQueryMixin:
                 {"bk_host_innerip": validated_data["bk_host_innerip"], "bk_cloud_id": validated_data["bk_cloud_id"]}
             )
 
-        infos = api.log_search.list_collectors_by_host(params)
+        try:
+            infos = api.log_search.list_collectors_by_host(params)
+        except BKAPIError:
+            infos = []
 
         return infos
 

@@ -88,6 +88,7 @@ export interface ITimeSeriesOption {
     noTransformVariables?: boolean;
     hoverAllTooltips?: boolean;
     YAxisLabelWidth?: number;
+    needAllAlertMarkArea?: boolean;
   };
 }
 

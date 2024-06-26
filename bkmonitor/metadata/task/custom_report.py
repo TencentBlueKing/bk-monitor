@@ -27,7 +27,6 @@ from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
 from core.drf_resource import api
 from metadata import models
-from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.constants import EVENT_GROUP_SLEEP_THRESHOLD, EventGroupStatus
 from metadata.utils import es_tools
 
@@ -151,37 +150,6 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
 refresh_all_custom_report_2_node_man = share_lock()(refresh_custom_report_2_node_man)
 
 
-@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshTimeSeriesMetrics")
-def check_update_ts_metric():
-    logger.info("check_update_ts_metric:start")
-    s_time = time.time()
-    from metadata.task.tasks import update_time_series_metrics
-
-    ts_groups = models.TimeSeriesGroup.objects.filter(is_enable=True, is_delete=False)
-    count = ts_groups.count()
-    if count == 0:
-        return
-    # 限制多进程任务数量
-    max_worker = getattr(settings, "MAX_TS_METRIC_TASK_PROCESS_NUM", 1)
-    # 每一组最大任务数量
-    chunk_size = count // max_worker + 1 if count % max_worker != 0 else int(count / max_worker)
-    # 按数量分组，最多分为max_worker组
-    chunks = [ts_groups[i : i + chunk_size] for i in range(0, count, chunk_size)]
-    processes = []
-    # 使用django-ORM时启用多进程会导致子进程使用同一个数据库连接，会产生无效连接，在启用多进程之前需要关闭连接，子进程中会重新创建连接
-    db.connections.close_all()
-    for chunk in chunks:
-        # multiprocessing库在celery中会导致worker假死，使用billiard库启用多进程
-        t = multiprocessing.Process(target=update_time_series_metrics, args=(chunk,))
-        processes.append(t)
-        t.start()
-
-    for t in processes:
-        t.join()
-
-    logger.info("check_update_ts_metric:finished, cost:%s s", time.time() - s_time)
-
-
 @share_lock()
 def refresh_custom_log_config(log_group_id=None):
     """
@@ -211,7 +179,10 @@ def check_custom_event_group_sleep():
     event_groups = models.EventGroup.objects.filter(
         Q(last_check_report_time__isnull=True)
         | Q(last_check_report_time__lt=timezone.now() - timedelta(days=EVENT_GROUP_SLEEP_THRESHOLD)),
-        status=EventGroupStatus.NORMAL,
+        status=EventGroupStatus.NORMAL.value,
+    ).exclude(
+        Q(event_group_name__startswith="bcs_BCS-K8S-", event_group_name__endswith="_k8s_event")
+        | Q(event_group_name__startswith="Log_log_")
     )
 
     need_clean_es_storages: List[models.ESStorage] = []
@@ -221,14 +192,14 @@ def check_custom_event_group_sleep():
             es = models.ESStorage.objects.get(table_id=event_group.table_id)
         except models.ESStorage.DoesNotExist:
             logger.info(f"EventGroup {event_group.event_group_name} has no ESStorage, set status to SLEEP")
-            event_group.status = EventGroupStatus.SLEEP
+            event_group.status = EventGroupStatus.SLEEP.value
             need_update_event_groups.append(event_group)
             continue
 
         indices, index_version = es.get_index_stats()
         if not indices:
             logger.info(f"EventGroup {event_group.event_group_name} does not have any index, set status to SLEEP")
-            event_group.status = EventGroupStatus.SLEEP
+            event_group.status = EventGroupStatus.SLEEP.value
             need_update_event_groups.append(event_group)
             continue
 
@@ -254,7 +225,7 @@ def check_custom_event_group_sleep():
                 f"set status to SLEEP and delete index"
             )
             need_clean_es_storages.append(es)
-            event_group.status = EventGroupStatus.SLEEP
+            event_group.status = EventGroupStatus.SLEEP.value
             need_update_event_groups.append(event_group)
         else:
             logger.info(
