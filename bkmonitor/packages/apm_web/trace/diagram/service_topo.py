@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
+from apm_web.constants import CategoryEnum
 from apm_web.handlers.trace_handler.base import TraceHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from constants.apm import OtlpKey, SpanKind
@@ -44,12 +45,12 @@ def get_node_key(keys: List[Tuple[str, str]], category: str, item: dict):
 
     method = extract_field_value((OtlpKey.ATTRIBUTES, SpanAttributes.HTTP_METHOD), item)
     kind = item["kind"]
-    if category == CategoryType.HTTP and kind == SpanKind.SPAN_KIND_CLIENT:
+    if category == CategoryEnum.HTTP and kind == SpanKind.SPAN_KIND_CLIENT:
         http_url = instance_keys[0]
         url_parse = urlparse(http_url)
         keys = [method, url_parse.path] if url_parse.path else [method, url_parse.netloc]
         return ":".join(keys)
-    elif category == CategoryType.HTTP and kind == SpanKind.SPAN_KIND_SERVER:
+    elif category == CategoryEnum.HTTP and kind == SpanKind.SPAN_KIND_SERVER:
         http_route = extract_field_value((OtlpKey.ATTRIBUTES, SpanAttributes.HTTP_ROUTE), item)
         http_host = extract_field_value((OtlpKey.ATTRIBUTES, SpanAttributes.HTTP_HOST), item)
         keys = [method, http_route] if http_route else [method, http_host]
@@ -58,18 +59,11 @@ def get_node_key(keys: List[Tuple[str, str]], category: str, item: dict):
 
 
 class NodeType:
+    """节点类型"""
+
     COMPONENT = "component"
     SERVICE = "service"
     INTERFACE = "interface"
-
-
-class CategoryType:
-    DB = "db"
-    RPC = "rpc"
-    HTTP = "http"
-    MESSAGING = "messaging"
-    ASYNC_BACKEND = "async_backend"
-    OTHER = "other"
 
 
 class ServiceTopoDiscoverRuleCls(NamedTuple):
@@ -79,50 +73,53 @@ class ServiceTopoDiscoverRuleCls(NamedTuple):
     instance_keys: List[Tuple[str, str]]
 
 
+# 规则实例
 RULE_INSTANCES = [
     {
         "predicate_key": ("attributes", "db.system"),
         "node_type": NodeType.COMPONENT,
-        "category_id": CategoryType.DB,
+        "category_id": CategoryEnum.DB,
         "instance_keys": [("attributes", "db.system")],
     },
     {
         "predicate_key": ("attributes", "messaging.system"),
         "node_type": NodeType.COMPONENT,
-        "category_id": CategoryType.MESSAGING,
+        "category_id": CategoryEnum.MESSAGING,
         "instance_keys": [("attributes", "messaging.system")],
     },
     {
         "predicate_key": ("attributes", "http.method"),
         "node_type": NodeType.INTERFACE,
-        "category_id": CategoryType.HTTP,
+        "category_id": CategoryEnum.HTTP,
         "instance_keys": [("attributes", "http.url")],
     },
     {
         "predicate_key": ("attributes", "rpc.system"),
         "node_type": NodeType.INTERFACE,
-        "category_id": CategoryType.RPC,
+        "category_id": CategoryEnum.RPC,
         "instance_keys": [("attributes", "rpc.method")],
     },
     {
         "predicate_key": ("attributes", "messaging.destination"),
         "node_type": NodeType.COMPONENT,
-        "category_id": CategoryType.ASYNC_BACKEND,
+        "category_id": CategoryEnum.ASYNC_BACKEND,
         "instance_keys": [("attributes", "messaging.destination")],
     },
 ]
 
+# 默认规则实例
 DEFAULT_RULE_INSTANCE = {
     "predicate_key": ("", ""),
     "node_type": NodeType.INTERFACE,
-    "category_id": CategoryType.OTHER,
+    "category_id": CategoryEnum.OTHER,
     "instance_keys": [("", "span_name")],
 }
 
+# 服务规则实例
 SERVICE_RULE_INSTANCE = {
     "predicate_key": ("resource", "service.name"),
     "node_type": "service",
-    "category_id": CategoryType.OTHER,
+    "category_id": CategoryEnum.OTHER,
     "instance_keys": [("resource", "service.name")],
 }
 
@@ -229,12 +226,7 @@ class NodeDiscover(DiscoverBase):
         return root_node_keys
 
     def find_node_by_single_span(self, rules: List[ServiceTopoDiscoverRuleCls], span: dict):
-        if self.is_all_component_rules(rules):
-            match_rule = next((rule for rule in rules if exists_field(rule.predicate_key, span)), None)
-            if not match_rule:
-                return
-        else:
-            match_rule = self.get_match_rule(span, rules)
+        match_rule = self.get_match_rule(span, rules)
         service_node_key = self.get_service_name(span)
         self.add_node_relation_span(service_node_key, span, NodeType.SERVICE)
         node_key = get_node_key(match_rule.instance_keys, match_rule.category_id, span)
@@ -242,8 +234,6 @@ class NodeDiscover(DiscoverBase):
 
     def find_node(self, rules: List[ServiceTopoDiscoverRuleCls], span: dict, to_spans: list):
         match_rule = self.get_match_rule(span, rules)
-        if match_rule.category_id in [CategoryType.DB]:
-            return
         service_node_key = self.get_service_name(span)
         self.add_node_relation_span(service_node_key, span, NodeType.SERVICE)
         node_key = get_node_key(match_rule.instance_keys, match_rule.category_id, span)
@@ -253,7 +243,6 @@ class NodeDiscover(DiscoverBase):
             self.add_node_relation_span(service_node_key, t, NodeType.SERVICE)
 
     def discover(self, spans) -> list:
-        component_rules = [r for r in SERVICE_TOPO_RULES if r.node_type == NodeType.COMPONENT]
         relation_mapping = self.get_relation_map(spans)
         # 无对端span, kind in [2, 5]
         span_id_set = {span[OtlpKey.SPAN_ID] for span in spans}
@@ -268,14 +257,13 @@ class NodeDiscover(DiscoverBase):
                 continue
             from_span = relation["from"]
             if not relation["to"]:
-                # kind in [3, 4] 组件类型
-                self.find_node_by_single_span(component_rules, from_span)
+                self.find_node_by_single_span(SERVICE_TOPO_RULES, from_span)
+                continue
             self.find_node(SERVICE_TOPO_RULES, from_span, relation["to"])
 
         nodes = []
         root_spans = self.find_root_spans(spans)
         root_node_keys = self.get_root_node_key(root_spans)
-        # TODO 增加节点 icon
         for k, v in self.data_map.items():
             node_key, node_type = k
             display_name = node_key
@@ -305,12 +293,7 @@ class EdgeDiscover(DiscoverBase):
         self.data_map[source_target].append(base_item)
 
     def build_edge_by_single_span(self, rules: List[ServiceTopoDiscoverRuleCls], span: dict):
-        if self.is_all_component_rules(rules):
-            match_rule = next((rule for rule in rules if exists_field(rule.predicate_key, span)), None)
-            if not match_rule:
-                return
-        else:
-            match_rule = self.get_match_rule(span, rules)
+        match_rule = self.get_match_rule(span, rules)
         source = self.get_service_name(span)
         target = get_node_key(match_rule.instance_keys, match_rule.category_id, span)
         if span[OtlpKey.KIND] in [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]:
@@ -320,8 +303,6 @@ class EdgeDiscover(DiscoverBase):
 
     def build_edge(self, rules: List[ServiceTopoDiscoverRuleCls], from_span: dict, to_spans: list):
         match_rule = self.get_match_rule(from_span, rules)
-        if match_rule.category_id in [CategoryType.DB]:
-            return
         # 服务 --> 接口 或者 服务 --> 中间键
         key = get_node_key(match_rule.instance_keys, match_rule.category_id, from_span)
         from_service_name = self.get_service_name(from_span)
@@ -332,7 +313,6 @@ class EdgeDiscover(DiscoverBase):
             self.add_edge_relation_span(key, to_service_name, t)
 
     def discover(self, spans: list) -> list:
-        component_rules = [r for r in SERVICE_TOPO_RULES if r.node_type == NodeType.COMPONENT]
         relation_mapping = self.get_relation_map(spans)
         # 无对端span, kind in [2, 5]
         span_id_set = {span[OtlpKey.SPAN_ID] for span in spans}
@@ -348,7 +328,8 @@ class EdgeDiscover(DiscoverBase):
                 continue
             from_span = relation["from"]
             if not relation["to"]:
-                self.build_edge_by_single_span(component_rules, from_span)
+                self.build_edge_by_single_span(SERVICE_TOPO_RULES, from_span)
+                continue
             self.build_edge(SERVICE_TOPO_RULES, from_span, relation["to"])
 
         edges = []
