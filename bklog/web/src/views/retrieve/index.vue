@@ -157,15 +157,15 @@
                 <field-filter
                   ref="fieldFilterRef"
                   :retrieve-params="retrieveParams"
-                  :total-fields="totalFields"
-                  :visible-fields="visibleFields"
                   :sort-list="sortList"
                   :field-alias-map="fieldAliasMap"
                   :parent-loading="tableLoading"
                   :show-field-alias="showFieldAlias"
                   :statistical-fields-data="statisticalFieldsData"
+                  :total-fields="totalFields"
+                  :visible-fields="visibleFields"
                   :date-picker-value="datePickerValue"
-                  @fieldsUpdated="handleFieldsUpdated"
+                  @fields-updated="handleFieldsUpdated"
                 />
               </div>
             </div>
@@ -293,7 +293,6 @@
   import axios from 'axios';
   import dayjs from 'dayjs';
   import { mapGetters, mapState } from 'vuex';
-  import FieldFilter from './field-filter-comp';
 
   import * as authorityMap from '../../common/authority-map';
   import { deepClone } from '../../components/monitor-echarts/utils';
@@ -308,6 +307,7 @@
   import ResultMain from './result-comp/result-main';
   import SearchComp from './search-comp';
   import SettingModal from './setting-modal/index.vue';
+  import FieldFilter from './field-filter-comp';
 
   const CancelToken = axios.CancelToken;
   const currentTime = Math.floor(new Date().getTime() / 1000);

@@ -1,37 +1,45 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import { Component, Prop, Ref, Vue, Emit, Watch } from 'vue-property-decorator';
-import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
-import $http from '../../../api';
-import { lineColor } from '../../../store/constant';
-import './field-analysis.scss';
-import dayjs from 'dayjs';
+
 import axios from 'axios';
+import dayjs from 'dayjs';
+
+import $http from '../../../api';
+import { deepClone } from '../../../common/util';
+import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
+import { lineColor } from '../../../store/constant';
+
+import './field-analysis.scss';
 const CancelToken = axios.CancelToken;
 
 const timeSeriesBase = {
   lineStyle: {
-    width: 1
+    width: 1,
   },
   transitionDuration: 750, // 动画响应毫秒数
   type: 'line',
@@ -41,8 +49,8 @@ const timeSeriesBase = {
     borderWidth: 2,
     enabled: true,
     shadowBlur: 0,
-    opacity: 1
-  }
+    opacity: 1,
+  },
 };
 
 /** 柱状图基础高度 */
@@ -60,9 +68,9 @@ type LegendActionType = 'click' | 'shift-click';
 
 @Component
 export default class FieldAnalysis extends Vue {
-  @Prop({ type: Object, default: () => ({}) }) private readonly queryParams: any;
-  @Ref('fieldChart') private readonly chartRef!: HTMLDivElement;
-  @Ref('commonLegend') private readonly commonLegendRef!: HTMLDivElement;
+  @Prop({ type: Object, default: () => ({}) }) readonly queryParams: any;
+  @Ref('fieldChart') readonly chartRef!: HTMLDivElement;
+  @Ref('commonLegend') readonly commonLegendRef!: HTMLDivElement;
 
   chart = null;
   /** 图表高度 */
@@ -84,6 +92,8 @@ export default class FieldAnalysis extends Vue {
   /** 错误提示字符串 */
   emptyTipsStr = '';
   emptyStr = window.mainComponent.$t('暂无数据');
+  lineOptions = {};
+  pillarOption = {};
 
   /** 基础信息数据 */
   fieldData = {
@@ -95,8 +105,8 @@ export default class FieldAnalysis extends Vue {
       avg: 0,
       max: 0,
       median: 0,
-      min: 0
-    }
+      min: 0,
+    },
   };
   /** 是否显示柱状图 是否是数字类型字段 */
   get isPillarChart() {
@@ -116,12 +126,12 @@ export default class FieldAnalysis extends Vue {
   @Watch('currentPageNum')
   watchPageNum(v: number) {
     this.commonLegendRef.scrollTo({
-      top: (v - 1) * LEGEND_BOX_HEIGHT
+      top: (v - 1) * LEGEND_BOX_HEIGHT,
     });
   }
 
   @Emit('statisticsInfoFinish')
-  private statisticsInfoFinish() {
+  statisticsInfoFinish() {
     return true;
   }
 
@@ -151,14 +161,14 @@ export default class FieldAnalysis extends Vue {
         'retrieve/fieldStatisticsInfo',
         {
           data: {
-            ...this.queryParams
-          }
+            ...this.queryParams,
+          },
         },
         {
           cancelToken: new CancelToken(c => {
             this.getInfoCancelFn = c;
-          })
-        }
+          }),
+        },
       );
       Object.assign(this.fieldData, res.data);
     } catch (error) {
@@ -170,26 +180,26 @@ export default class FieldAnalysis extends Vue {
   async queryStatisticsGraph() {
     try {
       const data = {
-        ...this.queryParams
+        ...this.queryParams,
       };
       if (this.isPillarChart) {
         Object.assign(data, {
           distinct_count: this.fieldData.distinct_count,
           max: this.fieldData.value_analysis.max,
-          min: this.fieldData.value_analysis.min
+          min: this.fieldData.value_analysis.min,
         });
       }
       const res = await $http.request(
         'retrieve/fieldStatisticsGraph',
         {
-          data
+          data,
         },
         {
           catchIsShowMessage: false,
           cancelToken: new CancelToken(c => {
             this.getChartsCancelFn = c;
-          })
-        }
+          }),
+        },
       );
       this.isShowEmpty = false;
       // 分折线图和柱状图显示
@@ -211,20 +221,21 @@ export default class FieldAnalysis extends Vue {
           return `${item[0]} - ${resData[index + 1][0]}`;
         });
         const pillarInterval = Math.round(xAxisData.length / 2) - 1;
+        this.pillarOption = deepClone(pillarChartOption);
         // 柱状图初始化
-        Object.assign(pillarChartOption, {
+        Object.assign(this.pillarOption, {
           tooltip: {
             trigger: 'axis',
             transitionDuration: 0,
             axisPointer: {
               type: 'line',
               lineStyle: {
-                type: 'dashed'
-              }
+                type: 'dashed',
+              },
             },
             backgroundColor: 'rgba(0,0,0,0.8)',
             formatter: p => this.handleSetPillarTooltip(p),
-            position: this.handleSetPosition
+            position: this.handleSetPosition,
           },
           xAxis: {
             ...pillarChartOption.xAxis,
@@ -235,19 +246,19 @@ export default class FieldAnalysis extends Vue {
               formatter: value => {
                 if (value.length > 18) return `${value.slice(0, 18)}...`; // 只显示前18个字符
                 return value;
-              }
+              },
             },
-            data: xAxisData
+            data: xAxisData,
           },
           series: [
             {
               data: res.data.map(item => item[1]),
               type: 'bar',
               itemStyle: {
-                color: '#689DF3'
-              }
-            }
-          ]
+                color: '#689DF3',
+              },
+            },
+          ],
         });
       } else {
         const seriesData = res.data.series;
@@ -262,14 +273,14 @@ export default class FieldAnalysis extends Vue {
             ...timeSeriesBase,
             name: el.group_values[0],
             data: el.values,
-            z: 999
+            z: 999,
           });
         });
         this.seriesData = series;
         this.legendData = series.map((item, index) => ({
           color: lineColor[index],
           name: item.name,
-          show: true
+          show: true,
         }));
         // 收集所有时间戳
         const allTimestamps = series.reduce((acc, series) => {
@@ -280,23 +291,24 @@ export default class FieldAnalysis extends Vue {
         const minTimestamp = Math.min.apply(null, allTimestamps);
         const maxTimestamp = Math.max.apply(null, allTimestamps);
         const {
-          xAxis: { minInterval, splitNumber, ...resetxAxis }
+          xAxis: { minInterval, splitNumber, ...resetxAxis },
         } = lineOrBarOptions;
-        Object.assign(lineOrBarOptions, {
+        this.lineOptions = deepClone(lineOrBarOptions);
+        Object.assign(this.lineOptions, {
           useUTC: false,
           tooltip: {
             trigger: 'axis',
             axisPointer: {
               type: 'line',
               lineStyle: {
-                type: 'dashed'
-              }
+                type: 'dashed',
+              },
             },
             backgroundColor: 'rgba(0,0,0,0.8)',
             transitionDuration: 0,
             appendTo: () => document.body,
             formatter: p => this.handleSetTimeTooltip(p),
-            position: this.handleSetPosition
+            position: this.handleSetPosition,
           },
           color: lineColor,
           xAxis: {
@@ -309,20 +321,20 @@ export default class FieldAnalysis extends Vue {
               fontSize: 12,
               formatter: value => {
                 return dayjs.tz(value).format(formatStr);
-              }
+              },
             },
             scale: false,
             min: minTimestamp,
-            max: maxTimestamp
+            max: maxTimestamp,
           },
           yAxis: {
             ...lineOrBarOptions.yAxis,
             axisLine: {
-              show: false
-            }
+              show: false,
+            },
           },
           legend: [],
-          series
+          series,
         });
 
         this.$nextTick(() => {
@@ -360,10 +372,10 @@ export default class FieldAnalysis extends Vue {
   initFieldChart() {
     const echarts = require('echarts');
     const chart: any = echarts.init(this.chartRef, null, {
-      height: `${this.height}px`
+      height: `${this.height}px`,
     });
-    const getInitChartOption = this.isPillarChart ? pillarChartOption : lineOrBarOptions;
-    chart && chart.setOption(getInitChartOption);
+    const getInitChartOption = this.isPillarChart ? this.pillarOption : this.lineOptions;
+    chart?.setOption(getInitChartOption);
     this.chart = chart;
     this.chart.resize();
   }
@@ -372,17 +384,13 @@ export default class FieldAnalysis extends Vue {
   handleSetTimeTooltip(params) {
     const liHtmls = params
       .sort((a, b) => b.value[1] - a.value[1])
-      .map((item, index) => {
-        let markColor = 'color: #fafbfd;';
-        if (index === 0) {
-          markColor = 'color: #fff;font-weight: bold;';
-        }
+      .map(item => {
         /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
         return `<li class="tooltips-content-item">
                   <span class="item-series" style="background-color:${item.color};"></span>
-                  <span class="item-name is-warp" style="${markColor}">${item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n')}:</span>
+                  <span class="item-name is-warp">${item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n')}:</span>
                   <div class="item-value-box is-warp">
-                    <span class="item-value" style="${markColor}">${item.value[1]}</span>
+                    <span class="item-value">${item.value[1]}</span>
                   </div>
                 </li>`;
       });
@@ -416,11 +424,11 @@ export default class FieldAnalysis extends Vue {
     const chartRect = this.chartRef.getBoundingClientRect();
     const posRect = {
       x: chartRect.x + +pos[0],
-      y: chartRect.y + +pos[1]
+      y: chartRect.y + +pos[1],
     };
     const position = {
       left: 0,
-      top: 0
+      top: 0,
     };
     const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
     if (canSetBottom > 0) {
@@ -461,13 +469,13 @@ export default class FieldAnalysis extends Vue {
       {
         ...options,
         color: showColor,
-        series: showSeries
+        series: showSeries,
       },
       {
         notMerge: true,
         lazyUpdate: false,
-        silent: true
-      }
+        silent: true,
+      },
     );
     setTimeout(() => {
       this.chart.resize();
@@ -539,11 +547,11 @@ export default class FieldAnalysis extends Vue {
           )}
         </div>
         <div
-          v-bkloading={{ isLoading: this.chartLoading }}
           style={{
             height: this.isPillarChart ? `${PILLAR_CHART_BOX_HEIGHT}px` : `${LINE_CHART_BOX_HEIGHT}px`,
-            alignItems: 'center'
+            alignItems: 'center',
           }}
+          v-bkloading={{ isLoading: this.chartLoading }}
         >
           {!this.isShowEmpty ? (
             <div>
@@ -561,12 +569,12 @@ export default class FieldAnalysis extends Vue {
               ></div>
               {!this.isPillarChart && (
                 <div
-                  class='legend-box'
                   style={{ height: `${LEGEND_BOX_HEIGHT}px` }}
+                  class='legend-box'
                 >
                   <div
-                    class='common-legend'
                     ref='commonLegend'
+                    class='common-legend'
                   >
                     {this.legendData.map((legend, index) => {
                       return (
@@ -595,7 +603,7 @@ export default class FieldAnalysis extends Vue {
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill last-page-up': true,
-                          disabled: this.currentPageNum === 1
+                          disabled: this.currentPageNum === 1,
                         }}
                         onClick={() => {
                           if (this.currentPageNum > 1) this.currentPageNum -= 1;
@@ -604,7 +612,7 @@ export default class FieldAnalysis extends Vue {
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill': true,
-                          disabled: this.currentPageNum === this.legendMaxPageNum
+                          disabled: this.currentPageNum === this.legendMaxPageNum,
                         }}
                         onClick={() => {
                           if (this.currentPageNum < this.legendMaxPageNum) this.currentPageNum += 1;
@@ -618,17 +626,17 @@ export default class FieldAnalysis extends Vue {
           ) : (
             <div class='not-data-empty'>
               <bk-exception
-                type={!!this.emptyTipsStr ? '500' : 'empty'}
                 scene='part'
+                type={!!this.emptyTipsStr ? '500' : 'empty'}
               >
                 <div style={{ marginTop: '10px' }}>
                   <span>{this.emptyStr}</span>
                   {!!this.emptyTipsStr && (
                     <i
-                      v-bk-tooltips={{
-                        content: this.emptyTipsStr
-                      }}
                       class='bk-icon icon-exclamation-circle'
+                      v-bk-tooltips={{
+                        content: this.emptyTipsStr,
+                      }}
                     ></i>
                   )}
                 </div>

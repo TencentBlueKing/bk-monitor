@@ -9,20 +9,20 @@
 
   .form-container {
     display: flex;
+    align-items: center;
     height: 32px;
     margin-top: 15px;
-    align-items: center;
 
     .king-input {
       width: 100%;
     }
 
     .gap {
+      flex-shrink: 0;
       width: 1px;
       height: 100%;
       margin: 0 16px;
       background-color: #f0f1f5;
-      flex-shrink: 0;
     }
 
     :deep(.bk-tooltip) {
@@ -31,13 +31,13 @@
 
     .filter-popover-trigger {
       display: flex;
+      align-items: center;
       height: 32px;
       margin-left: 16px;
       font-size: 12px;
       line-height: 18px;
       color: #3a84ff;
       cursor: pointer;
-      align-items: center;
 
       &:active {
         color: #2761dd;
@@ -53,8 +53,8 @@
       }
 
       .count {
-        height: 18px;
         min-width: 18px;
+        height: 18px;
         text-align: center;
         background-color: #e1ecff;
         border-radius: 50%;

@@ -103,58 +103,60 @@
 </template>
 
 <script lang="ts">
-import Echarts, { EChartOption } from 'echarts';
-import deepMerge from 'deepmerge';
-import { debounce } from 'throttle-debounce';
-import { addListener, removeListener, ResizeCallback } from 'resize-detector';
-import { Vue, Prop, Ref, Component, Watch } from 'vue-property-decorator';
-import dayjs from 'dayjs';
-import { toPng, toBlob } from 'html-to-image';
-import ChartLegend from './components/chart-legend.vue';
-import ChartTools from './components/chart-tools.vue';
-import ChartAnnotation from './components/chart-annotation.vue';
-import StatusChart from './components/status-chart.vue';
-import TextChart from './components/text-chart.vue';
-import {
-  ILegendItem,
-  IMoreToolItem,
-  IAnnotation,
-  IStatusSeries,
-  IStatusChartOption,
-  ITextSeries,
-  ITextChartOption,
-  ChartType
-} from './options/type-interface';
-import EchartOptions from './options/echart-options';
-import { hexToRgbA } from './utils';
-import watermarkMaker from './utils/watermark-maker';
-import ChartInView from './utils/chart-in-view';
-import { getValueFormat } from './value-formats-package';
-import ChartTitle from './components/chart-title-new.vue';
-import { Debounce } from '../../common/util';
-import { lineColor } from '../../store/constant';
-interface ICurValue {
-  xAxis: string | number;
-  yAxis: string | number;
-  dataIndex: number;
-  color: string;
-  name: string;
-  seriesIndex: number;
-}
-@Component({
-  name: 'monitor-echarts',
-  components: {
-    ChartLegend,
-    ChartTools,
-    ChartAnnotation,
-    StatusChart,
-    TextChart,
-    ChartTitle
+  import { Vue, Prop, Ref, Component, Watch } from 'vue-property-decorator';
+
+  import dayjs from 'dayjs';
+  import deepMerge from 'deepmerge';
+  import Echarts, { EChartOption } from 'echarts';
+  import { toPng, toBlob } from 'html-to-image';
+  import { addListener, removeListener, ResizeCallback } from 'resize-detector';
+  import { debounce } from 'throttle-debounce';
+
+  import { Debounce } from '../../common/util';
+  import ChartAnnotation from './components/chart-annotation.vue';
+  import ChartLegend from './components/chart-legend.vue';
+  import ChartTitle from './components/chart-title-new.vue';
+  import ChartTools from './components/chart-tools.vue';
+  import StatusChart from './components/status-chart.vue';
+  import TextChart from './components/text-chart.vue';
+  import EchartOptions from './options/echart-options';
+  import {
+    ILegendItem,
+    IMoreToolItem,
+    IAnnotation,
+    IStatusSeries,
+    IStatusChartOption,
+    ITextSeries,
+    ITextChartOption,
+    ChartType,
+  } from './options/type-interface';
+  import { hexToRgbA } from './utils';
+  import ChartInView from './utils/chart-in-view';
+  import watermarkMaker from './utils/watermark-maker';
+  import { getValueFormat } from './value-formats-package';
+  import { lineColor } from '../../store/constant';
+  interface ICurValue {
+    xAxis: number | string;
+    yAxis: number | string;
+    dataIndex: number;
+    color: string;
+    name: string;
+    seriesIndex: number;
   }
-})
-export default class MonitorEcharts extends Vue {
-  @Ref() readonly chartRef!: HTMLDivElement;
-  @Ref() readonly charWrapRef!: HTMLDivElement;
+  @Component({
+    name: 'monitor-echarts',
+    components: {
+      ChartLegend,
+      ChartTools,
+      ChartAnnotation,
+      StatusChart,
+      TextChart,
+      ChartTitle,
+    },
+  })
+  export default class MonitorEcharts extends Vue {
+    @Ref() readonly chartRef!: HTMLDivElement;
+    @Ref() readonly charWrapRef!: HTMLDivElement;
 
     // echarts配置项
     @Prop() readonly options: Echarts.EChartOption | IStatusChartOption | ITextChartOption;
@@ -190,11 +192,11 @@ export default class MonitorEcharts extends Vue {
     // 获取图标数据
     @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
 
-  @Prop({
-    default: () => lineColor
-  })
-  // 图标系列颜色集合
-  colors: string[];
+    @Prop({
+      default: () => lineColor,
+    })
+    // 图标系列颜色集合
+    colors: string[];
 
     @Prop({
       default() {

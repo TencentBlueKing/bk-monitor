@@ -1,31 +1,36 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import './field-filter-popover.scss';
 
 @Component
-export default class FieldAnalysis extends tsc<{}> {
+export default class FieldAnalysis extends tsc<object> {
   @Prop({ type: Boolean, default: false }) value: boolean;
 
   polymerizableCache = null;
@@ -36,32 +41,32 @@ export default class FieldAnalysis extends tsc<{}> {
   fieldTypeMap = {
     any: {
       name: window.mainComponent.$t('不限'),
-      icon: 'bk-icon icon-check-line'
+      icon: 'bk-icon icon-check-line',
     },
     number: {
       name: window.mainComponent.$t('数字'),
-      icon: 'log-icon icon-number'
+      icon: 'log-icon icon-number',
     },
     keyword: {
       name: window.mainComponent.$t('字符串'),
-      icon: 'log-icon icon-string'
+      icon: 'log-icon icon-string',
     },
     text: {
       name: window.mainComponent.$t('文本'),
-      icon: 'log-icon icon-text'
+      icon: 'log-icon icon-text',
     },
     date: {
       name: window.mainComponent.$t('时间'),
-      icon: 'bk-icon icon-clock'
+      icon: 'bk-icon icon-clock',
     },
     date_nanos: {
       name: window.mainComponent.$t('时间'),
-      icon: 'bk-icon icon-clock'
+      icon: 'bk-icon icon-clock',
     },
     __virtual__: {
       name: window.mainComponent.$t('虚拟字段'),
-      icon: 'log-icon icon-ext'
-    }
+      icon: 'log-icon icon-ext',
+    },
   };
 
   get showFieldTypeList() {
@@ -94,7 +99,7 @@ export default class FieldAnalysis extends tsc<{}> {
   emitConfirm() {
     return {
       polymerizable: this.polymerizable,
-      fieldType: this.fieldType
+      fieldType: this.fieldType,
     };
   }
 
@@ -113,8 +118,8 @@ export default class FieldAnalysis extends tsc<{}> {
       <div class='filter-popover-content'>
         <div class='title'>{this.$t('是否可聚合')}</div>
         <bk-radio-group
-          v-model={this.polymerizable}
           class='king-radio-group'
+          v-model={this.polymerizable}
         >
           <bk-radio value='0'>{this.$t('不限')}</bk-radio>
           <bk-radio value='1'>{this.$t('是')}</bk-radio>

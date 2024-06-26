@@ -888,3 +888,10 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     max = serializers.IntegerField(label=_("最大值"), required=False)
     min = serializers.IntegerField(label=_("最小值"), required=False)
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
+
+
+class ESRouterListSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=False, label="空间ID", default="")
+    scenario_id = serializers.CharField(required=False, label="数据源类型")
+    page = serializers.IntegerField(label=_("分页"), required=True)
+    pagesize = serializers.IntegerField(label=_("分页大小"), required=True)

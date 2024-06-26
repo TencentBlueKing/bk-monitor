@@ -122,9 +122,11 @@ class UnifyQueryHandler(object):
 
     def get_total_count(self):
         search_dict = copy.deepcopy(self.base_dict)
-        search_dict.update({"metric_merge": "a"})
+        reference_list = []
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
+            reference_list.append(query["reference_name"])
+        search_dict.update({"metric_merge": " + ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
@@ -133,7 +135,7 @@ class UnifyQueryHandler(object):
 
     def get_field_count(self):
         search_dict = copy.deepcopy(self.base_dict)
-        search_dict.update({"metric_merge": "a"})
+        reference_list = []
         for query in search_dict["query_list"]:
             if len(query["conditions"]["field_list"]) > 0:
                 query["conditions"]["condition_list"].append("and")
@@ -141,6 +143,8 @@ class UnifyQueryHandler(object):
                 {"field_name": self.search_params["agg_field"], "value": [""], "op": "ncontains"}
             )
             query["function"] = [{"method": "count"}]
+            reference_list.append(query["reference_name"])
+        search_dict.update({"metric_merge": " + ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
@@ -184,7 +188,7 @@ class UnifyQueryHandler(object):
             for query in search_dict["query_list"]:
                 query["function"] = [{"method": "cardinality"}]
                 search_dict.update({"metric_merge": "a"})
-                data = self.query_ts_reference(search_dict)
+                data = self.query_ts_reference(search_dict, raise_exception=True)
         if data.get("series", []):
             series = data["series"][0]
             return series["values"][0][1]
@@ -242,7 +246,9 @@ class UnifyQueryHandler(object):
         search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         series = data["series"]
-        return sorted([[s["group_values"][0], s["values"][0][1]] for s in series[:limit]], key=lambda x: x[1], reverse=True)
+        return sorted(
+            [[s["group_values"][0], s["values"][0][1]] for s in series[:limit]], key=lambda x: x[1], reverse=True
+        )
 
     def get_bucket_data(self, min_value: int, max_value: int):
         # 浮点数分桶区间精度默认为两位小数

@@ -7,7 +7,7 @@
     background-color: #eaebf0;
     border-radius: 4px 4px 0 0;
 
-    &+.bk-tab-label-item {
+    & + .bk-tab-label-item {
       margin-left: 8px;
     }
 
@@ -28,7 +28,6 @@
     background-color: #fff;
     border-color: transparent;
   }
-
 
   .bk-tab-label-list-has-bar:after {
     display: none;

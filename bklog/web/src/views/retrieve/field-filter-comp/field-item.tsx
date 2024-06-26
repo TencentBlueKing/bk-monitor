@@ -1,33 +1,39 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Emit } from 'vue-property-decorator';
-import './field-item.scss';
+import { Component as tsc } from 'vue-tsx-support';
+
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 
+import './field-item.scss';
+
 @Component
-export default class FieldItem extends tsc<{}> {
+export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
@@ -97,7 +103,7 @@ export default class FieldItem extends tsc<{}> {
     this.instanceDestroy();
     this.emitToggleItem({
       type: this.type,
-      fieldItem: this.fieldItem
+      fieldItem: this.fieldItem,
     });
   }
   handleClickAnalysisItem() {
@@ -109,7 +115,7 @@ export default class FieldItem extends tsc<{}> {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name
+      agg_field: this.fieldItem.field_name,
     };
     /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
     this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
@@ -124,7 +130,7 @@ export default class FieldItem extends tsc<{}> {
       appendTo: document.body,
       onHidden: () => {
         this.instanceDestroy();
-      }
+      },
     });
     this.operationInstance.show(100);
   }
@@ -159,12 +165,11 @@ export default class FieldItem extends tsc<{}> {
           <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
           {/* 字段类型对应的图标 */}
           <span
-            v-bk-tooltips={{
-              content:
-                this.fieldTypeMap[this.fieldItem.field_type] && this.fieldTypeMap[this.fieldItem.field_type].name,
-              disabled: !this.fieldTypeMap[this.fieldItem.field_type]
-            }}
             class={[this.getFieldIcon(this.fieldItem.field_type) || 'log-icon icon-unkown', 'field-type-icon']}
+            v-bk-tooltips={{
+              content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
+              disabled: !this.fieldTypeMap[this.fieldItem.field_type],
+            }}
           ></span>
           {/* 字段名 */}
           <span class='overflow-tips field-name'>
@@ -172,15 +177,15 @@ export default class FieldItem extends tsc<{}> {
               {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name}
             </span>
             <span
-              v-show={this.isShowFieldsCount}
               class='field-count'
+              v-show={this.isShowFieldsCount}
             >
               ({this.gatherFieldsCount})
             </span>
             {this.isUnionConflictFields(this.fieldItem.field_type) && (
               <bk-popover
-                theme='light'
                 ext-cls='conflict-popover'
+                theme='light'
               >
                 <i class='conflict-icon bk-icon icon-exclamation-triangle-shape'></i>
                 <div slot='content'>
@@ -198,14 +203,14 @@ export default class FieldItem extends tsc<{}> {
           >
             {this.isShowFieldsAnalysis && (
               <div
+                class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
                 v-bk-tooltips={{
                   content: this.isUnionSearch
                     ? this.$t('暂不支持')
                     : !this.gatherFieldsCount
                       ? this.$t('该字段暂无匹配日志')
-                      : this.$t('图表分析')
+                      : this.$t('图表分析'),
                 }}
-                class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
                 onClick={e => {
                   e.stopPropagation();
                   if (!this.gatherFieldsCount || this.isUnionSearch) return;
@@ -219,7 +224,7 @@ export default class FieldItem extends tsc<{}> {
             <div
               class='operation-icon-box'
               v-bk-tooltips={{
-                content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示')
+                content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
               }}
               onClick={e => {
                 e.stopPropagation();
@@ -233,11 +238,11 @@ export default class FieldItem extends tsc<{}> {
         {/* 显示聚合字段图表信息 */}
         {!!this.showFieldsChart && this.isExpand && (
           <AggChart
-            retrieve-params={this.retrieveParams}
-            parent-expand={this.isExpand}
             date-picker-value={this.datePickerValue}
             field-name={this.fieldItem.field_name}
             field-type={this.fieldItem.field_type}
+            parent-expand={this.isExpand}
+            retrieve-params={this.retrieveParams}
           />
         )}
       </li>

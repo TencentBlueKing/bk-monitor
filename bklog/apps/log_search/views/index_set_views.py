@@ -24,6 +24,7 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from apps.api import TransferApi
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -36,12 +37,13 @@ from apps.iam.handlers.drf import (
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet, Scenario, SpaceApi
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     CreateIndexSetTagSerializer,
     CreateOrUpdateDesensitizeConfigSerializer,
     DesensitizeConfigStateSerializer,
+    ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
 )
@@ -278,6 +280,38 @@ class IndexSetViewSet(ModelViewSet):
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
         return response
 
+    @staticmethod
+    def get_rt_id(index_set):
+        if index_set["scenario_id"] == Scenario.ES:
+            rt_id = "bklog_index_set_" + str(index_set["index_set_id"]) + ".__default__"
+        else:
+            rt_id = ",".join([index["result_table_id"] for index in index_set["indexes"]])
+        return rt_id
+
+    @list_route(methods=["GET"], url_path="list_es_router")
+    def list_es_router(self, request):
+        params = self.params_valid(ESRouterListSerializer)
+        router_list = []
+        if "space_uid" not in params:
+            space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
+            params["index_set_id_list"] = list(
+                LogIndexSet.objects.filter(space_uid__in=space_uids).values_list("index_set_id", flat=True)
+            )
+        response = self.list(request, **params)
+        for index_set in response.data["list"]:
+            router_list.append(
+                {
+                    "cluster_id": index_set["storage_cluster_id"],
+                    "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
+                    "source_type": index_set["scenario_id"],
+                    "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set["index_set_id"]),
+                    "table_id": self.get_rt_id(index_set),
+                    "space_uid": index_set["space_uid"],
+                }
+            )
+        response.data["list"] = router_list
+        return response
+
     def retrieve(self, request, *args, **kwargs):
         """
         @api {get} /index_set/$index_set_id/ 索引集-详情
@@ -451,6 +485,18 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
         )
+
+        # 创建结果表路由信息
+        TransferApi.create_es_router(
+            {
+                "cluster_id": storage_cluster_id,
+                "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
+                "source_type": index_set["scenario_id"],
+                "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set["index_set_id"]),
+                "table_id": self.get_rt_id(index_set),
+                "space_uid": index_set["space_uid"],
+            }
+        )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
     def update(self, request, *args, **kwargs):
@@ -518,6 +564,18 @@ class IndexSetViewSet(ModelViewSet):
             storage_cluster_id=storage_cluster_id,
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
+        )
+
+        # 更新结果表路由信息
+        TransferApi.update_es_router(
+            {
+                "cluster_id": storage_cluster_id,
+                "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
+                "source_type": index_set["scenario_id"],
+                "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set["index_set_id"]),
+                "table_id": self.get_rt_id(index_set),
+                "space_uid": index_set["space_uid"],
+            }
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
