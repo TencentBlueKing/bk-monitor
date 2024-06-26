@@ -114,6 +114,12 @@ export const useTraceStore = defineStore('trace', () => {
   /** 更新当前展示的 trace 数据 */
   function setTraceData(data: ITraceData) {
     const { trace_tree: tree, ...rest } = data;
+
+    const { nodes, edges } = rest.streamline_service_topo;
+    const rootNode = nodes.find(item => item.is_root);
+    const firstEdge = edges.find(item => item.source === rootNode?.key);
+    setServiceSpanList(firstEdge?.spans || []);
+
     if (data.appName) {
       originCrossAppSpanMaps.value[data.appName] = rest.original_data;
     } else {
