@@ -72,18 +72,29 @@ export function useLayout() {
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
     const isHorizontal = direction === 'LR';
-    dagreGraph.setGraph({ rankdir: direction, ranksep: ranksep || 50, ranker: 'tight-tree' });
+    dagreGraph.setGraph({ rankdir: direction, ranksep: ranksep || 50, ranker: 'longest-path' });
 
     previousDirection.value = direction;
+
+    const nodeWHMap = new Map();
+
+    let nodeMaxWidth = 0;
 
     for (const node of nodes) {
       // if you need width+height of nodes for your layout, you can use the dimensions property of the internal node (`GraphNode` type)
       const graphNode = findNode(node.id);
 
-      dagreGraph.setNode(node.id, {
+      const wh = {
         width: graphNode.dimensions.width || 150,
         height: graphNode.dimensions.height || 50,
-      });
+      };
+
+      if (nodeMaxWidth < wh.width) {
+        nodeMaxWidth = wh.width;
+      }
+
+      dagreGraph.setNode(node.id, wh);
+      nodeWHMap.set(node.id, wh);
     }
 
     for (const edge of edges) {
@@ -93,9 +104,8 @@ export function useLayout() {
     dagre.layout(dagreGraph);
 
     // set nodes with updated positions
-    return nodes.map(node => {
+    const result = nodes.map(node => {
       const nodeWithPosition = dagreGraph.node(node.id);
-
       return {
         ...node,
         targetPosition: isHorizontal ? Position.Left : Position.Top,
@@ -103,6 +113,13 @@ export function useLayout() {
         position: { x: nodeWithPosition.x, y: nodeWithPosition.y },
       };
     });
+    result.forEach(node => {
+      const w = nodeWHMap.get(node.id).width;
+      if (w < nodeMaxWidth) {
+        node.position.x += (nodeMaxWidth - w) / 2;
+      }
+    });
+    return result;
   }
 
   return { graph, layout, previousDirection };
