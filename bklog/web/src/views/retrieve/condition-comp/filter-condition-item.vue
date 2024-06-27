@@ -421,7 +421,7 @@
         this.handleFieldChange(this.filterFields[0]?.id);
       },
       removeFilterCondition(field) {
-        this.$emit('removeFilterCondition', field);
+        this.$emit('remove-filter-condition', field);
       },
     },
   };

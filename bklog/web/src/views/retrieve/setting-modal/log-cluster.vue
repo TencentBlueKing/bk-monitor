@@ -589,7 +589,7 @@
                 },
               })
               .then(() => {
-                this.$emit('updateLogFields');
+                this.$emit('update-log-fields');
                 this.isShowSubmitDialog = true;
               })
               .finally(() => {
@@ -663,7 +663,7 @@
         });
       },
       resetPage() {
-        this.$emit('resetPage');
+        this.$emit('reset-page');
       },
     },
   };

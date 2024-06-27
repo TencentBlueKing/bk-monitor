@@ -229,19 +229,19 @@
         // if (type !== undefined) console.log('日期选择事件')
         // else console.log('快捷键事件')
         this.$store.commit('retrieve/updateCachePickerValue', date);
-        this.$emit('update:datePickerValue', date);
+        this.$emit('update:date-picker-value', date);
       },
       handleShortcutChange(data) {
         if (data !== undefined) {
           // 快捷键事件
           const timeRange = this.shortTextEnum[data.text];
           this.$store.commit('retrieve/updateCacheTimeRange', timeRange);
-          this.$emit('update:timeRange', timeRange);
+          this.$emit('update:time-range', timeRange);
           this.isShowDatePicker = false;
         } else {
           // 日期选择事件
           this.$store.commit('retrieve/updateCacheTimeRange', 'customized');
-          this.$emit('update:timeRange', 'customized');
+          this.$emit('update:time-range', 'customized');
         }
       },
       handleOpenChange(state) {
@@ -260,21 +260,21 @@
             if (this.timeRange !== 'customized') {
               // 快捷键模式
               if (timeRange !== this.timeRange) {
-                this.$emit('datePickerChange');
+                this.$emit('date-picker-change');
               }
             } else {
               // 正常模式
               const [newTime0, newTime1] = this.datePickerValue;
               if (time0 !== newTime0 || time1 !== newTime1) {
-                this.$emit('datePickerChange');
+                this.$emit('date-picker-change');
               }
             }
           }
         });
       },
       handleChangeTimeByChart(datePickerValue, timeRange) {
-        this.$emit('update:datePickerValue', datePickerValue);
-        this.$emit('update:timeRange', timeRange);
+        this.$emit('update:date-picker-value', datePickerValue);
+        this.$emit('update:time-range', timeRange);
         window.bus.$emit('retrieveWhenChartChange');
       },
     },

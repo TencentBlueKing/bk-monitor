@@ -594,7 +594,7 @@
             data,
           });
           if (this.activeFieldTab === 'sort') {
-            this.$emit('shouldRetrieve', undefined, false); // 不请求图表
+            this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
         } catch (error) {
         } finally {
@@ -623,7 +623,7 @@
             // 若删除的元素id与使用当前使用的config_id相同则直接刷新显示字段
             this.$store.commit('updateClearTableWidth', 1);
             const { display_fields } = this.configTabPanels[0];
-            this.$emit('modifyFields', display_fields, this.showFieldAlias);
+            this.$emit('modify-fields', display_fields, this.showFieldAlias);
           }
         }
       },
@@ -675,7 +675,7 @@
         }
       },
       setPopperInstance(status) {
-        this.$emit('setPopperInstance', status);
+        this.$emit('set-popper-instance', status);
       },
     },
   };

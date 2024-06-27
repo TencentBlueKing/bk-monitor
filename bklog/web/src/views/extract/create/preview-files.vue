@@ -215,10 +215,10 @@
           const cache = this.historyStack.pop();
           this.explorerList = cache.exploreList;
           const { fileOrPath } = this.historyStack[this.historyStack.length - 1];
-          this.$emit('update:fileOrPath', fileOrPath);
+          this.$emit('update:file-or-path', fileOrPath);
           return;
         }
-        this.$emit('update:fileOrPath', path);
+        this.$emit('update:file-or-path', path);
         const ipList = this.getFindIpList();
 
         this.isLoading = true;

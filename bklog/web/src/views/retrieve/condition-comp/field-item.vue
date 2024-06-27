@@ -191,7 +191,7 @@
       // 显示或隐藏字段
       handleShowOrHiddenItem() {
         // if (this.isDisabledHiddenField) return;
-        this.$emit('toggleItem', this.type, this.fieldItem);
+        this.$emit('toggle-item', this.type, this.fieldItem);
       },
       /** 联合查询并且有冲突字段 */
       isUnionConflictFields(fieldType) {

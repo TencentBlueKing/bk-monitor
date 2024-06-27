@@ -419,7 +419,7 @@
       handleClickNav(id) {
         this.active = id;
         // 切换聚类的nav 缓存聚类params
-        this.$emit('backFillClusterRouteParams', 'clustering', {
+        this.$emit('back-fill-cluster-route-params', 'clustering', {
           ...this.clusterRouteParams,
           activeNav: this.active,
         });
@@ -523,7 +523,7 @@
           case 'requestData': // 数据指纹的请求参数
             Object.assign(this.requestData, val);
             // 数据指纹对请求参数修改过的操作将数据回填到url上
-            this.$emit('backFillClusterRouteParams', 'clustering', {
+            this.$emit('back-fill-cluster-route-params', 'clustering', {
               activeNav: this.active,
               requestData: this.requestData,
             });

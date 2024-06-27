@@ -66,7 +66,7 @@
       handleDateChange(date) {
         // if (type !== undefined) console.log('日期选择事件')
         // else console.log('快捷键事件')
-        this.$emit('update:datePickerValue', date);
+        this.$emit('update:date-picker-value', date);
       },
       handleOpenChange(state) {
         this.isShowDatePicker = state;
@@ -82,7 +82,7 @@
             const { time0, time1 } = this.dateHistory;
             const [newTime0, newTime1] = this.datePickerValue;
             if (time0 !== newTime0 || time1 !== newTime1) {
-              this.$emit('datePickerChange');
+              this.$emit('date-picker-change');
             }
           }
         });

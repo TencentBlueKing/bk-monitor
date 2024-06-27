@@ -331,12 +331,12 @@
         }
       },
       handleValueChange(val) {
-        this.$emit('update:showSelectDialog', val);
+        this.$emit('update:show-select-dialog', val);
       },
       handleConfirm() {
         const selectedList = this.selectedTypeData === 'topo' ? this.selectedTopoList : this.selectedModuleList;
         this.$emit('confirm', this.selectedTypeData, selectedList);
-        this.$emit('update:showSelectDialog', false);
+        this.$emit('update:show-select-dialog', false);
       },
     },
   };

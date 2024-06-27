@@ -76,7 +76,7 @@
         });
       },
       updateLogFields() {
-        this.$emit('updateLogFields');
+        this.$emit('update-log-fields');
       },
     },
   };

@@ -664,7 +664,7 @@
                       this.timeRange = [timeFrom, timeTo];
                       if (this.getSeriesData) {
                         setTimeout(() => {
-                          this.chart.dispatchAction({
+                          this.chart?.dispatchAction({
                             type: 'restore',
                           });
                         }, 10);
