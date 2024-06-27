@@ -172,15 +172,8 @@ class Jinja2Renderer(object):
         """
         支持json和re函数
         """
-        notice_way = context.get("notice_way")
-        if notice_way in settings.MD_SUPPORTED_NOTICE_WAYS:
-            autoescape = True
-            escape_func = escape_markdown
-        else:
-            autoescape = False
-            escape_func = None
         return (
-            jinja2_environment(autoescape=autoescape, escape_func=escape_func)
+            jinja2_environment(autoescape=False, escape_func=None)
             .from_string(content)
             .render({"json": json, "re": re, **context})
         )
