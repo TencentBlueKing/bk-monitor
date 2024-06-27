@@ -247,6 +247,7 @@ clean_configs:
   - rules:
     - key: __http_query_params__.source
       method: eq
+      condition: and
       value:
         - "azure"
     - key: data.essentials.monitoringService
@@ -255,20 +256,239 @@ clean_configs:
         - "Platform"
     normalization_config:
       - field: alert_name
-        expr: to_json(data).essentials.alertRule
+        expr: data.essentials.alertRule
       - field: event_id
-        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', to_json(data).essentials.originAlertId] | join('.', @)"
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
       - field: description
-        expr: to_json(data).essentials.description
+        expr: data.essentials.description
       - field: metric
-        expr: "[to_json(data).alertContext.condition.allOf[0].metricNamespace || to_json(data).alertContext.condition.allOf[0].webTestName, to_json(data).alertContext.condition.allOf[0].metricName] | join('/', @)"
+        expr: "[data.alertContext.condition.allOf[0].metricNamespace || data.alertContext.condition.allOf[0].webTestName, data.alertContext.condition.allOf[0].metricName] | join('/', @)"
       - field: status
-        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, to_json(data).essentials.monitorCondition)"
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
       - field: severity
-        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, to_json(data).essentials.severity) || '1'"
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
       - field: bk_biz_id
         expr: "'{{plugin_inst_biz_id}}'"
       - field: dimensions
-        expr: "zip(to_json(data).alertContext.condition.allOf[0].dimensions.[*].name, to_json(data).alertContext.condition.allOf[0].dimensions.[*].value)"
+        expr: "zip(data.alertContext.condition.allOf[0].dimensions[*].name, data.alertContext.condition.allOf[0].dimensions[*].value)"
       - field: tags
-        expr: "data.alertContext.properties"
+        expr: "data.alertContext.properties || {source: 'AZURE_CLOUD'}"
+  - rules:
+    - key: __http_query_params__.source
+      method: eq
+      condition: and
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "Log Analytics"
+        - "Application Insights"
+    normalization_config:
+      - field: alert_name
+        expr: data.essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: data.essentials.description
+      - field: metric
+        expr: "data.alertContext.SearchQuery"
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: "zip(data.alertContext.Dimensions[*].name, data.alertContext.Dimensions[*].value)"
+      - field: tags
+        expr: "data.customProperties || {source: 'AZURE_CLOUD'}"
+  - rules:
+    - key: __http_query_params__.source
+      method: eq
+      condition: and
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "Log Alerts V2"
+    normalization_config:
+      - field: alert_name
+        expr: data.essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: data.essentials.description
+      - field: metric
+        expr: "data.alertContext.condition.allOf[*].SearchQuery"
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: "zip(data.alertContext.condition.allOf[0].dimensions[*].name, data.alertContext.condition.allOf[0].dimensions[*].value)"
+      - field: tags
+        expr: "data.customProperties || {source: 'AZURE_CLOUD'}"
+  - rules:
+    - key: __http_query_params__.source
+      condition: and
+      method: eq
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "Activity Log - Administrative"
+    normalization_config:
+      - field: alert_name
+        expr: data.essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: data.essentials.description
+      - field: metric
+        expr: data.essentials.monitoringService
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: "data.alertContext.authorization"
+      - field: tags
+        expr: "data.customProperties || {source: 'AZURE_CLOUD'}"
+  - rules:
+    - key: __http_query_params__.source
+      method: eq
+      condition: and
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "Activity Log - Policy"
+    normalization_config:
+      - field: alert_name
+        expr: data.essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: data.alertContext.properties.description
+      - field: metric
+        expr: data.essentials.monitoringService
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: data.alertContext.authorization
+      - field: tags
+        expr: data.alertContext.properties
+  - rules:
+    - key: __http_query_params__.source
+      method: eq
+      condition: and
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "Activity Log - Autoscale"
+    normalization_config:
+      - field: alert_name
+        expr: data.essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: data.alertContext.properties.description
+      - field: metric
+        expr: data.essentials.monitoringService
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: "{resourceName: data.alertContext.properties.resourceName}"
+      - field: tags
+        expr: data.alertContext.properties
+  - rules:
+    - key: __http_query_params__.source
+      method: eq
+      condition: and
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "Activity Log - Security"
+    normalization_config:
+      - field: alert_name
+        expr: data.essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: "['category:', data.alertContext.properties.category, 'threatID:', data.alertContext.properties.threatID, 'protectionType:', data.alertContext.properties.protectionType, 'severity:', data.alertContext.properties.severity, 'actionTaken:', data.alertContext.properties.actionTaken, 'protectionType:', data.alertContext.properties.protectionType, 'compromisedEntity:', data.alertContext.properties.compromisedEntity, 'attackedResourceType:', data.alertContext.properties.attackedResourceType] | join(' ', @)"
+      - field: metric
+        expr: data.essentials.monitoringService
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: |
+          {
+            category: data.alertContext.properties.category,
+            threatID: data.alertContext.properties.threatID,
+            protectionType: data.alertContext.properties.protectionType,
+            severity: data.alertContext.properties.severity,
+            actionTaken: data.alertContext.properties.actionTaken,
+            protectionType: data.alertContext.properties.protectionType,
+            compromisedEntity: data.alertContext.properties.compromisedEntity,
+            attackedResourceType: data.alertContext.properties.attackedResourceType
+          }
+      - field: tags
+        expr: data.alertContext.properties
+  - rules:
+    - key: __http_query_params__.source
+      method: eq
+      condition: and
+      value:
+        - "azure"
+    - key: data.essentials.monitoringService
+      method: eq
+      value:
+        - "ServiceHealth"
+    normalization_config:
+      - field: alert_name
+        expr: data.essentials.alertRule
+      - field: event_id
+        expr: "['azure_cloud_alert_{{plugin_inst_biz_id}}', data.essentials.originAlertId] | join('.', @)"
+      - field: description
+        expr: data.alertContext.properties.title
+      - field: metric
+        expr: data.essentials.monitoringService
+      - field: status
+        expr: "get_field({Fired: 'ABNORMAL', Resolved: 'RECOVERED'}, data.essentials.monitorCondition)"
+      - field: severity
+        expr: "get_field({Sev0: '1', Sev1: '1', Sev2: '2', Sev3: '3', Sev4: '3'}, data.essentials.severity) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: |
+          {
+            service: data.alertContext.properties.service,
+            region: data.alertContext.properties.region,
+            incidentType: data.alertContext.properties.incidentType
+          }
+      - field: tags
+        expr: data.alertContext.properties
