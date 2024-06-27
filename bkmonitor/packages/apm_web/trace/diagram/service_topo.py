@@ -275,7 +275,7 @@ class NodeDiscover(DiscoverBase):
                 "display_name": display_name,
                 "spans": v,
                 "icon": v[0]["icon"],
-                "color": self.color_classifier.next(node_type),
+                "color": self.color_classifier.next(node_key),
             }
             if node_key in root_node_keys:
                 node_info["is_root"] = True
