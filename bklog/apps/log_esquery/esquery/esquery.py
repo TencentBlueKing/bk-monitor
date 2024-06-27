@@ -213,7 +213,11 @@ class EsQuery(object):
             bkdata_data_token=bkdata_data_token,
         ).get_instance()
 
-        result: Dict[str:Any] = client.query(index, body, scroll=scroll, track_total_hits=track_total_hits)
+        # bkdata情景下,当且仅当用户主动传了 track_total_hits: true 时，才允许往 body 中注入该参数
+        if scenario_id == Scenario.BKDATA and not self.search_dict.get("track_total_hits"):
+            result: Dict[str:Any] = client.query(index, body, scroll=scroll)
+        else:
+            result: Dict[str:Any] = client.query(index, body, scroll=scroll, track_total_hits=track_total_hits)
 
         return self.compatibility_result(result)
 
