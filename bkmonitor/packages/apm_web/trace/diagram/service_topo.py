@@ -97,7 +97,7 @@ RULE_INSTANCES = [
         "predicate_key": ("attributes", "rpc.system"),
         "node_type": NodeType.INTERFACE,
         "category_id": CategoryEnum.RPC,
-        "instance_keys": [("attributes", "rpc.method")],
+        "instance_keys": [("attributes", "rpc.system"), ("attributes", "rpc.method")],
     },
     {
         "predicate_key": ("attributes", "messaging.destination"),
@@ -129,6 +129,7 @@ SERVICE_TOPO_RULES = [ServiceTopoDiscoverRuleCls(**rule) for rule in RULE_INSTAN
 class DiscoverBase(ABC):
     def __init__(self):
         self.data_map = defaultdict(list)
+        self.color_classifier = ServiceColorClassifier()
 
     @classmethod
     def get_service_name(cls, span: dict):
@@ -146,9 +147,8 @@ class DiscoverBase(ABC):
     def discover(self, spans: list) -> list:
         pass
 
-    @classmethod
-    def get_base_item_to_span(cls, span: dict):
-        service_name = cls.get_service_name(span)
+    def get_base_item_to_span(self, span: dict):
+        service_name = self.get_service_name(span)
         return {
             "span_name": span[OtlpKey.SPAN_NAME],
             "span_id": span[OtlpKey.SPAN_ID],
@@ -159,7 +159,7 @@ class DiscoverBase(ABC):
             "operation_name": span[OtlpKey.SPAN_NAME],
             "service_name": service_name,
             "icon": TraceHandler._get_span_classify(span)[0],  # noqa
-            "color": ServiceColorClassifier().next(service_name),
+            "color": self.color_classifier.next(service_name),
         }
 
     @classmethod
@@ -275,7 +275,7 @@ class NodeDiscover(DiscoverBase):
                 "display_name": display_name,
                 "spans": v,
                 "icon": v[0]["icon"],
-                "color": ServiceColorClassifier().next(node_type),
+                "color": self.color_classifier.next(node_type),
             }
             if node_key in root_node_keys:
                 node_info["is_root"] = True
