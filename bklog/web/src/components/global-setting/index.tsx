@@ -105,7 +105,7 @@ export default class MaskingDialog extends tsc<IProps> {
                 <div
                   key={item.id}
                   class={`menu-item ${this.activeMenu === item.id ? 'active-menu' : ''}`}
-                  onClick={() => this.activeMenu !== item.id && this.$emit('menuChange', item)}
+                  onClick={() => this.activeMenu !== item.id && this.$emit('menu-change', item)}
                 >
                   {this.$t(item.name)}
                 </div>

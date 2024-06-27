@@ -110,7 +110,7 @@ export default class StepMasking extends tsc<IProps> {
         params: { index_set_id: this.curCollect?.index_set_id },
         data,
       });
-      this.$emit('changeIndexSetId', this.curCollect?.index_set_id || '');
+      this.$emit('change-index-set-id', this.curCollect?.index_set_id || '');
       if (callback) {
         callback(true);
         return;

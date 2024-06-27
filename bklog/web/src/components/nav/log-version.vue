@@ -114,12 +114,12 @@
     },
     beforeUnmount() {
       this.show = false;
-      this.$emit('update:dialogShow', false);
+      this.$emit('update:dialog-show', false);
     },
     methods: {
       //  dialog显示变更触发
       handleValueChange(v) {
-        this.$emit('update:dialogShow', v);
+        this.$emit('update:dialog-show', v);
       },
       // 点击左侧log查看详情
       async handleItemClick(v = 0) {

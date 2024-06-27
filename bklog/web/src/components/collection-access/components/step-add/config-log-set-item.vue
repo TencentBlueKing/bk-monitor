@@ -654,7 +654,7 @@
         deep: true,
         handler(val) {
           const { data_encoding, params } = val;
-          this.$emit('configChange', { data_encoding, params });
+          this.$emit('config-change', { data_encoding, params });
         },
       },
       configLength() {
