@@ -606,7 +606,7 @@ class GetPluginInfoByResultTable(Resource):
                     db_name = custom_event.name
             else:
                 custom_metric = CustomTSTable.objects.filter(**filter_params).first()
-                if custom_metric:
+                if custom_metric and not result_table_id.startswith("process."):
                     plugin_id = custom_metric.time_series_group_id
                     plugin_type = "custom_metric"
                     scene_view_id = f"scene_custom_metric_{plugin_id}"
