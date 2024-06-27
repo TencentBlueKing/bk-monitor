@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, ref } from 'vue';
+import { defineComponent, computed, ref, onMounted } from 'vue';
 
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@vue-flow/core';
 
@@ -77,6 +77,10 @@ export default defineComponent({
     },
   },
   setup(props) {
+    /** 面板缩放 */
+    const panelScale = computed(() => props.scale * 0.9);
+
+    /** 连线路径 */
     const path = computed(() => {
       return getBezierPath({
         sourceX: props.sourceX,
@@ -86,17 +90,22 @@ export default defineComponent({
       });
     });
 
+    /** 最大耗时 */
+    const maxDuration = computed(() => {
+      const spans = props.data.spans || [];
+      return Math.max(...spans.map(span => span.duration));
+    });
+
     const page = ref(1);
 
     const curSpan = computed(() => {
       const spans = props.data.spans || [];
-      const maxDuration = Math.max(...spans.map(span => span.duration));
       const span = spans[page.value - 1];
       if (!span) return {};
       return {
         ...span,
         text: formatDuration(span.duration),
-        isMax: span.duration === maxDuration && spans.length > 1,
+        isMax: span.duration === maxDuration.value && spans.length > 1,
       };
     });
 
@@ -111,33 +120,45 @@ export default defineComponent({
      */
     const calcPanelPosition = computed(() => {
       const { targetX, sourceX, data } = props;
-      const panelHeight = data.spans.length > 1 ? 40 : 24;
-      /**
-       * 1. x轴不变 向下直线  右边
-       * 2. x轴变小 向左下直线  下边
-       * 3. x轴变大 向右下直线  上边
-       */
-      if (targetX === sourceX) {
+      // 面板高度
+      const panelHeight = (data.spans.length > 1 ? 40 : 24) * panelScale.value;
+      // 文本高度
+      const labelHeight = 14 * panelScale.value;
+      // x轴偏移量在10左右，就认定为一条竖线
+      const X_OFFSET = 10 * panelScale.value;
+      if (targetX >= sourceX - X_OFFSET && targetX <= sourceX + X_OFFSET) {
+        // 竖线情况， 面板展示在label的右侧
         return {
-          right: '-10px',
-          top: `${-panelHeight / 2}px`,
+          right: `${-11.5 * panelScale.value}px`,
+          top: `${-panelHeight / 2 + labelHeight / 2}px`,
+          transform: `translateX(100%) scale(${panelScale.value})`,
         };
       } else if (targetX < sourceX) {
+        // 向左下的线段  面板展示在label的右下方
         return {
           right: 0,
-          transform: 'translateX(100%)',
+          top: `${labelHeight}px`,
+          transform: `translateX(100%) scale(${panelScale.value})`,
+        };
+      } else {
+        // 向右下的线段， 面板展示在label的右上方
+        return {
+          top: `${-panelHeight - 2}px`,
+          right: 0,
+          transform: `translateX(100%) scale(${panelScale.value})`,
         };
       }
-      return {
-        top: `${-panelHeight - 2}px`,
-        right: 0,
-        transform: 'translateX(100%)',
-      };
+    });
+
+    onMounted(() => {
+      const index = props.data.spans.findIndex(span => span.duration === maxDuration.value);
+      page.value = index + 1;
     });
 
     return {
       path,
       page,
+      panelScale,
       curSpan,
       calcPanelPosition,
       handlePageChange,
@@ -175,7 +196,6 @@ export default defineComponent({
                 class={{
                   'edge-duration-panel-header': true,
                   'show-max': this.curSpan.isMax,
-                  transform: `scale(${this.scale})`,
                 }}
               >
                 <i class='icon-monitor icon-mc-time duration-icon'></i>

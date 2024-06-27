@@ -28,7 +28,7 @@ import { computed, defineComponent, PropType, ref, watch, reactive } from 'vue';
 
 import { Pagination, Popover } from 'bkui-vue';
 
-import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
+import { customFormatTime, formatDate, formatDuration } from '../../../components/trace-view/utils/date';
 import { getSpanKindIcon } from '../../../utils';
 
 import './span-list.scss';
@@ -174,7 +174,7 @@ export default defineComponent({
 
           <div class='filter-wrap'>
             <i
-              class={['icon-monitor', this.sortOrder.sort === 'desc' ? 'icon-paixu-xia' : 'icon-paixu-shang']}
+              class={['icon-monitor icon-paixu', this.sortOrder.sort === 'desc' ? 'down' : 'up']}
               onClick={() => this.handleSortChange('sort')}
             ></i>
             <Popover
@@ -256,7 +256,7 @@ export default defineComponent({
                     {original.operationName}
                   </span>
                   <span class='start-time'>
-                    {`${formatDate(original.startTime)} ${formatTime(original.startTime)}`}
+                    {`${formatDate(original.startTime)} ${customFormatTime(original.startTime, 'HH:mm:ss')}`}
                   </span>
                 </div>
               </li>
@@ -264,7 +264,11 @@ export default defineComponent({
           </ul>
         </div>
         <div class='span-list-footer'>
-          <div class='list-total'>{this.$t('共{0}条', [this.spanList.length])}</div>
+          <div class='list-total'>
+            <i18n-t keypath='共{0}条'>
+              <span style='margin: 0 5px;'>{this.spanList.length || 0}</span>
+            </i18n-t>
+          </div>
           {this.isScrollBody && (
             // 分页组件，用于处理页面切换
             <Pagination
