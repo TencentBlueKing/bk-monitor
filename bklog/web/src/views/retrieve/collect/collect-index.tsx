@@ -193,17 +193,17 @@ export default class CollectIndex extends tsc<IProps> {
     this.handleInitFavoriteList(value);
   }
 
-  @Emit('handleClick')
+  @Emit('handle-click')
   handleClickFavorite(value) {
     return value;
   }
 
-  @Emit('isRefreshFavorite')
+  @Emit('is-refresh-favorite')
   handleUpdateActiveFavoriteData(value) {
     return value;
   }
 
-  @Emit('favoriteDialogSubmit')
+  @Emit('favorite-dialog-submit')
   handleSubmitFavoriteData({ isCreate, resValue }) {
     return {
       isCreate,
@@ -211,7 +211,7 @@ export default class CollectIndex extends tsc<IProps> {
     };
   }
 
-  @Emit('requestFavoriteList')
+  @Emit('request-favorite-list')
   getFavoriteList() {}
 
   async handleUserOperate(obj) {

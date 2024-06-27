@@ -61,9 +61,9 @@
     methods: {
       handleOperate(type) {
         if (type === 'add') {
-          this.$emit('favoriteTipsOperate', 'add-new');
+          this.$emit('favorite-tips-operate', 'add-new');
         } else {
-          this.$emit('favoriteTipsOperate', 'replace');
+          this.$emit('favorite-tips-operate', 'replace');
         }
       },
     },

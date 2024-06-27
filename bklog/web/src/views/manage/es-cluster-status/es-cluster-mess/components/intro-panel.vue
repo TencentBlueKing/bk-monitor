@@ -174,7 +174,7 @@
         return showList || [];
       },
       handleActiveDetails(state) {
-        this.$emit('handleActiveDetails', state ? state : !this.isOpenWindow);
+        this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
       },
       handleCreateAGroup(adminList) {
         this.isShowDialog = true;

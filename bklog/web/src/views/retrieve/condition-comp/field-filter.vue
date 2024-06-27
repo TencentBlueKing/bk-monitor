@@ -435,7 +435,7 @@
         }
       },
       handleVisibleMoveEnd() {
-        this.$emit('fieldsUpdated', this.dragVisibleFields, undefined, false);
+        this.$emit('fields-updated', this.dragVisibleFields, undefined, false);
       },
       // 字段显示或隐藏
       async handleToggleItem(type, fieldItem) {
@@ -448,7 +448,7 @@
           // 需要显示字段
           displayFieldNames.push(fieldItem.field_name);
         }
-        this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
+        this.$emit('fields-updated', displayFieldNames, undefined, false);
         if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
         this.$http
           .request('retrieve/postFieldsConfig', {

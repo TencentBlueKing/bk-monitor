@@ -207,7 +207,7 @@
         if (Object.keys(!item.params.ip_chooser).length) {
           payload.params.ip_chooser = {};
         }
-        this.$emit('shouldRetrieve', payload);
+        this.$emit('should-retrieve', payload);
       },
     },
   };

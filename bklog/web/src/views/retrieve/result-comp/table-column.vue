@@ -82,11 +82,11 @@
     },
     methods: {
       handleClickContent() {
-        if (this.hasClickEvent) this.$emit('contentClick');
+        if (this.hasClickEvent) this.$emit('content-click');
       },
       handleMenuClick(option, content, isLink = false) {
         const operator = option === 'not' ? 'is not' : option;
-        this.$emit('iconClick', operator, content, isLink);
+        this.$emit('icon-click', operator, content, isLink);
       },
       unregisterOberver() {
         if (this.intersectionObserver) {
@@ -103,7 +103,7 @@
         this.intersectionObserver = new IntersectionObserver(entries => {
           entries.forEach(entry => {
             if (this.intersectionObserver) {
-              if (entry.boundingClientRect.height > 72) this.$emit('computedHeight');
+              if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
             }
           });
         });

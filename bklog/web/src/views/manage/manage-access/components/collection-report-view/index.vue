@@ -69,7 +69,7 @@
         }
       },
       closeReportSlider() {
-        this.$emit('closeReport');
+        this.$emit('close-report');
       },
     },
   };

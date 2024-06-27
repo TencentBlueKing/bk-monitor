@@ -351,7 +351,7 @@
         handler(list) {
           // 分组列表未展开时数组变化则发送请求
           if (!this.isToggle) {
-            this.$emit('handleFingerOperate', 'group', list);
+            this.$emit('handle-finger-operate', 'group', list);
           }
         },
       },
@@ -392,31 +392,31 @@
           id: Number(matchVal[1]),
           name: this.$t('{n} 小时前', { n: matchVal[1] }),
         });
-        this.$emit('handleFingerOperate', 'fingerOperateData', {
+        this.$emit('handle-finger-operate', 'fingerOperateData', {
           comparedList: propComparedList,
         });
         this.yearOnYearHour = Number(matchVal[1]);
       },
       handleShowNearPattern(state) {
-        this.$emit('handleFingerOperate', 'requestData', { show_new_pattern: state }, true);
+        this.$emit('handle-finger-operate', 'requestData', { show_new_pattern: state }, true);
       },
       handleChangepatternSize(val) {
         this.$emit(
-          'handleFingerOperate',
+          'handle-finger-operate',
           'requestData',
           { pattern_level: this.fingerOperateData.patternList[val] },
           true,
         );
       },
       changeCustomizeState(val) {
-        this.$emit('handleFingerOperate', 'fingerOperateData', { isShowCustomize: val });
+        this.$emit('handle-finger-operate', 'fingerOperateData', { isShowCustomize: val });
       },
       handleClickGroupPopover() {
         !this.isShowPopoverInstance ? this.$refs.groupPopover.instance.show() : this.$refs.groupPopover.instance.hide();
         this.isShowPopoverInstance = !this.isShowPopoverInstance;
       },
       handleEmitEditAlarm() {
-        this.$emit('handleFingerOperate', 'editAlarm');
+        this.$emit('handle-finger-operate', 'editAlarm');
       },
       handlePopoverShow() {
         if (JSON.stringify(this.fingerOperateData.alarmObj) === '{}') {
@@ -459,7 +459,7 @@
             },
           })
           .then(res => {
-            this.$emit('handleFingerOperate', 'fingerOperateData', {
+            this.$emit('handle-finger-operate', 'fingerOperateData', {
               alarmObj: res.data,
             });
             this.alarmSwitch = res.data.is_active;
@@ -489,7 +489,7 @@
             .then(res => {
               if (res.result) {
                 this.popoverInstance.hide();
-                this.$emit('handleFingerOperate', 'fingerOperateData', {
+                this.$emit('handle-finger-operate', 'fingerOperateData', {
                   alarmObj: {
                     strategy_id: res.data,
                     is_active: !this.alarmSwitch,
@@ -535,13 +535,13 @@
         }
       },
       finishEmit() {
-        this.$emit('handleFingerOperate', 'fingerOperateData', {
+        this.$emit('handle-finger-operate', 'fingerOperateData', {
           dimensionList: this.dimension,
           selectGroupList: this.group,
           yearSwitch: this.yearSwitch,
         });
         this.$emit(
-          'handleFingerOperate',
+          'handle-finger-operate',
           'requestData',
           {
             group_by: [...this.group, ...this.dimension],

@@ -191,7 +191,7 @@
       async applySearchAccess(item) {
         this.$el.click(); // 手动关闭下拉
         try {
-          this.$emit('update:basicLoading', true);
+          this.$emit('update:basic-loading', true);
           const res = await this.$store.dispatch('getApplyData', {
             action_ids: [authorityMap.SEARCH_LOG_AUTH],
             resources: [
@@ -205,7 +205,7 @@
         } catch (err) {
           console.warn(err);
         } finally {
-          this.$emit('update:basicLoading', false);
+          this.$emit('update:basic-loading', false);
         }
       },
       async handleCollection(item) {
@@ -222,7 +222,7 @@
               },
             })
             .then(() => {
-              this.$emit('updateIndexSetList');
+              this.$emit('update-index-set-list');
             });
         } finally {
           this.isCollectionLoading = false;

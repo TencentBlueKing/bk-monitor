@@ -153,10 +153,10 @@
           polymerizable: this.polymerizable,
           fieldType: this.fieldType,
         });
-        this.$emit('closePopover');
+        this.$emit('close-popover');
       },
       handleCancel() {
-        this.$emit('closePopover');
+        this.$emit('close-popover');
       },
     },
   };

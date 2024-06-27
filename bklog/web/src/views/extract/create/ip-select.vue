@@ -219,7 +219,7 @@
           this.$refs.treeRef.setChecked(this.topoCache);
           this.handleTree(this.$refs.treeRef);
         }
-        this.$emit('update:showSelectDialog', val);
+        this.$emit('update:show-select-dialog', val);
       },
       copyIp() {
         copyMessage(JSON.stringify(this.selectedIpList));
@@ -246,7 +246,7 @@
           });
           const availablePaths = res.data.map(item => item.file_path);
           this.$emit('confirm', this.selectedIpList, availablePaths);
-          this.$emit('update:showSelectDialog', false);
+          this.$emit('update:show-select-dialog', false);
 
           this.topoCache = JSON.parse(JSON.stringify(this.$refs.treeRef.checked));
         } catch (e) {

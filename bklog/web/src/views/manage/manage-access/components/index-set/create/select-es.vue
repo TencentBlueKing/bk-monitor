@@ -394,7 +394,7 @@
             bk_biz_id: this.bkBizId,
             result_table_id: this.formData.resultTableId,
           });
-          this.$emit('update:timeIndex', {
+          this.$emit('update:time-index', {
             time_field: this.formData.time_field,
             time_field_type: this.formData.time_field_type,
             time_field_unit: this.formData.time_field_unit,

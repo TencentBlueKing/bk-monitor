@@ -251,41 +251,41 @@ export default class SearchComp extends tsc<IProps> {
     this.handleValueChange({ type, value, isFunction });
   }
 
-  @Emit('emitChangeValue')
+  @Emit('emit-change-value')
   handleValueChange(operate) {
     return operate;
   }
 
-  @Emit('retrieveLog')
+  @Emit('retrieve-log')
   handleRetrieveLog(retrieveValue?) {
     return retrieveValue;
   }
 
-  @Emit('clearCondition')
+  @Emit('clear-condition')
   handleClearCondition(str: string) {
     (this.uiQueryRef as any)?.clearCondition();
     return str;
   }
 
-  @Emit('updateSearchParam')
+  @Emit('update-search-param')
   handleUpdateSearchParam(keyword, addition, host) {
     return { keyword, addition, host };
   }
 
-  @Emit('updateKeyWords')
+  @Emit('update-key-words')
   handleUpdateKeyWords(str: string) {
     return str;
   }
 
-  @Emit('searchAddChange') // 添加条件检索
+  @Emit('search-add-change') // 添加条件检索
   handleSearchAddChange(addition, isQuery: boolean, isForceQuery: boolean) {
     return { addition, isQuery, isForceQuery };
   }
 
-  @Emit('openIpQuick')
+  @Emit('open-ip-quick')
   handleOpenIpQuick() {}
 
-  @Emit('ipSelectorValueClear')
+  @Emit('ip-selector-value-clear')
   handleIPSelectorValueChange(v = {}, isChangeCatch = false) {
     return { v, isChangeCatch };
   }

@@ -277,7 +277,7 @@
           params.displayFieldNames = displayFieldNames;
         }
 
-        if (Object.keys(params).length) this.$emit('menuClick', params, isLink);
+        if (Object.keys(params).length) this.$emit('menu-click', params, isLink);
       },
       /**
        * @desc 关联跳转

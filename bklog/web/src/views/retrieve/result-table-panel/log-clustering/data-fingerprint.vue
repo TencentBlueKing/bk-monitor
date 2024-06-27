@@ -601,7 +601,7 @@
           // pattern 下钻
           case 'show original':
             this.handleMenuBatchClick(row, isLink);
-            if (!isLink) this.$emit('showOriginLog');
+            if (!isLink) this.$emit('show-origin-log');
             break;
           case 'copy':
             copyMessage(row.pattern);
@@ -638,7 +638,7 @@
         this.cacheExpandStr = this.cacheExpandStr.map(item => item !== index);
       },
       handleLeaveCurrent() {
-        this.$emit('showSettingLog');
+        this.$emit('show-setting-log');
       },
       toFixedNumber(value, size) {
         if (typeof value === 'number' && !isNaN(value)) {
@@ -691,7 +691,7 @@
             }
             this.requestAlarm(filterList, option, () => {
               // 批量成功后刷新数据指纹请求
-              this.$emit('updateRequest');
+              this.$emit('update-request');
             });
           },
         });
@@ -783,13 +783,13 @@
         setTimeout(() => {
           this.throttle = false;
           // scroll变化时判断是否展示返回顶部的Icon
-          this.$emit('handleScrollIsShow');
+          this.$emit('handle-scroll-is-show');
           if (this.fingerList.length >= this.allFingerList.length) return;
           const el = document.querySelector('.result-scroll-container');
           if (el.scrollHeight - el.offsetHeight - el.scrollTop < 5) {
             el.scrollTop = el.scrollTop - 5;
             this.throttle = false;
-            this.$emit('paginationOptions');
+            this.$emit('pagination-options');
           }
         }, 200);
       },
@@ -1064,13 +1064,13 @@
               owner_config: 'owner',
               owners: v,
             };
-        this.$emit('handleFingerOperate', 'requestData', ownerData, true);
+        this.$emit('handle-finger-operate', 'requestData', ownerData, true);
       },
       /**
        * @desc: 备注提交
        */
       handleRemarkSubmit(v) {
-        this.$emit('handleFingerOperate', 'requestData', { remark_config: v[v.length - 1] }, true);
+        this.$emit('handle-finger-operate', 'requestData', { remark_config: v[v.length - 1] }, true);
       },
       /**
        * @desc: 初始化责任人选择的数据和初始化责任人列表
