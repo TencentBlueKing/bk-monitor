@@ -50,6 +50,7 @@ PARAMS = {
     "description": "这是一个描述",
     "params": {
         "paths": ["/log/abc"],
+        "exclude_files": ["app"],
         "conditions": {
             "type": "match",
             "match_type": "include",

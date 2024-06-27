@@ -170,7 +170,7 @@ class RowCollectorScenario(CollectorScenario):
                 # 兼容历史数据（历史数据match_type固定为 '=' ）
                 if match_type == "=":
                     match_type = "include"
-                separator_filters = []
+
             elif not separator_filters:
                 _type = "none"
             else:
@@ -190,6 +190,7 @@ class RowCollectorScenario(CollectorScenario):
 
             params = {
                 "paths": config["local"][0]["paths"],
+                "exclude_files": config["local"][0]["exclude_files"],
                 "conditions": conditions,
                 "encoding": config["local"][0]["encoding"],
             }
@@ -197,6 +198,7 @@ class RowCollectorScenario(CollectorScenario):
             logger.exception(f"解析订阅步骤失败，参数:{steps}，错误:{e}")
             params = {
                 "paths": [],
+                "exclude_files": [],
                 "conditions": {
                     "type": "none",
                     "match_type": "include",

@@ -252,13 +252,14 @@ class CollectorScenario(object):
         ]
         local_params.update(
             {
-                "paths": params["paths"],
+                "paths": params.get("paths", []),
+                "exclude_files": params.get("exclude_files", []),
                 "encoding": params["encoding"],
                 "tail_files": params["tail_files"],
                 "ignore_older": params["ignore_older"],
                 "max_bytes": params["max_bytes"],
                 "package_count": settings.COLLECTOR_ROW_PACKAGE_COUNT,
-                "delimiter": params["conditions"].get("separator") or "",
+                "delimiter": params.get("conditions", {}).get("separator") or "",
             }
         )
         local_params.update({param: params.get(param) for param in need_define_params if params.get(param) is not None})
