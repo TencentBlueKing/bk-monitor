@@ -474,7 +474,7 @@
         //   require('./map/china')
         // }
         if (this.chartRef) {
-          const chart: any = echarts.init(this.chartRef);       
+          const chart: any = echarts.init(this.chartRef);
           this.chart = chart;
           if (this.autoresize) {
             const handler = debounce(300, () => this.resize());
