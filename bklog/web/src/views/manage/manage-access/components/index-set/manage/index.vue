@@ -1,29 +1,33 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
     class="access-manage-container"
+    v-bkloading="{ isLoading: basicLoading }"
   >
     <auth-container-page
       v-if="authPageInfo"
@@ -39,29 +43,28 @@
           v-bind="panel"
           :key="panel.name"
         ></bk-tab-panel>
-        <div
-          slot="setting"
-          class="go-search"
-        >
-          <div class="search-text">
-            <span class="bk-icon icon-info"></span>
-            <i18n path="数据采集好了，去 {0}">
-              <span
-                class="search-button"
-                @click="handleGoSearch"
-                >{{ $t('查看数据') }}</span
-              >
-            </i18n>
+        <template #setting>
+          <div class="go-search">
+            <div class="search-text">
+              <span class="bk-icon icon-info"></span>
+              <i18n path="数据采集好了，去 {0}">
+                <span
+                  class="search-button"
+                  @click="handleGoSearch"
+                  >{{ $t('查看数据') }}</span
+                >
+              </i18n>
+            </div>
           </div>
-        </div>
+        </template>
       </basic-tab>
       <keep-alive>
         <component
-          :is="dynamicComponent"
           class="tab-content"
-          :index-set-data="curIndexSet"
           :collector-data="curIndexSet"
+          :index-set-data="curIndexSet"
           :index-set-id="curIndexSet.index_set_id"
+          :is="dynamicComponent"
           @update-active-panel="activePanel = $event"
         />
       </keep-alive>
@@ -70,115 +73,116 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
-import AuthContainerPage from '@/components/common/auth-container-page';
-import BasicInfo from './basic-info';
-import FieldInfo from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/field-info.tsx';
-import UsageDetails from '@/views/manage/manage-access/components/usage-details';
-import BasicTab from '@/components/basic-tab';
-import * as authorityMap from '../../../../../../common/authority-map';
+  import BasicTab from '@/components/basic-tab';
+  import AuthContainerPage from '@/components/common/auth-container-page';
+  import UsageDetails from '@/views/manage/manage-access/components/usage-details';
+  import FieldInfo from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/field-info.tsx';
+  import { mapState } from 'vuex';
 
-export default {
-  name: 'IndexSetManage',
-  components: {
-    AuthContainerPage,
-    BasicInfo,
-    FieldInfo,
-    UsageDetails,
-    BasicTab
-  },
-  data() {
-    const scenarioId = this.$route.name.split('-')[0];
-    return {
-      scenarioId,
-      basicLoading: true,
-      authPageInfo: null,
-      activePanel: this.$route.query.type || 'basicInfo',
-      panels: [
-        { name: 'basicInfo', label: this.$t('配置信息') },
-        { name: 'usageDetails', label: this.$t('使用详情') },
-        { name: 'fieldInfo', label: this.$t('字段信息') }
-      ]
-    };
-  },
-  computed: {
-    ...mapState('collect', ['curIndexSet', 'scenarioMap']),
-    dynamicComponent() {
-      const componentMaP = {
-        basicInfo: 'BasicInfo',
-        usageDetails: 'UsageDetails',
-        fieldInfo: 'FieldInfo'
+  import * as authorityMap from '../../../../../../common/authority-map';
+  import BasicInfo from './basic-info';
+
+  export default {
+    name: 'IndexSetManage',
+    components: {
+      AuthContainerPage,
+      BasicInfo,
+      FieldInfo,
+      UsageDetails,
+      BasicTab,
+    },
+    data() {
+      const scenarioId = this.$route.name.split('-')[0];
+      return {
+        scenarioId,
+        basicLoading: true,
+        authPageInfo: null,
+        activePanel: this.$route.query.type || 'basicInfo',
+        panels: [
+          { name: 'basicInfo', label: this.$t('配置信息') },
+          { name: 'usageDetails', label: this.$t('使用详情') },
+          { name: 'fieldInfo', label: this.$t('字段信息') },
+        ],
       };
-      return componentMaP[this.activePanel] || 'BasicInfo';
-    }
-  },
-  created() {
-    this.initPage();
-  },
-  methods: {
-    async initPage() {
-      // 进入路由需要先判断权限
-      const indexSetId = this.$route.params.indexSetId.toString();
-      try {
-        const paramData = {
-          action_ids: [authorityMap.MANAGE_INDICES_AUTH],
-          resources: [
-            {
-              type: 'indices',
-              id: indexSetId
-            }
-          ]
+    },
+    computed: {
+      ...mapState('collect', ['curIndexSet', 'scenarioMap']),
+      dynamicComponent() {
+        const componentMaP = {
+          basicInfo: 'BasicInfo',
+          usageDetails: 'UsageDetails',
+          fieldInfo: 'FieldInfo',
         };
-        const res = await this.$store.dispatch('checkAndGetData', paramData);
-        if (res.isAllowed === false) {
-          this.authPageInfo = res.data;
-          // 显示无权限页面
-        } else {
-          // 正常显示页面
-          await Promise.all([this.fetchIndexSetData(indexSetId), this.fetchScenarioMap()]);
-        }
-      } catch (err) {
-        console.warn(err);
-      } finally {
-        this.basicLoading = false;
-      }
+        return componentMaP[this.activePanel] || 'BasicInfo';
+      },
     },
-    // 索引集详情
-    async fetchIndexSetData(indexSetId) {
-      if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
-        const { data: indexSetData } = await this.$http.request('indexSet/info', {
-          params: {
-            index_set_id: indexSetId
+    created() {
+      this.initPage();
+    },
+    methods: {
+      async initPage() {
+        // 进入路由需要先判断权限
+        const indexSetId = this.$route.params.indexSetId.toString();
+        try {
+          const paramData = {
+            action_ids: [authorityMap.MANAGE_INDICES_AUTH],
+            resources: [
+              {
+                type: 'indices',
+                id: indexSetId,
+              },
+            ],
+          };
+          const res = await this.$store.dispatch('checkAndGetData', paramData);
+          if (res.isAllowed === false) {
+            this.authPageInfo = res.data;
+            // 显示无权限页面
+          } else {
+            // 正常显示页面
+            await Promise.all([this.fetchIndexSetData(indexSetId), this.fetchScenarioMap()]);
           }
-        });
-        this.$store.commit('collect/updateCurIndexSet', indexSetData);
-      }
-    },
-    // 数据源(场景)映射关系
-    async fetchScenarioMap() {
-      if (!this.scenarioMap) {
-        const { data } = await this.$http.request('meta/scenario');
-        const map = {};
-        data.forEach(item => {
-          map[item.scenario_id] = item.scenario_name;
-        });
-        this.$store.commit('collect/updateScenarioMap', map);
-      }
-    },
-    handleGoSearch() {
-      const params = {
-        indexId: this.curIndexSet.index_set_id
-          ? this.curIndexSet.index_set_id
-          : this.curIndexSet.bkdata_index_set_ids[0]
-      };
-      this.$router.push({
-        name: 'retrieve',
-        params,
-        query: {
-          spaceUid: this.$store.state.spaceUid
+        } catch (err) {
+          console.warn(err);
+        } finally {
+          this.basicLoading = false;
         }
-      });
-    }
-  }
-};
+      },
+      // 索引集详情
+      async fetchIndexSetData(indexSetId) {
+        if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
+          const { data: indexSetData } = await this.$http.request('indexSet/info', {
+            params: {
+              index_set_id: indexSetId,
+            },
+          });
+          this.$store.commit('collect/updateCurIndexSet', indexSetData);
+        }
+      },
+      // 数据源(场景)映射关系
+      async fetchScenarioMap() {
+        if (!this.scenarioMap) {
+          const { data } = await this.$http.request('meta/scenario');
+          const map = {};
+          data.forEach(item => {
+            map[item.scenario_id] = item.scenario_name;
+          });
+          this.$store.commit('collect/updateScenarioMap', map);
+        }
+      },
+      handleGoSearch() {
+        const params = {
+          indexId: this.curIndexSet.index_set_id
+            ? this.curIndexSet.index_set_id
+            : this.curIndexSet.bkdata_index_set_ids[0],
+        };
+        this.$router.push({
+          name: 'retrieve',
+          params,
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+      },
+    },
+  };
 </script>

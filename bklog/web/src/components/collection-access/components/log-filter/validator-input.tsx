@@ -20,8 +20,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Watch, Emit, Model, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import './validator-input.scss';
 
 interface IProps {
@@ -29,19 +30,19 @@ interface IProps {
 }
 
 @Component
-export default class LogFilter extends tsc<{}> {
+export default class LogFilter extends tsc<object> {
   @Model('change', { type: String, default: '' }) value: IProps['value'];
   @Prop({ type: String, default: '' }) placeholder: string;
   @Prop({ type: String, default: '' }) activeType: string;
   @Prop({ type: String, default: 'text' }) inputType: string;
   @Prop({ type: Object, default: () => ({}) }) rowData: any;
   @Prop({ type: Array, default: () => [] }) originalFilterItemSelect: Array<any>;
-  @Ref('input') private readonly inputRef: any;
-  @Ref('validateForm') private readonly validateFormRef: any;
+  @Ref('input') readonly inputRef: any;
+  @Ref('validateForm') readonly validateFormRef: any;
 
   isClick = false;
   formData = {
-    inputValue: ''
+    inputValue: '',
   };
 
   rules = {
@@ -49,9 +50,9 @@ export default class LogFilter extends tsc<{}> {
       {
         validator: this.checkValidator,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   get isShowSelect() {
@@ -86,7 +87,7 @@ export default class LogFilter extends tsc<{}> {
       if (!this.validateFormRef) reject(true);
       this.validateFormRef.validate().then(
         () => reject(true),
-        () => reject(false)
+        () => reject(false),
       );
     });
   }
@@ -133,13 +134,13 @@ export default class LogFilter extends tsc<{}> {
     );
     const formInput = () => (
       <bk-form
-        form-type='inline'
         ref='validateForm'
+        form-type='inline'
         {...{
           props: {
             model: this.formData,
-            rules: this.rules
-          }
+            rules: this.rules,
+          },
         }}
       >
         <bk-form-item
@@ -148,13 +149,13 @@ export default class LogFilter extends tsc<{}> {
         >
           <bk-input
             ref='input'
-            clearable
-            min={1}
             v-model={this.formData.inputValue}
-            show-clear-only-hover
+            min={1}
+            placeholder={this.placeholder ?? this.$t('请输入')}
             show-controls={false}
             type={this.inputType}
-            placeholder={this.placeholder ?? this.$t('请输入')}
+            clearable
+            show-clear-only-hover
             onBlur={this.blurInput}
           />
         </bk-form-item>
@@ -171,12 +172,12 @@ export default class LogFilter extends tsc<{}> {
         ) : (
           <bk-select
             v-model={this.formData.inputValue}
-            clearable={false}
-            searchable
-            popover-width={320}
             scopedSlots={{
-              trigger: () => inputTriggerSlot(true)
+              trigger: () => inputTriggerSlot(true),
             }}
+            clearable={false}
+            popover-width={320}
+            searchable
           >
             {this.originalFilterItemSelect.map(option => (
               <bk-option

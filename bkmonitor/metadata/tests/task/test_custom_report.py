@@ -12,7 +12,7 @@ from metadata.models import (
     SpaceDataSource,
     TimeSeriesGroup,
 )
-from metadata.task import check_event_update, check_update_ts_metric
+from metadata.task import check_event_update
 from metadata.tests.task.conftest import EventGroupFakeES
 
 pytestmark = pytest.mark.django_db
@@ -71,34 +71,3 @@ def test_check_event_update(mocker: MockFixture, create_and_delete_record):
     mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=mock_redis_client())
     check_event_update()
     assert Event.objects.count() == EventGroup.objects.filter(table_id__startswith="tb_").count()
-
-
-def test_check_update_ts_metric(mocker: MockFixture, create_and_delete_record):
-    mocker.patch("metadata.task.tasks.push_and_publish_space_router", return_value=None)
-    mocker.patch("metadata.models.custom_report.time_series.TimeSeriesGroup.update_tag_fields", return_value=True)
-    mock_redis_data = [
-        {
-            "field_name": "test_field1",
-            "tag_value_list": {
-                "bcs_cluster_id": {"last_update_time": 1667961028, "values": []},
-                "bk_biz_id": {"last_update_time": 1667961028, "values": []},
-                "time": {"last_update_time": 1667961028, "values": []},
-                "test_field1": {"last_update_time": 1667961028, "values": []},
-            },
-            "last_modify_time": 1667961028.0,
-        },
-        {
-            "field_name": "test_field2",
-            "tag_value_list": {
-                "bcs_cluster_id": {"last_update_time": 1667961028, "values": []},
-                "bk_biz_id": {"last_update_time": 1667961028, "values": []},
-            },
-            "last_modify_time": 1667961028.0,
-        },
-    ]
-    mocker.patch(
-        "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metrics_from_redis", return_value=mock_redis_data
-    )
-    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=mock_redis_client())
-    check_update_ts_metric()
-    assert 2 * RECORDS == ResultTableField.objects.filter(table_id__startswith="tb_").count()

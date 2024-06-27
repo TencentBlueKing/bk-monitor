@@ -32,7 +32,7 @@ import { graphTraceQuery } from 'monitor-api/modules/grafana';
 import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
 import { getPluginInfoByResultTable } from 'monitor-api/modules/scene_view';
 import { deepClone, random } from 'monitor-common/utils/utils';
-import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import LogRetrievalDialog from 'monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
 import authorityStore from 'monitor-pc/store/modules/authority';
@@ -76,6 +76,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   @Prop({ type: Number, default: +window.bk_biz_id }) bizId: number;
   // bizId
   @ProvideReactive('bkBizId') bkBizId = null;
+  // 时区
+  @ProvideReactive('timezone') timezone: string = window.timezone || getDefaultTimezone();
   // public id = 0
   basicInfo: IDetail = {
     id: '', // 告警id
@@ -599,8 +601,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         <div class='container-group'>
           {this.enableCreateChatGroup ? (
             <div
-              class='chat-btn'
               v-en-style='right: 120px'
+              class='chat-btn'
               onClick={() => this.handleChatGroup()}
             >
               <span class='icon-monitor icon-we-com'></span>

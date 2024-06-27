@@ -528,7 +528,7 @@ LOCALE_PATHS = (os.path.join(PROJECT_ROOT, "locale"),)
 AUTH_USER_MODEL = "account.User"
 AUTHENTICATION_BACKENDS = (
     "apps.middleware.api_token_middleware.ApiTokenAuthBackend",
-    # "apps.middleware.apigw.UserModelBackend",
+    "apps.middleware.apigw.UserModelBackend",
     "blueapps.account.backends.BkJwtBackend",
     "blueapps.account.backends.UserBackend",
     "django.contrib.auth.backends.ModelBackend",
@@ -1211,6 +1211,9 @@ BK_NOTICE = {
     # 添加默认值防止本地调试无法启动
     "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
 }
+
+# 平台全局配置
+BK_SHARED_RES_URL = os.environ.get("BKPAAS_SHARED_RES_URL", "")
 
 """
 以下为框架代码 请勿修改

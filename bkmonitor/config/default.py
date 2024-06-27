@@ -1356,3 +1356,6 @@ METADATA_REQUEST_ES_TIMEOUT = {}
 
 # 是否启用自定义事件休眠
 ENABLE_CUSTOM_EVENT_SLEEP = False
+
+# 平台全局配置
+BK_SHARED_RES_URL = os.environ.get("BK_SHARED_RES_URL", os.environ.get("BKPAAS_SHARED_RES_URL", ""))

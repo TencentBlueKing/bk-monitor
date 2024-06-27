@@ -305,31 +305,6 @@ export default defineComponent({
         scopeSelects.value[item.id] = { ...item, key: random(8), value: [] };
       });
     };
-    /** 获取范围查询条件候选值 */
-    const getQueryOptionsValues = async (queryOptionValue: any) => {
-      setTimeout(() => {
-        /** 重新获取候选值时 需要清空原来所选项 */
-        Object.keys(scopeSelects.value).forEach(key => {
-          // queryOptionValue 路由带条件查询
-          if (queryOptionValue?.[key]) {
-            if (key === 'service') {
-              scopeSelects.value[key].value = queryOptionValue[key];
-            } else {
-              const curOptions = searchSelectData.value.find(item => item.id === key);
-              if (curOptions) {
-                searchSelectValue.value.push({
-                  id: key,
-                  name: curOptions.name,
-                  values: curOptions.children.filter(val => queryOptionValue[key].includes(val.id)),
-                });
-              }
-            }
-          } else {
-            scopeSelects.value[key].value = [];
-          }
-        });
-      }, 100);
-    };
     /** 切换ID精确查询类型 */
     const handleChangeSearchIdType = () => {
       traceIDSearchValue.value = '';
@@ -931,16 +906,12 @@ export default defineComponent({
     /* 时间切换 */
     function handleTimeRangeChange(value: TimeRangeType) {
       timeRange.value = value;
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
     function handleTimezoneChange(v: string) {
       timezone.value = v;
       window.timezone = v;
       updateTimezone(v);
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
 

@@ -1645,13 +1645,11 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
-        # count(_index) -> sum(event.count)X
         for metric in self.metrics:
-            if metric["field"] in ["__INDEX__", "event.count"]:
-                metric["field"] = "event.count"
-                metric["method"] = "SUM"
-            if metric["field"] == "_index":
+            if metric["field"] == "__INDEX__":
+                metric["field"] = "_index"
                 metric["method"] = "COUNT"
+            # count(event.count) -> sum(event.count)X
             if metric["field"] == "event.count":
                 metric["method"] = "SUM"
 

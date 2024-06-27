@@ -25,15 +25,15 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: isLoading }"
     class="plugin-detail-wrapper"
+    v-bkloading="{ isLoading: isLoading }"
   >
     <common-nav-bar
-      :route-list="routeList"
-      need-back
       :position-text="positionText"
-      need-copy-link
+      :route-list="routeList"
       nav-mode="copy"
+      need-back
+      need-copy-link
     />
     <div class="plugin-detail-content">
       <monitor-tab
@@ -66,8 +66,8 @@
             <div class="operator">
               <bk-button
                 v-if="canEdit"
-                v-authority="{ active: !authority.MANAGE_AUTH }"
                 style="width: 88px"
+                v-authority="{ active: !authority.MANAGE_AUTH }"
                 theme="primary"
                 outline
                 @click="authority.MANAGE_AUTH ? handleEdit() : handleShowAuthorityDetail()"
@@ -80,9 +80,9 @@
               />
             </div>
             <div
-              v-show="tabActive === 'detail'"
               ref="pluginInfo"
               class="plugin-info"
+              v-show="tabActive === 'detail'"
             >
               <div class="info-item">
                 <div class="item-label">
@@ -154,8 +154,8 @@
                     <template v-for="(collector, key) in pluginInfo.collector_json">
                       <div
                         v-if="collector && collector.file_name"
-                        :key="key"
                         class="file-wrapper"
+                        :key="key"
                       >
                         <div class="icon-wrapper">
                           <span :class="['item-icon', 'icon-monitor', `icon-${key}`]" />
@@ -187,8 +187,8 @@
                       <template v-for="(collector, key) in pluginInfo.systemList">
                         <li
                           v-if="collector"
-                          :key="key"
                           :class="['system-tab', { active: collectorConf.active === collector }]"
+                          :key="key"
                           @click="viewCollectorConf(collector)"
                         >
                           <span>{{ collector }}</span>
@@ -200,9 +200,9 @@
                     </div>
                     <monaco-editor
                       v-model="collectorConf.content"
-                      full-screen
                       :options="editorOptions"
                       language="shell"
+                      full-screen
                     />
                   </template>
                   <div
@@ -254,8 +254,8 @@
                   <template v-for="(param, index) in pluginInfo.config_json">
                     <span
                       v-if="!param.hasOwnProperty('visible')"
+                      :class="{ 'item-param': true, 'multiple-lin': param.multipleLin, required: param.required }"
                       :key="index"
-                      :class="{ 'item-param': true, 'multiple-lin': param.multipleLin }"
                       @click="viewParam(param)"
                     >
                       {{ param.name || param.description }}
@@ -293,8 +293,8 @@
                 <div class="item-container">
                   <div class="md-editor">
                     <viewer
-                      :value="pluginInfo.description_md"
                       height="515px"
+                      :value="pluginInfo.description_md"
                     />
                   </div>
                 </div>
@@ -309,8 +309,8 @@
         >
           <div class="content-wrapper">
             <div
-              v-show="tabActive === 'metric'"
               class="operator"
+              v-show="tabActive === 'metric'"
             >
               <bk-button
                 v-authority="{ active: !authority.MANAGE_AUTH }"
@@ -323,9 +323,9 @@
             </div>
             <div
               v-for="group in pluginInfo.metric_json"
-              :key="group.table_name"
               class="metric-group"
               :class="{ 'active-group': show }"
+              :key="group.table_name"
             >
               <div class="group-header">
                 <div
@@ -352,8 +352,8 @@
                     :outer-border="false"
                   >
                     <bk-table-column
-                      :label="$t('指标/维度')"
                       width="120"
+                      :label="$t('指标/维度')"
                     >
                       <template slot-scope="scope">
                         <div v-if="scope.row.monitor_type === 'metric'">
@@ -391,8 +391,8 @@
                       </template>
                     </bk-table-column>
                     <bk-table-column
-                      :label="$t('启/停')"
                       width="100"
+                      :label="$t('启/停')"
                     >
                       <template slot-scope="scope">
                         <div class="is-active">
@@ -414,8 +414,8 @@
     </div>
     <view-param
       :list="paramConf.list"
-      :visible.sync="paramConf.isShow"
       :title="$t('定义参数')"
+      :visible.sync="paramConf.isShow"
     />
   </div>
 </template>
@@ -1050,6 +1050,18 @@ export default {
         &:hover {
           color: #3a84ff;
           background: #e1ecff;
+        }
+
+        &.required {
+          position: relative;
+
+          &::after {
+            position: absolute;
+            top: -1px;
+            right: 4px;
+            color: red;
+            content: '*';
+          }
         }
       }
 

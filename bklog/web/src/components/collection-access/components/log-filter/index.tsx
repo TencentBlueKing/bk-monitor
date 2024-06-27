@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,9 +21,13 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
-import './index.scss';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { Form } from 'bk-magic-vue';
+
+import $http from '../../../../api';
+import { deepClone, Debounce } from '../../../../common/util';
 import {
   btnType,
   ISelectItem,
@@ -30,23 +35,22 @@ import {
   operatorSelectList,
   btnGroupList,
   operatorMapping,
-  tableRowBaseObj
+  tableRowBaseObj,
 } from './type';
-import $http from '../../../../api';
-import { deepClone, Debounce } from '../../../../common/util';
-import { Form } from 'bk-magic-vue';
 import ValidatorInput from './validator-input';
+
+import './index.scss';
 
 const inputLogStyle = {
   backgroundColor: '#313238',
   height: '82px',
   lineHeight: '24px',
   color: '#C4C6CC',
-  borderRadius: '2px'
+  borderRadius: '2px',
 };
 
 @Component
-export default class LogFilter extends tsc<{}> {
+export default class LogFilter extends tsc<object> {
   @Prop({ type: Object, required: true }) conditions: object;
   @Prop({ type: Boolean, default: false }) isCloneOrUpdate: boolean;
 
@@ -62,14 +66,14 @@ export default class LogFilter extends tsc<{}> {
         fieldindex: '',
         word: '',
         op: 'eq',
-        tableIndex: 0
-      }
-    ]
+        tableIndex: 0,
+      },
+    ],
   ];
   /** 切换数据类型缓存的过滤数据 */
   catchFilterData = {
     match: deepClone(this.filterData),
-    separator: deepClone(this.filterData)
+    separator: deepClone(this.filterData),
   };
   originalFilterItemSelect: Array<ISelectItem> = [];
   /** 分隔符原始日志 */
@@ -91,7 +95,7 @@ export default class LogFilter extends tsc<{}> {
     return {
       filterData: this.filterData,
       switcher: this.filterSwitcher,
-      separator: this.separator
+      separator: this.separator,
     };
   }
 
@@ -116,7 +120,7 @@ export default class LogFilter extends tsc<{}> {
       separator,
       separator_filters: separatorFilters,
       match_content: matchContent,
-      match_type: matchType
+      match_type: matchType,
     } = this.conditions as any;
     switch (type) {
       case 'none':
@@ -133,9 +137,9 @@ export default class LogFilter extends tsc<{}> {
                 fieldindex: '-1',
                 word: matchContent,
                 op: matchType,
-                tableIndex: 0
-              }
-            ]
+                tableIndex: 0,
+              },
+            ],
           ];
         } else {
           this.filterData = this.splitFilters(separatorFilters);
@@ -161,7 +165,7 @@ export default class LogFilter extends tsc<{}> {
       const mappingFilter = {
         ...filter,
         op: operatorMapping[filter.op] ?? filter.op, // 映射操作符
-        tableIndex: groups.length // 表格下标
+        tableIndex: groups.length, // 表格下标
       };
       currentGroup.push(mappingFilter);
       // 检查下一个 filter
@@ -256,7 +260,7 @@ export default class LogFilter extends tsc<{}> {
       conditions = {
         separator: this.separator,
         separator_filters: submitFlatData,
-        type: this.activeType
+        type: this.activeType,
       };
     }
     return conditions;
@@ -268,15 +272,15 @@ export default class LogFilter extends tsc<{}> {
         'source/dataList',
         {
           params: {
-            collector_config_id: this.curCollect.collector_config_id
-          }
+            collector_config_id: this.curCollect.collector_config_id,
+          },
         },
         {
-          catchIsShowMessage: false
-        }
+          catchIsShowMessage: false,
+        },
       )
       .then(res => {
-        if (res.data && res.data.length) {
+        if (res.data?.length) {
           const firstData = res.data[0];
           this.logOriginal = firstData.etl.data || '';
           if (this.logOriginal && isDebug) this.logOriginDebug();
@@ -293,13 +297,13 @@ export default class LogFilter extends tsc<{}> {
         data: {
           etl_config: 'bk_log_delimiter',
           etl_params: { separator: this.separator },
-          data: this.logOriginal
-        }
+          data: this.logOriginal,
+        },
       });
       this.originalFilterItemSelect = res.data.fields.map(item => ({
         name: `${this.$t('第{n}行', { n: item.field_index })} | ${item.value}`,
         id: String(item.field_index),
-        value: item.value
+        value: item.value,
       }));
     } catch (error) {
     } finally {
@@ -312,15 +316,15 @@ export default class LogFilter extends tsc<{}> {
       default: ({ $index, row }) => (
         <ValidatorInput
           ref={`match-${row.tableIndex}-${$index}`}
-          input-type={'number'}
           v-model={row.fieldindex}
           active-type={this.activeType}
-          row-data={row}
-          table-index={row.tableIndex}
+          input-type={'number'}
           original-filter-item-select={this.originalFilterItemSelect}
           placeholder={this.$t('请输入行数')}
+          row-data={row}
+          table-index={row.tableIndex}
         />
-      )
+      ),
     };
     const valueInputSlot = {
       default: ({ $index, row }) => (
@@ -330,7 +334,7 @@ export default class LogFilter extends tsc<{}> {
           active-type={this.activeType}
           row-data={row}
         />
-      )
+      ),
     };
     const selectSlot = {
       default: ({ row }) => (
@@ -347,7 +351,7 @@ export default class LogFilter extends tsc<{}> {
             ))}
           </bk-select>
         </div>
-      )
+      ),
     };
     const operatorSlot = {
       default: ({ $index, row }) => (
@@ -361,7 +365,7 @@ export default class LogFilter extends tsc<{}> {
             onClick={() => this.handleAddNewSeparator($index, row.tableIndex, 'delete')}
           />
         </div>
-      )
+      ),
     };
 
     return (
@@ -369,8 +373,8 @@ export default class LogFilter extends tsc<{}> {
         <div class='switcher-container'>
           <bk-switcher
             v-model={this.filterSwitcher}
-            theme='primary'
             size='large'
+            theme='primary'
           ></bk-switcher>
           <div class='switcher-tips'>
             <i class='bk-icon icon-info-circle' />
@@ -405,8 +409,8 @@ export default class LogFilter extends tsc<{}> {
                     ))}
                   </bk-select>
                   <bk-button
-                    theme='primary'
                     disabled={!this.logOriginal || !this.separator || this.logOriginalLoading}
+                    theme='primary'
                     onClick={() => this.logOriginDebug()}
                   >
                     {this.$t('调试')}
@@ -414,12 +418,12 @@ export default class LogFilter extends tsc<{}> {
                 </div>
                 <div class='input-style'>
                   <bk-input
+                    input-style={inputLogStyle}
                     v-model={this.logOriginal}
                     v-bkloading={{ isLoading: this.logOriginalLoading }}
                     placeholder={this.$t('请输入日志样例')}
-                    type='textarea'
                     rows={3}
-                    input-style={inputLogStyle}
+                    type='textarea'
                   />
                 </div>
               </div>
@@ -434,10 +438,10 @@ export default class LogFilter extends tsc<{}> {
                   ></i>
                 </div>
                 <bk-table
-                  data={item}
                   ref='filterTableRef'
-                  dark-header
+                  data={item}
                   col-border
+                  dark-header
                 >
                   {!this.isMatchType && (
                     <bk-table-column
@@ -457,8 +461,8 @@ export default class LogFilter extends tsc<{}> {
                     scopedSlots={valueInputSlot}
                   />
                   <bk-table-column
-                    label={this.$t('操作')}
                     width='95'
+                    label={this.$t('操作')}
                     scopedSlots={operatorSlot}
                   />
                 </bk-table>

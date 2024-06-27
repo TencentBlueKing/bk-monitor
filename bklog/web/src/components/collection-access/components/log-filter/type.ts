@@ -36,57 +36,57 @@ export interface ITableRowItem {
 
 type logicOpType = 'and' | 'or';
 
-export type btnType = 'none' | 'match' | 'separator';
+export type btnType = 'match' | 'none' | 'separator';
 
 /** 操作符列表 */
 export const operatorSelectList: Array<ISelectItem> = [
   {
     id: 'eq',
-    name: window.mainComponent.$t('等于')
+    name: window.mainComponent.$t('等于'),
   },
   {
     id: 'neq',
-    name: window.mainComponent.$t('不等于')
+    name: window.mainComponent.$t('不等于'),
   },
   {
     id: 'include',
-    name: window.mainComponent.$t('包含')
+    name: window.mainComponent.$t('包含'),
   },
   {
     id: 'exclude',
-    name: window.mainComponent.$t('不包含')
+    name: window.mainComponent.$t('不包含'),
   },
   {
     id: 'regex',
-    name: window.mainComponent.$t('正则匹配')
+    name: window.mainComponent.$t('正则匹配'),
   },
   {
     id: 'nregex',
-    name: window.mainComponent.$t('正则不匹配')
-  }
+    name: window.mainComponent.$t('正则不匹配'),
+  },
 ];
 
 /** 过滤类型 */
 export const btnGroupList: Array<ISelectItem> = [
   {
     id: 'match',
-    name: window.mainComponent.$t('字符串')
+    name: window.mainComponent.$t('字符串'),
   },
   {
     id: 'separator',
-    name: window.mainComponent.$t('分隔符')
-  }
+    name: window.mainComponent.$t('分隔符'),
+  },
 ];
 
 /** 操作符映射 */
 export const operatorMapping = {
   '=': 'eq',
-  '!=': 'neq'
+  '!=': 'neq',
 };
 
 export const tableRowBaseObj: ITableRowItem = {
   fieldindex: '',
   word: '',
   op: 'eq',
-  tableIndex: 0
+  tableIndex: 0,
 };

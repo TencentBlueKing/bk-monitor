@@ -255,12 +255,10 @@ export default class TabContainer extends tsc<ITabContainerProps> {
   }
 
   /**
-   * @description 是否为智能异常检测
+   * @description 是否为主机智能异常检测
    */
-  get isMultivariateAnomalyDetection() {
-    return (
-      this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection
-    );
+  get isHostAnomalyDetection() {
+    return this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0]?.type === MetricType.HostAnomalyDetection;
   }
 
   @Watch('show')
@@ -388,7 +386,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
           isScrollEnd={this.isScrollEnd}
           show={this.active === EPanelsNames.viewInfo}
         ></ViewInfo>
-        {!!(window as any).enable_aiops && !this.isMultivariateAnomalyDetection && (
+        {!!(window as any).enable_aiops && !this.isHostAnomalyDetection && (
           <AiopsContainer
             detail={this.detail}
             show={this.active === EPanelsNames.viewInfo}

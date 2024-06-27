@@ -26,24 +26,24 @@
 
 <template>
   <div
-    class="tag-switch-wrapper"
     :style="{ paddingBottom: showValidate && message ? '18px' : 0 }"
+    class="tag-switch-wrapper"
   >
     <bk-tag v-show="isTag">
       <span @click="switchStatus(false)">{{ `${tagLabel}:${value}` }}</span>
     </bk-tag>
     <verify-input
       class="param-item"
+      :position="position"
       :show-validate="showValidate"
       :validator="{ content: message }"
-      :position="position"
     >
       <bk-input
-        v-show="!isTag"
         ref="inputRef"
+        v-show="!isTag"
         :value="value"
-        @input="handleInput"
         @blur="switchStatus(true)"
+        @input="handleInput"
         @keydown.enter.native="switchStatus(true)"
       />
     </verify-input>
@@ -113,6 +113,8 @@ export default {
 }
 
 .bk-tag {
+  height: 26px;
   margin: 0;
+  line-height: 26px;
 }
 </style>
