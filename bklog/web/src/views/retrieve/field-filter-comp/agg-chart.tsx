@@ -33,10 +33,8 @@ import $http from '@/api';
 
 import './agg-chart.scss';
 
-interface IProps {}
-
 @Component
-export default class AggChart extends tsc<IProps> {
+export default class AggChart extends tsc<object> {
   @Prop({ type: String, required: true }) fieldName: string;
   @Prop({ type: String, required: true }) fieldType: string;
   @Prop({ type: Boolean, default: false }) parentExpand: boolean;

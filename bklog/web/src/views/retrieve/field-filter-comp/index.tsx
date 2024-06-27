@@ -35,10 +35,9 @@ import FieldItem from './field-item';
 import $http from '@/api';
 
 import './index.scss';
-interface IProps {}
 
 @Component
-export default class FieldFilterComp extends tsc<IProps> {
+export default class FieldFilterComp extends tsc<object> {
   @Prop({ type: Array, default: () => [] }) totalFields: Array<any>;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
@@ -47,7 +46,7 @@ export default class FieldFilterComp extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) parentLoading: boolean;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
-  @Ref('filterPopover') private readonly filterPopoverRef!: HTMLDivElement;
+  @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
 
   showFilterPopover = false; // 字段类型过滤 popover 显示状态
   searchTimer = null;

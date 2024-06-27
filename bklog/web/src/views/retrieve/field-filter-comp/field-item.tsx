@@ -32,10 +32,8 @@ import FieldAnalysis from './field-analysis';
 
 import './field-item.scss';
 
-interface IProps {}
-
 @Component
-export default class FieldItem extends tsc<IProps> {
+export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;

@@ -339,6 +339,7 @@ export default class SearchComp extends tsc<IProps> {
   // 改变条件时 更新路由参数
   setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null) {
     const { params, query } = this.$route;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
     Object.assign(filterQuery, retrieveParams);

@@ -29,10 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './field-filter-popover.scss';
 
-interface IProps {}
-
 @Component
-export default class FieldAnalysis extends tsc<IProps> {
+export default class FieldAnalysis extends tsc<object> {
   @Prop({ type: Boolean, default: false }) value: boolean;
 
   polymerizableCache = null;

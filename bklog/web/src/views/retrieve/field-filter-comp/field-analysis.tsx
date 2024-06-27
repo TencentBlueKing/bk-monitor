@@ -68,9 +68,9 @@ type LegendActionType = 'click' | 'shift-click';
 
 @Component
 export default class FieldAnalysis extends Vue {
-  @Prop({ type: Object, default: () => ({}) }) private readonly queryParams: any;
-  @Ref('fieldChart') private readonly chartRef!: HTMLDivElement;
-  @Ref('commonLegend') private readonly commonLegendRef!: HTMLDivElement;
+  @Prop({ type: Object, default: () => ({}) }) readonly queryParams: any;
+  @Ref('fieldChart') readonly chartRef!: HTMLDivElement;
+  @Ref('commonLegend') readonly commonLegendRef!: HTMLDivElement;
 
   chart = null;
   /** 图表高度 */
@@ -131,7 +131,7 @@ export default class FieldAnalysis extends Vue {
   }
 
   @Emit('statisticsInfoFinish')
-  private statisticsInfoFinish() {
+  statisticsInfoFinish() {
     return true;
   }
 

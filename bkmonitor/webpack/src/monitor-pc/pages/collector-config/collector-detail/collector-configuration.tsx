@@ -409,7 +409,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         key={index}
                         class='param-list-item'
                       >
-                        <span class='item-name'>{item.name}</span>
+                        <span class='item-name'>
+                          <span class={{ 'name-text': true, required: item.required }}>{item.name}</span>
+                        </span>
                         {['password', 'encrypt'].includes(item.type) ? (
                           <span class='item-content'>******</span>
                         ) : (
