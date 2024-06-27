@@ -442,7 +442,7 @@
             },
           });
         }
-        this.$emit('stepChange', 1);
+        this.$emit('step-change', 1);
       },
       nextHandler() {
         if (this.operateType === 'stop') {
@@ -456,7 +456,7 @@
             })
             .then(res => {
               if (res.result) {
-                this.$emit('stepChange');
+                this.$emit('step-change');
               }
             })
             .catch(error => {
@@ -467,11 +467,11 @@
             });
           return;
         }
-        this.$emit('stepChange');
+        this.$emit('step-change');
       },
       cancel() {
         if (this.isFinishCreateStep) {
-          this.$emit('changeSubmit', true);
+          this.$emit('change-submit', true);
         }
         this.$router.push({
           name: 'collection-item',

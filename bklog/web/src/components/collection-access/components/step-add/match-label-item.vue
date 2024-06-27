@@ -313,7 +313,7 @@
       },
       handleCancelMatch() {
         if (!this.onlyShowSelectEdit) this.matchOperator = this.catchOperator;
-        this.$emit('cancelEdit');
+        this.$emit('cancel-edit');
         this.isEdit = false;
       },
       handleEditItem() {
@@ -331,7 +331,7 @@
         this.isEdit = true;
       },
       handleDeleteItem() {
-        this.$emit('deleteItem');
+        this.$emit('delete-item');
       },
       handleValueBlur(input, list) {
         if (!input) return;

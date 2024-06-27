@@ -1120,7 +1120,7 @@
       // 是否是物理环境
       isPhysicsEnvironment() {
         const isPhysics = ['linux', 'windows'].includes(this.currentEnvironment);
-        this.$emit('update:isPhysics', isPhysics);
+        this.$emit('update:is-physics', isPhysics);
         return isPhysics;
       },
       // 是否是Node环境
@@ -1423,7 +1423,7 @@
             this.cancel();
           } else {
             // 未修改表单 直接跳转下一步
-            this.$emit('stepChange');
+            this.$emit('step-change');
           }
           return;
         }
@@ -1547,7 +1547,7 @@
                 }
               } else {
                 // 新增情况直接下一步
-                this.$emit('stepChange');
+                this.$emit('step-change');
               }
             }
           })
@@ -1587,7 +1587,7 @@
                 }
                 this.cancel();
               } else {
-                this.$emit('stepChange');
+                this.$emit('step-change');
               }
             }
           })
@@ -1599,7 +1599,7 @@
           })
           .finally(() => {
             this.isHandle = false;
-            this.$emit('update:containerLoading', false);
+            this.$emit('update:container-loading', false);
           });
       },
       /**
@@ -1793,7 +1793,7 @@
       cancel() {
         // 保存, 回退到列表
         if (this.isFinishCreateStep) {
-          this.$emit('changeSubmit', true);
+          this.$emit('change-submit', true);
         }
         let routeName;
         const { backRoute, ...reset } = this.$route.query;

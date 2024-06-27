@@ -222,7 +222,7 @@
                 yamlFormData.configs.forEach(item => {
                   delete item.raw_config;
                 });
-                this.$emit('update:yamlFormData', yamlFormData);
+                this.$emit('update:yaml-form-data', yamlFormData);
               }
             }
           })

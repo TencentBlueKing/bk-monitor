@@ -637,7 +637,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     this.$emit('change', value);
   }
   closeDialog() {
-    this.$emit('update:showDialog', false);
+    this.$emit('update:show-dialog', false);
   }
   render() {
     return (
