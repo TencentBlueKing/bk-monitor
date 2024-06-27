@@ -1,7 +1,8 @@
 /* stylelint-disable declaration-no-important */
 
 .vue-flow__edge-label-custom.vue-flow__edge {
-  &.selected, &.animated {
+  &.selected,
+  &.animated {
     .vue-flow__edge-path {
       stroke: #3a84ff !important;
       stroke-width: 2 !important;
@@ -37,6 +38,7 @@
     background: #e1ecff;
     border: 1px solid #9ab7e9;
     border-radius: 2px;
+    transition: all 0.3s;
 
     &-header {
       display: flex;
