@@ -1,7 +1,7 @@
 /* stylelint-disable declaration-no-important */
 
 .vue-flow__edge-label-custom.vue-flow__edge {
-  &.selected {
+  &.selected, &.animated {
     .vue-flow__edge-path {
       stroke: #3a84ff !important;
       stroke-width: 2 !important;
