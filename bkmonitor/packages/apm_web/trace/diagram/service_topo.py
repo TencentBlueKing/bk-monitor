@@ -34,7 +34,7 @@ def exists_field(predicate_key: Tuple[str, str], item) -> bool:
 
 def extract_field_value(key: Tuple[str, str], item):
     first_key, second_key = key
-    return item.get(first_key, item).get(second_key)
+    return item.get(first_key, item).get(second_key, "")
 
 
 def get_node_key(keys: List[Tuple[str, str]], category: str, item: dict):
@@ -48,13 +48,19 @@ def get_node_key(keys: List[Tuple[str, str]], category: str, item: dict):
     if category == CategoryEnum.HTTP and kind == SpanKind.SPAN_KIND_CLIENT:
         http_url = instance_keys[0]
         url_parse = urlparse(http_url)
-        keys = [method, url_parse.path] if url_parse.path else [method, url_parse.netloc]
-        return ":".join(keys)
+        path_or_netloc = url_parse.path if url_parse.path else url_parse.netloc
+        if not path_or_netloc:
+            return item["span_name"]
+        return f"{method}:{path_or_netloc}"
     elif category == CategoryEnum.HTTP and kind == SpanKind.SPAN_KIND_SERVER:
         http_route = extract_field_value((OtlpKey.ATTRIBUTES, SpanAttributes.HTTP_ROUTE), item)
         http_host = extract_field_value((OtlpKey.ATTRIBUTES, SpanAttributes.HTTP_HOST), item)
-        keys = [method, http_route] if http_route else [method, http_host]
-        return ":".join(keys)
+        route_or_host = http_route if http_route else http_host
+        if not route_or_host:
+            return item["span_name"]
+        return f"{method}:{route_or_host}"
+    if not all(instance_keys):
+        instance_keys = [item["span_name"]]
     return ":".join(instance_keys)
 
 
