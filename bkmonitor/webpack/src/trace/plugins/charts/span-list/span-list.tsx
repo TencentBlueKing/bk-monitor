@@ -174,7 +174,7 @@ export default defineComponent({
 
           <div class='filter-wrap'>
             <i
-              class={['icon-monitor', this.sortOrder.sort === 'desc' ? 'icon-paixu-xia' : 'icon-paixu-shang']}
+              class={['icon-monitor icon-paixu', this.sortOrder.sort === 'desc' ? 'down' : 'up']}
               onClick={() => this.handleSortChange('sort')}
             ></i>
             <Popover

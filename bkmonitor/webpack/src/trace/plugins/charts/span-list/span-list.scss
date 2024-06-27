@@ -64,6 +64,15 @@
         font-size: 20px;
         cursor: pointer;
       }
+
+      .icon-paixu {
+        margin-right: 4px;
+        font-size: 12px;
+
+        &.up {
+          transform: rotate(180deg);
+        }
+      }
     }
   }
 
