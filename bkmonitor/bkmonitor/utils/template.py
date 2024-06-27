@@ -416,6 +416,7 @@ def jinja2_environment(**options):
             **options,
         )
     else:
+        options.pop("escape_func", None)
         env = Environment(undefined=UndefinedSilently, extensions=["jinja2.ext.i18n"], **options)
     env.install_gettext_translations(translation, newstyle=True)
     return env
