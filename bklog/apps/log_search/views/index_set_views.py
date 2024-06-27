@@ -282,17 +282,17 @@ class IndexSetViewSet(ModelViewSet):
 
     @staticmethod
     def get_rt_id(index_set):
-        if index_set["scenario_id"] == Scenario.ES:
-            rt_id = "bklog_index_set_" + str(index_set["index_set_id"]) + ".__default__"
-        else:
+        if index_set["scenario_id"] == Scenario.BKDATA:
             rt_id = ",".join([index["result_table_id"] for index in index_set["indexes"]])
+        else:
+            rt_id = "bklog_index_set_" + str(index_set["index_set_id"]) + ".__default__"
         return rt_id
 
     @list_route(methods=["GET"], url_path="list_es_router")
     def list_es_router(self, request):
         params = self.params_valid(ESRouterListSerializer)
         router_list = []
-        if "space_uid" not in params:
+        if not params["space_uid"]:
             space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
             params["index_set_id_list"] = list(
                 LogIndexSet.objects.filter(space_uid__in=space_uids).values_list("index_set_id", flat=True)
