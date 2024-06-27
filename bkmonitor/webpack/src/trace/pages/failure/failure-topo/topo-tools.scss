@@ -1,0 +1,27 @@
+.topo-tools {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  height: 40px;
+  padding-right: 0px;
+  padding-left: 12px;
+  color: white;
+  background-color: #454547;
+
+  &-agg {
+    margin-left: auto;
+  }
+
+  .topo-tools-list {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-left: 15px;
+    font-size: 14px;
+    color: #c4c6cc;
+    cursor: pointer;
+    border-left: 1px solid #313238;
+  }
+}

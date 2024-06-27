@@ -93,11 +93,17 @@
         flex: 0 0 36px;
         align-items: center;
         height: 36px;
-        padding: 0 24px 0 20px;
+        padding: 0 24px 0 14px;
         margin: 0;
 
         @include item-active();
         @include item-count(#63656e);
+
+        .bk-icon {
+          margin-right: 6px;
+          font-size: 13px;
+          color: #979BA5;
+        }
 
         &:hover {
           @include item-hover();
@@ -121,7 +127,7 @@
           flex: 0 0 36px;
           align-items: center;
           height: 36px;
-          padding: 0 24px 0 25px;
+          padding: 0 24px 0 32px;
 
           @include item-active();
           @include item-count();
@@ -138,8 +144,7 @@
 
           .icon-inform-circle {
             position: relative;
-            font-size: 12px;
-            background: #ff9c01;
+            font-size: 14px;
             border-radius: 50%;
 
             &::before {
