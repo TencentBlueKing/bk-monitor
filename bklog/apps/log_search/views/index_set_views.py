@@ -294,9 +294,10 @@ class IndexSetViewSet(ModelViewSet):
         router_list = []
         if not params.get("space_uid", ""):
             space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
-            params["index_set_id_list"] = list(
+            index_set_id_list = list(
                 LogIndexSet.objects.filter(space_uid__in=space_uids).values_list("index_set_id", flat=True)
             )
+            params["index_set_id_list"] = ",".join([str(index_set_id) for index_set_id in index_set_id_list])
         response = self.list(request, **params)
         for index_set in response.data["list"]:
             router_list.append(
