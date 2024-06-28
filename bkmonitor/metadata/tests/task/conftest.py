@@ -87,17 +87,6 @@ def create_and_delete_space():
     models.Space.objects.all().delete()
 
 
-class MockSpaceRedis:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def push_bcs_type_space(self, *args, **kwargs):
-        pass
-
-    def push_bkcc_type_space(self, *args, **kwargs):
-        pass
-
-
 class EventGroupFakeES(FakeElasticsearch):
     def search(self, index=None, doc_type=None, body=None, params=None, headers=None):
         if "aggs" in body:
