@@ -87,7 +87,6 @@ export default defineComponent({
         sourceY: props.sourceY,
         targetX: props.targetX,
         targetY: props.targetY,
-        curvature: 100,
       });
     });
 
