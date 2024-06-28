@@ -142,6 +142,8 @@
           :render-header="$renderHeader"
           class-name="filter-column"
           column-key="collector_scenario_id"
+          min-width="50"
+          prop="collector_scenario_id"
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
@@ -157,6 +159,8 @@
           :render-header="$renderHeader"
           class-name="filter-column"
           column-key="category_id"
+          min-width="50"
+          prop="category_id"
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
@@ -194,13 +198,13 @@
         </bk-table-column>
         <bk-table-column
           v-if="checkcFields('es_host_state')"
+          :filters="checkcFields('es_host_state') ? statusEnum : []"
+          :filter-multiple="false"
           :class-name="'td-status filter-column'"
           :label="$t('采集状态')"
           :render-header="$renderHeader"
           prop="status"
           column-key="status"
-          :filters="checkcFields('es_host_state') ? statusEnum : []"
-          :filter-multiple="false"
           min-width="55"
         >
           <template #default="props">
