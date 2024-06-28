@@ -254,10 +254,9 @@
               :class="{
                 disable: !item.is_active,
                 'is-selected': item.id === formData.collector_scenario_id,
-                'is-updated': isUpdate && item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
-              :disabled="isUpdate"
+              :disabled="isUpdate && isWinEventLog"
               :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
@@ -2686,12 +2685,6 @@
       .disable {
         color: #dcdee5;
         cursor: not-allowed;
-        border-color: #dcdee5;
-      }
-
-      .is-updated {
-        color: #63656e;
-        background: #fafbfd;
         border-color: #dcdee5;
       }
     }
