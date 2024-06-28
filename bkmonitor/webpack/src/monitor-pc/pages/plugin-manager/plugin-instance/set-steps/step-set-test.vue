@@ -570,7 +570,7 @@ export default {
       snmpTargets: [],
       paramsList: [],
       ipv4Reg:
-        /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/ // eslint-disable-line
+        /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/,
     };
   },
   computed: {
@@ -579,6 +579,7 @@ export default {
       const { info } = this;
       const isPortOk = info.plugin_type === 'Exporter' ? info.port !== '' && !this.rules.port.validate : true; // Exporter 类型需要校验端口
       const isHostOk = info.host_info.some(item => item.ip);
+      const isTargetOk = info.plugin_type === 'SNMP' ? this.snmpTargets.length : true;
       return this.isParamsCompletely && isHostOk && isTargetOk && isPortOk;
     },
     /** 所有必填的参数是否填写完成且没有错误 */
@@ -1329,11 +1330,11 @@ export default {
     savePlugin() {
       /* eslint-disable */
       this.data.from = '';
-      /* eslint-disable */
+       
       const params = {
         from: 'save',
         status: '',
-        message: ''
+        message: '',
       };
       this.$set(this.data, 'saveData', params);
       this.$bus.$emit('next');
@@ -1390,7 +1391,7 @@ export default {
           info_version: params.info_version,
           param: params.param,
           host_info: params.host_info,
-          target_nodes: params.target_nodes
+          target_nodes: params.target_nodes,
         },
         { cancelToken: new CancelToken(cb => (this.cancelFn = cb)) }
       );
@@ -1398,13 +1399,13 @@ export default {
     //  请求插件调试日志的接口
     requestDebugLog(taskId) {
       return fetchDebugLogCollectorPlugin(this.info.plugin_id, {
-        task_id: taskId
+        task_id: taskId,
       });
     },
     //  停止插件调试的接口
     stopDebug(taskId) {
       return stopDebugCollectorPlugin(this.info.plugin_id, {
-        task_id: taskId
+        task_id: taskId,
       }).catch(() => {});
     },
     //  校验规则
@@ -1449,7 +1450,7 @@ export default {
         const text = transformJobUrl(item.text);
         return {
           ...item,
-          text
+          text,
         };
       });
     },
@@ -1461,15 +1462,12 @@ export default {
       } else {
         item.isError = false;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 @import '../../../home/common/mixins';
 
 .step-test {
@@ -1618,7 +1616,7 @@ export default {
           }
 
           &:hover {
-            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, .06);
+            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.06);
           }
 
           :deep(.bk-form-input) {
@@ -1682,7 +1680,7 @@ export default {
 
           .dms-insert-wrap {
             display: flex;
-            margin:  0 5px;
+            margin: 0 5px;
             overflow-x: auto;
 
             .tag-switch-wrapper:first-child {
@@ -1700,9 +1698,9 @@ export default {
                 min-height: 26px;
                 color: #000;
                 border: 1px solid #fff;
-                
+
                 .key-node {
-                  margin: 2px 5px 2px 0
+                  margin: 2px 5px 2px 0;
                 }
 
                 .staff-input {
@@ -1713,11 +1711,11 @@ export default {
                   height: 22px;
                   padding-left: 3px;
                   line-height: 26px;
-                  background: #f5f6fa
+                  background: #f5f6fa;
                 }
 
                 .placeholder {
-                  line-height: 26px
+                  line-height: 26px;
                 }
               }
             }
@@ -1933,15 +1931,15 @@ export default {
                     background: #3a84ff;
 
                     &.bar-1 {
-                      animation: process-bar-1 .7s linear 0s infinite;
+                      animation: process-bar-1 0.7s linear 0s infinite;
                     }
 
                     &.bar-2 {
-                      animation: process-bar-2 .7s linear 0s infinite;
+                      animation: process-bar-2 0.7s linear 0s infinite;
                     }
 
                     &.bar-3 {
-                      animation: process-bar-3 .7s linear 0s infinite;
+                      animation: process-bar-3 0.7s linear 0s infinite;
                     }
                   }
                 }
