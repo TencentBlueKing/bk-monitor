@@ -1332,6 +1332,11 @@ REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0
 # 需要base64编码的特殊字符
 BASE64_ENCODE_TRIGGER_CHARS = []
 
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
+# 是否启用grafana接口
+ENABLE_GRAFANA_API = False
 # 是否启用新版的数据链路
 # 是否启用通过计算平台获取GSE data_id 资源，默认不启用
 ENABLE_V2_BKDATA_GSE_RESOURCE = False
