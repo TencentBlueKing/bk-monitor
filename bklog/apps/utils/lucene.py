@@ -682,7 +682,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
     例如: A and B => A AND B
     """
 
-    RE = r'\b(and|or|not)\b'
+    RE = r'\b(and|or|not|to)\b'
 
     def __init__(self, query_string: str = ""):
         super().__init__(query_string)
@@ -699,10 +699,21 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         if not self.match():
             return self.query_string
         pattern = re.compile(self.RE)
-        split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
+        pattern1 = re.compile(r'(:\s*\S+\s*)')
+        pattern2 = re.compile(r':\s*(and|or|not|to)')
+        split_strings = re.split(r'(".*?")', self.query_string)
         for i, part in enumerate(split_strings):
-            if ':' not in part:
-                split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
+            if not (part.startswith('"') and part.endswith('"')):
+                match = pattern2.search(part)
+                # 处理log: and的情况,and不应该被转换
+                if match:
+                    part_strings = pattern1.split(part)
+                    for j, child_part in enumerate(part_strings):
+                        if ':' not in child_part:
+                            part_strings[j] = pattern.sub(lambda m: m.group().upper(), child_part)
+                    split_strings[i] = ''.join(part_strings)
+                else:
+                    split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
         return ''.join(split_strings)
 
 
@@ -723,7 +734,8 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     例如: A > 3 => A: { 3 TO * }
     """
 
-    RE = r'(?<=[a-zA-Z0-9_])\s*(>=|<=|>|<|=|!=)\s*([\d.]+)'
+    # 匹配不是以引号、字母（大小写）、数字或下划线开头和结尾的字符串;确保"lineno=125"这样的字符串不会被匹配或被匹配成ineno=125
+    RE = r'(?<!["a-zA-Z0-9_])([a-zA-Z0-9_]+)\s*(>=|<=|>|<|=|!=)\s*([\d.]+)(?!["a-zA-Z0-9_])'
     ENHANCE_OPERATORS = [
         OperatorEnhanceEnum.LT.value,
         OperatorEnhanceEnum.LE.value,
@@ -742,7 +754,7 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     def transform(self) -> str:
         if not self.match():
             return self.query_string
-        return re.sub(self.RE, r': \1\2', self.query_string)
+        return re.sub(self.RE, r'\1: \2\3', self.query_string)
 
 
 class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):

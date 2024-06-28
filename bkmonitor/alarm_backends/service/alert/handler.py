@@ -259,6 +259,8 @@ class AlertHandler(base.BaseHandler):
         """
         kafka消费者管理
         """
+        if self.consumers_lock.locked():
+            self.consumers_lock.release()
         while True:
             # 获取最新的topic信息
             kfk_confs = json.loads(self.redis_client.hget(self.data_id_cache_key, self.ip) or "{}")
@@ -357,6 +359,8 @@ class AlertHandler(base.BaseHandler):
         通过批量拉取数据
         :return:
         """
+        if self.consumers_lock.locked():
+            self.consumers_lock.release()
         while True:
             self.consumers_lock.acquire()
             has_record = False

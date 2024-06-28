@@ -56,7 +56,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         func = api.metadata.list_spaces
         if refresh:
             func = api.metadata.list_spaces.request.refresh
-        space_list = batch_request(func, params={}, get_data=lambda x: x["list"], app="metadata")
+        space_list = batch_request(func, params={}, get_data=lambda x: x["list"], app="metadata", limit=1000)
 
         # 获得支持的空间类型
         space_type_list = api.metadata.list_space_types()

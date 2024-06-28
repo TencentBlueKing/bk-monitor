@@ -24,8 +24,8 @@
 
     .favorite-number {
       display: inline-block;
-      height: 16px;
       min-width: 20px;
+      height: 16px;
       margin: 2px 0 0 8px;
       font-size: 12px;
       color: #979ba5;
@@ -39,13 +39,13 @@
     position: relative;
     z-index: 9;
     display: flex;
+    align-items: center;
     height: 32px;
     padding: 0 16px 0 14px;
     margin-bottom: 8px;
     color: #313238;
     cursor: pointer;
     border: 1px solid #dcdee5;
-    align-items: center;
 
     .icon-enlarge-line {
       margin-right: 3px;
@@ -97,10 +97,10 @@
 
   .data-empty {
     display: flex;
+    justify-content: center;
     width: 100%;
     height: 100%;
     padding-top: 30px;
-    justify-content: center;
 
     .exception-image {
       height: 175px;
@@ -119,11 +119,11 @@
 
   .operate-button {
     display: flex;
+    align-items: center;
+    justify-content: flex-end;
     margin-top: 6px;
     font-size: 12px;
     color: #979ba5;
-    align-items: center;
-    justify-content: flex-end;
 
     span {
       cursor: pointer;
@@ -144,19 +144,19 @@
 
   .sort-group-container {
     display: flex;
-    width: 200px;
-    height: 80px;
-    margin-top: 10px;
     flex-direction: column;
     align-items: flex-start;
     justify-content: space-between;
+    width: 200px;
+    height: 80px;
+    margin-top: 10px;
   }
 
   .operate-button {
     display: flex;
-    margin-top: 10px;
     align-items: center;
     justify-content: flex-end;
+    margin-top: 10px;
 
     > :first-child {
       margin-right: 12px;

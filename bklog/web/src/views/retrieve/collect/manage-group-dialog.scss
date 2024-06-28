@@ -11,8 +11,8 @@
   }
 
   .top-operate {
-    margin-bottom: -16px;
     align-items: center;
+    margin-bottom: -16px;
 
     @include flex-justify(space-between);
 
@@ -223,9 +223,9 @@
 
   .switch-container {
     display: flex;
+    align-items: center;
     height: 42px;
     margin-left: 20px;
-    align-items: center;
   }
 
   .switcher-box {
@@ -254,10 +254,10 @@
   }
 
   .operate-button {
+    justify-content: space-between;
     margin-left: 6px;
     font-size: 16px;
     color: #979ba5;
-    justify-content: space-between;
 
     span {
       cursor: pointer;
@@ -288,10 +288,10 @@
 
   .operate-button {
     display: flex;
-    margin-top: 6px;
-    color: #979ba5;
     align-items: center;
     justify-content: flex-end;
+    margin-top: 6px;
+    color: #979ba5;
 
     span {
       cursor: pointer;

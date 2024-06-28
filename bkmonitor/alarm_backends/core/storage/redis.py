@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import os
 import random
 import sys
 import time
@@ -19,6 +20,7 @@ import uuid
 
 import redis
 from django.conf import settings
+from kombu.utils.url import parse_url
 from redis.exceptions import ConnectionError
 from redis.sentinel import Sentinel
 from six.moves import map, range
@@ -55,6 +57,44 @@ CACHE_BACKEND_CONF_MAP = {
 }
 
 
+def cache_conf_with_router(router_id):
+    """
+    基于模块的路由
+    cache-cmdb: os.getenv("REDIS_CACHE_CMDB_URL")
+    cache-strategy: os.getenv("REDIS_CACHE_STRATEGY_URL")
+    """
+    # 环境变量名模板
+    env_tpl = "REDIS_CACHE_{mod}_URL"
+    # 路由id格式: 模块-子模块
+    mods = router_id.split("-", 1)
+    if len(mods) == 1:
+        return None
+    router_module, sub_mod = mods
+    if router_module not in CACHE_BACKEND_CONF_MAP:
+        return None
+    conf = CACHE_BACKEND_CONF_MAP[router_module]
+    env_conf_name = env_tpl.format(mod=sub_mod.upper())
+    url = os.getenv(env_conf_name)
+    if not url:
+        return conf
+    # 解析 redis 连接url
+    # {'transport': 'redis',
+    #  'hostname': '127.0.0.1',
+    #  'port': 6379,
+    #  'userid': None,
+    #  'password': 'admin',
+    #  'virtual_host': '0'}
+    parts = parse_url(url)
+    parts["_cache_type"] = parts.pop("transport")
+    parts["host"] = parts.pop("hostname")
+    parts["db"] = conf["db"]
+    # sentinel 特性
+    # sentinel://{master_name}:{redis_pwd}@{sentinel_host}:{sentinel_port}/{sentinel_pwd}
+    parts["sentinel_password"] = parts.pop("virtual_host")
+    parts["master_name"] = parts.pop("userid")
+    return parts
+
+
 class BaseRedisCache(object):
     def __init__(self, redis_class=None):
         self.redis_class = redis_class or redis.Redis
@@ -70,12 +110,17 @@ class BaseRedisCache(object):
             if conf is not None:
                 ins = cls(conf)
                 setattr(cls, _instance, ins)
-                return ins
+            elif backend in CACHE_BACKEND_CONF_MAP:
+                ins = cls(CACHE_BACKEND_CONF_MAP[backend])
+                setattr(cls, _instance, ins)
+            else:
+                # 尝试基于环境变量查找
+                config = cache_conf_with_router(backend)
+                if config is not None:
+                    setattr(cls, _instance, Cache.__new__(Cache, backend, config))
+                else:
+                    raise Exception("unknown redis backend %s" % backend)
 
-            if backend not in CACHE_BACKEND_CONF_MAP:
-                raise Exception("unknown redis backend %s" % backend)
-            ins = cls(CACHE_BACKEND_CONF_MAP[backend])
-            setattr(cls, _instance, ins)
         return getattr(cls, _instance)
 
     @property
@@ -217,18 +262,19 @@ class SentinelRedisCache(BaseRedisCache):
 
 class Cache(redis.Redis):
     CacheTypes = {
+        "redis": RedisCache,
         "RedisCache": RedisCache,
         "SentinelRedisCache": SentinelRedisCache,
+        "sentinel": SentinelRedisCache,
         "InstanceCache": InstanceCache,
     }
 
     CacheBackendType = getattr(settings, "CACHE_BACKEND_TYPE", "RedisCache")
-    CacheDefaultType = getattr(settings, "CACHE_DEFAULT_TYPE", "InstanceCache")
 
     def __new__(cls, backend, connection_conf=None):
         if not backend:
             raise
-        cache_type = connection_conf and connection_conf.pop("_cache_type") or cls.CacheBackendType
+        cache_type = connection_conf and connection_conf.pop("_cache_type", None) or cls.CacheBackendType
         try:
             type_ = cls.CacheTypes[cache_type]
             return type_.instance(backend, connection_conf)

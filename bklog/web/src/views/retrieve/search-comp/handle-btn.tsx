@@ -1,32 +1,39 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Button } from 'bk-magic-vue';
+
+import $http from '../../../api';
+import { deepEqual, Debounce } from '../../../common/util';
+
 // import { deepClone } from '../../../components/monitor-echarts/utils';
 import './handle-btn.scss';
-import { deepEqual, Debounce } from '../../../common/util';
-import $http from '../../../api';
 
 const searchMap = {
   // 检索按钮
@@ -34,24 +41,24 @@ const searchMap = {
     // 查询
     icon: 'bk-icon log-icon icon-bofang',
     text: window.mainComponent.$t('查询'),
-    changeBtnTips: window.mainComponent.$t('切换自动查询')
+    changeBtnTips: window.mainComponent.$t('切换自动查询'),
   },
   searchIng: {
     // 查询中
     icon: 'loading',
     text: `${window.mainComponent.$t('查询中')}...`,
-    changeBtnTips: ''
+    changeBtnTips: '',
   },
   autoSearch: {
     // 自动查询
     icon: 'bk-icon log-icon icon-zanting',
     text: window.mainComponent.$t('自动查询'),
-    changeBtnTips: window.mainComponent.$t('切换手动查询')
-  }
+    changeBtnTips: window.mainComponent.$t('切换手动查询'),
+  },
 };
 
 @Component
-export default class HandleBtn extends tsc<{}> {
+export default class HandleBtn extends tsc<object> {
   @Inject('handleUserOperate') handleUserOperate;
 
   @Prop({ type: Boolean, default: false }) tableLoading: boolean;
@@ -97,7 +104,7 @@ export default class HandleBtn extends tsc<{}> {
     const favoriteParams = {
       ip_chooser: params?.ip_chooser,
       addition: params?.addition,
-      keyword: params?.keyword
+      keyword: params?.keyword,
     };
     return !deepEqual(favoriteParams, retrieveParams, ['meta']);
   }
@@ -109,7 +116,7 @@ export default class HandleBtn extends tsc<{}> {
       .map(item => ({
         field: item.id,
         operator: item.operator,
-        value: item.value.join(',')
+        value: item.value.join(','),
       }));
   }
 
@@ -142,8 +149,8 @@ export default class HandleBtn extends tsc<{}> {
       params: {
         ip_chooser: this.catchIpChooser,
         addition: this.conditionListAddition,
-        keyword: this.retrieveParams.keyword
-      }
+        keyword: this.retrieveParams.keyword,
+      },
     };
   }
 
@@ -160,7 +167,7 @@ export default class HandleBtn extends tsc<{}> {
     const displayFields = this.visibleFields.map(item => item.field_name);
     const indexItem = this.indexSetList.find(item => item.index_set_id === String(this.indexId));
     const {
-      params: { ip_chooser, addition, keyword }
+      params: { ip_chooser, addition, keyword },
     } = this.getRetrieveFavoriteData();
     const favoriteData = {
       // 新建收藏参数
@@ -177,8 +184,8 @@ export default class HandleBtn extends tsc<{}> {
         ip_chooser,
         keyword: Boolean(keyword) ? keyword : '*',
         addition,
-        search_fields: []
-      }
+        search_fields: [],
+      },
     };
     this.handleUserOperate('addFavoriteData', favoriteData); // 新增收藏
     this.handleUserOperate('isShowAddNewCollectDialog', true); // 展示新增弹窗
@@ -191,10 +198,10 @@ export default class HandleBtn extends tsc<{}> {
       const { params, name, group_id, display_fields, visible_type, id } = this.activeFavorite;
       const { search_fields: searchFields } = params;
       const {
-        params: { ip_chooser, addition, keyword }
+        params: { ip_chooser, addition, keyword },
       } = this.getRetrieveFavoriteData();
       const fRes = await $http.request('favorite/getSearchFields', {
-        data: { keyword }
+        data: { keyword },
       });
       const searchFilterList = fRes.data.filter(v => searchFields.includes(v.name)).map(item => item.name);
       const data = {
@@ -205,17 +212,17 @@ export default class HandleBtn extends tsc<{}> {
         ip_chooser,
         addition,
         keyword,
-        search_fields: searchFilterList
+        search_fields: searchFilterList,
       };
       if (!data.search_fields.length) this.handleUserOperate('isSqlSearchType', true);
       const res = await $http.request('favorite/updateFavorite', {
         params: { id },
-        data
+        data,
       });
       if (res.result) {
         this.$bkMessage({
           message: this.$t('更新成功'),
-          theme: 'success'
+          theme: 'success',
         });
         if (this.isAutoQuery && this.isSqlSearchType) {
           this.handleUserOperate('isAfterRequestFavoriteList', true);
@@ -240,26 +247,26 @@ export default class HandleBtn extends tsc<{}> {
           </div>
         ) : (
           <Button
-            v-bk-tooltips={{ content: this.getSearchType.changeBtnTips }}
             class='query-btn'
+            v-bk-tooltips={{ content: this.getSearchType.changeBtnTips }}
             icon={this.getSearchType.icon}
             onClick={this.handleChangeSearchType}
           ></Button>
         )}
 
         <Button
-          v-cursor={{ active: (this.isSearchAllowed as boolean) === false }}
-          theme='primary'
-          data-test-id='dataQuery_button_filterSearch'
           class={{ 'query-search': true, loading: this.tableLoading }}
+          v-cursor={{ active: (this.isSearchAllowed as boolean) === false }}
+          data-test-id='dataQuery_button_filterSearch'
+          theme='primary'
           onClick={this.handleQuery}
         >
           {this.getSearchType.text}
         </Button>
         <div class='favorite-btn-container'>
           <Button
-            v-show={this.isFavoriteNewSearch}
             ext-cls='favorite-btn'
+            v-show={this.isFavoriteNewSearch}
             data-test-id='dataQuery_button_collection'
             disabled={!this.isCanStorageFavorite}
             onClick={this.handleClickFavorite}
@@ -270,12 +277,12 @@ export default class HandleBtn extends tsc<{}> {
             </span>
           </Button>
           <span
-            v-show={!this.isFavoriteNewSearch && this.isFavoriteUpdate}
             class='catching-ball'
+            v-show={!this.isFavoriteNewSearch && this.isFavoriteUpdate}
           ></span>
           <Button
-            v-show={!this.isFavoriteNewSearch}
             ext-cls='favorite-btn'
+            v-show={!this.isFavoriteNewSearch}
             disabled={this.isCanClickFavorite}
             onClick={this.handleUpdateFavorite}
           >

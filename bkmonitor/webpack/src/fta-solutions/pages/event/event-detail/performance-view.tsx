@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getSceneView } from 'monitor-api/modules/scene_view';
@@ -63,6 +63,9 @@ export default class PerformanceView extends tsc<IProps> {
 
   loading = false;
 
+  // 时间范围缓存用于复位功能
+  cacheTimeRange = [];
+
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 视图变量
@@ -73,6 +76,24 @@ export default class PerformanceView extends tsc<IProps> {
   @ProvideReactive('bkBizId') bkBizId: number | string = null;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
+  // 是否展示复位
+  @ProvideReactive('showRestore') showRestore = false;
+  // 是否开启（框选/复位）全部操作
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
   @Watch('show')
   handleShow(v: boolean) {
     if (v && !this.localPanels.length) {
