@@ -440,7 +440,7 @@
             'collect/updateCollection',
             JSON.parse(sessionStorage.getItem('collectionUpdateData')),
           );
-          this.$emit('stepChange', 3);
+          this.$emit('step-change', 3);
         } catch (e) {
           console.warn(e);
         } finally {

@@ -33,7 +33,7 @@
     <!-- 检索结果 -->
     <div class="result-text">
       <i18n path="检索结果（找到 {0} 条结果，用时{1}毫秒) {2}">
-        <span class="total-count">{{ totalCount }}</span>
+        <span class="total-count">{{ getShowTotalNum(totalCount) }}</span>
         <span>{{ tookTime }}</span>
         <template v-if="showAddMonitor">
           <span>
@@ -87,7 +87,7 @@
 </template>
 
 <script>
-  import { setFieldsWidth, parseBigNumberList } from '@/common/util';
+  import { setFieldsWidth, parseBigNumberList, formatNumberWithRegex } from '@/common/util';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import { mapState, mapGetters } from 'vuex';
 
@@ -253,6 +253,9 @@
       changeQueueRes(status) {
         this.queueStatus = status;
       },
+      getShowTotalNum(num) {
+        return formatNumberWithRegex(num);
+      }
     },
   };
 </script>

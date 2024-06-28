@@ -146,7 +146,7 @@
                 requestData: clusterRef?.requestData,
               }
             : null;
-        this.$emit('backFillClusterRouteParams', name, clusterParams);
+        this.$emit('back-fill-cluster-route-params', name, clusterParams);
       },
     },
   };

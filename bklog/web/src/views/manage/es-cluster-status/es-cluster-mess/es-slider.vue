@@ -874,7 +874,7 @@
     },
     methods: {
       updateIsShow(val) {
-        this.$emit('update:showSlider', val);
+        this.$emit('update:show-slider', val);
       },
       inUseProjectPopover(isUse) {
         return {
@@ -1127,7 +1127,7 @@
         }
       },
       handleCancel() {
-        this.$emit('update:showSlider', false);
+        this.$emit('update:show-slider', false);
       },
       updateDaysList() {
         const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {

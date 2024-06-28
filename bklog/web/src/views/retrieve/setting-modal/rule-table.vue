@@ -408,14 +408,14 @@
         },
       },
       debugRequest(val) {
-        this.$emit('debugRequestChange', val);
+        this.$emit('debug-request-change', val);
       },
     },
     mounted() {
       this.initInputType();
     },
     beforeUnmount() {
-      this.$emit('debugRequestChange', false);
+      this.$emit('debug-request-change', false);
       this.inputDocument.removeEventListener('change', this.inputFileEvent);
       this.inputDocument = null;
     },

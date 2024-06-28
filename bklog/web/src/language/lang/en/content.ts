@@ -781,7 +781,7 @@ export default {
   出现行数: 'Number of occurrences',
   日志条数: 'Number of log entries',
   次: 'Times',
-  去重日志条数: 'Number of unique log entries',
+  去重后条数: 'Real after the number',
   最大值: 'Maximum value',
   最小值: 'Minimum value',
   平均值: 'Average value',

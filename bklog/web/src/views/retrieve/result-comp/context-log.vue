@@ -242,7 +242,7 @@
       },
       toggleScreenFull() {
         this.isScreenFull = !this.isScreenFull;
-        this.$emit('toggleScreenFull', this.isScreenFull);
+        this.$emit('toggle-screen-full', this.isScreenFull);
       },
       async requestFields() {
         try {

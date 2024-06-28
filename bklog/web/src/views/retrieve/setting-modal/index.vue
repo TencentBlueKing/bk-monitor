@@ -352,7 +352,7 @@
         return true;
       },
       closeSetting() {
-        this.$emit('closeSetting');
+        this.$emit('close-setting');
       },
       closePage() {
         this.isOpenPage = true;
@@ -380,7 +380,7 @@
       },
       updateLogFields() {
         this.isSubmit = true;
-        this.$emit('updateLogFields');
+        this.$emit('update-log-fields');
         this.closeSetting();
       },
       handleClickDetail() {

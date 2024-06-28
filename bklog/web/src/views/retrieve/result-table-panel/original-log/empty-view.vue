@@ -239,7 +239,7 @@
             }
             break;
           case 'clickToQuery': // 点击查询
-            this.$emit('shouldRetrieve');
+            this.$emit('should-retrieve');
             break;
         }
       },

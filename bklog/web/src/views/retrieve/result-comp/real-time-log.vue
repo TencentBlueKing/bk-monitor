@@ -289,7 +289,7 @@
       },
       toggleScreenFull() {
         this.isScreenFull = !this.isScreenFull;
-        this.$emit('toggleScreenFull', this.isScreenFull);
+        this.$emit('toggle-screen-full', this.isScreenFull);
       },
       registerScrollEvent() {
         this.logWrapperEl = document.querySelector('.dialog-log-markdown');

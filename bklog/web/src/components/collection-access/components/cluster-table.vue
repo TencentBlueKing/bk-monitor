@@ -251,12 +251,12 @@
           this.throttle = false;
         }, 300);
         if (this.isChangeSelect || this.storageClusterId === '') {
-          this.$emit('update:isChangeSelect', true);
-          this.$emit('update:storageClusterId', $row.storage_cluster_id);
+          this.$emit('update:is-change-select', true);
+          this.$emit('update:storage-cluster-id', $row.storage_cluster_id);
           return;
         }
-        this.$emit('update:isChangeSelect', true);
-        this.$emit('update:storageClusterId', $row.storage_cluster_id);
+        this.$emit('update:is-change-select', true);
+        this.$emit('update:storage-cluster-id', $row.storage_cluster_id);
       },
       handleCreateCluster() {
         const newUrl = this.$router.resolve({

@@ -375,7 +375,7 @@
           },
         });
         setTimeout(() => {
-          this.$emit('reloadRouter');
+          this.$emit('reload-router');
         });
       },
       routerHandler(menu) {
@@ -389,7 +389,7 @@
                 spaceUid: this.$store.state.spaceUid,
               },
             });
-            this.$emit('reloadRouter');
+            this.$emit('reload-router');
             return;
           }
           if (menu.id === 'extract') {
@@ -401,7 +401,7 @@
                 },
               });
             } else {
-              this.$emit('reloadRouter');
+              this.$emit('reload-router');
             }
             return;
           }
@@ -414,7 +414,7 @@
                 },
               });
             } else {
-              this.$emit('reloadRouter');
+              this.$emit('reload-router');
             }
             return;
           }
@@ -427,7 +427,7 @@
             //     query: newQuery,
             //   });
             // }
-            // this.$emit('reloadRouter');
+            // this.$emit('reload-router');
             // return;
             this.$router.push({
               name: menu.id,
@@ -435,7 +435,7 @@
                 spaceUid: this.$store.state.spaceUid,
               },
             });
-            this.$emit('reloadRouter');
+            this.$emit('reload-router');
             return;
           }
           if (menu.id === 'manage') {
@@ -447,11 +447,11 @@
                 },
               });
             } else {
-              this.$emit('reloadRouter');
+              this.$emit('reload-router');
             }
             return;
           }
-          this.$emit('reloadRouter');
+          this.$emit('reload-router');
           return;
         }
         if (menu.id === 'monitor') {

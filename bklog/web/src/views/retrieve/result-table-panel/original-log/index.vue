@@ -245,8 +245,8 @@
       },
       /** 更新显示字段 */
       modifyFields(displayFieldNames, showFieldAlias) {
-        this.$emit('fieldsUpdated', displayFieldNames, showFieldAlias);
-        this.$emit('shouldRetrieve');
+        this.$emit('fields-updated', displayFieldNames, showFieldAlias);
+        this.$emit('should-retrieve');
       },
       closeDropdown() {
         this.showFieldsSetting = false;

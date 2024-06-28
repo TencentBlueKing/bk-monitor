@@ -325,10 +325,10 @@
         this.formData.target_snapshot_repository_name = '';
       },
       updateIsShow(val) {
-        this.$emit('update:showSlider', val);
+        this.$emit('update:show-slider', val);
       },
       handleCancel() {
-        this.$emit('update:showSlider', false);
+        this.$emit('update:show-slider', false);
       },
       updateDaysList() {
         const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {

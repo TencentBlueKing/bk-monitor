@@ -1207,14 +1207,14 @@
               // 检索页弹窗的字段清洗
               if (this.isSetEdit) {
                 this.messageSuccess(this.$t('保存成功'));
-                this.$emit('updateLogFields');
+                this.$emit('update-log-fields');
               } else if (isCollect) {
                 // 下发页的字段清洗
                 if (this.isFinishCreateStep || this.isCleanField) {
                   // 编辑的情况下要请求入库接口
                   this.fieldCollectionRequest(res.data, callback);
                 } else {
-                  this.$emit('stepChange');
+                  this.$emit('step-change');
                 }
               } else {
                 // 新建/编辑清洗模板
@@ -1223,7 +1223,7 @@
                 this.basicLoading = false;
                 // 清洗模板编辑则返回模板列表
                 if (this.isTempField) {
-                  this.$emit('changeSubmit', true);
+                  this.$emit('change-submit', true);
                   this.handleCancel();
                 }
               }
@@ -1293,7 +1293,7 @@
               // 检索页弹窗的字段清洗
               if (this.isSetEdit) {
                 this.messageSuccess(this.$t('保存成功'));
-                this.$emit('updateLogFields');
+                this.$emit('update-log-fields');
               } else if (this.isFinishCreateStep || this.isCleanField) {
                 if (callback) {
                   callback(true);
@@ -1397,7 +1397,7 @@
         let routeName;
         // 保存, 回退到列表
         if (this.isFinishCreateStep || this.isCleanField) {
-          this.$emit('changeSubmit', true);
+          this.$emit('change-submit', true);
         }
         const { backRoute, ...reset } = this.$route.query;
         if (backRoute) {
@@ -1416,7 +1416,7 @@
         });
       },
       prevHandler() {
-        this.$emit('stepChange', this.curStep - 1);
+        this.$emit('step-change', this.curStep - 1);
       },
       // 即将前往高级清洗
       advanceHandler() {
@@ -1441,9 +1441,9 @@
             const id = this.curCollect.bkdata_data_id;
             const jumpUrl = `${window.BKDATA_URL}/#/data-hub-detail/clean/list/${id}/index`;
             window.open(jumpUrl, '_blank');
-            this.$emit('changeSubmit', true);
+            this.$emit('change-submit', true);
             // 前往高级清洗刷新页
-            this.$emit('changeClean');
+            this.$emit('change-clean');
           },
         });
       },

@@ -39,7 +39,7 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: String, required: true }) fieldType: string;
   @Prop({ type: Boolean, default: false }) parentExpand: boolean;
   @Prop({ type: Object, required: true }) retrieveParams: any;
-  @Prop({ type: Array, required: true }) datePickerValue: Array<number | string>;
+  @Prop({ type: String, required: true }) reQueryAggChart: string;
 
   @Inject('addFilterCondition') addFilterCondition;
 
@@ -73,7 +73,7 @@ export default class AggChart extends tsc<object> {
     this.queryFieldFetchTopList();
   }
 
-  @Watch('datePickerValue', { deep: true })
+  @Watch('reQueryAggChart')
   watchPicker() {
     this.queryFieldFetchTopList(this.limitSize);
   }

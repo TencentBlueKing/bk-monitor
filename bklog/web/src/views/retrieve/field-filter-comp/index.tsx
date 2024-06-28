@@ -46,6 +46,7 @@ export default class FieldFilterComp extends tsc<object> {
   @Prop({ type: Boolean, default: false }) parentLoading: boolean;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
+  @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
 
   showFilterPopover = false; // 字段类型过滤 popover 显示状态
@@ -389,6 +390,7 @@ export default class FieldFilterComp extends tsc<object> {
                       field-item={item}
                       filed-count-array={this.filedCountArray}
                       retrieve-params={this.retrieveParams}
+                      retrieve-search-number={this.retrieveSearchNumber}
                       show-field-alias={this.showFieldAlias}
                       type='visible'
                       visible-fields={this.visibleFields}
@@ -415,6 +417,7 @@ export default class FieldFilterComp extends tsc<object> {
                   field-item={item}
                   filed-count-array={this.filedCountArray}
                   retrieve-params={this.retrieveParams}
+                  retrieve-search-number={this.retrieveSearchNumber}
                   show-field-alias={this.showFieldAlias}
                   type='hidden'
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
@@ -444,6 +447,7 @@ export default class FieldFilterComp extends tsc<object> {
                   field-item={item}
                   filed-count-array={this.filedCountArray}
                   retrieve-params={this.retrieveParams}
+                  retrieve-search-number={this.retrieveSearchNumber}
                   show-field-alias={this.showFieldAlias}
                   type='hidden'
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
