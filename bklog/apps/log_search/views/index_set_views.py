@@ -292,7 +292,7 @@ class IndexSetViewSet(ModelViewSet):
     def list_es_router(self, request):
         params = self.params_valid(ESRouterListSerializer)
         router_list = []
-        if not params["space_uid"]:
+        if not params.get("space_uid", ""):
             space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
             params["index_set_id_list"] = list(
                 LogIndexSet.objects.filter(space_uid__in=space_uids).values_list("index_set_id", flat=True)
