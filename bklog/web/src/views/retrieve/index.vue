@@ -165,6 +165,7 @@
                   :total-fields="totalFields"
                   :visible-fields="visibleFields"
                   :date-picker-value="datePickerValue"
+                  :retrieve-search-number="retrieveSearchNumber"
                   @fields-updated="handleFieldsUpdated"
                 />
               </div>

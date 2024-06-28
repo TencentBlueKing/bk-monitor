@@ -30,7 +30,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 
 import $http from '../../../api';
-import { deepClone } from '../../../common/util';
+import { deepClone, formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
 
@@ -503,10 +503,10 @@ export default class FieldAnalysis extends Vue {
         <div v-bkloading={{ isLoading: this.infoLoading }}>
           <div class='total-num-container'>
             <span class='total-num'>
-              {window.mainComponent.$t('总行数')} : {this.fieldData.total_count}
+              {window.mainComponent.$t('总行数')} : {formatNumberWithRegex(this.fieldData.total_count)}
             </span>
             <span class='appear-num'>
-              {window.mainComponent.$t('出现行数')} : {this.fieldData.field_count}
+              {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(this.fieldData.field_count)}
             </span>
           </div>
           <div class='log-num-container'>
@@ -519,29 +519,29 @@ export default class FieldAnalysis extends Vue {
             </div>
             <div class='num-box'>
               <span class='num-val'>
-                <span class='log-num'>{this.fieldData.distinct_count}</span>
-                <span class='log-unit'>{window.mainComponent.$t('次')}</span>
+                <span class='log-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
+                <span class='log-unit'>{window.mainComponent.$t('条')}</span>
               </span>
-              <span class='log-str'>{window.mainComponent.$t('去重日志条数')}</span>
+              <span class='log-str'>{window.mainComponent.$t('去重后条数')}</span>
             </div>
           </div>
           {this.isPillarChart && (
             <div class='number-num-container'>
               <div class='num-box'>
                 <span class='num-key'>{window.mainComponent.$t('最大值')}</span>
-                <span class='num-val'>{this.fieldData.value_analysis.max}</span>
+                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.max)}</span>
               </div>
               <div class='num-box'>
                 <span class='num-key'>{window.mainComponent.$t('最小值')}</span>
-                <span class='num-val'>{this.fieldData.value_analysis.min}</span>
+                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.min)}</span>
               </div>
               <div class='num-box'>
                 <span class='num-key'>{window.mainComponent.$t('平均值')}</span>
-                <span class='num-val'>{this.fieldData.value_analysis.avg}</span>
+                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.avg)}</span>
               </div>
               <div class='num-box'>
                 <span class='num-key'>{window.mainComponent.$t('中位数')}</span>
-                <span class='num-val'>{this.fieldData.value_analysis.median}</span>
+                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.median)}</span>
               </div>
             </div>
           )}
