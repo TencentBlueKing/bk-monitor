@@ -476,10 +476,10 @@
         this.esClusterSource = curCluster.source_name || '';
       },
       updateIsShow(val) {
-        this.$emit('update:showSlider', val);
+        this.$emit('update:show-slider', val);
       },
       handleCancel() {
-        this.$emit('update:showSlider', false);
+        this.$emit('update:show-slider', false);
       },
       changeRepository(card) {
         if (this.formData.es_config.type !== card.id) {

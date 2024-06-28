@@ -396,13 +396,13 @@
         if (val.every(item => typeof item === 'string')) {
           localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
         }
-        this.$emit('update:datePickerValue', val);
+        this.$emit('update:date-picker-value', val);
         this.setRefreshTime(0);
-        this.$emit('datePickerChange');
+        this.$emit('date-picker-change');
       },
       handleTimezoneChange(timezone) {
-        this.$emit('timezoneChange', timezone);
-        this.$emit('datePickerChange');
+        this.$emit('timezone-change', timezone);
+        this.$emit('date-picker-change');
       },
       handleChangeTimeByChart(val) {
         this.handleTimeRangeChange(val);
@@ -429,7 +429,7 @@
         this.refreshTimeout = timeout;
         if (timeout) {
           this.refreshTimer = setTimeout(() => {
-            this.$emit('shouldRetrieve');
+            this.$emit('should-retrieve');
           }, timeout);
         }
       },
@@ -440,7 +440,7 @@
       handleMenuClick(val) {
         // 不属于新开页面的操作
         if (['index', 'extract', 'clustering'].includes(val)) {
-          this.$emit('settingMenuClick', val);
+          this.$emit('setting-menu-click', val);
           return;
         }
         const params = {
@@ -509,9 +509,9 @@
       },
       handleClickResultIcon(type) {
         if (type === 'collect') {
-          this.$emit('updateCollectCondition', !this.isShowCollect);
+          this.$emit('update-collect-condition', !this.isShowCollect);
         } else {
-          this.showRetrieveCondition ? this.$emit('closeRetrieveCondition') : this.$emit('open');
+          this.showRetrieveCondition ? this.$emit('close-retrieve-condition') : this.$emit('open');
         }
       },
       handleCloseGuide() {
@@ -534,7 +534,7 @@
         });
       },
       handleRefresh() {
-        this.$emit('shouldRetrieve');
+        this.$emit('should-retrieve');
       },
     },
   };

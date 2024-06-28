@@ -95,7 +95,7 @@
         return str;
       },
       handleActiveDetails(state) {
-        this.$emit('handleActiveDetails', state ? state : !this.isOpenWindow);
+        this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
         this.$store.commit('updateChartSize');
       },
     },

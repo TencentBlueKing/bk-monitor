@@ -1190,13 +1190,13 @@
       visibleHandle() {
         if (this.isSettingDisable) return;
 
-        this.$emit('deleteVisible', !this.deletedVisible);
+        this.$emit('delete-visible', !this.deletedVisible);
       },
       handleKeepLog(value) {
-        this.$emit('handleKeepLog', value);
+        this.$emit('handle-keep-log', value);
       },
       handleKeepField(value) {
-        this.$emit('handleKeepField', value);
+        this.$emit('handle-keep-field', value);
       },
       renderHeaderAliasName(h) {
         return h(

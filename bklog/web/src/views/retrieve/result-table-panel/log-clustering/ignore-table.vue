@@ -224,13 +224,13 @@
           case 'is':
           case 'is not':
             const { fieldName, operation, value } = option;
-            this.$emit('addFilterCondition', fieldName, operation, value === '--' ? '' : value.toString());
+            this.$emit('add-filter-condition', fieldName, operation, value === '--' ? '' : value.toString());
             break;
           case 'copy':
             copyMessage(option.value);
             break;
           case 'display':
-            this.$emit('fieldsUpdated', option.displayFieldNames);
+            this.$emit('fields-updated', option.displayFieldNames);
             break;
           default:
             break;

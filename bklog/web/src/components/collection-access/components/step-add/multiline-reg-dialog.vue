@@ -136,7 +136,7 @@
     },
     methods: {
       handleValueChange(val) {
-        this.$emit('update:showDialog', val);
+        this.$emit('update:show-dialog', val);
         if (val) {
           // 打开时填入采集页行首正则内容
           this.formData.multiline_pattern = this.oldPattern;
@@ -167,7 +167,7 @@
         }
       },
       handleSave() {
-        this.$emit('update:oldPattern', this.formData.multiline_pattern);
+        this.$emit('update:old-pattern', this.formData.multiline_pattern);
       },
     },
   };

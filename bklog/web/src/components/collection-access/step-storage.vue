@@ -570,30 +570,30 @@
               // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
               if (res.data) {
                 this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
-                this.$emit('changeIndexSetId', res.data.index_set_id || '');
+                this.$emit('change-index-set-id', res.data.index_set_id || '');
               }
               if (data.need_assessment && data.assessment_config.need_approval) {
-                this.$emit('setAssessmentItem', {
+                this.$emit('set-assessment-item', {
                   iframe_ticket_url: res.data.ticket_url,
                   itsm_ticket_status: 'applying',
                 });
               } else {
-                this.$emit('setAssessmentItem', {});
+                this.$emit('set-assessment-item', {});
               }
               if (this.isFinishCreateStep) {
                 this.messageSuccess(this.$t('保存成功'));
                 if (callback) {
-                  this.$emit('resetCurCollectVal');
+                  this.$emit('reset-cur-collect-val');
                   callback(true);
                   return;
                 }
-                this.$emit('changeSubmit', true);
-                this.$emit('stepChange', 'back');
+                this.$emit('change-submit', true);
+                this.$emit('step-change', 'back');
                 return;
               }
               // 只有在不展示日志脱敏的情况下才改变保存状态
-              if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
-              this.$emit('stepChange');
+              if (!this.isShowMaskingTemplate) this.$emit('change-submit', true);
+              this.$emit('step-change');
             }
           })
           .catch(() => callback?.(false))
@@ -642,7 +642,7 @@
         });
       },
       prevHandler() {
-        this.$emit('stepChange', this.curStep - 1);
+        this.$emit('step-change', this.curStep - 1);
       },
       // 获取详情
       getDetail() {
@@ -742,7 +742,7 @@
       },
       cancel() {
         if (this.isFinishCreateStep) {
-          this.$emit('changeSubmit', true);
+          this.$emit('change-submit', true);
         }
         let routeName;
         const { backRoute, ...reset } = this.$route.query;

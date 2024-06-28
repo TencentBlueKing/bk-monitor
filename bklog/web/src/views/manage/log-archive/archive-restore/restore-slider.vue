@@ -316,10 +316,10 @@
           });
       },
       updateIsShow(val) {
-        this.$emit('update:showSlider', val);
+        this.$emit('update:show-slider', val);
       },
       handleCancel() {
-        this.$emit('update:showSlider', false);
+        this.$emit('update:show-slider', false);
       },
       handleTimeChange(val) {
         this.formData.start_time = val[0];

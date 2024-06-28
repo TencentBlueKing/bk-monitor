@@ -103,7 +103,7 @@
     },
     methods: {
       handleClick(id, isLink = false) {
-        this.$emit('eventClick', id, isLink);
+        this.$emit('event-click', id, isLink);
       },
       unregisterOberver() {
         if (this.intersectionObserver) {

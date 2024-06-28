@@ -336,7 +336,7 @@
         const matchLabels = allCheckedValue.filter(item => allCheckedKey.includes(item.id));
         const labelObj = { labelSelector: [...matchLabels] };
         this.resetSelect();
-        this.$emit('configLabelChange', labelObj);
+        this.$emit('config-label-change', labelObj);
         this.$emit('update:is-show-dialog', false);
       },
       /**

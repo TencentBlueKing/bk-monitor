@@ -136,15 +136,15 @@
       handleDateChange(date) {
         // if (type !== undefined) console.log('日期选择事件')
         // else console.log('快捷键事件')
-        this.$emit('update:timeValue', date);
+        this.$emit('update:time-value', date);
       },
       handleShortcutChange(data) {
         if (data !== undefined) {
           // 快捷键事件
-          this.$emit('update:timeRange', this.shortTextEnum[data.text]);
+          this.$emit('update:time-range', this.shortTextEnum[data.text]);
         } else {
           // 日期选择事件
-          this.$emit('update:timeRange', 'custom');
+          this.$emit('update:time-range', 'custom');
         }
       },
     },

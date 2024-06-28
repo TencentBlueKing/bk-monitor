@@ -381,7 +381,7 @@ export default {
                       displayFieldNames.push(field.field_name);
                     }
                   });
-                  this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
+                  this.$emit('fields-updated', displayFieldNames, undefined, false);
                 },
               },
             }),
@@ -396,12 +396,12 @@ export default {
         .replace(/<\/mark>/g, '');
       if (type === 'search') {
         // 将表格单元添加到过滤条件
-        this.$emit('addFilterCondition', field.field_name, 'eq', value, isLink);
+        this.$emit('add-filter-condition', field.field_name, 'eq', value, isLink);
       } else if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not'].includes(type)) {
-        this.$emit('addFilterCondition', field.field_name, type, value === '--' ? '' : value.toString(), isLink);
+        this.$emit('add-filter-condition', field.field_name, type, value === '--' ? '' : value.toString(), isLink);
       }
     },
     getFieldIcon(fieldType) {
@@ -412,13 +412,13 @@ export default {
         case 'is':
         case 'is not':
           const { fieldName, operation, value } = option;
-          this.$emit('addFilterCondition', fieldName, operation, value === '--' ? '' : value.toString(), isLink);
+          this.$emit('add-filter-condition', fieldName, operation, value === '--' ? '' : value.toString(), isLink);
           break;
         case 'copy':
           copyMessage(option.value);
           break;
         case 'display':
-          this.$emit('fieldsUpdated', option.displayFieldNames, undefined, false);
+          this.$emit('fields-updated', option.displayFieldNames, undefined, false);
           break;
         default:
           break;
@@ -435,7 +435,7 @@ export default {
         descending: 'desc',
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
-      this.$emit('shouldRetrieve', { sort_list: sortList }, false);
+      this.$emit('should-retrieve', { sort_list: sortList }, false);
     },
     getTableColumnContent(row, field) {
       // 日志来源 展示来源的索引集名称

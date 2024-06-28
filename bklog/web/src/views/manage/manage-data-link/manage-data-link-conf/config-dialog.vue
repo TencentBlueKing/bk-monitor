@@ -293,7 +293,7 @@
             });
             this.messageSuccess(this.$t('修改成功'));
           }
-          this.$emit('showUpdateList');
+          this.$emit('show-update-list');
           this.closeDialog();
         } catch (e) {
           console.warn(e);
