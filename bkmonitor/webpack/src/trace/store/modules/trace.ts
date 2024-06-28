@@ -115,7 +115,7 @@ export const useTraceStore = defineStore('trace', () => {
   function setTraceData(data: ITraceData) {
     const { trace_tree: tree, ...rest } = data;
 
-    const { nodes, edges } = rest.streamline_service_topo;
+    const { nodes, edges } = rest?.streamline_service_topo || { nodes: [], edges: [] };
     const rootNode = nodes.find(item => item.is_root);
     const firstEdge = edges.find(item => item.source === rootNode?.key);
     setServiceSpanList(firstEdge?.spans || []);
