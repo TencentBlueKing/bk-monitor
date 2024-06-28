@@ -54,8 +54,9 @@ export interface UseScreenshot {
 }
 
 export function useLayout() {
-  // @dagrejs/dagre  此包在微前端下面调用tostring(str)会报错  所以这里重写toString方法
-  window.toString = String;
+  // @dagrejs/dagre 使用了window.toString 但是 因为 babel在 useBuiltIns = usage 时重写 window.toString方法导致报错
+  // 这里需重新替换为真实的 window.toString 方法
+  window.toString = window.__POWERED_BY_BK_WEWEB__ ? window.rawWindow.toString : window.toString;
 
   const { findNode } = useVueFlow();
 
