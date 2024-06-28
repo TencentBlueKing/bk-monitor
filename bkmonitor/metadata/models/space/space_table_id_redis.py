@@ -19,6 +19,7 @@ from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
 from metadata import models
+from metadata.models.constants import DEFAULT_MEASUREMENT, EsSourceType
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -55,19 +56,21 @@ logger = logging.getLogger("metadata")
 class SpaceTableIDRedis:
     """空间路由结果表数据推送 redis 相关功能"""
 
-    def push_space_table_ids(self, space_type: str, space_id: str, is_publish: Optional[bool] = False):
+    def push_space_table_ids(
+        self, space_type: str, space_id: str, is_publish: Optional[bool] = False, can_push_data: Optional[bool] = True
+    ):
         """推送空间及对应的结果表和过滤条件"""
         logger.info("start to push space table_id data, space_type: %s, space_id: %s", space_type, space_id)
         # NOTE: 为防止 space_id 传递非字符串，转换一次
         space_id = str(space_id)
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
-            self._push_bkcc_space_table_ids(space_type, space_id)
+            self._push_bkcc_space_table_ids(space_type, space_id, can_push_data=can_push_data)
         elif space_type == SpaceTypes.BKCI.value:
             # 开启容器服务，则需要处理集群+业务+构建机+其它(在当前空间下创建的插件、自定义上报等)
-            self._push_bkci_space_table_ids(space_type, space_id)
+            self._push_bkci_space_table_ids(space_type, space_id, can_push_data=can_push_data)
         elif space_type == SpaceTypes.BKSAAS.value:
-            self._push_bksaas_space_table_ids(space_type, space_id)
+            self._push_bksaas_space_table_ids(space_type, space_id, can_push_data=can_push_data)
 
         # 如果指定要更新，则通知
         if is_publish:
@@ -86,15 +89,7 @@ class SpaceTableIDRedis:
             json.dumps(data_label_list),
             json.dumps(table_id_list),
         )
-        table_ids = self._refine_table_ids(table_id_list)
-        # 过滤掉结果表数据标签为空或者为 None 的记录
-        data_labels = (
-            models.ResultTable.objects.filter(table_id__in=table_ids)
-            .exclude(Q(data_label="") | Q(data_label=None))
-            .values_list("data_label", flat=True)
-        )
-        if data_label_list:
-            data_labels = data_labels.filter(data_label__in=data_label_list)
+        data_labels = self._refine_available_data_label(table_id_list, data_label_list)
         # 再通过 data_label 过滤到结果表
         rt_dl_qs = filter_model_by_in_page(
             model=models.ResultTable,
@@ -116,7 +111,12 @@ class SpaceTableIDRedis:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
         logger.info("push redis data_label_to_result_table")
 
-    def push_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = False):
+    def push_table_id_detail(
+        self,
+        table_id_list: Optional[List] = None,
+        is_publish: Optional[bool] = False,
+        include_es_table_ids: Optional[bool] = False,
+    ):
         """推送结果表的详细信息"""
         logger.info("start to push table_id detail data, table_id_list: %s", json.dumps(table_id_list))
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
@@ -159,6 +159,12 @@ class SpaceTableIDRedis:
             detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
             _table_id_detail[table_id] = json.dumps(detail)
 
+        # 追加预计算结果表详情
+        _table_id_detail.update(self._compose_record_rule_table_id_detail())
+        # 追加 es 结果表
+        if include_es_table_ids:
+            _table_id_detail.update(self._compose_es_table_id_detail(table_id_list))
+
         # 推送数据
         if _table_id_detail:
             RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
@@ -166,17 +172,99 @@ class SpaceTableIDRedis:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push redis result_table_detail")
 
+    def _compose_record_rule_table_id_detail(self) -> Dict:
+        """组装预计算结果表的详情"""
+        from metadata.models.record_rule.rules import RecordRule
+
+        record_rule_objs = RecordRule.objects.values("table_id", "vm_cluster_id", "dst_vm_table_id", "rule_metrics")
+        vm_cluster_id_name = {
+            cluster["cluster_id"]: cluster["cluster_name"]
+            for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
+                "cluster_id", "cluster_name"
+            )
+        }
+        _table_id_detail = {}
+        for obj in record_rule_objs:
+            _table_id_detail[obj["table_id"]] = json.dumps(
+                {
+                    "vm_rt": obj["dst_vm_table_id"],
+                    "storage_id": obj["vm_cluster_id"],
+                    "cluster_name": "",
+                    "storage_name": vm_cluster_id_name.get(obj["vm_cluster_id"], ""),
+                    "db": "",
+                    "measurement": "",
+                    "tags_key": [],
+                    "fields": list(obj["rule_metrics"].values()),
+                    "measurement_type": "bk_split_measurement",
+                    "bcs_cluster_id": "",
+                    "data_label": "",
+                    "bk_data_id": None,
+                }
+            )
+        return _table_id_detail
+
+    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: bool = False):
+        """推送 es 结果表的详细信息"""
+        logger.info("start to push es table_id detail data, table_id_list: %s")
+        table_id_detail = self._compose_es_table_id_detail(table_id_list)
+        if table_id_detail:
+            RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, table_id_detail)
+            if is_publish:
+                RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(table_id_detail.keys()))
+        logger.info("push es table_id detail successfully")
+
+    def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
+        """组装 es 结果表的详细信息"""
+        logger.info("start to compose es table_id detail data")
+
+        # 这里要过来的结果表不会太多
+        if table_id_list:
+            table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
+                "table_id", "storage_cluster_id", "source_type", "index_set"
+            )
+        else:
+            table_ids = models.ESStorage.objects.values("table_id", "storage_cluster_id", "source_type", "index_set")
+        # 组装数据
+        # NOTE: 这里针对一段式的追加一个`__default__`
+        # 组装需要的数据，字段相同
+        data = {}
+        for record in table_ids:
+            source_type = record["source_type"]
+            index_set = record["index_set"]
+            tid = record["table_id"]
+            table_id_db = index_set
+            # 三个场景进行查询规则处理
+            if source_type == EsSourceType.LOG.value:
+                _index_list = index_set.split(",") if index_set else [tid]
+                table_id_db = ",".join([f"{index.replace('.', '_')}_*_read" for index in _index_list])
+            elif source_type == EsSourceType.BKDATA.value:
+                _index_list = index_set.split(",")
+                table_id_db = ",".join([f"{index}_*" for index in _index_list])
+
+            data[tid] = json.dumps(
+                {
+                    "storage_id": record.get("storage_cluster_id", 0),
+                    "db": table_id_db,
+                    "measurement": DEFAULT_MEASUREMENT,
+                }
+            )
+        return data
+
     def _push_bkcc_space_table_ids(
         self,
         space_type: str,
         space_id: str,
         from_authorization: Optional[bool] = None,
+        can_push_data: Optional[bool] = True,
     ):
         """推送 bkcc 类型空间数据"""
         logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_data(space_type, space_id, from_authorization=from_authorization)
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
+        _values.update(self._compose_es_table_ids(space_type, space_id))
+        # 追加预计算结果表
         # 推送数据
-        if _values:
+        if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
@@ -184,11 +272,13 @@ class SpaceTableIDRedis:
             space_type,
             space_id,
         )
+        return _values
 
     def _push_bkci_space_table_ids(
         self,
         space_type: str,
         space_id: str,
+        can_push_data: Optional[bool] = True,
     ):
         """推送 bcs 类型空间下的关联业务的数据"""
         logger.info("start to push biz of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -200,8 +290,10 @@ class SpaceTableIDRedis:
         _values.update(self._compose_bkci_cross_table_ids(space_type, space_id))
         # 追加特殊的允许全空间使用的数据源
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
+        _values.update(self._compose_es_table_ids(space_type, space_id))
         # 推送数据
-        if _values:
+        if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
@@ -209,12 +301,14 @@ class SpaceTableIDRedis:
             space_type,
             space_id,
         )
+        return _values
 
     def _push_bksaas_space_table_ids(
         self,
         space_type: str,
         space_id: str,
         table_id_list: Optional[List] = None,
+        can_push_data: Optional[bool] = True,
     ):
         """推送 bksaas 类型空间下的数据"""
         logger.info("start to push bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -223,7 +317,9 @@ class SpaceTableIDRedis:
         _values.update(self._compose_bksaas_other_table_ids(space_type, space_id, table_id_list))
         # 追加特殊的允许全空间使用的数据源
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
-        if _values:
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
+        _values.update(self._compose_es_table_ids(space_type, space_id))
+        if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
@@ -231,6 +327,7 @@ class SpaceTableIDRedis:
             space_type,
             space_id,
         )
+        return _values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str) -> Dict:
         """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""
@@ -553,6 +650,21 @@ class SpaceTableIDRedis:
 
         return _values
 
+    def _compose_record_rule_table_ids(self, space_type: str, space_id: str):
+        """组装预计算的结果表"""
+        from metadata.models.record_rule.rules import RecordRule
+
+        objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id)
+        return {obj.table_id: {"filters": []} for obj in objs}
+
+    def _compose_es_table_ids(self, space_type: str, space_id: str):
+        """组装es的结果表"""
+        biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
+        tids = models.ResultTable.objects.filter(
+            bk_biz_id=biz_id, default_storage=models.ClusterInfo.TYPE_ES, is_deleted=False, is_enable=True
+        ).values_list("table_id", flat=True)
+        return {tid: {"filters": []} for tid in tids}
+
     def _is_need_filter_for_bkcc(
         self,
         measurement_type: str,
@@ -609,6 +721,19 @@ class SpaceTableIDRedis:
 
         # 3. 此时，必然是自定义时序，且是公共的平台数据源，同时非该当前空间下，ß需要添加过滤条件
         return True
+
+    def _refine_available_data_label(
+        self, table_id_list: Optional[List] = None, data_label_list: Optional[List] = None
+    ) -> List:
+        """获取可以使用的结果表"""
+        tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True, table_id__in=table_id_list).values(
+            "table_id", "data_label"
+        )
+        if table_id_list:
+            tids = tids.filter(table_id__in=table_id_list)
+        if data_label_list:
+            tids = tids.filter(data_label__in=data_label_list)
+        return [tid["data_label"] for tid in tids if tid["data_label"]]
 
     def _refine_table_ids(self, table_id_list: Optional[List] = None) -> Set:
         """提取写入到influxdb或vm的结果表数据"""

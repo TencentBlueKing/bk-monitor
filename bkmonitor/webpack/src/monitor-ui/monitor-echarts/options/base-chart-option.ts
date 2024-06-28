@@ -28,11 +28,11 @@ import dayjs from 'dayjs';
 import { ChartType, IChartOptionPorps } from './type-interface';
 
 export default class EchartsSeries {
-  public lineWidth = 1;
+  public chartOption = {};
   public chartType: ChartType;
   public colors: string[] = [];
+  public lineWidth = 1;
   public showExtremum = false;
-  public chartOption = {};
   public constructor({ chartType, colors, showExtremum, chartOption, lineWidth }: IChartOptionPorps) {
     this.chartType = chartType;
     this.colors = colors;
@@ -60,7 +60,7 @@ export default class EchartsSeries {
           return dayjs.tz(v).format('HH:mm');
         }
         if (duration < 60 * 60 * 24 * 8) {
-          return dayjs.tz(v).format('MM-DD HH:mm');
+          return dayjs.tz(v).format('MM-DD');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
           return dayjs.tz(v).format('MM-DD');
@@ -68,9 +68,6 @@ export default class EchartsSeries {
         return dayjs.tz(v).format('YYYY-MM-DD');
       });
     return formatterFunc;
-  }
-  public overwriteMerge(destinationArray: any, sourceArray: any) {
-    return sourceArray;
   }
   public handleYxisLabelFormatter(num: number): string {
     const si = [
@@ -80,7 +77,7 @@ export default class EchartsSeries {
       { value: 1e9, symbol: 'G' },
       { value: 1e12, symbol: 'T' },
       { value: 1e15, symbol: 'P' },
-      { value: 1e18, symbol: 'E' }
+      { value: 1e18, symbol: 'E' },
     ];
     const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
     let i;
@@ -90,5 +87,8 @@ export default class EchartsSeries {
       }
     }
     return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+  }
+  public overwriteMerge(destinationArray: any, sourceArray: any) {
+    return sourceArray;
   }
 }

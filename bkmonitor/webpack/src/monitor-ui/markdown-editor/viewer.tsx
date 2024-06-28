@@ -25,18 +25,23 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Editor, Viewer } from '@toast-ui/editor';
 
 // import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 // import Prism from 'prismjs';
 // import 'prismjs/components/prism-python.js';
 // import 'prismjs/themes/prism.css';
+import { EditorPlugin } from '@toast-ui/editor/types/editor';
+
+import fixUrlPlugin from './fixUrlPlugin';
+
+import './viewer.scss';
 // import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import '@toast-ui/editor/dist/toastui-editor.css';
-import './viewer.scss';
 
 interface IMarkdowViewerProps {
-  height?: string | number;
+  height?: number | string;
   value: string;
   flowchartStyle?: boolean;
 }
@@ -69,7 +74,8 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
       events: eventOption,
       initialValue: this.value,
       height: this.height,
-      viewer: true
+      viewer: true,
+      plugins: [fixUrlPlugin as EditorPlugin],
       // plugins: [codeSyntaxHighlight]
     });
   }

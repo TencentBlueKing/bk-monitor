@@ -43,7 +43,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
   @Prop({ type: String, default: 'shared' }) tableType: string;
   @Prop({ type: Array }) tableList: any[];
 
-  @Model('modelChange', { type: Number }) readonly value: Number;
+  @Model('modelChange', { type: Number }) readonly value: number;
 
   isShowTable = true;
 
@@ -51,7 +51,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
     secondaryNumber: window.i18n.tc('副本数'),
     expiration: window.i18n.tc('过期时间'),
     hotData: window.i18n.tc('热冷数据'),
-    logArchive: window.i18n.tc('日志归档')
+    logArchive: window.i18n.tc('日志归档'),
   };
 
   get tableShowType() {
@@ -63,17 +63,16 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
   }
 
   get illustrateLabelData() {
-    // eslint-disable-next-line max-len
     const {
       setup_config: { number_of_replicas_max, retention_days_max },
       enable_archive,
-      enable_hot_warm
+      enable_hot_warm,
     } = this.activeItem;
     return {
       secondaryNumber: `${this.$t('最大{max}个', { max: number_of_replicas_max })}`,
       expiration: `${this.$t('最大{max}天', { max: retention_days_max })}`,
       hotData: enable_hot_warm ? this.$t('支持') : this.$t('不支持'),
-      logArchive: enable_archive ? this.$t('支持') : this.$t('不支持')
+      logArchive: enable_archive ? this.$t('支持') : this.$t('不支持'),
     };
   }
 
@@ -144,40 +143,40 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
               on-row-click={this.handleSelectCluster}
             >
               <bk-table-column
-                label={this.$t('集群名')}
-                min-width='220'
                 scopedSlots={{
                   default: ({ row }) => (
                     <bk-radio checked={this.value === row.storage_cluster_id}>
                       <span>{row.storage_cluster_name}</span>
                     </bk-radio>
-                  )
+                  ),
                 }}
+                label={this.$t('集群名')}
+                min-width='220'
               ></bk-table-column>
               <bk-table-column
+                scopedSlots={{
+                  default: ({ row }) => <span>{this.formatFileSize(row.storage_total)}</span>,
+                }}
                 label={this.$t('总量')}
                 min-width='110'
-                scopedSlots={{
-                  default: ({ row }) => <span>{this.formatFileSize(row.storage_total)}</span>
-                }}
               ></bk-table-column>
               <bk-table-column
-                label={this.$t('空闲率')}
-                min-width='110'
                 scopedSlots={{
                   default: ({ row }) => (
                     <div class='percent'>
                       <div class='percent-progress'>
                         <bk-progress
-                          theme='success'
-                          show-text={false}
                           percent={this.getPercent(row.storage_usage)}
+                          show-text={false}
+                          theme='success'
                         ></bk-progress>
                       </div>
                       <span>{`${this.getPercent(row.storage_usage, 1)}%`}</span>
                     </div>
-                  )
+                  ),
                 }}
+                label={this.$t('空闲率')}
+                min-width='110'
               ></bk-table-column>
               <bk-table-column
                 label={this.$t('索引数')}

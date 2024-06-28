@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { modifyCustomTsGroupingRuleList } from 'monitor-api/modules/custom_report';
 import { Debounce, random } from 'monitor-common/utils/utils';
 
@@ -105,10 +106,10 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
     list: [],
     isSelectAll: false,
     searchList: [],
-    index: 0
+    index: 0,
   };
   verifyData = {
-    tempName: ''
+    tempName: '',
   };
   editIndex = -1;
   popoverInstance = null;
@@ -140,19 +141,19 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
       {
         validator: this.checkGroupName,
         message: window.i18n.t('注意: 名字冲突'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkGroupRepeat,
         message: window.i18n.t('输入中文、英文、数字、下划线类型的字符'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   @Watch('show')
@@ -165,7 +166,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
         key: random(8),
         isEditName: false,
         ruleCount: item.manualList.length,
-        isManualActive: false
+        isManualActive: false,
       }));
       this.metricList.forEach(item => {
         this.metricsMap.set(item.name, item);
@@ -183,8 +184,8 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
       group_list: this.groupList.map(item => ({
         name: item.name,
         manual_list: item.manualList,
-        auto_rules: item.matchRules
-      }))
+        auto_rules: item.matchRules,
+      })),
     };
     this.loading = true;
     const res = await modifyCustomTsGroupingRuleList(params).catch(() => false);
@@ -235,7 +236,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
     this.manualCheck.index = index;
     this.manualCheck.list = this.metricList.map(item => ({
       ...item,
-      checked: manualList.includes(item.name)
+      checked: manualList.includes(item.name),
     }));
     this.manualCheck.searchList = [...this.manualCheck.list];
     const target = (event.target as any).parentElement.children[0];
@@ -250,7 +251,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
       interactive: true,
       onHide: () => {
         this.groupList[this.manualCheck.index].isManualActive = false;
-      }
+      },
     });
     this.popoverInstance?.show?.();
   }
@@ -285,7 +286,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
       key: random(8),
       isEditName: false,
       ruleCount: 0,
-      isManualActive: false
+      isManualActive: false,
     });
   }
   handleClickAddCancel() {
@@ -330,7 +331,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
       if (index !== indexRanges.length - 1) {
         return [
           <span>{content.slice(range[0], range[1])}</span>,
-          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>
+          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>,
         ];
       }
       return <span>{content.slice(range[0], range[1])}</span>;
@@ -366,17 +367,17 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
         matchPreviewList.push({
           type: 'rule',
           name: rule,
-          list: metricList
+          list: metricList,
         });
         allRuleOfmetrics = allRuleOfmetrics.concat(metricList);
       });
       previewList.push({
         type: 'manual',
         name: this.$tc('手动'),
-        list: manualPreviewList
+        list: manualPreviewList,
       });
       previewList.push(...matchPreviewList);
-      // eslint-disable-next-line no-param-reassign
+
       item.ruleCount = [...new Set(allRuleOfmetrics)].length;
       this.allGroupPreviewMap.set(item.name, previewList);
     });
@@ -462,12 +463,12 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
   render() {
     return (
       <bk-dialog
-        extCls={'custom-metric-group-manage-dialog'}
-        value={this.show}
         width={960}
-        mask-close={true}
+        extCls={'custom-metric-group-manage-dialog'}
         header-position='left'
+        mask-close={true}
         title={this.$t('分组管理')}
+        value={this.show}
         on-cancel={() => this.$emit('show', false)}
       >
         <div
@@ -489,29 +490,29 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
               <div class='add-input-wrap'>
                 <bk-input
                   class='add-input'
-                  placeholder={this.$t('输入分组名称')}
                   v-model={this.addName}
+                  placeholder={this.$t('输入分组名称')}
                   onChange={this.handleAddNameChange}
                   onEnter={this.handleClickAddConfirm}
                 ></bk-input>
                 <bk-button
                   class='confirm'
-                  text
                   theme='primary'
+                  text
                   onClick={this.handleClickAddConfirm}
                 >
                   {this.$t('确定')}
                 </bk-button>
                 <bk-button
                   class='cancel'
-                  text
                   theme='primary'
+                  text
                   onClick={this.handleClickAddCancel}
                 >
                   {this.$t('取消')}
                 </bk-button>
               </div>,
-              !!this.addErrMsg ? <div class='add-err-msg'>{this.addErrMsg}</div> : undefined
+              !!this.addErrMsg ? <div class='add-err-msg'>{this.addErrMsg}</div> : undefined,
             ]}
             <div class={['group-list', { 'add-active': this.isAdd }]}>
               {this.groupList.map((item, index) => (
@@ -549,8 +550,8 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                     <span class='match-rule-content'>
                       <MoreList
                         list={item.matchRules}
-                        onChange={value => this.handleMatchRulesChange(index, value)}
                         onActive={this.handleMatchRuleActive as any}
+                        onChange={value => this.handleMatchRulesChange(index, value)}
                       ></MoreList>
                     </span>
                   </span>
@@ -573,38 +574,38 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                   onClick={() => this.handleDeleteGroup(index)}></span> */}
                       <div class='add-input-wrap edit-input-wrap'>
                         <bk-form
-                          labelWidth={0}
-                          style={{ width: '100%' }}
                           ref='checkInputForm'
+                          style={{ width: '100%' }}
+                          labelWidth={0}
                           {...{
                             props: {
                               model: this.verifyData,
-                              rules: this.rules
-                            }
+                              rules: this.rules,
+                            },
                           }}
                         >
                           <bk-form-item property='tempName'>
                             <bk-input
                               class='add-input'
-                              placeholder={this.$t('输入分组名称')}
                               vModel={this.verifyData.tempName}
-                              onFocus={() => (this.editIndex = index)}
+                              placeholder={this.$t('输入分组名称')}
                               onEnter={() => this.handleEditNameChange(index)}
+                              onFocus={() => (this.editIndex = index)}
                             ></bk-input>
                           </bk-form-item>
                         </bk-form>
                         <bk-button
                           class='confirm'
-                          text
                           theme='primary'
+                          text
                           onClick={() => this.handleEditNameChange(index)}
                         >
                           {this.$t('确定')}
                         </bk-button>
                         <bk-button
                           class='cancel'
-                          text
                           theme='primary'
+                          text
                           onClick={() => (item.isEditName = false)}
                         >
                           {this.$t('取消')}
@@ -619,17 +620,17 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
           <div class='content-right'>
             <div class='preview-title'>{this.groupActive ? `${this.groupActive}-${this.$t('预览')}` : ''}</div>
             <div
-              class='preview-list-wrap'
               ref='previewListWrap'
+              class='preview-list-wrap'
             >
               <bk-collapse
-                v-model={this.previewActive}
                 class='preview-collapse'
+                v-model={this.previewActive}
               >
                 {this.previewList.map((item, index) => (
                   <bk-collapse-item
-                    name={item.name}
                     key={item.name}
+                    name={item.name}
                     hide-arrow
                   >
                     <div class={['item-head', `item-head--${index}`]}>
@@ -651,14 +652,14 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                       )}
                     </div>
                     <div
-                      slot='content'
                       class='item-list-wrap'
+                      slot='content'
                     >
                       <ul class='item-list'>
                         {item.list.map((row, rowIndex) => (
                           <li
-                            class='item'
                             key={rowIndex}
+                            class='item'
                           >
                             <span
                               class='item-name'
@@ -666,7 +667,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                                 placements: ['right'],
                                 content: !!row.description ? `${row.name}  (${row.description})` : row.name,
                                 boundary: 'window',
-                                allowHTML: false
+                                allowHTML: false,
                               }}
                             >
                               <span class='name'>{row.name}</span>
@@ -690,8 +691,8 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             style={{ 'margin-right': '8px' }}
+            theme='primary'
             onClick={this.handleSubmit}
           >
             {this.$t('确定')}
@@ -700,15 +701,15 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
         </div>
         <div style='display: none'>
           <div
-            class='custom-metric-group-manage-checkbox-list-dropdown'
             ref='manualDropdown'
+            class='custom-metric-group-manage-checkbox-list-dropdown'
           >
             <div>
               <bk-input
                 v-model={this.manualCheck.search}
-                placeholder={this.$t('输入关键字')}
-                left-icon={'bk-icon icon-search'}
                 behavior={'simplicity'}
+                left-icon={'bk-icon icon-search'}
+                placeholder={this.$t('输入关键字')}
                 onChange={this.handleManualSearch}
               ></bk-input>
             </div>
@@ -723,19 +724,19 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
               </div>
               {this.manualCheck.searchList.map((item, index) => (
                 <div
+                  key={`${item.name}-${index}`}
                   class={['list-item', { auto: this.ruleOfMetrics.has(item.name) }]}
                   v-bk-tooltips={{
                     content: this.$t('由匹配规则{0}生成', [this.ruleOfMetrics.get(item.name)]),
                     placement: 'right',
                     boundary: 'window',
                     disabled: !this.ruleOfMetrics.has(item.name),
-                    allowHTML: false
+                    allowHTML: false,
                   }}
-                  key={`${item.name}-${index}`}
                 >
                   <bk-checkbox
-                    value={item.checked}
                     key={item.name}
+                    value={item.checked}
                     onChange={v => this.handleManualCheck(v, index)}
                   >
                     <span
@@ -744,7 +745,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                         placements: ['right'],
                         content: !!item.description ? `${item.name}  (${item.description})` : item.name,
                         boundary: 'window',
-                        allowHTML: false
+                        allowHTML: false,
                       }}
                     >
                       <span class='title'>{this.highLightContent(this.manualCheck.search, item.name)}</span>

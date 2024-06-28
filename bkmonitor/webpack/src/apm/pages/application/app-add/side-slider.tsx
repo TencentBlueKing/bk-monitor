@@ -63,7 +63,7 @@ export default class SideSlider extends tsc<IEvent> {
   handleWidthChange(val: number) {
     const emitValue: IWidthValue = {
       val,
-      animation: this.enableAnimation
+      animation: this.enableAnimation,
     };
     return emitValue;
   }
@@ -110,8 +110,8 @@ export default class SideSlider extends tsc<IEvent> {
   render() {
     return (
       <div
-        class={['side-slider-wrap', { animation: this.enableAnimation }]}
         style={{ width: `${this.width}px` }}
+        class={['side-slider-wrap', { animation: this.enableAnimation }]}
       >
         <span
           class='slider-drag-btn'

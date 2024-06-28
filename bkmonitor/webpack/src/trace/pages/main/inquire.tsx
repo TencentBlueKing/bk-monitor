@@ -1,3 +1,4 @@
+/* eslint-disable vue/multi-word-component-names */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -33,10 +34,11 @@ import {
   provide,
   reactive,
   ref,
-  shallowRef
+  shallowRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
 import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
@@ -50,7 +52,7 @@ import {
   listTrace,
   spanDetail,
   traceDetail,
-  traceOptions
+  traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
 import { debounce, deepClone, random } from 'monitor-common/utils/utils';
@@ -63,14 +65,14 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '.
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { type Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
   TIMEZONE_KEY,
-  VIEWOPTIONS_KEY
+  VIEWOPTIONS_KEY,
 } from '../../plugins/hooks';
 import { IViewOptions } from '../../plugins/typings';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
@@ -83,15 +85,14 @@ import {
   ISearchSelectItem,
   ISearchSelectValue,
   ITraceData,
-  SearchType
+  SearchType,
 } from '../../typings';
 import { monitorDrag } from '../../utils/drag-directive';
-
 import DurationFilter from './duration-filter/duration-filter';
 import HandleBtn from './handle-btn/handle-btn';
+import InquireContent from './inquire-content';
 import SearchHeader from './search-header/search-header';
 import SearchLeft, { formItem } from './search-left/search-left';
-import InquireContent from './inquire-content';
 
 import './inquire.scss';
 
@@ -109,7 +110,6 @@ interface IState {
 /** 头部工具栏高度 */
 const HEADER_HEIGHT = 48;
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Inquire',
   directives: { monitorDrag },
   setup(props, { expose }) {
@@ -132,7 +132,7 @@ export default defineComponent({
       isAlreadyAccurateQuery: false,
       isAlreadyScopeQuery: false,
       /** 最近一次检索的应用 */
-      cacheQueryAppName: localStorage.getItem('trace_query_app') || ''
+      cacheQueryAppName: localStorage.getItem('trace_query_app') || '',
     });
     // 自定义筛选列表
     const conditionFilter = [];
@@ -146,11 +146,10 @@ export default defineComponent({
       const listData = await listApplicationInfo().catch(() => []);
       appList.value = listData;
       isEmptyApp.value = !listData.length;
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       setTimeout(async () => {
         // 初始赋值自定义回显内容 组件需做优化处理 暂时使用 setTimeout 定时器
         if (appList.value.length && state.app === '') {
-          // eslint-disable-next-line max-len
           if (
             state.cacheQueryAppName &&
             appList.value.find(
@@ -169,7 +168,7 @@ export default defineComponent({
     };
     getAppList();
     const timeRange = ref<TimeRangeType>(DEFAULT_TIME_RANGE);
-    const timezone = ref<string>(getDefautTimezone());
+    const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
     const curTimestamp = ref<number[]>(handleTransformToTimestamp(timeRange.value));
@@ -183,7 +182,7 @@ export default defineComponent({
       { label: t('字段名模糊匹配:'), value: ['vers\\*on:(quick brown)'] },
       { label: t('通配符匹配:'), value: ['qu?ck bro*'] },
       { label: t('正则匹配:'), value: ['name:/joh?n(ath[oa]n/'] },
-      { label: t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] }
+      { label: t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] },
     ];
     const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
 
@@ -205,7 +204,7 @@ export default defineComponent({
     /* trace_list 分页 */
     const traceListPagination = reactive({
       offset: 0,
-      limit: 30
+      limit: 30,
     });
     /* trace_list 下拉加载loading */
     const traceListTabelLoading = ref(false);
@@ -221,12 +220,12 @@ export default defineComponent({
       show: false,
       loading: false,
       name: '',
-      id: 0
+      id: 0,
     });
     const isEmptyApp = ref<boolean>(false);
     const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
-    const durantionRange = ref<number[] | null>(null);
+    const durantionRange = ref<null | number[]>(null);
     const traceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
     const serviceListCanLoadMore = ref<boolean>(false);
@@ -253,7 +252,7 @@ export default defineComponent({
           if (selectedType.length || selectedInterfaceType.length)
             store.setServiceStatisticsType({
               contain: selectedType,
-              interfaceType: selectedInterfaceType
+              interfaceType: selectedInterfaceType,
             });
           break;
       }
@@ -306,31 +305,6 @@ export default defineComponent({
         scopeSelects.value[item.id] = { ...item, key: random(8), value: [] };
       });
     };
-    /** 获取范围查询条件候选值 */
-    const getQueryOptionsValues = async (queryOptionValue: any) => {
-      setTimeout(() => {
-        /** 重新获取候选值时 需要清空原来所选项 */
-        Object.keys(scopeSelects.value).forEach(key => {
-          // queryOptionValue 路由带条件查询
-          if (queryOptionValue?.[key]) {
-            if (key === 'service') {
-              scopeSelects.value[key].value = queryOptionValue[key];
-            } else {
-              const curOptions = searchSelectData.value.find(item => item.id === key);
-              if (curOptions) {
-                searchSelectValue.value.push({
-                  id: key,
-                  name: curOptions.name,
-                  values: curOptions.children.filter(val => queryOptionValue[key].includes(val.id))
-                });
-              }
-            }
-          } else {
-            scopeSelects.value[key].value = [];
-          }
-        });
-      }, 100);
-    };
     /** 切换ID精确查询类型 */
     const handleChangeSearchIdType = () => {
       traceIDSearchValue.value = '';
@@ -347,8 +321,8 @@ export default defineComponent({
           app_name: state.app,
           search_type: state.searchType,
           search_id: searchIdType.value,
-          trace_id: traceIDSearchValue.value
-        }
+          trace_id: traceIDSearchValue.value,
+        },
       });
       store.setPageLoaidng(true);
       /** 记录当前搜索的应用 */
@@ -359,7 +333,7 @@ export default defineComponent({
       const params = {
         bk_biz_id: window.bk_biz_id,
         app_name: state.app,
-        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value
+        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
       };
       const resultData = await requestFn(params).catch(() => null);
       searchResultIdType.value = searchIdType.value;
@@ -390,7 +364,7 @@ export default defineComponent({
       type IFilterItem = {
         key: string;
         value: Array<any>;
-        operator: 'equal' | 'between' | 'not_equal' | 'logic';
+        operator: 'between' | 'equal' | 'logic' | 'not_equal';
       };
       const filters: IFilterItem[] = [];
 
@@ -401,7 +375,7 @@ export default defineComponent({
         filters.push({
           key: isOriginStatusCodeFilter ? 'status_code' : key,
           operator: isOriginStatusCodeFilter ? 'logic' : 'equal',
-          value: traceColumnFilters.value?.[key]
+          value: traceColumnFilters.value?.[key],
         });
       });
       // 收集 耗时 区间信息
@@ -409,7 +383,7 @@ export default defineComponent({
         filters.push({
           key: 'duration',
           value: durantionRange?.value,
-          operator: 'between'
+          operator: 'between',
         });
       }
       // 收集 侧边栏：服务
@@ -418,7 +392,7 @@ export default defineComponent({
           filters.push({
             key: scopeSelects.value[key].trace_key,
             value: scopeSelects.value[key].value,
-            operator: 'equal'
+            operator: 'equal',
           });
         }
       });
@@ -429,7 +403,7 @@ export default defineComponent({
           filters.push({
             key: scopeSelects.value[item.id].trace_key,
             value: item.values.map(value => value.id),
-            operator: 'equal'
+            operator: 'equal',
           });
         }
       });
@@ -444,8 +418,8 @@ export default defineComponent({
           error: {
             key: 'error',
             operator: 'logic',
-            value: []
-          }
+            value: [],
+          },
         };
         store.traceType.forEach(item => filters.push(filterTypeMapping[item]));
       }
@@ -455,7 +429,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'parent_span_id', operator: 'equal', value: [''] },
           entry_span: { key: 'kind', operator: 'equal', value: ['2', '5'] },
-          error: { key: 'status.code', operator: 'equal', value: ['2'] }
+          error: { key: 'status.code', operator: 'equal', value: ['2'] },
         };
         const result = store.spanType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -465,7 +439,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'root_span', operator: 'logic', value: [] },
           root_service_span: { key: 'root_service_span', operator: 'logic', value: [] },
-          'status.code': { key: 'status.code', operator: 'equal', value: ['2'] }
+          'status.code': { key: 'status.code', operator: 'equal', value: ['2'] },
         };
         const result = store.interfaceStatisticsType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -480,28 +454,28 @@ export default defineComponent({
           error: {
             key: 'status.code',
             operator: 'equal',
-            value: ['2']
+            value: ['2'],
           },
           sync: {
             key: 'kind',
             operator: 'equal',
-            value: ['2', '3']
+            value: ['2', '3'],
           },
           async: {
             key: 'kind',
             operator: 'equal',
-            value: ['4', '5']
+            value: ['4', '5'],
           },
           internal: {
             key: 'kind',
             operator: 'equal',
-            value: ['1']
+            value: ['1'],
           },
           unknown: {
             key: 'kind',
             operator: 'equal',
-            value: ['0']
-          }
+            value: ['0'],
+          },
         };
         store.serviceStatisticsType.contain.forEach(item => filters.push(filterTypeMapping[item]));
         store.serviceStatisticsType.interfaceType.forEach(item => filters.push(filterTypeMapping[item]));
@@ -525,7 +499,7 @@ export default defineComponent({
         // sort: traceSortKey.value,
         sort: sortList,
         // 去掉，统一合并到 filter 上。
-        duration: durantionRange?.value ?? undefined
+        duration: durantionRange?.value ?? undefined,
         // 合并到 filters
         // trace_filter: traceColumnFilters?.value
       };
@@ -648,9 +622,9 @@ export default defineComponent({
         app_name: params.app_name,
         search_type: state.searchType,
         search_id: searchIdType.value,
-        start_tiem: timeRange.value[0],
-        end_tiem: timeRange.value[1],
-        refleshInterval: refleshInterval.value
+        start_time: timeRange.value[0],
+        end_time: timeRange.value[1],
+        refleshInterval: refleshInterval.value,
       };
 
       Object.keys(scopeSelects.value).forEach(key => {
@@ -685,7 +659,7 @@ export default defineComponent({
             filterConditionList[item.labelValue] = {
               selectedCondition: item.selectedCondition,
               isInclude: item.isInclude,
-              selectedConditionValue: item.selectedConditionValue
+              selectedConditionValue: item.selectedConditionValue,
             };
           }
         });
@@ -718,7 +692,7 @@ export default defineComponent({
 
       router.replace({
         name: route.name || 'home',
-        query
+        query,
       });
     };
     const handleQueryScopeDebounce = debounce(handleQueryScope, 300, false);
@@ -755,11 +729,11 @@ export default defineComponent({
       }
     }
     /* 收藏  */
-    // eslint-disable-next-line max-len
+
     async function handleAddCollect({
       value,
       hideCallback,
-      favLoadingCallBack
+      favLoadingCallBack,
     }: {
       value: string;
       hideCallback: () => void;
@@ -779,9 +753,9 @@ export default defineComponent({
           componentData: {
             scopeSelects: scopeSelects.value,
             queryString: queryString.value,
-            app: state.app
-          }
-        }
+            app: state.app,
+          },
+        },
       };
       favLoadingCallBack(true);
       await createQueryHistory(params)
@@ -822,7 +796,7 @@ export default defineComponent({
             historySearchSelectValue.push({
               id: key,
               name: curOptions.name,
-              values: optionValue
+              values: optionValue,
             });
           }
         }
@@ -836,7 +810,7 @@ export default defineComponent({
     /* 收藏列表 */
     async function getCollectList() {
       collectList.value = await listQueryHistory({
-        type: 'trace'
+        type: 'trace',
       }).catch(() => []);
     }
     /* 点击查询 */
@@ -873,7 +847,6 @@ export default defineComponent({
       durantionRange.value = null;
       // 清空条件列表
       conditionList.forEach(item => {
-        // eslint-disable-next-line no-param-reassign
         item.selectedConditionValue.length = 0;
       });
       handleScopeQueryChange();
@@ -933,16 +906,12 @@ export default defineComponent({
     /* 时间切换 */
     function handleTimeRangeChange(value: TimeRangeType) {
       timeRange.value = value;
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
     function handleTimezoneChange(v: string) {
       timezone.value = v;
       window.timezone = v;
       updateTimezone(v);
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
 
@@ -955,14 +924,13 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields
+        fields,
       };
       if (!fields.length) return;
       // 在查询前，把 候选项 和 选中项 先清空
       conditionList.forEach((item: any) => {
-        // eslint-disable-next-line no-param-reassign
         item.conditionValueList.length = 0;
-        // eslint-disable-next-line no-param-reassign
+
         item.selectedConditionValue.length = 0;
       });
       const result = await getFieldOptionValues(params)
@@ -970,7 +938,6 @@ export default defineComponent({
         .finally(() => (isAddConditionButtonLoading.value = false));
       // 请求成功后，将 候选项 补上。
       conditionList.forEach((item: any) => {
-        // eslint-disable-next-line no-param-reassign
         item.conditionValueList = result[item.labelValue];
       });
     }
@@ -1040,16 +1007,16 @@ export default defineComponent({
         const {
           app_name: appName,
           refleshInterval: interval,
-          start_tiem: startTiem,
-          end_tiem: endTiem,
+          start_time: startTime,
+          end_time: endTime,
           query: keyword,
           duration,
           listType,
-          conditionList: conditionListStringify
+          conditionList: conditionListStringify,
         } = route.query;
         state.app = appName as string;
-        if (startTiem && endTiem) {
-          timeRange.value = [startTiem, endTiem] as [string, string];
+        if (startTime && endTime) {
+          timeRange.value = [startTime, endTime] as [string, string];
           curTimestamp.value = handleTransformToTimestamp(timeRange.value);
         }
         if (interval) {
@@ -1075,7 +1042,7 @@ export default defineComponent({
               conditionFilter.push({
                 key,
                 operator: result[key].selectedCondition.value,
-                value: result[key].selectedConditionValue
+                value: result[key].selectedConditionValue,
               });
             }
           });
@@ -1140,8 +1107,8 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <a
             class='link'
-            target='_blank'
             href='/'
+            target='_blank'
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link'></i>
@@ -1174,14 +1141,14 @@ export default defineComponent({
           (
             <VerifyInput>
               <Input
-                type='search'
-                clearable
-                show-clear-only-hover
                 ref={traceIdInput}
                 v-model={traceIDSearchValue.value}
                 placeholder={t('输入 ID 可精准查询')}
-                onEnter={handleQueryTraceId}
+                type='search'
+                clearable
+                show-clear-only-hover
                 onBlur={handleQueryIDInputBlur}
+                onEnter={handleQueryTraceId}
               />
             </VerifyInput>
           ) as any
@@ -1190,9 +1157,9 @@ export default defineComponent({
           accurateQuery={true}
           autoQuery={state.autoQuery}
           canQuery={true}
-          onQuery={handleQueryTraceId}
-          onClear={() => (traceIDSearchValue.value = '')}
           onChangeAutoQuery={handleAutoQueryChange}
+          onClear={() => (traceIDSearchValue.value = '')}
+          onQuery={handleQueryTraceId}
         />
       </div>
     );
@@ -1223,7 +1190,7 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields: [LAST_ELEMENT]
+        fields: [LAST_ELEMENT],
       };
       conditionList[index].conditionValueList.length = 0;
       isAddConditionButtonLoading.value = true;
@@ -1269,7 +1236,7 @@ export default defineComponent({
     const standardFieldList = ref([]);
     const getStandardFields = async () => {
       const result = await listStandardFilterFields().catch(() => {});
-      // eslint-disable-next-line no-param-reassign
+
       result.map(item => (item.disabled = false));
       standardFieldList.value = result;
       setDefaultConditionList();
@@ -1312,7 +1279,6 @@ export default defineComponent({
     // 递归遍历置灰
     const traverseIds = (obj: any, targetID: string, disableType: boolean) => {
       if (obj.id === targetID) {
-        // eslint-disable-next-line no-param-reassign
         obj.disabled = disableType;
       }
       if (obj.children) {
@@ -1338,7 +1304,7 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields: selectedConditions.value
+        fields: selectedConditions.value,
       };
       // 没有选择或配置正确的筛选项就不应该发生请求。
       if (params.fields.length === 0) return;
@@ -1353,7 +1319,7 @@ export default defineComponent({
         const singleCondition = {
           selectedCondition: {
             label: '=',
-            value: 'equal'
+            value: 'equal',
           },
           isInclude: true,
           labelValue: key,
@@ -1362,23 +1328,23 @@ export default defineComponent({
           conditionList: [
             {
               label: '=',
-              value: 'equal'
+              value: 'equal',
             },
             {
               label: '!=',
-              value: 'not_equal'
+              value: 'not_equal',
             },
             {
               label: 'exists',
-              value: 'exists'
+              value: 'exists',
             },
             {
               label: 'not exists',
-              value: 'not exists'
-            }
+              value: 'not exists',
+            },
           ],
           selectedConditionValue: [],
-          conditionValueList: result[key]
+          conditionValueList: result[key],
         };
         if (conditionListInQuery[key]) Object.assign(singleCondition, conditionListInQuery[key]);
         conditionList.push(singleCondition);
@@ -1410,7 +1376,7 @@ export default defineComponent({
     };
 
     // 上次请求的所带上的 条件 ，用作对比前后的条件是否都相等，如相等就不应该再发起请求。
-    let lastCollectConditionFilter: null | any[] = null;
+    let lastCollectConditionFilter: any[] | null = null;
     // 重新收集左侧条件列表
     const collectConditionFilter = () => {
       // 先保存一份旧的条件列表。
@@ -1424,7 +1390,7 @@ export default defineComponent({
           conditionFilter.push({
             key: item.labelValue,
             operator: item.selectedCondition?.value,
-            value: item.selectedConditionValue
+            value: item.selectedConditionValue,
           });
         }
       });
@@ -1456,12 +1422,12 @@ export default defineComponent({
               <span>{t('查询语句')}</span>
               <Popover
                 width='256'
+                v-slots={{
+                  content: () => tipsContentTpl(),
+                }}
+                placement='bottom-start'
                 theme='light'
                 trigger='click'
-                placement='bottom-start'
-                v-slots={{
-                  content: () => tipsContentTpl()
-                }}
               >
                 <span class='icon-monitor icon-mc-help-fill'></span>
               </Popover>
@@ -1471,9 +1437,9 @@ export default defineComponent({
             <VerifyInput>
               <Input
                 v-model={queryString.value}
-                type='textarea'
-                rows={3}
                 placeholder={t('输入')}
+                rows={3}
+                type='textarea'
                 onBlur={handleScopeQueryChange}
               />
             </VerifyInput>
@@ -1496,55 +1462,55 @@ export default defineComponent({
         {/* 这里插入 condition 组件 */}
         {conditionList.map((item, index) => (
           <Condition
-            isInclude={item.isInclude}
-            labelValue={item.labelValue}
-            labelList={item.labelList}
-            selectedCondition={item.selectedCondition}
-            conditionType={item.conditionType}
+            style='margin-bottom: 16px;'
             conditionList={item.conditionList}
+            conditionType={item.conditionType}
             conditionValueList={item.conditionValueList}
             durantionRange={item.durantionRange}
+            isInclude={item.isInclude}
+            labelList={item.labelList}
+            labelValue={item.labelValue}
+            selectedCondition={item.selectedCondition}
             selectedConditionValue={item.selectedConditionValue}
-            onItemConditionChange={v => handleItemConditionChange(index, v)}
-            onDelete={id => handleConditionDelete(index, id)}
-            onIncludeChange={() => handleIncludeChange(index)}
             onConditionChange={v => handleConditionChange(index, v)}
-            onConditionValueClear={() => handleConditionValueClear(index)}
-            onDurationRangeChange={v => handleDurationRangeChange(index, v)}
             onConditionValueChange={v => handleConditionValueChange(index, v)}
+            onConditionValueClear={() => handleConditionValueClear(index)}
+            onDelete={id => handleConditionDelete(index, id)}
+            onDurationRangeChange={v => handleDurationRangeChange(index, v)}
+            onIncludeChange={() => handleIncludeChange(index)}
+            onItemConditionChange={v => handleItemConditionChange(index, v)}
             onSelectComplete={() => handleSelectComplete(true)}
-            style='margin-bottom: 16px;'
           />
         ))}
         {/* 这里是 添加条件 按钮 */}
         <div class='inquire-cascader-container'>
           <Button
             class='add-condition'
-            theme='primary'
             loading={isAddConditionButtonLoading.value}
+            theme='primary'
           >
             <i
-              class='icon-monitor icon-plus-line'
               style='margin-right: 6px;'
+              class='icon-monitor icon-plus-line'
             ></i>
             <span>{t('添加条件')}</span>
           </Button>
 
           <Cascader
-            v-model={cascaderSelectedValue.value}
-            list={standardFieldList.value}
-            disabled={isAddConditionButtonLoading.value}
-            onChange={handleCascaderChange}
             class='inquire-cascader'
+            v-model={cascaderSelectedValue.value}
+            disabled={isAddConditionButtonLoading.value}
+            list={standardFieldList.value}
+            onChange={handleCascaderChange}
           ></Cascader>
         </div>
         <HandleBtn
           autoQuery={state.autoQuery}
           canQuery={true}
           onAdd={handleAddCollect}
-          onQuery={handleClickQuery}
-          onClear={handleClearQuery}
           onChangeAutoQuery={handleAutoQueryChange}
+          onClear={handleClearQuery}
+          onQuery={handleClickQuery}
         />
       </div>
     );
@@ -1561,7 +1527,7 @@ export default defineComponent({
             autoHidden: true,
             isShow: state.showLeft,
             onHidden: () => handleLeftHiddenAndShow(false),
-            onWidthChange: (width: number) => (state.leftWidth = width)
+            onWidthChange: (width: number) => (state.leftWidth = width),
           }}
         >
           <div class={['inquire-left-main', { 'scope-inquire': state.searchType === 'scope' }]}>
@@ -1579,97 +1545,97 @@ export default defineComponent({
               <SearchLeft
                 v-models={[
                   [state.app, 'app'],
-                  [state.searchType, 'searchType']
+                  [state.searchType, 'searchType'],
                 ]}
-                onAppChange={handleAppSelectChange}
-                onSearchTypeChange={handleSearchTypeChange}
+                v-slots={{
+                  query: () => (state.searchType === 'accurate' ? accurateQueryShow() : scopeQueryShow()),
+                }}
                 appList={appList.value}
                 showBottom={state.searchType === 'scope'}
-                v-slots={{
-                  query: () => (state.searchType === 'accurate' ? accurateQueryShow() : scopeQueryShow())
-                }}
                 onAddCondition={handleAddCondition}
+                onAppChange={handleAppSelectChange}
+                onSearchTypeChange={handleSearchTypeChange}
               />
             </div>
           </div>
         </div>
         <div
-          class='inquire-right'
           style={{ flex: 1, width: `calc(100% - ${state.leftWidth}px)` }}
+          class='inquire-right'
         >
           <Loading
-            loading={isLoading.value}
             class='inquire-page-loading'
+            loading={isLoading.value}
           >
             {/* 头部工具栏 */}
             <SearchHeader
               style={{ height: `${HEADER_HEIGHT}px` }}
               class='inquire-right-header'
-              favoritesList={collectList.value}
-              checkedValue={collectCheckValue.value}
-              menuList={headerToolMenuList}
               v-models={[
                 [state.showLeft, 'showLeft'],
                 [refleshInterval.value, 'refleshInterval'],
                 [timeRange.value, 'timeRange'],
-                [timezone.value, 'timezone']
+                [timezone.value, 'timezone'],
               ]}
+              checkedValue={collectCheckValue.value}
+              favoritesList={collectList.value}
+              menuList={headerToolMenuList}
               onDeleteCollect={handleDeleteCollect}
+              onImmediateReflesh={handleImmediateReflesh}
+              onMenuSelectChange={handleMenuSelectChange}
+              onRefleshIntervalChange={handleRefleshIntervalChange}
               onSelectCollect={handleSelectCollect}
               onTimeRangeChange={handleTimeRangeChange}
               onTimezoneChange={handleTimezoneChange}
-              onRefleshIntervalChange={handleRefleshIntervalChange}
-              onImmediateReflesh={handleImmediateReflesh}
-              onMenuSelectChange={handleMenuSelectChange}
             ></SearchHeader>
             <div
               style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
               class='inquire-right-main'
             >
               <InquireContent
-                appName={state.app}
                 appList={appList.value}
-                queryType={state.searchType}
-                searchIdType={searchResultIdType.value}
-                spanDetails={spanDetails.value}
+                appName={state.app}
                 emptyApp={isEmptyApp.value}
                 isAlreadyAccurateQuery={state.isAlreadyAccurateQuery}
                 isAlreadyScopeQuery={state.isAlreadyScopeQuery}
+                queryType={state.searchType}
+                searchIdType={searchResultIdType.value}
+                spanDetails={spanDetails.value}
                 traceListTabelLoading={traceListTabelLoading.value}
                 onChangeQuery={val => handleChangeQuery(val)}
-                onTraceListScrollBottom={handleTraceListScrollBottom}
-                onTraceListStatusChange={handleTraceListStatusChange}
-                onTraceListSortChange={handleTraceListSortChange}
-                onTraceListColumuFilter={handleTraceListColumuFilter}
-                onListTypeChange={handleListTypeChange}
-                onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
-                onTraceTypeChange={handleTraceTypeChange}
-                onSpanTypeChange={handleSpanTypeChange}
                 onInterfaceStatisticsChange={handleInterfaceStatisticsChange}
+                onListTypeChange={handleListTypeChange}
                 onServiceStatisticsChange={handleServiceStatisticsChange}
+                onSpanTypeChange={handleSpanTypeChange}
+                onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
+                onTraceListColumuFilter={handleTraceListColumuFilter}
+                onTraceListScrollBottom={handleTraceListScrollBottom}
+                onTraceListSortChange={handleTraceListSortChange}
+                onTraceListStatusChange={handleTraceListStatusChange}
+                onTraceTypeChange={handleTraceTypeChange}
               />
             </div>
           </Loading>
         </div>
         <Dialog
-          isShow={collectDialog.show}
-          title={''}
           height={300}
-          footerAlign={'center'}
-          isLoading={collectDialog.loading}
-          onConfirm={() => deleteCollect()}
-          onClosed={() => {
-            collectDialog.show = false;
-          }}
           v-slots={{
             default: () => (
               <DeleteDialogContent
-                title={t('确认删除该收藏？')}
-                subtitle={t('收藏名')}
                 name={collectDialog.name}
+                subtitle={t('收藏名')}
+                title={t('确认删除该收藏？')}
               ></DeleteDialogContent>
-            )
+            ),
           }}
+          footerAlign={'center'}
+          isLoading={collectDialog.loading}
+          isShow={collectDialog.show}
+          title={''}
+          onClosed={() => {
+            collectDialog.show = false;
+          }}
+          onConfirm={() => deleteCollect()}
         ></Dialog>
       </div>
     );
@@ -1678,10 +1644,10 @@ export default defineComponent({
       renderFn,
       selectedConditions,
       standardFieldList,
-      conditionList
+      conditionList,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

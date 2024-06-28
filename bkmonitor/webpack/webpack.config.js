@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const wepack = require('webpack');
+const webpack = require('webpack');
 const path = require('path');
 const fs = require('fs');
 const { transformAppDir, transformDistDir } = require('./webpack/utils');
@@ -32,15 +32,12 @@ const MonitorWebpackPlugin = require('./webpack/monitor-webpack-plugin');
 
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const devHost = 'appdev.bktencent.com';
-const loginHost = 'https://paas-dev.bktencent.com';
 const devPort = 7001;
 let devConfig = {
   port: devPort,
   host: devHost,
   devProxyUrl,
-  loginHost,
   proxy: {},
-  cache: null
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
@@ -53,62 +50,61 @@ module.exports = async (baseConfig, { production, app }) => {
     // 自动配port
     const port = await require('portfinder').getPortPromise({
       port: devConfig.port,
-      stopPort: 8888
+      stopPort: 8888,
     });
     config.devServer = {
       port,
       host: devConfig.host,
-      allowedHosts: "all",
-      proxy: [{
-        ...devConfig.proxy,
-        proxyTimeout: 5 * 60 * 1000,
-        timeout: 5 * 60 * 1000
-      }],
+      allowedHosts: 'all',
+      proxy: [
+        {
+          ...devConfig.proxy,
+          proxyTimeout: 5 * 60 * 1000,
+          timeout: 5 * 60 * 1000,
+        },
+      ],
       client: {
-        overlay: false
+        overlay: false,
       },
       open: false,
       static: [],
-      watchFiles: []
+      watchFiles: [],
     };
     config.plugins.push(
-      new wepack.DefinePlugin({
+      new webpack.DefinePlugin({
         process: {
           env: {
             NODE_ENV: JSON.stringify('development'),
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
             devUrl: JSON.stringify(`${devConfig.host}:${port}`),
             devHost: JSON.stringify(`${devConfig.host}`),
-            loginHost: JSON.stringify(devConfig.loginHost),
-            loginUrl: JSON.stringify(`${devConfig.loginHost}`),
             defaultBizId: JSON.stringify(`${devConfig.defaultBizId || 2}`),
-            APP: JSON.stringify(`${app}`)
-          }
-        }
+            APP: JSON.stringify(`${app}`),
+          },
+        },
       })
     );
   } else if (app !== 'email') {
     config.plugins.push(
-      new wepack.DefinePlugin({
+      new webpack.DefinePlugin({
         process: {
           env: {
             NODE_ENV: JSON.stringify('production'),
-            APP: JSON.stringify(`${app}`)
-          }
-        }
+            APP: JSON.stringify(`${app}`),
+          },
+        },
       })
     );
     config.plugins.push(new MonitorWebpackPlugin(app));
   }
   const appDirName = transformAppDir(app);
   const appDir = `./src/${appDirName}/`;
-  // pulic
   config.plugins.push(
     new CopyPlugin({
       patterns: [
         { from: path.resolve(`./public/${app}/`), to: distUrl },
-        { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') }
-      ].filter(Boolean)
+        { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') },
+      ].filter(Boolean),
     })
   );
   return {
@@ -117,11 +113,11 @@ module.exports = async (baseConfig, { production, app }) => {
       publicPath: '',
       ...config.output,
       path: distUrl,
-      uniqueName: app
+      uniqueName: app,
     },
     entry: {
       ...config.entry,
-      main: `./src/${appDirName}/index.ts`
+      main: `./src/${appDirName}/index.ts`,
     },
     resolve: {
       ...config.resolve,
@@ -136,10 +132,10 @@ module.exports = async (baseConfig, { production, app }) => {
         '@common': path.resolve('./src/monitor-common/'),
         ...(['apm', 'fta', 'pc'].includes(app)
           ? {
-              vue$: 'vue/dist/vue.runtime.common.js'
+              vue$: 'vue/dist/vue.runtime.common.js',
             }
-          : {})
-      }
-    }
+          : {}),
+      },
+    },
   };
 };

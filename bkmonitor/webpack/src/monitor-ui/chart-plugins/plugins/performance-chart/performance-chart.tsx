@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -36,7 +37,8 @@ import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
 import { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
-import { reviewInterval } from '../../utils';
+import { padTextToWidth, reviewInterval } from '../../utils';
+import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
@@ -74,11 +76,11 @@ export default class PerformanceChart extends TimeSeries {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {
-          bk_biz_id: this.bkBizId
+          bk_biz_id: this.bkBizId,
         });
       }
       const promiseList = [];
@@ -90,7 +92,7 @@ export default class PerformanceChart extends TimeSeries {
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       timeShiftList.forEach(time_shift => {
         const list = this.panel.targets.map(item => {
@@ -101,19 +103,19 @@ export default class PerformanceChart extends TimeSeries {
               ...this.viewOptions,
               ...this.viewOptions.variables,
               time_shift,
-              interval
+              interval,
             }),
             ...params,
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
               item.apiFunc
-            )
+            ),
           };
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
-              cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
-              needMessage: false
+              cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+              needMessage: false,
             })
             .then(res => {
               this.$emit('seriesData', res);
@@ -124,7 +126,7 @@ export default class PerformanceChart extends TimeSeries {
                   metric_id: res.metrics?.[0]?.metric_id,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
-                  }`
+                  }`,
                 }))
               );
               this.clearErrorMsg();
@@ -138,6 +140,7 @@ export default class PerformanceChart extends TimeSeries {
       });
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
+        const maxXInterval = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         const emitDimensions = () => {
           const dimensionSet = new Set();
@@ -156,15 +159,17 @@ export default class PerformanceChart extends TimeSeries {
           // 主机ai异常指标检查
           anomalyRange = await this.$api.aiops
             .hostIntelligenAnomalyRange({
+              ...(this.bkBizId ? { bk_biz_id: this.bkBizId } : {}),
               start_time: params.start_time,
               end_time: params.end_time,
-              interval: this.viewOptions.interval,
+              interval: isNaN(+this.viewOptions.interval) ? this.viewOptions.interval : this.viewOptions.interval + 's', // 默认 interval 单位 s
               metric_ids: metrics?.map(item => item.metric_id),
+              strategy_id: this.viewOptions?.strategy_id || undefined,
               host: [
                 {
-                  ...this.viewOptions.current_target
-                }
-              ]
+                  ...this.viewOptions.current_target,
+                },
+              ],
             })
             .catch(() => ({}));
         }
@@ -172,7 +177,11 @@ export default class PerformanceChart extends TimeSeries {
         let seriesList = this.handleTransformSeries(
           series.map((item, index) => {
             if (anomalyRange?.[item.metric_id]?.length) {
-              item.markTimeRange = anomalyRange[item.metric_id];
+              if (item.markTimeRange?.length && this.needAllAlertMarkArea) {
+                item.markTimeRange.push(...(anomalyRange[item.metric_id] || []));
+              } else {
+                item.markTimeRange = anomalyRange[item.metric_id];
+              }
             }
             return {
               name: item.name,
@@ -183,7 +192,7 @@ export default class PerformanceChart extends TimeSeries {
               markPoint: this.createMarkPointData(item, series),
               markLine: this.createMarkLine(index),
               markArea: this.createMarkArea(item, index),
-              z: 2
+              z: 2,
             };
           }) as any
         );
@@ -200,9 +209,9 @@ export default class PerformanceChart extends TimeSeries {
               }
               return {
                 ...set,
-                value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null]
+                value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
               };
-            })
+            }),
           };
         });
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
@@ -222,8 +231,8 @@ export default class PerformanceChart extends TimeSeries {
                     borderWidth: set.symbolSize > 6 ? 6 : 1,
                     enabled: true,
                     shadowBlur: 0,
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 };
               }
               return set;
@@ -232,14 +241,15 @@ export default class PerformanceChart extends TimeSeries {
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
-        // eslint-disable-next-line max-len
+
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
-        // eslint-disable-next-line max-len
+
         const echartOptions: MonitorEchartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
+        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -249,29 +259,34 @@ export default class PerformanceChart extends TimeSeries {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
+                      let value = v;
                       if (seriesList[0].unit !== 'none') {
                         const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                        value = obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
-                      return v;
+                      return padTextToWidth(value, this.YAxisLabelWidth);
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase)
+                  : (v: number) =>
+                      padTextToWidth(this.handleYxisLabelFormatter(v - this.minBase), this.YAxisLabelWidth),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
               min: v => Math.min(v.min, +minThreshold),
-              z: 1
+              z: 1,
             },
             xAxis: {
               axisLabel: {
-                formatter: formatterFunc || '{value}'
+                formatter: formatterFunc || '{value}',
               },
-              splitNumber: Math.ceil(this.width / 80),
-              min: 'dataMin'
+              ...xInterval,
             },
-            series: seriesList
+            series: seriesList,
+            customData: {
+              // customData 自定义的一些配置 用户后面echarts实例化后的配置
+              maxXInterval,
+            },
           })
         );
         this.metrics = metrics || [];
@@ -364,38 +379,39 @@ export default class PerformanceChart extends TimeSeries {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={this.showHeaderMoreTool}
-            inited={this.inited}
-            menuList={this.menuList}
-            drillDownOption={this.drillDownOptions}
-            showAddMetric={this.showAddMetric}
             draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
+            drillDownOption={this.drillDownOptions}
+            inited={this.inited}
             isInstant={this.panel.instant}
+            menuList={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            showMore={this.showHeaderMoreTool}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
-            onMenuClick={this.handleMenuToolsSelect}
-            onSelectChild={this.handleSelectChildMenu}
-            onMetricClick={this.handleMetricClick}
             onAllMetricClick={this.handleAllMetricClick}
+            onMenuClick={this.handleMenuToolsSelect}
+            onMetricClick={this.handleMetricClick}
+            onSelectChild={this.handleSelectChildMenu}
+            onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
               ref='chart'
+              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
-                  showRestore={this.showRestore}
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
+                  options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
@@ -406,13 +422,13 @@ export default class PerformanceChart extends TimeSeries {
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 {legend?.displayMode === 'table' ? (
                   <TableLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 ) : (
                   <ListLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 )}
               </div>

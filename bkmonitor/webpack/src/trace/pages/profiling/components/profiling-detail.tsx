@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Form, Loading, Sideslider } from 'bkui-vue';
 
 import { useDocumentLink } from '../../../hooks';
@@ -37,16 +38,16 @@ export default defineComponent({
   props: {
     detailType: {
       type: String as PropType<DetailType>,
-      default: DetailType.Application
+      default: DetailType.Application,
     },
     detailData: {
-      type: Object as PropType<ServicesDetail | FileDetail>,
-      default: () => null
+      type: Object as PropType<FileDetail | ServicesDetail>,
+      default: () => null,
     },
     show: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['showChange'],
   setup(props, { emit }) {
@@ -55,24 +56,24 @@ export default defineComponent({
     const statusMap = {
       uploaded: {
         type: 'success',
-        name: t('已上传')
+        name: t('已上传'),
       },
       parsing_failed: {
         type: 'error',
-        name: t('解析失败')
+        name: t('解析失败'),
       },
       parsing_succeed: {
         type: 'success',
-        name: t('解析成功')
+        name: t('解析成功'),
       },
       store_succeed: {
         type: 'success',
-        name: t('已存储')
+        name: t('已存储'),
       },
       store_failed: {
         type: 'error',
-        name: t('存储失败')
-      }
+        name: t('存储失败'),
+      },
     };
 
     const { handleGotoLink } = useDocumentLink();
@@ -92,7 +93,7 @@ export default defineComponent({
       statusMap,
       handleShowChange,
       handleViewAppDetail,
-      handleGotoLink
+      handleGotoLink,
     };
   },
   render() {
@@ -139,6 +140,7 @@ export default defineComponent({
           <Form.FormItem label={`${this.t('文件md5')}:`}>{data.file_md5 || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传人')}:`}>{data.operator || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传时间')}:`}>{data.uploaded_time || '-'}</Form.FormItem>
+          <Form.FormItem label={`${this.t('pprof文件时间')}:`}>{data.data_time || '-'}</Form.FormItem>
           {['parsing_failed', 'store_failed'].includes(data.status) && (
             <Form.FormItem label={`${this.t('错误信息')}:`}>{data.content || '-'}</Form.FormItem>
           )}
@@ -149,11 +151,11 @@ export default defineComponent({
     return (
       <>
         <Sideslider
-          isShow={this.show}
-          onUpdate:isShow={this.handleShowChange}
-          quick-close
           width={400}
           ext-cls='profiling-detail-sideslider'
+          isShow={this.show}
+          quick-close
+          onUpdate:isShow={this.handleShowChange}
         >
           {{
             header: () => (
@@ -175,10 +177,10 @@ export default defineComponent({
               <Loading loading={!this.detailData}>
                 <div class='profiling-detail-content'>{renderContent()}</div>
               </Loading>
-            )
+            ),
           }}
         </Sideslider>
       </>
     );
-  }
+  },
 });

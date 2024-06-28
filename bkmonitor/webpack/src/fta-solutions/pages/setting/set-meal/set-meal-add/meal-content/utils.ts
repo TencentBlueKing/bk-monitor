@@ -68,16 +68,16 @@ export const variableJsonVerify = async (pluginId, jsonData) =>
                   data_type: 'raw',
                   params: [],
                   content: jsonData,
-                  content_type: 'json'
+                  content_type: 'json',
                 },
-                query_params: []
+                query_params: [],
               },
-              timeout: 600
+              timeout: 600,
             },
-            name: '测试json判断'
-          }
+            name: '测试json判断',
+          },
         ],
-        is_demo: true
+        is_demo: true,
       },
       { needMessage: false }
     )

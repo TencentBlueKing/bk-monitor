@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 interface IConfigurationViewProps {

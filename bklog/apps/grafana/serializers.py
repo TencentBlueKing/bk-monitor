@@ -19,9 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.log_search.constants import InstanceTypeEnum
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
+
+from apps.log_search.constants import InstanceTypeEnum
 
 
 class GetVariableFieldSerializer(serializers.Serializer):
@@ -81,6 +82,7 @@ class QueryLogSerializer(serializers.Serializer):
     size = serializers.IntegerField(default=10, label=_("日志条数"), max_value=10000)
     start_time = serializers.IntegerField(required=False, label=_("开始时间"))
     end_time = serializers.IntegerField(required=False, label=_("结束时间"))
+    sort_list = serializers.ListField(required=False, allow_empty=True, default=[], allow_null=False)
 
 
 class DimensionSerializer(serializers.Serializer):

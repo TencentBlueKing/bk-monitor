@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
 import { Component, merge, Vue2 } from '@blueking/ip-selector/dist/vue2.6.x.esm';
 
 export default options => {
@@ -37,7 +38,6 @@ export default options => {
       const rootRef = ref();
 
       let app = new Vue2(Component);
-
       const syncProps = () => {
         Object.keys(props).forEach(propName => {
           const newValue = props[propName];
@@ -45,17 +45,15 @@ export default options => {
             const v = Object.keys(newValue).reduce(
               (result, item) => ({
                 ...result,
-                [item]: newValue[item]
+                [item]: Array.isArray(newValue[item]) ? [...newValue[item]] : newValue[item],
               }),
               {}
             );
-            // eslint-disable-next-line no-underscore-dangle
+
             app._props[propName] = Object.freeze(v);
           } else if (Object.prototype.toString.call(newValue) === '[object Array]') {
-            // eslint-disable-next-line no-underscore-dangle
             app._props[propName] = [...newValue];
           } else {
-            // eslint-disable-next-line no-underscore-dangle
             app._props[propName] = newValue;
           }
         });
@@ -69,7 +67,7 @@ export default options => {
             syncProps();
           },
           {
-            immediate: true
+            immediate: true,
           }
         );
         propWatchStack.push(unwatch);
@@ -125,13 +123,13 @@ export default options => {
         },
         removeInvalidData() {
           app.removeInvalidData();
-        }
+        },
       });
 
       return {
         rootRef,
         app,
-        propWatchStack
+        propWatchStack,
       };
     },
     render() {
@@ -139,9 +137,9 @@ export default options => {
         role: 'bk-ip-selector',
         ref: 'rootRef',
         style: {
-          height: 'inherit'
-        }
+          height: 'inherit',
+        },
       });
-    }
+    },
   };
 };

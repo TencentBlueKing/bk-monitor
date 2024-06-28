@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import json
 from typing import List, Tuple
 
 import mock
@@ -54,6 +55,18 @@ def patch_redis_tools(mocker):
     def mock_smembers(key):
         return client.smembers(key)
 
+    def mock_set(key, val):
+        client.redis[key] = val
+
+    def mock_get_list(key):
+        data = client.get(key)
+        if not data:
+            return []
+        return json.loads(data)
+
+    def mock_delete(key):
+        client.delete(key)
+
     mocker.patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", side_effect=mock_hset_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis", side_effect=mock_hmset_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.hgetall", side_effect=mock_hgetall_redis)
@@ -63,6 +76,9 @@ def patch_redis_tools(mocker):
     mocker.patch("metadata.utils.redis_tools.RedisTools.sadd", side_effect=mock_sadd_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.srem", side_effect=mock_srem_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.smembers", side_effect=mock_smembers)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.set", side_effect=mock_set)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.get_list", side_effect=mock_get_list)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.delete", side_effect=mock_delete)
 
 
 MOCK_BCS_CLUSTER_MANAGER_FETCH_CLUSTERS = [
@@ -82,13 +98,13 @@ MOCK_K8S_NODE_LIST_BY_CLUSTER = [
     [
         {
             "bcs_cluster_id": "BCS-K8S-00000",
-            "node_ip": "1.1.1.1",
+            "node_ip": "127.0.0.1",
         }
     ],
     [
         {
             "bcs_cluster_id": "BCS-K8S-00001",
-            "node_ip": "2.2.2.2",
+            "node_ip": "127.0.0.2",
         }
     ],
 ]
@@ -98,8 +114,8 @@ MOCK_CMDB_GET_HOST_BY_IP = [
         Host(
             {
                 "bk_biz_id": 2,
-                "bk_host_innerip": "1.1.1.1",
-                "ip": "1.1.1.1",
+                "bk_host_innerip": "127.0.0.1",
+                "ip": "127.0.0.1",
                 "bk_host_id": 1,
                 "bk_cloud_id": 0,
             }
@@ -109,8 +125,8 @@ MOCK_CMDB_GET_HOST_BY_IP = [
         Host(
             {
                 "bk_biz_id": 2,
-                "bk_host_innerip": "2.2.2.2",
-                "ip": "2.2.2.2",
+                "bk_host_innerip": "127.0.0.2",
+                "ip": "127.0.0.2",
                 "bk_host_id": 2,
                 "bk_cloud_id": 1,
             }

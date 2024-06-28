@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
@@ -42,7 +43,7 @@ interface ILineEchartProps {
   panel: PanelModel;
 }
 
-type TableFontClassType = 'font-normal' | 'font-middle' | 'font-large';
+type TableFontClassType = 'font-large' | 'font-middle' | 'font-normal';
 
 @Component
 class PercentageBarChart extends CommonSimpleChart {
@@ -109,12 +110,12 @@ class PercentageBarChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const interval = (this.viewOptions.interval, params.end_time - params.start_time, this.panel.collect_interval);
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -123,9 +124,9 @@ class PercentageBarChart extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data, {
                 ...this.viewOptions.filters,
                 ...this.viewOptions,
-                interval
+                interval,
               }),
-              ...params
+              ...params,
             },
             { needMessage: false }
           )
@@ -170,14 +171,14 @@ class PercentageBarChart extends CommonSimpleChart {
       // 若返回数据带total 则计算百分占比则为此total
       this.chartDataList = srcData.map(item => ({
         ...item,
-        usage: item.value / item.total
+        usage: item.value / item.total,
       }));
     } else {
       // 如无total 则获取数组最大value作为total
       const total = srcData.reduce((pre, curv) => (pre.value < curv.value ? curv : pre))?.value;
       this.chartDataList = srcData.map(item => ({
         ...item,
-        usage: item.value / total
+        usage: item.value / total,
       }));
     }
   }
@@ -197,7 +198,7 @@ class PercentageBarChart extends CommonSimpleChart {
    * @description: 跳转更多的数据
    */
   handleShowMoreData() {
-    window.open(this.viewMoreLink, '__blank');
+    window.open(this.viewMoreLink, '_blank');
   }
 
   /**
@@ -211,13 +212,13 @@ class PercentageBarChart extends CommonSimpleChart {
     if (item.target === 'self') {
       if (this.isSplitPanel) {
         const route = this.$router.resolve({
-          path: item.url
+          path: item.url,
         });
         const url = `${location.origin}/${location.search}${route.href}`;
         window.open(url);
       } else {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.url}`.replace(/\/\//g, '/')
+          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.url}`.replace(/\/\//g, '/'),
         });
       }
       return;
@@ -252,19 +253,19 @@ class PercentageBarChart extends CommonSimpleChart {
         <ChartHeader
           ref='chartHeaderRef'
           class='draggable-handle'
-          title={this.panel.title}
-          subtitle={this.panel.subTitle || ''}
-          showMore={false}
           draging={this.panel.draging}
-          metrics={this.metrics}
           isInstant={this.panel.instant}
+          metrics={this.metrics}
+          showMore={false}
+          subtitle={this.panel.subTitle || ''}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         {!this.empty ? (
           <div class='avr-chart-main'>
             <table
-              class={['avr-chart-table', this.tableClass]}
               ref='tableRef'
+              class={['avr-chart-table', this.tableClass]}
             >
               {this.inited &&
                 this.chartDataList.map((item, index) => (
@@ -285,8 +286,8 @@ class PercentageBarChart extends CommonSimpleChart {
                         </div>
                         <div class='progress-bar'>
                           <div
-                            class='progress-inner'
                             style={`width: ${this.handleProgressUsage(item.usage)}%;`}
+                            class='progress-inner'
                           ></div>
                         </div>
                       </div>

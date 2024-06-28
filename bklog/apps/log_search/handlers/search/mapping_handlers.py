@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import copy
 import functools
 import re
 from collections import defaultdict
@@ -94,6 +95,8 @@ class MappingHandlers(object):
         self.start_time = start_time
         self.end_time = end_time
         self.time_zone: str = get_local_param("time_zone")
+        # 最终字段
+        self._final_fields = None
 
     def check_fields_not_conflict(self, raise_exception=True):
         """
@@ -206,6 +209,15 @@ class MappingHandlers(object):
             )
         return field_list
 
+    @property
+    def final_fields(self):
+        """添加最终字段的缓存"""
+        if self._final_fields is None:
+            self._final_fields = self.get_final_fields()
+        # 使用深拷贝,避免上文的内容被修改
+        final_fields_list = copy.deepcopy(self._final_fields)
+        return final_fields_list
+
     def get_final_fields(self):
         """获取最终字段"""
         mapping_list: list = self._get_mapping()
@@ -250,7 +262,7 @@ class MappingHandlers(object):
         @param scope:
         @return:
         """
-        final_fields_list = self.get_final_fields()
+        final_fields_list = self.final_fields
         # search_context情况，默认只显示log字段
         # if scope in CONTEXT_SCOPE:
         #     return self._get_context_fields(final_fields_list)
@@ -346,7 +358,7 @@ class MappingHandlers(object):
 
     def get_default_fields(self, scope=SearchScopeEnum.DEFAULT.value):
         """获取索引集默认字段"""
-        final_fields_list = self.get_final_fields()
+        final_fields_list = self.final_fields
         if scope == SearchScopeEnum.SEARCH_CONTEXT.value:
             for _field in final_fields_list:
                 if _field["field_name"] == "log":
@@ -690,7 +702,7 @@ class MappingHandlers(object):
         if self.scenario_id in [Scenario.BKDATA]:
             schema_result: list = self.get_bkdata_schema(self.indices)
         if self.scenario_id in [Scenario.LOG]:
-            schema_result: list = self.get_meta_schema(self.indices)
+            schema_result: list = self.get_meta_schema(indices=self.indices)
 
         # list to dict
         schema_dict: dict = {}
@@ -734,7 +746,8 @@ class MappingHandlers(object):
             return []
 
     @staticmethod
-    def get_meta_schema(indices):
+    @cache_one_minute("{indices}_meta_schema")
+    def get_meta_schema(*, indices):
         indices = indices.split(",")
         try:
             all_field_list = list()

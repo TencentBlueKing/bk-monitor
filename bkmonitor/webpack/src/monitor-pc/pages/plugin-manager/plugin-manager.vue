@@ -30,8 +30,8 @@
   />
   <div
     v-else
-    class="plugin-container"
     v-monitor-loading="{ isLoading: loading }"
+    class="plugin-container"
   >
     <div class="plugin-manager">
       <page-tips
@@ -53,8 +53,8 @@
           </bk-button>
           <bk-button
             v-authority="{ active: !authority.MANAGE_AUTH }"
-            @click="!authority.MANAGE_AUTH && handleShowAuthorityDetail()"
             class="left-button mc-btn-add"
+            @click="!authority.MANAGE_AUTH && handleShowAuthorityDetail()"
           >
             {{ $t('导入') }}
             <input
@@ -67,7 +67,7 @@
               accept=".gz, .tgz"
               multiple="multiple"
               @change="handleFileChange"
-            >
+            />
           </bk-button>
           <!-- <bk-button class="left-button" :disabled="header.delete" @click="handleDeletePlugin">
                         删除
@@ -78,20 +78,20 @@
             :placeholder="$t('插件名称(ID或别名)')"
             :value="header.keyword"
             :clearable="true"
+            right-icon="bk-icon icon-search"
             @change="handleSearchKey"
             @clear="cancelListRequest"
-            right-icon="bk-icon icon-search"
           />
         </div>
       </div>
       <div class="plugin-manager-content">
         <ul class="tab-list">
           <li
-            class="tab-list-item"
             v-for="(item, index) in panel.tabs"
-            @click="handlePanelChange(item, index)"
             :key="item.name"
+            class="tab-list-item"
             :class="{ 'tab-active': index === panel.active }"
+            @click="handlePanelChange(item, index)"
           >
             <span class="tab-name">{{ item.name }}</span>
             <span class="tab-num">{{ item.num }}</span>
@@ -99,14 +99,14 @@
           <li class="tab-list-blank" />
         </ul>
         <bk-table
-          class="plugin-table"
           v-bkloading="{ isLoading: table.loading }"
+          class="plugin-table"
           :empty-text="table.message"
-          @row-mouse-enter="(i) => (table.hoverIndex = i)"
-          @row-mouse-leave="(i) => (table.hoverIndex = -1)"
-          @sort-change="handleSortChange"
           tooltip-effect="dark"
           :data="table.data"
+          @row-mouse-enter="i => (table.hoverIndex = i)"
+          @row-mouse-leave="i => (table.hoverIndex = -1)"
+          @sort-change="handleSortChange"
         >
           <!-- <bk-table-column
                         type="selection"
@@ -133,14 +133,14 @@
                   :style="{
                     'background-image': scope.row.logo ? `url(data:image/gif;base64,${scope.row.logo})` : 'none',
                     'background-color': scope.row.logo ? '' : colorMap[scope.row.plugin_type],
-                    borderRadius: scope.row.log ? '2px' : '100%'
+                    borderRadius: scope.row.log ? '2px' : '100%',
                   }"
                 >
                   {{ scope.row.logo ? '' : scope.row.plugin_display_name.slice(0, 1).toLocaleUpperCase() }}
                 </div>
                 <div
                   v-authority="{
-                    active: !authority.MANAGE_AUTH && scope.row.status === 'draft'
+                    active: !authority.MANAGE_AUTH && scope.row.status === 'draft',
                   }"
                   class="col-name-desc"
                   @click="
@@ -151,14 +151,14 @@
                 >
                   <div class="desc-alias">
                     <span
-                      class="desc-alias-title"
                       v-bk-overflow-tips
+                      class="desc-alias-title"
                     >
                       {{ scope.row.plugin_display_name ? scope.row.plugin_display_name : scope.row.plugin_id }}
                     </span>
                     <span
-                      class="desc-alias-gov"
                       v-if="scope.row.is_official"
+                      class="desc-alias-gov"
                     >
                       <span> {{ $t('官方') }} </span>
                     </span>
@@ -181,9 +181,9 @@
           >
             <template slot-scope="scope">
               <div class="col-label">
-                <span
-                  v-if="scope.$index !== table.editIndex"
-                >{{ scope.row.label_info.first_label_name }}/{{ scope.row.label_info.second_label_name }}</span>
+                <span v-if="scope.$index !== table.editIndex"
+                  >{{ scope.row.label_info.first_label_name }}/{{ scope.row.label_info.second_label_name }}</span
+                >
               </div>
             </template>
           </bk-table-column>
@@ -278,10 +278,10 @@
                   {{ $t('button-编辑') }}
                 </bk-button>
                 <span
+                  :ref="'operator-' + scope.$index"
                   v-authority="{ active: getManageAuth(scope.row) }"
                   class="col-operator-more"
                   data-popover="true"
-                  :ref="'operator-' + scope.$index"
                   :class="{ 'operator-active': tablePopover.hover === scope.$index }"
                   @click="
                     !getManageAuth(scope.row)
@@ -305,12 +305,12 @@
           size="small"
           show-total-count
           pagination-able
-          @change="handlePageChange"
-          @limit-change="handleLimitChange"
           :current="pagination.page"
           :limit="pagination.pageSize"
           :count="panel.active ? panel.tabs[panel.active].num : pagination.total"
           :limit-list="pagination.pageList"
+          @change="handlePageChange"
+          @limit-change="handleLimitChange"
         />
       </div>
     </div>
@@ -322,16 +322,16 @@
     />
     <div v-show="false">
       <ul
-        class="popover-tag"
         ref="popoverContent"
+        class="popover-tag"
         data-mark="popover-tag-mark"
       >
         <li
-          data-mark="popover-tag-mark"
           v-for="tag in popover.list"
-          :key="tag"
-          class="popover-tag-item"
           v-show="tag.includes(popover.active)"
+          :key="tag"
+          data-mark="popover-tag-mark"
+          class="popover-tag-item"
           @click="handleTagSelect(tag)"
         >
           <span data-mark="popover-tag-mark">{{ tag }}</span>
@@ -341,14 +341,14 @@
     </div>
     <div v-show="false">
       <div
-        class="label-menu-wrapper"
         ref="labelMenu"
+        class="label-menu-wrapper"
       >
         <ul class="label-menu-list">
           <li
-            class="item"
             v-for="(item, index) in label.list"
             :key="index"
+            class="item"
             @click="handleSelectLabel(item)"
           >
             <bk-checkbox
@@ -364,20 +364,24 @@
             <span
               class="monitor-btn"
               @click="handleLabelChange"
-            > {{ $t('确定') }} </span>
+            >
+              {{ $t('确定') }}
+            </span>
             <span
               class="monitor-btn"
               @click="handleResetLable"
-            > {{ $t('清空') }} </span>
+            >
+              {{ $t('清空') }}
+            </span>
           </div>
         </div>
       </div>
     </div>
     <div v-show="false">
       <div
-        class="operator-group"
-        v-en-style="'width: 170px'"
         ref="operatorGroup"
+        v-en-style="'width: 170px'"
+        class="operator-group"
       >
         <span
           class="operator-group-btn"
@@ -399,8 +403,10 @@
           :class="{ 'btn-disabled': !tablePopover.data.delete_allowed }"
           class="operator-group-btn"
           :text="true"
-          @click="tablePopover.data.delete_allowed
-            && handleDeletePlugin(tablePopover.data.plugin_id, tablePopover.data.plugin_display_name)"
+          @click="
+            tablePopover.data.delete_allowed &&
+              handleDeletePlugin(tablePopover.data.plugin_id, tablePopover.data.plugin_display_name)
+          "
         >
           {{ $t('删除') }}
         </span>
@@ -417,7 +423,6 @@
   </div>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { CancelToken } from 'monitor-api/index';
 import { getLabel } from 'monitor-api/modules/commons';
 import {
@@ -426,9 +431,11 @@ import {
   exportPluginCollectorPlugin,
   importPluginCollectorPlugin,
   listCollectorPlugin,
-  tagOptionsCollectorPlugin } from 'monitor-api/modules/model';
+  tagOptionsCollectorPlugin,
+} from 'monitor-api/modules/model';
 import { saveAndReleasePlugin } from 'monitor-api/modules/plugin';
 import { debounce } from 'throttle-debounce';
+import { createNamespacedHelpers } from 'vuex';
 
 import introduce from '../../common/introduce';
 import { commonPageSizeMixin } from '../../common/mixins';
@@ -439,7 +446,6 @@ import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_PLUGIN_CONFIG, SET_PLUGIN_DATA, SET_PLUGIN_ID } from '../../store/modules/plugin-manager';
 import { downFile } from '../../utils/index';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
-
 import * as pluginManageAuth from './authority-map';
 import pluginDialogMultiple from './plugin-dialog-multiple';
 import pluginDialogSingle from './plugin-dialog-single';
@@ -453,9 +459,24 @@ export default {
     pageTips,
     DeleteSubtitle,
     EmptyStatus,
-    GuidePage
+    GuidePage,
   },
   mixins: [commonPageSizeMixin, authorityMixinCreate(pluginManageAuth)],
+  beforeRouteEnter(to, from, next) {
+    next(async vm => {
+      if (!['plugin-add', 'plugin-edit', 'plugin-detail'].includes(from.name)) {
+        vm.header.keyword = '';
+        vm.pagination.page = 1;
+        vm.panel.active = 0;
+        vm.pagination.pageSize = vm.handleGetCommonPageSize();
+      }
+      !vm.loading && vm.getPluginListData(true);
+    });
+  },
+  beforeRouteLeave(to, from, next) {
+    if (to.name !== 'plugin-update' && to.name !== 'plugin-add') this[SET_PLUGIN_CONFIG](null);
+    next();
+  },
   data() {
     const defaultDialog = this.getDefaultDialogData();
     return {
@@ -464,29 +485,29 @@ export default {
       cancelListRequest: null, // 清空搜索条件时，假有一个表格数据请求在pending中，则取消这个请求
       header: {
         delete: true,
-        keyword: ''
+        keyword: '',
       },
       panel: {
         tabs: [
           {
             name: this.$t('全部'),
-            num: 0
+            num: 0,
           },
           {
             name: 'Exporter',
-            num: 0
+            num: 0,
           },
           {
             name: 'Script',
-            num: 0
+            num: 0,
           },
           {
             name: 'DataDog',
-            num: 0
+            num: 0,
           },
           {
             name: 'JMX',
-            num: 0
+            num: 0,
           },
           // {
           //     name: 'BK-Monitor',
@@ -496,15 +517,15 @@ export default {
           {
             name: 'BK-Pull',
             alias: 'Pushgateway',
-            num: 0
+            num: 0,
           },
           {
             name: 'SNMP',
             alias: 'SNMP',
-            num: 0
-          }
+            num: 0,
+          },
         ],
-        active: 0
+        active: 0,
       },
       table: {
         loading: false,
@@ -512,31 +533,31 @@ export default {
         statusMap: {
           normal: {
             desc: this.$t('可用'),
-            color: '#2DCB56'
+            color: '#2DCB56',
           },
           draft: {
             desc: this.$t('草稿'),
-            color: '#FF9C01'
-          }
+            color: '#FF9C01',
+          },
         },
         editIndex: -1,
         hoverIndex: -1,
         selected: [],
         order: '-update_time',
-        message: this.$t('无数据')
+        message: this.$t('无数据'),
       },
       pagination: {
         page: 1,
         pageList: [10, 20, 50, 100],
         pageSize: this.handleGetCommonPageSize(),
-        total: 0
+        total: 0,
       },
       plugin: {
         show: false,
         infoShow: false,
         type: 0, // 0 新增 1 编辑 2 导入
         data: {},
-        id: ''
+        id: '',
       },
       headTitle: null,
       dialog: defaultDialog,
@@ -548,26 +569,26 @@ export default {
         DataDog: '#F0D3A5',
         'Built-In': '#E3D5C2',
         Pushgateway: '#B6CAEC',
-        SNMP: '#B6CAEC'
+        SNMP: '#B6CAEC',
       },
       popover: {
         list: [],
         instance: null,
-        active: -1
+        active: -1,
       },
       tablePopover: {
         instance: null,
         hover: -1,
         edit: false,
         status: '',
-        data: {}
+        data: {},
       },
       label: {
         list: [],
         instance: null,
         values: [],
         selectedLabels: '',
-        isFilter: false
+        isFilter: false,
       },
       bizMap: { 0: this.$t('全业务') },
       pluginTypeMap: {
@@ -577,15 +598,15 @@ export default {
         DataDog: 'DataDog',
         'Built-In': 'BK-Monitor',
         Pushgateway: 'BK-Pull',
-        SNMP: 'SNMP'
+        SNMP: 'SNMP',
       },
       fileArr: [],
       fileArrShow: false,
       delSubTitle: {
         title: window.i18n.t('插件名称'),
-        name: ''
+        name: '',
       },
-      emptyType: 'empty'
+      emptyType: 'empty',
     };
   },
   computed: {
@@ -601,34 +622,19 @@ export default {
     // 是否显示引导页
     showGuidePage() {
       return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
-    }
+    },
   },
   created() {
-    this.$store.getters.bizList.forEach((item) => {
+    this.$store.getters.bizList.forEach(item => {
       this.bizMap[item.id] = item.text;
     });
-    this.handleSearchKey = debounce(300, (v) => {
+    this.handleSearchKey = debounce(300, v => {
       this.pagination.page = 1;
       this.header.keyword = v;
       this.getPluginListData();
     });
     !this.loading && this.getPluginListData(true);
     this.getLabelList();
-  },
-  beforeRouteEnter(to, from, next) {
-    next(async (vm) => {
-      if (!['plugin-add', 'plugin-edit', 'plugin-detail'].includes(from.name)) {
-        vm.header.keyword = '';
-        vm.pagination.page = 1;
-        vm.panel.active = 0;
-        vm.pagination.pageSize = vm.handleGetCommonPageSize();
-      }
-      !vm.loading && vm.getPluginListData(true);
-    });
-  },
-  beforeRouteLeave(to, from, next) {
-    if (to.name !== 'plugin-update' && to.name !== 'plugin-add') this[SET_PLUGIN_CONFIG](null);
-    next();
   },
   deactivated() {
     this.handleDestoryLabelInstance();
@@ -645,8 +651,8 @@ export default {
         this.$router.push({
           name: 'plugin-setmetric',
           params: {
-            pluginId: this.tablePopover.data.plugin_id
-          }
+            pluginId: this.tablePopover.data.plugin_id,
+          },
         });
       }
     },
@@ -671,7 +677,7 @@ export default {
             this.tablePopover.instance.destroy();
             this.tablePopover.hover = -1;
             this.tablePopover.instance = null;
-          }
+          },
         });
       } else {
         this.tablePopover.instance.reference = e.target;
@@ -679,14 +685,14 @@ export default {
       this.tablePopover.instance?.show(100);
     },
     getLabelList() {
-      return getLabel({ include_admin_only: false }).then((data) => {
-        data.forEach((item) => {
+      return getLabel({ include_admin_only: false }).then(data => {
+        data.forEach(item => {
           const children = item.children.map(label => ({
             firstName: item.name,
             value: '',
             checked: `${label.id}`,
             cancel: '',
-            ...label
+            ...label,
           }));
           this.label.list.push(...children);
         });
@@ -705,15 +711,15 @@ export default {
         page: this.pagination.page,
         page_size: this.pagination.pageSize,
         order: this.table.order,
-        labels: this.labelKeyword
+        labels: this.labelKeyword,
       };
       this.emptyType = this.header.keyword ? 'search-empty' : 'empty';
       !this.popover.list.length && this.getTagList();
       listCollectorPlugin(params, { cancelToken: new CancelToken(c => (this.cancelListRequest = c)) })
-        .then((data) => {
+        .then(data => {
           let total = 0;
           if (data.count) {
-            this.panel.tabs.forEach((item) => {
+            this.panel.tabs.forEach(item => {
               item.num = data.count[item.alias || item.name] || 0;
               total += item.num;
             });
@@ -733,7 +739,7 @@ export default {
     },
     getTagList() {
       tagOptionsCollectorPlugin()
-        .then((data) => {
+        .then(data => {
           this.popover.list = data;
         })
         .catch(() => {
@@ -776,7 +782,6 @@ export default {
       }
     },
     handlePluginAdd(pluginId, pluginData = null, isImportPlugin = false) {
-      // eslint-disable-next-line camelcase
       if (pluginData?.is_official) {
         pluginData.bk_biz_id = 0;
       }
@@ -785,8 +790,8 @@ export default {
         params: {
           pluginId,
           pluginData,
-          isImportPlugin // 导入插件跳转到新增
-        }
+          isImportPlugin, // 导入插件跳转到新增
+        },
       });
     },
     handleEditLabel(scope) {
@@ -823,7 +828,7 @@ export default {
             this.popover.instance.destroy();
             // this.popover.hover = -1
             this.popover.instance = null;
-          }
+          },
         });
         // .instances[0]
       } else {
@@ -841,7 +846,7 @@ export default {
         data.label = v;
         editCollectorPlugin(data.plugin_id, {
           bk_biz_id: data.bk_biz_id,
-          tag: v
+          tag: v,
         })
           .then(() => {
             this.getPluginListData();
@@ -876,17 +881,20 @@ export default {
         verson: '',
         versonShow: true,
         isOk: false,
-        data: null
+        data: null,
       }));
       this.fileArr.forEach((item, index) => {
-        const interval = setInterval(() => {
-          item.percent += 0.16;
-          if (item.percent > 0.96) {
-            window.clearInterval(interval);
-          }
-        }, 50 + index * 50);
+        const interval = setInterval(
+          () => {
+            item.percent += 0.16;
+            if (item.percent > 0.96) {
+              window.clearInterval(interval);
+            }
+          },
+          50 + index * 50
+        );
         importPluginCollectorPlugin({ file_data: item.file })
-          .then((data) => {
+          .then(data => {
             item.data = data;
             item.percent = 1;
             item.percentShow = false;
@@ -953,7 +961,7 @@ export default {
         }
       }, 50);
       importPluginCollectorPlugin({ file_data: file })
-        .then((data) => {
+        .then(data => {
           // 缓存导入的配置数据
           this[SET_PLUGIN_CONFIG](data);
 
@@ -967,9 +975,10 @@ export default {
             }
             this.dialog.status = 4; // 重名
             this.dialog.data = data;
-            this.dialog.update =              (data.is_official && data.duplicate_type === 'official' && data.conflict_title.length === 0)
-              || (data.is_official && data.duplicate_type === 'custom')
-              || (!data.is_official && data.duplicate_type === 'custom' && data.conflict_title.length === 0);
+            this.dialog.update =
+              (data.is_official && data.duplicate_type === 'official' && data.conflict_title.length === 0) ||
+              (data.is_official && data.duplicate_type === 'custom') ||
+              (!data.is_official && data.duplicate_type === 'custom' && data.conflict_title.length === 0);
           } else if (!isSuperUser && data.is_official) {
             data.conflict_detail = this.$t('您没有权限导入官方插件');
             this.dialog.data = data;
@@ -1003,7 +1012,7 @@ export default {
           this.dialog.loading = false;
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('更新成功')
+            message: this.$t('更新成功'),
           });
           this.handleHideDialog();
           this.getPluginListData();
@@ -1026,7 +1035,7 @@ export default {
         size: 0,
         loading: false,
         update: false,
-        data: {}
+        data: {},
       };
     },
     showPluginInfo(pluginInfo) {
@@ -1037,8 +1046,8 @@ export default {
         this.$router.push({
           name: 'plugin-detail',
           params: {
-            pluginId: pluginInfo.plugin_id
-          }
+            pluginId: pluginInfo.plugin_id,
+          },
         });
       }
     },
@@ -1046,21 +1055,21 @@ export default {
       this.$router.push({
         name: 'plugin-edit',
         params: {
-          pluginId
-        }
+          pluginId,
+        },
       });
     },
     handlePluginExport(pluginId) {
       this.loading = true;
       exportPluginCollectorPlugin(pluginId)
-        .then((data) => {
+        .then(data => {
           const url = data.download_url;
           if (url) {
             downFile(url);
           } else {
             this.$bkMessage({
               theme: 'error',
-              message: this.$t('导出失败')
+              message: this.$t('导出失败'),
             });
           }
         })
@@ -1091,14 +1100,14 @@ export default {
             .then(() => {
               this.$bkMessage({
                 message: this.$t('删除插件成功'),
-                theme: 'success'
+                theme: 'success',
               });
               this.getPluginListData();
             })
             .catch(() => {
               this.loading = false;
             });
-        }
+        },
       });
     },
     handleToCollectorConfig(v) {
@@ -1107,8 +1116,8 @@ export default {
           name: 'collect-config',
           params: {
             searchType: 'correlation',
-            pluginId: v.row.plugin_id
-          }
+            pluginId: v.row.plugin_id,
+          },
         });
       }
     },
@@ -1126,14 +1135,14 @@ export default {
           interactive: true,
           onHidden: () => {
             const list = this.label.selectedLabels.split(',');
-            this.label.list.forEach((item) => {
+            this.label.list.forEach(item => {
               if (list.includes(item.id)) {
                 item.value = item.id;
               } else {
                 item.value = '';
               }
             });
-          }
+          },
         });
       }
       this.label.instance?.show(100);
@@ -1149,7 +1158,7 @@ export default {
     },
     handleResetLable() {
       this.label.instance.hide(100);
-      this.label.list.forEach((item) => {
+      this.label.list.forEach(item => {
         item.value = '';
       });
       this.label.selectedLabels = '';
@@ -1161,19 +1170,26 @@ export default {
     renderHeader(h) {
       // 这里原先是用 jsx 实现，但由于 VSCode 对 .vue 文件的 jsx 格式支持不太友好，
       // 导致下面的代码没法正常显示其应有的样式，故将 jsx 换成手写 render funtion。
-      return h('span', {
-        on: {
-          click: e => this.handleShow(e)
+      return h(
+        'span',
+        {
+          on: {
+            click: e => this.handleShow(e),
+          },
+          class: {
+            'dropdown-trigger': true,
+            ' plugin-label': true,
+            selected: this.labelKeyword,
+          },
+          slot: 'dropdown-trigger',
         },
-        class: {
-          'dropdown-trigger': true,
-          ' plugin-label': true,
-          selected: this.labelKeyword
-        },
-        slot: 'dropdown-trigger'
-      }, [this.$t('分类'), h('i', {
-        class: 'icon-monitor icon-filter-fill'
-      })]);
+        [
+          this.$t('分类'),
+          h('i', {
+            class: 'icon-monitor icon-filter-fill',
+          }),
+        ]
+      );
     },
     getManageAuth(row) {
       if (row.bk_biz_id === 0) {
@@ -1204,8 +1220,8 @@ export default {
         this.getPluginListData();
         return;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -1237,7 +1253,7 @@ export default {
 
     &:hover {
       color: #3a84ff;
-      background: rgba(234, 243, 255, .7);
+      background: rgba(234, 243, 255, 0.7);
     }
 
     span {
@@ -1470,7 +1486,7 @@ export default {
 
                 span {
                   *font-size: 10px;
-                  transform: scale(.83, .83);
+                  transform: scale(0.83, 0.83);
                 }
               }
             }

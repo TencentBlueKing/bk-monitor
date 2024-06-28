@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-12-26 18:13+0800\n"
+"POT-Creation-Date: 2024-05-27 17:55+0800\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #, python-brace-format
@@ -194,9 +194,6 @@ msgstr "Value"
 msgid "关联信息"
 msgstr "Related Information"
 
-msgid "被分派人"
-msgstr "Assigned"
-
 msgid "分派原因"
 msgstr "Dispatch Reason"
 
@@ -214,6 +211,9 @@ msgstr "Dimension drill down"
 
 msgid "关联指标"
 msgstr "Related Metric"
+
+msgid "通知人"
+msgstr "Notified Person"
 
 msgid "时间范围"
 msgstr "Time Range"
@@ -713,6 +713,27 @@ msgstr "In a noise reduction and convergence window ({} min), the threshold {}%i
 msgid "获取上下文参数错误: {} "
 msgstr "Get the context parameter error: {}"
 
+msgid "序号"
+msgstr "Index"
+
+msgid "是否新增"
+msgstr "Is New Pattern"
+
+msgid "数据指纹"
+msgstr "Data Fingerprint"
+
+msgid "数量"
+msgstr "Quantity"
+
+msgid "占比"
+msgstr "Percentage"
+
+msgid "同比数量"
+msgstr "Year-on-Year Quantity"
+
+msgid "同比变化"
+msgstr "Year-on-Year Change"
+
 msgid "请遵守公司规范，切勿泄露敏感信息，后果自负!"
 msgstr "Please comply with company regulations, do not leak sensitive information, and be responsible for the consequences!"
 
@@ -742,12 +763,6 @@ msgstr ""
 #, python-brace-format
 msgid "[处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
 msgstr "[Treatment Result] ({result}) record ({record_id}), strategy({strategy_id}), item({item_id})"
-
-msgid "【模块：{}】请求 BCS API 服务错误：{}，请求url: {}，参数: {}"
-msgstr "[Module: {}] BCS API service request error: {}, Request URL: {}, Parameters: {}"
-
-msgid "接口返回结果超时"
-msgstr "Interface returns the result timeout"
 
 msgid "Resource[{}] 请求参数格式错误：{}"
 msgstr "The Resource [{}] malformed request parameter: {}"
@@ -822,27 +837,6 @@ msgstr "DB Configuration"
 msgid "创建dataId失败"
 msgstr "Failed to create dataID"
 
-#, python-format
-msgid "%s业务下已经有EBPF应用"
-msgstr "There is already an EBPF application under %s business"
-
-msgid "应用不存在"
-msgstr "Application does not exist"
-
-msgid "业务下无ebpf应用"
-msgstr "No EBPF application under this business"
-
-#, python-format
-msgid "不支持的查询操作符: %s"
-msgstr "Not supported query operator: %s"
-
-msgid "参数丢失 需要重新从第一页获取"
-msgstr "Parameter lost. Need to retrieve from the first page again"
-
-#, python-format
-msgid "不支持的过滤KEY: %s"
-msgstr "Unsupported filter KEY: %s"
-
 msgid "APM({})虚拟指标"
 msgstr "APM ({}) virtual metric"
 
@@ -864,6 +858,27 @@ msgstr "Turn on the cleaning task failed"
 msgid "APM虚拟指标: 计算平台创建数据源失败 {}"
 msgstr "APM Virtual Metric: Calculation Platform Create Data Source Failure {}"
 
+#, python-format
+msgid "%s业务下已经有EBPF应用"
+msgstr "There is already an EBPF application under %s business"
+
+msgid "应用不存在"
+msgstr "Application does not exist"
+
+msgid "业务下无ebpf应用"
+msgstr "No EBPF application under this business"
+
+#, python-format
+msgid "不支持的查询操作符: %s"
+msgstr "Not supported query operator: %s"
+
+msgid "参数丢失 需要重新从第一页获取"
+msgstr "Parameter lost. Need to retrieve from the first page again"
+
+#, python-format
+msgid "不支持的过滤KEY: %s"
+msgstr "Unsupported filter KEY: %s"
+
 msgid "应用({}) 不存在"
 msgstr "Application ({}) does not exist"
 
@@ -872,6 +887,9 @@ msgstr "Application name (app_name) {} already exists in this business ({})"
 
 msgid "远程过程调用"
 msgstr "Remote process call"
+
+msgid "数据库"
+msgstr "Database"
 
 msgid "消息队列"
 msgstr "Message Queue"
@@ -884,6 +902,9 @@ msgstr "Metric"
 
 msgid "应用名称: {}已被创建"
 msgstr "Application name: {} has been created"
+
+msgid "操作类型不支持: {validated_request_data['type']}"
+msgstr "unsupported op: {validated_request_data['type']}"
 
 msgid "未找到对应的结果表"
 msgstr "No corresponding result table"
@@ -1094,20 +1115,38 @@ msgstr "The exclusion time range of settings is incorrect, and the correct forma
 msgid "删除代班日期格式不正确，请按照[年-月-日]填写"
 msgstr "The dating format of the deletion of the class is incorrect, please fill in [year-month-month] "
 
+msgid "设置的时间范围不正确, 正确格式为01 00:00--01 23:59"
+msgstr "The time range of the setting is incorrect, the correct format is 01 00:00--01 23:59"
+
 msgid "设置的时间范围不正确, 正确格式为00:00--23:59"
 msgstr "The time range of the setting is incorrect, the correct format is 00: 00--23: 59"
 
 msgid "需要交接的情况下，交接轮值方式与交接时间不能为空"
 msgstr "When you need transfer, the transfer method and the time of transfer cannot be empty."
 
+msgid "当前轮值为自动分组，请设置每个班次对应的人数"
+msgstr "The current rotation is automatically grouped, please set the number of people corresponding to each shift"
+
+msgid "轮值规则名称长度不能超过128个字符，请重新确认"
+msgstr "The length of the rotation rule name cannot exceed 128 characters, please reconfirm"
+
 msgid "告警组名称长度不能超过128，请重新确认"
 msgstr "The length of the alarm group name cannot exceed 128. Please confirm again"
 
-msgid "当前告警组名称已经存在，请重新确认"
-msgstr "The name of the current alarm group already exists, please confirm again"
-
 msgid "当前告警组已启用轮值，必须要开启内部通知渠道"
 msgstr "The current alarm group has enabled rotation and must open internal notification channels"
+
+msgid "当前告警组已启用轮值，关联的轮值规则不能为空"
+msgstr "Rotation is enabled for the current alarm group, and the associated rotation rule cannot be empty"
+
+msgid "时序数据"
+msgstr "Time series data"
+
+msgid "算法无输出"
+msgstr "AIFlow has no output"
+
+msgid "指标推荐"
+msgstr "Recommended Metrics"
 
 msgid "{}参数数量不对"
 msgstr "{} The number of parameters is wrong"
@@ -1443,6 +1482,15 @@ msgstr "Enable APM Profiling"
 msgid "APM 前端是否开启EBPF功能"
 msgstr "Enable APM Frontend EBPF"
 
+msgid "APM 是否针对TRPC有特殊配置"
+msgstr ""
+
+msgid "APM BMW 模块部署集群所属的业务 ID(用来查询指标)"
+msgstr ""
+
+msgid "APM 创建虚拟指标业务列表"
+msgstr "APM virtual metric supported biz list"
+
 msgid "蓝鲸监控机器人名称"
 msgstr "BK-Monitor Robot Name"
 
@@ -1548,6 +1596,9 @@ msgstr "Whether to use the new Gse agent status interface"
 msgid "拨测默认输出字段"
 msgstr "Default output fields for dial tests"
 
+msgid "文档链接配置"
+msgstr "DOC LINK MAPPING"
+
 msgid "已屏蔽"
 msgstr "Muted"
 
@@ -1610,6 +1661,12 @@ msgstr "Tag"
 
 msgid "事件的额外属性，K-V 键值对，不支持嵌套结构"
 msgstr "The additional attributes of the event, the K-V key value is paired, the nested structure is not supported"
+
+msgid "维度字段"
+msgstr "Dimension Field"
+
+msgid "事件去重的维度字段"
+msgstr "Event Dimension Field"
 
 msgid "受理人"
 msgstr "Controller"
@@ -1758,11 +1815,17 @@ msgstr "APM Management"
 msgid "日历服务管理"
 msgstr "Calendar Service Management"
 
+msgid "订阅管理"
+msgstr "Subscription Manage"
+
 msgid "APM应用"
 msgstr "APM Application"
 
 msgid "Grafana仪表盘"
 msgstr "Grafana Dashboard"
+
+msgid "【蓝鲸】官方插件管理员"
+msgstr "[BlueKing] Official Plugin administrator"
 
 msgid "接收字节流量"
 msgstr "Receive byte traffic"
@@ -1829,6 +1892,9 @@ msgstr "MoM amplitude algorithm"
 
 msgid "智能异常检测算法"
 msgstr "Intelligent anomaly detection algorithm"
+
+msgid "主机异常检测算法"
+msgstr "Host anomaly detection algorithm"
 
 msgid "致命"
 msgstr "Emergency"
@@ -2121,33 +2187,6 @@ msgstr "Create"
 msgid "更新"
 msgstr "renew"
 
-msgid "通知"
-msgstr "Notification"
-
-msgid "HTTP回调"
-msgstr "Http Callback"
-
-msgid "作业平台"
-msgstr "Job System"
-
-msgid "标准运维"
-msgstr "Standard OPS"
-
-msgid "流程服务"
-msgstr "Process Service Management"
-
-msgid "通用插件"
-msgstr "General Plugin"
-
-msgid "内置"
-msgstr "Built-in"
-
-msgid "周边系统"
-msgstr "Peripheral System"
-
-msgid "蓝鲸插件"
-msgstr "BK-Plugin"
-
 msgid "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
 msgstr "The execution condition of the notification alarm is reached【{{{{action_signal}}}}】, {}"
 
@@ -2184,6 +2223,9 @@ msgstr "Convergence"
 
 msgid "处理事件"
 msgstr "Treatment Event"
+
+msgid "通知"
+msgstr "Notification"
 
 msgid "处理动作"
 msgstr "Handling Actions"
@@ -2344,11 +2386,11 @@ msgstr "Strategic name ({}) cannot be repeated"
 msgid "策略({})不存在"
 msgstr "Rule ({}) does not exist"
 
-msgid "通知方式至少开启一项"
-msgstr "Open at least one notification method"
-
 msgid "智能检测算法不支持这些查询条件({})"
 msgstr "Intelligent detection algorithms do not support these query conditions ({})"
+
+msgid "通知方式至少开启一项"
+msgstr "Open at least one notification method"
 
 msgid "tsdb库名不支持下划线"
 msgstr "TSDB library name does not support underscores"
@@ -4732,9 +4774,6 @@ msgstr "Service"
 msgid "服务模块"
 msgstr "Service Module"
 
-msgid "时序数据"
-msgstr "Time series data"
-
 msgid "服务拨测"
 msgstr "Service Probe"
 
@@ -5203,6 +5242,9 @@ msgstr "Chartham Islands"
 msgid "奥克兰"
 msgstr "Auckland"
 
+msgid "内置"
+msgstr "Built-in"
+
 msgid "自定义"
 msgstr "Custom"
 
@@ -5236,18 +5278,6 @@ msgstr "When the repeat frequency is {}, the value in the repetitive interval sh
 msgid "当重复频率为day时，重复区间必须为[]"
 msgstr "When the frequency of duplication is DAY, the repeat interval must be []"
 
-msgid "主备负责人"
-msgstr "Standby responsible person"
-
-msgid "运维"
-msgstr "Operator"
-
-msgid "开发"
-msgstr "Development"
-
-msgid "产品"
-msgstr "product"
-
 msgid "运维人员"
 msgstr "Operation and maintenance personnel"
 
@@ -5271,6 +5301,21 @@ msgstr "Dispatch"
 
 msgid "仅通知"
 msgstr "Notify Only"
+
+msgid "HTTP回调"
+msgstr "Http Callback"
+
+msgid "作业平台"
+msgstr "Job System"
+
+msgid "标准运维"
+msgstr "Standard OPS"
+
+msgid "流程服务"
+msgstr "Process Service Management"
+
+msgid "通用插件"
+msgstr "General Plugin"
 
 msgid "汇总"
 msgstr "Summary"
@@ -5369,7 +5414,10 @@ msgid "通知人员"
 msgstr "Receivers"
 
 msgid "通知方式"
-msgstr "Method"
+msgstr "Notice way"
+
+msgid "带组员类型的通知方式"
+msgstr "Group notice way"
 
 msgid "告警信息"
 msgstr "Alarm Information"
@@ -5545,6 +5593,15 @@ msgstr "Consul module (Consul) "
 msgid "回调数据"
 msgstr "Return Data"
 
+msgid "日志关联信息"
+msgstr "Related Log"
+
+msgid "TOPO关联信息"
+msgstr "Related TOPO"
+
+msgid "回调数据【new】"
+msgstr "callback【new】"
+
 msgid "智能异常检测额外信息"
 msgstr "Intelligent abnormal detection additional information"
 
@@ -5719,11 +5776,11 @@ msgstr "Alarm Source"
 msgid "监控对象"
 msgstr "Monitoring Layer"
 
+msgid "策略标签"
+msgstr "Strategy Label"
+
 msgid "通知人员为空"
 msgstr "Empty User"
-
-msgid "告警标签"
-msgstr "Tags"
 
 msgid "告警IP"
 msgstr "IP"
@@ -5752,6 +5809,18 @@ msgstr "Recovered"
 msgid "已抑制"
 msgstr "Has Suppressed"
 
+msgid "主备负责人"
+msgstr "Host Maintenance"
+
+msgid "运维"
+msgstr "Operator"
+
+msgid "开发"
+msgstr "Development"
+
+msgid "产品"
+msgstr "Product"
+
 msgid "被调"
 msgstr "Turned"
 
@@ -5775,6 +5844,9 @@ msgstr "Remote Call"
 
 msgid "高级(Advances)"
 msgstr "Advanced"
+
+msgid "服务地址"
+msgstr "Service Address"
 
 msgid "HTTP协议"
 msgstr "Http Protocol"
@@ -5807,7 +5879,13 @@ msgid "数据库操作"
 msgstr "Database Operation"
 
 msgid "数据库类型"
-msgstr "Database Type"
+msgstr "DB TYPE"
+
+msgid "数据库语句"
+msgstr "DB STATEMENT"
+
+msgid "数据库实例ID"
+msgstr "DB Instance ID"
 
 msgid "消息系统"
 msgstr "Message System"
@@ -5848,6 +5926,12 @@ msgstr "SDK Version"
 msgid "服务命名空间"
 msgstr "Service Namespace"
 
+msgid "主机IP(net.host.ip)"
+msgstr "net.host.ip"
+
+msgid "主机IP(host.ip)"
+msgstr "host.ip"
+
 msgid "主机端口"
 msgstr "Host Port"
 
@@ -5863,11 +5947,41 @@ msgstr "Raw Query"
 msgid "预计算查询"
 msgstr "Pre-Calculated Query"
 
+msgid "虚拟节点"
+msgstr "Virtual Node"
+
 msgid "主机采集项"
 msgstr "Host Collection Items"
 
 msgid "服务关联"
 msgstr "Service Association"
+
+msgid "尾部采样Flow"
+msgstr ""
+
+msgid "trace请求耗时"
+msgstr "TRACE request time"
+
+msgid "trace分钟请求数"
+msgstr "Trace minute request number"
+
+msgid "trace总请求数"
+msgstr "Trace always wants"
+
+msgid "trace分钟请求最大耗时"
+msgstr "TRACE minute request is the maximum time consumption"
+
+msgid "trace分钟请求最小耗时"
+msgstr "TRCE minute request time consumption time"
+
+msgid "trace总请求耗时"
+msgstr "Total Trace Duration"
+
+msgid "trace分钟总请求耗时"
+msgstr "Total Trace Duration per Minute"
+
+msgid "trace总请求耗时bucket"
+msgstr "Total Trace Duration Bucket"
 
 msgid "每天"
 msgstr "Daily"
@@ -5878,8 +5992,26 @@ msgstr "Weekly"
 msgid "每月"
 msgstr "Monthly"
 
+msgid "工作日"
+msgstr "Working day"
+
+msgid "周末"
+msgstr "Weekend"
+
+msgid "日期范围"
+msgstr "Date Range"
+
+msgid "起止时间"
+msgstr "Start&End"
+
 msgid "单次"
-msgstr "Single"
+msgstr "Once"
+
+msgid "手动指定"
+msgstr "Manually"
+
+msgid "自动"
+msgstr "Auto"
 
 msgid "日志"
 msgstr "Log"
@@ -5944,8 +6076,11 @@ msgstr "Substitute resource exceeding the limit (process group dimension)"
 msgid "Resource[{}] 返回参数格式错误：{}"
 msgstr "The Resource [{}] Return parameter format error: {}"
 
-msgid "method仅支持GET或POST或PUT或DELETE"
-msgstr "Method only supports GET or POST or PUT or Delete"
+msgid "method仅支持GET或POST或PUT或DELETE或PATCH"
+msgstr "Method only supports GET or POST or PUT or Delete or PATCH"
+
+msgid "接口返回结果超时"
+msgstr "Interface returns the result timeout"
 
 #, python-format
 msgid "resource_class参数必须提供Resource的子类, 当前类型: %s"
@@ -6148,6 +6283,13 @@ msgstr "The current space has not connected the [{func}] function yet"
 
 msgid "主机智能异常检测结果内容异常"
 msgstr "Abnormal Content in Host Intelligent Anomaly Detection Result"
+
+msgid "AIOps功能未开启"
+msgstr "AIOps is not accessed"
+
+#, python-brace-format
+msgid "当前空间尚未开[{func}]功能"
+msgstr "[{func}] not accessed in this space"
 
 msgid "API请求错误"
 msgstr "API request error"
@@ -6427,6 +6569,20 @@ msgstr "Data id does not exist"
 #, python-brace-format
 msgid "data_id: {data_id}不存在"
 msgstr "Data_id: {data_id} does not exist."
+
+msgid "结果表元数据错误"
+msgstr "ResultTable Meta Error"
+
+#, python-brace-format
+msgid "元数据错误：{msg}"
+msgstr "ResultTable Meta Error: {msg}"
+
+msgid "采集器元数据错误"
+msgstr "Collector Plugin Meta Error"
+
+#, python-brace-format
+msgid "采集器元数据错误：{msg}"
+msgstr "Collector Plugin Meta Error: {msg}"
 
 msgid "结果表"
 msgstr "Result Table"
@@ -7003,6 +7159,12 @@ msgstr "Failing alarm team failed "
 msgid "创建告警组失败：填写内容不合规范"
 msgstr "Failure to create alarm team: Fill in the contents not to be standardized"
 
+msgid "轮值规则名称已存在"
+msgstr "Rotation rule name already exists"
+
+msgid "轮值规则名称重复错误: 轮值规则名称已存在"
+msgstr "Duplicate rotation rule name error: Rotation rule name already exists"
+
 msgid "移动端事件模块错误"
 msgstr "Mobile terminal event module error"
 
@@ -7286,9 +7448,6 @@ msgstr "Time Field"
 msgid "未知类型字段"
 msgstr "Unknown type field"
 
-msgid "维度字段"
-msgstr "Dimension Field"
-
 msgid "时间戳字段"
 msgstr "Timestamp Field"
 
@@ -7487,7 +7646,7 @@ msgid "数据({})未接入到计算平台，请先接入后再试"
 msgstr "Data ({}) is not accessible to the calculation platform, please first access before try"
 
 msgid "全部"
-msgstr "All"
+msgstr "ALL,"
 
 msgid "慢语句"
 msgstr "Slow Query"
@@ -7513,50 +7672,17 @@ msgstr "Waiting"
 msgid "已停止"
 msgstr "stopped"
 
+msgid "未开启"
+msgstr "Disabled"
+
 msgid "无告警"
 msgstr "No Alarms"
 
-msgid "获取"
-msgstr "Obtain"
-
-msgid "其他日志"
-msgstr "Other Logs"
-
-msgid "随机"
-msgstr "Random"
-
 msgid "语言"
-msgstr "language"
+msgstr "Language"
 
 msgid "蓝鲸DataId"
 msgstr "BlueKing Data ID"
-
-msgid "自动匹配"
-msgstr "Auto Match"
-
-msgid "手动匹配"
-msgstr "Manual Match"
-
-msgid "入口服务"
-msgstr "Entry Service"
-
-msgid "入口接口"
-msgstr "Entry Endpoint"
-
-msgid "状态码"
-msgstr "Status Code"
-
-msgid "调用类型"
-msgstr "Invocation Type"
-
-msgid "Trace视角"
-msgstr "Trace View"
-
-msgid "span视角"
-msgstr "Span View"
-
-msgid "虚拟节点"
-msgstr "Virtual Node"
 
 msgid "其他网卡"
 msgstr "Other NIC"
@@ -7667,6 +7793,12 @@ msgstr "Maximum Time {}"
 msgid "存在不支持的分组字段: {group_fields}"
 msgstr "unsupported grouping field: {group_fields}"
 
+msgid "入口服务"
+msgstr "Entry Service"
+
+msgid "入口接口"
+msgstr "Entry Endpoint"
+
 msgid "入口状态码"
 msgstr "Entry status code"
 
@@ -7678,6 +7810,9 @@ msgstr "Root Span interface"
 
 msgid "根Span服务"
 msgstr "Root Span service"
+
+msgid "设置中未开启计算平台支持，无法创建尾部采样"
+msgstr "BKBase support is not enabled, tail sampling cannot be created."
 
 msgid "容器环境"
 msgstr "Container Environment"
@@ -7802,17 +7937,23 @@ msgstr ""
 "trace.set_tracer_provider(tracer_provider)\n"
 "```"
 
+msgid "目前暂不支持关闭 Tracing 功能"
+msgstr "Currently, it is not supported to turn off the Tracing"
+
+msgid "Span耗时"
+msgstr "Span Duration"
+
+msgid "随机采样未配置采集百分比"
+msgstr "Random sampling without configured collection percentage"
+
 msgid "实例名配置含有重复"
 msgstr "Example name configuration contains duplication"
 
-msgid "目标节点"
-msgstr "Target Node"
+msgid "应用别名"
+msgstr "Application alias"
 
-msgid "日志字符集"
-msgstr "Log Charset"
-
-msgid "应用名称"
-msgstr "App Name"
+msgid "应用名"
+msgstr "Application Name"
 
 msgid "应用描述"
 msgstr "Application Description"
@@ -7835,9 +7976,17 @@ msgstr "Error Rate"
 msgid "错误次数"
 msgstr "Wrong Number"
 
-#, python-brace-format
-msgid "{no_data_period}分钟内无数据"
-msgstr "{no_data_period} No data in minutes"
+msgid "应用是否启用"
+msgstr "Application Enabled"
+
+msgid "Profiling是否启用"
+msgstr "Profiling Enabled"
+
+msgid "Profiling数据状态"
+msgstr "Profiling Data Status"
+
+msgid "Trace数据状态"
+msgstr "Tracing Data Status"
 
 msgid "服务分类"
 msgstr "Service Classification"
@@ -7941,11 +8090,20 @@ msgstr "The component index value query does not support {value_data ['category'
 msgid "收藏"
 msgstr "Favorite"
 
+msgid "Tracing 状态"
+msgstr "Tracing Status"
+
 msgid "策略数"
 msgstr "Rules"
 
 msgid "告警状态"
 msgstr "Alarm Status"
+
+msgid "Profiling 状态"
+msgstr "Profiling Status"
+
+msgid "数据量"
+msgstr "Data Volume"
 
 msgid "配置"
 msgstr "Configuration"
@@ -7995,6 +8153,9 @@ msgstr "Interface Overview"
 msgid "接口"
 msgstr "Interface"
 
+msgid "调用类型"
+msgstr "Invocation Type"
+
 msgid "平均响应时间"
 msgstr "Average response time"
 
@@ -8013,23 +8174,40 @@ msgstr "{}sky"
 msgid "自定义数据源"
 msgstr "Custom data source"
 
-msgid "应用({}) 未开启性能分析"
-msgstr "Application ({}) Performance Analysis Not Enabled"
+msgid "应用({}.{}) 不存在"
+msgstr "Application ({}.{}) does not exist"
 
-msgid "未查询到有效数据"
-msgstr "No Valid Data Found"
+msgid "应用({}.{}) 未开启性能分析"
+msgstr "Application ({}.{}) Performance Analysis Not Enabled"
 
 msgid "无法转换 profiling 数据"
 msgstr "Cannot Convert Profiling Data"
 
+#, python-brace-format
+msgid "应用：{app.app_name} 未开启 Profile 功能，需先前往应用配置中开启"
+msgstr "Application: {app.app_name} The Profile function is disabled,Turn it on in the Application Configuration"
+
+msgid "最近上报时间"
+msgstr "Last Report Time"
+
 msgid "上传文件为空"
 msgstr "Uploaded File Is Empty"
 
-msgid "相同文件已上传"
-msgstr "Same File Already Uploaded"
+#, python-brace-format
+msgid "已上传过相同文件，名称：{exist_record.file_name}({exist_record.origin_file_name})"
+msgstr "Have uploaded the same file with name: {exist_record.file_name}({exist_record.origin_file_name})"
 
-msgid "保存 profiling 数据失败"
-msgstr "Failed to Save Profiling Data"
+msgid "上传文件失败， 失败原因: {}"
+msgstr "Upload failed, the reason for failure {}"
+
+msgid "未查询到有效数据"
+msgstr "No Valid Data Found"
+
+msgid "当前对比项查询条件未查询到有效数据，请调整后再试"
+msgstr "The current comparison item query conditions did not query the valid data, please adjust and try again!"
+
+msgid "应用({}) 未开启性能分析"
+msgstr "Application ({}) Performance Analysis Not Enabled"
 
 msgid "不存在的列: {}"
 msgstr "No list: {}"
@@ -8238,6 +8416,12 @@ msgstr "With dimensions of alarm notification"
 msgid "汇总告警通知"
 msgstr "Summary alarm notification"
 
+msgid "周边系统"
+msgstr "Peripheral System"
+
+msgid "蓝鲸插件"
+msgstr "BK-Plugin"
+
 msgid "告警链接"
 msgstr "Alarm Link"
 
@@ -8332,20 +8516,20 @@ msgstr "Handling Records"
 msgid "指标ID"
 msgstr "Metric ID"
 
-msgid "策略标签"
-msgstr "Rule Label"
-
 msgid "目标IPv6"
 msgstr "Target IPv6"
 
 msgid "目标服务实例ID"
 msgstr "Target Instance ID"
 
-msgid "通知人"
-msgstr "Notified Person"
+msgid "目标节点"
+msgstr "Target Node"
 
 msgid "知会人"
 msgstr "Notification Recipient"
+
+msgid "关注人"
+msgstr "Follower"
 
 msgid "是否已确认"
 msgstr "Is it confirmed"
@@ -8374,6 +8558,9 @@ msgstr "confirm the time"
 msgid "数据类型"
 msgstr "Data Type"
 
+msgid "告警来源"
+msgstr "Alarm Source"
+
 msgid "告警源名称"
 msgstr "Alarm Name"
 
@@ -8388,6 +8575,9 @@ msgstr "My Alarm"
 
 msgid "我负责的"
 msgstr "My Assigned"
+
+msgid "我关注的"
+msgstr "My Followed"
 
 msgid "我收到的"
 msgstr "My Received"
@@ -8406,6 +8596,12 @@ msgstr "Delayed Recovery"
 
 msgid "中断恢复"
 msgstr "Interruption Recovery"
+
+msgid "系统恢复"
+msgstr "SYSTEM Recovery"
+
+msgid "系统关闭"
+msgstr "SYSTEM Close"
 
 msgid "告警级别调整"
 msgstr "Modify Severity"
@@ -8485,9 +8681,6 @@ msgstr "Resource [{}] The request parameter format is wrong, and the notificatio
 msgid "Resource[{}] 请求参数格式错误, 请求的token不正确"
 msgstr "Resource [{}] The request parameter format is wrong, and the token request is incorrect"
 
-msgid "异常事件统计"
-msgstr "Statistics of anomalies"
-
 msgid "集群({}) "
 msgstr "Cluster ({})."
 
@@ -8496,12 +8689,6 @@ msgstr "Module ({})"
 
 msgid "阈值算法"
 msgstr "Threshold Algorithm"
-
-msgid "算法无输出"
-msgstr "Algorithm has no output"
-
-msgid "指标推荐"
-msgstr "Recommended Metrics"
 
 msgid "快捷屏蔽3小时"
 msgstr "Quick shielding 3 hours"
@@ -8735,66 +8922,6 @@ msgstr "Regular Expression"
 msgid "通配符"
 msgstr "Wildcard"
 
-#, python-format
-msgid "第三方组件%s异常"
-msgstr "The third party components(%s) exception"
-
-msgid "请检查esb及对应组件服务是否正常"
-msgstr "Check esb and the corresponding component service is normal"
-
-msgid "cc 不存在对应的测试用例"
-msgstr "cc absence of the corresponding test cases"
-
-#, python-brace-format
-msgid "cc中不存在{method_name}"
-msgstr "Does not exist {method_name} in cc"
-
-msgid "接口不具有依赖关系"
-msgstr "Interface does not have a dependency relationship"
-
-msgid "cc中没有此接口"
-msgstr "This interface is not cc"
-
-msgid "job不存在对应的测试用例"
-msgstr "the absence of the corresponding test job"
-
-msgid "job 中不存在接口 fast_execute_script 的相关参数"
-msgstr "job-related parameters of the interface does not exist fast_execute_script"
-
-#, python-brace-format
-msgid "job中不存在{method_name}"
-msgstr "job does not exist in {method_name}"
-
-#, python-format
-msgid "查找业务下主机失败,主机查询结果:%s"
-msgstr "Find a Business Host fails, the host query results: %s"
-
-msgid "job中没有此接口"
-msgstr "This interface is not job"
-
-msgid "bk_data中不存在对应的测试用例"
-msgstr "bk_data absence of the corresponding test"
-
-msgid "saas的celery状态阻塞"
-msgstr "saas blocking state of celery"
-
-msgid "重启saas的celery服务"
-msgstr "Saas restart of celery service"
-
-msgid "rabbitmq服务未开启"
-msgstr "rabbitmq service is not open"
-
-#, python-format
-msgid "请检查服务[%s]是否启动"
-msgstr "Check the service [%s] whether to start"
-
-msgid "账户无权限访问rabbitmq"
-msgstr "Account no access rabbitmq"
-
-#, python-format
-msgid "创建账户及v_host: %s"
-msgstr "Create an account and v_host: %s"
-
 msgid "静态阈值"
 msgstr "Static Threshold"
 
@@ -8945,6 +9072,9 @@ msgstr "Failure to use the tested task: {}"
 
 msgid "拨测任务停用失败：存在运行中的启停任务，请稍后再试"
 msgstr "Failure to stop the test task: there is a start -stop task in operation, please try it later"
+
+msgid "拨测任务对应订阅信息不存在"
+msgstr "The subscription with task does not exist"
 
 #, python-format
 msgid "拨测任务停用失败：%s"
@@ -9780,6 +9910,57 @@ msgstr "Collection record({}) does not exist"
 msgid "您没有权限分享到业务ID为{bk_biz_id}的业务"
 msgstr "You do not have permission to share to business ID {bk_biz_id}"
 
+msgid "存储类型"
+msgstr "Storage Type"
+
+msgid "Proxy集群"
+msgstr "Proxy Cluster"
+
+msgid "实例集群"
+msgstr "Instance Cluster"
+
+msgid "存储实例数"
+msgstr "Number of Storage Instances"
+
+msgid "存储实例"
+msgstr "Storage Instance"
+
+msgid "主机实例"
+msgstr "Host Instance"
+
+msgid "服务端请求数(近1小时)"
+msgstr "Server Request Count(Last 1h)"
+
+msgid "服务端错误数(近1小时)"
+msgstr "Server Error Count(Last 1h)"
+
+msgid "内存占用量"
+msgstr "Memory Usage"
+
+msgid "库名"
+msgstr "Database Name"
+
+msgid "写入成功点数(近1小时)"
+msgstr "Points of Successful Writes(Last 1h)"
+
+msgid "写入失败点数(近1小时)"
+msgstr "Points of Failed Writes(Last 1h)"
+
+msgid "磁盘占用量"
+msgstr "Disk Usage"
+
+msgid "Series数量"
+msgstr "Number of Series"
+
+msgid "是"
+msgstr "Yes"
+
+msgid "否"
+msgstr "No"
+
+msgid "计算平台结果表"
+msgstr "BKBase Result Table"
+
 msgid "关联插件不存在"
 msgstr "Associated plugin does not exist"
 
@@ -9837,11 +10018,8 @@ msgstr "Selected target different objectives and configuration requirements"
 msgid "私人仪表盘"
 msgstr "Personal Dashboard"
 
-msgid "蓝鲸监控 - 时序数据"
-msgstr "BK-Monitor -Time Data"
-
-msgid "默认仪表盘"
-msgstr "Default Dashboard"
+msgid "时间间隔必须为整数或auto"
+msgstr "The interval must be an integer or auto"
 
 msgid "事件名"
 msgstr "Event Name"
@@ -9859,7 +10037,7 @@ msgid "仪表盘"
 msgstr "Dashboard"
 
 msgid "文件夹"
-msgstr "folder"
+msgstr "Folder"
 
 msgid "设置失败，找不到该仪表盘"
 msgstr "The setting fails, you can't find the instrument panel"
@@ -10680,6 +10858,48 @@ msgstr "Details Link"
 msgid "k8s_系统内置"
 msgstr "K8S_ System Built -in"
 
+msgid "数据采集遇到系统异常情况，导致无法上报数据，会发送告警。"
+msgstr "Data collection encountered a system exception that prevent reporting data, it will trigger alarms."
+
+msgid ""
+"数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：\n"
+"- 端口服务无法正常监听\n"
+"- 服务输出的内容格式不符合Prom格式"
+msgstr ""
+"Data collection encounters plugin exceptions that prevent reporting data, it will trigger alarms. Currently covered exception:” “\n"
+"- Port service cannot listen normally” “\n"
+"- Service output format does not meet the Prom format"
+
+msgid ""
+"当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n"
+"- 脚本执行异常，返回非0状态码\n"
+"- 脚本打印内容格式不符合Prom格式"
+msgstr ""
+"When data collection encounters exceptions that prevent reporting data, it will trigger alarms. Currently covered exceptions include:” “\n"
+"- Script execution anomaly, returning non-zero status code” “\n"
+"- Script output format does not conform to the Prom format"
+
+msgid ""
+"当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n"
+"- 用户配置中的PID文件不存在\n"
+"- 用户配置的匹配规则无命中任何进程"
+msgstr ""
+"When data collection encounters exceptions that prevent reporting data, it will trigger alarms. Currently covered exceptions include:” “\n"
+"- PID file specified in user configuration does not exist” “\n"
+"- No processes matched by user-configured rules"
+
+msgid "集成内置"
+msgstr "Datalink BuiltIn"
+
+msgid "集成内置-数据采集告警分派"
+msgstr "Datalink Built - Data Collection Alarm Dispatching"
+
+msgid "集成内置-数据采集系统运行异常告警"
+msgstr "Datalink BuiltIn - Data Collection System Anomaly Alarm"
+
+msgid "集成内置-数据采集插件执行异常告警"
+msgstr "Datalink BuiltIn = Data Collection Plugin Execution Anomaly Alarm"
+
 msgid "Gse进程托管事件告警(业务侧)"
 msgstr "GSE process hosting event alarm (business side)"
 
@@ -10748,9 +10968,6 @@ msgstr "[Kube Kubelet] The POD running POD too much Kubelettoomanypods"
 
 msgid "[kube Master] 客户端访问 APIServer 出错 rest_client_requests_total_5xx"
 msgstr "[Kube Master] The client visits the Apiserver error REST_Client_requests_TOTAL_5XX"
-
-msgid "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
-msgstr "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
 
 msgid "内存 requests"
 msgstr "Memory Requests"
@@ -10871,30 +11088,6 @@ msgstr "Expected Response Code"
 
 msgid "期望响应内容"
 msgstr "Expected response content"
-
-msgid "trace请求耗时"
-msgstr "TRACE request time"
-
-msgid "trace分钟请求数"
-msgstr "Trace minute request number"
-
-msgid "trace总请求数"
-msgstr "Trace always wants"
-
-msgid "trace分钟请求最大耗时"
-msgstr "TRACE minute request is the maximum time consumption"
-
-msgid "trace分钟请求最小耗时"
-msgstr "TRCE minute request time consumption time"
-
-msgid "trace总请求耗时"
-msgstr "Total Trace Duration"
-
-msgid "trace分钟总请求耗时"
-msgstr "Total Trace Duration per Minute"
-
-msgid "trace总请求耗时bucket"
-msgstr "Total Trace Duration Bucket"
 
 msgid "需要过滤的事件数"
 msgstr "Number of events that need to be filtered"
@@ -11179,7 +11372,7 @@ msgid "存在非法的策略ID, {}"
 msgstr "There is an illegal strategy ID, {}"
 
 msgid "- 未配置 -"
-msgstr "-Ifanded-"
+msgstr "- Not Configured"
 
 msgid "告警中"
 msgstr "Alerting"
@@ -11277,11 +11470,11 @@ msgstr "Monitoring conditions fill in error, you need to key, method, value key"
 msgid "多个条件时，聚合条件中需要condition参数，且为and或or"
 msgstr "When a plurality of conditions, the polymerization conditions need to condition parameter, and to and or or"
 
-msgid "【蓝鲸】官方插件管理员"
-msgstr "[BlueKing] Official Plugin administrator"
-
 msgid "【蓝鲸】GSE管理员"
 msgstr "[BlueKing] GSE administrator"
+
+msgid "采集负责人"
+msgstr "Collector Creator"
 
 msgid "{}创建异常检测"
 msgstr "{} Create anomalies"
@@ -11488,6 +11681,9 @@ msgstr "Check task (id=%s) acquisition failure"
 msgid "(未知)"
 msgstr "(unknown)"
 
+msgid "状态码"
+msgstr "Status Code"
+
 msgid "响应内容"
 msgstr "Response Content"
 
@@ -11521,9 +11717,6 @@ msgstr "POST, PUT, PATCH method must be filled)"
 
 msgid "SSL证书校验"
 msgstr "SSL Certificate Verification"
-
-msgid "否"
-msgstr "No"
 
 msgid "期望响应时间（ms）"
 msgstr "Expected response time (ms)"
@@ -11600,9 +11793,6 @@ msgstr "There is no Check node under the current business [%s]"
 
 msgid "拨测节点未填写"
 msgstr "Check node is not filled"
-
-msgid "是"
-msgstr "Yes"
 
 msgid "是否支持秒级填写错误"
 msgstr "Whether to support the second -level filling error"
@@ -11731,96 +11921,3 @@ msgstr "Results Table [%s] is not the physical store"
 #, python-format
 msgid "存储[%s]对应的查询引擎不存在"
 msgstr "Storage [%s] corresponding to the query engine absent"
-
-msgid "存储类型"
-msgstr "Storage Type"
-
-msgid "Proxy集群"
-msgstr "Proxy Cluster"
-
-msgid "实例集群"
-msgstr "Instance Cluster"
-
-msgid "存储实例数"
-msgstr "Number of Storage Instances"
-
-msgid "存储实例"
-msgstr "Storage Instance"
-
-msgid "主机实例"
-msgstr "Host Instance"
-
-msgid "服务端请求数(近1小时)"
-msgstr "Server Request Count(Last 1h)"
-
-msgid "服务端错误数(近1小时)"
-msgstr "Server Error Count(Last 1h)"
-
-msgid "内存占用量"
-msgstr "Memory Usage"
-
-msgid "数据库"
-msgstr "Database"
-
-msgid "库名"
-msgstr "Database Name"
-
-msgid "写入成功点数(近1小时)"
-msgstr "Points of Successful Writes(Last 1h)"
-
-msgid "写入失败点数(近1小时)"
-msgstr "Points of Failed Writes(Last 1h)"
-
-msgid "磁盘占用量"
-msgstr "Disk Usage"
-
-msgid "Series数量"
-msgstr "Number of Series"
-
-msgid "计算平台结果表"
-msgstr "BKBase Result Table"
-
-msgid "数据采集遇到系统异常情况，导致无法上报数据，会发送告警。"
-msgstr "Data collection encountered a system exception that prevent reporting data, it will trigger alarms."
-
-msgid "数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：” “\n- 端口服务无法正常监听” “\n- 服务输出的内容格式不符合Prom格式"
-msgstr "Data collection encounters plugin exceptions that prevent reporting data, it will trigger alarms. Currently covered exception:” “\n- Port service cannot listen normally” “\n- Service output format does not meet the Prom format"
-
-msgid "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：” “\n- 脚本执行异常，返回非0状态码” “\n- 脚本打印内容格式不符合Prom格式"
-msgstr "When data collection encounters exceptions that prevent reporting data, it will trigger alarms. Currently covered exceptions include:” “\n- Script execution anomaly, returning non-zero status code” “\n- Script output format does not conform to the Prom format"
-
-msgid "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：” “\n- 用户配置中的PID文件不存在” “\n- 用户配置的匹配规则无命中任何进程"
-msgstr "When data collection encounters exceptions that prevent reporting data, it will trigger alarms. Currently covered exceptions include:” “\n- PID file specified in user configuration does not exist” “\n- No processes matched by user-configured rules"
-
-msgid "集成内置-数据采集系统运行异常告警"
-msgstr "Datalink BuiltIn - Data Collection System Anomaly Alarm"
-
-msgid "集成内置-数据采集插件执行异常告警"
-msgstr "Datalink BuiltIn = Data Collection Plugin Execution Anomaly Alarm"
-
-msgid "集成内置"
-msgstr "Datalink BuiltIn"
-
-msgid "集成内置-数据采集告警分派"
-msgstr "Datalink Built - Data Collection Alarm Dispatching"
-
-msgid "序号"
-msgstr "Index"
-
-msgid "是否新增"
-msgstr "Is New Pattern"
-
-msgid "数据指纹"
-msgstr "Data Fingerprint"
-
-msgid "数量"
-msgstr "Quantity"
-
-msgid "占比"
-msgstr "Percentage"
-
-msgid "同比数量"
-msgstr "Year-on-Year Quantity"
-
-msgid "同比变化"
-msgstr "Year-on-Year Change"

@@ -256,5 +256,5 @@ export default {
   数值字段范围匹配: 'Numerical field range matching',
   数据获取异常: 'Data acquisition exception',
   标签key值应该保持唯一性: 'The Key Value of Tags Should be Unique',
-  模糊检索使用通配符: 'Fuzzy search using wild-card'
+  模糊检索使用通配符: 'Fuzzy search using wild-card',
 };

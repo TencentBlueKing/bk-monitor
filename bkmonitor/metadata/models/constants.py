@@ -447,3 +447,27 @@ class ESScopeTypes(Enum):
     MANY_SPACE = "many_space"
     PLATFORM_SPACE = "platform_space"
     SPACE_FIELDS = "space_fields"
+
+
+# 默认measurement
+DEFAULT_MEASUREMENT = "__default__"
+
+
+# 事件组状态
+class EventGroupStatus(Enum):
+    """事件组状态"""
+
+    NORMAL = "normal"
+    SLEEP = "sleep"
+
+
+# 事件组休眠阈值(天)
+EVENT_GROUP_SLEEP_THRESHOLD = 61
+
+
+class EsSourceType(Enum):
+    """ES数据源的类型"""
+
+    LOG = "log"
+    BKDATA = "bkdata"
+    ES = "es"

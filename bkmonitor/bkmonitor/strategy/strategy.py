@@ -13,19 +13,15 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 from itertools import product
+
 from django.conf import settings
 from django.utils.translation import ugettext as _
 from rest_framework.exceptions import ValidationError
 
-from core.errors.strategy import (
-    CreateStrategyError,
-    StrategyConfigInitError,
-    StrategyNotExist,
-    UpdateStrategyError,
-)
 from bkmonitor.models import (
     Action,
     ActionNoticeMapping,
+    BaseAlarmQueryConfig,
     CustomEventQueryConfig,
     DetectAlgorithm,
     Item,
@@ -34,7 +30,6 @@ from bkmonitor.models import (
     ResultTableDSLConfig,
     ResultTableSQLConfig,
     Strategy,
-    BaseAlarmQueryConfig,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
@@ -45,8 +40,13 @@ from constants.strategy import (
     TargetFieldType,
 )
 from core.drf_resource import api
+from core.errors.strategy import (
+    CreateStrategyError,
+    StrategyConfigInitError,
+    StrategyNotExist,
+    UpdateStrategyError,
+)
 from monitor_web.strategies.constant import EVENT_METRIC_ID
-
 
 logger = logging.getLogger(__name__)
 
@@ -372,12 +372,22 @@ class StrategyConfig(object):
         - 计算平台数据(根据用户身份配置)
             1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
         """
+        from monitor_web.tasks import (
+            access_aiops_by_strategy_id,
+            access_host_anomaly_detect_by_strategy_id,
+        )
+
         # 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:
             return
 
         has_intelligent_algorithm = False
         for algorithm in list(self.detect_algorithm_data.values()):
+            # 主机异常检测的接入逻辑跟其他智能检测不一样，因此单独接入
+            if algorithm.algorithm_type == DetectAlgorithm.AlgorithmChoices.HostAnomalyDetection:
+                access_host_anomaly_detect_by_strategy_id.delay(self.id)
+                return
+
             if algorithm.algorithm_type == DetectAlgorithm.AlgorithmChoices.IntelligentDetect:
                 has_intelligent_algorithm = True
                 break
@@ -389,8 +399,6 @@ class StrategyConfig(object):
         for item in list(self.item_data.values()):
             if item.data_type_label != DataTypeLabel.TIME_SERIES:
                 continue
-
-            from monitor_web.tasks import access_aiops_by_strategy_id
 
             if item.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR:
                 rt_query_config = ResultTableSQLConfig.objects.get(id=item.rt_query_config_id)
@@ -435,7 +443,6 @@ class StrategyConfig(object):
                 and item.target[0]
                 and item.target[0][0].get("field", "") in [TargetFieldType.service_topo, TargetFieldType.host_topo]
             ):
-
                 if item.rt_query_config_id == 0:
                     continue
 

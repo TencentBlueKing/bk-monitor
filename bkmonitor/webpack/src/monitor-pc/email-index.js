@@ -24,16 +24,17 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import dayjs from 'dayjs';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
+import './common/import-email-magicbox-ui';
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
-import './common/import-email-magicbox-ui';
 
+import './static/css/global.scss';
 import './static/css/old-global.scss';
 import './static/css/reset.scss';
-import './static/css/global.scss';
 
 dayjs.tz.locale('zh-cn');
 Vue.prototype.$t = v => v;

@@ -27,6 +27,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { echarts, MonitorEchartOptions } from '../typings/index';
+import { getTimeSeriesXInterval } from '../utils/axis';
 
 import './base-echart.scss';
 
@@ -37,6 +38,8 @@ export interface IChartProps {
   width?: number;
   // echart 配置
   options: MonitorEchartOptions;
+  // hover是显示所有图标tooltips
+  hoverAllTooltips?: boolean;
 }
 export interface IChartEvent {
   // mouseover 事件
@@ -72,29 +75,36 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   isMouseOver = false;
 
   @Watch('height')
-  handleHeightChange() {
+  handleHeightChange(h: number) {
+    const instance = (this as any).instance;
+    const height = instance?.getHeight() || 0;
+    if (!height || Math.abs(height - h) < 1) return;
     if (this.height < 200) {
-      (this as any).instance?.setOption({
+      instance?.setOption({
         yAxis: {
           splitNumber: 2,
-          scale: false
-        }
+          scale: false,
+        },
       });
     }
-    (this as any).instance?.resize({
-      silent: true
+    instance?.resize({
+      silent: true,
     });
   }
   @Watch('width')
-  handleWidthChange() {
-    (this as any).instance?.setOption({
+  handleWidthChange(v: number) {
+    const instance = (this as any).instance;
+    const width = instance?.getWidth() || 0;
+    if (!width || Math.abs(width - v) < 1) return;
+    const maxXInterval = instance.getOption().customData?.maxXInterval;
+    const xInterval = getTimeSeriesXInterval(maxXInterval, v);
+    instance?.setOption({
       xAxis: {
-        splitNumber: Math.ceil(this.width / 150),
-        min: 'dataMin'
-      }
+        ...xInterval,
+      },
     });
-    (this as any).instance?.resize({
-      silent: true
+    instance?.resize({
+      silent: true,
     });
   }
   mounted() {
@@ -149,7 +159,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     this.dispatchAction({
       type: 'takeGlobalCursor',
       key: 'dataZoomSelect',
-      dataZoomSelectActive: true
+      dataZoomSelectActive: true,
     });
   }
   initChartEvent() {
@@ -185,13 +195,13 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   render() {
     return (
       <div
-        class='chart-base'
         ref='chartInstance'
         style={{ minHeight: `${1}px` }}
-        onMouseover={this.handleMouseover}
-        onMouseleave={this.handleMouseleave}
+        class='chart-base'
         onClick={this.handleClick}
         onDblclick={this.handleDblClick}
+        onMouseleave={this.handleMouseleave}
+        onMouseover={this.handleMouseover}
       />
     );
   }

@@ -27,7 +27,6 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { IGroupItem } from '../components/group-select';
-
 import AlarmHandling, { IAllDefense, IValue as IAlarmItem } from './alarm-handling';
 import SimpleSelect from './simple-select';
 
@@ -51,14 +50,14 @@ export const signalNames = {
   abnormal: window.i18n.tc('告警触发时'),
   recovered: window.i18n.tc('告警恢复时'),
   closed: window.i18n.tc('告警关闭时'),
-  no_data: window.i18n.tc('无数据时')
+  no_data: window.i18n.tc('无数据时'),
 };
 
 const signalOptions: { id: string; name: string }[] = [
   { id: 'abnormal', name: signalNames.abnormal },
   { id: 'recovered', name: signalNames.recovered },
   { id: 'closed', name: signalNames.closed },
-  { id: 'no_data', name: signalNames.no_data }
+  { id: 'no_data', name: signalNames.no_data },
 ];
 
 @Component
@@ -102,9 +101,9 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
             is_enabled: true,
             converge_func: 'skip_when_success',
             timedelta: 1,
-            count: 1
-          }
-        }
+            count: 1,
+          },
+        },
       });
       this.addValue = [];
     }
@@ -148,7 +147,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
   handleAlarmChange(v: IAlarmItem, index: number) {
     this.$set(this.data, index, {
       ...v,
-      signal: this.data[index].signal
+      signal: this.data[index].signal,
     });
     this.handleChange();
   }
@@ -183,8 +182,8 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
         <div class='items-wrap'>
           {this.data.map((item, index) => (
             <div
-              class='alarm-item'
               key={index}
+              class='alarm-item'
             >
               {!this.readonly ? (
                 <i
@@ -193,11 +192,11 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                 ></i>
               ) : undefined}
               <SimpleSelect
-                value={item.signal}
+                disabled={this.readonly}
                 list={signalOptions}
                 multiple={true}
                 popoverMinWidth={130}
-                disabled={this.readonly}
+                value={item.signal}
                 onChange={v => this.handleSignalChange(v as string[], index)}
               >
                 <span class='signal-select-wrap'>
@@ -210,15 +209,15 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                 </span>
               </SimpleSelect>
               <AlarmHandling
+                extCls={'alarm-handling-item'}
                 allAction={this.allAction}
                 allDefense={this.allDefense}
-                value={item}
-                extCls={'alarm-handling-item'}
+                isSimple={this.isSimple}
                 readonly={this.readonly}
                 strategyId={this.strategyId}
-                isSimple={this.isSimple}
-                onChange={v => this.handleAlarmChange(v, index)}
+                value={item}
                 onAddMeal={() => this.handleAddMeal(index)}
+                onChange={v => this.handleAlarmChange(v, index)}
               ></AlarmHandling>
             </div>
           ))}
@@ -226,12 +225,12 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
         {!this.readonly && (
           <div class='add-wrap'>
             <SimpleSelect
-              value={this.addValue}
               list={signalOptions}
               multiple={true}
               popoverMinWidth={130}
-              onToggle={v => this.handleAddBtnToggle(v)}
+              value={this.addValue}
               onChange={v => this.handleAddBtnChange(v as string[])}
+              onToggle={v => this.handleAddBtnToggle(v)}
             >
               <span class='signal-select-wrap'>
                 <span class='add-placeholder'>{this.$t('选择添加告警场景')}</span>

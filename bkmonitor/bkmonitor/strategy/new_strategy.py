@@ -73,6 +73,7 @@ from bkmonitor.strategy.serializers import (
     BkMonitorTimeSeriesSerializer,
     CustomEventSerializer,
     CustomTimeSeriesSerializer,
+    HostAnomalyDetectionSerializer,
     IntelligentDetectSerializer,
     MultivariateAnomalyDetectionSerializer,
     PrometheusTimeSeriesSerializer,
@@ -131,7 +132,7 @@ def get_metric_id(
         DataSourceLabel.PROMETHEUS: {DataTypeLabel.TIME_SERIES: promql[:125] + "..." if len(promql) > 128 else promql},
         DataSourceLabel.CUSTOM: {
             DataTypeLabel.EVENT: "{}.{}.{}.{}".format(
-                data_source_label, data_type_label, result_table_id, custom_event_name
+                data_source_label, data_type_label, result_table_id, custom_event_name or "__INDEX__"
             ),
             DataTypeLabel.TIME_SERIES: "{}.{}.{}".format(data_source_label, result_table_id, metric_field),
         },
@@ -805,6 +806,7 @@ class Algorithm(AbstractConfig):
             "TimeSeriesForecasting": TimeSeriesForecastingSerializer,
             "AbnormalCluster": AbnormalClusterSerializer,
             "MultivariateAnomalyDetection": MultivariateAnomalyDetectionSerializer,
+            "HostAnomalyDetection": HostAnomalyDetectionSerializer,
             "PartialNodes": None,
             "": None,
         }
@@ -1529,7 +1531,7 @@ class Strategy(AbstractConfig):
         labels: List[str] = None,
         app: str = "",
         path: str = "",
-        priority: int = 0,
+        priority: int = None,
         priority_group_key: str = None,
         metric_type: str = "",
         **kwargs,
@@ -1640,10 +1642,12 @@ class Strategy(AbstractConfig):
         user_group_ids = []
         for action_relation in action_relations:
             user_group_ids.extend(action_relation.validated_user_groups)
-        user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         if with_detail:
             user_groups_slz = UserGroupDetailSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
+        else:
+            user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         user_groups = {group["id"]: dict(group) for group in user_groups_slz}
+
         for config in configs:
             for action in config["actions"] + [config["notice"]]:
                 user_group_list = []
@@ -2027,7 +2031,7 @@ class Strategy(AbstractConfig):
             create_user=self._get_username(),
             update_user=self._get_username(),
             priority=self.priority,
-            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items),
+            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else "",
         )
         self.id = strategy.id
 
@@ -2102,7 +2106,9 @@ class Strategy(AbstractConfig):
                 strategy.invalid_type = self.invalid_type
                 strategy.update_user = self._get_username()
                 strategy.priority = self.priority
-                strategy.priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
+                strategy.priority_group_key = (
+                    self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else ""
+                )
                 strategy.save()
             else:
                 self._create()
@@ -2187,25 +2193,34 @@ class Strategy(AbstractConfig):
         - 计算平台数据(根据用户身份配置)
             1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
         """
+        from bkmonitor.models import AlgorithmModel
+        from monitor_web.tasks import (
+            access_aiops_by_strategy_id,
+            access_host_anomaly_detect_by_strategy_id,
+        )
+
         # 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:
             return
 
-        has_intelligent_algorithm = False
+        intelligent_algorithm = None
         for algorithm in chain(*(item.algorithms for item in self.items)):
-            if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
-                has_intelligent_algorithm = True
+            # 主机异常检测的接入逻辑跟其他智能检测不一样，因此单独接入
+            if algorithm.type == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                intelligent_algorithm = algorithm.type
                 break
 
-        if not has_intelligent_algorithm:
+            if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
+                intelligent_algorithm = algorithm.type
+                break
+
+        if not intelligent_algorithm:
             return
 
         # 判断数据来源
         for query_config in chain(*(item.query_configs for item in self.items)):
             if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
                 continue
-
-            from monitor_web.tasks import access_aiops_by_strategy_id
 
             need_access = False
 
@@ -2218,13 +2233,16 @@ class Strategy(AbstractConfig):
 
             elif query_config.data_source_label == DataSourceLabel.BK_DATA:
                 # 1. 先授权给监控项目(以创建或更新策略的用户来请求一次授权)
-                from bkmonitor.dataflow import auth
+                if intelligent_algorithm in AlgorithmModel.AIOPS_ALGORITHMS:
+                    # 主机异常检测使用业务主机观测场景的flow，因此不需要授权
+                    from bkmonitor.dataflow import auth
 
-                auth.ensure_has_permission_with_rt_id(
-                    bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
-                    rt_id=query_config.result_table_id,
-                    project_id=settings.BK_DATA_PROJECT_ID,
-                )
+                    auth.ensure_has_permission_with_rt_id(
+                        bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
+                        rt_id=query_config.result_table_id,
+                        project_id=settings.BK_DATA_PROJECT_ID,
+                    )
+
                 # 2. 然后再创建异常检测的dataflow
                 need_access = True
 
@@ -2237,8 +2255,11 @@ class Strategy(AbstractConfig):
                 query_config.save()
 
                 if settings.ROLE == "web":
-                    # 只有 web 运行模式下，才允许触发 celery 异步接入任务
-                    access_aiops_by_strategy_id.delay(self.id)
+                    if intelligent_algorithm == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                        access_host_anomaly_detect_by_strategy_id.delay(self.id)
+                    else:
+                        # 只有 web 运行模式下，才允许触发 celery 异步接入任务
+                        access_aiops_by_strategy_id.delay(self.id)
 
     @classmethod
     def get_priority_group_key(cls, bk_biz_id: int, items: List[Item]):
@@ -2264,6 +2285,7 @@ class Strategy(AbstractConfig):
             query_config = item.query_configs[0]
 
             item_query = {
+                "bk_biz_id": bk_biz_id,
                 "data_source_label": query_config.data_source_label,
                 "data_type_label": query_config.data_type_label,
                 "expression": item.expression,
@@ -2276,6 +2298,10 @@ class Strategy(AbstractConfig):
 
                 for field in query_config_fields:
                     new_query_config[field] = getattr(query_config, field, None)
+
+                # 聚合维度排序
+                if new_query_config["agg_dimension"]:
+                    new_query_config["agg_dimension"] = sorted(new_query_config["agg_dimension"])
 
                 # promql需要去除条件
                 if getattr(query_config, "promql", None):

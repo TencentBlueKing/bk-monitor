@@ -8,8 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import json
 import math
+import re
 from typing import Optional
 
 from django.conf import settings
@@ -97,6 +99,8 @@ class ApmDataSourceConfigBase(models.Model):
         )
 
     def create_data_id(self):
+        if self.bk_data_id != -1:
+            return self.bk_data_id
         try:
             data_id_info = resource.metadata.query_data_source({"data_name": self.data_name})
         except metadata_models.DataSource.DoesNotExist:
@@ -534,6 +538,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "messaging_system": {"terms": {"field": "attributes.messaging.system", "missing_bucket": True}}
         },
         "rpc_system": {"rpc_system": {"terms": {"field": "attributes.rpc.system", "missing_bucket": True}}},
+        "trpc_callee_method": {
+            "trpc_callee_method": {"terms": {"field": "attributes.trpc.callee_method", "missing_bucket": True}}
+        },
     }
 
     GROUP_KEY_FILTER_CONFIG = {
@@ -541,6 +548,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         "http_url": Q("exists", field="attributes.http.url"),
         "messaging_system": Q("exists", field="attributes.messaging.system"),
         "rpc_system": Q("exists", field="attributes.rpc.system"),
+        "trpc_callee_method": Q("exists", field="attributes.trpc.namespace"),
     }
 
     DEFAULT_LIMIT_MAX_SIZE = 10000
@@ -702,9 +710,49 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         return res.get("index_set_id"), res.get("index_set_name")
 
-    @property
+    @cached_property
     def index_name(self) -> str:
-        return f"{self.result_table_id.replace('.', '_')}_*"
+        try:
+            # 获取索引名称列表
+            es_index_name = self.result_table_id.replace(".", "_")
+            routes = self.es_client.transport.perform_request(
+                "GET",
+                f"/_cat/indices/{es_index_name}_*_*?bytes=b&format=json",
+            )
+            # 过滤出有效的索引名称
+            index_names = self._filter_and_sort_valid_index_names(
+                self.app_name,
+                index_names=[i["index"] for i in routes if i.get("index")],
+            )
+            if not index_names:
+                raise ValueError(f"[IndexName] valid indexName not found!")
+            return ",".join(index_names)
+        except Exception as e:  # noqa
+            res = f"{self.result_table_id.replace('.', '_')}_*"
+            logger.error(f"[IndexName] retrieve failed, error: {e}, use default: {res}")
+            return res
+
+    @classmethod
+    def _filter_and_sort_valid_index_names(cls, app_name, index_names):
+        date_index_pairs = []
+        pattern = re.compile(r".*_bkapm_trace_{0}_(\d{{8}})_\d+$".format(re.escape(app_name)))
+
+        for name in index_names:
+            match = pattern.search(name)
+            if match:
+                date_str = match.group(1)
+                # 检查 app_name 之后的格式是否是日期类型
+                try:
+                    date = datetime.datetime.strptime(date_str, "%Y%m%d")
+                    date_index_pairs.append((date, name))
+                except ValueError:
+                    logger.warning(f"[FilterValidIndexName] filter invalid indexName: {name} with wrong dateString")
+                    continue
+
+        # 按照时间排序 便于快捷获取最新的索引
+        date_index_pairs.sort(reverse=True, key=lambda x: x[0])
+
+        return [i[-1] for i in date_index_pairs]
 
     @cached_property
     def retention(self):
@@ -972,6 +1020,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
 
+    profile_bk_biz_id = models.IntegerField("Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)")
     retention = models.IntegerField("过期时间", null=True)
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
@@ -984,16 +1033,27 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **option):
+        profile_bk_biz_id = bk_biz_id
+        if bk_biz_id < 0:
+            # 非业务创建 profile 将创建在公共业务下
+            profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
-            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name, profile_bk_biz_id=profile_bk_biz_id)
         # 创建接入
-        essentials = BkDataDorisProvider.from_datasource_instance(obj, operator=get_global_user()).provider(**option)
+        apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
+        essentials = BkDataDorisProvider.from_datasource_instance(
+            obj,
+            maintainer=get_global_user() if not apm_maintainers else f"{get_global_user()},{apm_maintainers}",
+            operator=get_global_user(),
+            name_stuffix=bk_biz_id,
+        ).provider(**option)
 
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
-        obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
+        obj.save(update_fields=["bk_data_id", "result_table_id", "updated", "retention"])
         return
 
     @classmethod

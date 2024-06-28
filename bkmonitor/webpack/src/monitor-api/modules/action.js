@@ -33,5 +33,5 @@ export default {
   getActionConfigByAlerts,
   createDemoAction,
   getDemoActionDetail,
-  assignAlert
+  assignAlert,
 };

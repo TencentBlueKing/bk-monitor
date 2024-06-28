@@ -18,7 +18,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from apm_web.models import ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.collector import CollectorHandler
-from apm_web.profile.converter import list_converter
+from apm_web.profile.profileconverter import list_profile_converter
 
 logger = logging.getLogger("apm_web")
 
@@ -50,7 +50,7 @@ class ProfilingFileHandler:
         # 从 bkrepo 中获取文件数据
         data = self.get_file_data(key)
 
-        for file_type, c in list_converter().items():
+        for file_type, c in list_profile_converter().items():
             try:
                 converter = c(
                     preset_profile_id=profile_id,
@@ -78,7 +78,9 @@ class ProfilingFileHandler:
         sample_type = valid_converter.get_sample_type()
 
         meta_info = {
-            "data_types": [{"key": sample_type["type"], "name": str(sample_type["type"]).upper()}],
+            "data_types": [
+                {"key": f"{sample_type['type']}/{sample_type['unit']}", "name": str(sample_type["type"]).upper()}
+            ],
             "sample_type": sample_type,
         }
         queryset.update(status=UploadedFileStatus.PARSING_SUCCEED, meta_info=meta_info)
@@ -97,4 +99,5 @@ class ProfilingFileHandler:
             status=UploadedFileStatus.STORE_SUCCEED,
             query_start_time=str(int((profile_datetime - timedelta(minutes=30)).timestamp() * 1000000)),
             query_end_time=str(int((profile_datetime + timedelta(minutes=30)).timestamp() * 1000000)),
+            data_time=profile_datetime,
         )

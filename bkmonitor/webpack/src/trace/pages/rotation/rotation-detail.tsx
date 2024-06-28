@@ -26,18 +26,18 @@
 import { defineComponent, inject, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+
 import { Button, Loading, Sideslider } from 'bkui-vue';
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { IAuthority } from '../../typings/authority';
-
 import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
-  setPreviewDataOfServer
+  setPreviewDataOfServer,
 } from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
@@ -51,16 +51,16 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     id: {
       type: [Number, String],
-      default: ''
+      default: '',
     },
     onShowChange: {
       type: Function as PropType<(v: boolean) => void>,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -99,7 +99,7 @@ export default defineComponent({
             { label: t('创建人'), value: res.create_user || '--' },
             { label: t('创建时间'), value: res.create_time || '--' },
             { label: t('最近更新人'), value: res.update_user || '--' },
-            { label: t('修改时间'), value: res.update_time || '--' }
+            { label: t('修改时间'), value: res.update_time || '--' },
           ];
           getPreviewData();
         })
@@ -115,7 +115,7 @@ export default defineComponent({
       const params = {
         ...getPreviewParams(detailData.value.effective_time),
         source_type: 'DB',
-        id: props.id
+        id: props.id,
       };
       previewDutyRulePlan(params)
         .then(data => {
@@ -135,8 +135,8 @@ export default defineComponent({
       if (user.logo)
         return (
           <img
-            src={user.logo}
             alt=''
+            src={user.logo}
           ></img>
         );
       if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
@@ -155,8 +155,8 @@ export default defineComponent({
       router.push({
         name: 'rotation-edit',
         params: {
-          id: props.id
-        }
+          id: props.id,
+        },
       });
     }
     return {
@@ -171,16 +171,16 @@ export default defineComponent({
       renderUserLogo,
       handleClosed,
       t,
-      handleToEdit
+      handleToEdit,
     };
   },
   render() {
     return (
       <Sideslider
+        width={960}
         extCls={'rotation-detail-side'}
         isShow={this.show}
         quickClose={true}
-        width={960}
         onClosed={this.handleClosed}
       >
         {{
@@ -190,6 +190,7 @@ export default defineComponent({
               <span class='header-right'>
                 <Button
                   class='mr-8'
+                  v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                   theme='primary'
                   outline
                   onClick={() =>
@@ -197,7 +198,6 @@ export default defineComponent({
                       ? this.handleToEdit()
                       : this.authority.showDetail([this.authority.map.MANAGE_AUTH])
                   }
-                  v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                 >
                   {this.t('编辑')}
                 </Button>
@@ -209,26 +209,26 @@ export default defineComponent({
             <Loading loading={this.loading}>
               <div class='rotation-detail-side-content'>
                 <FormItem
-                  label={this.t('规则名称')}
                   hasColon={true}
+                  label={this.t('规则名称')}
                 >
                   <span class='detail-text text-wrap'>{this.detailData?.name || '--'}</span>
                 </FormItem>
                 <FormItem
-                  label={this.t('标签')}
                   hasColon={true}
+                  label={this.t('标签')}
                 >
                   <span class='detail-text'>{this.detailData?.labels?.join(', ') || '--'}</span>
                 </FormItem>
                 <FormItem
-                  label={this.t('启/停')}
                   hasColon={true}
+                  label={this.t('启/停')}
                 >
                   <span class='detail-text'>{this.detailData?.enabled ? this.t('开启') : this.t('停用')}</span>
                 </FormItem>
                 <FormItem
-                  label={this.t('轮值类型')}
                   hasColon={true}
+                  label={this.t('轮值类型')}
                 >
                   <span class='detail-text'>
                     {this.type === RotationTabTypeEnum.REGULAR ? this.t('日常值班') : this.t('交替轮值')}
@@ -241,7 +241,7 @@ export default defineComponent({
                         <div class='rule-item'>
                           {rule.ruleTime.length > 1 && [
                             <span class='rule-item-index'>{this.t('第 {num} 班', { num: ind + 1 })}</span>,
-                            <div class='col-separate'></div>
+                            <div class='col-separate'></div>,
                           ]}
                           <span class='rule-item-title'>{time.day}</span>
                           {time.timer.map(item => (
@@ -262,16 +262,16 @@ export default defineComponent({
                           <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
                             {!rule.isAuto && (
                               <div
-                                class='has-color'
                                 style={{ background: randomColor(item.orderIndex) }}
+                                class='has-color'
                               ></div>
                             )}
                             {item.users.map((user, ind) => (
                               <div class='personnel-choice'>
                                 {rule.isAuto && (
                                   <span
-                                    class='user-color'
                                     style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                                    class='user-color'
                                   ></span>
                                 )}
                                 {this.renderUserLogo(user)}
@@ -285,16 +285,16 @@ export default defineComponent({
                   ))}
                 </FormItem>
                 <FormItem
-                  label={this.t('生效时间')}
                   hasColon={true}
+                  label={this.t('生效时间')}
                 >
                   <span class='detail-text'>{`${this.detailData?.effective_time} - ${
                     this.detailData?.end_time || this.t('永久')
                   }`}</span>
                 </FormItem>
                 <FormItem
-                  label={this.t('轮值预览')}
                   hasColon={true}
+                  label={this.t('轮值预览')}
                 >
                   <Loading loading={this.previewLoading}>
                     <RotationCalendarPreview
@@ -305,9 +305,9 @@ export default defineComponent({
                 </FormItem>
               </div>
             </Loading>
-          )
+          ),
         }}
       </Sideslider>
     );
-  }
+  },
 });

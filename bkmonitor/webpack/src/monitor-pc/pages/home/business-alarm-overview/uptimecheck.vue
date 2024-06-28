@@ -30,12 +30,12 @@
       :alarm="alarm"
     />
     <common-unset
-      :alarm="alarm"
       v-else-if="alarm.status === 'unset'"
+      :alarm="alarm"
     />
     <common-noraml
-      :alarm="alarm"
       v-else-if="alarm.status === 'normal'"
+      :alarm="alarm"
     />
   </div>
 </template>
@@ -50,21 +50,21 @@ export default {
   components: {
     UptimecheckSerious,
     CommonUnset,
-    CommonNoraml
+    CommonNoraml,
   },
   props: {
     alarm: {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
     homeDays: {
       type: Number,
       default() {
         return 7;
-      }
-    }
-  }
+      },
+    },
+  },
 };
 </script>

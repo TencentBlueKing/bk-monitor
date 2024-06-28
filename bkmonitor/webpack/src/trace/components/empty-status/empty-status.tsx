@@ -25,11 +25,12 @@
  */
 import { computed, defineComponent, PropType } from 'vue';
 import { TranslateResult } from 'vue-i18n';
+
 import { Exception } from 'bkui-vue';
 
 import './empty-status.scss';
 
-export type EmptyStatusType = 'empty' | '500' | 'search-empty' | '403' | string;
+export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty' | string;
 type EmptyStatusScene = 'page' | 'part';
 type EmptyStatusOperationType = 'clear-filter' | 'refresh';
 export type IEmptyStatusTextMap = {
@@ -40,7 +41,7 @@ const defaultTextMap: IEmptyStatusTextMap = {
   empty: window.i18n.t('暂无数据'),
   'search-empty': window.i18n.t('无数据'),
   500: window.i18n.t('数据获取异常'),
-  403: window.i18n.t('无业务权限')
+  403: window.i18n.t('无业务权限'),
 };
 
 export default defineComponent({
@@ -48,20 +49,20 @@ export default defineComponent({
   props: {
     type: {
       type: String as PropType<EmptyStatusType>,
-      default: 'empty'
+      default: 'empty',
     },
     scene: {
       type: String as PropType<EmptyStatusScene>,
-      default: 'empty'
+      default: 'empty',
     },
     showOperation: {
       type: Boolean,
-      default: true
+      default: true,
     },
     textMap: {
       type: Object as PropType<IEmptyStatusTextMap>,
-      default: defaultTextMap
-    }
+      default: defaultTextMap,
+    },
   },
   emits: ['operation'],
   setup(props, { emit }) {
@@ -73,7 +74,7 @@ export default defineComponent({
 
     return {
       typeText,
-      handleOperation
+      handleOperation,
     };
   },
   render() {
@@ -87,8 +88,8 @@ export default defineComponent({
           >
             <span style='margin: 0 3px'>{this.$t('调整关键词')}</span>
             <span
-              class='operation-btn'
               style='margin-left: 3px'
+              class='operation-btn'
               onClick={() => this.handleOperation('clear-filter')}
             >
               {this.$t('清空筛选条件')}
@@ -122,5 +123,5 @@ export default defineComponent({
         </Exception>
       </div>
     );
-  }
+  },
 });

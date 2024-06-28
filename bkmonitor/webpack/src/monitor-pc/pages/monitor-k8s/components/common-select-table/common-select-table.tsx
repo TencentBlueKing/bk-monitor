@@ -26,26 +26,31 @@
 
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import { type ShowModeType } from '../common-page-new';
 import CommonTable from '../common-table';
 import SortTool from '../sort-tool/sort-tool';
 
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
+
 import './common-select-table.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 // 表格是否显示表头宽度临界值 侧栏宽度：280，内边距：32 （280 - 32 = 248）;
 const SHOW_HEADER_LIMIT_WIDTH = 248;
@@ -163,7 +168,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
   pagination: IPagination = {
     current: 1,
     count: 0,
-    limit: 50
+    limit: 50,
   };
 
   // scoped 变量
@@ -171,7 +176,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -262,7 +267,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       'show-header': this.showHeader && this.overviewData,
       'hide-overview': this.showHeader && !this.overviewData,
       'select-overview': this.isOverview,
-      'scroll-body': this.isOverflowTable
+      'scroll-body': this.isOverflowTable,
     };
   }
   /** 获取表格数据 */
@@ -281,11 +286,11 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       page: current,
       page_size: limit,
       status: this.currentStatus,
-      filter_dict: this.filterDict
+      filter_dict: this.filterDict,
     };
     if (Object.keys(this.filterFields).length) {
       params = Object.assign({}, params, {
-        filter_fields: this.filterFields
+        filter_fields: this.filterFields,
       });
     }
     const variablesService = new VariablesService(this.scopedVars);
@@ -293,7 +298,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       (this as any).$api[item.apiModule]
         [item.apiFunc]({
           ...variablesService.transformVariables(item.data),
-          ...params
+          ...params,
         })
         .then(data => {
           const list = data.data || [];
@@ -304,7 +309,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
           this.columns = data.columns || [];
           this.overviewData = this.hasOverviewPanels ? data.overview_data : null;
           this.pagination.count = data.total || 0;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           this.statusList = data.filter || [];
           this.sortFields = data.sort || [];
@@ -312,7 +317,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
           if (Object.keys(this.filterDict).length) {
             const newColumns = this.columns.map(col => ({
               ...col,
-              filter_value: this.filterDict[col.id] ? this.filterDict[col.id] : []
+              filter_value: this.filterDict[col.id] ? this.filterDict[col.id] : [],
             }));
             this.columns = [...newColumns];
           }
@@ -321,7 +326,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
         })
@@ -390,12 +395,30 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.resizeObserver?.observe(this.selectTablePanel);
   }
   /** conditionList 搜索 */
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.handleResetTable();
-    const selectorSearch = transformConditionValueParams(this.searchCondition);
+    // multiple 属性需要传入 transformConditionValueParams
+    const conditionListMap = new Map();
+    this.conditionList.forEach(item => {
+      conditionListMap.set(item.id, item);
+    });
+    const searchConditionTemp = [];
+    this.searchCondition.forEach(sItem => {
+      let item = sItem;
+      const cItem = conditionListMap.get(sItem.id);
+      if (cItem) {
+        item = {
+          ...sItem,
+          multiple: cItem.multiple,
+        };
+      }
+      searchConditionTemp.push(item);
+    });
+    const selectorSearch = transformConditionValueParams(searchConditionTemp);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
   /** Input 搜索 */
@@ -409,7 +432,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       this.handleLocalSearch(v);
       this.handleUpdateQueryData({
         ...this.queryData,
-        keyword: v
+        keyword: v,
       });
     }
   }
@@ -423,7 +446,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.handleResetTable();
     this.handleUpdateQueryData({
       ...this.queryData,
-      filter: v
+      filter: v,
     });
   }
   /** 表格排序 */
@@ -433,7 +456,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.handleResetTable();
     this.handleUpdateQueryData({
       ...this.queryData,
-      sort: sortKey
+      sort: sortKey,
     });
   }
   /** 选中概览 */
@@ -447,7 +470,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       const value = this.panel.targets[0].handleCreateFilterDictValue(data, true);
       viewOptions.filters = { ...(value || {}) };
       viewOptions.compares = {
-        targets: []
+        targets: [],
       };
       this.handleTitleChange(typeof data.name === 'object' ? data.name.value : data.name);
       this.$emit('change', viewOptions);
@@ -483,7 +506,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.handleResetTable();
     this.handleUpdateQueryData({
       ...this.queryData,
-      filterDict: filters
+      filterDict: filters,
     });
   }
   /** 动态计算赋值表格第一列的宽度 */
@@ -518,9 +541,9 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
           <span>
             <bk-spin
               class='loading-icon'
+              icon='circle-2-1'
               size='mini'
               theme='default'
-              icon='circle-2-1'
             />
             {this.$t('加载中...')}
           </span>
@@ -542,23 +565,22 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         <div class={['list-header', { 'flex-header': this.width > 1000 }]}>
           <div class='search-bar'>
             {this.conditionList.length ? (
-              <bk-search-select
-                placeholder={this.$t('搜索')}
-                vModel={this.searchCondition}
-                show-condition={false}
+              <SearchSelect
+                clearable={false}
                 data={this.currentConditionList}
-                show-popover-tag-change={false}
+                modelValue={this.searchCondition}
+                placeholder={this.$t('搜索')}
                 onChange={this.handleSearch}
               />
             ) : (
               <bk-input
                 v-model={this.localKeyword}
-                right-icon='bk-icon icon-search'
-                placeholder={this.$t('搜索')}
                 clearable={true}
-                onEnter={this.handleInputSearch}
+                placeholder={this.$t('搜索')}
+                right-icon='bk-icon icon-search'
                 onBlur={this.handleInputSearch}
                 onClear={this.handleInputSearch}
+                onEnter={this.handleInputSearch}
               />
             )}
             <bk-button
@@ -580,8 +602,8 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
             )}
             {this.isEnableSort && (
               <SortTool
-                sortFields={this.sortFields}
                 defaultField={this.defaultSortField}
+                sortFields={this.sortFields}
                 onChange={this.handleChangeOrder}
               />
             )}
@@ -594,33 +616,33 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               onClick={e => this.handleOverviewTitle(e)}
             >
               <img
-                src={this.overviewIcon}
                 alt=''
+                src={this.overviewIcon}
               />
               <span>{`${this.panel?.title}${this.$t('概览')}`}</span>
             </div>
           )}
           <CommonTable
-            ref='tableRef'
             key={this.refreshKey}
-            class={this.getTableClasses()}
-            defaultSize='small'
+            ref='tableRef'
             height='100%'
-            data={this.tableData}
-            overviewData={this.overviewData}
-            columns={this.columns}
-            pagination={null}
+            class={this.getTableClasses()}
+            calcColumnWidth={this.handleColumnWidth}
             checkable={false}
-            stripe={true}
-            highlightCurrentRow={true}
-            showHeader={this.showHeader}
+            columns={this.columns}
+            data={this.tableData}
+            defaultSize='small'
             hasColnumSetting={this.showHeader && this.showMode === 'list'}
-            onSwitchOverview={this.handleOverviewChange}
-            onScrollEnd={this.handleScrollEnd}
-            onSortChange={this.handleSortChange}
+            highlightCurrentRow={true}
+            overviewData={this.overviewData}
+            pagination={null}
+            showHeader={this.showHeader}
+            stripe={true}
             onFilterChange={this.handleFilterChange}
             onRowClick={this.handleSelectDetail}
-            calcColumnWidth={this.handleColumnWidth}
+            onScrollEnd={this.handleScrollEnd}
+            onSortChange={this.handleSortChange}
+            onSwitchOverview={this.handleOverviewChange}
           ></CommonTable>
         </div>
         {this.showScrollLoadBar && <div class='scroll-load-bar'>{handleLoadBarText()}</div>}

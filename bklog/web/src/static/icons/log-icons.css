@@ -12,17 +12,17 @@
   /* stylelint-disable-next-line declaration-no-important */
   font-family: 'log' !important;
 
-  /* Better Font Rendering =========== */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
   /* speak: none; */
   font-style: normal;
   font-weight: normal;
+  font-variant: normal;
   line-height: 1;
   text-align: center;
   text-transform: none;
-  font-variant: normal;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .icon-app-store:before {
@@ -413,3 +413,10 @@
   content: '\e187';
 }
 
+.icon-log-plus-circle-shape:before {
+	content: '\e18b';
+}
+
+.icon-log-trend:before {
+	content: '\e18c';
+}

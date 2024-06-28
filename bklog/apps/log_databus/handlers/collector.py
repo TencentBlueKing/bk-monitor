@@ -151,7 +151,6 @@ from apps.log_search.models import (
     LogIndexSetData,
     Scenario,
     Space,
-    StorageClusterRecord,
 )
 from apps.models import model_to_dict
 from apps.utils.bcs import Bcs
@@ -164,7 +163,8 @@ from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import bk_biz_id_to_space_uid
+
+COLLECTOR_RE = re.compile(r'.*\d{6,8}$')
 
 
 class CollectorHandler(object):
@@ -368,6 +368,15 @@ class CollectorHandler(object):
                         result_table_config=result["result_table_config"],
                         result_table_storage=result["result_table_storage"][self.data.table_id],
                     )
+                )
+                # 补充es集群端口号 、es集群域名
+                storage_cluster_id = collector_config.get("storage_cluster_id", "")
+                cluster_config = IndexSetHandler.get_cluster_map().get(storage_cluster_id, {})
+                collector_config.update(
+                    {
+                        "storage_cluster_port": cluster_config.get("cluster_port", ""),
+                        "storage_cluster_domain_name": cluster_config.get("cluster_domain_name", ""),
+                    }
                 )
             return collector_config
         return collector_config
@@ -1198,6 +1207,7 @@ class CollectorHandler(object):
             "topic": data_result["mq_config"]["storage_config"]["topic"],
             "username": data_result["mq_config"]["auth_info"]["username"],
             "password": data_result["mq_config"]["auth_info"]["password"],
+            "sasl_mechanism": data_result["mq_config"]["auth_info"].get("sasl_mechanisms"),
             "is_ssl_verify": cluster_config.get("is_ssl_verify", False),
             "ssl_insecure_skip_verify": cluster_config.get("ssl_insecure_skip_verify", True),
             "ssl_cafile": ssl_cafile,
@@ -1461,7 +1471,16 @@ class CollectorHandler(object):
         if not task_ready:
             return {"task_ready": task_ready, "contents": []}
 
-        status_result = NodeApi.get_subscription_task_status(param)
+        status_result = NodeApi.get_subscription_task_status.bulk_request(
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+        )
         instance_status = self.format_task_instance_status(status_result)
 
         # 如果采集目标是HOST-INSTANCE
@@ -1986,9 +2005,28 @@ class CollectorHandler(object):
                     }
                 ]
             }
-        param = {"subscription_id_list": [self.data.subscription_id]}
-        status_result, *__ = NodeApi.get_subscription_instance_status(param)
-        instance_status = self.format_subscription_instance_status(status_result)
+        instance_data = NodeApi.get_subscription_task_status.bulk_request(
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+        )
+
+        bk_host_ids = []
+        for item in instance_data:
+            bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
+
+        plugin_data = NodeApi.plugin_search.batch_request(
+            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
+            chunk_values=bk_host_ids,
+            chunk_key="bk_host_id",
+        )
+
+        instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
         # 如果采集目标是HOST-INSTANCE
         if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
@@ -2043,36 +2081,33 @@ class CollectorHandler(object):
         return {"contents": content_data}
 
     @staticmethod
-    def format_subscription_instance_status(instance_data):
+    def format_subscription_instance_status(instance_data, plugin_data):
         """
         对订阅状态数据按照实例运行状态进行归类
         :param [dict] instance_data:
+        :param [dict] plugin_data:
         :return: [dict]
         """
-        instance_list = list()
-        for instance_obj in instance_data.get("instances", []):
-            # 日志采集暂时只支持本地采集
-            host_statuses = (instance_obj.get("host_statuses") or [{}])[0]
-            host_status = host_statuses.get("status", CollectStatus.FAILED)
+        plugin_status_mapping = {}
+        for plugin_obj in plugin_data:
+            for item in plugin_obj["plugin_status"]:
+                if item["name"] == "bkunifylogbeat":
+                    plugin_status_mapping[plugin_obj["bk_host_id"]] = item
 
-            status = CollectStatus.FAILED
-            status_name = RunStatus.FAILED
+        instance_list = list()
+        for instance_obj in instance_data:
+            # 日志采集暂时只支持本地采集
+            bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
+            plugin_statuses = plugin_status_mapping.get(bk_host_id, {})
             if instance_obj["status"] in [CollectStatus.PENDING, CollectStatus.RUNNING]:
                 status = CollectStatus.RUNNING
                 status_name = RunStatus.RUNNING
-            elif instance_obj["status"] == CollectStatus.FAILED:
+            elif instance_obj["status"] == CollectStatus.SUCCESS:
+                status = CollectStatus.SUCCESS
+                status_name = RunStatus.SUCCESS
+            else:
                 status = CollectStatus.FAILED
                 status_name = RunStatus.FAILED
-            else:
-                if host_status == CollectStatus.RUNNING:
-                    status = CollectStatus.SUCCESS
-                    status_name = RunStatus.SUCCESS
-                elif host_status == CollectStatus.UNKNOWN:
-                    status = CollectStatus.FAILED
-                    status_name = RunStatus.FAILED
-                elif host_status == CollectStatus.TERMINATED:
-                    status = CollectStatus.TERMINATED
-                    status_name = RunStatus.TERMINATED
 
             bk_cloud_id = instance_obj["instance_info"]["host"]["bk_cloud_id"]
             if isinstance(bk_cloud_id, list):
@@ -2081,15 +2116,15 @@ class CollectorHandler(object):
             status_obj = {
                 "status": status,
                 "status_name": status_name,
-                "host_id": instance_obj["instance_info"]["host"]["bk_host_id"],
+                "host_id": bk_host_id,
                 "ip": instance_obj["instance_info"]["host"]["bk_host_innerip"],
                 "ipv6": instance_obj["instance_info"]["host"].get("bk_host_innerip_v6", ""),
                 "cloud_id": bk_cloud_id,
                 "host_name": instance_obj["instance_info"]["host"]["bk_host_name"],
                 "instance_id": instance_obj["instance_id"],
                 "instance_name": instance_obj["instance_info"]["host"]["bk_host_innerip"],
-                "plugin_name": host_statuses.get("name"),
-                "plugin_version": host_statuses.get("version"),
+                "plugin_name": plugin_statuses.get("name"),
+                "plugin_version": plugin_statuses.get("version"),
                 "bk_supplier_id": instance_obj["instance_info"]["host"].get("bk_supplier_account"),
                 "create_time": instance_obj["create_time"],
             }
@@ -2537,7 +2572,7 @@ class CollectorHandler(object):
         user_operation_record.delay(operation_record)
 
     def pre_check(self, params: dict):
-        data = {"allowed": False}
+        data = {"allowed": False, "message": _("该数据名已重复")}
         bk_biz_id = params.get("bk_biz_id")
         collector_config_name_en = params.get("collector_config_name_en")
 
@@ -2558,7 +2593,11 @@ class CollectorHandler(object):
         if result_table:
             return data
 
-        data["allowed"] = True
+        # 如果采集名不以6-8数字结尾, data.allowed返回True, 反之返回False
+        if COLLECTOR_RE.match(collector_config_name_en):
+            data.update({"allowed": False, "message": _("采集名不能以6-8位数字结尾")})
+        else:
+            data.update({"allowed": True, "message": ""})
         return data
 
     def _pre_check_bk_data_name(self, model_fields: dict, bk_data_name: str):
@@ -2905,8 +2944,8 @@ class CollectorHandler(object):
             "add_pod_label": collector_config.add_pod_label,
             "rule_file_index_set_id": None,
             "rule_std_index_set_id": None,
-            "file_index_set_id": collector_config.index_set_id if not enable_stdout else None,
-            "std_index_set_id": collector_config.index_set_id if enable_stdout else None,
+            "file_index_set_id": collector_config.index_set_id if not enable_stdout else None,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": collector_config.index_set_id if enable_stdout else None,  # TODO: 兼容代码4.8需删除
             "container_config": [
                 {
                     "id": container_config.id,
@@ -2976,11 +3015,6 @@ class CollectorHandler(object):
         for std_container_config in std_container_config_list:
             std_container_config_dict[std_container_config.parent_container_config_id].append(std_container_config)
 
-        bcs_path_index_set, bcs_std_index_set = LogIndexSet.get_bcs_index_set(
-            space_uid=bk_biz_id_to_space_uid(bk_biz_id),
-            bcs_project_id=BcsRule.objects.get(id=list(rule_dict.keys())[0]).bcs_project_id,
-            bcs_cluster_id=bcs_cluster_id,
-        )
         result = []
         for rule_id, collector in rule_dict.items():
             collector_config_name_en = collector["path_collector_config"].collector_config_name_en
@@ -3016,8 +3050,8 @@ class CollectorHandler(object):
                 "add_pod_label": collector["path_collector_config"].add_pod_label,
                 "rule_file_index_set_id": collector["path_collector_config"].index_set_id,
                 "rule_std_index_set_id": collector["std_collector_config"].index_set_id,
-                "file_index_set_id": bcs_path_index_set.index_set_id if bcs_path_index_set else None,
-                "std_index_set_id": bcs_std_index_set.index_set_id if bcs_std_index_set else None,
+                "file_index_set_id": collector["path_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
+                "std_index_set_id": collector["std_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
                 "is_std_deleted": False if collector["std_collector_config"].index_set_id else True,
                 "is_file_deleted": False if collector["path_collector_config"].index_set_id else True,
                 "container_config": [],
@@ -3137,12 +3171,6 @@ class CollectorHandler(object):
             conf=conf,
             async_bkdata=False,
         )
-        new_path_cls_index_set, new_std_cls_index_set = self.get_or_create_bcs_project_index_set(
-            bcs_project_id=data["project_id"],
-            bcs_cluster_id=data["bcs_cluster_id"],
-            bk_biz_id=data["bk_biz_id"],
-            storage_cluster_id=conf["storage_cluster_id"],
-        )
         container_collector_config_list = []
         for config in data["config"]:
             workload_type = config["container"].get("workload_type", "")
@@ -3207,6 +3235,11 @@ class CollectorHandler(object):
 
         ContainerCollectorConfig.objects.bulk_create(container_collector_config_list)
 
+        # 注入索引集标签
+        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
+        IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
+        IndexSetHandler(std_collector_config.index_set_id).add_tag(tag_id=tag_id)
+
         self.send_create_notify(path_collector_config)
 
         return {
@@ -3215,8 +3248,8 @@ class CollectorHandler(object):
             "rule_file_collector_config_id": path_collector_config.collector_config_id,
             "rule_std_index_set_id": std_collector_config.index_set_id,
             "rule_std_collector_config_id": std_collector_config.collector_config_id,
-            "file_index_set_id": new_path_cls_index_set.index_set_id,
-            "std_index_set_id": new_std_cls_index_set.index_set_id,
+            "file_index_set_id": path_collector_config.index_set_id,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector_config.index_set_id,  # TODO: 兼容代码4.8需删除
             "bk_data_id": path_collector_config.bk_data_id,
             "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id},
         }
@@ -3254,55 +3287,6 @@ class CollectorHandler(object):
             async_create_bkdata_data_id.delay(data["rule_file_collector_config_id"])
         if data["rule_std_collector_config_id"]:
             async_create_bkdata_data_id.delay(data["rule_std_collector_config_id"])
-
-    @staticmethod
-    def get_or_create_bcs_project_index_set(bcs_cluster_id, bk_biz_id, storage_cluster_id, bcs_project_id=""):
-        """
-        获取或创建BCS项目索引集
-        """
-        path_index_set = IndexSetHandler.get_or_create_bcs_project_path_index_set(
-            bcs_cluster_id=bcs_cluster_id,
-            bk_biz_id=bk_biz_id,
-            storage_cluster_id=storage_cluster_id,
-            bcs_project_id=bcs_project_id,
-        )
-        std_index_set = IndexSetHandler.get_or_create_bcs_project_std_index_set(
-            bcs_cluster_id=bcs_cluster_id,
-            bk_biz_id=bk_biz_id,
-            storage_cluster_id=storage_cluster_id,
-            bcs_project_id=bcs_project_id,
-        )
-        return path_index_set, std_index_set
-
-    @staticmethod
-    def update_bcs_project_index_set_storage(bcs_cluster_id, bk_biz_id, storage_cluster_id):
-        """
-        更新BCS项目索引集的存储集群配置
-        """
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid)
-
-        std_index_set_name = f"{bcs_cluster_id}_std"
-        std_index_set = src_index_list.filter(index_set_name=std_index_set_name).first()
-        path_index_set_name = f"{bcs_cluster_id}_path"
-        path_index_set = src_index_list.filter(index_set_name=path_index_set_name).first()
-        # 更新索引集当前存储集群配置，并创建该索引集存储集群切换记录
-        if path_index_set:
-            old_storage_cluster_id = path_index_set.storage_cluster_id
-            if old_storage_cluster_id != storage_cluster_id:
-                path_index_set.storage_cluster_id = storage_cluster_id
-                path_index_set.save()
-                StorageClusterRecord.objects.create(
-                    index_set_id=path_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
-                )
-        if std_index_set:
-            old_storage_cluster_id = std_index_set.storage_cluster_id
-            if old_storage_cluster_id != storage_cluster_id:
-                std_index_set.storage_cluster_id = storage_cluster_id
-                std_index_set.save()
-                StorageClusterRecord.objects.create(
-                    index_set_id=std_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
-                )
 
     @classmethod
     def generate_collector_config_name(cls, bcs_cluster_id, collector_config_name, collector_config_name_en):
@@ -3444,17 +3428,12 @@ class CollectorHandler(object):
             **{"data": {"configs": std_container_config}},
         )
 
-        bcs_path_index_set, bcs_std_index_set = LogIndexSet.get_bcs_index_set(
-            space_uid=bk_biz_id_to_space_uid(data["bk_biz_id"]),
-            bcs_project_id=data["project_id"],
-            bcs_cluster_id=data["bcs_cluster_id"],
-        )
         return {
             "rule_id": rule_id,
             "rule_file_index_set_id": path_collector.index_set_id,
             "rule_std_index_set_id": std_collector.index_set_id,
-            "file_index_set_id": bcs_path_index_set.index_set_id if bcs_path_index_set else None,
-            "std_index_set_id": bcs_std_index_set.index_set_id if bcs_std_index_set else None,
+            "file_index_set_id": path_collector.index_set_id,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector.index_set_id,  # TODO: 兼容代码4.8需删除
             "bk_data_id": path_collector.bk_data_id,
             "stdout_conf": {"bk_data_id": std_collector.bk_data_id},
         }
@@ -3765,15 +3744,12 @@ class CollectorHandler(object):
             raise BcsClusterIdNotValidException()
         return cluster_info
 
-    def _get_shared_cluster_namespace(self, bk_biz_id: int, bcs_cluster_id: int) -> List[Any]:
+    @staticmethod
+    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str) -> List[Any]:
         """
         获取共享集群有权限的namespace
         """
         if not bk_biz_id or not bcs_cluster_id:
-            return []
-
-        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
-        if not cluster_info.get("is_shared"):
             return []
 
         space = Space.objects.get(bk_biz_id=bk_biz_id)
@@ -3784,7 +3760,7 @@ class CollectorHandler(object):
         elif space.space_type_id == SpaceTypeEnum.BKCC.value:
             # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
             bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
-            project_ids = {p["project_id"] for p in bcs_projects}
+            project_ids = {p["projectID"] for p in bcs_projects}
             project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
             namespaces = set()
             for project_id, ns_list in project_id_to_ns.items():

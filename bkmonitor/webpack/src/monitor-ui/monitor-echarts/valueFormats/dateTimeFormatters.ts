@@ -26,7 +26,6 @@
 import dayjs from 'dayjs';
 
 import { DecimalCount } from '../types/displayValue';
-
 import { FormattedValue, toFixed, toFixedScaled, ValueFormatter } from './valueFormats';
 
 interface IntervalsInSeconds {
@@ -34,14 +33,14 @@ interface IntervalsInSeconds {
 }
 
 export enum Interval {
-  Year = 'year',
-  Month = 'month',
-  Week = 'week',
   Day = 'day',
   Hour = 'hour',
+  Millisecond = 'millisecond',
   Minute = 'minute',
+  Month = 'month',
   Second = 'second',
-  Millisecond = 'millisecond'
+  Week = 'week',
+  Year = 'year',
 }
 
 const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
@@ -52,7 +51,7 @@ const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
   [Interval.Hour]: 3600,
   [Interval.Minute]: 60,
   [Interval.Second]: 1,
-  [Interval.Millisecond]: 0.001
+  [Interval.Millisecond]: 0.001,
 };
 
 export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDecimals?: DecimalCount): FormattedValue {
@@ -72,7 +71,13 @@ export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDe
   if (Math.abs(size) < 60000000000) {
     return toFixedScaled(size / 1000000000, decimals, scaledDecimals, 9, ' s');
   }
-  return toFixedScaled(size / 60000000000, decimals, scaledDecimals, 12, ' min');
+  if (Math.abs(size) < 3600000000000) {
+    return toFixedScaled(size / 60000000000, decimals, scaledDecimals, 12, ' min');
+  }
+  if (Math.abs(size) < 86400000000000) {
+    return toFixedScaled(size / 3600000000000, decimals, scaledDecimals, 13, ' hour');
+  }
+  return toFixedScaled(size / 86400000000000, decimals, scaledDecimals, 14, ' day');
 }
 
 export function toMicroSeconds(
@@ -250,7 +255,7 @@ export function toDuration(size: number, decimals: DecimalCount, timeScale: Inte
     { long: Interval.Hour },
     { long: Interval.Minute },
     { long: Interval.Second },
-    { long: Interval.Millisecond }
+    { long: Interval.Millisecond },
   ];
 
   // convert $size to milliseconds
@@ -291,7 +296,7 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
   // < 1 second
   if (size < 1000) {
     return {
-      text: dayjs.utc(size).format('SSS\\m\\s')
+      text: dayjs.utc(size).format('SSS\\m\\s'),
     };
   }
 

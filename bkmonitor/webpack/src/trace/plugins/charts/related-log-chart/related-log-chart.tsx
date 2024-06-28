@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +26,7 @@
 import { computed, ComputedRef, defineComponent, inject, PropType, reactive, Ref, ref, watch } from 'vue';
 import { TranslateResult, useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
+
 import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -36,17 +36,17 @@ import api from 'monitor-api/api';
 // TODO：需要重新实现
 // import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 // TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
+// 原有类型
+import { Column } from 'bkui-vue/lib/table/props';
 // import { CommonSimpleChart } from '../../common-simple-chart';
 import { debounce } from 'monitor-common/utils/utils';
 import { type ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 // import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
-// 原有类型
 // import { PanelModel } from '../../typings';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
-import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 // import { VariablesService } from '../../utils/variable';
@@ -58,9 +58,11 @@ import {
   useChartIntersection,
   useRefleshImmediateInject,
   useRefleshIntervalInject,
-  useTimeRanceInject
+  useTimeRanceInject,
 } from '../../hooks';
 import { ITableDataItem } from '../../typings/table-chart';
+
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './related-log-chart.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -70,7 +72,7 @@ const option: MonitorEchartOptions = {
   color: ['#A3C5FD'],
   xAxis: {
     show: true,
-    type: 'time'
+    type: 'time',
   },
   yAxis: {
     type: 'value',
@@ -78,11 +80,11 @@ const option: MonitorEchartOptions = {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'solid'
-      }
-    }
+        type: 'solid',
+      },
+    },
   },
-  series: []
+  series: [],
 };
 
 export default defineComponent({
@@ -93,7 +95,7 @@ export default defineComponent({
     // 结束
 
     // 继承自 ErrorMsgMixins
-    clearErrorMsg: { default: () => {}, type: Function }
+    clearErrorMsg: { default: () => {}, type: Function },
     // 结束
   },
   emits: ['loading', 'errorMsg'],
@@ -110,7 +112,7 @@ export default defineComponent({
     /** 关联是否为蓝鲸日志平台 */
     const isBkLog = ref(true);
     /** alert提示文字 */
-    const alertText = ref<string | TranslateResult>('');
+    const alertText = ref<TranslateResult | string>('');
     /** 第三方日志 */
     const thirdPartyLog = ref('');
     /** 搜索关键字 */
@@ -124,18 +126,18 @@ export default defineComponent({
     /** 柱状图配置 */
     const customOptions = ref<MonitorEchartOptions>(
       deepmerge(MONITOR_BAR_OPTIONS, option, {
-        arrayMerge: (_, srcArr) => srcArr
+        arrayMerge: (_, srcArr) => srcArr,
       })
     );
     /** 汇聚周期 */
-    const chartInterval = ref<number | 'auto'>('auto');
+    const chartInterval = ref<'auto' | number>('auto');
     /** 汇聚周期选项 */
     const intervalList = ref([
       { id: 'auto', name: 'auto' },
       { id: '1m', name: '1m' },
       { id: '15m', name: '5m' },
       { id: '1h', name: '1h' },
-      { id: '1d', name: '1d' }
+      { id: '1d', name: '1d' },
     ]);
     /** 表格数据 */
     const tableData = ref<ITableDataItem[]>([]);
@@ -144,7 +146,7 @@ export default defineComponent({
     const pagination = reactive({
       value: 1,
       count: 0,
-      limit: 20
+      limit: 20,
     });
 
     // 以下是继承自 common-simple-chart 的属性
@@ -164,6 +166,9 @@ export default defineComponent({
     // 在 Span-Detail 里 provide appName与serviceName。
     const appName = inject<ComputedRef<string>>('appName');
     const serviceName = inject<Ref<string>>('serviceName');
+    const traceId = inject<Ref>('traceId');
+    const injectStartTime = inject<Ref>('originSpanStartTime');
+    const injectEndTime = inject<Ref>('originSpanEndTime');
     // const viewOptions = useViewOptionsInject();
     // 这里强行凑一个 viewOptions
     const viewOptions = ref<Record<string, any>>({
@@ -182,8 +187,8 @@ export default defineComponent({
         app_name: appName,
         category: 'http',
         kind: 'service',
-        predicate_value: 'POST'
-      }
+        predicate_value: 'POST',
+      },
     });
 
     const refleshImmediate = useRefleshImmediateInject();
@@ -202,7 +207,7 @@ export default defineComponent({
       ...(viewOptions.value?.variables || {}),
       ...(viewOptions.value?.current_target || []),
       ...(viewOptions.value?.variables?.current_target || {}),
-      ...{ current_target: viewOptions.value?.filters || {} }
+      ...{ current_target: viewOptions.value?.filters || {} },
     }));
 
     watch(viewOptions, (val: IViewOptions, old: IViewOptions) => {
@@ -276,7 +281,7 @@ export default defineComponent({
       const predicateLogTarget = props.panel.targets.find(item => item.dataType === 'log_predicate');
       if (predicateLogTarget) {
         const variablesService = new VariablesService({
-          ...viewOptions.value
+          ...viewOptions.value,
         });
         const params = variablesService.transformVariables(predicateLogTarget.data);
         api[predicateLogTarget.apiModule]
@@ -291,7 +296,7 @@ export default defineComponent({
                 const payload = variablesService.transformVariables(conditionTarget.data);
                 api[conditionTarget.apiModule]
                   [conditionTarget.apiFunc](payload, {
-                    needMessage: false
+                    needMessage: false,
                   })
                   .then(res => {
                     if (res.length) {
@@ -346,10 +351,10 @@ export default defineComponent({
           end_time: end_time ? dayjs.tz(end_time).unix() : formattedEndTime,
           interval: chartInterval.value,
           index_set_id: relatedIndexSetId.value,
-          keyword: keyword.value
+          keyword: keyword.value,
         };
         const variablesService = new VariablesService({
-          ...scopedVars.value
+          ...scopedVars.value,
         });
         await props.panel.targets
           .filter(item => item.dataType === 'time_series')
@@ -361,8 +366,8 @@ export default defineComponent({
                   ...params,
                   view_options: {
                     // 在继承组件
-                    ...viewOptions.value
-                  }
+                    ...viewOptions.value,
+                  },
                 },
                 { needMessage: false }
               )
@@ -376,9 +381,9 @@ export default defineComponent({
                         type: 'bar',
                         colorBy: 'data',
                         name: 'COUNT ',
-                        zlevel: 100
-                      }
-                    ]
+                        zlevel: 100,
+                      },
+                    ],
                   };
                   const updateOption = deepmerge(option, data);
                   customOptions.value = deepmerge(customOptions.value, updateOption);
@@ -388,7 +393,7 @@ export default defineComponent({
                 }
               })
           );
-      } catch (error) {
+      } catch (error: any) {
         handleErrorMsgChange(error.msg || error.message);
       }
       props.clearErrorMsg();
@@ -402,7 +407,7 @@ export default defineComponent({
      */
     const isScrollLoading = ref(false);
     async function updateTableData(start_time?: string, end_time?: string) {
-      isScrollLoading.value = true;
+      if (pagination.value > 1) isScrollLoading.value = true;
       handleLoadingChange(true);
       try {
         unregisterOberver();
@@ -412,10 +417,10 @@ export default defineComponent({
           keyword: keyword.value,
           limit: pagination.limit,
           offset: (pagination.value - 1) * pagination.limit,
-          index_set_id: relatedIndexSetId.value
+          index_set_id: relatedIndexSetId.value,
         };
         const variablesService = new VariablesService({
-          ...scopedVars.value
+          ...scopedVars.value,
         });
         await props.panel.targets
           .filter(item => item.dataType === 'table-chart')
@@ -425,8 +430,8 @@ export default defineComponent({
                 ...variablesService.transformVariables(item.data),
                 ...params,
                 view_options: {
-                  ...viewOptions.value
-                }
+                  ...viewOptions.value,
+                },
               })
               .then(data => {
                 if (isScrollLoadTableData) {
@@ -507,14 +512,18 @@ export default defineComponent({
     const handleQueryTable = () => {
       pagination.value = 1;
       updateTableData();
+      updateBarChartData();
     };
 
     /**
      * @desc 链接跳转
      */
     function goLink() {
+      // 时间范围由 开始时间前一小时 + 耗时 + 结束时间后一小时
+      const startTime = injectStartTime.value - 36 * Math.pow(10, 5);
+      const endTime = injectEndTime.value + 36 * Math.pow(10, 5);
       const url = isBkLog.value
-        ? `${window.bk_log_search_url}#/retrieve/${relatedIndexSetId.value}?bizId=${relatedBkBizId.value}`
+        ? `${window.bk_log_search_url}#/retrieve/${relatedIndexSetId.value}?bizId=${relatedBkBizId.value}&keyword=${traceId.value}&start_time=${startTime}&end_time=${endTime}`
         : thirdPartyLog.value;
       window.open(url, '_blank');
     }
@@ -552,14 +561,13 @@ export default defineComponent({
       // 需要留个位置做折叠 json 数据展示。
       result.unshift({
         width: 30,
-        type: 'expand'
+        type: 'expand',
       });
       return result;
     });
 
     const selectedOptionAlias = computed(() => {
       const target = relatedIndexSetList.value.find(item => {
-        // eslint-disable-next-line eqeqeq
         return item.index_set_id == relatedIndexSetId.value;
       });
       return target?.index_set_name ?? '';
@@ -598,20 +606,19 @@ export default defineComponent({
       relatedIndexSetId,
       isScrollLoading,
       selectedOptionAlias,
-      handleQueryTable
+      handleQueryTable,
     };
   },
   render() {
     return (
       <div
-        class='related-log-chart-wrap'
         ref='RelatedLogChartRef'
+        class='related-log-chart-wrap'
       >
         {!this.empty ? (
           <div>
             <div class='related-alert-info'>
               <Alert
-                show-icon={false}
                 v-slots={{
                   title: () => (
                     <div>
@@ -634,8 +641,9 @@ export default defineComponent({
                         </span>
                       )}
                     </div>
-                  )
+                  ),
                 }}
+                show-icon={false}
               ></Alert>
             </div>
             {this.isBkLog && (
@@ -650,16 +658,16 @@ export default defineComponent({
 
                           <Select
                             class='interval-select'
-                            size='small'
+                            v-model={this.chartInterval}
                             behavior='simplicity'
                             clearable={false}
-                            v-model={this.chartInterval}
+                            size='small'
                             onChange={this.handleIntervalChange}
                           >
                             {this.intervalList.map(item => (
                               <Select.Option
-                                key={item.id}
                                 id={item.name}
+                                key={item.id}
                               >
                                 {item.name}
                               </Select.Option>
@@ -670,8 +678,8 @@ export default defineComponent({
                     </span>
                     {!this.emptyChart && (
                       <Popover
-                        placement='top'
                         content={this.$t('截图到本地')}
+                        placement='top'
                       >
                         <i
                           class='icon-monitor icon-mc-camera'
@@ -684,14 +692,14 @@ export default defineComponent({
                     <div class='monitor-echart-common-content'>
                       {!this.emptyChart ? (
                         <div
-                          class='chart-instance'
                           ref='baseChart'
+                          class='chart-instance'
                         >
                           <BaseEchart
-                            class='base-chart'
-                            height={this.height}
                             width={this.width}
-                            options={this.customOptions}
+                            height={this.height}
+                            class='base-chart'
+                            options={this.customOptions as any}
                             onDataZoom={this.dataZoom}
                             onDblClick={this.handleDblClick}
                           />
@@ -704,16 +712,16 @@ export default defineComponent({
                 </div>
                 <div class='query-tool'>
                   <Select
+                    style='flex-shrink: 0;'
                     class='table-search-select'
                     v-model={this.relatedIndexSetId}
                     clearable={false}
                     onChange={v => this.handleSelectIndexSet(v)}
-                    style='flex-shrink: 0;'
                   >
                     {this.relatedIndexSetList.map(option => (
                       <Select.Option
-                        key={option.index_set_id}
                         id={option.index_set_id}
+                        key={option.index_set_id}
                         name={option.index_set_name}
                       ></Select.Option>
                     ))}
@@ -721,9 +729,9 @@ export default defineComponent({
                   <Input
                     class='table-search-input'
                     v-model={this.keyword}
-                    onEnter={this.handleSearchChange}
-                    onClear={() => this.handleSearchChange('')}
                     onChange={this.handleSearchChange}
+                    onClear={() => this.handleSearchChange('')}
+                    onEnter={this.handleSearchChange}
                   />
                   <Button
                     theme='primary'
@@ -734,12 +742,8 @@ export default defineComponent({
                 </div>
                 <div class='related-table-container'>
                   <Table
-                    data={this.tableData}
-                    height='100%'
-                    columns={this.transformedColumns}
-                    scroll-loading={this.isScrollLoading}
-                    onScrollBottom={this.handlePageChange}
                     style='width: 100%;'
+                    height='100%'
                     v-slots={{
                       expandRow: row => {
                         return (
@@ -747,8 +751,12 @@ export default defineComponent({
                             <JsonPretty data={row.source}></JsonPretty>
                           </div>
                         );
-                      }
+                      },
                     }}
+                    columns={this.transformedColumns as Column[]}
+                    data={this.tableData}
+                    scroll-loading={this.isScrollLoading}
+                    onScrollBottom={this.handlePageChange}
                   ></Table>
                 </div>
               </div>
@@ -776,5 +784,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

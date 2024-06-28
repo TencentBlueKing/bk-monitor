@@ -15,12 +15,9 @@ from urllib.parse import urljoin
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
-from requests.exceptions import HTTPError, ReadTimeout
 from rest_framework import serializers
 
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -41,33 +38,18 @@ class BcsProjectBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             super(BcsProjectBaseResource, self).get_request_url(validated_request_data).format(**validated_request_data)
         )
 
-    def perform_request(self, validated_request_data):
-        request_url = self.get_request_url(validated_request_data)
-        headers = {
+    def get_headers(self):
+        return {
             "Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}",
             "X-Project-Username": settings.COMMON_USERNAME,
         }
-        try:
-            result = self.session.get(
-                params=validated_request_data,
-                url=request_url,
-                headers=headers,
-                verify=False,
-                timeout=self.TIMEOUT,
-            )
-        except ReadTimeout:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
 
-        try:
-            result.raise_for_status()
-        except HTTPError as err:
-            logger.exception("【模块：{}】请求 BCS Project 服务错误：{}，请求url: {}".format(self.module_name, err, request_url))
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
-
-        result_json = result.json()
-        data = result_json.get("data", {})
-
-        return data
+    def render_response_data(self, validated_request_data, response_data):
+        # 检查返回数据的格式，并进行相应的处理
+        if isinstance(response_data, dict):
+            return response_data.get('data', {})
+        else:
+            return response_data
 
 
 class GetProjectsResource(BcsProjectBaseResource):

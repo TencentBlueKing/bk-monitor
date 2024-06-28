@@ -219,6 +219,16 @@ class MultivariateAnomalyDetectionSerializer(serializers.Serializer):
     metrics = MetricListSerializer(allow_empty=True, label="指标数据")
 
 
+class HostAnomalyDetectionSerializer(MultivariateAnomalyDetectionSerializer):
+    """
+    智能AI主机异常检测算法
+    目前只有host场景，无需传入指标值，由数据平台算法的智能指标组成
+    """
+
+    levels = serializers.ListField(required=True, label="告警级别列表")
+    sensitivity = serializers.IntegerField(required=True, label="告警敏感度")
+
+
 class QueryConfigSerializer(serializers.Serializer):
     """
     查询配置序列化器基类
@@ -306,7 +316,7 @@ class CustomEventSerializer(QueryConfigSerializer):
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
     agg_dimension = serializers.ListField(allow_empty=True)
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
-    custom_event_name = serializers.CharField(label="事件名")
+    custom_event_name = serializers.CharField(label="事件名", required=False, allow_blank=True)
 
 
 class CustomTimeSeriesSerializer(BkMonitorTimeSeriesSerializer):

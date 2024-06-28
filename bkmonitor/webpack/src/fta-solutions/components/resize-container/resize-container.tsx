@@ -51,7 +51,7 @@ export default class ResizeContainer extends tsc<IResizeContainer> {
     startClientX: 0,
     startClientY: 0,
     width: null,
-    height: null
+    height: null,
   };
 
   @Watch('width', { immediate: true })
@@ -116,11 +116,11 @@ export default class ResizeContainer extends tsc<IResizeContainer> {
   protected render() {
     return (
       <div
-        class='resize-container-wrap'
         style={{
           width: `${this.resize.width}px`,
-          height: `${this.resize.height}px`
+          height: `${this.resize.height}px`,
         }}
+        class='resize-container-wrap'
       >
         <div class='resize-container-content'>{this.$slots.default}</div>
         <div

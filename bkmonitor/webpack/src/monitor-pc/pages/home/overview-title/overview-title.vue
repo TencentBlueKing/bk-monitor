@@ -40,18 +40,18 @@
         @click="pullClickHandle('right')"
       />
       <div
-        class="overview-list-wrap"
         ref="overviewListWrap"
+        class="overview-list-wrap"
       >
         <ul
           class="overview-list clearfix"
           :style="{ marginLeft: curLeft + 'px' }"
         >
           <li
-            class="item"
             v-for="(item, index) in overview"
-            :class="{ 'item-last': item.last }"
             :key="index"
+            class="item"
+            :class="{ 'item-last': item.last }"
           >
             <span @click="goToBpPage(item.pageType, item)">
               <bk-popover
@@ -67,7 +67,8 @@
             <span
               class="item__abnormal"
               @click="item.abnormal && goToBpDetailPage(item)"
-            >{{ item.abnormal }}</span>
+              >{{ item.abnormal }}</span
+            >
             /
             <span class="item__normal">{{ item.normal }}</span>
           </li>
@@ -84,7 +85,7 @@ import SvgIcon from '../../../components/svg-icon/svg-icon';
 export default {
   name: 'OverviewTitle',
   components: {
-    SvgIcon
+    SvgIcon,
   },
   mixins: [gotoPageMixin],
   props: {
@@ -92,8 +93,8 @@ export default {
       type: Array,
       default() {
         return [];
-      }
-    }
+      },
+    },
   },
   data() {
     return {
@@ -106,13 +107,13 @@ export default {
         [this.$t('数据库')]: 'database',
         [this.$t('HTTP服务')]: 'http',
         [this.$t('消息队列')]: 'message-queue',
-        [this.$t('综合拨测')]: 'uptimecheck'
+        [this.$t('综合拨测')]: 'uptimecheck',
       },
       iconContentMap: {
         linux: 'Linux',
         windows: 'Windows',
-        aix: 'AIX'
-      }
+        aix: 'AIX',
+      },
     };
   },
   computed: {
@@ -124,7 +125,7 @@ export default {
     },
     canRight() {
       return this.lastIndex && this.curIndex > 0;
-    }
+    },
   },
   mounted() {
     this.lastIndex = this.overview.length - Math.floor(this.$refs.overviewListWrap.clientWidth / this.itemWidth);
@@ -188,8 +189,8 @@ export default {
     },
     getIconContent(item) {
       return this.iconContentMap[item.type] || item.type;
-    }
-  }
+    },
+  },
 };
 </script>
 

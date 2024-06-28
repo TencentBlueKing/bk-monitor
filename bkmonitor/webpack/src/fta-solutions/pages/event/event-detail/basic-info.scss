@@ -120,6 +120,12 @@ $text: #313238;
             }
           }
 
+          &.content-break-spaces {
+            .item-content {
+              white-space: break-spaces;
+            }
+          }
+
           &.no-flex {
             align-items: flex-start;
 

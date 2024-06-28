@@ -7,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import json
 from dataclasses import dataclass
 from typing import Optional
 
-from apm_web.profile.constants import CPU_DESCRIBING_SAMPLE_TYPE, InputType
-from apm_web.profile.converter import Converter, register_converter
+import ujson as json
+
+from apm_web.profile.constants import InputType
 from apm_web.profile.models import (
     Function,
     Line,
@@ -22,10 +22,14 @@ from apm_web.profile.models import (
     Sample,
     ValueType,
 )
+from apm_web.profile.profileconverter import (
+    ProfileConverter,
+    register_profile_converter,
+)
 
 
 @dataclass
-class DorisConverter(Converter):
+class DorisProfileConverter(ProfileConverter):
     """Convert data in doris(pprof json) to Profile object"""
 
     def convert(self, raw: dict) -> Optional[Profile]:
@@ -39,20 +43,11 @@ class DorisConverter(Converter):
         period_type, period_unit = first_sample["period_type"].split("/")
         self.profile.period_type = ValueType(self.add_string(period_type), self.add_string(period_unit))
         self.profile.period = first_sample["period"]
+        sample_type, sample_unit = first_sample["sample_type"].split("/")
+        self.profile.sample_type = [ValueType(self.add_string(sample_type), self.add_string(sample_unit))]
+        self.profile.default_sample_type = 0
 
-        default_sample_type = []
         for sample_info in samples_info:
-            # according to profile.proto:
-            # "By convention, the first value on all profiles is the number of samples collected at this call stack,
-            # with unit `count`."
-            # samples_info contains lots of samples, including `sample/counts` and target values
-            # `sample/counts` mainly for `describing`, ignoring it and adding after all samples added
-            if sample_info["sample_type"] == CPU_DESCRIBING_SAMPLE_TYPE:
-                continue
-
-            if not default_sample_type:
-                default_sample_type = sample_info["sample_type"].split("/")
-
             labels = json.loads(sample_info.get("labels", "{}"))
             sample = Sample(value=[int(sample_info["value"])], label=labels)
             for stacktrace in json.loads(sample_info["stacktrace"]):
@@ -60,10 +55,6 @@ class DorisConverter(Converter):
                 sample.location_id.append(location.id)
 
             self.profile.sample.append(sample)
-
-        sample_type, sample_unit = default_sample_type
-        self.profile.sample_type = [ValueType(self.add_string(sample_type), self.add_string(sample_unit))]
-        self.profile.default_sample_type = 0
 
         return self.profile
 
@@ -114,9 +105,12 @@ class DorisConverter(Converter):
                 self._function_id_mapping[function.id] = function
                 self.profile.function.append(function)
 
-                location.line.append(Line(function_id=function.id, line=line_info["line"]))
+            location.line.append(Line(function_id=function.id, line=line_info["line"]))
 
         return location
 
+    def __len__(self):
+        return len(self.raw_data)
 
-register_converter(InputType.DORIS.value, DorisConverter)
+
+register_profile_converter(InputType.DORIS.value, DorisProfileConverter)

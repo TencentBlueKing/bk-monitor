@@ -31,7 +31,7 @@ import BusinessRight from './business-right';
 import './business-item-big-skeleton.scss';
 
 @Component
-export default class BusinessItemBigSkeleton extends tsc<{}> {
+export default class BusinessItemBigSkeleton extends tsc<object> {
   render() {
     return (
       <div class='business-item-big-skeleton'>

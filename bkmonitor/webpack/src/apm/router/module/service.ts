@@ -35,30 +35,30 @@ export default [
     path: '/service',
     name: 'service',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Service
+      noCache: Service,
     },
     meta: {
       title: '服务',
       navId: 'service',
       customTitle: true,
-      noNavBar: true
+      noNavBar: true,
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/service/detail',
     name: 'service-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ServiceDetail
+      noCache: ServiceDetail,
     },
     meta: {
       title: '服务详情',
@@ -66,39 +66,39 @@ export default [
       customTitle: true,
       noNavBar: true,
       route: {
-        parent: 'service'
-      }
+        parent: 'service',
+      },
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/service-config',
     name: 'service-config',
     props: true,
     components: {
-      noCache: ServiceConfig
+      noCache: ServiceConfig,
     },
     meta: {
       title: '服务配置',
       navId: 'service',
-      noNavBar: true
+      noNavBar: true,
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/service-add/:appName',
     name: 'service-add',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ServiceAdd
+      noCache: ServiceAdd,
     },
     meta: {
       title: '新增服务',
@@ -106,8 +106,8 @@ export default [
       customTitle: false,
       noNavBar: true,
       route: {
-        parent: 'service'
-      }
-    }
-  }
+        parent: 'service',
+      },
+    },
+  },
 ] as RouteConfig[];

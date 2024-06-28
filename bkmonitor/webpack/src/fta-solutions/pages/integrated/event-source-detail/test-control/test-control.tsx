@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Terminal from 'monitor-pc/pages/plugin-manager/plugin-instance/terminal-instance/terminal-instance';
 
 import './test-control.scss';
@@ -32,7 +33,7 @@ import './test-control.scss';
  * 测试控件
  */
 @Component
-export default class TestControl extends tsc<{}> {
+export default class TestControl extends tsc<object> {
   @Model('show-change', { default: false, type: Boolean }) show;
 
   tableData = [
@@ -40,7 +41,7 @@ export default class TestControl extends tsc<{}> {
     { input: 'actionid', output: '业务：business_name' },
     { input: 'sendto', output: '目标：target' },
     { input: 'alerttype', output: '级别：serverity' },
-    { input: 'eventid', output: '源事件ID：event_id' }
+    { input: 'eventid', output: '源事件ID：event_id' },
   ];
 
   @Emit('show-change')

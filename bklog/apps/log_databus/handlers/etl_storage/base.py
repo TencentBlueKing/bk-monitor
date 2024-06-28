@@ -357,6 +357,9 @@ class EtlStorage(object):
                 time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
+                if time_fmt.get("is_custom"):
+                    # 如果是自定义时间格式,加入time_layout字段
+                    time_field["option"]["time_layout"] = time_fmt.get("description", "")
 
                 # 注入默认值
                 time_field["option"]["default_function"] = "fn:timestamp_from_utctime"

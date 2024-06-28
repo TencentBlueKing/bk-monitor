@@ -119,9 +119,7 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
 
     @classmethod
     def get_resource_name(cls):
-        subclass_name = cls.__name__
-        resource_name = subclass_name.replace("Resource", "")
-        return resource_name
+        return f"{cls.__module__}.{cls.__qualname__}"
 
     @classmethod
     def _search_serializer_class(cls):
@@ -216,7 +214,7 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
         """
         执行请求，并对请求数据和返回数据进行数据校验
         """
-        with tracer.start_as_current_span(f"drf_resource/{self.get_resource_name()}"):
+        with tracer.start_as_current_span(self.get_resource_name()):
             request_data = request_data or kwargs
             validated_request_data = self.validate_request_data(request_data)
             response_data = self.perform_request(validated_request_data)

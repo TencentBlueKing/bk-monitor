@@ -60,5 +60,9 @@ class Duplicate:
             if self.strategy_id is not None:
                 dup_key.strategy_id = self.strategy_id
             pipeline.sadd(dup_key, *record_ids)
-            pipeline.expire(dup_key, key.ACCESS_DUPLICATE_KEY.ttl)
+
+        # duplicate point 对应过期时间也同步刷新
+        for ttl_dup_key in self.record_ids_cache:
+            ttl_dup_key.strategy_id = self.strategy_id
+            pipeline.expire(ttl_dup_key, key.ACCESS_DUPLICATE_KEY.ttl)
         pipeline.execute()

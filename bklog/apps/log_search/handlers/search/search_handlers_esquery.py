@@ -32,7 +32,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsCcApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -189,6 +189,7 @@ class SearchHandler(object):
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
+        self.from_favorite_id = self.search_dict.get("from_favorite_id", 0)
 
         self.use_time_range = search_dict.get("use_time_range", True)
         # 构建时间字段
@@ -235,8 +236,8 @@ class SearchHandler(object):
         # 透传size
         self.size: int = search_dict.get("size", 30)
 
-        # 透传filter
-        self.filter: list = self._init_filter()
+        # 透传filter. 初始化为None,表示filter还没有被初始化
+        self._filter = None
 
         # 构建排序list
         self.sort_list: list = self._init_sort()
@@ -786,12 +787,16 @@ class SearchHandler(object):
                         "params": history_params,
                         "index_set_id": self.index_set_id,
                         "search_type": search_type,
+                        "from_favorite_id": self.from_favorite_id,
                     }
                 }
             )
         else:
             UserIndexSetSearchHistory.objects.create(
-                index_set_id=self.index_set_id, params=history_params, search_type=search_type
+                index_set_id=self.index_set_id,
+                params=history_params,
+                search_type=search_type,
+                from_favorite_id=self.from_favorite_id,
             )
 
     def _can_scroll(self, result) -> bool:
@@ -909,8 +914,9 @@ class SearchHandler(object):
         """
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
+        max_result_window = self.index_set_obj.result_window
         sorted_list = self._get_user_sorted_list(sorted_fields)
-        while search_after_size == MAX_RESULT_WINDOW and result_size < self.size:
+        while search_after_size == max_result_window and result_size < self.size:
             search_after = []
             for sorted_field in sorted_list:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
@@ -925,7 +931,7 @@ class SearchHandler(object):
                     "filter": self.filter,
                     "sort_list": sorted_list,
                     "start": self.start,
-                    "size": MAX_RESULT_WINDOW,
+                    "size": max_result_window,
                     "aggs": self.aggs,
                     "highlight": self.highlight,
                     "time_zone": self.time_zone,
@@ -955,7 +961,8 @@ class SearchHandler(object):
         """
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
-        while scroll_size == MAX_RESULT_WINDOW and result_size < self.size:
+        max_result_window = self.index_set_obj.result_window
+        while scroll_size == max_result_window and result_size < self.size:
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = BkLogApi.scroll(
                 {
@@ -981,8 +988,8 @@ class SearchHandler(object):
         @param container_id:
         @return:
         """
-        bcs_cluster_info = BcsCcApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
-        space = Space.objects.filter(space_code=bcs_cluster_info["project_id"]).first()
+        bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
+        space = Space.objects.filter(space_code=bcs_cluster_info["projectID"]).first()
         project_code = ""
         if space:
             project_code = space.space_id
@@ -1026,10 +1033,15 @@ class SearchHandler(object):
 
         if not index_set_id_all:
             return []
+        from apps.log_search.handlers.index_set import IndexSetHandler
 
-        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid)
+        # 获取当前空间关联空间的索引集
+        space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values(
+            "index_set_id", "index_set_name"
+        )
 
-        effect_index_set_mapping = {obj.index_set_id: obj.index_set_name for obj in index_set_objs}
+        effect_index_set_mapping = {obj["index_set_id"]: obj["index_set_name"] for obj in index_set_objs}
 
         if not effect_index_set_mapping:
             return []
@@ -1573,6 +1585,13 @@ class SearchHandler(object):
             scope=scope,
             default_sort_tag=self.search_dict.get("default_sort_tag", False),
         )
+
+    @property
+    def filter(self) -> list:
+        # 当filter被访问时，如果还没有被初始化，则调用_init_filter()进行初始化
+        if self._filter is None:
+            self._filter = self._init_filter()
+        return self._filter
 
     # 过滤filter
     def _init_filter(self):
@@ -2380,6 +2399,7 @@ class UnionSearchHandler(object):
                     "params": params,
                     "index_set_ids": sorted(self.index_set_ids),
                     "search_type": search_type,
+                    "from_favorite_id": self.search_dict.get("from_favorite_id", 0),
                 }
             }
         )

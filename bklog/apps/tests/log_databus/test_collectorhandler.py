@@ -35,6 +35,7 @@ SUBSCRIPTION_ID = 2
 TASK_ID = 3
 NEW_TASK_ID = 4
 LAST_TASK_ID = 5
+CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
 PARAMS = {
     "bk_biz_id": 706,
     "collector_config_name": "采集项名称",
@@ -274,6 +275,7 @@ class TestCollectorHandler(TestCase):
         self.assertEqual(result["subscription_id"], SUBSCRIPTION_ID)
         self.assertEqual(result["task_id_list"], [str(TASK_ID)])
 
+    @patch("apps.api.TransferApi.get_cluster_info")
     @patch("apps.utils.thread.MultiExecuteFunc.append")
     @patch("apps.utils.thread.MultiExecuteFunc.run")
     @patch("apps.api.NodeApi.switch_subscription", lambda _: {})
@@ -282,7 +284,7 @@ class TestCollectorHandler(TestCase):
     @patch("apps.api.CCApi.search_set", CCSetTest())
     @patch("apps.api.CCApi.list_biz_hosts", CCBizHostsTest())
     @patch("apps.decorators.user_operation_record.delay", return_value=None)
-    def test_retrieve(self, mock_run, mock_append, *args, **kwargs):
+    def test_retrieve(self, mock_run, mock_append, mock_get_cluster_info, *args, **kwargs):
         """
         测试'获取采集配置'函数 CollectorHandler.retrieve
         """
@@ -290,6 +292,7 @@ class TestCollectorHandler(TestCase):
 
         mock_append.return_value = ""
         mock_run.return_value = CONFIG_DATA
+        mock_get_cluster_info.return_value = CLUSTER_INFO
 
         collector_config_id = result["collector_config_id"]
         collector = CollectorHandler(collector_config_id=collector_config_id)

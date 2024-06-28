@@ -367,6 +367,10 @@ class Alarm(BaseContextObject):
         return time_tools.utc2localtime(self.parent.alert.begin_time) if self.parent.alert else "--"
 
     @cached_property
+    def begin_timestamp(self):
+        return self.parent.alert.begin_time if self.parent.alert else 0
+
+    @cached_property
     def duration(self):
         """
         事件持续时间
@@ -533,7 +537,15 @@ class Alarm(BaseContextObject):
         try:
             return get_alert_relation_info(self.parent.alert)
         except Exception as err:
-            logger.exception("Get anomaly content err, msg is {}".format(err))
+            logger.exception("Get alert relation info err, msg is %s", err)
+        return ""
+
+    @cached_property
+    def log_raw_related_info(self):
+        try:
+            return get_alert_relation_info(self.parent.alert, length_limit=False)
+        except Exception as err:
+            logger.exception("Get alert relation info err, msg is %s", err)
         return ""
 
     @cached_property

@@ -74,8 +74,8 @@ export default class AiopsTabtitle extends tsc<IProps> {
     return (
       <div class='aiops-tab-title'>
         <div
-          class={['aiops-tab-title-item', { 'aiops-tab-title-active': this.active === ETabNames.dimension }]}
           style={{ borderRightWidth: this.showMetricRecommendation ? '1px' : '0px' }}
+          class={['aiops-tab-title-item', { 'aiops-tab-title-active': this.active === ETabNames.dimension }]}
           onClick={this.handleActive.bind(this, 'dimension')}
         >
           <span class='aiops-tab-title-icon'>
@@ -83,45 +83,47 @@ export default class AiopsTabtitle extends tsc<IProps> {
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('维度下钻')}</span>
-            <span
-              class={['aiops-tab-title-message']}
-              v-bkloading={{
-                isLoading: this.dimensionDrillDownLoading,
-                theme: 'primary',
-                size: 'mini',
-                extCls: 'metric_loading'
-              }}
-            >
-              {!this.showDimensionDrill ? (
-                <div>
-                  <i class='icon-monitor icon-tips tips-icon'></i>
-                  {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-                </div>
-              ) : (
-                [
-                  this.dimensionDrillDownErr ? (
-                    <span class='err-text'>
-                      <span>
-                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
-                        {this.$t('模型输出异常')}
+            {this.showMetricRecommendation && (
+              <span
+                class={['aiops-tab-title-message']}
+                v-bkloading={{
+                  isLoading: this.dimensionDrillDownLoading,
+                  theme: 'primary',
+                  size: 'mini',
+                  extCls: 'metric_loading',
+                }}
+              >
+                {!this.showDimensionDrill ? (
+                  <div>
+                    <i class='icon-monitor icon-tips tips-icon'></i>
+                    {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
+                  </div>
+                ) : (
+                  [
+                    this.dimensionDrillDownErr ? (
+                      <span class='err-text'>
+                        <span>
+                          <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
+                          {this.$t('模型输出异常')}
+                        </span>
                       </span>
-                    </span>
-                  ) : undefined,
-                  <span class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}>
-                    {this.$t('异常维度')}
-                    <font> {this.dimensionInfo.anomaly_dimension_count}</font>
-                    {isExitDimensionInfo ? ',' : ''}
-                  </span>,
-                  <span
-                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
-                    style='marginLeft: 6px'
-                  >
-                    {this.$t('异常维度值')}
-                    <font> {this.dimensionInfo.anomaly_dimension_value_count}</font>
-                  </span>
-                ]
-              )}
-            </span>
+                    ) : undefined,
+                    <span class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}>
+                      {this.$t('异常维度')}
+                      <font> {this.dimensionInfo.anomaly_dimension_count}</font>
+                      {isExitDimensionInfo ? ',' : ''}
+                    </span>,
+                    <span
+                      style='marginLeft: 6px'
+                      class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+                    >
+                      {this.$t('异常维度值')}
+                      <font> {this.dimensionInfo.anomaly_dimension_value_count}</font>
+                    </span>,
+                  ]
+                )}
+              </span>
+            )}
           </span>
         </div>
         <div
@@ -133,45 +135,46 @@ export default class AiopsTabtitle extends tsc<IProps> {
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('关联指标')}</span>
-            {!this.showMetricRecommendation ? (
-              <span class='aiops-tab-title-message aiops-tab-title-index-message'>
-                <i class='icon-monitor icon-tips tips-icon'></i>
-                {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-              </span>
-            ) : (
-              <span
-                class={['aiops-tab-title-message aiops-tab-title-index-message']}
-                v-bkloading={{
-                  isLoading: this.metricRecommendationLoading,
-                  theme: 'primary',
-                  size: 'mini',
-                  extCls: 'metric_loading'
-                }}
-              >
-                {this.metricRecommendationErr && (
-                  <span class='err-text'>
-                    <span>
-                      <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
-                      {this.$t('模型输出异常')}
-                    </span>
-                  </span>
-                )}
-                <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
-                  <i18n path='{0} 个指标'>
-                    <font>{this.indexInfo.recommended_metric || 0} </font>
-                  </i18n>
-                  {isExitIndexInfo ? ',' : ''}
+            {this.showDimensionDrill &&
+              (!this.showMetricRecommendation ? (
+                <span class='aiops-tab-title-message aiops-tab-title-index-message'>
+                  <i class='icon-monitor icon-tips tips-icon'></i>
+                  {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
                 </span>
+              ) : (
                 <span
-                  class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
-                  style='marginLeft: 6px'
+                  class={['aiops-tab-title-message aiops-tab-title-index-message']}
+                  v-bkloading={{
+                    isLoading: this.metricRecommendationLoading,
+                    theme: 'primary',
+                    size: 'mini',
+                    extCls: 'metric_loading',
+                  }}
                 >
-                  <i18n path='{0} 个维度'>
-                    <font>{this.indexInfo.recommended_metric_count || 0} </font>
-                  </i18n>
+                  {this.metricRecommendationErr && (
+                    <span class='err-text'>
+                      <span>
+                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
+                        {this.$t('模型输出异常')}
+                      </span>
+                    </span>
+                  )}
+                  <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
+                    <i18n path='{0} 个指标'>
+                      <font>{this.indexInfo.recommended_metric || 0} </font>
+                    </i18n>
+                    {isExitIndexInfo ? ',' : ''}
+                  </span>
+                  <span
+                    style='marginLeft: 6px'
+                    class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
+                  >
+                    <i18n path='{0} 个维度'>
+                      <font>{this.indexInfo.recommended_metric_count || 0} </font>
+                    </i18n>
+                  </span>
                 </span>
-              </span>
-            )}
+              ))}
           </span>
         </div>
       </div>

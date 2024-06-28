@@ -25,11 +25,11 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
-
 import { getDashboardCache } from './utils';
 
 import './grafana.scss';
@@ -44,14 +44,16 @@ interface IMessageEvent extends MessageEvent {
   };
 }
 @Component({
-  name: 'grafana'
+  name: 'grafana',
 })
-export default class MyComponent extends tsc<{}> {
+export default class MyComponent extends tsc<object> {
   @Prop({ default: '' }) url: string;
   grafanaUrl = '';
   unWatch = null;
   loading = true;
   hasLogin = false;
+  loadingTime: number;
+  isInit = true;
   get orignUrl() {
     return process.env.NODE_ENV === 'development' ? `${process.env.proxyUrl}/` : `${location.origin}${window.site_url}`;
   }
@@ -75,8 +77,11 @@ export default class MyComponent extends tsc<{}> {
     }
     this.loading = true;
     const grafanaUrl = await this.handleGetGrafanaUrl();
-    if (!this.grafanaUrl) {
+    // 优化逻辑 若此时距离页面加载在 3s 内，则重载 iframe
+    const needReload = !this.isInit && Date.now() - this.loadingTime < 3000;
+    if (!this.grafanaUrl || needReload) {
       this.grafanaUrl = grafanaUrl;
+      this.isInit = false;
       setTimeout(() => (this.loading = false), 2000);
     } else {
       this.loading = false;
@@ -84,7 +89,7 @@ export default class MyComponent extends tsc<{}> {
       this.iframeRef?.contentWindow.postMessage(
         {
           route: url.pathname.replace('/grafana', ''),
-          search: url.search
+          search: url.search,
         },
         '*'
       );
@@ -104,8 +109,8 @@ export default class MyComponent extends tsc<{}> {
           this.$router.replace({
             name: 'favorite-dashboard',
             params: {
-              url: dashboardCacheId
-            }
+              url: dashboardCacheId,
+            },
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
@@ -133,7 +138,7 @@ export default class MyComponent extends tsc<{}> {
   getUrlParamsString() {
     const str = Object.entries({
       ...(this.$route.query || {}),
-      ...Object.fromEntries(new URLSearchParams(location.search))
+      ...Object.fromEntries(new URLSearchParams(location.search)),
     })
       .map(entry => entry.join('='))
       .join('&');
@@ -141,6 +146,7 @@ export default class MyComponent extends tsc<{}> {
     return '';
   }
   mounted() {
+    this.loadingTime = Date.now();
     window.addEventListener('message', this.handleMessage, false);
   }
 
@@ -173,7 +179,7 @@ export default class MyComponent extends tsc<{}> {
   }
   isAllowedUrl(url: string) {
     // 验证URL格式是否合法
-    let parsedUrl: string | URL;
+    let parsedUrl: URL | string;
     try {
       parsedUrl = new URL(url);
     } catch (e) {
@@ -195,15 +201,15 @@ export default class MyComponent extends tsc<{}> {
         this.$router.push({
           name: 'favorite-dashboard',
           params: {
-            url: dashboardId
-          }
+            url: dashboardId,
+          },
         });
         this.handleSetDashboardCache(dashboardId);
       }
       return;
     }
     // 302跳转
-    if (e?.data?.redirected) {
+    if (e?.data?.redirected && !this.hasLogin) {
       if (this.isAllowedUrl(e.data.href)) {
         const url = new URL(location.href);
         const curl = url.searchParams.get('c_url');
@@ -218,19 +224,16 @@ export default class MyComponent extends tsc<{}> {
     }
     // 登录 iframe内登入态失效
     if (e?.data?.status === 'login' && !this.hasLogin) {
-      this.hasLogin = true;
       if (e.data.login_url) {
+        this.hasLogin = true;
         const url = new URL(e.data.login_url);
         const curl = url.searchParams.get('c_url').replace(/^http:/, location.protocol);
         url.searchParams.set('c_url', curl);
-        window.LoginModal.$props.loginUrl = url.href;
-        window.LoginModal.show();
+        url.protocol = location.protocol;
+        window.showLoginModal({ loginUrl: url.href });
       } else {
         location.reload();
       }
-      setTimeout(() => {
-        this.hasLogin = false;
-      }, 1000 * 60);
     }
   }
   render() {
@@ -240,11 +243,11 @@ export default class MyComponent extends tsc<{}> {
         v-monitor-loading={{ isLoading: this.loading }}
       >
         <iframe
-          onLoad={this.handleLoad}
           ref='iframe'
           class='grafana-wrap-frame'
           allow='fullscreen'
           src={this.grafanaUrl}
+          onLoad={this.handleLoad}
         />
       </div>
     );

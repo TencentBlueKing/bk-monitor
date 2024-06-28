@@ -13,9 +13,9 @@
   &.active,
   &:hover {
     .bk-button {
-
       /* stylelint-disable-next-line declaration-no-important */
       background: #e1ecff !important; 
+
       /* stylelint-disable-next-line declaration-no-important */
       border-color: #e1ecff !important;
     }
@@ -25,8 +25,8 @@
     width: 100%;
     font-size: 12px;
     line-height: 20px;
-    letter-spacing: 0;
     color: #3a84ff;
+    letter-spacing: 0;
   
     &.bk-button {
       color: #3a84ff;

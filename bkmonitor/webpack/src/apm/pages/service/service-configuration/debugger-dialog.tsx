@@ -48,14 +48,14 @@ export default class DebuggerDialog extends tsc<IProps> {
   render() {
     return (
       <bk-dialog
-        value={this.value}
-        title={this.$t('调试')}
-        header-position='left'
-        ext-cls='add-service-dialog'
         width={640}
-        onValueChange={this.handleShowChange}
+        ext-cls='add-service-dialog'
         confirm-fn={this.handleConfirm}
+        header-position='left'
+        title={this.$t('调试')}
+        value={this.value}
         onCancel={this.handleCancel}
+        onValueChange={this.handleShowChange}
       ></bk-dialog>
     );
   }

@@ -53,12 +53,14 @@ class ComponentHandler:
         )
 
     @classmethod
-    def get_component_belong_service(cls, name, predicate_value):
+    def get_component_belong_service(cls, name: str, predicate_value: str) -> str:
         """
         获取组件归属的服务名称
         如：{service_name}-mysql -> {service_name}
         """
-        return name.replace(f"-{predicate_value}", "")
+        if not predicate_value:
+            return name
+        return name.replace(f"-{predicate_value}", "", 1)
 
     @classmethod
     def build_component_instance_filter_params(

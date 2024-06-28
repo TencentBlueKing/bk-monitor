@@ -50,14 +50,14 @@ export default {
     return {
       watchKeword: null,
       defaultExpanded: [],
-      isLoad: false
+      isLoad: false,
     };
   },
   watch: {
     treeData: {
       handler(v) {
         this.$refs.tree?.setData(v || []);
-      }
+      },
     },
     checkedData: {
       handler(v, old) {
@@ -65,7 +65,7 @@ export default {
         this.handleSetChecked(v);
         this.handleSetChecked(difference, false);
         this.isLoad = true;
-      }
+      },
     },
     disabledData: {
       handler(v, old) {
@@ -74,8 +74,8 @@ export default {
           this.$refs.tree.setDisabled(v || []);
           this.$refs.tree.setDisabled(difference || []);
         }
-      }
-    }
+      },
+    },
   },
   created() {
     this.watchKeword = this.$watch('keyword', debounce(300, this.handleFilter));
@@ -95,13 +95,14 @@ export default {
       const { tree } = this.$refs;
       const newV = v || this.checkedData;
       if (tree) {
-        newV.forEach((id) => {
+        newV.forEach(id => {
           tree.setChecked(id, {
-            checked: isChecked
+            checked: isChecked,
           });
           const node = tree.getNodeById(id);
           node && this.handleTreeCheck(newV, node, isChecked);
-          if (!this.isLoad) this.$emit('node-check', 'dynamic-topo', { checked: node?.state?.checked, data: node?.data });
+          if (!this.isLoad)
+            this.$emit('node-check', 'dynamic-topo', { checked: node?.state?.checked, data: node?.data });
         });
       }
     },
@@ -121,7 +122,7 @@ export default {
         const childrens = this.checkedData.filter(id => ~descendants.findIndex(dNode => dNode.id === id));
         if (!hasParent) {
           if (childrens.length) {
-            childrens.forEach((id) => {
+            childrens.forEach(id => {
               this.checkedData.splice(
                 this.checkedData.findIndex(cid => cid === id),
                 1
@@ -138,10 +139,10 @@ export default {
       const { tree } = this.$refs;
       const descendants = node.descendants.map(descendant => descendant.id);
       tree.setChecked(descendants, {
-        checked: checked || node.checked
+        checked: checked || node.checked,
       });
       tree.setDisabled(descendants, {
-        disabled: checked || node.checked
+        disabled: checked || node.checked,
       });
     },
     handleFilter(v) {
@@ -153,9 +154,7 @@ export default {
     },
     handlerGetInterOrDiff(v, old) {
       const intersection = v.filter(item => old.indexOf(item) > -1);
-      let difference = v
-        .filter(item => old.indexOf(item) === -1)
-        .concat(old.filter(item => v.indexOf(item) === -1));
+      let difference = v.filter(item => old.indexOf(item) === -1).concat(old.filter(item => v.indexOf(item) === -1));
       difference = difference.filter(set => !~v.indexOf(set));
       return { intersection, difference };
     },
@@ -171,8 +170,8 @@ export default {
         }
         // this.defaultExpanded.push(this.treeData[0].id)
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

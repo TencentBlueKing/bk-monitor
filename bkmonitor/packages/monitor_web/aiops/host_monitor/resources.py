@@ -18,8 +18,8 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import UnifyQuery, load_data_source
-from bkmonitor.models import MetricListCache
-from bkmonitor.strategy.new_strategy import get_metric_id
+from bkmonitor.models import MetricListCache, StrategyModel
+from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, resource
@@ -27,7 +27,6 @@ from monitor_web.aiops.host_monitor.constant import (
     GROUP_BY_METRIC_FIELDS,
     NO_ACCESS_METRIC_ANOMALY_RANGE_COLOR,
     QUERY_METRIC_FIELDS,
-    NoAccessException,
 )
 from monitor_web.aiops.host_monitor.serializers import HostSerializer
 from monitor_web.aiops.host_monitor.utils import (
@@ -54,6 +53,7 @@ class HostIntelligenAnomalyResource(Resource):
         host = serializers.ListSerializer(child=HostSerializer())
         start_time = serializers.IntegerField(required=False)
         end_time = serializers.IntegerField(required=False)
+        strategy_id = serializers.IntegerField(required=False)
 
         def validate_host(self, attr):
             return [host for host in attr if "bk_target_ip" in host and "bk_target_cloud_id" in host]
@@ -141,6 +141,7 @@ class HostIntelligenAnomalyRangeResource(Resource):
         end_time = serializers.IntegerField(required=False)
         metric_ids = serializers.ListSerializer(child=serializers.CharField())
         interval = serializers.CharField()
+        strategy_id = serializers.IntegerField(required=False)
 
         def validate_host(self, attr):
             return [host for host in attr if "bk_target_ip" in host and "bk_target_cloud_id" in host]
@@ -234,17 +235,24 @@ class HostIntelligenAnomalyBaseResource(Resource):
         bk_biz_id = serializers.IntegerField()
         query_config = serializers.DictField()
         raw_data = serializers.DictField()
+        strategy_id = serializers.IntegerField(required=False)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
+        strategy_id = validated_request_data["raw_data"].get("strategy_id")
 
         biz_ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
         if not biz_ai_setting.multivariate_anomaly_detection.host.is_access_aiops():
-            err_msg = "bk_biz_id({}) host scene not access aiops".format(bk_biz_id)
-            raise NoAccessException(err_msg)
+            logger.error("bk_biz_id({}) host scene not access aiops".format(bk_biz_id))
+            return []
 
-        intelligent_detect = biz_ai_setting.multivariate_anomaly_detection.host.intelligent_detect
+        # 如果有配置的策略ID，则从策略中获取需要查询的结果表ID
+        if strategy_id:
+            strategy = Strategy.from_models([StrategyModel.objects.get(id=strategy_id)])[0]
+            intelligent_detect = strategy.items[0].query_configs[0].intelligent_detect
+        else:
+            intelligent_detect = biz_ai_setting.multivariate_anomaly_detection.host.intelligent_detect
 
         query_config = validated_request_data["query_config"]
 
@@ -252,7 +260,7 @@ class HostIntelligenAnomalyBaseResource(Resource):
         host = raw_data.get("host", [])
         exclude_target = biz_ai_setting.multivariate_anomaly_detection.host.exclude_target
         exclude_hosts = []
-        if exclude_target:
+        if not strategy_id and exclude_target:
             exclude_hosts = CmdbUtil.get_target_hosts(bk_biz_id=bk_biz_id, target=exclude_target)
             exclude_hosts = [exclude_host.host_id for exclude_host in exclude_hosts]
 

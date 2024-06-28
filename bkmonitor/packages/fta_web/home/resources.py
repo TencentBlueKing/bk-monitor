@@ -312,7 +312,7 @@ class StatisticsResource(Resource):
                 return 0
             elif _biz_id in sticky_biz_ids:
                 return 1
-            elif _biz_id == int(settings.DEMO_BIZ_ID):
+            elif _biz_id == int(settings.DEMO_BIZ_ID or 0):
                 # 先判断 DEMO 业务，避免「有权限」「Demo」业务同时成立的场景下，优先命中「有权限」导致排序前置
                 return 4
             else:
@@ -529,7 +529,7 @@ class StatisticsResource(Resource):
             biz_action_data: Dict[str, int] = all_data["action"].get(biz_id_str, {"count": 0, "auto_recovery_count": 0})
 
             # 仅统计有权限且非 DEMO 业务的总数
-            if biz_id in allowed_biz_ids and biz_id != int(settings.DEMO_BIZ_ID):
+            if biz_id in allowed_biz_ids and biz_id != int(settings.DEMO_BIZ_ID or 0):
                 overview_data["biz_count"] += 1
                 overview_data["event_count"] += biz_event_count
                 overview_data["alert_count"] += biz_alert_data["count"]
@@ -552,7 +552,7 @@ class StatisticsResource(Resource):
                 "bk_biz_id": space["bk_biz_id"],
                 "bk_biz_name": space["space_name"],
                 "is_favorite": biz_id in favorite_biz_ids,
-                "is_demo": biz_id == int(settings.DEMO_BIZ_ID),
+                "is_demo": biz_id == int(settings.DEMO_BIZ_ID or 0),
                 "is_sticky": biz_id in sticky_biz_ids,
                 "is_allowed": biz_id in allowed_biz_ids,
             }

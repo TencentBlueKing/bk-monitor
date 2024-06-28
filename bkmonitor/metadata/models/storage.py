@@ -53,7 +53,7 @@ from metadata.models.influxdb_cluster import InfluxDBTool
 from metadata.utils import consul_tools, es_tools, go_time, influxdb_tools
 from metadata.utils.redis_tools import RedisTools
 
-from .constants import ES_ALIAS_EXPIRED_DELAY_DAYS
+from .constants import ES_ALIAS_EXPIRED_DELAY_DAYS, EventGroupStatus
 from .es_snapshot import EsSnapshot, EsSnapshotIndice
 from .influxdb_cluster import (
     InfluxDBClusterInfo,
@@ -234,8 +234,7 @@ class ClusterInfo(models.Model):
             "cluster_type": self.mq_cluster.cluster_type
         }
         """
-
-        return {
+        _config = {
             "cluster_config": {
                 "domain_name": self.domain_name,
                 "port": self.port,
@@ -265,6 +264,13 @@ class ClusterInfo(models.Model):
             "cluster_type": self.cluster_type,
             "auth_info": {"password": self.password, "username": self.username},
         }
+
+        # NOTE: 针对kafka类型添加认证字段；现阶段先不添加模型存储sasl的认证信息，后续需要再补充
+        if self.cluster_type == self.TYPE_KAFKA and self.username and self.password:
+            _config["auth_info"]["sasl_mechanisms"] = config.KAFKA_SASL_MECHANISM
+            _config["auth_info"]["security_protocol"] = config.KAFKA_SASL_PROTOCOL
+
+        return _config
 
     @property
     def cluster_detail(self):
@@ -1120,7 +1126,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
                 # 否则此处发现rp配置不一致，需要修复
                 # 修复前根据新的duration判断shard的长度，并修改为合适的shard
                 try:
-                    shard_group_duration = InfluxDBHostInfo.judge_shard()
+                    shard_group_duration = InfluxDBHostInfo.judge_shard(self.source_duration_time)
                 except ValueError as e:
                     logger.error(
                         "table->[{}] rp->[{} | {}] is updated on host->[{}] failed: [{}]".format(
@@ -1148,7 +1154,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
             else:
                 # 创建前根据新的duration判断shard的长度，并修改为合适的shard
                 try:
-                    shard_group_duration = InfluxDBHostInfo.judge_shard()
+                    shard_group_duration = InfluxDBHostInfo.judge_shard(self.source_duration_time)
                 except ValueError as e:
                     logger.error(
                         "table->[{}] rp->[{} | {}] is create on host->[{}] failed: [{}]".format(
@@ -1452,7 +1458,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
     @classmethod
     def _get_measurement_type(cls, table_id_map: Dict) -> Dict:
         """获取 measurement 类型"""
-        from metadata.models.space.space_redis import get_measurement_type_by_table_id
+        from metadata.models.space.ds_rt import get_measurement_type_by_table_id
 
         # 组装需要的结果表列表
         table_list, table_id_list = [], []
@@ -1756,9 +1762,11 @@ class ESStorage(models.Model, StorageResultTable):
 
     # 下方三个配置，对于metadata都是透明存储的方式，供用户直接配置使用
     # 从而降低对版本等信息的依赖，格式应该是JSON格式，以便可以直接在创建请求的body中使用
-    index_settings = models.TextField("索引配置信息")
-    mapping_settings = models.TextField("别名配置信息")
+    index_settings = models.TextField("索引配置信息", blank=True, null=True)
+    mapping_settings = models.TextField("别名配置信息", blank=True, null=True)
     storage_cluster_id = models.IntegerField("存储集群")
+    source_type = models.CharField("数据源类型", max_length=16, default="log", help_text="数据源类型，仅对日志内置集群索引进行生命周期管理")
+    index_set = models.TextField("索引集", blank=True, null=True)
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -1844,6 +1852,8 @@ class ESStorage(models.Model, StorageResultTable):
         warm_phase_settings=None,
         time_zone=0,
         enable_create_index=True,
+        source_type=constants.EsSourceType.LOG.value,
+        index_set=None,
         **kwargs,
     ):
         """
@@ -1860,7 +1870,9 @@ class ESStorage(models.Model, StorageResultTable):
         :param warm_phase_days: 暖数据执行分配的等待天数，默认为 0 (不开启)
         :param warm_phase_settings: 暖数据切换配置，当 warm_phase_days > 0 时，此项必填
         :param time_zone: 时区设置，默认零时区
-        :param enable_create_index: 启用创建索引，默认为 True
+        :param enable_create_index: 启用创建索引，默认为 True；针对非内置的数据源，不能创建索引
+        :param source_type: 数据源类型，默认日志自建
+        :param index_set: 索引集
         :param kwargs: 其他配置参数
         :return:
         """
@@ -1917,6 +1929,8 @@ class ESStorage(models.Model, StorageResultTable):
             mapping_settings=json.dumps(mapping_settings),
             storage_cluster_id=cluster_id,
             time_zone=time_zone,
+            source_type=source_type,
+            index_set=index_set,
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
 
@@ -1924,6 +1938,13 @@ class ESStorage(models.Model, StorageResultTable):
         if enable_create_index:
             new_record.create_es_index(is_sync_db)
 
+        # 针对单个结果表推送数据很快，不用异步处理
+        try:
+            from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+            SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_public=True)
+        except Exception as e:
+            logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
     @property
@@ -2061,7 +2082,7 @@ class ESStorage(models.Model, StorageResultTable):
             # 查找发现，1. 这个es存储是归属于自定义事件的，而且 2. 不是在启动且未被删除的，那么不需要创建这个索引
             event_group = EventGroup.objects.get(table_id=self.table_id)
 
-            if not event_group.is_enable or event_group.is_delete:
+            if not event_group.is_enable or event_group.is_delete or event_group.status == EventGroupStatus.SLEEP.value:
                 logger.info(
                     "table_id->[%s] is belong to event group and is disable or deleted, no index will create",
                     self.table_id,
@@ -2101,6 +2122,34 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] no index", self.table_id)
         return False
 
+    def get_index_stats(self):
+        """
+        获取index的统计信息
+        stats格式为：{
+          "indices": {
+              "${index_name}": {
+                  "total": {
+                      "store": {
+                          "size_in_bytes": 1000
+                      }
+                  }
+              }
+          }
+        }
+        """
+        client = self.get_client()
+
+        index_version = ""
+        stat_info_list = client.indices.stats(self.search_format_v2())
+        if len(stat_info_list["indices"]) != 0:
+            index_version = "v2"
+        else:
+            stat_info_list = client.indices.stats(self.search_format_v1())
+            if len(stat_info_list["indices"]) != 0:
+                index_version = "v1"
+
+        return stat_info_list["indices"], index_version
+
     def current_index_info(self):
         """
         返回当前使用的最新index相关的信息
@@ -2110,40 +2159,21 @@ class ESStorage(models.Model, StorageResultTable):
             "size": 123123,  # index大小，单位byte
         }
         """
-        es_client = self.get_client()
-        # stats格式为：{
-        #   "indices": {
-        #       "${index_name}": {
-        #           "total": {
-        #               "store": {
-        #                   "size_in_bytes": 1000
-        #               }
-        #           }
-        #       }
-        #   }
-        # }
-        index_re = None
-        index_version = ""
-        # 查找index,找不到v2的就找v1的
-        stat_info_list = es_client.indices.stats(self.search_format_v2())
-        if len(stat_info_list["indices"]) != 0:
-            index_version = "v2"
-            index_re = self.index_re_v2
-        else:
-            stat_info_list = es_client.indices.stats(self.search_format_v1())
-            if len(stat_info_list["indices"]) != 0:
-                index_version = "v1"
-                index_re = self.index_re_v1
-
+        indices, index_version = self.get_index_stats()
         # 如果index_re为空，说明没找到任何可用的index
         if index_version == "":
             logger.info("index->[%s] has no index now, will raise a fake not found error", self.index_name)
             raise elasticsearch5.NotFoundError(self.index_name)
 
+        if index_version == "v2":
+            index_re = self.index_re_v2
+        else:
+            index_re = self.index_re_v1
+
         # 1.1 判断获取最新的index
         max_index = 0
         max_datetime_object = None
-        for stat_index_name in list(stat_info_list["indices"].keys()):
+        for stat_index_name in list(indices.keys()):
             re_result = index_re.match(stat_index_name)
             if re_result is None:
                 # 去掉一个整体index的计数
@@ -2198,9 +2228,9 @@ class ESStorage(models.Model, StorageResultTable):
             "index_version": index_version,
             "datetime_object": max_datetime_object,
             "index": max_index,
-            "size": stat_info_list["indices"][f"{self.make_index_name(max_datetime_object, max_index, index_version)}"][
-                "primaries"
-            ]["store"]["size_in_bytes"],
+            "size": indices[f"{self.make_index_name(max_datetime_object, max_index, index_version)}"]["primaries"][
+                "store"
+            ]["size_in_bytes"],
         }
 
     def make_index_name(self, datetime_object, index, version):
@@ -2437,15 +2467,24 @@ class ESStorage(models.Model, StorageResultTable):
                     )
                     delete_list = []
 
+                # 组装需要新增或删除的索引和别名的关联关系
+                actions = [
+                    {"add": {"index": last_index_name, "alias": round_alias_name}},
+                    {"add": {"index": last_index_name, "alias": round_read_alias_name}},
+                ]
+                # 如果需要删除的列表不为空，则添加对应的 `remove` 操作
+                if delete_list:
+                    for _index in delete_list:
+                        actions.append({"remove": {"index": _index, "alias": round_alias_name}})
+                    logger.info(
+                        "table_id->[%s] index->[%s] alias->[%s] need delete",
+                        self.table_id,
+                        delete_list,
+                        round_alias_name,
+                    )
+
                 # 3.2 需要将循环中的别名都指向了最新的index
-                es_client.indices.update_aliases(
-                    body={
-                        "actions": [
-                            {"add": {"index": last_index_name, "alias": round_alias_name}},
-                            {"add": {"index": last_index_name, "alias": round_read_alias_name}},
-                        ]
-                    }
-                )
+                es_client.indices.update_aliases(body={"actions": actions})
 
                 logger.info(
                     "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2454,17 +2493,6 @@ class ESStorage(models.Model, StorageResultTable):
                     round_alias_name,
                     round_read_alias_name,
                 )
-
-                # 只有当index相关列表不为空的时候，才会进行别名关联清理
-                if len(delete_list) != 0:
-                    index_list_str = ",".join(delete_list)
-                    es_client.indices.delete_alias(index=index_list_str, name=round_alias_name)
-                    logger.info(
-                        "table_id->[%s] index->[%s] alias->[%s] relations now had delete.",
-                        self.table_id,
-                        delete_list,
-                        round_alias_name,
-                    )
 
             finally:
                 logger.info("all operations for index->[{}] gap->[{}] now is done.".format(self.table_id, now_gap))

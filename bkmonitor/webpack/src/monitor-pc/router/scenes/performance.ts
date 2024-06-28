@@ -36,67 +36,67 @@ export default applyGuidePage([
     path: '/performance',
     name: 'performance',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Performance
+      noCache: Performance,
     },
     meta: {
       title: '主机监控',
       navId: 'performance',
       authority: {
-        page: performanceAuth.VIEW_AUTH
+        page: performanceAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'scenes'
+        parent: 'scenes',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/performance/detail/:id/:process?',
     name: 'performance-detail',
     components: {
-      noCache: PerformanceDetail
+      noCache: PerformanceDetail,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       needBack: true,
       navId: 'performance',
       authority: {
         map: performanceAuth,
-        page: performanceAuth.VIEW_AUTH
+        page: performanceAuth.VIEW_AUTH,
       },
       customContent: true,
       noNavBar: true,
       route: {
-        parent: 'performance'
-      }
-    }
+        parent: 'performance',
+      },
+    },
   },
   {
     path: '/performance/detail-new/:id/:process?',
     name: 'performance-detail-new',
     components: {
-      noCache: PerformanceDetail
+      noCache: PerformanceDetail,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       needBack: true,
       navId: 'performance',
       authority: {
         map: performanceAuth,
-        page: performanceAuth.VIEW_AUTH
+        page: performanceAuth.VIEW_AUTH,
       },
       customContent: true,
       noNavBar: true,
       route: {
-        parent: 'performance'
-      }
-    }
-  }
+        parent: 'performance',
+      },
+    },
+  },
 ] as RouteConfig[]);

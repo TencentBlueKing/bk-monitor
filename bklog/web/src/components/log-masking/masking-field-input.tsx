@@ -1,30 +1,37 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import { Component, Prop, Emit, Mixins } from 'vue-property-decorator';
+
 import { Button, Tab, TabPanel, Alert } from 'bk-magic-vue';
+
+import $http from '../../api';
 import MonacoEditor from '../../components/collection-access/components/step-add/monaco-editor.vue';
 import classDragMixin from '../../mixins/class-drag-mixin';
-import $http from '../../api';
+
 import './masking-field-input.scss';
 
 @Component
@@ -32,7 +39,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
   /** 是否是采集项脱敏 */
   @Prop({ type: Boolean, default: true }) isIndexSetMasking: boolean;
   @Prop({ type: String, required: true }) operateType: string;
-  @Prop({ required: true }) indexSetId: string | number;
+  @Prop({ required: true }) indexSetId: number | string;
   /** 当前活跃的采样日志下标 */
   activeTab = '0';
   /** 缓存的日志json列表 */
@@ -64,14 +71,14 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
     lineNumbers: 'off', // 左侧是否展示行
     // scrollBeyondLastLine: true,
     minimap: {
-      enabled: false // 是否启用预览图
+      enabled: false, // 是否启用预览图
     },
     scrollbar: {
       // 滚动条设置
       verticalScrollbarSize: 4, // 竖滚动条
-      horizontalScrollbarSize: 4 // 横滚动条
+      horizontalScrollbarSize: 4, // 横滚动条
       // useShadows: true, // 失焦阴影动画
-    }
+    },
   };
   /** 是否是第一次添加采样 */
   isAddNewPanel = false;
@@ -115,7 +122,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
     try {
       this.inputLoading = true;
       const res = await $http.request('masking/getMaskingSearchStr', {
-        params: { index_set_id: this.indexSetId }
+        params: { index_set_id: this.indexSetId },
       });
       if (res.data.list.length) {
         // 缓存当前的日志
@@ -169,7 +176,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
       catchJsonStr: '',
       name: String(id),
       isJsonError: false,
-      label: `${this.$t('采样日志')}${id + 1}`
+      label: `${this.$t('采样日志')}${id + 1}`,
     });
     if (isQuery) {
       this.activeTab = String(id);
@@ -219,16 +226,16 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
           'item-container field-input',
           {
             'input-fix': this.inputFix,
-            'other-color': !this.isIndexSetMasking
-          }
+            'other-color': !this.isIndexSetMasking,
+          },
         ]}
       >
         {this.isShowAlertTips && (
           <Alert
-            type='warning'
-            show-icon={false}
-            closable
             style='margin-bottom: 16px;'
+            show-icon={false}
+            type='warning'
+            closable
           >
             <div slot='title'>
               <i class='log-icon icon-log-loading'></i>
@@ -241,7 +248,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             <span class='title'>{this.$t('采样日志')}</span>
             <span class='alert'>
               {this.$t(
-                '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志'
+                '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志',
               )}
             </span>
           </div>
@@ -254,16 +261,17 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
           </div>
         </div>
         <Tab
-          closable
-          type='border-card'
           class={{ 'hidden-input is-not-log': !this.jsonValueList.length }}
           active={this.activeTab}
-          on-tab-change={this.tabChange}
+          type='border-card'
+          closable
           on-close-panel={this.closePanel}
+          on-tab-change={this.tabChange}
         >
           <div
-            slot='setting'
             class='text-btn'
+            slot='setting'
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onClick={() => this.handleRefreshConfigStr(true, true)}
           >
             <i class='icon bk-icon icon-right-turn-line'></i>
@@ -294,17 +302,17 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
                 v-bkloading={{ isLoading: this.inputLoading }}
               >
                 <MonacoEditor
-                  v-model={this.activeJsonValue.jsonStr}
-                  is-show-top-label={false}
-                  is-show-problem-drag={false}
-                  theme='vs'
-                  language='json'
                   height={this.collectHeight}
+                  v-model={this.activeJsonValue.jsonStr}
                   font-size={14}
+                  is-show-problem-drag={false}
+                  is-show-top-label={false}
+                  language='json'
                   monaco-config={this.monacoConfig}
                   placeholder={this.$t('请输入 JSON 格式日志')}
-                  on-get-problem-state={(err: boolean) => (this.activeJsonValue.isJsonError = err)}
+                  theme='vs'
                   on-blur={() => this.handleBlurConfigInput()}
+                  on-get-problem-state={(err: boolean) => (this.activeJsonValue.isJsonError = err)}
                 ></MonacoEditor>
               </div>
               <div
@@ -320,10 +328,10 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
         </Tab>
         <div class='sync-rule-box'>
           <Button
-            theme='primary'
-            size='small'
-            outline
             disabled={!this.jsonValueList.length}
+            size='small'
+            theme='primary'
+            outline
             onClick={() => this.handleCreateRule()}
           >
             {this.$t('自动匹配脱敏规则')}

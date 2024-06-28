@@ -28,30 +28,30 @@
  * 轮值tab类型
  */
 export enum RotationTabTypeEnum {
+  /** 交替轮值 */
+  HANDOFF = 'handoff',
   /** 固定值班 */
   REGULAR = 'regular',
-  /** 交替轮值 */
-  HANDOFF = 'handoff'
 }
 
 /**
  * 轮值下拉框类型
  */
 export enum RotationSelectTypeEnum {
-  /** 工作日 */
-  WorkDay = 'work_day',
-  /** 周末 */
-  Weekend = 'weekend',
-  /** 每天 */
-  Daily = 'daily',
-  /** 每周 */
-  Weekly = 'weekly',
-  /** 每月 */
-  Monthly = 'monthly',
   /** 自定义 */
   Custom = 'custom',
+  /** 每天 */
+  Daily = 'daily',
   /** 指定时间 */
-  DateRange = 'date_range'
+  DateRange = 'date_range',
+  /** 每月 */
+  Monthly = 'monthly',
+  /** 周末 */
+  Weekend = 'weekend',
+  /** 每周 */
+  Weekly = 'weekly',
+  /** 工作日 */
+  WorkDay = 'work_day',
 }
 
 /**
@@ -64,7 +64,7 @@ export const RotationSelectTextMap = {
   [RotationSelectTypeEnum.Weekly]: window.i18n.t('每周'),
   [RotationSelectTypeEnum.Monthly]: window.i18n.t('每月'),
   [RotationSelectTypeEnum.Custom]: window.i18n.t('自定义'),
-  [RotationSelectTypeEnum.DateRange]: window.i18n.t('指定时间')
+  [RotationSelectTypeEnum.DateRange]: window.i18n.t('指定时间'),
 };
 
 /**
@@ -77,7 +77,7 @@ export const WeekNameList = [
   window.i18n.t('周四'),
   window.i18n.t('周五'),
   window.i18n.t('周六'),
-  window.i18n.t('周日')
+  window.i18n.t('周日'),
 ];
 
 /**
@@ -90,21 +90,21 @@ export const WeekDataList = [
   { id: 4, label: window.i18n.t('周四') },
   { id: 5, label: window.i18n.t('周五') },
   { id: 6, label: window.i18n.t('周六') },
-  { id: 7, label: window.i18n.t('周日') }
+  { id: 7, label: window.i18n.t('周日') },
 ];
 
 export enum EStatus {
+  Deactivated = 'Deactivated', // 已停用
   Effective = 'Effective', // 生效中
   NoEffective = 'NoEffective', // 已失效
   WaitEffective = 'WaitEffective', // 待生效
-  Deactivated = 'Deactivated' // 已停用
 }
 
 export const statusMap = {
   [EStatus.Effective]: window.i18n.t('生效中'),
   [EStatus.NoEffective]: window.i18n.t('已失效'),
   [EStatus.WaitEffective]: window.i18n.t('待生效'),
-  [EStatus.Deactivated]: window.i18n.t('已停用')
+  [EStatus.Deactivated]: window.i18n.t('已停用'),
 };
 
 export function getEffectiveStatus(timeRange: string[], enabled: boolean) {

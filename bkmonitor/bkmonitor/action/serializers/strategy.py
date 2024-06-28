@@ -40,6 +40,7 @@ from bkmonitor.models import (
     StrategyActionConfigRelation,
     UserGroup,
 )
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import count_md5
 from common.log import logger
 from constants.action import NoticeChannel
@@ -52,6 +53,7 @@ from constants.common import (
 )
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
+from core.errors.user_group import DutyRuleNameExist, UserGroupNameExist
 
 
 class DateTimeField(serializers.CharField):
@@ -253,9 +255,9 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
 
 
 class DutyArrangeSlz(DutyBaseInfoSlz):
-    id = serializers.IntegerField(required=False)
-    user_group_id = serializers.IntegerField(required=False)
-    duty_rule_id = serializers.IntegerField(required=False)
+    id = serializers.IntegerField(required=False, read_only=True)
+    user_group_id = serializers.IntegerField(required=False, allow_null=True)
+    duty_rule_id = serializers.IntegerField(required=False, allow_null=True)
     need_rotation = serializers.BooleanField(required=False, default=False)
 
     users = serializers.ListField(required=False, child=UserSerializer())
@@ -442,16 +444,12 @@ class DutyRuleSlz(serializers.ModelSerializer):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前轮值规则组名称已经存在，请重新确认"))
+            raise DutyRuleNameExist()
         return value
 
 
 class DutyRuleDetailSlz(DutyRuleSlz):
     duty_arranges = serializers.ListField(child=DutyArrangeSlz(), required=False, default=list)
-    code_hash = serializers.CharField(default="")
-    app = serializers.CharField(default="")
-    path = serializers.CharField(default="")
-    snippet = serializers.CharField(default="")
 
     class Meta:
         model = DutyRule
@@ -481,7 +479,19 @@ class DutyRuleDetailSlz(DutyRuleSlz):
         super(DutyRuleDetailSlz, self).save(**kwargs)
 
         DutyArrange.bulk_create(duty_arranges, self.instance)
-        if not self.instance.enabled:
+
+        if self.instance.enabled:
+            # 快照和计划管理，以便预览能看到即时变化
+            user_groups = UserGroup.objects.filter(duty_rules__contains=self.instance.id).only(
+                "id", "bk_biz_id", "duty_rules", "duty_notice", "timezone"
+            )
+            for user_group in user_groups:
+                group_duty_manager = GroupDutyRuleManager(user_group, [self.data])
+                try:
+                    group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d %H:%M:%S"))
+                except Exception:  # noqa
+                    continue
+        else:
             # 如果是关闭了当前的规则, 则已有的排班计划都需要关闭掉
             # TODO 和产品确认下，是否要一个调整时间
             DutyRuleSnap.objects.filter(duty_rule_id=self.instance.id).update(enabled=False)
@@ -802,7 +812,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前告警组名称已经存在，请重新确认"))
+            raise UserGroupNameExist()
         return value
 
     def validate_need_duty(self, value):
@@ -846,9 +856,9 @@ class UserGroupDetailSlz(UserGroupSlz):
             duty_arranges_mapping = defaultdict(list)
             if duty_rule_ids:
                 # 获取对应的规则ID信息，用来做展示
+                duty_rules = DutyRule.objects.filter(id__in=duty_rule_ids)
                 kwargs["duty_rules"] = {
-                    rule_data["id"]: rule_data
-                    for rule_data in DutyRuleSlz(instance=DutyRule.objects.filter(id__in=duty_rule_ids), many=True).data
+                    rule_data["id"]: rule_data for rule_data in DutyRuleDetailSlz(instance=duty_rules, many=True).data
                 }
 
             for item in duty_arranges:
@@ -959,8 +969,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         ).data
 
         group_duty_manager = GroupDutyRuleManager(self.instance, duty_rules)
-        group_duty_manager.manage_duty_rule_snap(datetime.today().strftime("%Y-%m-%d 00:00:00"))
-
+        group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d %H:%M:%S"))
         # 删除掉已经解除绑定的相关的snap和排班信息
         DutyRuleSnap.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules

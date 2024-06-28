@@ -25,13 +25,14 @@
  */
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import { generateTimeSlots } from '../utils';
 
 import './data-time-select.scss';
 
-type ShowType = 'week' | 'calendar';
+type ShowType = 'calendar' | 'week';
 
 export default defineComponent({
   name: 'DataTimeSelect',
@@ -42,12 +43,12 @@ export default defineComponent({
     labelWidth: { type: Number, default: 52 },
     modelValue: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     type: {
       type: String as PropType<ShowType>,
-      default: 'week'
-    }
+      default: 'week',
+    },
   },
   emits: ['update:modelValue', 'change'],
   setup(props, { emit }) {
@@ -75,7 +76,7 @@ export default defineComponent({
         localValue.value = [...val];
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -100,7 +101,7 @@ export default defineComponent({
       const val = ind + 1;
       return {
         label: val,
-        value: val < 10 ? `0${val}` : String(val)
+        value: val < 10 ? `0${val}` : String(val),
       };
     });
     const timeList = generateTimeSlots();
@@ -111,7 +112,7 @@ export default defineComponent({
       { id: '04', label: t('周四') },
       { id: '05', label: t('周五') },
       { id: '06', label: t('周六') },
-      { id: '07', label: t('周日') }
+      { id: '07', label: t('周日') },
     ];
     /** 当前日期 */
     const currentDate = new Date().getDate();
@@ -141,7 +142,7 @@ export default defineComponent({
       currentDate,
       timeList,
       weekList,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
@@ -149,20 +150,20 @@ export default defineComponent({
       <div class='data-time-select-component'>
         {this.label && (
           <div
-            class='label'
             style={{ width: `${this.labelWidth}px` }}
+            class='label'
           >
             {this.label}
           </div>
         )}
         <div class={['data-time-select-wrapper', this.show && 'active']}>
           <Popover
-            trigger='click'
-            is-show={this.show}
-            theme='light'
             extCls='data-time-select-popover component'
             arrow={false}
+            is-show={this.show}
             placement='bottom-start'
+            theme='light'
+            trigger='click'
             onAfterHidden={this.handleAfterHidden}
             onAfterShow={this.handleAfterShow}
           >
@@ -189,7 +190,7 @@ export default defineComponent({
                             class={[
                               'list-item',
                               this.currentDate === Number(item.value) && 'current',
-                              item.value === this.localValue[0] && 'selected'
+                              item.value === this.localValue[0] && 'selected',
                             ]}
                             onClick={() => this.handleSelect(item.value, 'date')}
                           >
@@ -218,11 +219,11 @@ export default defineComponent({
                 <div class={['content-wrapper', !this.localText && 'placeholder']}>
                   {this.localText || this.t('选择')}
                 </div>
-              )
+              ),
             }}
           </Popover>
         </div>
       </div>
     );
-  }
+  },
 });

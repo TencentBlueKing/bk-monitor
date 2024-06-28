@@ -29,23 +29,23 @@
     <bk-select
       v-model="value"
       class="all-select"
-      @change="handlemainBoxSwitch"
       :clearable="false"
       :z-index="10"
       style="width: 160px"
+      @change="handlemainBoxSwitch"
     >
       <bk-option
         v-for="option in list"
-        :key="option.id"
         :id="option.id"
+        :key="option.id"
         :name="option.name"
       />
     </bk-select>
     <!-- 选择：全部 搜索框 -->
     <bk-input
-      :clearable="true"
       v-show="value === 1"
       v-model="allFind.value"
+      :clearable="true"
       :placeholder="$t('采集名称 / 策略名称 / 仪表盘名称')"
       :right-icon="'bk-icon icon-search'"
       @change="handleSearch"
@@ -53,15 +53,15 @@
     />
     <!-- 选择：节点 节点树 -->
     <select-input-template
+      v-show="value === 2"
+      ref="node"
       :value="selectNode.value"
       :placeholder="$t('业务/集群/节点')"
-      v-show="value === 2"
       @clear="handlemainBoxSwitch"
-      ref="node"
     >
       <div
-        class="node-padding"
         v-if="treeData.length"
+        class="node-padding"
       >
         <bk-big-tree :data="treeData">
           <template slot-scope="scope">
@@ -74,8 +74,8 @@
                 {{ scope.node.name }}
               </div>
               <div
-                class="selection-data choice"
                 v-show="selectNode.hoverId === scope.node.id"
+                class="selection-data choice"
                 @click="handleChoiceNode(scope.node)"
               >
                 {{ $t('选取') }}
@@ -87,14 +87,14 @@
     </select-input-template>
     <!-- 选择：服务分类 二级选框 -->
     <select-input-template
-      :value="serverSearch.value"
       v-show="value === 3"
-      @clear="handlemainBoxSwitch"
       ref="server"
+      :value="serverSearch.value"
+      @clear="handlemainBoxSwitch"
     >
       <div
-        class="server-content"
         v-if="serviceCategory.length"
+        class="server-content"
       >
         <div class="content-left">
           <div
@@ -109,8 +109,8 @@
           </div>
         </div>
         <div
-          class="content-right"
           v-show="serverSearch.children.length"
+          class="content-right"
         >
           <div
             v-for="(item, index) in serverSearch.children"
@@ -118,7 +118,7 @@
             class="content-item"
             :class="{
               'click-item':
-                serverSearch.secondIndex === index && serverSearch.copyFirstIndex === serverSearch.firstIndex
+                serverSearch.secondIndex === index && serverSearch.copyFirstIndex === serverSearch.firstIndex,
             }"
             @click="handleServerClick(index, item)"
           >
@@ -130,21 +130,21 @@
     <!-- 选择：数据对象 二级下拉框 -->
     <bk-select
       v-show="value === 4"
-      class="data-obj"
       v-model="dataObj.value"
+      class="data-obj"
       :scroll-height="427"
       @change="handleDataObjChange"
       @clear="handlemainBoxSwitch"
     >
       <bk-option-group
         v-for="(group, index) in dataObject"
-        :name="group.name"
         :key="index"
+        :name="group.name"
       >
         <bk-option
           v-for="(option, groupIndex) in group.children"
-          :key="groupIndex"
           :id="option.id"
+          :key="groupIndex"
           :name="option.name"
         />
       </bk-option-group>
@@ -153,24 +153,24 @@
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex';
 import { debounce } from 'throttle-debounce';
+import { mapActions, mapGetters } from 'vuex';
 
 import selectInputTemplate from './select-input-template';
 
 export default {
   name: 'SelectInput',
   components: {
-    selectInputTemplate
+    selectInputTemplate,
   },
+  inject: ['emptyStatus'],
   props: {
     parentLoading: Boolean,
     defaultValue: {
       type: Object,
-      default: () => ({ value: 1, searchValue: '' })
-    }
+      default: () => ({ value: 1, searchValue: '' }),
+    },
   },
-  inject: ['emptyStatus'],
   data() {
     return {
       value: 1,
@@ -178,22 +178,22 @@ export default {
         { id: 1, name: this.$t('全部') },
         { id: 2, name: this.$t('拨测节点') },
         { id: 3, name: this.$t('服务分类') },
-        { id: 4, name: this.$t('数据对象') }
+        { id: 4, name: this.$t('数据对象') },
       ],
       // 全部
       allFind: {
         value: '',
-        handleSearch() {}
+        handleSearch() {},
       },
       // 数据对象
       dataObj: {
-        value: ''
+        value: '',
       },
       // 节点
       selectNode: {
         id: 0,
         hoverId: -1,
-        value: ''
+        value: '',
       },
       // 服务分类
       serverSearch: {
@@ -201,13 +201,13 @@ export default {
         firstIndex: -1,
         firstValue: '',
         secondIndex: -1,
-        value: ''
+        value: '',
       },
-      selectValue: ''
+      selectValue: '',
     };
   },
   computed: {
-    ...mapGetters('common', ['treeData', 'dataObject', 'serviceCategory'])
+    ...mapGetters('common', ['treeData', 'dataObject', 'serviceCategory']),
   },
   async created() {
     this.handleSearch = debounce(500, this.handleFindAll);
@@ -300,7 +300,7 @@ export default {
       this.value = defaultValue.value;
       if (defaultValue.routeName === 'service-classify') {
         this.serverSearch.firstValue = defaultValue.serverFirst;
-        const el = this.serviceCategory.some((item) => {
+        const el = this.serviceCategory.some(item => {
           if (item.name === defaultValue.serverFirst) {
             const index = item.children.findIndex(child => child.name === defaultValue.serverSecond);
             index > -1 && this.handleServerClick(index, item.children[index]);
@@ -325,10 +325,18 @@ export default {
       }
       if (type === 'refresh') {
         switch (this.value) {
-          case 1: this.handleFindAll(this.selectValue); break;
-          case 2: this.handleChoiceNode(this.selectValue); break;
-          case 3: this.handleServerClick(this.selectValue); break;
-          case 4: this.handleDataObjChange(this.selectValue); break;
+          case 1:
+            this.handleFindAll(this.selectValue);
+            break;
+          case 2:
+            this.handleChoiceNode(this.selectValue);
+            break;
+          case 3:
+            this.handleServerClick(this.selectValue);
+            break;
+          case 4:
+            this.handleDataObjChange(this.selectValue);
+            break;
         }
         return;
       }
@@ -341,8 +349,8 @@ export default {
       if (data.error) this.emptyStatus.changeType('500');
       this.$emit('select-data', data);
       this.$emit('change-table-loading', false);
-    }
-  }
+    },
+  },
 };
 </script>
 

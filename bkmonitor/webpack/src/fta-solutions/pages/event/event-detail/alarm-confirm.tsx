@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getActionConfigByAlerts } from 'monitor-api/modules/action';
 import { ackAlert } from 'monitor-api/modules/alert';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -44,7 +45,7 @@ interface IEvent {
 }
 
 @Component({
-  name: 'AlarmConfirm'
+  name: 'AlarmConfirm',
 })
 export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -79,7 +80,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     this.loading = true;
     getActionConfigByAlerts({
       alert_ids: this.ids,
-      bk_biz_id: this.bizIds?.[0] || this.$store.getters.bizId
+      bk_biz_id: this.bizIds?.[0] || this.$store.getters.bizId,
     })
       .then(data => {
         this.infoContent = data
@@ -100,25 +101,25 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     const params = {
       ids: this.ids,
       bk_biz_id: this.bizIds?.[0] || this.$store.getters.bizId,
-      message: this.content
+      message: this.content,
     };
     const res = await ackAlert(params).finally(() => (this.loading = false));
     if (res) {
       let msg = {
         theme: 'success',
-        message: this.$t('告警确认成功')
+        message: this.$t('告警确认成功'),
       };
       if (res.alerts_ack_success.length) {
         msg = {
           theme: 'success',
-          message: this.$t('告警确认成功')
+          message: this.$t('告警确认成功'),
         };
         this.handleConfirm(true);
         this.handleShowChange(false);
       } else {
         msg = {
           theme: 'error',
-          message: this.$t('所有告警已恢复/关闭，无需确认')
+          message: this.$t('所有告警已恢复/关闭，无需确认'),
         };
       }
       this.$bkMessage(msg);
@@ -132,11 +133,11 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   render() {
     return (
       <MonitorDialog
+        width={480}
+        header-position={'left'}
+        title={this.$t('告警确认')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('告警确认')}
-        header-position={'left'}
-        width={480}
       >
         <div
           class='alarm-confirm-dialog'
@@ -171,23 +172,23 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
                       <span class='item-id'>{`(#${item.id})`}</span>
                     </div>
                   ))}
-                </div>
+                </div>,
               ]
             : undefined}
           <bk-input
-            v-model={this.content}
-            type='textarea'
             class='alarm-config-content'
+            v-model={this.content}
             placeholder={this.$t('填写告警确认备注信息')}
             rows={5}
+            type='textarea'
           ></bk-input>
         </div>
         <template slot='footer'>
           <bk-button
-            on-click={this.handleAlarmConfirm}
-            theme='primary'
             style='margin-right: 10px'
             disabled={this.loading}
+            theme='primary'
+            on-click={this.handleAlarmConfirm}
           >
             {this.$t('确认')}
           </bk-button>

@@ -14,15 +14,15 @@ from typing import Dict, List
 
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
-from monitor_web.commons.cc.utils import topo_tree_tools
-from utils import business
-from utils.time_status import TimeStats
 
 from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.local import local
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.strategy import TargetFieldType
 from core.drf_resource import api, resource
+from monitor_web.commons.cc.utils import topo_tree_tools
+from utils import business
+from utils.time_status import TimeStats
 
 
 class CmdbUtil(object):
@@ -86,15 +86,13 @@ class CmdbUtil(object):
 
         host_list = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
 
-        # 获取主机的agent的状态（{10.0.0.1|1: 0}）
-        agent_status_dict = resource.cc.agent_status(
-            bk_biz_id, [], [{"ip": host.bk_host_innerip, "bk_cloud_id": host.bk_cloud_id} for host in host_list]
-        )
+        # 获取主机的agent的状态
+        agent_status_dict = resource.cc.get_agent_status(bk_biz_id, host_list)
 
         # 以host_id为key的所有主机的字典，包括ip，bkcloudid，bk_host_id,agent
         host_info = {}
         for host in host_list:
-            agent_status = agent_status_dict.get(f"{host.bk_host_innerip}|{host.bk_cloud_id}", -1)
+            agent_status = agent_status_dict.get(host.bk_host_id, -1)
             host_info[host.bk_host_id] = {
                 "ip": host.bk_host_innerip,
                 "bk_cloud_id": host.bk_cloud_id,

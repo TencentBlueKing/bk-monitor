@@ -33,6 +33,7 @@ from api.cmdb.define import Business
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
+    DEFAULT_APM_APP_QPS,
     DEFAULT_DB_CONFIG,
     DEFAULT_DIMENSION_DATA_PERIOD,
     DEFAULT_NO_DATA_PERIOD,
@@ -385,9 +386,12 @@ class ApplicationInfoResource(Resource):
             data["no_data_period"] = instance.no_data_period
             # db 类型配置
             data["application_db_system"] = DB_SYSTEM_TUPLE
-            # 补充默认配置
-            if "application_db_config" not in data:
-                data["application_db_config"] = [DEFAULT_DB_CONFIG]
+            # 补充 db 默认配置
+            if Application.DB_CONFIG_KEY not in data:
+                data[Application.DB_CONFIG_KEY] = [DEFAULT_DB_CONFIG]
+            # 补充 QPS 默认配置
+            if Application.QPS_CONFIG_KEY not in data:
+                data[Application.QPS_CONFIG_KEY] = DEFAULT_APM_APP_QPS
             data["plugin_config"] = instance.plugin_config
 
             # 转换采样配置显示内容
@@ -428,8 +432,8 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
 
 
 class OperateType(models.TextChoices):
-    TRACING = "tracing", _("tracing")
-    PROFILING = "profiling", _("profiling")
+    TRACING = "tracing", "tracing"
+    PROFILING = "profiling", "profiling"
 
 
 class StartResource(Resource):
@@ -557,11 +561,11 @@ class SetupResource(Resource):
         class PluginConfigSerializer(serializers.Serializer):
             target_node_type = serializers.CharField(label="节点类型", max_length=255)
             target_nodes = serializers.ListField(
-                label=_("目标节点"),
+                label="目标节点",
                 required=False,
             )
             target_object_type = serializers.CharField(label="目标类型", max_length=255)
-            data_encoding = serializers.CharField(label=_("日志字符集"), max_length=255)
+            data_encoding = serializers.CharField(label="日志字符集", max_length=255)
             paths = serializers.ListSerializer(
                 label="语言",
                 child=serializers.CharField(max_length=255),
@@ -585,6 +589,7 @@ class SetupResource(Resource):
         is_enabled = serializers.BooleanField(label="Tracing启/停", required=False)
         profiling_is_enabled = serializers.BooleanField(label="Profiling启/停", required=False)
         plugin_config = PluginConfigSerializer(required=False)
+        application_qps_config = serializers.IntegerField(label="qps", required=False)
 
     class SetupProcessor:
         update_key = []
@@ -664,6 +669,17 @@ class SetupResource(Resource):
                 override=True,
             )
 
+    class QPSSetupProcessor(SetupProcessor):
+        update_key = ["application_qps_config"]
+
+        def setup(self):
+            self._application.setup_config(
+                self._application.qps_config,
+                self._params["application_qps_config"],
+                self._application.QPS_CONFIG_KEY,
+                override=True,
+            )
+
     def perform_request(self, validated_data):
         try:
             application = Application.objects.get(application_id=validated_data["application_id"])
@@ -681,6 +697,7 @@ class SetupResource(Resource):
                 # self.DimensionSetupProcessor,
                 self.NoDataPeriodProcessor,
                 self.DbSetupProcessor,
+                self.QPSSetupProcessor,
             ]
         ]
 
@@ -807,7 +824,9 @@ class ListApplicationResource(PageListResource):
         def to_representation(self, instance):
             data = super(ListApplicationResource.ApplicationSerializer, self).to_representation(instance)
             if not data["is_enabled"]:
-                data["data_status"] = DataStatus.STOP
+                data["data_status"] = DataStatus.DISABLED
+            if not data["is_enabled_profiling"]:
+                data["profiling_data_status"] = DataStatus.DISABLED
             return data
 
     def get_filter_fields(self):
@@ -1200,22 +1219,25 @@ class QueryExceptionEventResource(PageListResource):
             }
         )
         res = []
-        for index, event in enumerate(events, 1):
+        for event in events:
             title = (
                 f"{datetime.datetime.fromtimestamp(int(event['timestamp']) // 1000000).strftime('%Y-%m-%d %H:%M:%S')}  "
                 f"{event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, 'unknown')}"
             )
             res.append(
                 {
-                    "id": index,
                     "title": title,
                     "subtitle": event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_STACKTRACE),
                     "content": event.get(OtlpKey.ATTRIBUTES, {})
                     .get(SpanAttributes.EXCEPTION_STACKTRACE, "")
                     .split("\n"),
+                    "timestamp": int(event["timestamp"]),
                 }
             )
-
+        # 对 res 基于 timestamp 字段排序 (倒序)
+        res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
+        for index, r in enumerate(res, 1):
+            r["id"] = index
         return self.get_pagination_data(res, validated_request_data)
 
 
@@ -1880,7 +1902,7 @@ class ModifyMetricResource(Resource):
 
 
 class QueryEndpointStatisticsResource(PageListResource):
-    span_keys = ["db.system", "http.url", "messaging.system", "rpc.system"]
+    span_keys = ["db.system", "http.url", "messaging.system", "rpc.system", "trpc.callee_method"]
 
     default_sort = "-request_count"
 
@@ -1889,6 +1911,7 @@ class QueryEndpointStatisticsResource(PageListResource):
         "http_url": "attributes.http.url",
         "messaging_system": "attributes.messaging.system",
         "rpc_system": "attributes.rpc.system",
+        "trpc_callee_method": "attributes.trpc.callee_method",
     }
 
     def get_columns(self, column_type=None):
@@ -1983,7 +2006,7 @@ class QueryEndpointStatisticsResource(PageListResource):
             "start_time": int(params["start_time"]) * 1000,
             "end_time": int(params["end_time"]) * 1000,
             "bk_biz_id": params["bk_biz_id"],
-            "app_name": params["app_name"]
+            "app_name": params["app_name"],
         }
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
@@ -2023,12 +2046,14 @@ class QueryEndpointStatisticsResource(PageListResource):
         """
         添加 url 归类统计数据
         """
-        res = []
+        match_res = []
+        no_match_res = []
         for summary, items in summary_mappings.items():
             request_count = len(items)
-            res.append(
+
+            (no_match_res, match_res)[summary[-1]].append(
                 {
-                    "summary": summary,
+                    "summary": summary[0],
                     "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
                     "request_count": request_count,
                     "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
@@ -2037,7 +2062,9 @@ class QueryEndpointStatisticsResource(PageListResource):
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )
-        return res
+
+        # 匹配到正则的结果优先展示
+        return match_res + no_match_res
 
     def perform_request(self, validated_data):
         """
@@ -2074,6 +2101,8 @@ class QueryEndpointStatisticsResource(PageListResource):
             uri_queryset = UriServiceRelation.objects.filter(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
             )
+            if "resource.service.name" in validated_data.get("filter_params", {}):
+                uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         res = []
         summary_mappings = defaultdict(list)
@@ -2086,14 +2115,18 @@ class QueryEndpointStatisticsResource(PageListResource):
             filter_key = self.GROUP_KEY_ATT_CONFIG.get(tmp_filter_key, "span_name")
             # http_url 归类处理
             if not is_component and filter_key in [OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)]:
-                url = None
+                http_summary_is_match = False
                 for uri in uri_list:
-                    if re.match(uri, summary):
-                        url = SpanHandler.generate_uri(urlparse(summary))
-                        summary_mappings[url].append(bucket)
-                        break
-                if url:
-                    continue
+                    pure_http_url = SpanHandler.generate_uri(urlparse(summary))
+                    if re.match(uri, pure_http_url):
+                        summary_mappings[(uri, True)].append(bucket)
+                        http_summary_is_match = True
+
+                if not http_summary_is_match:
+                    summary_mappings[(summary, False)].append(bucket)
+
+                continue
+
             res.append(
                 {
                     "summary": summary,
@@ -2174,6 +2207,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                                     "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
                                     "subtitle": subtitle,
                                     "content": stacktrace,
+                                    "timestamp": int(event["timestamp"]),
                                 }
                             )
                     else:
@@ -2183,6 +2217,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                                 "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
                                 "subtitle": subtitle,
                                 "content": stacktrace,
+                                "timestamp": int(event["timestamp"]),
                             }
                         )
             else:
@@ -2192,9 +2227,11 @@ class QueryExceptionDetailEventResource(PageListResource):
                             "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
                             "subtitle": subtitle,
                             "content": [],
+                            "timestamp": int(span["start_time"]),
                         }
                     )
-
+        # 对 res 基于 timestamp 字段排序 (倒序)
+        res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
         for index, r in enumerate(res, 1):
             r["id"] = index
 
@@ -2598,15 +2635,33 @@ class CustomServiceMatchListResource(Resource):
                 if is_match:
                     res.add(f"{item}")
             else:
-                predicates = []
-                if url.hostname and "host" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_host(validated_data["rule"].get("host"), url.hostname))
-                if url.path and "path" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_uri(validated_data["rule"].get("path"), url.path))
-                if url.query and "params" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_params(validated_data["rule"].get("params"), url.query))
-                if predicates and all(predicates):
-                    res.add(f"{item}")
+                host_rule = validated_data["rule"].get("host", {})
+                path_rule = validated_data["rule"].get("path", {})
+                param_rules = validated_data["rule"].get("params", [])
+
+                if host_rule.get("value"):
+                    if not Matcher.operator_match(host_rule["value"], str(url.hostname), host_rule["operator"]):
+                        continue
+
+                if path_rule.get("value"):
+                    if not Matcher.operator_match(path_rule["value"], str(url.path), path_rule["operator"]):
+                        continue
+
+                url_param_paris = {}
+                for i in url.query.split("&"):
+                    if not i:
+                        continue
+                    k, v = str(i).split("=")
+                    url_param_paris[k] = v
+
+                for param in param_rules:
+                    val = url_param_paris.get(param["name"])
+                    if not val:
+                        continue
+                    if not Matcher.operator_match(val, param["value"], param["operator"]):
+                        continue
+
+                res.add(f"{item}")
 
         return list(res)
 
@@ -2708,3 +2763,31 @@ class GETDataEncodingResource(Resource):
     def perform_request(self, data):
         data = EncodingsEnum.get_choices_list_dict()
         return data
+
+
+class SimpleServiceList(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称")
+
+    def perform_request(self, validate_data):
+        app = Application.objects.filter(
+            bk_biz_id=validate_data["bk_biz_id"], app_name=validate_data["app_name"]
+        ).first()
+        if not app:
+            raise ValueError(_("应用{}不存在").format(validate_data["app_name"]))
+
+        services = ServiceHandler.list_services(app)
+
+        return [
+            {
+                "bk_biz_id": validate_data["bk_biz_id"],
+                "app_name": validate_data["app_name"],
+                "service_name": service["topo_key"],
+                "category": service.get("extra_data", {}).get("category"),
+                "kind": service.get("extra_data", {}).get("kind"),
+                "predicate_value": service.get("extra_data", {}).get("predicate_value"),
+                "language": service.get("extra_data", {}).get("service_language", ""),
+            }
+            for service in services
+        ]

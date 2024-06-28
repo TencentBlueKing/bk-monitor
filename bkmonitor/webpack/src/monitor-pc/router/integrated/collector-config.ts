@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import { applyGuidePage } from '../../common';
@@ -64,22 +64,22 @@ export default applyGuidePage(
         navId: 'collect-config',
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.VIEW_AUTH]
+          page: [collectConfigAuth.VIEW_AUTH],
         },
         route: {
-          parent: 'integrated'
+          parent: 'integrated',
         },
-        noNavBar: true
-      }
+        noNavBar: true,
+      },
     },
     {
       path: '/collect-config/view/:id',
       name: 'collect-config-view',
       components: {
-        noCache: CollectorConfigViewNew
+        noCache: CollectorConfigViewNew,
       },
       props: {
-        noCache: true
+        noCache: true,
       },
       meta: {
         title: '可视化',
@@ -87,21 +87,21 @@ export default applyGuidePage(
         needBack: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.VIEW_AUTH]
+          page: [collectConfigAuth.VIEW_AUTH],
         },
         customContent: true,
         noNavBar: true,
         route: {
-          parent: 'collect-config'
-        }
-      }
+          parent: 'collect-config',
+        },
+      },
     },
     {
       path: '/collect-config/add',
       name: 'collect-config-add',
       props: true,
       components: {
-        noCache: CollectorConfigAdd
+        noCache: CollectorConfigAdd,
       },
       beforeEnter(to, from, next) {
         to.meta.title = to.params.title || '新建配置';
@@ -114,19 +114,19 @@ export default applyGuidePage(
         noSpaceCheck: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.MANAGE_AUTH]
+          page: [collectConfigAuth.MANAGE_AUTH],
         },
         route: {
-          parent: 'collect-config'
-        }
-      }
+          parent: 'collect-config',
+        },
+      },
     },
     {
       path: '/collect-config/clone/:id/:pluginId',
       name: 'collect-config-clone',
       props: true,
       components: {
-        noCache: CollectorConfigAdd
+        noCache: CollectorConfigAdd,
       },
       beforeEnter(to, from, next) {
         to.meta.title = to.params.title || '新建配置';
@@ -138,19 +138,19 @@ export default applyGuidePage(
         needBack: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.MANAGE_AUTH]
+          page: [collectConfigAuth.MANAGE_AUTH],
         },
         route: {
-          parent: 'collect-config'
-        }
-      }
+          parent: 'collect-config',
+        },
+      },
     },
     {
       path: '/collect-config/edit/:id/:pluginId',
       name: 'collect-config-edit',
       props: true,
       components: {
-        noCache: CollectorConfigAdd
+        noCache: CollectorConfigAdd,
       },
       beforeEnter(to, from, next) {
         to.meta.title = to.params.title || '编辑配置';
@@ -162,21 +162,21 @@ export default applyGuidePage(
         needBack: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.MANAGE_AUTH]
+          page: [collectConfigAuth.MANAGE_AUTH],
         },
         route: {
-          parent: 'collect-config'
+          parent: 'collect-config',
         },
-        needCopyLink: false
+        needCopyLink: false,
         // noNavBar: true
-      }
+      },
     },
     {
       path: '/collect-config/node/:id',
       name: 'collect-config-node',
       props: true,
       components: {
-        noCache: CollectorConfigNode
+        noCache: CollectorConfigNode,
       },
       meta: {
         title: '增删目标',
@@ -184,21 +184,21 @@ export default applyGuidePage(
         needBack: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.MANAGE_AUTH]
+          page: [collectConfigAuth.MANAGE_AUTH],
         },
         route: {
-          parent: 'collect-config'
+          parent: 'collect-config',
         },
-        needCopyLink: false
+        needCopyLink: false,
         // noNavBar: true
-      }
+      },
     },
     {
       path: '/collect-config/update',
       name: 'collect-config-update',
       props: true,
       components: {
-        noCache: CollectorConfigUpdate
+        noCache: CollectorConfigUpdate,
       },
       beforeEnter(to, from, next) {
         if (!to.params.data) {
@@ -213,20 +213,20 @@ export default applyGuidePage(
         needBack: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.MANAGE_AUTH]
+          page: [collectConfigAuth.MANAGE_AUTH],
         },
         route: {
-          parent: 'collect-config'
+          parent: 'collect-config',
         },
-        noNavBar: true
-      }
+        noNavBar: true,
+      },
     },
     {
       path: '/collect-config/operate-detail/:id',
       name: 'collect-config-operate-detail',
       props: true,
       components: {
-        noCache: CollectorConfigOperateDetail
+        noCache: CollectorConfigOperateDetail,
       },
       beforeEnter(to, from, next) {
         if (!to.params.id) {
@@ -243,20 +243,20 @@ export default applyGuidePage(
         needBack: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.VIEW_AUTH]
+          page: [collectConfigAuth.VIEW_AUTH],
         },
         route: {
-          parent: 'collect-config'
-        }
+          parent: 'collect-config',
+        },
         // needCopyLink: true
-      }
+      },
     },
     {
       path: '/collect-config/detail/:id',
       name: 'collect-config-detail',
       props: true,
       components: {
-        noCache: CollectorDetail
+        noCache: CollectorDetail,
       },
       beforeEnter(to, from, next) {
         if (!to.params.id) {
@@ -273,14 +273,14 @@ export default applyGuidePage(
         needBack: true,
         authority: {
           map: collectConfigAuth,
-          page: [collectConfigAuth.VIEW_AUTH]
+          page: [collectConfigAuth.VIEW_AUTH],
         },
         route: {
-          parent: 'collect-config'
-        }
+          parent: 'collect-config',
+        },
         // needCopyLink: true
-      }
-    }
+      },
+    },
   ] as RouteConfig[],
   ['collect-config-add', 'collect-config-edit']
 );

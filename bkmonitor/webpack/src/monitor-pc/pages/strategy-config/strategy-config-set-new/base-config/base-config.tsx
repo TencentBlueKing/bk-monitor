@@ -29,11 +29,12 @@
  * @Description: 策略基本信息
  */
 
-/* eslint-disable camelcase */
-import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Schema from 'async-validator';
-import { strategyLabelList } from 'monitor-api/modules/strategies';
+import axios from 'axios';
+import { strategyLabelList, verifyStrategyName } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import ErrorMsg from '../../../../components/error-msg/error-msg';
@@ -48,73 +49,92 @@ import './base-config.scss';
 interface IBaseConfigProps {
   data: IBaseConfig;
   bizList: ISpaceItem[];
-  bizId: string | number;
+  bizId: number | string;
   scenarioList: IScenarioItem[];
   scenarioReadonly: boolean;
   readonly?: boolean;
 }
 export interface IBaseConfig {
-  bk_biz_id: string | number;
+  bk_biz_id: number | string;
   scenario: string;
   name: string;
   labels: string[];
   isEnabled: boolean;
-  priority: number | null | string;
+  priority: null | number | string;
+  id?: number | string;
 }
 @Component
 export default class BaseInfo extends tsc<IBaseConfigProps> {
   @PropSync('data', { type: Object, required: true }) baseConfig: IBaseConfig;
   @Prop({ type: Array, required: true }) bizList: any;
-  @Prop({ type: [String, Number], required: true }) bizId: string | number;
+  @Prop({ type: [String, Number], required: true }) bizId: number | string;
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
   @Prop({ type: Boolean, default: false }) scenarioReadonly: boolean;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
+  @Prop({ type: [String, Number], default: '' }) id: number | string;
 
   @Ref('strategyName') strategyNameEl;
   @Ref('strategyPriority') strategyPriorityEl;
+  @Ref('strategyLabels') strategyLabelsEl;
 
   labelTreeData = [];
 
   errorsMsg = {
     name: '',
-    priority: ''
+    priority: '',
+    labels: '',
   };
+
+  // 缓存获取焦点时的策略名
+  cacheName = '';
+  // 编辑时旧的策略名
+  oldStrategyName = '';
+  watchNameFlag = false;
+  cancelTokenSource = null;
+
+  @Watch('baseConfig.name', { immediate: true })
+  handleWatchStrategyNameChange(value) {
+    if (!this.watchNameFlag && !!value && !!this.id) {
+      this.oldStrategyName = value;
+      this.watchNameFlag = true;
+    }
+  }
 
   created() {
     this.getLabelListApi();
   }
 
   handleLabelsChange(v) {
-    this.baseConfig.labels = [v];
-    this.handleBaseConfigChange();
+    this.baseConfig.labels = v;
+    this.errorsMsg.labels = v.some(item => item.length > 120) ? this.$tc('标签长度不能超过 120 字符') : '';
   }
 
   getLabelListApi() {
     const params = {
       bk_biz_id: this.$store.getters.bizId,
-      strategy_id: 0
+      strategy_id: 0,
     };
     return strategyLabelList(params).then(res => {
       const data = transformDataKey(res);
       const globalData = [
         ...data.global,
-        ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+        ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
       ];
       const customData = [
         ...data.custom,
-        ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+        ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
       ];
       this.labelTreeData = [
         {
           group: 'global',
           groupName: this.$t('全局标签'),
-          children: labelListToTreeData(globalData)
+          children: labelListToTreeData(globalData),
         },
         {
           group: 'custom',
           groupName: this.$t('自定义标签'),
-          children: labelListToTreeData(customData)
-        }
+          children: labelListToTreeData(customData),
+        },
       ];
     });
   }
@@ -132,56 +152,116 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     this.strategyPriorityEl.$refs.input.focus();
   }
 
-  // 校验方法
-  public validate(): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const descriptor = {
-        name: [{ required: true, message: this.$tc('必填项') }],
-        priority: [
-          {
-            asyncValidator: (rule, value) => {
-              return new Promise<void>((resolve, reject) => {
-                if (value < 0 || value > 10000) {
-                  reject(this.$t('优先级应为 0 - 10000 之间的整数'));
-                } else {
-                  resolve();
-                }
-              });
+  handleStrategyLabels() {
+    this.strategyLabelsEl.focusInputer();
+  }
+
+  getValidatorSchema() {
+    const descriptor = {
+      name: [
+        { required: true, message: this.$tc('必填项') },
+        {
+          asyncValidator: async (_rule, value) => {
+            this.cancelTokenSource?.cancel?.();
+            if (this.oldStrategyName === value) {
+              return Promise.resolve();
             }
-          }
-        ]
-      };
-      const validator = new Schema(descriptor);
-      validator.validate({ name: this.baseConfig.name, priority: this.baseConfig.priority }, {}, (errors, fields) => {
-        if (!errors) {
-          this.errorsMsg = { name: '', priority: '' };
-          resolve(null);
-        } else {
-          this.errorsMsg = { name: '', priority: '' };
-          errors.forEach(item => {
-            this.errorsMsg[item.field] = item.message;
-          });
-          // eslint-disable-next-line no-restricted-syntax
-          for (const field in fields as Object) {
-            // 按顺序给依次给表单 input 聚焦。（仅执行一次）
-            const methodMap = {
-              name: () => this.handleFocusStrategyName(),
-              priority: () => this.handleFocusStrategyPriority()
-            };
-            methodMap[field]();
-            break;
-          }
-          reject({ errors, fields });
+            const hasSameName = await verifyStrategyName(
+              { name: value, id: this.id || undefined },
+              { needMessage: false, needRes: true }
+            )
+              .then(() => true)
+              .catch(error => {
+                return error?.status !== 400;
+              });
+            if (!hasSameName) {
+              return Promise.reject(this.$tc('策略名已存在'));
+            }
+            return Promise.resolve();
+          },
+        },
+      ],
+      priority: [
+        {
+          asyncValidator: async (rule, value) => {
+            if (value < 0 || value > 10000) {
+              return Promise.reject(this.$t('优先级应为 0 - 10000 之间的整数'));
+            } else {
+              return Promise.resolve();
+            }
+          },
+        },
+      ],
+      labels: [
+        {
+          validator: (rule, value) => {
+            return !value.some(item => item.length > 120);
+          },
+          message: this.$tc('标签长度不能超过 120 字符'),
+        },
+      ],
+    };
+    return new Schema(descriptor);
+  }
+  // 校验方法
+  public async validate(): Promise<any> {
+    const validatorSchema = this.getValidatorSchema();
+    const { name, priority, labels } = this.baseConfig;
+    return await validatorSchema.validate({ name, priority, labels }, {}, (errors, fields) => {
+      if (!errors) {
+        this.clearErrorMsg();
+        return Promise.resolve(null);
+      } else {
+        this.clearErrorMsg();
+        errors.forEach(item => {
+          this.errorsMsg[item.field] = item.message;
+        });
+        const methodMap = {
+          name: () => this.handleFocusStrategyName(),
+          priority: () => this.handleFocusStrategyPriority(),
+          labels: () => this.handleStrategyLabels(),
+        };
+        for (const field in fields) {
+          // 按顺序给依次给表单 input 聚焦。（仅执行一次）
+          methodMap[field]();
+          break;
         }
-      });
+        return Promise.reject({ errors, fields });
+      }
     });
   }
   // 清除校验
   public clearErrorMsg() {
     this.errorsMsg = {
       name: '',
-      priority: ''
+      priority: '',
+      labels: '',
     };
+  }
+
+  /**
+   * @description 校验策略名称是否重复
+   */
+  async verifyStrategyName(value: string) {
+    if (!value) {
+      this.errorsMsg.name = this.$tc('必填项');
+      return;
+    }
+    if (this.cacheName === value || this.oldStrategyName === value) {
+      return;
+    }
+    this.cancelTokenSource = axios.CancelToken.source();
+    const hasSameName = await verifyStrategyName(
+      { name: value, id: this.id || undefined },
+      { needMessage: false, cancelToken: this.cancelTokenSource.token, needRes: true }
+    )
+      .then(() => true)
+      .catch(error => {
+        return error?.status !== 400;
+      });
+    if (!hasSameName) {
+      this.errorsMsg.name = this.$tc('策略名已存在');
+    }
   }
 
   handleBaseConfigPriorityInput(value) {
@@ -192,50 +272,50 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     return (
       <div class='base-config'>
         <CommonItem
+          isRequired={true}
           isWrap={true}
           title={this.$t('所属')}
-          isRequired={true}
         >
           <bk-select
-            value={this.bizId}
-            searchable
-            clearable={false}
-            readonly={this.bizId > 0}
             class='base-config-select simplicity-select'
             behavior='simplicity'
+            clearable={false}
+            readonly={true}
+            value={this.bizId}
+            searchable
             on-change={this.handleBaseConfigChange}
           >
             {this.bizList.map(item => (
               <bk-option
-                key={item.id}
                 id={item.id}
+                key={item.id}
                 name={item.text}
               ></bk-option>
             ))}
           </bk-select>
         </CommonItem>
         <CommonItem
+          isRequired={false}
           isWrap={true}
           title={this.$t('监控对象')}
-          isRequired={false}
         >
           <bk-select
-            behavior='simplicity'
             class='base-config-select simplicity-select'
             v-model={this.baseConfig.scenario}
+            behavior='simplicity'
             clearable={false}
             readonly={this.scenarioReadonly}
             on-change={this.handleBaseConfigChange}
           >
             {this.scenarioList.map((group, index) => (
               <bk-option-group
-                name={group.name}
                 key={index}
+                name={group.name}
               >
                 {group.children.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
+                    key={option.id}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -245,69 +325,77 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
         </CommonItem>
 
         <CommonItem
-          isWrap
-          title={this.$t('策略名称')}
           isRequired={true}
+          title={this.$t('策略名称')}
+          isWrap
         >
           <ErrorMsg
-            message={this.errorsMsg.name}
             style='width: 100%;'
+            message={this.errorsMsg.name}
           >
             <bk-input
-              behavior='simplicity'
-              class='base-config-input simplicity-input'
               ref='strategyName'
+              class='base-config-input simplicity-input'
               v-model={this.baseConfig.name}
+              behavior='simplicity'
               maxlength={128}
               minlength={1}
               readonly={this.readonly}
-              on-input={() => (this.errorsMsg.name = '')}
               on-change={this.handleBaseConfigChange}
+              on-input={() => (this.errorsMsg.name = '')}
+              onBlur={this.verifyStrategyName}
+              onFocus={() => (this.cacheName = this.baseConfig.name)}
             />
           </ErrorMsg>
         </CommonItem>
         <CommonItem
-          isWrap
-          title={this.$t('优先级')}
           tips={this.$t('数值越大，优先级越高，完全相同的一条数据检测到异常时以优先级高的策略为主。')}
+          title={this.$t('优先级')}
+          isWrap
         >
           <ErrorMsg
-            message={this.errorsMsg.priority}
             style='width: 100%;'
+            message={this.errorsMsg.priority}
           >
             <bk-input
-              behavior='simplicity'
-              class='base-config-input simplicity-input'
               ref='strategyPriority'
+              class='base-config-input simplicity-input'
               v-model={this.baseConfig.priority}
-              type='number'
+              behavior='simplicity'
               max={10000}
-              min={0}
               maxlength={5}
+              min={0}
               minlength={1}
               readonly={this.readonly}
-              on-input={v => this.handleBaseConfigPriorityInput(v)}
+              type='number'
               on-change={this.handleBaseConfigChange}
+              on-input={v => this.handleBaseConfigPriorityInput(v)}
             />
           </ErrorMsg>
         </CommonItem>
 
         <CommonItem
-          title={this.$t('标签')}
           desc={this.$tc('(输入并回车即可创建新标签。可使用“/”创建多级分类，如：主机/系统告警)')}
+          title={this.$t('标签')}
         >
           {this.readonly && !this?.baseConfig?.labels?.length ? (
             <div style='padding-left: 3px;'>--</div>
           ) : (
-            <MultiLabelSelect
+            <ErrorMsg
               style='width: 100%;'
-              mode='select'
-              behavior='simplicity'
-              readonly={this.readonly}
-              checked-node={this.baseConfig.labels}
-              tree-data={this.labelTreeData}
-              on-checkedChange={v => (this.baseConfig.labels = v)}
-            ></MultiLabelSelect>
+              message={this.errorsMsg.labels}
+            >
+              <MultiLabelSelect
+                ref='strategyLabels'
+                style='width: 100%;'
+                behavior='simplicity'
+                checked-node={this.baseConfig.labels}
+                mode='select'
+                readonly={this.readonly}
+                tree-data={this.labelTreeData}
+                on-checkedChange={this.handleLabelsChange}
+              ></MultiLabelSelect>
+            </ErrorMsg>
           )}
         </CommonItem>
         <CommonItem
@@ -315,12 +403,12 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
           title={this.$t('是否启用')}
         >
           <bk-switcher
-            disabled={this.readonly}
-            behavior='simplicity'
-            theme='primary'
-            size='small'
             v-model={this.baseConfig.isEnabled}
+            behavior='simplicity'
             change={this.handleBaseConfigChange}
+            disabled={this.readonly}
+            size='small'
+            theme='primary'
           />
         </CommonItem>
       </div>

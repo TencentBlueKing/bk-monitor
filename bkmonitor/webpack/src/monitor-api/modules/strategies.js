@@ -26,6 +26,7 @@ export const getMetricListV2 = request('POST', 'rest/v2/strategies/v2/get_metric
 export const getStrategyListV2 = request('POST', 'rest/v2/strategies/v2/get_strategy_list/');
 export const getStrategyV2 = request('GET', 'rest/v2/strategies/v2/get_strategy/');
 export const deleteStrategyV2 = request('POST', 'rest/v2/strategies/v2/delete_strategy/');
+export const verifyStrategyName = request('POST', 'rest/v2/strategies/v2/verify_strategy_name/');
 export const saveStrategyV2 = request('POST', 'rest/v2/strategies/v2/save_strategy/');
 export const updatePartialStrategyV2 = request('POST', 'rest/v2/strategies/v2/update_partial_strategy/');
 export const cloneStrategyV2 = request('POST', 'rest/v2/strategies/v2/clone_strategy/');
@@ -66,6 +67,7 @@ export default {
   getStrategyListV2,
   getStrategyV2,
   deleteStrategyV2,
+  verifyStrategyName,
   saveStrategyV2,
   updatePartialStrategyV2,
   cloneStrategyV2,
@@ -77,5 +79,5 @@ export default {
   getIntelligentModelTaskStatus,
   getIntelligentDetectAccessStatus,
   updateMetricListByBiz,
-  multivariateAnomalyScenes
+  multivariateAnomalyScenes,
 };

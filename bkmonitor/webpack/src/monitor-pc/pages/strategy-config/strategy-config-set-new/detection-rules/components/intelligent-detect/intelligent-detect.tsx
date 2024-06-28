@@ -25,13 +25,11 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { CancelToken } from 'monitor-api/index';
-import {
-  getIntelligentDetectAccessStatus,
-  getIntelligentModel,
-  listIntelligentModels
-} from 'monitor-api/modules/strategies';
 
+import { CancelToken } from 'monitor-api/index';
+import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
+
+import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 import Form from '../form/form';
 import { FormItem, IFormDataItem } from '../form/utils';
@@ -43,11 +41,11 @@ const MODEL_FIELD = 'plan_id'; // 模型类型id字段
 const LEVEL_FIELD = 'level'; /** 告警级别key */
 
 // 图表显示类型: none-无, boundary-上下界, score-异常分值, forecasting-预测
-export type ChartType = 'none' | 'boundary' | 'score' | 'forecasting';
+export type ChartType = 'boundary' | 'forecasting' | 'none' | 'score';
 interface IAiOpsValue {
   [MODEL_FIELD]: string;
   visual_type: ChartType;
-  args: { [key in string]: string | number };
+  args: { [key in string]: number | string };
 }
 
 interface IntelligentDetectProps {
@@ -65,7 +63,7 @@ interface IntelligentDetectEvents {
 }
 
 export interface ITipsData {
-  status: 'info' | 'success' | 'error';
+  status: 'error' | 'info' | 'success';
   message: string;
 }
 @Component({})
@@ -91,8 +89,8 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
     config: {
       [MODEL_FIELD]: '',
       visual_type: 'none',
-      args: {}
-    }
+      args: {},
+    },
   };
 
   /** 模型数据 */
@@ -111,7 +109,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
         field: LEVEL_FIELD,
         value: this.localData.level,
         type: 'ai-level',
-        required: true
+        required: true,
       },
       {
         label: window.i18n.tc('模型名称'),
@@ -120,8 +118,8 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
         type: 'model-select',
         required: false,
         options: [],
-        disabled: false
-      }
+        disabled: false,
+      },
     ];
   }
   /** 告警级别、模型 */
@@ -133,7 +131,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
   /** 提示数据 */
   tipsData: ITipsData = {
     status: 'info',
-    message: ''
+    message: '',
   };
 
   /** 模型详情取消请求方法 */
@@ -190,7 +188,9 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
   /** 获取模型的列表数据 */
   async getModelList() {
     this.loading = true;
-    const resData = await listIntelligentModels({ algorithm: 'IntelligentDetect' }).catch(() => (this.loading = false));
+    const resData = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.IntelligentDetect,
+    }).catch(() => (this.loading = false));
     const modelItem: FormItem = this.staticFormItem.find(item => item.field === MODEL_FIELD);
     // 根据服务端返回的 is_default 字段 是否 默认选中 特定的模型。
     let defaultSelectModelId = null;
@@ -203,7 +203,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
           name: item.name,
           default: !!item.is_default,
           loading: false,
-          detail: this.handleCreateModelOptionsDetail(item)
+          detail: this.handleCreateModelOptionsDetail(item),
         };
       });
     }
@@ -220,19 +220,19 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
       description: {
         dataLength: {
           value: item.ts_depend,
-          isMatch: true
+          isMatch: true,
         },
         frequency: {
           value: item.ts_freq,
-          isMatch: item.ts_freq === 0 ? true : this.interval === item.ts_freq.value
+          isMatch: item.ts_freq === 0 ? true : this.interval === item.ts_freq.value,
         },
         message: {
           value: item.description,
-          isMatch: true
-        }
+          isMatch: true,
+        },
       },
       instruction: item.instruction || '',
-      document: item.document || ''
+      document: item.document || '',
     };
   }
 
@@ -242,11 +242,11 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
     const { latest_release_id, visual_type } = this.currentModelData || {};
     const params = {
       id,
-      latest_release_id: relId || latest_release_id
+      latest_release_id: relId || latest_release_id,
     };
     needLoading && (this.loading = true);
     const detailData = await getIntelligentModel(params, {
-      cancelToken: new CancelToken(c => (this.modelDetailCancelFn = c))
+      cancelToken: new CancelToken(c => (this.modelDetailCancelFn = c)),
     }).finally(() => needLoading && (this.loading = false));
     const valueDisplay = this.localData.config?.args || {};
     this.argsFormItem = FormItem.createFormItemData(detailData, valueDisplay);
@@ -254,7 +254,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
     this.handleModelChange({
       name: detailData.name,
       instruction: detailData.instruction,
-      document: detailData.document
+      document: detailData.document,
     });
     this.handleChartTypeChange(visual_type);
   }
@@ -278,7 +278,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
       args: this.argsFormItem.reduce((args, item) => {
         args[item.field] = item.value;
         return args;
-      }, {})
+      }, {}),
     };
     this.emitLocalData();
   }
@@ -301,7 +301,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
     const statusMap = {
       waiting: 'info',
       running: 'success',
-      failed: 'error'
+      failed: 'error',
     };
     this.tipsData.status = statusMap[resData.status];
     this.tipsData.message =
@@ -325,16 +325,16 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
   render() {
     return (
       <div
+        style={{
+          'margin-left': this.readonly ? '-28px' : '0px',
+        }}
         class='intelligent-detect-wrap'
         v-bkloading={{ isLoading: this.loading }}
-        style={{
-          'margin-left': this.readonly ? '-28px' : '0px'
-        }}
       >
         {this.tipsData.message && !this.isChangeModel && (
           <bk-alert
-            type={this.tipsData.status}
             class='alert-message'
+            type={this.tipsData.status}
           >
             <div
               class='ai-ops-tips'
@@ -345,12 +345,12 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
         )}
         <Form
           ref='formRef'
-          rules={this.rules}
-          readonly={this.readonly}
+          class='time-serise-forecast-wrap'
           formItemList={this.formItemList}
           label-width={126}
+          readonly={this.readonly}
+          rules={this.rules}
           onChange={this.handleValueChange}
-          class='time-serise-forecast-wrap'
         ></Form>
       </div>
     );

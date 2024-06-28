@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './business-right.scss';
 
 @Component
-export default class BusinessRight extends tsc<{}> {
+export default class BusinessRight extends tsc<object> {
   render() {
     return (
       <div class='business-right-skeleton'>

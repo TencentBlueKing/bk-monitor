@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 """
 import ntpath
 import os
+import sys
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -220,27 +221,14 @@ if SENTRY_DSN:
         "dsn": SENTRY_DSN,
     }
 
-# apm support
-APM_ID = os.environ.get("APM_ID")
-APM_TOKEN = os.environ.get("APM_TOKEN")
-if APM_ID and APM_TOKEN:
-    INSTALLED_APPS += ("ddtrace.contrib.django",)
-    DATADOG_TRACE = {
-        "TAGS": {
-            "env": os.getenv("BKPAAS_ENVIRONMENT", "dev"),
-            "apm_id": APM_ID,
-            "apm_token": APM_TOKEN,
-        },
-    }
-    # requests for APIGateway/ESB
-    # remove pymysql while Django Defaultdb has been traced already
-    try:
-        import requests  # noqa  # pylint: disable=unused-import
-        from ddtrace import patch
-
-        patch(requests=True, pymysql=False)
-    except Exception as err:  # pylint: disable=broad-except
-        print("patch fail for requests and pymysql: %s" % err)
+# Target: Observation data collection
+SERVICE_NAME = APP_CODE + "_web"
+if ROLE == "api":
+    SERVICE_NAME = APP_CODE + "_api"
+if "celery" in sys.argv or ROLE == "worker":
+    SERVICE_NAME = APP_CODE + "_worker"
+if "beat" in sys.argv:
+    SERVICE_NAME = APP_CODE + "_beat"
 
 # space 支持
 # 请求参数是否需要注入空间属性
@@ -550,6 +538,11 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+APM_BMW_DEPLOY_BIZ_ID = 0
+# 在列表中业务，才会创建虚拟指标， [2]
+APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
+# 拓扑发现允许的最大 Span 数量(预估值)
+PER_ROUND_SPAN_MAX_SIZE = 1000
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
@@ -831,6 +824,8 @@ BK_DATA_KAFKA_BROKER_URL = "127.0.0.1:9092"
 BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW = 5
 BK_DATA_FLOW_CLUSTER_GROUP = "default_inland"
 BK_DATA_REALTIME_NODE_WAIT_TIME = 10
+# 监控使用计算平台 flow 的项目 ID
+BK_DATA_RECORD_RULE_PROJECT_ID = 1
 
 # 场景服务ID
 # 单指标异常检测
@@ -843,6 +838,8 @@ BK_DATA_SCENE_ID_ABNORMAL_CLUSTER = 33
 BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION = 15
 # 指标推荐
 BK_DATA_SCENE_ID_METRIC_RECOMMENDATION = 17
+# 主机异常检测
+BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION = 15
 
 # ai设置默认方案
 # 单指标异常检测
@@ -851,10 +848,13 @@ BK_DATA_PLAN_ID_INTELLIGENT_DETECTION = 87
 BK_DATA_PLAN_ID_MULTIVARIATE_ANOMALY_DETECTION = 155
 # 指标推荐
 BK_DATA_PLAN_ID_METRIC_RECOMMENDATION = 180
+# 主机异常检测
+BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION = 287
 
 BK_DATA_MULTIVARIATE_HOST_RT_ID = os.getenv(
     "BK_DATA_MULTIVARIATE_HOST_RT_ID", f"2_{BKAPP_DEPLOY_PLATFORM}_host_multivariate"
 )
+BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX = "multivariate_detection"
 
 # 机器人默认跳转链接列表
 BK_DATA_ROBOT_LINK_LIST = os.getenv(
@@ -1037,6 +1037,10 @@ BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CO
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
 DOC_HOST = "https://bk.tencent.com/docs/"
 
+# 版本差异变量
+if PLATFORM == "community":
+    BK_DOCS_SITE_URL = DOC_HOST
+
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
@@ -1053,8 +1057,8 @@ BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
 BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 
 # 以下专门用来测试bkchat
-BKHCAT_APP_CODE = os.getenv("BKHCAT_APP_CODE", "")
-BKHCAT_APP_SECRET = os.getenv("BKHCAT_APP_SECRET", "")
+BKCHAT_APP_CODE = os.getenv("BKCHAT_APP_CODE", os.getenv("BKHCAT_APP_CODE", ""))
+BKCHAT_APP_SECRET = os.getenv("BKCHAT_APP_SECRET", os.getenv("BKHCAT_APP_SECRET", ""))
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
@@ -1124,12 +1128,6 @@ HOST_GET_PROCESS_MAX_PORT = 12
 # 迁移工具使用文档地址
 MIGRATE_GUIDE_URL = os.getenv("BKAPP_MIGRATE_GUIDE_URL", "")
 
-# 版本差异变量
-if PLATFORM == "enterprise":
-    BK_DOCS_SITE_URL = BK_PAAS_HOST + "/o/bk_docs_center/"
-else:
-    BK_DOCS_SITE_URL = "https://bk.tencent.com/docs/"
-
 # IP选择器接口类
 BKM_IPCHOOSER_BKAPI_CLASS = "api.cmdb.ipchooser.IpChooserApi"
 
@@ -1183,8 +1181,6 @@ SHOW_REALTIME_STRATEGY = False
 # 强制使用数据平台查询的cmdb层级表
 BKDATA_CMDB_LEVEL_TABLES = []
 
-# 查询 vm 的空间列表
-QUERY_VM_SPACE_UID_LIST = []
 
 # 邮件报表整屏渲染等待时间
 MAIL_REPORT_FULL_PAGE_WAIT_TIME = 60
@@ -1301,7 +1297,7 @@ ENABLE_INFLUXDB_STORAGE = True
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
-    os.environ["BK_API_URL_TMPL"] = ""
+    os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
 
 # 内网collector域名
 INNER_COLLOCTOR_HOST = ""
@@ -1330,6 +1326,9 @@ BKCI_SPACE_ACCESS_PLUGIN_LIST = []
 # 禁用告警CMDB缓存刷新
 DISABLE_ALARM_CMDB_CACHE_REFRESH = []
 
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
 # 需要base64编码的特殊字符
 BASE64_ENCODE_TRIGGER_CHARS = []
 
@@ -1338,3 +1337,28 @@ REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0
 
 # 是否启用grafana接口
 ENABLE_GRAFANA_API = False
+# 是否启用新版的数据链路
+# 是否启用通过计算平台获取GSE data_id 资源，默认不启用
+ENABLE_V2_BKDATA_GSE_RESOURCE = False
+# 是否启用新版的 vm 链路，默认不启用
+ENABLE_V2_VM_DATA_LINK = False
+
+# 创建 vm 链路资源所属的命名空间
+DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
+# grafana和策略导出是否支持data_label转换
+ENABLE_DATA_LABEL_EXPORT = True
+
+# 是否启用access数据批量处理
+ENABLED_ACCESS_DATA_BATCH_PROCESS = False
+ACCESS_DATA_BATCH_PROCESS_SIZE = 50000
+ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
+
+# metadta请求es超时配置, 单位为秒，默认10秒
+# 格式: {default: 10, 集群域名: 20}
+METADATA_REQUEST_ES_TIMEOUT = {}
+
+# 是否启用自定义事件休眠
+ENABLE_CUSTOM_EVENT_SLEEP = False
+
+# 平台全局配置
+BK_SHARED_RES_URL = os.environ.get("BK_SHARED_RES_URL", os.environ.get("BKPAAS_SHARED_RES_URL", ""))

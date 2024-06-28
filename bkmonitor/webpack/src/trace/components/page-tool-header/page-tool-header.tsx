@@ -25,7 +25,8 @@
  */
 
 import { defineComponent, PropType } from 'vue';
-import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 
 import { IFavoriteItem } from '../../typings';
 import RefreshRate from '../refresh-rate/refresh-rate';
@@ -40,28 +41,28 @@ export default defineComponent({
   props: {
     showLeft: {
       type: Boolean,
-      default: true
+      default: true,
     },
     favoritesList: {
       type: Array as PropType<IFavoriteItem[]>,
-      default: () => []
+      default: () => [],
     },
     timeRange: {
       type: Array as PropType<TimeRangeType>,
-      default: () => ['now-1h', 'now']
+      default: () => ['now-1h', 'now'],
     },
     timezone: {
       type: String,
-      default: getDefautTimezone()
+      default: getDefaultTimezone(),
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
-      default: () => []
+      default: () => [],
     },
     refreshInterval: {
       type: Number,
-      default: -1
-    }
+      default: -1,
+    },
   },
   emits: [
     'update:showLeft',
@@ -72,7 +73,7 @@ export default defineComponent({
     'timezoneChange',
     'refreshIntervalChange',
     'menuSelectChange',
-    'immediateRefresh'
+    'immediateRefresh',
   ],
   setup(props, { emit, slots }) {
     function handleTimeRangeChange(time: TimeRangeType) {
@@ -99,11 +100,11 @@ export default defineComponent({
             <span class='append-tools-item'>
               <RefreshRate
                 value={props.refreshInterval}
+                onImmediate={() => emit('immediateRefresh')}
                 onSelect={val => {
                   emit('update:refreshInterval', val);
                   emit('refreshIntervalChange', val);
                 }}
-                onImmediate={() => emit('immediateRefresh')}
               />
               <SelectMenu
                 list={props.menuList}
@@ -116,5 +117,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

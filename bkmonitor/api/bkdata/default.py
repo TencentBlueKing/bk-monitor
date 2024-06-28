@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import abc
+import json
 
 import six
 from django.conf import settings
@@ -33,18 +34,19 @@ class UseSaaSAuthInfoMixin:
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
-        validated_request_data.update(
-            {
-                "bk_app_code": settings.SAAS_APP_CODE,
-                "bk_app_secret": settings.SAAS_SECRET_KEY,
-            }
-        )
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
         return validated_request_data
 
     def get_headers(self):
         headers = super(UseSaaSAuthInfoMixin, self).get_headers()
-        headers["X-Bk-App-Code"] = settings.SAAS_APP_CODE
-        headers["X-Bk-App-Secret"] = settings.SAAS_SECRET_KEY
+        auth_info = headers.get("x-bkapi-authorization")
+        if not auth_info:
+            return headers
+
+        auth_info = json.loads(auth_info)
+        auth_info["bk_app_code"] = settings.SAAS_APP_CODE
+        auth_info["bk_app_secret"] = settings.SAAS_SECRET_KEY
+        headers["x-bkapi-authorization"] = json.dumps(auth_info)
         return headers
 
 
@@ -138,23 +140,24 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
         prefer_storage = serializers.CharField(required=False, label="查询引擎", allow_blank=True)
         _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
-    def perform_request(self, params):
-        if params.get("_user_request", False):
-            params["bkdata_authentication_method"] = "user"
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(QueryDataResource, self).full_request_data(validated_request_data)
+        if validated_request_data.get("_user_request", False):
+            validated_request_data["bkdata_authentication_method"] = "user"
             self.bk_username = settings.COMMON_USERNAME
-            params.pop("_user_request", None)
+            validated_request_data.pop("_user_request", None)
         else:
             if settings.BKDATA_DATA_TOKEN:
-                params["bkdata_authentication_method"] = "token"
-                params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+                validated_request_data["bkdata_authentication_method"] = "token"
+                validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
             else:
-                params["bkdata_authentication_method"] = "user"
+                validated_request_data["bkdata_authentication_method"] = "user"
                 self.bk_username = settings.COMMON_USERNAME
                 try:
-                    params["_origin_user"] = get_request().user.username
+                    validated_request_data["_origin_user"] = get_request().user.username
                 except Exception:
                     pass
-        return super(QueryDataResource, self).perform_request(params)
+        return validated_request_data
 
 
 class CommonRequestSerializer(serializers.Serializer):
@@ -167,16 +170,16 @@ class DataAccessAPIResource(six.with_metaclass(abc.ABCMeta, BkDataAPIGWResource)
     重写BkDataAPIGWResource，对用户的处理
     """
 
-    def perform_request(self, params):
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(DataAccessAPIResource, self).full_request_data(validated_request_data)
         try:
-            params["_origin_user"] = get_request().user.username
+            validated_request_data["_origin_user"] = get_request().user.username
         except Exception:
             pass
-
         # 优先取参数里面的username(如需要使用特权帐号来请求接口的场景)
-        if not params.get("bk_username"):
+        if not validated_request_data.get("bk_username"):
             self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
-        return super(BkDataAPIGWResource, self).perform_request(params)
+        return validated_request_data
 
 
 class GetAiopsEnvs(BkDataAPIGWResource):  # noqa
@@ -228,9 +231,6 @@ class AuthTickets(BkDataAPIGWResource):
         ticket_type = serializers.CharField(required=True, label="凭证类型")
         permissions = serializers.ListField(required=True, child=PermissionsSerializer(), label="权限列表")
         reason = serializers.CharField(default="", label="授权原因")
-
-    def perform_request(self, params):
-        return super(BkDataAPIGWResource, self).perform_request(params)
 
 
 class AuthProjectsDataCheck(DataAccessAPIResource):
@@ -289,6 +289,18 @@ class GetReleaseModelInfo(DataAccessAPIResource):  # noqa
         model_release_id = serializers.IntegerField(required=True, label="模型的版本id")
         input_result_table = serializers.CharField(required=False, label="输入结果表ID")
         node_type = serializers.CharField(required=False, label="节点类型")
+
+
+class GetSceneServiceApplicationInfo(DataAccessAPIResource):
+    """
+    场景方案应用信息
+    """
+
+    action = "/v3/aiops/scene_service/application/processing/{result_table_id}/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        result_table_id = serializers.CharField(required=True)
 
 
 class GetServingResultTableInfo(DataAccessAPIResource):
@@ -394,10 +406,12 @@ class ApiServingExecute(UseSaaSAuthInfoMixin, DataAccessAPIResource):  # noqa
         config = serializers.DictField(required=True, label="模型执行参数")
         timeout = serializers.IntegerField(required=False, label="超时时间")
 
-    def perform_request(self, params):
-        params["bkdata_authentication_method"] = "token"
-        params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-        return super(ApiServingExecute, self).perform_request(params)
+    def full_request_data(self, validated_request_data):
+        # 组装额外参数
+        validated_request_data = super(ApiServingExecute, self).full_request_data(validated_request_data)
+        validated_request_data["bkdata_authentication_method"] = "token"
+        validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+        return validated_request_data
 
 
 ####################################
@@ -1038,3 +1052,107 @@ class GetResourceSet(DataAccessAPIResource):
 
     action = "/v3/resourcecenter/resource_sets/{resource_set_id}/"
     method = "GET"
+
+
+class ApplyDataLink(DataAccessAPIResource):
+    """申请数据链路"""
+
+    action = "/v4/apply/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        config = serializers.ListField(default=list, label="资源描述")
+
+
+class GetDataLink(DataAccessAPIResource):
+    """获取数据链路"""
+
+    action = "/v4/namespaces/{namespace}/{kind}/{name}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        kind = serializers.CharField(label="资源类型")
+        namespace = serializers.CharField(label="命名空间")
+        name = serializers.CharField(label="资源名称")
+
+
+class ApplyDataFlow(DataAccessAPIResource):
+    """创建计算平台流程"""
+
+    action = "/v3/dataflow/flow/flows/create/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        project_id = serializers.IntegerField(label="计算平台的项目 ID")
+        flow_name = serializers.CharField(label="流程名称")
+        nodes = serializers.ListField(label="流程节点")
+
+
+class QueryAuthProjectsData(DataAccessAPIResource):
+    """
+    批量检查项目是否有结果表权限
+
+    :returns: 结果表在项目下的权限信息{"permissions": ["xxx"], "no_permissions": ["xxx1"]}
+    """
+
+    action = "/v3/auth/projects/{project_id}/data/batch_check/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        project_id = serializers.IntegerField(required=True, label="计算平台项目")
+        object_ids = serializers.ListField(required=True, child=serializers.CharField(), label="计算平台结果表ID")
+        action_id = serializers.CharField(default="result_table.query_data", label="动作方式")
+
+
+class BatchAuthResultTable(BkDataAPIGWResource):
+    """
+    批量授权接口(管理员接口): 给项目加表权限
+    """
+
+    action = "/v3/auth/projects/{project_id}/data/batch_add/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        project_id = serializers.IntegerField(required=True, label="计算平台项目")
+        object_ids = serializers.ListField(required=True, child=serializers.CharField(), label="计算平台结果表ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+
+class QueryTsMetrics(BkDataAPIGWResource):
+    action = "/v3/dd/metrics/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+
+
+class QueryTsDimensions(BkDataAPIGWResource):
+    action = "/v3/dd/dimensions/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+
+
+class QueryTsDimensionValue(BkDataAPIGWResource):
+    action = "/v3/dd/values/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+        dimension = serializers.CharField(required=True, label="维度名称")
+
+
+class QueryMetricAndDimension(BkDataAPIGWResource):
+    action = "/v4/dd/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        values = serializers.ListField(required=True, label="维度列表")

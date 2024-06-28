@@ -42,7 +42,7 @@
 
   .operate {
     position: sticky;
-    left: 500px;
+    left: 529px;
     display: none;
     // top: 4px;
     align-items: center;
@@ -189,7 +189,17 @@
       overflow-y: auto;
 
       .metric-item-common {
-        @include metric-item-common()
+        @include metric-item-common();
+
+        &.multiple-style {
+          .metric-checkbox {
+            margin-right: 8px;
+          }
+
+          .bottom {
+            padding-left: 24px;
+          }
+        }
       }
 
       .metric-item {

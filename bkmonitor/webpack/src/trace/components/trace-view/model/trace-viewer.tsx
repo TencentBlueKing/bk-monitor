@@ -38,7 +38,6 @@ export function _getTraceNameImpl(spans: Span[]) {
 
   // eslint-disable-next-line @typescript-eslint/prefer-for-of
   for (let i = 0; i < spans.length; i++) {
-    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
     const hasInternalRef = !!spans[i].references?.some(
       ({ traceID, spanID }) => traceID === spans[i].traceID && allIDs.has(spanID)
     );

@@ -42,3 +42,12 @@ class BKAPIError(Error):
         self.message = message_tpl.format(
             system_name=system_name, code=result.get("code"), url=url, message=result or _("空")
         )
+
+
+class DevopsNotDeployedError(BKAPIError):
+    """
+    蓝盾环境未部署错误
+    """
+
+    code = 3301002
+    name = _lazy("蓝盾环境未部署")

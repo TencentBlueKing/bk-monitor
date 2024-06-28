@@ -8,12 +8,12 @@
 
   .query-btn {
     display: flex;
+    justify-content: center;
     width: 32px;
     height: 32px;
     margin-right: 2px;
     color: #9a9ba5;
     background: #fff;
-    justify-content: center;
 
     div {
       transform: translateY(-2px);
@@ -87,6 +87,7 @@
 
     &.bk-primary {
       color: #fff;
+
       /* stylelint-disable-next-line declaration-no-important */
       background: #a3c5fd !important;
 

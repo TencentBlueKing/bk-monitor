@@ -25,7 +25,8 @@
  */
 import { defineComponent, PropType, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
 import { ISelectMenuOption } from '../../../components/select-menu/select-menu';
@@ -39,16 +40,16 @@ export default defineComponent({
   props: {
     isShowFavorite: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isShowSearch: {
       type: Boolean,
-      default: true
+      default: true,
     },
     data: {
       type: Object as PropType<ToolsFormData>,
-      default: null
-    }
+      default: null,
+    },
   },
   emits: ['change', 'showTypeChange', 'refreshIntervalChange', 'menuSelect', 'immediateRefresh'],
   setup(props, { emit }) {
@@ -56,8 +57,8 @@ export default defineComponent({
     const menuList = [{ name: t('查看大图'), id: MenuEnum.FullScreen }];
     const toolsFormData = reactive<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: getDefautTimezone(),
-      refreshInterval: -1
+      timezone: getDefaultTimezone(),
+      refreshInterval: -1,
     });
     watch(
       () => props.data,
@@ -65,6 +66,10 @@ export default defineComponent({
         if (val) {
           Object.assign(toolsFormData, val);
         }
+      },
+      {
+        immediate: true,
+        deep: true,
       }
     );
 
@@ -106,22 +111,22 @@ export default defineComponent({
       handleRefreshIntervalChange,
       handleImmediateRefresh,
       handleShowTypeChange,
-      handleMenuSelect
+      handleMenuSelect,
     };
   },
   render() {
     return (
       <PageToolHeader
         class='page-header-component'
-        timeRange={this.toolsFormData.timeRange}
-        timezone={this.toolsFormData.timezone}
         menuList={this.menuList}
         refreshInterval={this.toolsFormData.refreshInterval}
-        onTimeRangeChange={this.handleTimeRangeChange}
-        onTimezoneChange={this.handleTimezoneChange}
-        onRefreshIntervalChange={this.handleRefreshIntervalChange}
+        timeRange={this.toolsFormData.timeRange}
+        timezone={this.toolsFormData.timezone}
         onImmediateRefresh={this.handleImmediateRefresh}
         onMenuSelectChange={this.handleMenuSelect}
+        onRefreshIntervalChange={this.handleRefreshIntervalChange}
+        onTimeRangeChange={this.handleTimeRangeChange}
+        onTimezoneChange={this.handleTimezoneChange}
       >
         {{
           prepend: () => (
@@ -144,21 +149,21 @@ export default defineComponent({
                   <span class='icon-monitor icon-mc-uncollect'></span>
                 </div> */}
                 <div
+                  class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
                   v-bk-tooltips={{
                     content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
                     placements: ['bottom'],
-                    delay: 200
+                    delay: 200,
                   }}
-                  class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
                   onClick={() => this.handleShowTypeChange(PanelType.Search, !this.isShowSearch)}
                 >
                   <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
                 </div>
               </div>
             </div>
-          )
+          ),
         }}
       </PageToolHeader>
     );
-  }
+  },
 });

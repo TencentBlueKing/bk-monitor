@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -35,10 +34,11 @@ import {
   reactive,
   ref,
   toRefs,
-  watch
+  watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
@@ -57,9 +57,9 @@ import { useSearchStore } from '../../../store/modules/search';
 import { ListType, useTraceStore } from '../../../store/modules/trace';
 import { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
 import SpanDetails from '../span-details';
-
 import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
+import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
 
 import './trace-list.scss';
@@ -74,31 +74,29 @@ const fieldQueryKeyMaps: AliasMapType = {
   statusCode: 'root_service_status_code',
   type: 'root_service_category',
   service_name: 'resource.service.name',
-  status_code: 'status.code'
+  status_code: 'status.code',
 };
 
-const TRACE_TABLE_ROW_HEIGHR = 60; // trace 表格行高
-
 enum TraceFilter {
-  Error = 'error'
+  Error = 'error',
 }
 
 enum SpanFilter {
-  RootSpan = 'root_span',
   EntrySpan = 'entry_span',
+  Error = 'error',
+  RootSpan = 'root_span',
   // 第二期：后端未提供该参数，先占个位。
   ThirdPart = '3',
-  Error = 'error'
 }
 
 enum InterfaceStatisticsFilter {
-  RootSpan = 'root_span',
   RootServiceSpan = 'root_service_span',
-  StatusCode = 'status.code'
+  RootSpan = 'root_span',
+  StatusCode = 'status.code',
 }
 
 enum ServiceStatisticsFilter {
-  Error = 'error'
+  Error = 'error',
 }
 
 export type TraceListType = {
@@ -122,16 +120,16 @@ export default defineComponent({
   props: {
     tableLoading: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     appList: {
       type: Array as PropType<IAppItem[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: [
     'scrollBottom',
@@ -143,7 +141,7 @@ export default defineComponent({
     'traceTypeChange',
     'spanTypeChange',
     'interfaceStatisticsChange',
-    'serviceStatisticsChange'
+    'serviceStatisticsChange',
   ],
   setup(props, { emit }) {
     /** 取消请求方法 */
@@ -154,13 +152,13 @@ export default defineComponent({
     const { t } = useI18n();
     const statusList = [
       { id: 'have_root_span', name: 'root span', tips: t('包含根span的trace') },
-      { id: 'have_service_span', name: 'entry span', tips: t('包含至少一个服务的trace') }
+      { id: 'have_service_span', name: 'entry span', tips: t('包含至少一个服务的trace') },
     ];
     const state = reactive({
       total: 24,
       duration: 207,
       collapseActive: true,
-      currentStatus: 'all'
+      currentStatus: 'all',
     });
     const traceTableMain = ref<HTMLDivElement>();
     const traceListWrapper = ref<HTMLDivElement>();
@@ -168,6 +166,7 @@ export default defineComponent({
     const traceTableElem = ref<HTMLDivElement>();
     const traceTableContainer = ref<HTMLDivElement>();
     const traceDetailElem = ref(TraceDetail);
+    const simpleListElem = ref(SimpleList);
     const isFullscreen = ref(false);
     const height = ref<number>(0);
     const curTraceId = ref<string>('');
@@ -183,31 +182,31 @@ export default defineComponent({
     const interfaceTypeListInInterfaceStatistics = ref([
       {
         label: '同步',
-        value: t('同步')
+        value: t('同步'),
       },
       {
         label: '异步',
-        value: t('异步')
+        value: t('异步'),
       },
       {
         label: '内部调用',
-        value: t('内部调用')
+        value: t('内部调用'),
       },
       {
         label: '未知',
-        value: t('未知')
-      }
+        value: t('未知'),
+      },
     ]);
     const selectedSourceTypeInInterfaceStatistics = ref([]);
     const sourceTypeListInInterfaceStatistics = ref([
       {
         label: 'OTel',
-        value: 'OTel'
+        value: 'OTel',
       },
       {
         label: 'eBPF',
-        value: 'eBPF'
-      }
+        value: 'eBPF',
+      },
     ]);
 
     const selectedServiceStatisticsType = ref([]);
@@ -215,31 +214,31 @@ export default defineComponent({
     const interfaceTypeListInServiceStatistics = ref([
       {
         label: t('同步'),
-        value: 'sync'
+        value: 'sync',
       },
       {
         label: t('异步'),
-        value: 'async'
+        value: 'async',
       },
       {
         label: t('内部调用'),
-        value: 'internal'
+        value: 'internal',
       },
       {
         label: t('未知'),
-        value: 'unknown'
-      }
+        value: 'unknown',
+      },
     ]);
     const selectedSourceTypeInServiceStatistics = ref([]);
     const sourceTypeListInServiceStatistics = ref([
       {
         label: 'OTel',
-        value: 'OTel'
+        value: 'OTel',
       },
       {
         label: 'eBPF',
-        value: 'eBPF'
-      }
+        value: 'eBPF',
+      },
     ]);
 
     const timeRange = useTimeRanceInject();
@@ -254,6 +253,14 @@ export default defineComponent({
     );
     const filterTableData = computed(() => store.filterTraceList);
     const localTableData = computed(() => (filterTableData.value?.length ? filterTableData.value : tableData.value));
+    const simpleTraceList = computed(() => {
+      return (localTableData.value || []).map(item => ({
+        id: item.trace_id,
+        duration: item.duration,
+        startTime: `${formatDate(item.min_start_time)} ${formatTime(item.min_start_time)}`,
+        isError: item.error,
+      }));
+    });
     const showTraceDetail = computed(() => store.showTraceDetail);
     const totalCount = computed(() => store.totalCount);
     const isPreCalculationMode = computed(() => store.traceListMode === 'pre_calculation');
@@ -262,10 +269,10 @@ export default defineComponent({
         label: () => (
           <div class='trace-id-column-head'>
             <Popover
-              popoverDelay={[500, 0]}
               content='trace_id'
-              theme='light'
               placement='right'
+              popoverDelay={[500, 0]}
+              theme='light'
             >
               <span class='th-label'>Trace ID</span>
             </Popover>
@@ -278,9 +285,8 @@ export default defineComponent({
         width: showTraceDetail.value ? 248 : 160,
         render: ({ cell, data, index }: { cell: string; data: ITraceListItem; index: number }) => (
           <div
-            class={['trace-id-column', { 'expand-row': showTraceDetail.value && cell === curTraceId.value }]}
             style={`width:${showTraceDetail.value ? '232px' : 'auto'}`}
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
+            class='trace-id-column'
             onClick={() => handleTraceDetail(data.trace_id, index)}
           >
             <div
@@ -289,44 +295,36 @@ export default defineComponent({
             >
               {cell}
             </div>
-            {/* 20230522 暂时不要 */}
-            {showTraceDetail.value && (
-              <div>
-                <span class='duration'>{data.duration}</span>
-                <span class='time'>{`${formatDate(data.min_start_time)} ${formatTime(data.min_start_time)}`}</span>
-                {showTraceDetail.value && data.error && <span class='icon-monitor icon-mind-fill'></span>}
-              </div>
-            )}
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='min_start_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('开始时间')}</span>
           </Popover>
         ),
         width: 160,
         field: 'min_start_time',
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('整个Trace的第一个Span')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('根Span')}</span>
           </Popover>
@@ -335,11 +333,11 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_span_name,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_span_name.length ? t('确定') : false
             }
           : false,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => (
           <div class='link-column'>
             <span
@@ -350,15 +348,15 @@ export default defineComponent({
             </span>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('服务端进程的第一个Service')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('入口服务')}</span>
           </Popover>
@@ -368,7 +366,7 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_service.length ? t('确定') : false
             }
           : false,
@@ -386,16 +384,16 @@ export default defineComponent({
             </div>
           ) : (
             '--'
-          )
-        ]
+          ),
+        ],
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('入口服务的第一个接口')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('入口接口')}</span>
           </Popover>
@@ -405,7 +403,7 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service_span_name,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_service_span_name.length ? t('确定') : false
             }
           : false,
@@ -422,16 +420,16 @@ export default defineComponent({
             </div>
           ) : (
             '--'
-          )
-        ]
+          ),
+        ],
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='root_service_category'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('调用类型')}</span>
           </Popover>
@@ -446,18 +444,18 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service_category,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_service_category.length ? t('确定') : false
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='root_service_status_code'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('状态码')}</span>
           </Popover>
@@ -467,7 +465,7 @@ export default defineComponent({
         field: 'statusCode',
         filter: {
           list: traceListFilter.root_service_status_code,
-          filterFn: () => true as any
+          filterFn: () => true as any,
           // btnSave: !!traceListFilter.root_service_status_code.length ? t('确定') : false
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -475,15 +473,15 @@ export default defineComponent({
           <div class={`status-code status-${data.root_service_status_code?.type}`}>
             {data.root_service_status_code?.value || '--'}
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='trace_duration'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('耗时')}</span>
           </Popover>
@@ -491,7 +489,7 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
           : false,
         settingsLabel: `${t('耗时')}`,
@@ -501,15 +499,15 @@ export default defineComponent({
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.sync'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('同步Span数量')}</span>
           </Popover>
@@ -520,17 +518,17 @@ export default defineComponent({
         field: 'kind_statistics.sync',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.async'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('异步Span数量')}</span>
           </Popover>
@@ -540,17 +538,17 @@ export default defineComponent({
         field: 'kind_statistics.async',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.interval'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('内部Span数量')}</span>
           </Popover>
@@ -560,17 +558,17 @@ export default defineComponent({
         field: 'kind_statistics.interval',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.unspecified'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('未知Span数量')}</span>
           </Popover>
@@ -580,17 +578,17 @@ export default defineComponent({
         field: 'kind_statistics.unspecified',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.db'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('DB 数量')}</span>
           </Popover>
@@ -600,17 +598,17 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.messaging'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Messaging 数量')}</span>
           </Popover>
@@ -620,17 +618,17 @@ export default defineComponent({
         field: 'category_statistics.messaging',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.http'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('HTTP 数量')}</span>
           </Popover>
@@ -640,17 +638,17 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.rpc'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('RPC 数量')}</span>
           </Popover>
@@ -660,17 +658,17 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.async_backend'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Async 数量')}</span>
           </Popover>
@@ -681,17 +679,17 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.other'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Other 数量')}</span>
           </Popover>
@@ -701,17 +699,17 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='span_count'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Span 数量')}</span>
           </Popover>
@@ -721,17 +719,17 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='hierarchy_count'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Span 层数')}</span>
           </Popover>
@@ -741,17 +739,17 @@ export default defineComponent({
         field: 'hierarchy_count',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='service_count'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('服务数量')}</span>
           </Popover>
@@ -761,10 +759,10 @@ export default defineComponent({
         field: 'service_count',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
-      }
+          : false,
+      },
     ]);
     const chartList = computed<PanelModel[]>(() => searchStore.chartPanelList);
     const isListLoading = computed<boolean>(() => store.loading);
@@ -796,7 +794,7 @@ export default defineComponent({
     const handleSpanFilter = (options: any) => {
       const {
         checked,
-        column: { field }
+        column: { field },
       } = options;
       if (field === 'traceID') {
         // 第二期结束可以删掉该逻辑块
@@ -828,12 +826,11 @@ export default defineComponent({
     const handleTraceDetail = async (traceId: string, index) => {
       // 当前全屏状态且点击的是当前trace
       if (traceId === curTraceId.value && isFullscreen.value) return;
-
       if (!isFullscreen.value) {
         // 当前未在全屏，则打开全屏弹窗
         curTraceIndex.value = index;
         isFullscreen.value = true;
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         nextTick(() => getTraceDetails(traceId));
       } else {
         // 当前在全屏下则直接请求trace详情
@@ -849,7 +846,7 @@ export default defineComponent({
       const params: any = {
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
-        trace_id: traceId
+        trace_id: traceId,
       };
 
       if (
@@ -861,7 +858,7 @@ export default defineComponent({
         params.displays = ['source_category_opentelemetry'].concat(selects);
       }
       await traceDetail(params, {
-        cancelToken: new CancelToken((c: any) => (searchCancelFn = c))
+        cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
       })
         .then(async data => {
           await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId });
@@ -893,7 +890,7 @@ export default defineComponent({
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       setTimeout(() => {
         store.setTraceDetail(false);
-      }, 1000);
+      }, 100);
     };
     const traceListFilter = reactive<TraceListType>({
       // 属于 Trace 列表的
@@ -908,7 +905,7 @@ export default defineComponent({
       'resource.service.name': [],
       'resource.telemetry.sdk.version': [],
       span_name: [],
-      'status.code': []
+      'status.code': [],
     });
     /** 获取列表表头过滤候选值 */
     const getFilterValues = () => {
@@ -918,14 +915,14 @@ export default defineComponent({
         trace: 'trace',
         span: 'span',
         interfaceStatistics: 'span',
-        serviceStatistics: 'span'
+        serviceStatistics: 'span',
       };
       const params = {
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         start_time: startTime,
         end_time: endTime,
-        mode: modeMapping[selectedListType.value]
+        mode: modeMapping[selectedListType.value],
       };
       listOptionValues(params).then(res => {
         Object.keys(res).forEach(key => {
@@ -1022,13 +1019,13 @@ export default defineComponent({
       if (selectedInterfaceTypeInServiceStatistics.value.length === interfaceTypeListInServiceStatistics.value.length) {
         emit('serviceStatisticsChange', {
           contain: selectedServiceStatisticsType.value,
-          interfaceType: []
+          interfaceType: [],
         });
         return;
       }
       emit('serviceStatisticsChange', {
         contain: selectedServiceStatisticsType.value,
-        interfaceType: selectedInterfaceTypeInServiceStatistics.value
+        interfaceType: selectedInterfaceTypeInServiceStatistics.value,
       });
     }
 
@@ -1055,27 +1052,20 @@ export default defineComponent({
         }
       }
     );
-    watch(
-      () => isFullscreen.value,
-      val => {
-        if (val) {
-          setTimeout(() => {
-            // 将全屏弹窗内表格当前选中项滚动至可视区内
-            traceTableElem.value?.scrollTo?.({
-              top: (curTraceIndex.value - 1) * TRACE_TABLE_ROW_HEIGHR
-            });
-          }, 10);
-        }
-      }
-    );
+
+    const handleListPageKeydown = (evt: KeyboardEvent) => {
+      if (evt.code === 'Escape') handleColseDetail();
+    };
 
     onMounted(() => {
       handleClientResize();
       addListener(traceListWrapper.value as HTMLDivElement, handleClientResize);
+      traceListWrapper.value?.addEventListener('keydown', handleListPageKeydown);
     });
 
     onBeforeUnmount(() => {
       removeListener(traceListWrapper.value as HTMLDivElement, handleClientResize);
+      traceListWrapper.value?.removeEventListener('keydown', handleListPageKeydown);
     });
 
     // Span List 相关
@@ -1083,10 +1073,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='span_id'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>Span ID</span>
           </Popover>
@@ -1094,9 +1084,9 @@ export default defineComponent({
         width: 140,
         field: 'span_id',
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: any[] }) => (
           <div
             class='link-column'
@@ -1109,15 +1099,15 @@ export default defineComponent({
               {cell}
             </span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='span_name'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('接口名称')}</span>
           </Popover>
@@ -1125,66 +1115,66 @@ export default defineComponent({
         field: 'span_name',
         filter: {
           list: traceListFilter.span_name,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
           <div>
             <span title={cell}>{cell}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='start_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('开始时间')}</span>
           </Popover>
         ),
         field: 'start_time',
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='end_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('结束时间')}</span>
           </Popover>
         ),
         field: 'end_time',
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='elapsed_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('耗时')}</span>
           </Popover>
@@ -1192,22 +1182,22 @@ export default defineComponent({
         field: 'elapsed_time',
         width: 120,
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{formatDuration(cell, ' ')}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='status_code'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('状态')}</span>
           </Popover>
@@ -1216,7 +1206,7 @@ export default defineComponent({
         width: 120,
         filter: {
           list: traceListFilter['status.code'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
@@ -1225,15 +1215,15 @@ export default defineComponent({
             <span class={`span-status-code-${data.status_code.type}`}></span>
             <span>{data.status_code.value}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('类型')}</span>
           </Popover>
@@ -1242,31 +1232,30 @@ export default defineComponent({
         width: 150,
         filter: {
           list: traceListFilter.kind,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{SPAN_KIND_MAPS[data.kind]}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.service.name'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('所属服务')}</span>
           </Popover>
         ),
         field: 'resource.service.name',
         filter: {
-          // eslint-disable-next-line @typescript-eslint/quotes
           list: traceListFilter['resource.service.name'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
@@ -1277,24 +1266,23 @@ export default defineComponent({
             <span title={data.resource['service.name']}>{data.resource['service.name']}</span>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.bk.instance.id'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('实例 ID')}</span>
           </Popover>
         ),
         field: 'resource.bk.instance.id',
         filter: {
-          // eslint-disable-next-line @typescript-eslint/quotes
           list: traceListFilter['resource.bk.instance.id'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
@@ -1302,15 +1290,15 @@ export default defineComponent({
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['bk.instance.id']}>{data.resource['bk.instance.id']}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.telemetry.sdk.name'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('SDK 名称')}</span>
           </Popover>
@@ -1322,24 +1310,23 @@ export default defineComponent({
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.name']}>{data.resource['telemetry.sdk.name']}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.telemetry.sdk.version'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('SDK 版本')}</span>
           </Popover>
         ),
         field: 'resource.telemetry.sdk.version',
         filter: {
-          // eslint-disable-next-line @typescript-eslint/quotes
           list: traceListFilter['resource.telemetry.sdk.version'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
@@ -1347,15 +1334,15 @@ export default defineComponent({
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.version']}>{data.resource['telemetry.sdk.version']}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='trace_id'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('所属Trace')}</span>
           </Popover>
@@ -1373,8 +1360,8 @@ export default defineComponent({
             </span>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
-      }
+        ),
+      },
     ];
 
     const isSpanDetailLoading = ref(false);
@@ -1384,7 +1371,7 @@ export default defineComponent({
       const params = {
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
-        span_id: span.span_id
+        span_id: span.span_id,
       };
       isShowSpanDetail.value = true;
       isSpanDetailLoading.value = true;
@@ -1392,7 +1379,7 @@ export default defineComponent({
         .then(result => {
           // TODO：这里是东凑西凑出来的数据，代码并不严谨，后期需要调整。
           store.setSpanDetailData(result);
-          // eslint-disable-next-line no-param-reassign
+
           result.trace_tree.traceID = result?.trace_tree?.spans?.[0]?.traceID;
           Object.assign(spanDetails, transformTraceTree(result.trace_tree)?.spans?.[0]);
         })
@@ -1405,13 +1392,12 @@ export default defineComponent({
     function handleTraceColumnSort(option: any) {
       emit('columnSortChange', {
         type: option.type,
-        column: option.column
+        column: option.column,
       });
     }
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      // eslint-disable-next-line no-useless-escape
       const hash = `#/trace/home?app_name=${props.appName}&search_type=accurate&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
@@ -1435,6 +1421,7 @@ export default defineComponent({
       traceTableMain,
       traceTableElem,
       traceDetailElem,
+      simpleListElem,
       traceTableContainer,
       statusList,
       handleSpanFilter,
@@ -1446,6 +1433,7 @@ export default defineComponent({
       chartList,
       isFullscreen,
       localTableData,
+      simpleTraceList,
       curTraceId,
       showTraceDetail,
       totalCount,
@@ -1479,7 +1467,8 @@ export default defineComponent({
       handleTraceTypeChange,
       handleTraceTableSettingsChange,
       handleSpanTableSettingsChange,
-      store
+      store,
+      handleTraceDetail,
     };
   },
 
@@ -1511,8 +1500,8 @@ export default defineComponent({
             <div class='sub-description'>{`${this.$t('组合检索注意大写')}：log: (error OR info)`}</div>
           </div>
           <div
-            class='description link'
             style='margin-top: 8px'
+            class='description link'
           >
             {this.$t('查看更多语法规则')}
             <span class='icon-monitor icon-fenxiang'></span>
@@ -1520,45 +1509,34 @@ export default defineComponent({
         </div>
       </EmptyStatus>
     );
-    const traceTableContent = (showDetail: boolean) => (
+    const traceTableContent = () => (
       <div
-        class={`trace-content-table-wrap ${this.showTraceDetail ? 'is-show-detail' : ' '}`}
         key={this.renderKey}
         ref='traceTableContainer'
+        class={`trace-content-table-wrap ${this.showTraceDetail ? 'is-show-detail' : ' '}`}
       >
         <Table
           ref='traceTableElem'
           style='height: 100%'
           height='100%'
-          tabindex={-1}
           class='trace-table'
-          // rowHeight={40}
-          border={this.isFullscreen ? '' : ['outer']}
-          columns={this.tableColumns}
-          data={this.localTableData}
+          v-slots={{ empty: () => tableEmptyContent() }}
           rowStyle={(row: { traceID: string[] }) => {
             if (this.showTraceDetail && row.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
             return {};
           }}
-          settings={this.store.tableSettings.trace}
+          // rowHeight={40}
+          border={this.isFullscreen ? '' : ['outer']}
+          columns={this.tableColumns}
+          data={this.localTableData}
           scroll-loading={this.tableLoading}
-          onScrollBottom={this.handleScrollBottom}
+          settings={this.store.tableSettings.trace}
+          tabindex={-1}
           onColumnFilter={this.handleSpanFilter}
           onColumnSort={this.handleTraceColumnSort}
+          onScrollBottom={this.handleScrollBottom}
           onSettingChange={this.handleTraceTableSettingsChange}
-          v-slots={{ empty: () => tableEmptyContent() }}
         />
-        {showDetail && this.showTraceDetail && (
-          <div class={`detail-box ${this.isFullscreen ? 'fullsreen-box' : ''}`}>
-            <TraceDetail
-              ref='traceDetailElem'
-              isInTable
-              appName={appName}
-              traceID={this.curTraceId}
-              onClose={this.handleColseDetail}
-            />
-          </div>
-        )}
       </div>
     );
     const spanTableContent = () => (
@@ -1567,17 +1545,17 @@ export default defineComponent({
           ref='tableSpanElem'
           style='height: 100%'
           height='100%'
-          tabindex={-1}
           class='table-span'
-          rowHeight={40}
           border={['outer']}
           columns={this.tableColumnOfSpan}
           data={this.tableDataOfSpan}
-          settings={this.store.tableSettings.span}
+          rowHeight={40}
           scroll-loading={this.tableLoading}
-          onScrollBottom={this.handleScrollBottom}
+          settings={this.store.tableSettings.span}
+          tabindex={-1}
           onColumnFilter={this.handleSpanFilter}
           onColumnSort={this.handleTraceColumnSort}
+          onScrollBottom={this.handleScrollBottom}
           onSettingChange={this.handleSpanTableSettingsChange}
           // TODO：后期确认空数据的设计样式
           // v-slots={{ empty: () => tableEmptyContent() }}
@@ -1589,11 +1567,11 @@ export default defineComponent({
         <InterfaceStatistics
           filterList={this.traceListFilter}
           interfaceTypeList={this.selectedInterfaceTypeInInterfaceStatistics}
-          sourceTypeList={this.selectedSourceTypeInInterfaceStatistics}
           scroll-loading={this.tableLoading}
+          sourceTypeList={this.selectedSourceTypeInInterfaceStatistics}
+          onColumnFilter={this.handleSpanFilter}
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
-          onColumnFilter={this.handleSpanFilter}
           // onColumnSort={this.handleTraceColumnSort}
         ></InterfaceStatistics>
       </div>
@@ -1604,11 +1582,11 @@ export default defineComponent({
         <ServiceStatistics
           filterList={this.traceListFilter}
           interfaceTypeList={this.selectedInterfaceTypeInServiceStatistics}
-          sourceTypeList={this.selectedSourceTypeInServiceStatistics}
           scroll-loading={this.tableLoading}
+          sourceTypeList={this.selectedSourceTypeInServiceStatistics}
+          onColumnFilter={this.handleSpanFilter}
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
-          onColumnFilter={this.handleSpanFilter}
           // onColumnSort={this.handleTraceColumnSort}
         ></ServiceStatistics>
       </div>
@@ -1616,12 +1594,12 @@ export default defineComponent({
 
     return (
       <div
-        class='trace-list-wrapper'
         ref='traceListWrapper'
+        class='trace-list-wrapper'
       >
         <div
-          class='chart-content'
           ref='chartContent'
+          class='chart-content'
         >
           <div
             class={`collapse-title ${this.collapseActive ? 'collapse-active' : ''}`}
@@ -1634,8 +1612,8 @@ export default defineComponent({
             <div class='chart-list'>
               {this.chartList.map(panel => (
                 <TimeSeries
-                  class='chart-list-item'
                   key={panel.id}
+                  class='chart-list-item'
                   panel={panel}
                   isUseAlone
                 />
@@ -1645,12 +1623,12 @@ export default defineComponent({
         </div>
         <div
           ref='traceTableMain'
-          class={['trace-table-main', { 'is-fullscreen': this.isFullscreen }]}
           style={`height: ${this.height}px`}
+          class={['trace-table-main', { 'is-fullscreen': this.isFullscreen }]}
         >
           <Loading
-            loading={this.isFullscreen && this.isListLoading}
             class={`full-screen-loading ${this.isFullscreen ? 'is-active' : ''}`}
+            loading={this.isFullscreen && this.isListLoading}
           >
             <div class='table-filter'>
               <Radio.Group
@@ -1666,8 +1644,8 @@ export default defineComponent({
               {/* 20230816 列表的每一个子项都添加 key ，解决切换列表时可能会渲染异常的问题，这里用静态 key ，因为触发 checkbox.group 时会重新执行动态 key ，避免再一次重新渲染。  */}
               {this.selectedListType === 'trace' && (
                 <div
-                  class='trace-filter'
                   key='trace-filter'
+                  class='trace-filter'
                 >
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
                   <Checkbox.Group
@@ -1681,8 +1659,8 @@ export default defineComponent({
 
               {this.selectedListType === 'span' && (
                 <div
-                  class='span-filter'
                   key='span-filter'
+                  class='span-filter'
                 >
                   {/* 第二期没有 第三方、错误  */}
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
@@ -1692,15 +1670,15 @@ export default defineComponent({
                   >
                     <Popover
                       content={this.$t('整个Trace的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={SpanFilter.RootSpan}>{this.$t('根Span')}</Checkbox>
                     </Popover>
                     <Popover
                       content={this.$t('每个Service的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={SpanFilter.EntrySpan}>{this.$t('入口Span')}</Checkbox>
                     </Popover>
@@ -1718,8 +1696,8 @@ export default defineComponent({
 
               {this.selectedListType === 'interfaceStatistics' && (
                 <div
-                  class='interface-statistics-filter'
                   key='interface-statistics-filter'
+                  class='interface-statistics-filter'
                 >
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
                   <Checkbox.Group
@@ -1728,15 +1706,15 @@ export default defineComponent({
                   >
                     <Popover
                       content={this.$t('整个Trace的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={InterfaceStatisticsFilter.RootSpan}>{this.$t('根Span')}</Checkbox>
                     </Popover>
                     <Popover
                       content={this.$t('每个Service的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={InterfaceStatisticsFilter.RootServiceSpan}>{this.$t('服务入口Span')}</Checkbox>
                     </Popover>
@@ -1771,8 +1749,8 @@ export default defineComponent({
 
               {this.selectedListType === 'serviceStatistics' && (
                 <div
-                  class='span-service-statistics-filter'
                   key='span-service-statistics-filter'
+                  class='span-service-statistics-filter'
                 >
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
                   <Checkbox.Group
@@ -1809,7 +1787,7 @@ export default defineComponent({
                 </div>
               )}
             </div>
-            {this.selectedListType === 'trace' && traceTableContent(false)}
+            {this.selectedListType === 'trace' && traceTableContent()}
             {this.selectedListType === 'span' && spanTableContent()}
             {this.selectedListType === 'interfaceStatistics' && interfaceStatisticsTableContent()}
             {this.selectedListType === 'serviceStatistics' && serviceStatisticsTableContent()}
@@ -1817,21 +1795,40 @@ export default defineComponent({
         </div>
 
         <SpanDetails
-          show={this.isShowSpanDetail}
-          isPageLoading={this.isSpanDetailLoading}
           isFullscreen={this.isFullscreen}
+          isPageLoading={this.isSpanDetailLoading}
+          show={this.isShowSpanDetail}
           spanDetails={this.spanDetails}
           onShow={v => (this.isShowSpanDetail = v)}
         ></SpanDetails>
 
         <Dialog
           class='trace-info-fullscreen-dialog'
+          esc-close={false}
           is-show={this.isFullscreen}
           fullscreen
           multi-instance
           onClosed={this.handleDialogClose}
         >
-          {traceTableContent(true)}
+          <div style='height: 100%'>
+            <SimpleList
+              ref='simpleListElem'
+              data={this.simpleTraceList}
+              loading={this.tableLoading}
+              selectedId={this.curTraceId}
+              onChange={this.handleTraceDetail}
+              onLoadMore={() => this.$emit('scrollBottom')}
+            />
+            <div class='detail-box fullsreen-box'>
+              <TraceDetail
+                ref='traceDetailElem'
+                appName={appName}
+                traceID={this.curTraceId}
+                isInTable
+                onClose={this.handleColseDetail}
+              />
+            </div>
+          </div>
         </Dialog>
 
         <div class={`monitor-trace-alert ${this.isFullscreen ? 'fadeout' : ''}`}>
@@ -1844,5 +1841,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

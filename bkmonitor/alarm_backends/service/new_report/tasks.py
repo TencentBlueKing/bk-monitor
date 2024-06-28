@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import logging
 
 import arrow
@@ -56,6 +57,13 @@ def new_report_detect():
             if last_send_record_map[report.id]["send_time"]
             else None
         )
+        if (
+            frequency["type"] != 5
+            and last_send_time
+            and last_send_time.strftime("%Y-%m-%d") >= datetime.datetime.today().strftime("%Y-%m-%d")
+        ):
+            logger.info(f"[new_report_detect] report({report.id}) is not 5 type and already send today.")
+            continue
         run_time_strings = parse_frequency(frequency, last_send_time)
         logger.info(
             f"[new_report_detect] report({report.id}) last_send_time: {last_send_time},"

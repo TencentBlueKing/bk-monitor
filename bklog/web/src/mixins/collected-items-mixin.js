@@ -1,23 +1,27 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import * as authorityMap from '../common/authority-map';
@@ -28,15 +32,17 @@ export default {
       disabledTips: {
         terminated: {
           operateType: ['clone', 'storage', 'search', 'clean'],
-          tips: this.$t('未完成配置')
+          tips: this.$t('未完成配置'),
         },
-        delete: this.$t('删除前请先停用')
-      }
+        delete: this.$t('删除前请先停用'),
+      },
     };
   },
   methods: {
     async operateHandler(row, operateType) {
       // type: [view, status , search, edit, field, start, stop, delete]
+      const isCanClick = this.getOperatorCanClick(row, operateType);
+      if (!isCanClick) return;
       if (operateType === 'add') {
         // 新建权限控制
         if (!this.isAllowedCreate) {
@@ -45,9 +51,9 @@ export default {
             resources: [
               {
                 type: 'space',
-                id: this.spaceUid
-              }
-            ]
+                id: this.spaceUid,
+              },
+            ],
           });
         }
       } else if (operateType === 'view') {
@@ -58,9 +64,9 @@ export default {
             resources: [
               {
                 type: 'collection',
-                id: row.collector_config_id
-              }
-            ]
+                id: row.collector_config_id,
+              },
+            ],
           });
         }
       } else if (operateType === 'search') {
@@ -71,9 +77,9 @@ export default {
             resources: [
               {
                 type: 'indices',
-                id: row.index_set_id
-              }
-            ]
+                id: row.index_set_id,
+              },
+            ],
           });
         }
       } else if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
@@ -83,9 +89,9 @@ export default {
           resources: [
             {
               type: 'collection',
-              id: row.collector_config_id
-            }
-          ]
+              id: row.collector_config_id,
+            },
+          ],
         });
       } else if (operateType === 'masking') {
         // if (!(row.permission?.[authorityMap.SEARCH_LOG_AUTH])) {
@@ -105,8 +111,8 @@ export default {
       this.$http
         .request('collect/deleteCollect', {
           params: {
-            collector_config_id: row.collector_config_id
-          }
+            collector_config_id: row.collector_config_id,
+          },
         })
         .then(res => {
           if (res.result) {
@@ -170,9 +176,9 @@ export default {
           resources: [
             {
               type: 'space',
-              id: this.spaceUid
-            }
-          ]
+              id: this.spaceUid,
+            },
+          ],
         });
         this.isAllowedCreate = res.isAllowed;
       } catch (err) {
@@ -180,13 +186,28 @@ export default {
         this.isAllowedCreate = false;
       }
     },
-    getDisabledTipsMessage(item, operateType) {
+    getDisabledTipsMessage(row, operateType) {
       if (operateType === 'delete') return this.disabledTips.delete;
-      if (!this.disabledTips[item.status]) return '--';
-      if (this.disabledTips[item.status].operateType?.includes(operateType)) {
-        return this.disabledTips[item.status].tips;
+      if (!this.disabledTips[row.status]) return '--';
+      if (this.disabledTips[row.status].operateType?.includes(operateType)) {
+        return this.disabledTips[row.status].tips;
       }
       return '--';
-    }
-  }
+    },
+    getOperatorCanClick(row, operateType) {
+      if (operateType === 'search') {
+        return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
+      }
+      if (['clean', 'storage', 'clone'].includes(operateType)) {
+        return !row.status || row.table_id;
+      }
+      if (['stop', 'start'].includes(operateType)) {
+        return !(!row.status || row.status === 'running' || row.status === 'prepare' || !this.collectProject);
+      }
+      if (operateType === 'delete') {
+        return !(!row.status || row.status === 'running' || row.is_active || !this.collectProject);
+      }
+      return true;
+    },
+  },
 };

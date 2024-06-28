@@ -42,6 +42,7 @@ export const customServiceMatchList = request('POST', 'apm/meta/application/cust
 export const customServiceDataView = request('POST', 'apm/meta/application/{pk}/custom_service_data_view_config/');
 export const customServiceDataSource = request('POST', 'apm/meta/application/custom_service_url_list/');
 export const getDataEncoding = request('GET', 'apm/meta/application/data_encoding/');
+export const simpleServiceList = request('POST', 'apm/meta/application/simple_service_list/');
 
 export default {
   listMetaEsClusterInfo,
@@ -85,5 +86,6 @@ export default {
   customServiceMatchList,
   customServiceDataView,
   customServiceDataSource,
-  getDataEncoding
+  getDataEncoding,
+  simpleServiceList,
 };

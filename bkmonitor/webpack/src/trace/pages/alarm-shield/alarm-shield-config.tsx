@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, reactive, ref, shallowRef } from 'vue';
+import { defineComponent, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 import { Button, Checkbox, Input, Loading, Message, Select, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
@@ -35,13 +36,12 @@ import { deepClone, random } from 'monitor-common/utils';
 import { transformMonitorToValue, transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NavBar from '../../components/nav-bar/nav-bar';
 import { useAppStore } from '../../store/modules/app';
-
-import FormItem from './components/form-item';
-import MemberSelector from './components/member-selector';
-import ScopeDateConfig from './components/scope-date-config';
 import AlarmShieldConfigDimension, { dimensionPropData } from './alarm-shield-config-dimension';
 import AlarmShieldConfigScope, { scopeData as scopeDataParams } from './alarm-shield-config-scope';
 import AlarmShieldConfigStrategy, { strategyDataProp } from './alarm-shield-config-strategy';
+import FormItem from './components/form-item';
+import MemberSelector from './components/member-selector';
+import ScopeDateConfig from './components/scope-date-config';
 import {
   categoryMap,
   EShieldCycle,
@@ -49,7 +49,7 @@ import {
   INoticeDate,
   Ipv6FieldMap,
   ShieldDetailTargetFieldMap,
-  ShieldDimension2NodeType
+  ShieldDimension2NodeType,
 } from './typing';
 
 import './alarm-shield-config.scss';
@@ -64,12 +64,12 @@ export default defineComponent({
   props: {
     id: {
       type: String,
-      default: ''
+      default: '',
     },
     type: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   setup() {
     const { t } = useI18n();
@@ -77,7 +77,7 @@ export default defineComponent({
     const store = useAppStore();
     const router = useRouter();
     const route = useRoute();
-    const bizList = computed(() => store.bizList);
+    const bizList = shallowRef(store.bizList.filter(item => +item.bk_biz_id === +store.bizId));
     const scopeRef = ref<InstanceType<typeof AlarmShieldConfigScope>>(null);
     const strategyRef = ref<InstanceType<typeof AlarmShieldConfigStrategy>>(null);
     const dimensionRef = ref<InstanceType<typeof AlarmShieldConfigDimension>>(null);
@@ -91,7 +91,7 @@ export default defineComponent({
       desc: '',
       notificationMethod: [],
       noticeNumber: 5,
-      noticeMember: []
+      noticeMember: [],
     });
     /* 屏蔽时间范围 */
     const noticeDate = ref<INoticeDate>({
@@ -100,20 +100,20 @@ export default defineComponent({
       dateRange: [],
       [EShieldCycle.single]: {
         list: [],
-        range: []
+        range: [],
       },
       [EShieldCycle.day]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.week]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.month]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
-      }
+        range: ['00:00:00', '23:59:59'],
+      },
     });
     const tabData = reactive<ITabData>({
       active: EShieldType.Scope,
@@ -121,8 +121,8 @@ export default defineComponent({
         { name: t('基于范围屏蔽'), id: EShieldType.Scope },
         { name: t('基于策略屏蔽'), id: EShieldType.Strategy },
         { name: t('基于告警事件屏蔽'), id: EShieldType.Event },
-        { name: t('基于维度屏蔽'), id: EShieldType.Dimension }
-      ]
+        { name: t('基于维度屏蔽'), id: EShieldType.Dimension },
+      ],
     });
     /* 屏蔽范围数据 */
     const scopeData = ref(scopeDataParams());
@@ -133,7 +133,7 @@ export default defineComponent({
     /* 告警事件数据 */
     const eventShieldData = reactive({
       dimensions: '',
-      eventMessage: ''
+      eventMessage: '',
     });
     /* 屏蔽详情数据 */
     const shieldData = shallowRef(null);
@@ -147,7 +147,7 @@ export default defineComponent({
 
     const errMsg = reactive({
       noticeMember: '',
-      notificationMethod: ''
+      notificationMethod: '',
     });
     async function init() {
       loading.value = true;
@@ -191,11 +191,12 @@ export default defineComponent({
         const targetList = data.dimension_config?.[ShieldDetailTargetFieldMap[data.scope_type]] || [];
         return data.scope_type === 'instance'
           ? {
-              [Ipv6FieldMap[data.scope_type]]: targetList.map(id => ({ service_instance_id: id }))
+              [Ipv6FieldMap[data.scope_type]]: targetList.map(id => ({ service_instance_id: id })),
             }
           : transformMonitorToValue(targetList, ShieldDimension2NodeType[data.scope_type]);
       };
       formData.bizId = data.bk_biz_id;
+      bizList.value = store.bizList.filter(item => +item.bk_biz_id === +data.bk_biz_id);
       /* 范围屏蔽（目标范围） */
       if (data.category === 'scope') {
         tabData.active = EShieldType.Scope;
@@ -239,7 +240,7 @@ export default defineComponent({
       noticeDate.value.shieldCycle = type;
       noticeDate.value[type] = {
         list: [...cycleConfig.day_list, ...cycleConfig.week_list],
-        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time]
+        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time],
       };
       noticeDate.value.dateRange = isSingle ? [] : [data.begin_time, data.end_time];
       noticeDate.value.key = random(8);
@@ -320,7 +321,7 @@ export default defineComponent({
         [EShieldCycle.single]: 1,
         [EShieldCycle.day]: 2,
         [EShieldCycle.week]: 3,
-        [EShieldCycle.month]: 4
+        [EShieldCycle.month]: 4,
       };
       const cycleParams = {
         begin_time: isSingle ? cycleDate.range[0] : dateRange[0],
@@ -331,8 +332,8 @@ export default defineComponent({
           day_list:
             noticeDate.value.shieldCycle === EShieldCycle.month ? noticeDate.value[EShieldCycle.month].list : [],
           week_list: noticeDate.value.shieldCycle === EShieldCycle.week ? noticeDate.value[EShieldCycle.week].list : [],
-          type: cycleMap[noticeDate.value.shieldCycle]
-        }
+          type: cycleMap[noticeDate.value.shieldCycle],
+        },
       };
       // 通知设置参数
       const groupList = defaultGroupList.value.find(item => item.id === 'group')?.children || [];
@@ -342,7 +343,7 @@ export default defineComponent({
           logo: '',
           display_name: '',
           type: isGroup ? 'group' : 'user',
-          id
+          id,
         };
       });
       // 所有参数
@@ -351,7 +352,7 @@ export default defineComponent({
         ...cycleParams,
         shield_notice: showNoticeConfig.value,
         notice_config: {},
-        description: formData.desc
+        description: formData.desc,
       };
       // 编辑状态
       if (isEdit.value) {
@@ -362,7 +363,7 @@ export default defineComponent({
         params.notice_config = {
           notice_time: formData.noticeNumber,
           notice_way: formData.notificationMethod,
-          notice_receiver: memberParams
+          notice_receiver: memberParams,
         };
       }
       // 范围屏蔽
@@ -379,7 +380,7 @@ export default defineComponent({
         const dimensionConfig: any = {
           id: strategyShieldData.value.id,
           level: strategyShieldData.value.level,
-          dimension_conditions: strategyShieldData.value.dimension_conditions
+          dimension_conditions: strategyShieldData.value.dimension_conditions,
         };
         const target = transformValueToMonitor(
           strategyShieldData.value.scopeData.ipv6Value,
@@ -395,7 +396,7 @@ export default defineComponent({
         // 维度屏蔽
         const dimensionConfig = {
           dimension_conditions: dimensionShieldData.value.dimension_conditions,
-          strategy_id: dimensionShieldData.value.strategy_id
+          strategy_id: dimensionShieldData.value.strategy_id,
         };
         params.dimension_config = dimensionConfig;
       } else if (tabData.active === EShieldType.Event) {
@@ -420,11 +421,11 @@ export default defineComponent({
       }
       api(params).then(() => {
         router.push({
-          name: 'alarm-shield'
+          name: 'alarm-shield',
         });
         Message({
           theme: 'success',
-          message: msg
+          message: msg,
         });
       });
     }
@@ -454,7 +455,7 @@ export default defineComponent({
 
     function handleCancel() {
       router.push({
-        name: 'alarm-shield'
+        name: 'alarm-shield',
       });
     }
     function handleShowNoticeConfig(v) {
@@ -497,16 +498,16 @@ export default defineComponent({
       handleNotificationMethod,
       handleNoticeNumberChange,
       handleSubmit,
-      handleCancel
+      handleCancel,
     };
   },
   render() {
     return (
       <>
         <NavBar
-          routeList={this.navList}
-          needBack={true}
           callbackRouterBack={this.handleBackPage}
+          needBack={true}
+          routeList={this.navList}
         ></NavBar>
         <Loading loading={this.loading}>
           <div class='alarms-shield-config-page'>
@@ -521,15 +522,15 @@ export default defineComponent({
                 require={true}
               >
                 <Select
-                  modelValue={this.formData.bizId}
                   class='width-413'
                   disabled={true}
+                  modelValue={this.formData.bizId}
                 >
                   {this.bizList.map(item => (
                     <Select.Option
+                      id={item.id}
                       key={item.id}
                       name={item.text}
-                      id={item.id}
                     ></Select.Option>
                   ))}
                 </Select>
@@ -544,9 +545,9 @@ export default defineComponent({
                     .filter(item => (this.tabData.active !== EShieldType.Event ? item.id !== EShieldType.Event : true))
                     .map(item => (
                       <Button
-                        selected={item.id === this.tabData.active}
                         key={item.id}
                         disabled={this.isEdit ? item.id !== this.tabData.active : false}
+                        selected={item.id === this.tabData.active}
                         onClick={() => !this.isEdit && this.handleShieldTypeChange(item)}
                       >
                         {item.name}
@@ -556,17 +557,17 @@ export default defineComponent({
               </FormItem>
               <AlarmShieldConfigStrategy
                 ref='strategyRef'
-                value={this.strategyShieldData}
-                isEdit={this.isEdit}
                 isClone={this.isClone}
+                isEdit={this.isEdit}
                 show={this.tabData.active === EShieldType.Strategy}
+                value={this.strategyShieldData}
                 onChange={v => (this.strategyShieldData = v)}
               ></AlarmShieldConfigStrategy>
               <AlarmShieldConfigScope
                 ref='scopeRef'
                 isEdit={this.isEdit}
-                value={this.scopeData}
                 show={this.tabData.active === EShieldType.Scope}
+                value={this.scopeData}
                 onChange={v => (this.scopeData = v)}
               ></AlarmShieldConfigScope>
               <AlarmShieldConfigDimension
@@ -607,45 +608,45 @@ export default defineComponent({
               >
                 <Input
                   class='width-940'
-                  modelValue={this.formData.desc}
-                  type='textarea'
-                  rows={3}
                   maxlength={100}
+                  modelValue={this.formData.desc}
+                  rows={3}
+                  type='textarea'
                   onUpdate:modelValue={v => (this.formData.desc = v)}
                 ></Input>
               </FormItem>
               <FormItem
-                label={this.t('通知设置')}
                 class='mt24'
+                label={this.t('通知设置')}
               >
                 <Switcher
                   class='mt6'
                   modelValue={this.showNoticeConfig}
-                  onUpdate:modelValue={v => this.handleShowNoticeConfig(v)}
                   theme='primary'
+                  onUpdate:modelValue={v => this.handleShowNoticeConfig(v)}
                 ></Switcher>
               </FormItem>
               {!!this.showNoticeConfig && (
                 <>
                   <FormItem
-                    label={this.t('通知对象')}
                     class='mt24'
-                    require={true}
                     errMsg={this.errMsg.noticeMember}
+                    label={this.t('通知对象')}
+                    require={true}
                   >
                     <MemberSelector
                       class='width-940'
-                      value={this.formData.noticeMember}
                       api={this.userApi}
                       userGroups={this.defaultGroupList}
+                      value={this.formData.noticeMember}
                       onChange={this.handleUserChange}
                     ></MemberSelector>
                   </FormItem>
                   <FormItem
-                    label={this.t('通知方式')}
                     class='mt24'
-                    require={true}
                     errMsg={this.errMsg.notificationMethod}
+                    label={this.t('通知方式')}
+                    require={true}
                   >
                     <Checkbox.Group
                       class='mt8'
@@ -663,8 +664,8 @@ export default defineComponent({
                     </Checkbox.Group>
                   </FormItem>
                   <FormItem
-                    label={this.t('通知时间')}
                     class='mt24'
+                    label={this.t('通知时间')}
                     require={true}
                   >
                     <div>
@@ -672,10 +673,10 @@ export default defineComponent({
                         <span class='inline-block'>
                           <Input
                             class='width-68 mlr-10'
-                            type='number'
-                            min={1}
                             max={1440}
+                            min={1}
                             modelValue={this.formData.noticeNumber}
+                            type='number'
                             onUpdate:modelValue={v => this.handleNoticeNumberChange(v)}
                           ></Input>
                         </span>
@@ -686,8 +687,8 @@ export default defineComponent({
               )}
               <FormItem class='mt32'>
                 <Button
-                  theme={'primary'}
                   class='min-w88 mr8'
+                  theme={'primary'}
                   onClick={this.handleSubmit}
                 >
                   {this.t('确定')}
@@ -704,5 +705,5 @@ export default defineComponent({
         </Loading>
       </>
     );
-  }
+  },
 });

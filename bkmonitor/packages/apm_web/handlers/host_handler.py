@@ -10,11 +10,11 @@ specific language governing permissions and limitations under the License.
 """
 from ipaddress import IPv6Address, ip_address
 
-from apm_web.constants import HostAddressType
-from apm_web.models import CMDBServiceRelation
 from opentelemetry.semconv.trace import SpanAttributes
 
 from api.cmdb.client import list_biz_hosts
+from apm_web.constants import HostAddressType
+from apm_web.models import CMDBServiceRelation
 from bkmonitor.commons.tools import batch_request
 from constants.apm import OtlpKey
 from core.drf_resource import api
@@ -83,9 +83,7 @@ class HostHandler:
             )
             if response:
                 for item in response:
-
                     if item["bk_host_innerip"]:
-
                         ip = item["bk_host_innerip"].split(",")[0]
                         cmdb_host_instances.append(
                             {
@@ -122,12 +120,15 @@ class HostHandler:
         if not ip:
             return None
 
-        if isinstance(ip_address(ip), IPv6Address):
-            rule = [{"field": "bk_host_innerip_v6", "operator": "equal", "value": ip}]
-            address_type = HostAddressType.IPV6
-        else:
-            rule = [{"field": "bk_host_innerip", "operator": "equal", "value": ip}]
-            address_type = HostAddressType.IPV4
+        try:
+            if isinstance(ip_address(ip), IPv6Address):
+                rule = [{"field": "bk_host_innerip_v6", "operator": "equal", "value": ip}]
+                address_type = HostAddressType.IPV6
+            else:
+                rule = [{"field": "bk_host_innerip", "operator": "equal", "value": ip}]
+                address_type = HostAddressType.IPV4
+        except ValueError:
+            raise ValueError(f"从 resource 中找到了 IP: {ip}，但是不是合法的 IP 地址，请检查后重新上报")
 
         params = {
             "page": {"start": 0, "limit": 1},

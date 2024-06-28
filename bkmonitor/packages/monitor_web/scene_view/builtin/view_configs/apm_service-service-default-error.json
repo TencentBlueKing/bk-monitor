@@ -125,7 +125,8 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.bk.instance.id": "$bk_instance_id",
-              "resource.service.name": "$service_name"
+              "resource.service.name": "$service_name",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
           },
@@ -162,7 +163,8 @@
             "exception_type": "$exception_type",
             "filter_params": {
               "resource.service.name": "$service_name",
-              "resource.bk.instance.id": "$bk_instance_id"
+              "resource.bk.instance.id": "$bk_instance_id",
+              "span_name": "$endpoint"
             }
           }
         }
@@ -189,7 +191,8 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name",
-              "resource.bk.instance.id": "$bk_instance_id"
+              "resource.bk.instance.id": "$bk_instance_id",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
           },
@@ -215,6 +218,7 @@
       "compare_select": false,
       "columns_toggle": false,
       "interval_select": false,
+      "full_table": true,
       "split_switcher": false
     },
     "selector_panel": {
@@ -237,7 +241,7 @@
             "service_name": "$service_name"
           },
           "fields": {
-            "endpoint_name": "endpoint",
+            "endpoint": "endpoint",
             "app_name": "app_name",
             "service_name": "service",
             "exception_type": "exception_type",

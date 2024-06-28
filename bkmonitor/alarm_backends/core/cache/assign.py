@@ -14,7 +14,10 @@ from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.cmdb.business import BusinessManager
 from bkmonitor.models.fta.assign import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils import extended_json
+from bkmonitor.utils.local import local
 from constants.action import GLOBAL_BIZ_ID
+
+setattr(local, "assign_cache", {})
 
 
 class AssignCacheManager(CacheManager):
@@ -28,17 +31,25 @@ class AssignCacheManager(CacheManager):
     GROUP_CACHE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".assign.biz_group_{bk_biz_id}_{group_id}"
 
     @classmethod
+    def clear(cls):
+        return local.assign_cache.clear()
+
+    @classmethod
     def get_assign_priority_by_biz_id(cls, bk_biz_id):
         """
         按业务ID返回存在的priority列表
         :param bk_biz_id: 业务ID
         """
-        default_priority = cls.get_global_config(cls.BIZ_CACHE_KEY_TEMPLATE) or []
-        priority = cls.cache.get(cls.BIZ_CACHE_KEY_TEMPLATE.format(bk_biz_id=bk_biz_id))
-        if priority:
-            return sorted(set(extended_json.loads(priority) + default_priority), reverse=True)
-        else:
-            return sorted(default_priority, reverse=True)
+        cache_key = cls.BIZ_CACHE_KEY_TEMPLATE.format(bk_biz_id=bk_biz_id)
+        if cache_key not in local.assign_cache:
+            default_priority = cls.get_global_config(cls.BIZ_CACHE_KEY_TEMPLATE) or []
+            priority = cls.cache.get(cache_key)
+            if priority:
+                priority = sorted(set(extended_json.loads(priority) + default_priority), reverse=True)
+            else:
+                priority = sorted(default_priority, reverse=True)
+            local.assign_cache[cache_key] = priority
+        return local.assign_cache[cache_key]
 
     @classmethod
     def get_assign_groups_by_priority(cls, bk_biz_id, priority):
@@ -47,36 +58,49 @@ class AssignCacheManager(CacheManager):
         :param priority: 优先级
         :param bk_biz_id: 业务ID
         """
-        default_groups = cls.get_global_config(cls.PRIORITY_CACHE_KEY_TEMPLATE, priority=priority) or []
-        groups = cls.cache.get(cls.PRIORITY_CACHE_KEY_TEMPLATE.format(bk_biz_id=bk_biz_id, priority=priority))
-        if groups:
-            return set(extended_json.loads(groups) + default_groups)
-        else:
-            return set(default_groups)
+        cache_key = cls.PRIORITY_CACHE_KEY_TEMPLATE.format(bk_biz_id=bk_biz_id, priority=priority)
+        if cache_key not in local.assign_cache:
+            default_groups = cls.get_global_config(cls.PRIORITY_CACHE_KEY_TEMPLATE, priority=priority) or []
+            groups = cls.cache.get(cache_key)
+            if groups:
+                groups = set(extended_json.loads(groups) + default_groups)
+            else:
+                groups = set(default_groups)
+            local.assign_cache[cache_key] = groups
+        return local.assign_cache[cache_key]
 
     @classmethod
     def get_assign_rules_by_group(cls, bk_biz_id, group_id):
         """
         按规则组ID获取对应的分配规则
         """
-        default_rules = cls.get_global_config(cls.GROUP_CACHE_KEY_TEMPLATE, group_id=group_id)
-        if default_rules:
+        cache_key = cls.GROUP_CACHE_KEY_TEMPLATE.format(group_id=group_id, bk_biz_id=bk_biz_id)
+        if cache_key not in local.assign_cache:
+            rules = cls.get_global_config(cls.GROUP_CACHE_KEY_TEMPLATE, group_id=group_id) or []
             # 如果是全平台有数据，表示当前group为全局的，直接返回
-            return default_rules
-        rules = cls.cache.get(cls.GROUP_CACHE_KEY_TEMPLATE.format(group_id=group_id, bk_biz_id=bk_biz_id))
-        if rules:
-            return extended_json.loads(rules)
-        else:
-            return []
+            if not rules:
+                rules = cls.cache.get(cache_key) or []
+                if rules:
+                    rules = extended_json.loads(rules)
+            local.assign_cache[cache_key] = rules
+
+        return local.assign_cache[cache_key]
 
     @classmethod
     def get_global_config(cls, key_template, **kwargs):
         kwargs.update({"bk_biz_id": GLOBAL_BIZ_ID})
-        values = cls.cache.get(key_template.format(**kwargs))
-        if values:
-            return extended_json.loads(values)
-        else:
-            return None
+        cache_key = key_template.format(**kwargs)
+        # 内存已存在，则直接返回
+        if cache_key not in local.assign_cache:
+            # 去redis里面拿
+            values = cls.cache.get(cache_key)
+            if values:
+                values = extended_json.loads(values)
+            else:
+                values = None
+            local.assign_cache[cache_key] = values
+
+        return local.assign_cache[cache_key]
 
     @classmethod
     def refresh(cls):

@@ -26,8 +26,8 @@
 <template>
   <section class="mainframe-serious">
     <div
-      class="mainframe-serious-title"
       v-if="alarm.high_risk_count && alarm.other_count"
+      class="mainframe-serious-title"
     >
       <i18n
         v-if="alarm.high_risk_count"
@@ -53,9 +53,9 @@
 
     <ul class="mainframe-serious-list">
       <li
-        class="item"
         v-for="item in list.slice(0, 5)"
         :key="item.id"
+        class="item"
         :title="item.title.content"
       >
         <span @click="gotoDetailHandle(item.title.event_id)">{{ item.title.content }}</span>
@@ -74,12 +74,12 @@ export default {
   props: {
     alarm: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     homeDays: {
       type: Number,
-      default: () => 7
-    }
+      default: () => 7,
+    },
   },
   computed: {
     hasAlarms() {
@@ -89,18 +89,20 @@ export default {
       return this.alarm.high_risk
         .map(item => ({
           title: item,
-          type: 'serious'
+          type: 'serious',
         }))
-        .concat(this.alarm.other.map(item => ({
-          title: item,
-          type: 'default'
-        })));
-    }
+        .concat(
+          this.alarm.other.map(item => ({
+            title: item,
+            type: 'default',
+          }))
+        );
+    },
   },
   methods: {
     gotoEventCenter() {
       const conditionStr = JSON.stringify({
-        category: ['hosts', 'host_process', 'os', 'host_device']
+        category: ['hosts', 'host_process', 'os', 'host_device'],
       });
       const query = `activeFilterId=NOT_SHIELDED_ABNORMAL&from=now-${
         this.homeDays || 7
@@ -109,16 +111,13 @@ export default {
       window.open(url);
     },
     gotoDetailHandle(id) {
-      const query = `from=now-${
-        this.homeDays || 7
-      }d&to=now&=bizIds=${this.homeItemBizId}&queryString=id : ${id}`;
+      const query = `from=now-${this.homeDays || 7}d&to=now&=bizIds=${this.homeItemBizId}&queryString=id : ${id}`;
       const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center?${query}`;
       window.open(url);
-    }
-  }
+    },
+  },
 };
 </script>
-
 
 <style scoped lang="scss">
 @import '../common/mixins';

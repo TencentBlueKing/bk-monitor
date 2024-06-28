@@ -1,24 +1,28 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <transition name="guide-fade">
@@ -33,9 +37,13 @@
         :placement="placement"
         :tip-styles="tipStyles"
       >
-        <div slot="title">{{ currentStep.title }}（{{ currentStepNum }}/{{ stepList.length }}）</div>
-        <div slot="content">{{ currentStep.content }}</div>
-        <template slot="action">
+        <template #title>
+          <div>{{ currentStep.title }}（{{ currentStepNum }}/{{ stepList.length }}）</div>
+        </template>
+        <template #content>
+          <div>{{ currentStep.content }}</div>
+        </template>
+        <template #action>
           <template v-if="!isLast">
             <div
               class="action-text"
@@ -99,362 +107,364 @@
 </template>
 
 <script>
-import _ from 'lodash';
-import StepBox from '../step-box/index.vue';
-// import cookie from 'cookie';
+  import _ from 'lodash';
 
-// const CACHE_KEY = 'lesscode_supermen';
+  import StepBox from '../step-box/index.vue';
+  // import cookie from 'cookie';
 
-export default {
-  name: '',
-  components: {
-    StepBox
-  },
-  props: {
-    guidePage: {
-      type: String,
-      required: ''
+  // const CACHE_KEY = 'lesscode_supermen';
+
+  export default {
+    name: '',
+    components: {
+      StepBox,
     },
-    data: {
-      type: Object,
-      required: true
-    }
-  },
-  data() {
-    return {
-      isShowFinisheDialog: false,
-      isShowStopDialog: false,
-      // isDone: cookie.parse(document.cookie).hasOwnProperty(CACHE_KEY),
-      isDone: false,
-      currentStepIndex: 0,
-      currentStep: {},
-      tipStyles: {},
-      placement: '',
-      doneCountTime: 3
-    };
-  },
-  computed: {
-    currentStepNum() {
-      return this.currentStepIndex + 1;
+    props: {
+      guidePage: {
+        type: String,
+        required: '',
+      },
+      data: {
+        type: Object,
+        required: true,
+      },
     },
-    stepList() {
-      return this.data?.step_list || [];
+    data() {
+      return {
+        isShowFinisheDialog: false,
+        isShowStopDialog: false,
+        // isDone: cookie.parse(document.cookie).hasOwnProperty(CACHE_KEY),
+        isDone: false,
+        currentStepIndex: 0,
+        currentStep: {},
+        tipStyles: {},
+        placement: '',
+        doneCountTime: 3,
+      };
     },
-    isInitStep() {
-      return this.data?.current_step || 0;
+    computed: {
+      currentStepNum() {
+        return this.currentStepIndex + 1;
+      },
+      stepList() {
+        return this.data?.step_list || [];
+      },
+      isInitStep() {
+        return this.data?.current_step || 0;
+      },
+      isLast() {
+        return this.currentStepIndex === this.stepList.length - 1;
+      },
     },
-    isLast() {
-      return this.currentStepIndex === this.stepList.length - 1;
-    }
-  },
-  created() {
-    this.helpImg = '';
-    window.__lesscodeEditPageGuide = this;
-    this.currentStepIndex = this.isInitStep;
-    this.isDone = this.isInitStep === this.stepList.length;
-  },
-  mounted() {
-    this.init();
-    window.addEventListener('resize', this.handleReize);
-  },
-  beforeDestroy() {
-    this.clearActive();
-    this.$refs.wraper && this.$refs.wraper.parentNode.removeChild(this.$refs.wraper);
-    window.removeEventListener('resize', this.handleReize);
-  },
-  methods: {
-    /**
-     * 指引初始化
-     */
-    init() {
-      if (!this.isDone) {
-        document.body.appendChild(this.$refs.wraper);
-        this.activeStep();
-      }
+    created() {
+      this.helpImg = '';
+      window.__lesscodeEditPageGuide = this;
+      this.currentStepIndex = this.isInitStep;
+      this.isDone = this.isInitStep === this.stepList.length;
     },
-    /**
-     * 外部调用，开始指引
-     */
-    start() {
-      this.isDone = false;
-      this.isShowFinisheDialog = false;
-      this.isShowStopDialog = false;
-      this.currentStepIndex = 0;
-      this.doneCountTime = 3;
-      // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
-      //   expires: new Date(Date.now() - 1),
-      //   path: '/',
-      // });
-      this.$nextTick(() => {
-        this.init();
-      });
+    mounted() {
+      this.init();
+      window.addEventListener('resize', this.handleReize);
     },
-    /**
-     * 步骤切换时激活目标步骤
-     */
-    activeStep() {
-      this.$nextTick(() => {
-        const windowWidth = window.innerWidth;
-        const windowHieght = window.innerHeight;
-        const currentStep = this.stepList[this.currentStepIndex];
-        const $stepTarget = document.querySelector(currentStep.target);
-        $stepTarget.classList.add('guide-highlight');
-        if (typeof this.currentStep.leave === 'function') {
+    beforeUnmount() {
+      this.clearActive();
+      this.$refs.wraper?.parentNode.removeChild(this.$refs.wraper);
+      window.removeEventListener('resize', this.handleReize);
+    },
+    methods: {
+      /**
+       * 指引初始化
+       */
+      init() {
+        if (!this.isDone) {
+          document.body.appendChild(this.$refs.wraper);
+          this.activeStep();
+        }
+      },
+      /**
+       * 外部调用，开始指引
+       */
+      start() {
+        this.isDone = false;
+        this.isShowFinisheDialog = false;
+        this.isShowStopDialog = false;
+        this.currentStepIndex = 0;
+        this.doneCountTime = 3;
+        // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
+        //   expires: new Date(Date.now() - 1),
+        //   path: '/',
+        // });
+        this.$nextTick(() => {
+          this.init();
+        });
+      },
+      /**
+       * 步骤切换时激活目标步骤
+       */
+      activeStep() {
+        this.$nextTick(() => {
+          const windowWidth = window.innerWidth;
+          const windowHieght = window.innerHeight;
+          const currentStep = this.stepList[this.currentStepIndex];
+          const $stepTarget = document.querySelector(currentStep.target);
+          $stepTarget.classList.add('guide-highlight');
+          if (typeof this.currentStep.leave === 'function') {
+            this.currentStep.leave();
+          }
+          if (typeof currentStep.entry === 'function') {
+            currentStep.entry();
+          }
+          setTimeout(() => {
+            const {
+              top: targetTop,
+              right: targetRight,
+              bottom: targeBottom,
+              left: targetLeft,
+              width: targetWidth,
+            } = $stepTarget.getBoundingClientRect();
+            const { width, height } = this.$refs.tip.$el.getBoundingClientRect();
+
+            let placement = 'left';
+            if (width > height && targeBottom < 0.3 * windowHieght) {
+              placement = targeBottom > 0.5 * windowHieght ? 'top' : 'bottom';
+            } else {
+              placement = targetLeft > 0.5 * windowWidth ? 'left' : 'right';
+            }
+
+            let styles = {};
+
+            if (placement === 'bottom') {
+              styles = {
+                top: `${targeBottom + 10}px`,
+                left: `${targetLeft + (targetWidth - width) / 2}px`,
+              };
+            } else if (placement === 'top') {
+              styles = {
+                top: `${windowHieght - targetTop - height - 10}px`,
+                left: `${targetLeft + (targetWidth - width) / 2}px`,
+              };
+            } else if (placement === 'left') {
+              styles = {
+                top: `${targetTop}px`,
+                right: `${windowWidth - targetLeft + 10}px`,
+              };
+            } else if (placement === 'right') {
+              styles = {
+                top: `${targetTop}px`,
+                left: `${targetRight + 10}px`,
+              };
+            }
+            this.currentStep = Object.freeze(currentStep);
+            this.tipStyles = Object.freeze(styles);
+            this.placement = placement;
+          });
+        });
+      },
+      /**
+       * 清空所有步骤的激活状态
+       */
+      clearActive() {
+        document.body.querySelectorAll('.guide-highlight').forEach(el => {
+          el.classList.remove('guide-highlight');
+        });
+      },
+      /**
+       * 完成指引
+       */
+      doneGudie() {
+        // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
+        //   expires: new Date(Date.now() + 31104000000),
+        //   path: '/',
+        // });
+        this.isDone = true;
+        if (this.currentStep && typeof this.currentStep.leave === 'function') {
           this.currentStep.leave();
         }
-        if (typeof currentStep.entry === 'function') {
-          currentStep.entry();
-        }
         setTimeout(() => {
-          const {
-            top: targetTop,
-            right: targetRight,
-            bottom: targeBottom,
-            left: targetLeft,
-            width: targetWidth
-          } = $stepTarget.getBoundingClientRect();
-          const { width, height } = this.$refs.tip.$el.getBoundingClientRect();
-
-          let placement = 'left';
-          if (width > height && targeBottom < 0.3 * windowHieght) {
-            placement = targeBottom > 0.5 * windowHieght ? 'top' : 'bottom';
-          } else {
-            placement = targetLeft > 0.5 * windowWidth ? 'left' : 'right';
-          }
-
-          let styles = {};
-
-          if (placement === 'bottom') {
-            styles = {
-              top: `${targeBottom + 10}px`,
-              left: `${targetLeft + (targetWidth - width) / 2}px`
-            };
-          } else if (placement === 'top') {
-            styles = {
-              top: `${windowHieght - targetTop - height - 10}px`,
-              left: `${targetLeft + (targetWidth - width) / 2}px`
-            };
-          } else if (placement === 'left') {
-            styles = {
-              top: `${targetTop}px`,
-              right: `${windowWidth - targetLeft + 10}px`
-            };
-          } else if (placement === 'right') {
-            styles = {
-              top: `${targetTop}px`,
-              left: `${targetRight + 10}px`
-            };
-          }
-          this.currentStep = Object.freeze(currentStep);
-          this.tipStyles = Object.freeze(styles);
-          this.placement = placement;
+          this.$refs.wraper?.parentNode.removeChild(this.$refs.wraper);
         });
-      });
-    },
-    /**
-     * 清空所有步骤的激活状态
-     */
-    clearActive() {
-      document.body.querySelectorAll('.guide-highlight').forEach(el => {
-        el.classList.remove('guide-highlight');
-      });
-    },
-    /**
-     * 完成指引
-     */
-    doneGudie() {
-      // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
-      //   expires: new Date(Date.now() + 31104000000),
-      //   path: '/',
-      // });
-      this.isDone = true;
-      if (this.currentStep && typeof this.currentStep.leave === 'function') {
-        this.currentStep.leave();
-      }
-      setTimeout(() => {
-        this.$refs.wraper && this.$refs.wraper.parentNode.removeChild(this.$refs.wraper);
-      });
-    },
-    /**
-     * 窗口缩放
-     */
-    handleReize: _.throttle(function () {
-      if (!this.isDone) {
+      },
+      /**
+       * 窗口缩放
+       */
+      handleReize: _.throttle(function () {
+        if (!this.isDone) {
+          this.activeStep();
+        }
+      }, 100),
+      /**
+       * 跳过指引确认操作
+       */
+      handleStop() {
+        // this.isShowStopDialog = true;
+        this.clearActive();
+        this.handleDone();
+      },
+      /**
+       * 取消跳过指引
+       */
+      handleCancelStop() {
+        this.isShowStopDialog = false;
         this.activeStep();
-      }
-    }, 100),
-    /**
-     * 跳过指引确认操作
-     */
-    handleStop() {
-      // this.isShowStopDialog = true;
-      this.clearActive();
-      this.handleDone();
-    },
-    /**
-     * 取消跳过指引
-     */
-    handleCancelStop() {
-      this.isShowStopDialog = false;
-      this.activeStep();
-    },
-    /**
-     * 切换步骤
-     */
-    handleNext() {
-      this.currentStepIndex += 1;
-      this.clearActive();
-      this.activeStep();
-    },
-    /**
-     * 结束指引确认操作
-     */
-    handleFinish() {
-      this.clearActive();
-      this.doneGudie();
-      // this.isShowFinisheDialog = true;
-      // const countdown = () => {
-      //   setTimeout(() => {
-      //     this.doneCountTime -= 1;
-      //     if (this.doneCountTime > 0) {
-      //       countdown();
-      //     } else {
-      //       this.doneGudie();
-      //     }
-      //   }, 1000);
-      // };
-      // countdown();
-    },
-    /**
-     * 完成指引
-     */
-    handleDone() {
-      this.doneGudie();
-    },
-    /**
-     * 完成指引
-     */
-    handleStepChange(step) {
-      const curStep = ['stop', 'finish'].includes(step) ? this.stepList.length : this.currentStepIndex + 1;
+      },
+      /**
+       * 切换步骤
+       */
+      handleNext() {
+        this.currentStepIndex += 1;
+        this.clearActive();
+        this.activeStep();
+      },
+      /**
+       * 结束指引确认操作
+       */
+      handleFinish() {
+        this.clearActive();
+        this.doneGudie();
+        // this.isShowFinisheDialog = true;
+        // const countdown = () => {
+        //   setTimeout(() => {
+        //     this.doneCountTime -= 1;
+        //     if (this.doneCountTime > 0) {
+        //       countdown();
+        //     } else {
+        //       this.doneGudie();
+        //     }
+        //   }, 1000);
+        // };
+        // countdown();
+      },
+      /**
+       * 完成指引
+       */
+      handleDone() {
+        this.doneGudie();
+      },
+      /**
+       * 完成指引
+       */
+      handleStepChange(step) {
+        const curStep = ['stop', 'finish'].includes(step) ? this.stepList.length : this.currentStepIndex + 1;
 
-      this.$http
-        .request('meta/updateUserGuide', { data: { [this.guidePage]: curStep } })
-        .then(() => {
-          step === 'next' ? this.handleNext() : step === 'finish' ? this.handleFinish() : this.handleStop();
-        })
-        .catch(e => {
-          console.warn(e);
-        });
-    }
-  }
-};
+        this.$http
+          .request('meta/updateUserGuide', { data: { [this.guidePage]: curStep } })
+          .then(() => {
+            step === 'next' ? this.handleNext() : step === 'finish' ? this.handleFinish() : this.handleStop();
+          })
+          .catch(e => {
+            console.warn(e);
+          });
+      },
+    },
+  };
 </script>
 
 <style lang="scss">
-body {
-  *.guide-highlight {
-    /* stylelint-disable-next-line declaration-no-important */
-    z-index: 100001 !important;
+  body {
+    *.guide-highlight {
+      /* stylelint-disable-next-line declaration-no-important */
+      z-index: 100001 !important;
 
-    /* stylelint-disable-next-line declaration-no-important */
-    pointer-events: none !important;
-    background: #fff;
-    /* stylelint-disable-next-line declaration-no-important */
-    opacity: 1 !important;
-  }
-}
-
-.novice-guide {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 100000;
-  background: rgba(0, 0, 0, 0.6);
-
-  .guide-finished-box {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-
-    .wraper {
-      width: 400px;
-      height: 210px;
-      padding-top: 74px;
-      text-align: center;
+      /* stylelint-disable-next-line declaration-no-important */
+      pointer-events: none !important;
       background: #fff;
-      border-radius: 2px;
 
-      .flag {
-        position: absolute;
-        top: 0;
-        left: 50%;
-        display: flex;
-        width: 86px;
-        height: 86px;
-        font-size: 55px;
-        color: #fff;
-        background: #2dcb56;
-        border: 13px solid #dcffe2;
-        border-radius: 50%;
-        transform: translate(-50%, -27px);
-        align-items: center;
-        justify-content: center;
-
-        &:after {
-          position: absolute;
-          content: '';
-        }
-      }
+      /* stylelint-disable-next-line declaration-no-important */
+      opacity: 1 !important;
     }
   }
 
-  .guide-stop-box {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+  .novice-guide {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100000;
+    background: rgba(0, 0, 0, 0.6);
 
-    .wraper {
-      width: 500px;
-      height: 370px;
-      padding-top: 25px;
-      text-align: center;
-      background: #fff;
-      border-radius: 2px;
+    .guide-finished-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
 
-      .cancal-btn {
-        position: absolute;
-        top: 5px;
-        right: 5px;
-        width: 26px;
-        height: 26px;
-        font-size: 22px;
-        font-weight: 700;
-        line-height: 26px;
-        color: #979ba5;
+      .wraper {
+        width: 400px;
+        height: 210px;
+        padding-top: 74px;
         text-align: center;
-        cursor: pointer;
-        border-radius: 50%;
+        background: #fff;
+        border-radius: 2px;
 
-        &:hover {
-          background-color: #f0f1f5;
+        .flag {
+          position: absolute;
+          top: 0;
+          left: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 86px;
+          height: 86px;
+          font-size: 55px;
+          color: #fff;
+          background: #2dcb56;
+          border: 13px solid #dcffe2;
+          border-radius: 50%;
+          transform: translate(-50%, -27px);
+
+          &:after {
+            position: absolute;
+            content: '';
+          }
+        }
+      }
+    }
+
+    .guide-stop-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+
+      .wraper {
+        width: 500px;
+        height: 370px;
+        padding-top: 25px;
+        text-align: center;
+        background: #fff;
+        border-radius: 2px;
+
+        .cancal-btn {
+          position: absolute;
+          top: 5px;
+          right: 5px;
+          width: 26px;
+          height: 26px;
+          font-size: 22px;
+          font-weight: 700;
+          line-height: 26px;
+          color: #979ba5;
+          text-align: center;
+          cursor: pointer;
+          border-radius: 50%;
+
+          &:hover {
+            background-color: #f0f1f5;
+          }
         }
       }
     }
   }
-}
 
-.guide-fade-leave-active {
-  transition:
-    visibility 0.15s linear,
-    opacity 0.1s linear;
-}
+  .guide-fade-leave-active {
+    transition:
+      visibility 0.15s linear,
+      opacity 0.1s linear;
+  }
 
-.guide-fade-leave-to {
-  opacity: 0;
-  visibility: hidden;
-}
+  .guide-fade-leave-to {
+    visibility: hidden;
+    opacity: 0;
+  }
 </style>

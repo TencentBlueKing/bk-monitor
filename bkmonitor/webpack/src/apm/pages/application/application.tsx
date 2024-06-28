@@ -25,23 +25,27 @@
  */
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
+
+import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { random } from 'monitor-common/utils/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonAlert from 'monitor-pc/pages/monitor-k8s/components/common-alert';
-import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
+import ApmCommonNavBar, {
+  type INavItem,
+  type ISelectItem,
+} from '../../components/apm-common-nav-bar/apm-common-nav-bar';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import applicationStore from '../../store/modules/application';
 import AppAddForm from '../home/app-add-form';
-
 import * as authorityMap from './../home/authority-map';
 import NoDataGuide from './app-add/no-data-guide';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './application.scss';
 
@@ -63,7 +67,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   viewOptions: IViewOptions = {};
   // 导航条设置
   routeList: INavItem[] = [];
-
+  /** common-page组件key */
+  pageKey = 0;
   // 是否展示引导页
   showGuidePages = false;
 
@@ -76,6 +81,12 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
   /** 应用名 */
   appName = '';
+  /** 应用列表 */
+  appList = [];
+  /** 服务列表 */
+  serviceList = [];
+  /** 服务列表缓存 */
+  serviceMapCache = new Map();
   /** 选中的插件id */
   pluginId = '';
   /** 新建应用弹窗 */
@@ -84,27 +95,27 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   isReady = false;
   /** 当前tab */
   tabId = '';
-  tabName: string | TranslateResult = '';
+  tabName: TranslateResult | string = '';
   /** 定位详情文案 */
   subName = '';
   // menu list
   menuList: IMenuItem[] = [
     {
       id: 'basicConfiguration',
-      name: window.i18n.tc('基础配置')
+      name: window.i18n.tc('基础配置'),
     },
     {
       id: 'customService',
-      name: window.i18n.tc('自定义服务')
+      name: window.i18n.tc('自定义服务'),
     },
     {
       id: 'storageState',
-      name: window.i18n.tc('存储状态')
+      name: window.i18n.tc('存储状态'),
     },
     {
       id: 'dataStatus',
-      name: window.i18n.tc('数据状态')
-    }
+      name: window.i18n.tc('数据状态'),
+    },
   ];
 
   get pluginsList() {
@@ -115,11 +126,9 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     return { application_name: this.$route.query?.['filter-app_name'] || '' };
   }
   get positonText() {
-    // eslint-disable-next-line no-nested-ternary
     const value =
       this.sceneType === 'overview'
-        ? // eslint-disable-next-line no-nested-ternary
-          this.tabName === window.i18n.tc('服务')
+        ? this.tabName === window.i18n.tc('服务')
           ? window.i18n.tc('列表')
           : this.tabId === 'topo'
             ? window.i18n.tc('拓扑')
@@ -135,19 +144,36 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       vm.routeList = [
         {
           id: 'home',
-          name: 'APM'
+          name: 'APM',
         },
         {
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
-          subName: ''
-        }
+          subName: '',
+          notLink: true,
+          selectOption: {
+            value: appName,
+            selectList: [],
+          },
+        },
+        {
+          id: 'service',
+          name: window.i18n.tc('选择服务'),
+          class: 'placeholder',
+          selectOption: {
+            value: '',
+            selectList: [],
+            loading: false,
+          },
+        },
       ];
       vm.viewOptions = {};
       const { query } = to;
       vm.appName = query['filter-app_name'] as string;
       applicationStore.getPluginList();
       vm.handleGetAppInfo();
+      vm.getApplicationList();
+      vm.getServiceList();
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -158,6 +184,69 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   handelTimeRangeChange() {
     this.handleGetAppInfo();
   }
+  /** 获取应用列表 */
+  async getApplicationList() {
+    const listData = await listApplicationInfo().catch(() => []);
+    this.appList = listData.map(item => ({
+      id: item.app_name,
+      name: `${item.app_name}(${item.app_alias})`,
+      ...item,
+    }));
+    this.routeList[1].selectOption.selectList = this.appList;
+  }
+  /** 获取服务列表 */
+  async getServiceList() {
+    if (!this.appName) return;
+    let serviceList = [];
+    if (this.serviceMapCache.get(this.appName)) {
+      serviceList = this.serviceMapCache.get(this.appName);
+    } else {
+      this.routeList[2].selectOption.loading = true;
+      serviceList = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+      this.routeList[2].selectOption.loading = false;
+    }
+    this.serviceList = serviceList.map(item => ({
+      id: item.service_name,
+      name: item.service_name,
+      ...item,
+    }));
+    this.routeList[2].selectOption.selectList = this.serviceList;
+  }
+  /** 导航栏下拉选择 */
+  async handleNavSelect(item: ISelectItem, navId: string) {
+    if (navId === 'application') {
+      this.appName = item.id;
+      this.getServiceList();
+      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          to,
+          from,
+          interval,
+          timezone,
+          refleshInterval,
+          dashboardId,
+          'filter-app_name': this.appName,
+        },
+      });
+      this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
+      this.routeList[1].selectOption.value = this.appName;
+      this.pageKey += 1;
+    } else {
+      this.$router.push({
+        name: 'service',
+        query: {
+          'filter-app_name': item.app_name,
+          'filter-service_name': item.service_name,
+          'filter-category': item.category,
+          'filter-kind': item.kind,
+          'filter-predicate_value': item.predicate_value,
+        },
+      });
+    }
+  }
+
   /** 获取应用信息 */
   async handleGetAppInfo() {
     let queryTimeRange;
@@ -174,7 +263,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     const params = {
       app_name: this.appName,
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
     const data = await applicationStore.getAppInfo(params);
 
@@ -189,8 +278,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     this.$router.push({
       name: 'service-add',
       params: {
-        appName: this.appName
-      }
+        appName: this.appName,
+      },
     });
   }
   handleSecendTypeChange(type) {
@@ -212,11 +301,11 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     this.$router.push({
       name: 'application-config',
       params: {
-        id: this.appInfo.application_id
+        id: this.appInfo.application_id,
       },
       query: {
-        active: option.id
-      }
+        active: option.id,
+      },
     });
   }
   handleCloseGuideDialog() {
@@ -227,33 +316,35 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       <div class='application'>
         {
           <CommonPage
+            key={this.pageKey}
             ref='commonPageRef'
+            backToOverviewKey={this.backToOverviewKey}
+            defaultViewOptions={this.viewOptions}
+            isShowSplitPanel={false}
             sceneId={'apm_application'}
             sceneType={'overview'}
-            isShowSplitPanel={false}
-            defaultViewOptions={this.viewOptions}
-            backToOverviewKey={this.backToOverviewKey}
             tab2SceneType
+            onSceneTypeChange={this.handleSecendTypeChange}
             onTabChange={this.handleSceneTabChange}
             onTimeRangeChange={this.handelTimeRangeChange}
-            onSceneTypeChange={this.handleSecendTypeChange}
             onTitleChange={this.handleTitleChange}
           >
-            <CommonNavBar
+            <ApmCommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={false}
+              needShadow={true}
               positionText={this.positonText}
+              routeList={this.routeList}
+              needCopyLink
+              onNavSelect={this.handleNavSelect}
             />
             {this.isReady && this.viewHasNoData && (
               <div slot='noData'>
                 <CommonAlert class='no-data-alert'>
                   <div slot='title'>
                     <bk-spin
-                      theme='warning'
                       size='mini'
+                      theme='warning'
                     />
                     {this.$t('当前数据还未加载完成，如数据长时间未加载出来可')}
                     <span
@@ -292,21 +383,21 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           </CommonPage>
         }
         <AppAddForm
-          pluginId={this.pluginId}
           v-model={this.showAddDialog}
+          pluginId={this.pluginId}
         ></AppAddForm>
         <bk-dialog
-          value={this.showGuideDialog}
-          mask-close={true}
-          ext-cls='no-data-guide-dialog'
           width={1280}
+          ext-cls='no-data-guide-dialog'
+          mask-close={true}
           position={{ top: 50 }}
           show-footer={false}
+          value={this.showGuideDialog}
           on-cancel={this.handleCloseGuideDialog}
         >
           <NoDataGuide
-            type='noData'
             appName={this.appInfo?.app_name}
+            type='noData'
           />
         </bk-dialog>
       </div>

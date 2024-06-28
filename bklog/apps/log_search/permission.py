@@ -22,20 +22,9 @@ the project delivered to anyone in the future.
 from django.conf import settings
 from rest_framework.permissions import BasePermission
 
-from apps.log_search.exceptions import (
-    BkJwtClientException,
-    BkJwtVerifyException,
-    BkJwtVerifyFailException,
-)
+from apps.log_search.exceptions import BkJwtVerifyException
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
-
-
-bk_jwt_backend = True  # pylint: disable=invalid-name
-try:
-    from blueapps.account.components.bk_jwt.backends import BkJwtBackend
-except ImportError:
-    bk_jwt_backend = False  # pylint: disable=invalid-name
 
 
 class Permission(BasePermission):
@@ -54,26 +43,16 @@ class Permission(BasePermission):
 
     @classmethod
     def get_auth_info(cls, request, raise_exception=True):
-        if not bk_jwt_backend:
-            if raise_exception:
-                raise BkJwtClientException()
-            return False
-
         try:
-            verify_data = BkJwtBackend.verify_bk_jwt_request(request)
+            bk_app_code = request.app.bk_app_code
+            bk_username = request.user.username
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("[BK_JWT]校验异常: %s" % e)
             if raise_exception:
                 raise BkJwtVerifyException()
             return False
 
-        if not verify_data["result"] or not verify_data["data"]:
-            logger.exception("BK_JWT 验证失败： %s" % (verify_data))
-            if raise_exception:
-                raise BkJwtVerifyFailException()
-            return False
-
         return {
-            "bk_app_code": verify_data["data"]["app"]["bk_app_code"],
-            "bk_username": verify_data["data"]["user"]["bk_username"],
+            "bk_app_code": bk_app_code,
+            "bk_username": bk_username,
         }

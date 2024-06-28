@@ -24,24 +24,26 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
+
 import { random } from 'monitor-common/utils/utils';
 
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
+import * as ruleAuth from './authority-map';
 import StrategyConfigSet from './strategy-config-set-new/strategy-config-set';
 import { strategyType } from './strategy-config-set-new/typings';
-import * as ruleAuth from './authority-map';
 
 import './strategy-config-set.scss';
+const allowJumpMap = ['alarm-group-add', 'alarm-group-edit', 'set-meal-add', 'set-meal-edit'];
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreate(ruleAuth)) {
-  @Prop({ type: [String, Number] }) readonly id: string | number;
+  @Prop({ type: [String, Number] }) readonly id: number | string;
   needCheck = true;
   fromRouteName = '';
-
+  refreshKey = random(10);
+  isActivated = false;
   @ProvideReactive('authority') authority: Record<string, boolean> = {};
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;
@@ -50,10 +52,12 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     next((vm: MonitorStrategyConfigSet) => {
       vm.needCheck = to.name !== 'strategy-config-detail';
       vm.fromRouteName = `${from.name}-${random(10)}`;
+      if (!allowJumpMap.includes(from.name) && vm.isActivated) {
+        vm.refreshKey = random(10);
+      }
     });
   }
   async beforeRouteLeave(to, from, next) {
-    const allowJumpMap = ['alarm-group-add', 'alarm-group-edit', 'strategy-config', 'set-meal-add', 'set-meal-edit'];
     if (this.needCheck && !allowJumpMap.includes(to.name) && this.$store.getters.bizIdChangePedding !== to.name) {
       const needNext = await this.handleCancel(false);
       if (needNext) {
@@ -76,7 +80,7 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }
@@ -84,10 +88,15 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     this.needCheck = false;
     this.$router.push({ name: 'strategy-config' });
   }
+  async activated() {
+    await this.$nextTick();
+    this.isActivated = true;
+  }
   render() {
     return (
       <StrategyConfigSet
         id={this.id}
+        key={this.refreshKey}
         class={`strategy-config-set ${this.$route.name === 'strategy-config-detail' ? 'is-detail' : ''}`}
         fromRouteName={this.fromRouteName}
         onCancel={this.handleCancel}

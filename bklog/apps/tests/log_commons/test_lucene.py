@@ -222,6 +222,30 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "keyword": """number < 83063 and title: "The Right Way" AND log: OR""",
         "expect": """number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
     },
+    {
+        "keyword": """log: "lineno=1" and number < 83063 and title: "The Right Way" AND log: OR""",
+        "expect": """log: "lineno=1" AND number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """log: lineno=1 and title: "The Right Way" AND log: OR""",
+        "expect": """log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """number >=83063 or levelname:\"a and b or c\" AND log: and""",
+        "expect": """number: >=83063 OR levelname:\"a and b or c\" AND log: \"and\"""",
+    },
+    {
+        "keyword": """number >=83063 or levelname: a and \"b or c\" AND log: and""",
+        "expect": """number: >=83063 OR levelname: a AND \"b or c\" AND log: \"and\"""",
+    },
+    {
+        "keyword": """number < 83063 and levelname : \"a and b or c not d\" or lineno : [1 to 1000] AND log: and""",
+        "expect": """number: <83063 AND levelname : \"a and b or c not d\" OR lineno : [1 TO 1000] AND log: \"and\"""",
+    },
+    {
+        "keyword": """number >=83063 and log:\"go to some\" and lineno:[1 to 10] AND log: and""",
+        "expect": """number: >=83063 AND log:\"go to some\" AND lineno:[1 TO 10] AND log: \"and\"""",
+    },
 ]
 
 ENHANCE_KEYWORD_INSPECT_RESULT = {

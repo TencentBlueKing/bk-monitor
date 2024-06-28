@@ -42,7 +42,7 @@ export interface DisplayValueAlignmentFactors extends FormattedValue {
   title: string;
 }
 
-export type DecimalCount = number | null | undefined;
+export type DecimalCount = null | number | undefined;
 
 export interface DecimalInfo {
   decimals: DecimalCount;

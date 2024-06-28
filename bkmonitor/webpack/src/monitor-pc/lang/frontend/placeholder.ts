@@ -275,5 +275,5 @@ export default {
 
   需要申请的权限: 'Permissions to Apply For',
 
-  未输入: 'Not entered' // 查看语境
+  未输入: 'Not entered', // 查看语境
 };

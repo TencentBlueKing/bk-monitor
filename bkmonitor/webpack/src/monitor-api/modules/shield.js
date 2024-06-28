@@ -23,5 +23,5 @@ export default {
   bulkAddAlertShield,
   editShield,
   disableShield,
-  updateFailureShieldContent
+  updateFailureShieldContent,
 };

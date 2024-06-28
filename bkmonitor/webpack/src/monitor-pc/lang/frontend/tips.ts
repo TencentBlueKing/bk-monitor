@@ -163,5 +163,5 @@ export default {
   '已折叠 {count} 个相同"Service + Span name + status"的 Span':
     "Collapsed {count} Spans with the same 'Service+Span name+status'",
   '处理套餐中使用了电话语音通知，拨打的顺序是按通知对象顺序依次拨打，用户组内无法保证顺序':
-    'Telephone voice notifications were used in the processing of the package, and the order of calls is based on the order of the notification objects. The order cannot be guaranteed within the user group'
+    'Telephone voice notifications were used in the processing of the package, and the order of calls is based on the order of the notification objects. The order cannot be guaranteed within the user group',
 };

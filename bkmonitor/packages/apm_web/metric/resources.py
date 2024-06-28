@@ -351,6 +351,7 @@ class ServiceListResource(PageListResource):
         strategy_service_map: dict,
         strategy_alert_map: dict,
         request_count_info: dict,
+        is_enabled_profiling: bool,
         profiling_count_info: dict,
     ):
         return [
@@ -372,9 +373,13 @@ class ServiceListResource(PageListResource):
                 "status": DataStatus.NORMAL
                 if request_count_info.get(service["topo_key"], {}).get("request_count")
                 else DataStatus.NO_DATA,
-                "profiling_data_status": DataStatus.NORMAL
-                if profiling_count_info.get(service["topo_key"], {}).get("profiling_data_count")
-                else DataStatus.NO_DATA,
+                "profiling_data_status": (
+                    DataStatus.NORMAL
+                    if profiling_count_info.get(service["topo_key"], {}).get("profiling_data_count")
+                    else DataStatus.NO_DATA
+                )
+                if is_enabled_profiling
+                else DataStatus.DISABLED,
             }
             for service in services
         ]
@@ -512,6 +517,7 @@ class ServiceListResource(PageListResource):
             strategy_service_map,
             strategy_alert_map,
             request_count_info,
+            app.is_enabled_profiling,
             profiling_request_info,
         )
 
@@ -1452,6 +1458,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 "filter-predicate_value={service_predicate_value}&"
                 "dashboardId=service-default-overview&sceneId=apm_service&sceneType=overview",
             )
+        # columns 默认顺序: 接口、调用类型、调用次数、错误次数、错误率、平均响应时间、状态、类型、分类、服务、操作
         columns = [
             OverviewDataTableFormat(
                 id="endpoint_name",
@@ -1463,31 +1470,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 min_width=120,
                 max_width=300,
             ),
-            StatusTableFormat(
-                id="apdex",
-                name=_lazy("状态"),
-                checked=True,
-                status_map_cls=Apdex,
-                filterable=True,
-                min_width=120,
-            ),
-            StringTableFormat(
-                id="category_kind",
-                name=_lazy("类型"),
-                checked=True,
-                filterable=True,
-                min_width=120,
-            ),
-            StringLabelTableFormat(
-                id="category",
-                name=_lazy("分类"),
-                checked=True,
-                filterable=True,
-                label_getter=CategoryEnum.get_label_by_key,
-                icon_getter=lambda row: get_icon(row["category"]),
-                min_width=120,
-            ),
-            service_format,
             StringTableFormat(
                 id="kind",
                 name=_lazy("调用类型"),
@@ -1529,6 +1511,31 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 unit="ns",
                 decimal=2,
             ),
+            StatusTableFormat(
+                id="apdex",
+                name=_lazy("状态"),
+                checked=True,
+                status_map_cls=Apdex,
+                filterable=True,
+                min_width=120,
+            ),
+            StringTableFormat(
+                id="category_kind",
+                name=_lazy("类型"),
+                checked=True,
+                filterable=True,
+                min_width=120,
+            ),
+            StringLabelTableFormat(
+                id="category",
+                name=_lazy("分类"),
+                checked=True,
+                filterable=True,
+                label_getter=CategoryEnum.get_label_by_key,
+                icon_getter=lambda row: get_icon(row["category"]),
+                min_width=120,
+            ),
+            service_format,
             LinkListTableFormat(
                 id="operation",
                 name=_lazy("操作"),

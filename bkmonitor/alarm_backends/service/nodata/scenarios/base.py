@@ -86,7 +86,7 @@ class BaseScenario(object):
                         target_instances_exist.add(target_filters)
                 # 历史维度中不存在的目标实例
                 missing_target_instances = [
-                    dict(instance, **{"__NO_DATA_DIMENSION__": True})
+                    dict(instance, **{NO_DATA_TAG_DIMENSION: True})
                     for instance in target_instances_set - target_instances_exist
                 ]
         else:
@@ -166,11 +166,11 @@ class HostScenario(BaseScenario):
             return None
 
         if target_data["field"] == "bk_target_ip":
-            biz_hosts = set(HostManager.refresh_by_biz(self.strategy.bk_biz_id).keys())
+            hosts = set(HostManager.refresh_by_biz(self.strategy.bk_biz_id).keys())
             target_instances = [
                 inst
                 for inst in target_data["value"]
-                if "{}|{}".format(inst["bk_target_ip"], inst["bk_target_cloud_id"]) in biz_hosts
+                if "{}|{}".format(inst["bk_target_ip"], inst["bk_target_cloud_id"]) in hosts
             ]
         # 动态拓扑
         elif target_data["field"] == "host_topo_node":
@@ -200,6 +200,7 @@ class ServiceScenario(BaseScenario):
         if "bk_target_service_instance_id" in self.get_no_data_dimensions():
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
             all_services = ServiceInstanceManager.refresh_by_biz(self.strategy.bk_biz_id)
+            ServiceInstanceManager.cache_by_biz(self.strategy.bk_biz_id, all_services)
             target_services = []
             for service in list(all_services.values()):
                 service_topo = set({node.id for node in chain(*list(service.topo_link.values()))})

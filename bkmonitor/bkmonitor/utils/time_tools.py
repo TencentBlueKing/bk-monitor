@@ -28,6 +28,10 @@ def now_str(_format="%Y-%m-%d %H:%M:%S"):
     return timezone.now().strftime(_format)
 
 
+def datetime_today():
+    return datetime.datetime.today()
+
+
 def localtime(value):
     """
     to local time
@@ -383,3 +387,6 @@ def time_interval_align(timestamp: int, interval: int):
     timestamp -= timezone_offset
 
     return timestamp
+
+
+MAX_DATETIME_STR = datetime2str(datetime.datetime.max)

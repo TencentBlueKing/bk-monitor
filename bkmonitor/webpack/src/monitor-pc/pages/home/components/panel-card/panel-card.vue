@@ -42,14 +42,14 @@ export default {
   props: {
     title: {
       type: String,
-      default: ''
-    }
-  }
+      default: '',
+    },
+  },
 };
 </script>
 
 <style scoped lang="scss">
-@import "../../common/mixins";
+@import '../../common/mixins';
 
 .panel-card {
   padding: 18px 20px;

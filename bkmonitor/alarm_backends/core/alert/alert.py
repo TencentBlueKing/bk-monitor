@@ -90,6 +90,21 @@ class Alert:
         # 最新事件
         self.last_event = None
 
+        self.init_severity()
+
+    def init_severity(self):
+        # 智能监控如果有动态告警级别配置，则从extra_info里获取实际事件级别
+        try:
+            # 尝试取数据中的extra_info
+            origin_alarm = self.extra_info["origin_alarm"]
+            origin_extra_info = json.loads(origin_alarm["data"]["values"]["extra_info"])
+            self.data["severity"] = origin_extra_info.get("alert_level_msg", {}).get(
+                "alert_level", self.data["severity"]
+            )
+        except Exception:
+            # 取不到就拉倒，用默认的
+            return
+
     def update(self, event: Event):
         """
         根据给出的事件更新告警内容
@@ -149,7 +164,7 @@ class Alert:
 
             # 更新告警级别：如果新的事件级别大于等于告警级别，才需要更新告警内容
             # (大于的情况已经在前面判断了)
-            if event.severity == self.data["severity"]:
+            if event.severity == self.severity:
                 self.data["event"] = event.to_dict()
 
             # 如果 next_status 是恢复，说明已经在等待恢复状态，此时需要打断这种状态，并且记录一条流水
@@ -372,6 +387,10 @@ class Alert:
     @property
     def bk_biz_id(self) -> int:
         return self.top_event.get("bk_biz_id") or 0
+
+    @property
+    def extra_info(self):
+        return self.data.get("extra_info", {})
 
     @property
     def dedupe_md5(self) -> str:

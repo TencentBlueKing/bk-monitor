@@ -30,10 +30,10 @@ import MySubscription from './my-subscription';
 
 @Component({
   components: {
-    MySubscription
-  }
+    MySubscription,
+  },
 })
-class MySubscriptionIframe extends tsc<{}> {
+class MySubscriptionIframe extends tsc<object> {
   render() {
     return (
       <div style='width: 100%;height: 100vh;background-color: white;'>

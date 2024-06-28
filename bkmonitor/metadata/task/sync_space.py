@@ -20,6 +20,7 @@ from django.db.transaction import atomic
 from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from metadata import config, models
+from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
@@ -32,7 +33,6 @@ from metadata.models.space.space_data_source import (
     get_biz_data_id,
     get_real_zero_biz_data_id,
 )
-from metadata.models.space.space_redis import SpaceRedis, push_and_publish_all_space
 from metadata.models.space.utils import (
     cached_cluster_k8s_data_id,
     create_bcs_spaces,
@@ -448,19 +448,6 @@ def refresh_cluster_resource():
         logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
 
 
-@share_lock(identify="metadata__refresh_redis_data")
-def refresh_redis_data():
-    """刷新 redis 数据，以保证数据一致性
-
-    TODO: 待移除
-    """
-    logger.info("start refresh redis data task")
-    # 获取所有数据，然后更新一遍 redis 数据
-    push_and_publish_all_space(is_publish=False)
-
-    logger.info("push redis data successfully")
-
-
 @share_lock(identify="metadata_refresh_bkci_project")
 def refresh_bkci_space_name():
     """刷新 bkci 空间名称"""
@@ -491,90 +478,6 @@ def refresh_bkci_space_name():
         )
 
     logger.info("refresh only bkci space successfully")
-
-
-@share_lock(identify="metadata_refresh_bksaas_space")
-def refresh_not_biz_space_data_source():
-    """
-    TODO: 待移除
-    """
-    logger.info("start to refresh not biz space data source")
-
-    # 过滤使用的 table_id
-    table_id_list = list(models.InfluxDBStorage.objects.values_list("table_id", flat=True))
-    table_id_list.extend(list(models.AccessVMRecord.objects.values_list("result_table_id", flat=True)))
-    table_id_list = list(set(table_id_list))
-
-    # 过滤业务 ID 为负的记录，并转换服务的业务 ID 为空间 ID
-    table_id_biz_id_map = {
-        rt["table_id"]: abs(rt["bk_biz_id"])
-        for rt in models.ResultTable.objects.filter(table_id__in=table_id_list, bk_biz_id__lt=0).values(
-            "table_id", "bk_biz_id"
-        )
-    }
-    # 过滤对应的空间信息
-    space_id_map = {
-        space["id"]: (space["space_type_id"], space["space_id"])
-        for space in models.Space.objects.filter(id__in=table_id_biz_id_map.values()).values(
-            "id", "space_type_id", "space_id"
-        )
-    }
-
-    # 过滤对应的数据源
-    table_id_data_id_map = {
-        ds["table_id"]: ds["bk_data_id"]
-        for ds in models.DataSourceResultTable.objects.filter(table_id__in=table_id_biz_id_map.keys()).values(
-            "table_id", "bk_data_id"
-        )
-    }
-    # 过滤使用的空间，这里需要注意可能为空的情况
-    filter_q = Q()
-    for space in space_id_map.values():
-        filter_q |= Q(space_type_id=space[0], space_id=space[1])
-    space_data_id = {}
-    if filter_q:
-        space_data_source_qs = models.SpaceDataSource.objects.filter(filter_q).values(
-            "space_type_id", "space_id", "bk_data_id"
-        )
-        for sd in space_data_source_qs:
-            space_data_id.setdefault((sd["space_type_id"], sd["space_id"]), []).append(sd["bk_data_id"])
-
-    # 要写入的数据记录
-    data, space_type_and_ids = [], set()
-    for table_id, biz_id in table_id_biz_id_map.items():
-        space_type_and_id = space_id_map.get(biz_id)
-        # 如果获取不到数据，则跳过
-        if space_type_and_id is None:
-            continue
-        # 获取 bk_data_id
-        bk_data_id = table_id_data_id_map.get(table_id)
-        if bk_data_id is None:
-            continue
-        # 如果已经存在，则跳过
-        if bk_data_id in space_data_id.get(space_type_and_id, []):
-            continue
-
-        # 标识数据源已添加到指定的空间下
-        space_data_id.setdefault(space_type_and_id, []).append(bk_data_id)
-
-        # 记录变更的空间
-        space_type_and_ids.add(space_type_and_id)
-        data.append(
-            models.SpaceDataSource(
-                space_type_id=space_type_and_id[0], space_id=space_type_and_id[1], bk_data_id=bk_data_id
-            )
-        )
-    # 批量写入数据
-    models.SpaceDataSource.objects.bulk_create(data, BULK_CREATE_BATCH_SIZE)
-    if space_type_and_ids:
-        for space in space_type_and_ids:
-            SpaceRedis().push_not_biz_type_space(space_type=space[0], space_id=space[1])
-        logger.info(
-            "push space resource to redis successfully, space: %s",
-            json.dumps(space_type_and_ids),
-        )
-
-    logger.info("refresh not biz space data source successfully")
 
 
 def push_and_publish_space_router(
@@ -621,10 +524,10 @@ def push_and_publish_space_router(
 
     space_client = SpaceTableIDRedis()
     space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
 
 
-@share_lock(identify="metadata_push_and_publish_space_router")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_push_and_publish_space_router")
 def push_and_publish_space_router_task():
     logger.info("start to push and publish space router")
 
@@ -673,14 +576,19 @@ def authorize_paas_space_cluster_data_source(space_cluster: Dict):
     paas_data_id_list = settings.BKPAAS_AUTHORIZED_DATA_ID_LIST
     # 进行数据匹配
     for space_id, data_ids in space_data_id_map.items():
-        paas_data_id_exist = False or bool(set(paas_data_id_list) & data_ids)
+        # 匹配到需要增加的数据源
+        need_create_data_ids = set(paas_data_id_list) - set(data_ids)
         try:
-            # 如果平台授权的数据源不存在，则进行创建
-            if not paas_data_id_exist:
-                for data_id in paas_data_id_list:
-                    models.SpaceDataSource.objects.create(
+            # 如果数据源不存在，则根据差异创建记录
+            if need_create_data_ids:
+                # 因为可能还会增加，更改为批量创建
+                objs = [
+                    models.SpaceDataSource(
                         space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=True
                     )
+                    for data_id in need_create_data_ids
+                ]
+                models.SpaceDataSource.objects.bulk_create(objs, batch_size=BULK_CREATE_BATCH_SIZE)
         except Exception as e:
             logger.error(
                 """authorize paas data_ids failed, space_type: %s, space_id: %s, data_ids: %s, error: %s""",
@@ -811,7 +719,7 @@ def refresh_bksaas_space_resouce():
     # 批量进行推送数据
     from metadata.task.tasks import multi_push_space_table_ids
 
-    space_ids = [{"space_type": space_type, "space_id": space["space_id"]} for space in space_id_list]
+    space_ids = [{"space_type": space_type, "space_id": space["app_code"]} for space in space_id_list]
     # NOTE: 此时集群或者公共插件相关的信息已经存在了，不需要再进行指标或 data_label 的映射
     bulk_handle(multi_push_space_table_ids, space_ids)
 

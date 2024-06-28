@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, PropType } from 'vue';
+
 import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
 
@@ -35,7 +36,6 @@ import { useChildrenHiddenInject, useSpanBarCurrentInject } from '../hooks';
 import ArrowRightShapeIcon from '../icons/arrow-right-shape.svg';
 import ErrorIcon from '../icons/error.svg';
 import { Span } from '../typings';
-
 import SpanBar from './span-bar';
 import SpanTreeOffset from './span-tree-offset';
 import Ticks from './ticks';
@@ -49,68 +49,68 @@ const SpanBarRowProps = {
   className: {
     type: String,
     required: false,
-    default: ''
+    default: '',
   },
   color: {
-    type: String
+    type: String,
   },
   columnDivision: {
     type: Number,
-    default: 0
+    default: 0,
   },
   isChildrenExpanded: {
-    type: Boolean
+    type: Boolean,
   },
   isDetailExpanded: {
-    type: Boolean
+    type: Boolean,
   },
   isMatchingFilter: {
-    type: Boolean
+    type: Boolean,
   },
   isFocusMatching: {
-    type: Boolean
+    type: Boolean,
   },
   isActiveMatching: {
-    type: Boolean
+    type: Boolean,
   },
   isHaveRead: {
-    type: Boolean
+    type: Boolean,
   },
   onDetailToggled: Function as PropType<(spanID: string) => void>,
   onLoadCrossAppInfo: Function as PropType<(span: Span) => void>,
   numTicks: {
     type: Number,
-    default: 0
+    default: 0,
   },
   rpc: {
     type: Object,
     required: false,
-    default: null
+    default: null,
   },
   noInstrumentedServer: {
     type: Object,
     required: false,
     default: {
       color: '',
-      serviceName: ''
-    }
+      serviceName: '',
+    },
   },
   showErrorIcon: {
-    type: Boolean
+    type: Boolean,
   },
   // getViewedBounds: Function as PropType<ViewedBoundsFunctionType>,
   // traceStartTime: {
   //   type: Number
   // },
   span: {
-    type: Object as PropType<Span>
+    type: Object as PropType<Span>,
   },
   focusSpan: Function as PropType<(spanID: string) => void>,
   bgColorIndex: {
     // 层级背景色索引
     type: Number,
-    required: true
-  }
+    required: true,
+  },
 };
 
 export default defineComponent({
@@ -125,7 +125,7 @@ export default defineComponent({
     const childrenHiddenStore = useChildrenHiddenInject();
 
     // 是否跨应用调用 span
-    // eslint-disable-next-line max-len
+
     const crossRelationInfo = computed(() =>
       Object.keys(props.span?.cross_relation || {}).length ? props.span?.cross_relation : false
     );
@@ -140,7 +140,7 @@ export default defineComponent({
         min: trace?.startTime || 0,
         max: trace?.endTime || 0,
         viewStart: zoomStart,
-        viewEnd: zoomEnd
+        viewEnd: zoomEnd,
       });
     };
 
@@ -174,7 +174,7 @@ export default defineComponent({
       crossRelationInfo,
       ellipsisDirection,
       showDuration,
-      handleToggleCollapse
+      handleToggleCollapse,
     };
   },
 
@@ -194,7 +194,7 @@ export default defineComponent({
       noInstrumentedServer,
       showErrorIcon,
       bgColorIndex,
-      span
+      span,
     } = this.$props;
     const {
       span_id: spanID,
@@ -210,12 +210,12 @@ export default defineComponent({
       ebpf_tap_side: ebpfTapSide = '',
       ebpf_tap_port_name: ebpfTapPortName = '',
       group_info: groupInfo,
-      is_expand: isExpand
+      is_expand: isExpand,
     } = span as Record<string, any>;
     /** 折叠节点的耗时取自 group_info.duration */
     const realDuration = groupInfo && groupInfo.id === spanID && !isExpand ? groupInfo.duration : duration;
     const label = this.showDuration ? formatDuration(realDuration) : '';
-    // eslint-disable-next-line max-len
+
     const viewBounds = this.getViewedBounds?.()(
       span?.startTime as number,
       (span?.startTime as number) + (realDuration as number)
@@ -224,10 +224,10 @@ export default defineComponent({
     const viewStart = viewBounds?.start;
     const viewEnd = viewBounds?.end;
     const isOddRow = (bgColorIndex as number) % 2 !== 0;
-    // eslint-disable-next-line no-nested-ternary
+
     const displayServiceName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? ebpfThreadName : ebpfTapSide) : serviceName;
-    // eslint-disable-next-line no-nested-ternary
+
     const displayOperationName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? operationName : ebpfTapPortName) : operationName;
     const labelDetail = `${displayServiceName}::${displayOperationName}`;
@@ -256,40 +256,40 @@ export default defineComponent({
       >
         {isHaveRead && (
           <Popover
-            theme='dark'
             content={this.$t('已读')}
             placement='left'
+            theme='dark'
           >
             <span class='have-read-mark'></span>
           </Popover>
         )}
         {this.crossRelationInfo ? (
           <TimelineRowCell
-            className='span-view cross-app-span'
             style={{ cursor: 'pointer' }}
             width={1}
+            className='span-view cross-app-span'
           >
             <div
               class={[
                 'span-name-wrapper',
                 {
                   'is-matching-filter': this.isMatchingFilter,
-                  'is-disabled': !this.crossRelationInfo.permission
-                }
+                  'is-disabled': !this.crossRelationInfo.permission,
+                },
               ]}
               v-authority={{ active: !this.crossRelationInfo.permission }}
             >
               <SpanTreeOffset
                 childrenVisible={isChildrenExpanded}
-                span={span}
                 showChildrenIcon={true}
+                span={span}
                 onClick={(e: Event) => this.handleClick(e, isParent)}
               />
               <a class='cross-span-name'>
                 <img
-                  src={CrossAppTag}
                   class='cross-tag'
                   alt=''
+                  src={CrossAppTag}
                 />
                 <span class='cross-span-name'>{this.crossRelationInfo.app_name}</span>
                 <span class='cross-description'>{`${this.$t('所属空间：')}${this.crossRelationInfo.bk_biz_name}`}</span>
@@ -299,8 +299,8 @@ export default defineComponent({
         ) : (
           <>
             <TimelineRowCell
-              className='span-name-column'
               width={columnDivision}
+              className='span-name-column'
             >
               <div
                 class={`
@@ -314,24 +314,24 @@ export default defineComponent({
                   onClick={(e: Event) => this.handleClick(e, isParent)}
                 />
                 <a
+                  style={{ borderColor: color }}
                   class={`span-name ${isDetailExpanded ? 'is-detail-expanded' : ''}`}
                   aria-checked={isDetailExpanded}
                   role='switch'
-                  style={{ borderColor: color }}
                   tabindex={0}
                 >
                   {showErrorIcon && (
                     <img
-                      src={ErrorIcon}
-                      alt='error'
                       class='error-icon'
+                      alt='error'
+                      src={ErrorIcon}
                     />
                   )}
                   {span?.icon && (
                     <img
                       class='service-icon'
-                      src={span.icon}
                       alt=''
+                      src={span.icon}
                     />
                   )}
                   <span
@@ -343,13 +343,13 @@ export default defineComponent({
                     {rpc && (
                       <span>
                         <img
-                          src={ArrowRightShapeIcon}
                           class='span-bar-row-arrow-icon'
                           alt=''
+                          src={ArrowRightShapeIcon}
                         />
                         <i
-                          class='span-bar-row-rpc-color-marker'
                           style={{ background: rpc.color }}
+                          class='span-bar-row-rpc-color-marker'
                         />
                         {rpc.serviceName}
                       </span>
@@ -357,13 +357,13 @@ export default defineComponent({
                     {noInstrumentedServer && (
                       <span>
                         <img
-                          src={ArrowRightShapeIcon}
                           class='span-bar-row-arrow-icon'
                           alt=''
+                          src={ArrowRightShapeIcon}
                         />
                         <i
-                          class='span-bar-row-rpc-color-marker'
                           style={{ background: noInstrumentedServer.color }}
+                          class='span-bar-row-rpc-color-marker'
                         />
                         {noInstrumentedServer.serviceName}
                       </span>
@@ -373,9 +373,7 @@ export default defineComponent({
                   </span>
                   {groupInfo ? (
                     <Popover
-                      placement='top'
                       key={isExpand}
-                      popoverDelay={[500, 0]}
                       v-slots={{
                         content: () =>
                           isExpand ? (
@@ -387,13 +385,15 @@ export default defineComponent({
                           ) : (
                             <span>
                               {this.$t('已折叠 {count} 个相同"Service + Span name + status"的 Span', {
-                                count: groupInfo.members.length
+                                count: groupInfo.members.length,
                               })}
                               <br />
                               {this.$t('点击展开')}
                             </span>
-                          )
+                          ),
                       }}
+                      placement='top'
+                      popoverDelay={[500, 0]}
                     >
                       {isExpand ? (
                         <i
@@ -416,38 +416,38 @@ export default defineComponent({
               </div>
             </TimelineRowCell>
             <TimelineRowCell
-              className='span-view'
               style={{ cursor: 'pointer' }}
               width={1 - columnDivision}
+              className='span-view'
             >
               <Ticks numTicks={numTicks} />
               <Popover
-                popoverDelay={[500, 0]}
-                placement='top'
                 key={label}
                 v-slots={{
                   content: () => (
                     <div>
                       <div>{`${this.$t('服务')}: ${displayServiceName}`}</div>
                       <div>{`${this.$t('接口')}: ${displayOperationName}`}</div>
-                      {/* eslint-disable-next-line no-nested-ternary */}
+                      {}
                       <div>{`${this.$t('类型')}: ${
                         isVirtual ? this.$t('推断') : source === 'ebpf' ? ebpfKind : SPAN_KIND_MAPS[kind]
                       }`}</div>
                       <div>{`${this.$t('耗时')}: ${formatDuration(realDuration)}`}</div>
                     </div>
-                  )
+                  ),
                 }}
+                placement='top'
+                popoverDelay={[500, 0]}
               >
                 <SpanBar
-                  rpc={rpc}
-                  viewStart={viewStart}
-                  viewEnd={viewEnd}
                   color={color}
-                  shortLabel={label}
-                  longLabel={longLabel}
                   hintSide={hintSide}
+                  longLabel={longLabel}
+                  rpc={rpc}
+                  shortLabel={label}
                   span={span}
+                  viewEnd={viewEnd}
+                  viewStart={viewStart}
                 />
               </Popover>
             </TimelineRowCell>
@@ -455,5 +455,5 @@ export default defineComponent({
         )}
       </TimelineRow>
     );
-  }
+  },
 });

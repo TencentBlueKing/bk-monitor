@@ -280,6 +280,7 @@ class SearchAttrSerializer(serializers.Serializer):
     start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     time_range = serializers.CharField(required=False, default=None)
+    from_favorite_id = serializers.IntegerField(required=False, default=0)
 
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(required=False, default=0)
@@ -466,6 +467,7 @@ class SearchUserIndexSetOptionHistoryDeleteSerializer(serializers.Serializer):
 
 class SearchExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+    keyword = serializers.CharField(label=_("搜索关键字"), required=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
     start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("起始时间"), required=True)
     end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("结束时间"), required=True)
