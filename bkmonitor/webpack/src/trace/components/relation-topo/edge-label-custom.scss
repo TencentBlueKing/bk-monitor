@@ -14,16 +14,39 @@
   position: absolute;
   z-index: 1001;
 
+  &.active {
+    z-index: 1002;
+
+    .edge-label-custom-label {
+      background-color: #3a84ff;
+    }
+
+    .edge-duration-panel {
+      background-color: #699df4;
+      border: none;
+
+      .duration,
+      .duration-icon {
+        color: #fff;
+      }
+
+      .max-icon {
+        color: #699df4;
+        background-color: #e1ecff;
+      }
+
+      &-footer {
+        color: #fff;
+      }
+    }
+  }
+
   .edge-label-custom-label {
     min-height: 14px;
     padding: 0 4px;
     color: #fff;
     background-color: #a2afd2;
     border-radius: 50%;
-
-    &.selected {
-      background-color: #3a84ff;
-    }
 
     &.hidden {
       opacity: 0;
@@ -79,12 +102,16 @@
       height: 16px;
       color: #63656e;
 
+      .page {
+        font-size: 12px;
+      }
+
       .split-char {
         margin: 0 4px;
       }
 
       .page-btn {
-        font-size: 16px;
+        font-size: 14px;
         cursor: pointer;
       }
     }
