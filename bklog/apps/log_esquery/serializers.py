@@ -137,8 +137,8 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
         initial_data = self.initial_data
         # bkdata情景下,如果 'track_total_hits' 没有传入,返回False
-        if 'track_total_hits' not in initial_data and scenario_id == Scenario.BKDATA:
-            attrs['track_total_hits'] = False
+        if "track_total_hits" not in initial_data and scenario_id == Scenario.BKDATA:
+            attrs["track_total_hits"] = False
 
         new_filter: list = self.deal_filter(attrs)
         attrs["filter"] = new_filter
