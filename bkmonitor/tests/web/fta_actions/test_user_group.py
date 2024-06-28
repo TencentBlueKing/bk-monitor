@@ -1149,6 +1149,48 @@ class TestPreviewUserGroupPlanResource(TestPreviewDutyRulePlanResource):
         ]
         self.assertEqual(duty_plans[0]["users"][0]["id"], "admin2")
 
+    def test_db_with_change_rule(self):
+        """测试两个快照并存时，预览两者还没生成排班的时间段。"""
+        duty_rule_data = copy.deepcopy(DUTY_RULE_DATA)
+        slz = DutyRuleDetailSlz(data=duty_rule_data)
+        slz.is_valid(raise_exception=True)
+        duty_rule = slz.save()
+
+        user_group_data = copy.deepcopy(USER_GROUP_DATA)
+        user_group_data["need_duty"] = True
+        user_group_data["duty_rules"] = [duty_rule.id]
+
+        with mock.patch(
+            "bkmonitor.action.serializers.strategy.time_tools.datetime_today",
+            return_value=time_tools.str2datetime(duty_rule_data["effective_time"]),
+        ):
+            # 创建会提前排好一个月的数据
+            g_slz = UserGroupDetailSlz(data=user_group_data)
+            g_slz.is_valid(raise_exception=True)
+            g_slz.save()
+
+            # 修改规则，这会生成一个新快照
+            duty_rule_data["effective_time"] = "2024-03-24 00:00:00"
+            duty_rule_data["duty_arranges"][0]["duty_users"][0][0]["id"] = "admin_new"
+            slz = DutyRuleDetailSlz(instance=duty_rule, data=duty_rule_data)
+            slz.is_valid(raise_exception=True)
+            slz.save()
+
+        query_params = {
+            "bk_biz_id": duty_rule_data["bk_biz_id"],
+            "begin_time": "2024-03-22 00:00:00",
+            "days": 3,
+            "id": g_slz.instance.id,
+            "source_type": "DB",
+        }
+        duty_plans = PreviewUserGroupPlanResource().request(query_params)[0]["duty_plans"]
+
+        # 旧快照负责到 23 号（之前已生成到 22 号的计划）
+        # 新快照从 24 号开始（用户重新开始，第一个是修改后的 admin_new）
+        self.assertEqual(len(duty_plans), 32)
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin2")
+        self.assertEqual(duty_plans[1]["users"][0]["id"], "admin_new")
+
     def test_api(self):
         duty_rule_data = copy.deepcopy(DUTY_RULE_DATA)
         slz = DutyRuleDetailSlz(data=duty_rule_data)
