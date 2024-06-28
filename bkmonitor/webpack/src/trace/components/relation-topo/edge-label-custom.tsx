@@ -47,7 +47,7 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    selected: {
+    animated: {
       type: Boolean,
       default: false,
     },
@@ -176,12 +176,14 @@ export default defineComponent({
           style={{
             transform: `translate(-50%, -50%) translate(${this.path[1]}px,${this.path[2]}px)`,
           }}
-          class='edge-label-custom'
+          class={{
+            'edge-label-custom': true,
+            active: this.animated,
+          }}
         >
           <div
             class={{
               'edge-label-custom-label': true,
-              selected: this.selected,
               hidden: Number(this.label) <= 1,
             }}
           >
