@@ -42,11 +42,11 @@
       </bk-button>
       <div class="collect-search fr">
         <bk-input
-          v-model="params.keyword"
-          :clearable="true"
-          :placeholder="$t('搜索名称、存储索引名')"
-          :right-icon="'bk-icon icon-search'"
+          v-model="searchKeyword"
           data-test-id="logCollectionBox_input_searchCollectionItems"
+          :placeholder="$t('搜索名称、存储索引名')"
+          :clearable="true"
+          :right-icon="'bk-icon icon-search'"
           @change="handleSearchChange"
           @enter="search"
         >
@@ -58,7 +58,7 @@
         ref="collectTable"
         class="collect-table"
         v-bkloading="{ isLoading: isTableLoading }"
-        :data="collectList"
+        :data="collectShowList"
         :empty-text="$t('暂无内容')"
         :limit-list="pagination.limitList"
         :pagination="pagination"
@@ -66,8 +66,8 @@
         :size="size"
         data-test-id="logCollectionBox_table_logCollectionTable"
         @filter-change="handleFilterChange"
-        @page-change="handlePageChange"
-        @page-limit-change="handleLimitChange"
+        @page-change="handleCollectPageChange"
+        @page-limit-change="handleCollectLimitChange"
         @row-mouse-enter="handleRowMouseEnter"
         @row-mouse-leave="handleRowMouseLeave"
       >
@@ -136,15 +136,12 @@
         </bk-table-column>
         <bk-table-column
           v-if="checkcFields('collector_scenario_name')"
-          :filter-method="scenarioFiltersMethod"
           :filter-multiple="false"
           :filters="checkcFields('collector_scenario_name') ? scenarioFilters : []"
           :label="$t('日志类型')"
           :render-header="$renderHeader"
           class-name="filter-column"
           column-key="collector_scenario_id"
-          min-width="50"
-          prop="collector_scenario_id"
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
@@ -154,15 +151,12 @@
         </bk-table-column>
         <bk-table-column
           v-if="checkcFields('category_name')"
-          :filter-method="categoryFiltersMethod"
           :filter-multiple="false"
           :filters="checkcFields('category_name') ? categoryFilters : []"
           :label="$t('数据类型')"
           :render-header="$renderHeader"
           class-name="filter-column"
           column-key="category_id"
-          min-width="50"
-          prop="category_id"
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
@@ -200,9 +194,13 @@
         </bk-table-column>
         <bk-table-column
           v-if="checkcFields('es_host_state')"
-          :class-name="'td-status'"
+          :class-name="'td-status filter-column'"
           :label="$t('采集状态')"
           :render-header="$renderHeader"
+          prop="status"
+          column-key="status"
+          :filters="checkcFields('es_host_state') ? statusEnum : []"
+          :filter-multiple="false"
           min-width="55"
         >
           <template #default="props">
@@ -659,15 +657,42 @@
           disabled: true,
         },
       ];
+      const statusEnum = [
+        {
+          text: this.$t('label-正常').replace('label-', ''),
+          value: 'success',
+        },
+        {
+          text: this.$t('label-失败').replace('label-', ''),
+          value: 'failed',
+        },
+        {
+          text: this.$t('label-部署中').replace('label-', ''),
+          value: 'running',
+        },
+        {
+          text: this.$t('label-已停用').replace('label-', ''),
+          value: 'terminated',
+        },
+        {
+          text: this.$t('label-未知').replace('label-', ''),
+          value: 'unknown',
+        },
+        {
+          text: this.$t('label-准备中').replace('label-', ''),
+          value: 'prepare',
+        },
+      ];
 
       return {
         keyword: '',
+        searchKeyword: '',
         count: 0,
         size: 'small',
         needGuide: false,
         timer: null,
         loadingStatus: false,
-        isTableLoading: true,
+        isTableLoading: false,
         pagination: {
           current: 1,
           count: 0,
@@ -677,8 +702,8 @@
         collectList: [],
         collectorIdStr: '',
         collectProject: projectManages(this.$store.state.topMenu, 'collection-item'),
-        params: {
-          keyword: '',
+        filterParams: {
+          status: '',
           collector_scenario_id: '',
           category_id: '',
         },
@@ -687,6 +712,7 @@
           fields: settingFields,
           selectedFields: [...settingFields.slice(3, 7), settingFields[2]],
         },
+        statusEnum: statusEnum,
         // 是否支持一键检测
         enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
         // 一键检测弹窗配置
@@ -695,7 +721,6 @@
         checkRecordId: '',
         emptyType: 'empty',
         filterSearchObj: {},
-        isFilterSearch: false,
         isShouldPollCollect: false, // 当前列表是否需要轮询
         settingCacheKey: 'clusterList',
         selectLabelList: [],
@@ -739,6 +764,28 @@
         });
         return target;
       },
+      collectShowList() {
+        let collect = this.collectList;
+        if (this.isFilterSearch) {
+          const fParams = this.filterParams;
+          collect = collect.filter(item =>
+            Object.keys(fParams).every(key => (fParams[key] === '' ? true : item[key] === fParams[key])),
+          );
+        }
+        if (this.keyword) {
+          collect = collect.filter(item =>
+            item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase()),
+          );
+        }
+        this.changePagination({ count: collect.length });
+        const { current, limit } = this.pagination;
+        const startIndex = (current - 1) * limit;
+        const endIndex = current * limit;
+        return collect.slice(startIndex, endIndex);
+      },
+      isFilterSearch() {
+        return !!Object.values(this.filterParams).some(Boolean);
+      },
     },
     created() {
       !this.authGlobalInfo && this.checkCreateAuth();
@@ -748,7 +795,7 @@
     async mounted() {
       this.needGuide = !localStorage.getItem('needGuide');
       !this.authGlobalInfo && (await this.initLabelSelectList());
-      !this.authGlobalInfo && this.search();
+      !this.authGlobalInfo && this.requestData();
     },
     unmounted() {
       this.isShouldPollCollect = false;
@@ -756,13 +803,15 @@
     },
     methods: {
       handleSearchChange(val) {
-        if (val === '' && !this.isTableLoading) {
-          this.requestData();
+        if (val === '') {
+          this.changePagination({ current: 1 });
+          this.keyword = '';
+          this.searchKeyword = '';
         }
       },
       search() {
-        this.pagination.current = 1;
-        this.requestData();
+        this.keyword = this.searchKeyword;
+        this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
       },
       checkcFields(field) {
         return this.columnSetting.selectedFields.some(item => item.id === field);
@@ -873,12 +922,10 @@
       },
       // 表头过滤
       handleFilterChange(data) {
+        this.changePagination({ current: 1 });
         Object.keys(data).forEach(item => {
-          this.params[item] = data[item].join('');
+          this.filterParams[item] = data[item].join('');
         });
-        Object.entries(data).forEach(([key, value]) => (this.filterSearchObj[key] = value.length));
-        this.isFilterSearch = Object.values(this.filterSearchObj).reduce((pre, cur) => ((pre += cur), pre), 0);
-        this.search();
       },
       handleSettingChange({ fields }) {
         this.columnSetting.selectedFields = fields;
@@ -894,44 +941,33 @@
       stopStatusPolling() {
         clearTimeout(this.timer);
       },
-      scenarioFiltersMethod(value, row, column) {
-        const { property } = column;
-        return row[property] === value;
-      },
-      categoryFiltersMethod(value, row, column) {
-        const { property } = column;
-        return row[property] === value;
-      },
       requestData() {
         this.isTableLoading = true;
-        this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
         const ids = this.$route.query.ids; // 根据id来检索
         const collectorIdList = ids ? decodeURIComponent(ids) : [];
         this.$http
-          .request('collect/getCollectList', {
+          .request('collect/getAllCollectors', {
             query: {
               bk_biz_id: this.bkBizId,
-              keyword: this.params.keyword,
-              page: this.pagination.current,
-              pagesize: this.pagination.limit,
               collector_id_list: collectorIdList,
+              have_data_id: 1,
               not_custom: 1,
             },
           })
           .then(async res => {
             const { data } = res;
-            if (data?.list) {
+            if (data && data.length) {
               const idList = [];
-              const indexIdList = data.list.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+              const indexIdList = data.filter(item => !!item.index_set_id).map(item => item.index_set_id);
               const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-              data.list.forEach(row => {
+              data.forEach(row => {
                 row.status = '';
                 row.status_name = '';
                 idList.push(row.collector_config_id);
                 row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
               });
-              this.collectList.splice(0, this.collectList.length, ...data.list);
-              this.pagination.count = data.total;
+              this.collectList = data;
+              this.changePagination({ count: data.length });
               this.collectorIdStr = idList.join(',');
               if (this.needGuide) {
                 setTimeout(() => {
@@ -960,56 +996,19 @@
       },
       handleOperation(type) {
         if (type === 'clear-filter') {
-          this.params.keyword = '';
-          this.pagination.current = 1;
+          this.keyword = '';
+          this.searchKeyword = '';
+          this.changePagination({ current: 1 });
           clearTableFilter(this.$refs.collectTable);
-          this.requestData();
           return;
         }
 
         if (type === 'refresh') {
           this.emptyType = 'empty';
-          this.pagination.current = 1;
+          this.changePagination({ current: 1 });
           this.requestData();
           return;
         }
-      },
-      requestCollectList() {
-        return new Promise((resolve, reject) => {
-          this.$http
-            .request('collect/getCollectList', {
-              query: {
-                ...this.params,
-                bk_biz_id: this.bkBizId,
-                page: this.pagination.current,
-                pagesize: this.pagination.limit,
-              },
-            })
-            .then(res => {
-              const data = res.data;
-              if (data?.list) {
-                const idList = [];
-                data.list.forEach(row => {
-                  row.status = '';
-                  row.status_name = '';
-                  idList.push(row.collector_config_id);
-                });
-                this.collectList.splice(0, this.collectList.length, ...data.list);
-                this.pagination.count = data.total;
-                this.collectorIdStr = idList.join(',');
-                if (this.needGuide) {
-                  setTimeout(() => {
-                    localStorage.setItem('needGuide', 'false');
-                    this.needGuide = false;
-                  }, 3000);
-                }
-              }
-              resolve(res);
-            })
-            .catch(err => {
-              reject(err);
-            });
-        });
       },
       requestCollectStatus(isPrivate) {
         this.$http
@@ -1122,6 +1121,15 @@
       handleRowMouseLeave() {
         this.itsmApplyingPopoverInstance?.destroy();
         this.itsmApplyingPopoverInstance = null;
+      },
+      handleCollectPageChange(current) {
+        this.changePagination({ current });
+      },
+      handleCollectLimitChange(limit) {
+        this.changePagination({ limit });
+      },
+      changePagination(pagination = {}) {
+        Object.assign(this.pagination, pagination);
       },
     },
   };
