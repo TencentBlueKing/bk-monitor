@@ -861,7 +861,7 @@
               const { signature, groups, owners } = res.data;
               this.curEditUniqueVal = {
                 signature,
-                group: Object.values(groups)
+                group: this.requestData.group_by.map(gKey => groups[gKey])
               };
               this.getHoverRowValue.owners = owners;
               this.$bkMessage({
