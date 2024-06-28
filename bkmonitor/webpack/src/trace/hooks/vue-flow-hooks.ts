@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref } from 'vue';
+import { ref, shallowRef } from 'vue';
 
 import dagre from '@dagrejs/dagre';
 import { Position, useVueFlow } from '@vue-flow/core';
@@ -60,7 +60,7 @@ export function useLayout() {
 
   const { findNode } = useVueFlow();
 
-  const graph = ref(new dagre.graphlib.Graph());
+  let graph = shallowRef(new dagre.graphlib.Graph());
 
   const previousDirection = ref('LR');
 
@@ -104,6 +104,16 @@ export function useLayout() {
 
     dagre.layout(dagreGraph);
 
+    // 找出所有相互调用的情况
+    const loopEdgeSet = new Set();
+    edges.forEach((edge, edgeIndex) => {
+      edges.forEach((edge_, edgeIndex_) => {
+        if (edgeIndex !== edgeIndex_ && edge.source === edge_.target && edge.target === edge_.source) {
+          loopEdgeSet.add(edge.source);
+        }
+      });
+    });
+
     // set nodes with updated positions
     const result = nodes.map(node => {
       const nodeWithPosition = dagreGraph.node(node.id);
@@ -116,7 +126,15 @@ export function useLayout() {
     });
     result.forEach(node => {
       const w = nodeWHMap.get(node.id).width;
-      if (w < nodeMaxWidth) {
+      // 处理环状图 a -> b b -> a 的节点位置
+      let isLoop = false;
+      if (loopEdgeSet.has(node.id)) {
+        const other = edges.filter(e => e.target === node.id).map(e => e.source);
+        if (!other.some(o => !loopEdgeSet.has(o))) {
+          isLoop = true;
+        }
+      }
+      if (w < nodeMaxWidth && !isLoop) {
         node.position.x += (nodeMaxWidth - w) / 2;
       }
     });
