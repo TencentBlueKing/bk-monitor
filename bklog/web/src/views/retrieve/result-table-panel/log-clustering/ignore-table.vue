@@ -191,6 +191,8 @@
           const sampleField = next[this.clusteringField];
           const valStr = sampleField
             .toString()
+            .replace(/<mark>/g, '')
+            .replace(/<\/mark>/g, '')
             .replace(regExp, '*')
             .replace(/\*(\s|\*)+/g, '*');
           const ascription = pre.find(item => item.content === valStr);
