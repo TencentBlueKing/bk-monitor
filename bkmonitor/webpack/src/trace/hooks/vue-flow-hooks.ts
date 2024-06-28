@@ -126,16 +126,16 @@ export function useLayout() {
     });
     result.forEach(node => {
       const w = nodeWHMap.get(node.id).width;
-      // 处理环状图 a -> b b -> a 的节点位置
-      let isLoop = false;
-      if (loopEdgeSet.has(node.id)) {
-        const other = edges.filter(e => e.target === node.id).map(e => e.source);
-        if (!other.some(o => !loopEdgeSet.has(o))) {
-          isLoop = true;
-        }
-      }
-      if (w < nodeMaxWidth && !isLoop) {
+      if (w < nodeMaxWidth) {
         node.position.x += (nodeMaxWidth - w) / 2;
+      }
+      // 处理环状图 a -> b b -> a 的节点位置
+      if (
+        loopEdgeSet.has(node.id) &&
+        edges.filter(e => e.target === node.id && !loopEdgeSet.has(e.source)).length === 0 &&
+        w < nodeMaxWidth
+      ) {
+        node.position.x += 20;
       }
     });
     return result;
