@@ -60,7 +60,7 @@ export function useLayout() {
 
   const { findNode } = useVueFlow();
 
-  let graph = shallowRef(new dagre.graphlib.Graph());
+  const graph = shallowRef(new dagre.graphlib.Graph());
 
   const previousDirection = ref('LR');
 
