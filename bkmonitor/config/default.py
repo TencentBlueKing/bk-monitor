@@ -1181,8 +1181,6 @@ SHOW_REALTIME_STRATEGY = False
 # 强制使用数据平台查询的cmdb层级表
 BKDATA_CMDB_LEVEL_TABLES = []
 
-# 查询 vm 的空间列表
-QUERY_VM_SPACE_UID_LIST = []
 
 # 邮件报表整屏渲染等待时间
 MAIL_REPORT_FULL_PAGE_WAIT_TIME = 60
