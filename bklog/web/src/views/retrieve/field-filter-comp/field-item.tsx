@@ -39,6 +39,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
+  @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
   @Prop({ type: Array, required: true }) filedCountArray: Array<any>;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
@@ -73,6 +74,9 @@ export default class FieldItem extends tsc<object> {
   }
   get isShowFieldsAnalysis() {
     return ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type);
+  }
+  get reQueryAggChart() {
+    return `${this.retrieveSearchNumber} ${this.datePickerValue.join(',')}`;
   }
   /** 冲突字段索引集名称*/
   get unionConflictFieldsName() {
@@ -238,10 +242,10 @@ export default class FieldItem extends tsc<object> {
         {/* 显示聚合字段图表信息 */}
         {!!this.showFieldsChart && this.isExpand && (
           <AggChart
-            date-picker-value={this.datePickerValue}
             field-name={this.fieldItem.field_name}
             field-type={this.fieldItem.field_type}
             parent-expand={this.isExpand}
+            re-query-agg-chart={this.reQueryAggChart}
             retrieve-params={this.retrieveParams}
           />
         )}
