@@ -53,6 +53,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
+        ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),
         (
@@ -64,15 +65,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS", slz.IntegerField(label="计算平台中结果表(HDFS)默认保存天数", default=180)),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_NAME",
-            slz.CharField(label="计算平台 MYSQL 存储集群名称", default="default", allow_blank=True),
+            slz.CharField(label="计算平台 MYSQL 存储集群名称", default="mysql-default", allow_blank=True),
         ),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
-            slz.CharField(label="计算平台 SQL 类存储集群类型", default="mysql_storage", allow_blank=True),
-        ),
-        (
-            "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
-            slz.CharField(label="计算平台 SQL 类存储集群类型", default="mysql_storage", allow_blank=True),
+            slz.CharField(label="计算平台 MYSQL类 存储类型", default="mysql_storage", allow_blank=True),
         ),
         (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
@@ -103,6 +100,17 @@ ADVANCED_OPTIONS = OrderedDict(
         (
             "BK_DATA_METRIC_RECOMMEND_SOURCE_PROCESSING_ID",
             slz.CharField(label="指标推荐 FLOW 数据源", default="ieod_system_multivariate_delay"),
+        ),
+        (
+            "BK_DATA_AIOPS_INCIDENT_BROKER_URL",
+            slz.CharField(
+                label=_("故障接入的 RabbitMQ 地址"),
+                default="amqp://bkbase-rabbitmq.bkbase.svc.cluster.local:5672/aiops_incident",
+            ),
+        ),
+        (
+            "BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE",
+            slz.CharField(label=_("故障接入队列名"), default="aiops_incident"),
         ),
         # === AIOPS 相关配置 结束 ===
         ("EVENT_NO_DATA_TOLERANCE_WINDOW_SIZE", slz.IntegerField(label="Event 模块最大容忍无数据周期数", default=5)),

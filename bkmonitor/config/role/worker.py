@@ -545,3 +545,7 @@ BKDATA_FLOW_HDFS_CLUSTER = os.environ.get("BKDATA_FLOW_HDFS_CLUSTER", "hdfsOnlin
 
 # 单次build告警的event数量设置
 MAX_BUILD_EVENT_NUMBER = 0
+
+# AIOPS 故障分析结果同步队列
+AIOPS_INCIDENT_BROKER_URL = os.environ.get("AIOPS_INCIDENT_BROKER_URL", "")
+AIOPS_INCIDENT_SYNC_QUEUE = os.environ.get("AIOPS_INCIDENT_SYNC_QUEUE", "")

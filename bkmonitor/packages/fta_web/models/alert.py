@@ -23,12 +23,14 @@ class SearchType:
     ALERT = "alert"
     EVENT = "event"
     ACTION = "action"
+    INCIDENT = "incident"
 
 
 SEARCH_TYPE_CHOICES = (
     (SearchType.ALERT, _("告警")),
     (SearchType.EVENT, _("事件")),
     (SearchType.ACTION, _("处理动作")),
+    (SearchType.INCIDENT, _("故障")),
 )
 
 

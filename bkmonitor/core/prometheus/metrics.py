@@ -150,6 +150,12 @@ ACCESS_TOKEN_FORBIDDEN_COUNT = Counter(
     documentation="access 流控限制次数",
 )
 
+ACCESS_INCIDENT_PROCESS_COUNT = Counter(
+    name="bkmonitor_access_incident_process_count",
+    documentation="access(incident) 模块处理次数",
+    labelnames=("status", "exception"),
+)
+
 # detect
 DETECT_PROCESS_TIME = Histogram(
     name="bkmonitor_detect_process_time",

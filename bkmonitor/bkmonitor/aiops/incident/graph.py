@@ -9,26 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from dataclasses import dataclass
 
-from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
-
-from .alert import AccessAlertProcess
-from .data import AccessDataProcess, AccessRealTimeDataProcess
-from .incident import AccessIncidentProcess
+from bkmonitor.documents.incident import IncidentDocument
 
 
-class AccessType(object):
-    Data = "data"
-    RealTimeData = "real_time_data"
-    Alert = "alert"
-    Event = "event"
-    Incident = "incident"
+@dataclass
+class IncidentBaseGraph:
+    incident: IncidentDocument
 
-
-ACCESS_TYPE_TO_CLASS = {
-    AccessType.Data: AccessDataProcess,
-    AccessType.RealTimeData: AccessRealTimeDataProcess,
-    AccessType.Alert: AccessAlertProcess,
-    AccessType.Event: AccessCustomEventGlobalProcess,  # no use
-    AccessType.Incident: AccessIncidentProcess,
-}
+    def prepare(self):
+        pass

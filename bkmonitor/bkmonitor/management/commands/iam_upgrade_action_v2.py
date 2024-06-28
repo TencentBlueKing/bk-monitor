@@ -23,20 +23,20 @@ import sys
 import time
 from typing import List
 
-from apm_web.models import Application
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from iam.api.http import http_post
 from iam.auth.models import Action
 from iam.auth.models import ApiBatchAuthRequest as OldApiBatchAuthRequest
 from iam.auth.models import ApiBatchAuthResourceWithPath, Subject
+from iam.contrib.iam_migration.migrator import IAMMigrator
 from iam.exceptions import AuthAPIError
 
+from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.iam.action import ActionMeta, get_action_by_id
 from bkmonitor.utils.thread_backend import ThreadPool
-from iam.api.http import http_post
-from iam.contrib.iam_migration.migrator import IAMMigrator
 
 ACTIONS_TO_UPGRADE = [
     ActionEnum.VIEW_BUSINESS,
@@ -68,6 +68,8 @@ ACTIONS_TO_UPGRADE = [
     ActionEnum.IMPORT_CONFIG,
     ActionEnum.VIEW_APM_APPLICATION,
     ActionEnum.MANAGE_APM_APPLICATION,
+    ActionEnum.VIEW_INCIDENT,
+    ActionEnum.MANAGE_INCIDENT,
 ]
 
 

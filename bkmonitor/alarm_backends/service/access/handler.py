@@ -25,6 +25,7 @@ from alarm_backends.service.access.data.processor import AccessRealTimeDataProce
 from alarm_backends.service.access.tasks import (
     run_access_data,
     run_access_event_handler,
+    run_access_incident_handler,
 )
 from bkmonitor.utils.beater import MonitorBeater
 from bkmonitor.utils.common_utils import safe_int
@@ -198,6 +199,13 @@ class AccessHandler(base.BaseHandler):
                 continue
             self.run_access(run_access_event_handler, data_id)
 
+    def handle_incident(self) -> None:
+        self.run_access(
+            run_access_incident_handler,
+            settings.BK_DATA_AIOPS_INCIDENT_BROKER_URL,
+            settings.BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE,
+        )
+
     def handle(self):
         if self.access_type == AccessType.Data:
             self.handle_data()
@@ -205,6 +213,8 @@ class AccessHandler(base.BaseHandler):
             self.handle_real_time()
         elif self.access_type == AccessType.Event:
             self.handle_event()
+        elif self.access_type == AccessType.Incident:
+            self.handle_incident()
 
     @staticmethod
     def run_access(access_func, *args):

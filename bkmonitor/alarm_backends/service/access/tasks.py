@@ -16,6 +16,7 @@ from alarm_backends.service.access import ACCESS_TYPE_TO_CLASS
 from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDataProcess
 from alarm_backends.service.access.data.token import TokenBucket
 from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
+from alarm_backends.service.access.incident import AccessIncidentProcess
 from core.prometheus import metrics
 
 
@@ -59,3 +60,12 @@ def run_access_event_handler(data_id):
     processor = AccessCustomEventGlobalProcess(data_id=data_id)
     processor.process()
     metrics.report_all()
+
+
+@task(ignore_result=True, queue="celery_service_access_incident")
+def run_access_incident_handler(incident_broker_url: str, queue_name: str):
+    """
+    故障分析结果同步处理器.
+    """
+    processor = AccessIncidentProcess(broker_url=incident_broker_url, queue_name=queue_name)
+    processor.process()
