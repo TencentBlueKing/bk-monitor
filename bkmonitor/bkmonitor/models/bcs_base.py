@@ -731,8 +731,17 @@ class BCSBase(models.Model):
             usage_data = usage["data"]
             usage_key = "resource_usage_" + usage_type
             for item in usage_data:
-                key = ".".join([item[group_key] for group_key in group_by])
-                keys = {group_key: item[group_key] for group_key in group_by}
+                keys = {}
+                for group_key in group_by:
+                    if group_key not in item:
+                        break
+                    keys[group_key] = item[group_key]
+
+                # 如果缺少某个分组字段，跳过
+                if len(keys) != len(group_by):
+                    continue
+
+                key = ".".join(keys.values())
                 # 获得旧的值
                 data_item = data.get(
                     key,

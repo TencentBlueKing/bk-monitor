@@ -23,17 +23,21 @@ import copy
 from unittest.mock import patch
 
 from django.test import TestCase
+from django_fakeredis import FakeRedis
 
 from apps.log_databus.models import CollectorConfig
-from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic import EsQueryBuilder
+from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic import (
+    EsQueryBuilder,
+)
 from apps.log_esquery.esquery.esquery import EsQuery
+from apps.log_esquery.serializers import EsQuerySearchAttrSerializer
 from apps.log_search.exceptions import (
+    IndexResultTableApiException,
     ScenarioNotSupportedException,
     ScenarioQueryIndexFailException,
-    IndexResultTableApiException,
 )
 from apps.log_search.models import Scenario
-from django_fakeredis import FakeRedis
+from apps.utils.drf import custom_params_valid
 
 BK_BIZ_ID = 2
 STORAGE_CLUSTER_NAME = "cluster_name"
@@ -256,6 +260,71 @@ STRING_WITH_NESTED_FIELD_DSL = {
 }
 
 STRING_WITH_FIELD_DSL = {"query_string": {"query": 'name: "Spongebob"', "analyze_wildcard": True}}
+
+SERIALIZER_PARAMS = {
+    "indices": "1_log_test,2_log_tes",
+    "scenario_id": "es",
+    "storage_cluster_id": 6,
+    "start_time": "2024-06-14 10:40:36",
+    "end_time": "2024-06-14 10:55:36",
+    "query_string": "*",
+    "filter": [],
+    "sort_list": [["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]],
+    "start": 0,
+    "size": 50,
+    "aggs": {},
+    "highlight": {
+        "pre_tags": ["<mark>"],
+        "post_tags": ["</mark>"],
+        "fields": {"*": {"number_of_fragments": 0}},
+        "require_field_match": False,
+    },
+    "use_time_range": True,
+    "time_zone": "Asia/Shanghai",
+    "time_range": None,
+    "time_field": "dtEventTimeStamp",
+    "time_field_type": "date",
+    "time_field_unit": "second",
+    "scroll": None,
+    "collapse": None,
+    "include_nested_fields": False,
+}
+
+SERIALIZER_RESULT = {
+    "index_set_id": None,
+    "indices": "1_log_test,2_log_tes",
+    "scenario_id": "es",
+    "storage_cluster_id": 6,
+    "time_field": "dtEventTimeStamp",
+    "time_field_type": "date",
+    "time_field_unit": "second",
+    "use_time_range": True,
+    "include_start_time": True,
+    "include_end_time": True,
+    "start_time": "2024-06-14 10:40:36",
+    "end_time": "2024-06-14 10:55:36",
+    "time_range": None,
+    "time_zone": "Asia/Shanghai",
+    "query_string": "*",
+    "filter": [],
+    "sort_list": [["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]],
+    "start": 0,
+    "size": 50,
+    "dtEventTimeStamp": None,
+    "search_type_tag": "search",
+    "aggs": {},
+    "highlight": {
+        "pre_tags": ["<mark>"],
+        "post_tags": ["</mark>"],
+        "fields": {"*": {"number_of_fragments": 0}},
+        "require_field_match": False,
+    },
+    "collapse": None,
+    "search_after": [],
+    "track_total_hits": True,
+    "scroll": None,
+    "include_nested_fields": False,
+}
 
 
 @FakeRedis("apps.utils.cache.cache")
@@ -521,3 +590,36 @@ class TestEsquery(TestCase):
         params = copy.deepcopy(NESTED_FIELDS_MAPPING)
         res = EsQueryBuilder.build_query_string('name: "Spongebob"', params).to_dict().get("query")
         self.assertEqual(res, STRING_WITH_FIELD_DSL)
+
+    def test_params_valid_serializer(self):
+        """
+        测试params_valid内部执行的 serializer序列化
+        """
+        serialize_params = copy.deepcopy(SERIALIZER_PARAMS)
+        serialize_result = copy.deepcopy(SERIALIZER_RESULT)
+        scenario_ids = ["es", "log", "bkdata"]
+
+        for scenario_id in scenario_ids:
+            serialize_params.update({"scenario_id": scenario_id})
+            serialize_result.update({"scenario_id": scenario_id})
+            # 验证不传入track_total_hits的情况
+            serialize_params.pop("track_total_hits", "pass")
+            serialize_result.pop("track_total_hits", "pass")
+            res = custom_params_valid(EsQuerySearchAttrSerializer, serialize_params)
+            if scenario_id in ["es", "log"]:
+                serialize_result.update({"track_total_hits": True})
+            elif scenario_id == "bkdata":
+                serialize_result.update({"track_total_hits": False})
+            self.assertEqual(res, serialize_result)
+
+            # 验证track_total_hits为True的情况
+            serialize_params.update({"track_total_hits": True})
+            serialize_result.update({"track_total_hits": True})
+            res = custom_params_valid(EsQuerySearchAttrSerializer, serialize_params)
+            self.assertEqual(res, serialize_result)
+
+            # 验证track_total_hits为False的情况
+            serialize_params.update({"track_total_hits": False})
+            serialize_result.update({"track_total_hits": False})
+            res = custom_params_valid(EsQuerySearchAttrSerializer, serialize_params)
+            self.assertEqual(res, serialize_result)

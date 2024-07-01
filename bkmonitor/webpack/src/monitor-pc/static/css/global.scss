@@ -8,7 +8,7 @@
 }
 
 .collapse-transition {
-  transition: .3s height ease-in-out;
+  transition: 0.3s height ease-in-out;
 }
 
 .tippy-tooltip {
@@ -20,7 +20,7 @@
   .tippy-roundarrow {
     position: absolute;
     width: 0;
-    height: 0
+    height: 0;
   }
 
   &.common-monitor-theme {
@@ -105,16 +105,16 @@
 
   &.shield-theme {
     border-radius: 2px;
-    box-shadow: 0px 1px 4px 0px rgba(196,198,204,1);
+    box-shadow: 0px 1px 4px 0px rgba(196, 198, 204, 1);
   }
 
   &.table-filter-theme {
     border-radius: 2px;
-    box-shadow: 0px 1px 4px 0px rgba(196,198,204,1);
+    box-shadow: 0px 1px 4px 0px rgba(196, 198, 204, 1);
   }
 
   &.strategy-remind-theme {
-    box-shadow: 0px 3px 12px 0px rgba(0,0,0,.2);
+    box-shadow: 0px 3px 12px 0px rgba(0, 0, 0, 0.2);
 
     .tippy-arrow {
       left: 0 !important;
@@ -168,7 +168,7 @@
   min-width: 88px;
 }
 
-.codicon[class*=codicon-] {
+.codicon[class*='codicon-'] {
   font-family: 'codicon' !important;
 }
 
@@ -267,7 +267,7 @@
       background-color: #dbdce0;
       border-left: none;
     }
-    
+
     &.darg-ing,
     &:hover {
       cursor: col-resize;
@@ -285,9 +285,9 @@
 // 初始化popver弹层样式
 .common-popover-theme {
   width: 100%;
-  padding: 0!important;
+  padding: 0 !important;
   border-radius: 0;
-  box-shadow: 0 0 6px rgba(204, 204, 204, .3);
+  box-shadow: 0 0 6px rgba(204, 204, 204, 0.3);
 
   .tippy-backdrop {
     opacity: 0 !important;
@@ -351,14 +351,14 @@
   }
 
   .bk-form-input[readonly] {
-    border-bottom-color: #c4c6cc!important;
+    border-bottom-color: #c4c6cc !important;
   }
 }
 
 .monitor-chart-tooltips {
   z-index: 12;
   display: flex;
-  flex-direction: column; 
+  flex-direction: column;
   border-radius: 4px;
   border-radius: 10px;
 
@@ -403,8 +403,8 @@
         padding: 0 5px;
         // flex: 1;
         margin-left: auto;
-        color: rgba(255,255,255, .8);
-        background-color: rgba(1,1,1,.8);
+        color: rgba(255, 255, 255, 0.8);
+        background-color: rgba(1, 1, 1, 0.8);
         border-radius: 3px;
       }
     }
@@ -412,7 +412,7 @@
 }
 
 .bk-table-column-setting {
-  border-bottom: 1px solid #dfe0e5 !important;;
+  border-bottom: 1px solid #dfe0e5 !important;
 }
 
 .bk-table-setting-popover-content-theme.tippy-tooltip {
@@ -475,7 +475,7 @@
     top: 0;
     bottom: 0;
     content: '';
-    background: linear-gradient(90deg, rgba(0, 0, 0, .06) 25%, rgba(0, 0, 0, .15) 37%, rgba(0, 0, 0, .06) 63%);
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.15) 37%, rgba(0, 0, 0, 0.06) 63%);
     animation-name: skeleton-loading;
     animation-duration: 1.4s;
     animation-timing-function: ease;
@@ -495,4 +495,8 @@
   100% {
     transform: translateX(37.5%);
   }
+}
+// 通用的v3 search select组件暂时解决menu宽度问题
+.vue3-bk-search-select-menu .menu-content .menu-item .menu-name {
+  max-width: inherit !important;
 }
