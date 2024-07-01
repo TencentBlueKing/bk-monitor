@@ -74,6 +74,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    classify: {
+      type: Object as PropType<Record<string, string>>,
+      default: () => null,
+    },
   },
   setup(props) {
     const store = useTraceStore();
@@ -144,12 +148,42 @@ export default defineComponent({
       { immediate: true }
     );
 
+    watch(
+      () => props.classify,
+      classify => {
+        setTimeout(() => {
+          if (!!classify) {
+            if (classify.type === 'service') {
+              const filterValue = classify.filter_value;
+              nodes.value.forEach(item => {
+                if (item.id === filterValue) {
+                  handleNodeClick(item);
+                }
+              });
+            } else if (classify.type === 'max_duration') {
+              const filterValue = classify.filter_value;
+              edges.value.some(item => {
+                return item.data.spans.some(s => {
+                  if (filterValue === s.duration) {
+                    setEdgeSelected([item.id]);
+                    handleEditSpanList(item.data.spans);
+                    return true;
+                  }
+                  return false;
+                });
+              });
+            }
+          }
+        }, 100);
+      }
+    );
+
     /**
      * @description 自动布局节点位置
      * @param direction
      */
     function layoutGraph(direction: string) {
-      nodes.value = layout(nodes.value, edges.value, direction, 80);
+      nodes.value = layout(nodes.value, edges.value, direction, 100);
       nextTick(() => {
         const wrapWidth = graphContainer.value.clientWidth;
         const rootX = nodes.value.filter(item => !!item?.data?.is_root)?.[0]?.position?.x || 0;
@@ -239,8 +273,8 @@ export default defineComponent({
      * @description 节点点击事件
      * @param node
      */
-    function handleNodeClick(node, _e: Event) {
-      _e.stopPropagation();
+    function handleNodeClick(node, _e?: Event) {
+      _e?.stopPropagation();
       selectedNodeKey.value = node.data.key;
       const edgesIds = edges.value.filter(e => e.target === node.data.key).map(e => e.id);
       setEdgeSelected(edgesIds);
