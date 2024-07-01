@@ -31,6 +31,12 @@ class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return self.__doc__
 
 
+class LogSearchAPIByApiGwResource(LogSearchAPIGWResource):
+    """仅通过 APIGW 访问日志平台API"""
+
+    base_url = settings.BKLOGSEARCH_API_GW_BASE_URL
+
+
 class IndexSetResource(LogSearchAPIGWResource):
     def get_request_url(self, validated_request_data):
         """
@@ -328,7 +334,7 @@ class SearchPatternResource(LogSearchAPIGWResource):
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
 
 
-class ListEsRouterResource(LogSearchAPIGWResource):
+class ListEsRouterResource(LogSearchAPIByApiGwResource):
     """获取Es的结果表"""
 
     action = "/index_set/list_es_router/"

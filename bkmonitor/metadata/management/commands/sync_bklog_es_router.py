@@ -28,45 +28,52 @@ class Command(BaseCommand):
     DEFAULT_QUEUE_MAX_SIZE = 100000
 
     def handle(self, *args, **options):
-        if self._can_refresh():
+        if not self._can_refresh():
             self.stdout.write("data exists, skip refresh")
             return
 
         # 获取数据
         data_queue = self._list_es_router()
+        if data_queue.empty():
+            self.stdout.write("no data, skip refresh")
+            return
+
+        # 组装数据
         es_router_list = []
         while not data_queue.empty():
             _data = data_queue.get()
             es_router_list.extend(_data)
 
         # 批量创建或更新结果表及 es 存储
-        update_space_set, update_rt_set = self._update_or_create_es_data(es_router_list)
+        update_space_set, update_rt_set, update_data_label_set = self._update_or_create_es_data(es_router_list)
         # 推送并发布
-        self._push_and_publish(update_space_set, update_rt_set)
+        self._push_and_publish(update_space_set, update_rt_set, update_data_label_set)
 
         self.stdout.write("sync bklog es router success")
 
     def _can_refresh(self):
         """判断是否可以刷新"""
         # 如果存在索引集的数据，则认为不需要拉取历史数据
-        if models.ESStorage.objects.exclude(index_set=None).exists():
-            return True
-        return False
+        return not models.ESStorage.objects.exclude(index_set=None).exclude(index_set="").exists()
 
     def _list_es_router(self) -> Queue:
         # 拉取总数量
-        data = api.log_search.list_es_router()
+        try:
+            data = api.log_search.list_es_router()
+        except Exception as e:
+            self.stderr.write(f"failed to list es router, err: {e}")
+            return Queue()
         total = data.get("total") or 0
         # 如果数据为空，则直接返回
         if total == 0:
-            return []
+            return Queue()
 
         page_total = total // self.PAGE_SIZE if total % self.PAGE_SIZE == 0 else total // self.PAGE_SIZE + 1
 
         # 批量拉取接口数据
         threads = []
         data_queue = Queue(maxsize=self.DEFAULT_QUEUE_MAX_SIZE)
-        for page in range(0, page_total):
+        for page in range(1, page_total + 1):
             t = threading.Thread(target=self._request_es_router, args=(page, data_queue))
             t.start()
             threads.append(t)
@@ -119,7 +126,7 @@ class Command(BaseCommand):
         # 组装数据
         space_and_biz = self._get_biz_id_by_space(space_type_and_id)
         rt_obj_list, es_obj_list = [], []
-        update_space_set, update_rt_set = set(), set()
+        update_space_set, update_rt_set, update_data_label_set = set(), set(), set()
         for tid, info in tid_info.items():
             # 过滤已经存在或者数据为空的数据
             if tid in exist_tid_list or (not info.get("cluster_id")):
@@ -127,6 +134,7 @@ class Command(BaseCommand):
             # 记录需要更新的空间
             update_space_set.add(tuple(info["space_uid"].split("__")))
             update_rt_set.add(tid)
+            update_data_label_set.add(info["data_label"])
             # 组装结果表的数据
             rt_obj_list.append(
                 models.ResultTable(
@@ -136,6 +144,7 @@ class Command(BaseCommand):
                     default_storage=models.ClusterInfo.TYPE_ES,
                     creator="system",
                     bk_biz_id=space_and_biz.get(info["space_uid"], 0),
+                    data_label=info["data_label"],
                 )
             )
             es_obj_list.append(
@@ -151,9 +160,9 @@ class Command(BaseCommand):
             models.ResultTable.objects.bulk_create(rt_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
             models.ESStorage.objects.bulk_create(es_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
 
-        return update_space_set, update_rt_set
+        return update_space_set, update_rt_set, update_data_label_set
 
-    def _push_and_publish(self, update_space_set: Set, update_rt_set: Set):
+    def _push_and_publish(self, update_space_set: Set, update_rt_set: Set, update_data_label_set: Set):
         """推送并发布"""
         client = SpaceTableIDRedis()
         # 如果为空时，则不需要进行路由更新
@@ -162,5 +171,7 @@ class Command(BaseCommand):
         # 推送空间
         for space_type, space_id in update_space_set:
             client.push_space_table_ids(space_type, space_id, is_publish=True)
+        # 推送标签
+        client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
         # 推送详情
         client.push_table_id_detail(list(update_rt_set), is_publish=True, include_es_table_ids=True)
