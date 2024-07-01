@@ -37,7 +37,7 @@ from apps.iam.handlers.drf import (
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario, SpaceApi
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     CreateIndexSetTagSerializer,
@@ -292,26 +292,45 @@ class IndexSetViewSet(ModelViewSet):
     def list_es_router(self, request):
         params = self.params_valid(ESRouterListSerializer)
         router_list = []
-        if not params.get("space_uid", ""):
+        qs = LogIndexSet.objects.all()
+        if params.get("scenario_id", ""):
+            qs = qs.filter(scenario_id=params["scenario_id"])
+
+        if params.get("space_uid", ""):
+            qs = qs.filter(space_uid=params["space_uid"])
+        else:
             space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
-            index_set_id_list = list(
-                LogIndexSet.objects.filter(space_uid__in=space_uids).values_list("index_set_id", flat=True)
-            )
-            params["index_set_id_list"] = ",".join([str(index_set_id) for index_set_id in index_set_id_list])
-        response = self.list(request, **params)
-        for index_set in response.data["list"]:
+            qs = qs.filter(space_uid__in=space_uids)
+
+        qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
+        index_set_ids = list(qs.values_list("index_set_id", flat=True))
+        index_set_list = list(qs.values("scenario_id", "space_uid", "storage_cluster_id", "index_set_id"))
+        index_set_dict = {
+            index_set["index_set_id"]: index_set for index_set in index_set_list if index_set.get("index_set_id")
+        }
+        index_list = list(
+            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "result_table_id")
+        )
+        for index in index_list:
+            index_set = index_set_dict.get(index["index_set_id"], {})
+            if index_set:
+                if index_set.get("indexes", []):
+                    index_set["indexes"].append(index)
+                else:
+                    index_set["indexes"] = [index]
+
+        for index_set_id, index_set in index_set_dict.items():
             router_list.append(
                 {
                     "cluster_id": index_set["storage_cluster_id"],
                     "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
                     "source_type": index_set["scenario_id"],
-                    "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set["index_set_id"]),
+                    "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set_id),
                     "table_id": self.get_rt_id(index_set),
                     "space_uid": index_set["space_uid"],
                 }
             )
-        response.data["list"] = router_list
-        return response
+        return Response(router_list)
 
     def retrieve(self, request, *args, **kwargs):
         """
