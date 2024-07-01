@@ -795,4 +795,7 @@ export default {
   点击显示: 'Click to display',
   暂不支持: 'Not supported',
   查询时段: 'Query period',
+  字段在该事件范围内有数据的日志条数: 'The number of log entries whose fields have data within the event range.',
+  '计算规则：出现行数/总行数。若该值不为100%，该字段存在空值。':
+    'Calculation rule: number of rows/total number of rows. If the value is not 100%, there is a null value in the field.',
 };

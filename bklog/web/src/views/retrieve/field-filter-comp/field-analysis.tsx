@@ -33,6 +33,7 @@ import $http from '../../../api';
 import { deepClone, formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
+import store from '@/store';
 
 import './field-analysis.scss';
 const CancelToken = axios.CancelToken;
@@ -55,6 +56,8 @@ const timeSeriesBase = {
 
 /** 柱状图基础高度 */
 const PILLAR_CHART_BASE_HEIGHT = 236;
+/** 柱状图英文情况下的基础高度 */
+const PILLAR_CHART_EN_BASE_HEIGHT = 220;
 /** 折线图图基础高度 */
 const LINE_CHART_BASE_HEIGHT = 270;
 /** 柱状图图高度盒子 保证图表出来后popover总高度不变 */
@@ -74,7 +77,7 @@ export default class FieldAnalysis extends Vue {
 
   chart = null;
   /** 图表高度 */
-  height = PILLAR_CHART_BASE_HEIGHT;
+  height = 0;
   /** 图例数据 */
   legendData = [];
   /** 所有的分组数据 */
@@ -121,6 +124,10 @@ export default class FieldAnalysis extends Vue {
       return `${window.mainComponent.$t('查询时段')}: ${dayjs.unix(startTime).format(pillarFormatStr)} - ${dayjs.unix(endTime).format(pillarFormatStr)}`;
     }
     return '';
+  }
+
+  get pillarChartHeight() {
+    return store.getters.isEnLanguage ? PILLAR_CHART_EN_BASE_HEIGHT : PILLAR_CHART_BASE_HEIGHT;
   }
 
   @Watch('currentPageNum')
@@ -204,6 +211,7 @@ export default class FieldAnalysis extends Vue {
       this.isShowEmpty = false;
       // 分折线图和柱状图显示
       if (this.isPillarChart) {
+        this.height = this.pillarChartHeight;
         const resData = res.data;
         if (!resData.length) {
           this.isShowEmpty = true;
@@ -505,12 +513,20 @@ export default class FieldAnalysis extends Vue {
             <span class='total-num'>
               {window.mainComponent.$t('总行数')} : {formatNumberWithRegex(this.fieldData.total_count)}
             </span>
-            <span class='appear-num'>
+            <span
+              class='appear-num'
+              v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
+            >
               {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(this.fieldData.field_count)}
             </span>
           </div>
           <div class='log-num-container'>
-            <div class='num-box'>
+            <div
+              class='num-box'
+              v-bk-tooltips={{
+                content: window.mainComponent.$t('计算规则：出现行数/总行数。若该值不为100%，该字段存在空值。'),
+              }}
+            >
               <span class='num-val'>
                 <span class='log-num'>{this.fieldData.field_percent * 100}</span>
                 <span class='log-unit'>%</span>
