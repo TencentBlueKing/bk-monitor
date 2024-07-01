@@ -156,7 +156,7 @@ export default defineComponent({
           if (!!classify) {
             if (classify.type === 'service') {
               const filterValue = classify.filter_value;
-              nodes.value.forEach(item => {
+              nodes.value.some(item => {
                 if (item.id === filterValue) {
                   handleNodeClick(item);
                   fitView({
@@ -166,7 +166,9 @@ export default defineComponent({
                     const params = getViewport();
                     zoomValue.value = zoomValueFormat(params.zoom);
                   });
+                  return true;
                 }
+                return false;
               });
             } else if (classify.type === 'max_duration') {
               const filterValue = classify.filter_value;
