@@ -12,12 +12,6 @@ specific language governing permissions and limitations under the License.
 import pytest
 from django.utils import timezone
 from kubernetes.client.api.custom_objects_api import CustomObjectsApi
-from monitor_web.scene_view.resources.kubernetes import (
-    GetKubernetesCpuAnalysis,
-    GetKubernetesDiskAnalysis,
-    GetKubernetesMemoryAnalysis,
-    GetKubernetesOverCommitAnalysis,
-)
 
 from api.bcs_cluster_manager.default import FetchClustersResource
 from api.bcs_storage.default import BcsStorageBaseResource, FetchResource
@@ -33,7 +27,6 @@ from api.kubernetes.default import (
     FetchK8sBkmMetricbeatEndpointUpResource,
     FetchK8sEventListResource,
     FetchK8sEventLogResource,
-    FetchK8sMonitorEndpointList,
     FetchK8sNodePerformanceResource,
     FetchK8sPodListByClusterResource,
     FetchK8sWorkloadListByClusterResource,
@@ -58,6 +51,12 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from metadata.models.bcs import BCSClusterInfo
+from monitor_web.scene_view.resources.kubernetes import (
+    GetKubernetesCpuAnalysis,
+    GetKubernetesDiskAnalysis,
+    GetKubernetesMemoryAnalysis,
+    GetKubernetesOverCommitAnalysis,
+)
 
 
 @pytest.fixture
@@ -2642,32 +2641,12 @@ MOCK_KUBERNETES_FETCH_K8S_FETCH_CONTAINER_USAGE = [
         "usage_type": "cpu",
         "data": [
             {
-                "container_name": "api",
-                "namespace": "namespace",
-                "pod_name": "api-beat-77c5869696-dc4lj",
+                "bcs_cluster_id": "BCS-K8S-00000",
+                "namespace": "bcs-system",
+                "pod_name": "api-gateway-0",
+                "container_name": "apisix",
                 "_time_": 1653128820000,
                 "_result_": 0.0008446444444444978,
-            },
-            {
-                "container_name": "api",
-                "namespace": "namespace",
-                "pod_name": "api-web-5fc88fff94-d6sk2",
-                "_time_": 1653128820000,
-                "_result_": 0.019931466666669926,
-            },
-            {
-                "container_name": "api",
-                "namespace": "namespace",
-                "pod_name": "api-worker-79df54ffdb-7t66d",
-                "_time_": 1653128820000,
-                "_result_": 0.0027477777777777292,
-            },
-            {
-                "container_name": "api-server",
-                "namespace": "namespace",
-                "pod_name": "api-server-79dccc877b-6nmbw",
-                "_time_": 1653128820000,
-                "_result_": 0.017046800000005326,
             },
         ],
     },
@@ -2675,32 +2654,20 @@ MOCK_KUBERNETES_FETCH_K8S_FETCH_CONTAINER_USAGE = [
         "usage_type": "memory",
         "data": [
             {
-                "container_name": "POD",
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
                 "pod_name": "api-gateway-0",
+                "container_name": "apisix",
                 "_time_": 1653128820000,
                 "_result_": 131072,
             },
             {
-                "container_name": "POD",
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
-                "pod_name": "api-gateway-etcd-0",
+                "pod_name": "api-gateway-0",
+                "container_name": "gateway-discovery",
                 "_time_": 1653128820000,
-                "_result_": 131072,
-            },
-            {
-                "container_name": "POD",
-                "namespace": "bcs-system",
-                "pod_name": "replicaSet-cl9mc",
-                "_time_": 1653128820000,
-                "_result_": 131072,
-            },
-            {
-                "container_name": "POD",
-                "namespace": "bcs-system",
-                "pod_name": "bcs-etcd-0",
-                "_time_": 1653128820000,
-                "_result_": 131072,
+                "_result_": 131073,
             },
         ],
     },
@@ -2708,32 +2675,20 @@ MOCK_KUBERNETES_FETCH_K8S_FETCH_CONTAINER_USAGE = [
         "usage_type": "disk",
         "data": [
             {
-                "container_name": "POD",
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
                 "pod_name": "api-gateway-0",
+                "container_name": "apisix",
                 "_time_": 1653128820000,
-                "_result_": 131072,
+                "_result_": 131074,
             },
             {
-                "container_name": "POD",
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
-                "pod_name": "api-gateway-etcd-0",
+                "pod_name": "api-gateway-0",
+                "container_name": "gateway-discovery",
                 "_time_": 1653128820000,
-                "_result_": 131072,
-            },
-            {
-                "container_name": "POD",
-                "namespace": "bcs-system",
-                "pod_name": "replicaSet-cl9mc",
-                "_time_": 1653128820000,
-                "_result_": 131072,
-            },
-            {
-                "container_name": "POD",
-                "namespace": "bcs-system",
-                "pod_name": "bcs-etcd-0",
-                "_time_": 1653128820000,
-                "_result_": 131072,
+                "_result_": 131075,
             },
         ],
     },
@@ -2744,28 +2699,11 @@ MOCK_KUBERNETES_FETCH_K8S_FETCH_POD_USAGE = [
         "usage_type": "cpu",
         "data": [
             {
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
                 "pod_name": "api-gateway-0",
                 "_time_": 1653136140000,
                 "_result_": 0.020947444444443082,
-            },
-            {
-                "namespace": "bcs-system",
-                "pod_name": "api-gateway-etcd-0",
-                "_time_": 1653136140000,
-                "_result_": 0.13782395555556123,
-            },
-            {
-                "namespace": "bcs-system",
-                "pod_name": "replicaSet-cl9mc",
-                "_time_": 1653136140000,
-                "_result_": 0.001589044444444375,
-            },
-            {
-                "namespace": "bcs-system",
-                "pod_name": "bcs-etcd-0",
-                "_time_": 1653136140000,
-                "_result_": 0.018255544444441003,
             },
         ],
     },
@@ -2773,48 +2711,38 @@ MOCK_KUBERNETES_FETCH_K8S_FETCH_POD_USAGE = [
         "usage_type": "memory",
         "data": [
             {
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
                 "pod_name": "api-gateway-0",
                 "_time_": 1653136140000,
                 "_result_": 826540032,
             },
             {
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
-                "pod_name": "api-gateway-etcd-0",
+                "pod_name": "api-gateway-1",
                 "_time_": 1653136140000,
                 "_result_": 195993600,
             },
-            {
-                "namespace": "bcs-system",
-                "pod_name": "replicaSet-cl9mc",
-                "_time_": 1653136140000,
-                "_result_": 62799872,
-            },
-            {"namespace": "bcs-system", "pod_name": "bcs-etcd-0", "_time_": 1653136140000, "_result_": 112492544},
         ],
     },
     {
         "usage_type": "disk",
         "data": [
             {
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
                 "pod_name": "api-gateway-0",
                 "_time_": 1653136140000,
                 "_result_": 330514432,
             },
             {
+                "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "bcs-system",
-                "pod_name": "api-gateway-etcd-0",
+                "pod_name": "api-gateway-1",
                 "_time_": 1653136140000,
                 "_result_": 5210112,
             },
-            {
-                "namespace": "bcs-system",
-                "pod_name": "replicaSet-cl9mc",
-                "_time_": 1653136140000,
-                "_result_": 185204736,
-            },
-            {"namespace": "bcs-system", "pod_name": "bcs-etcd-0", "_time_": 1653136140000, "_result_": 5275648},
         ],
     },
 ]
@@ -3220,9 +3148,9 @@ def monkeypatch_fetch_k8s_bkm_metricbeat_endpoint_up(monkeypatch):
 @pytest.fixture
 def monkeypatch_kubernetes_monitor_endpoint_list(monkeypatch):
     """返回一个集群的Node usage信息 ."""
-    monkeypatch.setattr(
-        FetchK8sMonitorEndpointList, "perform_request", lambda self, params: MOCK_KUBERNETES_MONITOR_ENDPOINT_LIST
-    )
+    # monkeypatch.setattr(
+    #     FetchK8sMonitorEndpointList, "perform_request", lambda self, params: MOCK_KUBERNETES_MONITOR_ENDPOINT_LIST
+    # )
 
 
 @pytest.fixture
@@ -4425,7 +4353,6 @@ def monkeypatch_kubernetes_fetch_k8s_event_log(monkeypatch):
 
 @pytest.fixture
 def monkeypatch_api_cmdb_get_host_by_topo_node(monkeypatch):
-
     mock_return_value = [
         Host(
             {
@@ -4496,7 +4423,6 @@ def monkeypatch_api_cmdb_get_host_by_topo_node(monkeypatch):
 
 @pytest.fixture
 def monkeypatch_api_cmdb_get_host_by_ip(monkeypatch):
-
     mock_return_value = [
         Host(
             {
