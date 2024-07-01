@@ -12,7 +12,13 @@ specific language governing permissions and limitations under the License.
 
 from celery import shared_task
 
+from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
+
 
 @shared_task
 def healthz(n):
     return -n
+
+
+def collect_redis_metric():
+    RedisMetricCollectReport().collect_report_redis_metric_data()
