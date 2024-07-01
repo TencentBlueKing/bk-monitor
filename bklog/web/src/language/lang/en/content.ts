@@ -37,7 +37,7 @@ export default {
   搜索收藏名: 'Search collection name',
   收藏名重复: 'Collection name duplicated',
   收藏名排序: 'Sort by collection name',
-  未完成配置: 'Incomplete configuration',
+  请先完成采集接入: 'Please complete the collection first',
   查看调用链: 'View trace',
   保存待生效: 'Saved and will take effect in 1 hour',
   索引集管理: 'Index set management',
@@ -795,4 +795,15 @@ export default {
   点击显示: 'Click to display',
   暂不支持: 'Not supported',
   查询时段: 'Query period',
+  字段在该事件范围内有数据的日志条数: 'The number of log entries whose fields have data within the event range.',
+  '计算规则：出现行数/总行数。若该值不为100%，该字段存在空值。':
+    'Calculation rule: number of rows/total number of rows. If the value is not 100%, there is a null value in the field.',
+  '当前采集项已配置基础清洗，无需重复配置':
+    'The current collection item has been configured with basic cleaning. Repeat the configuration.',
+  '自然语言分词，按照日常语法习惯进行分词':
+    'Natural language word segmentation, segmentation according to daily grammar habits.',
+  '支持自定义分词符，可按需自行配置符号进行分词':
+    'Supports custom word breakers, you can configure your own symbols for word breakers.',
+  '更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续':
+    'After changing the field type, an exception may occur when retrieving old and new data at the same time. Please confirm and continue.',
 };
