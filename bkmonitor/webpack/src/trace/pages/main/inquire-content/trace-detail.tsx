@@ -359,7 +359,12 @@ export default defineComponent({
         state.matchedSpanIds = isTopo ? mathesTopoNodeIds.length : matchesIds.length;
         if (state.activePanel === 'topo') {
           state.filterSpanIds = matchesIds;
-          state.filterSpanSubTitle = classify.type === 'service' ? (classify.filter_value as string) : classify.name;
+          if (
+            (topoType.value === ETopoType.service && ['service', 'max_duration'].includes(classify.type)) ||
+            topoType.value === ETopoType.time
+          ) {
+            state.filterSpanSubTitle = classify.type === 'service' ? (classify.filter_value as string) : classify.name;
+          }
           state.isCollapsefilter = false;
         }
       }
