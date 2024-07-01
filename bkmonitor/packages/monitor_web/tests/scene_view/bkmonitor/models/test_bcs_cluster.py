@@ -13,16 +13,34 @@ from django.conf import settings
 from django.forms.models import model_to_dict
 
 from api.bcs_storage.default import FetchResource
-from api.kubernetes.default import (
-    FetchK8sBkmMetricbeatEndpointUpResource,
-    FetchK8sClusterListResource,
-)
+from api.kubernetes.default import FetchK8sClusterListResource
 from bkmonitor.models.bcs_cluster import BCSCluster
 from core.testing import assert_list_contains
 
+DEFAULT_CLUSTER = "BCS-K8S-00000"
+pytestmark = pytest.mark.django_db(databases=["default", "monitor_api"])
+
+
+@pytest.fixture
+def mock_bulk_fetch_usage_ratios(mocker, request):
+    usages = {
+        DEFAULT_CLUSTER: {
+            "cpu_usage_ratio": 0.2,
+            "memory_usage_ratio": 0.3,
+            "disk_usage_ratio": 0.4,
+        }
+    }
+    # 模拟无数据返回
+    for k in request.param:
+        del usages[DEFAULT_CLUSTER][k]
+
+    return mocker.patch(
+        "core.drf_resource.api.kubernetes.bulk_fetch_usage_ratios",
+        return_value=usages,
+    )
+
 
 class TestBCSCluster:
-    @pytest.mark.django_db
     def test_load_list_from_api(
         self,
         monkeypatch,
@@ -99,7 +117,6 @@ class TestBCSCluster:
         ]
         assert_list_contains(actual, expect)
 
-    @pytest.mark.django_db
     def test_fetch_usage_ratio(
         self,
         monkeypatch,
@@ -117,107 +134,37 @@ class TestBCSCluster:
         expect = {'cpu': 2.46, 'disk': 7.82, 'memory': 27.74}
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_get_cluster_ids(self, add_bcs_cluster_item_for_update_and_delete):
         bk_biz_id = 2
         actual = BCSCluster.objects.get_cluster_ids(bk_biz_id)
         expect = ['BCS-K8S-00000', 'BCS-K8S-00001']
         assert actual == expect
 
-    @pytest.mark.django_db
+    @pytest.mark.parametrize(
+        "mock_bulk_fetch_usage_ratios, expected_usages, expected_monitor_status",
+        [
+            pytest.param([], (0.2, 0.3, 0.4), "success"),
+            pytest.param(["disk_usage_ratio"], (0.2, 0.3, 0), "success"),
+            pytest.param(["cpu_usage_ratio"], (0, 0.3, 0.4), "disabled"),
+        ],
+        indirect=["mock_bulk_fetch_usage_ratios"],
+    )
     def test_sync_resource_usage(
         self,
-        monkeypatch,
-        monkeypatch_cluster_management_fetch_clusters,
-        monkeypatch_bcs_storage_fetch_node_and_endpoints,
-        monkeypatch_bcs_kubernetes_fetch_usage_radio,
-        monkeypatch_fetch_k8s_bkm_metricbeat_endpoint_up,
         add_bcs_cluster_item_for_update_and_delete,
-        monkeypatch_had_bkm_metricbeat_endpoint_up,
+        mock_bulk_fetch_usage_ratios,
+        expected_usages,
+        expected_monitor_status,
     ):
-        monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
-        monkeypatch.setattr(FetchK8sClusterListResource, "cache_type", None)
-        monkeypatch.setattr(FetchK8sBkmMetricbeatEndpointUpResource, "cache_type", None)
-        bcs_cluster_id = "BCS-K8S-00000"
         bk_biz_id = 2
-        BCSCluster.sync_resource_usage(bk_biz_id, bcs_cluster_id)
-
-        actual = [model_to_dict(model) for model in BCSCluster.objects.all()]
-        expect = [
-            {
-                'alert_status': 'enabled',
-                'area_name': '',
-                'bcs_cluster_id': 'BCS-K8S-00000',
-                'bcs_monitor_data_source': 'prometheus',
-                'bk_biz_id': 2,
-                'bkmonitor_operator_deployed': False,
-                'bkmonitor_operator_first_deployed': None,
-                'bkmonitor_operator_last_deployed': None,
-                'bkmonitor_operator_version': None,
-                'cpu_usage_ratio': 2.46,
-                'data_source': 'api',
-                'deleted_at': None,
-                'disk_usage_ratio': 7.82,
-                'environment': 'prod',
-                'gray_status': False,
-                'labels': [],
-                'memory_usage_ratio': 27.74,
-                'monitor_status': 'success',
-                'name': '蓝鲸社区版7.0',
-                'node_count': 1,
-                'project_name': '',
-                'space_uid': 'bkci__test_bcs_project',
-                'status': 'RUNNING',
-            },
-            {
-                'alert_status': 'enabled',
-                'area_name': '',
-                'bcs_cluster_id': 'BCS-K8S-00001',
-                'bcs_monitor_data_source': 'prometheus',
-                'bk_biz_id': 2,
-                'bkmonitor_operator_deployed': False,
-                'bkmonitor_operator_first_deployed': None,
-                'bkmonitor_operator_last_deployed': None,
-                'bkmonitor_operator_version': None,
-                'cpu_usage_ratio': 36.982743483580045,
-                'data_source': 'api',
-                'deleted_at': None,
-                'disk_usage_ratio': 36.982743483580045,
-                'environment': 'prod',
-                'gray_status': False,
-                'labels': [],
-                'memory_usage_ratio': 36.982743483580045,
-                'monitor_status': 'success',
-                'name': '蓝鲸社区版7.0',
-                'node_count': 2,
-                'project_name': '',
-                'space_uid': "",
-                'status': 'RUNNING',
-            },
-            {
-                'alert_status': 'enabled',
-                'area_name': '',
-                'bcs_cluster_id': 'BCS-K8S-00002',
-                'bcs_monitor_data_source': 'prometheus',
-                'bk_biz_id': 100,
-                'bkmonitor_operator_deployed': False,
-                'bkmonitor_operator_first_deployed': None,
-                'bkmonitor_operator_last_deployed': None,
-                'bkmonitor_operator_version': None,
-                'cpu_usage_ratio': 37.982743483580045,
-                'data_source': 'api',
-                'deleted_at': None,
-                'disk_usage_ratio': 37.982743483580045,
-                'environment': 'prod',
-                'gray_status': False,
-                'labels': [],
-                'memory_usage_ratio': 37.982743483580045,
-                'monitor_status': 'success',
-                'name': '蓝鲸社区版7.0',
-                'node_count': 3,
-                'project_name': '',
-                'space_uid': 'bkci__test_shared_bcs_project',
-                'status': 'RUNNING',
-            },
-        ]
-        assert_list_contains(actual, expect)
+        BCSCluster.sync_resource_usage(bk_biz_id)
+        for cluster in BCSCluster.objects.filter(bk_biz_id=bk_biz_id):
+            actual_usages = cluster.cpu_usage_ratio, cluster.memory_usage_ratio, cluster.disk_usage_ratio
+            if cluster.bcs_cluster_id == DEFAULT_CLUSTER:
+                # 跟据线上数据更新
+                assert actual_usages == expected_usages
+                assert cluster.monitor_status == expected_monitor_status
+            else:
+                # 整个集群都无数据
+                assert actual_usages == (0, 0, 0)
+                assert cluster.monitor_status == BCSCluster.METRICS_STATE_DISABLED

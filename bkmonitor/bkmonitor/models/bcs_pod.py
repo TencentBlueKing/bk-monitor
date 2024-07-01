@@ -9,12 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-from typing import Dict
+from typing import Dict, List, Optional
 
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext as _
+from django_mysql.models import QuerySet
 
 from bkmonitor.models import BCSBase, BCSBaseManager, BCSBaseResources, BCSLabel
 from bkmonitor.utils.casting import force_float
@@ -65,6 +66,7 @@ class BCSPod(BCSBase, BCSBaseResources):
     pod_ip = models.CharField(max_length=64, null=True)
     images = models.TextField()
     restarts = models.IntegerField()
+    updated_at = models.DateTimeField(auto_now=True)
 
     request_cpu_usage_ratio = models.FloatField(verbose_name="CPU使用率(request)", null=True, default=0)
     limit_cpu_usage_ratio = models.FloatField(verbose_name="CPU使用率(limit)", null=True, default=0)
@@ -321,33 +323,10 @@ class BCSPod(BCSBase, BCSBaseResources):
 
     @classmethod
     def update_usage_resource_and_monitor_status(
-        cls, bk_biz_id: int, bcs_cluster_id: str, models: BCSBase, usages: Dict, monitor_status_map: Dict
+        cls, bk_biz_id: int, pods: QuerySet["BCSPod"], usages: Dict, monitor_status_map: Dict
     ) -> None:
         # 获得已存在的记录
-        old_unique_hash_map = {
-            model.unique_hash: (
-                model.resource_usage_cpu,
-                model.resource_usage_memory,
-                model.resource_usage_disk,
-                model.monitor_status,
-                model.request_cpu_usage_ratio,  # CPU使用率（request）
-                model.limit_cpu_usage_ratio,  # CPU使用率（limit）
-                model.request_memory_usage_ratio,  # 内存使用率（request）
-                model.limit_memory_usage_ratio,  # 内存使用率（limit）
-            )
-            for model in models
-        }
-
-        # 获得模板中的资源配置
-        spec_resources = {
-            model.unique_hash: {
-                "resource_requests_cpu": model.resource_requests_cpu,
-                "resource_requests_memory": model.resource_requests_memory,
-                "resource_limits_cpu": model.resource_limits_cpu,
-                "resource_limits_memory": model.resource_limits_memory,
-            }
-            for model in models
-        }
+        old_unique_hash_map = {pod.unique_hash: pod for pod in pods}
 
         # 获得新的记录
         new_unique_hash_map = {}
@@ -356,6 +335,7 @@ class BCSPod(BCSBase, BCSBaseResources):
             usage = item["usage"]
             namespace = keys["namespace"]
             name = keys["pod_name"]
+            bcs_cluster_id = keys["bcs_cluster_id"]
             unique_hash = cls.hash_unique_key(bk_biz_id, bcs_cluster_id, namespace, name)
             resource_usage_cpu = usage.get("resource_usage_cpu")
             if resource_usage_cpu:
@@ -363,73 +343,56 @@ class BCSPod(BCSBase, BCSBaseResources):
             resource_usage_memory = usage.get("resource_usage_memory")
             resource_usage_disk = usage.get("resource_usage_disk")
             # 采集状态
-            monitor_status = monitor_status_map.get((namespace, name), cls.METRICS_STATE_FAILURE)
-            new_unique_hash_map[unique_hash] = (
-                resource_usage_cpu,
-                resource_usage_memory,
-                resource_usage_disk,
-                monitor_status,
-            )
+            monitor_status = monitor_status_map.get((bcs_cluster_id, namespace, name), cls.METRICS_STATE_FAILURE)
+            new_unique_hash_map[unique_hash] = {
+                "resource_usage_cpu": resource_usage_cpu,
+                "resource_usage_memory": resource_usage_memory,
+                "resource_usage_disk": resource_usage_disk,
+                "monitor_status": monitor_status,
+            }
 
         # 更新资源使用量
-        percent_precision = 4  # 使用率精度
-        unique_hash_set_for_update = set(old_unique_hash_map.keys()) & set(new_unique_hash_map.keys())
+        current_time = timezone.now()
+        pods_for_update: List[BCSPod] = []
+        unique_hash_set_for_update = set(old_unique_hash_map) & set(new_unique_hash_map)
         for unique_hash in unique_hash_set_for_update:
-            if new_unique_hash_map[unique_hash] == old_unique_hash_map[unique_hash]:
+            pod: BCSPod = old_unique_hash_map[unique_hash]
+            new_usages = new_unique_hash_map[unique_hash]
+            if all(getattr(pod, usage) == value for usage, value in new_usages.items()):
                 continue
-            update_kwargs = new_unique_hash_map[unique_hash]
-            resource_usage_cpu = update_kwargs[0]
-            resource_usage_memory = update_kwargs[1]
-            resource_usage_disk = update_kwargs[2]
-            monitor_status = update_kwargs[3]
-            # 获得资源限额
-            spec_resource = spec_resources.get(unique_hash, {})
-            resource_requests_cpu = spec_resource.get("resource_requests_cpu", 0)
-            resource_requests_memory = spec_resource.get("resource_requests_memory", 0)
-            resource_limits_cpu = spec_resource.get("resource_limits_cpu", 0)
-            resource_limits_memory = spec_resource.get("resource_limits_memory", 0)
+            pod.resource_usage_cpu = new_usages["resource_usage_cpu"]
+            pod.resource_usage_memory = new_usages["resource_usage_memory"]
+            pod.resource_usage_disk = new_usages["resource_usage_disk"]
+            pod.monitor_status = new_usages["monitor_status"]
             # 计算资源使用率
-            request_cpu_usage_ratio = (
-                round(force_float(resource_usage_cpu / resource_requests_cpu), percent_precision)
-                if resource_usage_cpu and resource_requests_cpu
-                else 0
-            ) * 100
-            limit_cpu_usage_ratio = (
-                round(force_float(resource_usage_cpu / resource_limits_cpu), percent_precision)
-                if resource_usage_cpu and resource_limits_cpu
-                else 0
-            ) * 100
-            request_memory_usage_ratio = (
-                round(force_float(resource_usage_memory / resource_requests_memory), percent_precision)
-                if resource_usage_memory and resource_requests_memory
-                else 0
-            ) * 100
-            limit_memory_usage_ratio = (
-                round(force_float(resource_usage_memory / resource_limits_memory), percent_precision)
-                if resource_usage_memory and resource_limits_memory
-                else 0
-            ) * 100
-            new_unique_hash_map[unique_hash] = (
-                resource_usage_cpu,
-                resource_usage_memory,
-                resource_usage_disk,
-                monitor_status,
+            pod.limit_cpu_usage_ratio = calculate_usage_ratio(pod.resource_usage_cpu, pod.resource_limits_cpu)
+            pod.request_cpu_usage_ratio = calculate_usage_ratio(pod.resource_usage_cpu, pod.resource_requests_cpu)
+            pod.limit_memory_usage_ratio = calculate_usage_ratio(pod.resource_usage_memory, pod.resource_limits_memory)
+            pod.request_memory_usage_ratio = calculate_usage_ratio(
+                pod.resource_usage_memory, pod.resource_requests_memory
             )
-            cls.objects.filter(unique_hash=unique_hash).update(
-                **{
-                    "resource_usage_cpu": resource_usage_cpu,
-                    "resource_usage_memory": resource_usage_memory,
-                    "resource_usage_disk": resource_usage_disk,
-                    "monitor_status": monitor_status,
-                    "request_cpu_usage_ratio": request_cpu_usage_ratio,
-                    "limit_cpu_usage_ratio": limit_cpu_usage_ratio,
-                    "request_memory_usage_ratio": request_memory_usage_ratio,
-                    "limit_memory_usage_ratio": limit_memory_usage_ratio,
-                }
-            )
+            pod.updated_at = current_time
+
+            pods_for_update.append(pod)
+
+        cls.objects.bulk_update(
+            pods_for_update,
+            batch_size=2000,
+            fields=[
+                "resource_usage_cpu",
+                "resource_usage_memory",
+                "resource_usage_disk",
+                "monitor_status",
+                "request_cpu_usage_ratio",
+                "limit_cpu_usage_ratio",
+                "request_memory_usage_ratio",
+                "limit_memory_usage_ratio",
+                "updated_at",
+            ],
+        )
 
         # 将未采集的记录设置为初始状态
-        unique_hash_set_for_reset = set(old_unique_hash_map.keys()) - set(new_unique_hash_map.keys())
+        unique_hash_set_for_reset = set(old_unique_hash_map) - set(new_unique_hash_map)
         if unique_hash_set_for_reset:
             for unique_hash_chunk in chunks(list(unique_hash_set_for_reset), 1000):
                 cls.objects.filter(unique_hash__in=unique_hash_chunk).update(
@@ -442,24 +405,27 @@ class BCSPod(BCSBase, BCSBaseResources):
                         "limit_cpu_usage_ratio": 0,
                         "request_memory_usage_ratio": 0,
                         "limit_memory_usage_ratio": 0,
+                        "updated_at": current_time,
                     }
                 )
 
     @classmethod
-    def sync_resource_usage(cls, bk_biz_id: int, bcs_cluster_id: str) -> None:
+    def sync_resource_usage(cls, bk_biz_id: int, bcs_cluster_id: Optional[str] = None) -> None:
         """同步资源使用量和数据状态 ."""
         # 获得cpu, memory, disk使用量
-        group_by = ["namespace", "pod_name"]
+        group_by = ["bcs_cluster_id", "namespace", "pod_name"]
         usages = cls.fetch_container_usage(bk_biz_id, bcs_cluster_id, group_by)
         # 获得资源的数据状态
         usage_resource_map = cls.get_cpu_usage_resource(usages, group_by)
         # 获得采集器的采集健康状态
-        pod_models = cls.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
+        pod_models = cls.objects.filter(bk_biz_id=bk_biz_id)
+        if bcs_cluster_id is not None:
+            pod_models.filter(bcs_cluster_id=bcs_cluster_id)
         # 合并两个来源的数据状态
         monitor_operator_status_up_map = {}
         monitor_status_map = cls.merge_monitor_status(usage_resource_map, monitor_operator_status_up_map)
         # 更新资源使用量和数据状态
-        cls.update_usage_resource_and_monitor_status(bk_biz_id, bcs_cluster_id, pod_models, usages, monitor_status_map)
+        cls.update_usage_resource_and_monitor_status(bk_biz_id, pod_models, usages, monitor_status_map)
 
     @classmethod
     def get_filter_workload_type(cls, params):
@@ -479,3 +445,10 @@ class BCSPodLabels(models.Model):
     resource = models.ForeignKey(BCSPod, db_constraint=False, on_delete=models.CASCADE)
     label = models.ForeignKey(BCSLabel, db_constraint=False, on_delete=models.CASCADE)
     bcs_cluster_id = models.CharField(verbose_name="集群ID", max_length=128, db_index=True)
+
+
+def calculate_usage_ratio(usage: float, limit: float, precision: int = 4) -> float:
+    """计算使用率。"""
+    if not (usage and limit):
+        return 0
+    return round(force_float(usage / limit), precision) * 100

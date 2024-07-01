@@ -9,12 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-from typing import Dict
+from typing import Dict, List, Optional
 
 from django.db import models
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import ugettext as _
+from django_mysql.models import QuerySet
 
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSBaseResources, BCSLabel
@@ -37,6 +38,7 @@ class BCSContainer(BCSBase, BCSBaseResources):
     node_ip = models.CharField(max_length=64, null=True)
     node_name = models.CharField(max_length=128)
     image = models.CharField(max_length=128)
+    updated_at = models.DateTimeField(auto_now=True)
 
     labels = models.ManyToManyField(BCSLabel, through="BCSContainerLabels", through_fields=("resource", "label"))
 
@@ -262,18 +264,10 @@ class BCSContainer(BCSBase, BCSBaseResources):
 
     @classmethod
     def update_usage_resource_and_monitor_status(
-        cls, bk_biz_id: int, bcs_cluster_id: str, models: BCSBase, usages: Dict, monitor_status_map: Dict
+        cls, bk_biz_id: int, containers: QuerySet["BCSContainer"], usages: Dict, monitor_status_map: Dict
     ) -> None:
         # 获得已存在的记录
-        old_unique_hash_map = {
-            model.unique_hash: (
-                model.resource_usage_cpu,
-                model.resource_usage_memory,
-                model.resource_usage_disk,
-                model.monitor_status,
-            )
-            for model in models
-        }
+        old_unique_hash_map = {container.unique_hash: container for container in containers}
 
         # 获得新的记录
         new_unique_hash_map = {}
@@ -283,41 +277,55 @@ class BCSContainer(BCSBase, BCSBaseResources):
             namespace = keys["namespace"]
             pod_name = keys["pod_name"]
             name = keys["container_name"]
+            bcs_cluster_id = keys["bcs_cluster_id"]
             unique_hash = cls.hash_unique_key(bk_biz_id, bcs_cluster_id, namespace, pod_name, name)
             resource_usage_cpu = usage.get("resource_usage_cpu")
             if resource_usage_cpu:
                 resource_usage_cpu = round(resource_usage_cpu, 3)
             resource_usage_memory = usage.get("resource_usage_memory")
             resource_usage_disk = usage.get("resource_usage_disk")
-            monitor_status = monitor_status_map.get((namespace, pod_name, name), cls.METRICS_STATE_FAILURE)
-            new_unique_hash_map[unique_hash] = (
-                resource_usage_cpu,
-                resource_usage_memory,
-                resource_usage_disk,
-                monitor_status,
+            # 采集状态
+            monitor_status = monitor_status_map.get(
+                (bcs_cluster_id, namespace, pod_name, name), cls.METRICS_STATE_FAILURE
             )
+            new_unique_hash_map[unique_hash] = {
+                "resource_usage_cpu": resource_usage_cpu,
+                "resource_usage_memory": resource_usage_memory,
+                "resource_usage_disk": resource_usage_disk,
+                "monitor_status": monitor_status,
+            }
 
         # 更新资源使用量
-        unique_hash_set_for_update = set(old_unique_hash_map.keys()) & set(new_unique_hash_map.keys())
+        current_time = timezone.now()
+        containers_for_update: List[BCSContainer] = []
+        unique_hash_set_for_update = set(old_unique_hash_map) & set(new_unique_hash_map)
         for unique_hash in unique_hash_set_for_update:
-            if new_unique_hash_map[unique_hash] == old_unique_hash_map[unique_hash]:
+            container: BCSContainer = old_unique_hash_map[unique_hash]
+            new_usages = new_unique_hash_map[unique_hash]
+            if all(getattr(container, usage) == value for usage, value in new_usages.items()):
                 continue
-            update_kwargs = new_unique_hash_map[unique_hash]
-            resource_usage_cpu = update_kwargs[0]
-            resource_usage_memory = update_kwargs[1]
-            resource_usage_disk = update_kwargs[2]
-            monitor_status = update_kwargs[3]
-            cls.objects.filter(unique_hash=unique_hash).update(
-                **{
-                    "resource_usage_cpu": resource_usage_cpu,
-                    "resource_usage_memory": resource_usage_memory,
-                    "resource_usage_disk": resource_usage_disk,
-                    "monitor_status": monitor_status,
-                }
-            )
+            container.resource_usage_cpu = new_usages["resource_usage_cpu"]
+            container.resource_usage_memory = new_usages["resource_usage_memory"]
+            container.resource_usage_disk = new_usages["resource_usage_disk"]
+            container.monitor_status = new_usages["monitor_status"]
+            container.updated_at = current_time
+
+            containers_for_update.append(container)
+
+        cls.objects.bulk_update(
+            containers_for_update,
+            batch_size=2000,
+            fields=[
+                "resource_usage_cpu",
+                "resource_usage_memory",
+                "resource_usage_disk",
+                "monitor_status",
+                "updated_at",
+            ],
+        )
 
         # 将未采集的记录设置为初始状态
-        unique_hash_set_for_reset = set(old_unique_hash_map.keys()) - set(new_unique_hash_map.keys())
+        unique_hash_set_for_reset = set(old_unique_hash_map) - set(new_unique_hash_map)
         if unique_hash_set_for_reset:
             for unique_hash_chunk in chunks(list(unique_hash_set_for_reset), 1000):
                 cls.objects.filter(unique_hash__in=unique_hash_chunk).update(
@@ -326,26 +334,27 @@ class BCSContainer(BCSBase, BCSBaseResources):
                         "resource_usage_memory": None,
                         "resource_usage_disk": None,
                         "monitor_status": cls.METRICS_STATE_DISABLED,
+                        "updated_at": current_time,
                     }
                 )
 
     @classmethod
-    def sync_resource_usage(cls, bk_biz_id: int, bcs_cluster_id: str) -> None:
+    def sync_resource_usage(cls, bk_biz_id: int, bcs_cluster_id: Optional[str] = None) -> None:
         """同步资源使用量和数据状态 ."""
         # 获得cpu, memory, disk使用量
-        group_by = ["namespace", "pod_name", "container_name"]
+        group_by = ["bcs_cluster_id", "namespace", "pod_name", "container_name"]
         usages = cls.fetch_container_usage(bk_biz_id, bcs_cluster_id, group_by)
         # 获得资源的数据状态
         usage_resource_map = cls.get_cpu_usage_resource(usages, group_by)
         # 获得采集器的采集健康状态
-        container_models = cls.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
+        container_models = cls.objects.filter(bk_biz_id=bk_biz_id)
+        if bcs_cluster_id is not None:
+            container_models.filter(bcs_cluster_id=bcs_cluster_id)
         # 合并两个来源的数据状态
         monitor_operator_status_up_map = {}
         monitor_status_map = cls.merge_monitor_status(usage_resource_map, monitor_operator_status_up_map)
         # 更新资源使用量和数据状态
-        cls.update_usage_resource_and_monitor_status(
-            bk_biz_id, bcs_cluster_id, container_models, usages, monitor_status_map
-        )
+        cls.update_usage_resource_and_monitor_status(bk_biz_id, container_models, usages, monitor_status_map)
 
     @classmethod
     def get_filter_workload_type(cls, params):

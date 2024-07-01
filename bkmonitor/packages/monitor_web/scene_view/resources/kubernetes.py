@@ -15,13 +15,15 @@ import json
 import logging
 import operator
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import reduce
 from typing import Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
-from django.db.models.aggregates import Sum
+from django.db.models.aggregates import Avg, Max, Sum
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -91,6 +93,9 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
     model_label_class = None
     query_set_list = []
 
+    ENABLE_REALTIME_UPDATE = False
+    REALTIME_UPDATE_THRESHOLD = 10000  # 超过此阈值不实时更新数据
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.space_associated_clusters = {}
@@ -143,6 +148,9 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
         return view_options
 
     def perform_request(self, params):
+        # 需要时实时获取指标数据并更新
+        self.update_metric_data_if_needed(params["bk_biz_id"])
+
         # 构造参数
         view_options = self.get_data_params(params)
 
@@ -660,6 +668,25 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
         summary = query.aggregate(**params)
         return summary
 
+    def update_metric_data_if_needed(self, bk_biz_id: int) -> None:
+        """需要时实时更新指标数据。"""
+        # 全局和本地均未配置为实时获取
+        if not (settings.BCS_METRIC_DATA_SOURCE == "api" and self.ENABLE_REALTIME_UPDATE):
+            return
+
+        # 行数超过阈值
+        queryset = self.model_class.objects.filter(bk_biz_id=bk_biz_id)
+        if queryset.count() > self.REALTIME_UPDATE_THRESHOLD:
+            return
+
+        # 找不到最近的更新时间，或最近的更新时间在两分钟内
+        last_updated = queryset.aggregate(Max("updated_at"))["updated_at__max"]
+        two_minutes_ago = timezone.now() - timedelta(minutes=2)
+        if not (last_updated and last_updated < two_minutes_ago):
+            return
+
+        self.model_class.sync_resource_usage(bk_biz_id, bcs_cluster_id=None)
+
 
 class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
     """获得指标数据."""
@@ -873,6 +900,8 @@ class GetKubernetesPodList(KubernetesResource):
     model_label_class = BCSPodLabels
     RequestSerializer = KubernetesListRequestSerializer
 
+    ENABLE_REALTIME_UPDATE = True
+
     @staticmethod
     def read_namespaced_service(params: Dict) -> Dict:
         """获取服务的pod选择器 ."""
@@ -922,13 +951,13 @@ class GetKubernetesPodList(KubernetesResource):
             {
                 "total_container_count": Sum("total_container_count"),
                 "restarts": Sum("restarts"),
-                "resource_usage_cpu": Sum("resource_usage_cpu"),
-                "resource_usage_memory": Sum("resource_usage_memory"),
-                "resource_usage_disk": Sum("resource_usage_disk"),
-                "resource_requests_cpu": Sum("resource_requests_cpu"),
-                "resource_limits_cpu": Sum("resource_limits_cpu"),
-                "resource_requests_memory": Sum("resource_requests_memory"),
-                "resource_limits_memory": Sum("resource_limits_memory"),
+                "resource_usage_cpu": Avg("resource_usage_cpu"),
+                "resource_usage_memory": Avg("resource_usage_memory"),
+                "resource_usage_disk": Avg("resource_usage_disk"),
+                "resource_requests_cpu": Avg("resource_requests_cpu"),
+                "resource_limits_cpu": Avg("resource_limits_cpu"),
+                "resource_requests_memory": Avg("resource_requests_memory"),
+                "resource_limits_memory": Avg("resource_limits_memory"),
             },
         )
         # 容器数量添加链接
@@ -1048,6 +1077,8 @@ class GetKubernetesContainerList(KubernetesResource):
     model_label_class = BCSContainerLabels
     RequestSerializer = KubernetesListRequestSerializer
 
+    ENABLE_REALTIME_UPDATE = True
+
     def get_overview_data(self, params, data):
         bk_biz_id = params["bk_biz_id"]
         overview_data = super().get_overview_data(params, data)
@@ -1056,9 +1087,9 @@ class GetKubernetesContainerList(KubernetesResource):
         summary = self.aggregate_by_biz_id(
             bk_biz_id,
             {
-                "resource_usage_cpu": Sum("resource_usage_cpu"),
-                "resource_usage_memory": Sum("resource_usage_memory"),
-                "resource_usage_disk": Sum("resource_usage_disk"),
+                "resource_usage_cpu": Avg("resource_usage_cpu"),
+                "resource_usage_memory": Avg("resource_usage_memory"),
+                "resource_usage_disk": Avg("resource_usage_disk"),
             },
         )
         resource_usage_cpu = self.model_class.get_cpu_human_readable(summary["resource_usage_cpu"])
@@ -1570,6 +1601,8 @@ class GetKubernetesClusterList(KubernetesResource):
     model_label_class = BCSClusterLabels
     RequestSerializer = KubernetesListRequestSerializer
 
+    ENABLE_REALTIME_UPDATE = True
+
     def rendered_data(self, params) -> List:
         for item in self.data:
             bcs_cluster_id = item.bcs_cluster_id
@@ -1614,9 +1647,9 @@ class GetKubernetesClusterList(KubernetesResource):
             bk_biz_id,
             {
                 "node_count": Sum("node_count"),
-                "cpu_usage_ratio": Sum("cpu_usage_ratio"),
-                "memory_usage_ratio": Sum("memory_usage_ratio"),
-                "disk_usage_ratio": Sum("disk_usage_ratio"),
+                "cpu_usage_ratio": Avg("cpu_usage_ratio"),
+                "memory_usage_ratio": Avg("memory_usage_ratio"),
+                "disk_usage_ratio": Avg("disk_usage_ratio"),
             },
         )
         summary["cpu_usage_ratio"] = get_progress_value(summary["cpu_usage_ratio"])
