@@ -80,7 +80,6 @@ export const btnGroupList: Array<ISelectItem> = [
 
 /** 操作符映射 */
 export const operatorMapping = {
-  '=': 'eq',
   '!=': 'neq',
 };
 
