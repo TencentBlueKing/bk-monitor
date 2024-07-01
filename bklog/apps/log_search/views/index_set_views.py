@@ -282,11 +282,7 @@ class IndexSetViewSet(ModelViewSet):
 
     @staticmethod
     def get_rt_id(index_set):
-        if index_set["scenario_id"] == Scenario.BKDATA:
-            rt_id = ",".join([index["result_table_id"] for index in index_set["indexes"]])
-        else:
-            rt_id = "bklog_index_set_" + str(index_set["index_set_id"]) + ".__default__"
-        return rt_id
+        return "bklog_index_set_" + str(index_set["index_set_id"]) + ".__default__"
 
     @list_route(methods=["GET"], url_path="list_es_router")
     def list_es_router(self, request):

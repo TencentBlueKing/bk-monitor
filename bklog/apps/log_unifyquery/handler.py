@@ -204,15 +204,12 @@ class UnifyQueryHandler(object):
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
                 {"method": "topk", "vargs_list": [vargs]},
             ]
+            if not topk_group_values:
+                continue
             if len(query["conditions"]["field_list"]) > 0:
-                query["conditions"]["condition_list"].extend(["and"] * 2)
-            else:
                 query["conditions"]["condition_list"].extend(["and"])
-            query["conditions"]["field_list"].extend(
-                [
-                    {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"},
-                    {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"},
-                ]
+            query["conditions"]["field_list"].append(
+                {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
             )
         data = self.query_ts(search_dict)
         return data
@@ -237,11 +234,6 @@ class UnifyQueryHandler(object):
         for query in search_dict["query_list"]:
             query["limit"] = limit
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
-            if len(query["conditions"]["field_list"]) > 0:
-                query["conditions"]["condition_list"].append("and")
-            query["conditions"]["field_list"].extend(
-                [{"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}]
-            )
             reference_list.append(query["reference_name"])
         search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
