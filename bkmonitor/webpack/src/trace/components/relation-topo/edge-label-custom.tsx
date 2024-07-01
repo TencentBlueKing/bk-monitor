@@ -76,7 +76,8 @@ export default defineComponent({
       default: 1,
     },
   },
-  setup(props) {
+  emits: ['panelClick'],
+  setup(props, { emit }) {
     /** 面板缩放 */
     const panelScale = computed(() => props.scale * 0.9);
 
@@ -109,8 +110,7 @@ export default defineComponent({
       };
     });
 
-    function handlePageChange(e: Event, newPage: number) {
-      e.preventDefault();
+    function handlePageChange(newPage: number) {
       if (newPage < 1 || newPage > props.data.spans.length) return;
       page.value = newPage;
     }
@@ -119,36 +119,46 @@ export default defineComponent({
      * 计算时间面板坐标
      */
     const calcPanelPosition = computed(() => {
-      const { targetX, sourceX, data } = props;
-      // 面板高度
+      const { data } = props;
+      // // 面板高度
       const panelHeight = (data.spans.length > 1 ? 40 : 24) * panelScale.value;
-      // 文本高度
-      const labelHeight = 14 * panelScale.value;
-      // x轴偏移量在10左右，就认定为一条竖线
-      const X_OFFSET = 10 * panelScale.value;
-      if (targetX >= sourceX - X_OFFSET && targetX <= sourceX + X_OFFSET) {
-        // 竖线情况， 面板展示在label的右侧
-        return {
-          right: `${-11.5 * panelScale.value}px`,
-          top: `${-panelHeight / 2 + labelHeight / 2}px`,
-          transform: `translateX(100%) scale(${panelScale.value})`,
-        };
-      } else if (targetX < sourceX) {
-        // 向左下的线段  面板展示在label的右下方
-        return {
-          right: 0,
-          top: `${labelHeight}px`,
-          transform: `translateX(100%) scale(${panelScale.value})`,
-        };
-      } else {
-        // 向右下的线段， 面板展示在label的右上方
-        return {
-          top: `${-panelHeight - 2}px`,
-          right: 0,
-          transform: `translateX(100%) scale(${panelScale.value})`,
-        };
-      }
+      // // 文本高度
+      // const labelHeight = 14 * panelScale.value;
+      // // x轴偏移量在10左右，就认定为一条竖线
+      // const X_OFFSET = 10 * panelScale.value;
+      // if (targetX >= sourceX - X_OFFSET && targetX <= sourceX + X_OFFSET) {
+      //   // 竖线情况， 面板展示在label的右侧
+      //   return {
+      //     right: `${-11.5 * panelScale.value}px`,
+      //     top: `${-panelHeight / 2 + labelHeight / 2}px`,
+      //     transform: `translateX(100%) scale(${panelScale.value})`,
+      //   };
+      // } else if (targetX < sourceX) {
+      //   // 向左下的线段  面板展示在label的右下方
+      //   return {
+      //     right: 0,
+      //     top: `${labelHeight}px`,
+      //     transform: `translateX(100%) scale(${panelScale.value})`,
+      //   };
+      // } else {
+      //   // 向右下的线段， 面板展示在label的右上方
+      //   return {
+      //     top: `${-panelHeight - 2}px`,
+      //     right: 0,
+      //     transform: `translateX(100%) scale(${panelScale.value})`,
+      //   };
+      // }
+
+      return {
+        left: '7px',
+        top: `${-panelHeight - 5}px`,
+        transform: `translateX(-50%)`,
+      };
     });
+
+    function handlePanelClick() {
+      emit('panelClick', props.id);
+    }
 
     onMounted(() => {
       const index = props.data.spans.findIndex(span => span.duration === maxDuration.value);
@@ -162,6 +172,7 @@ export default defineComponent({
       curSpan,
       calcPanelPosition,
       handlePageChange,
+      handlePanelClick,
     };
   },
   render() {
@@ -184,15 +195,15 @@ export default defineComponent({
           <div
             class={{
               'edge-label-custom-label': true,
-              hidden: Number(this.label) <= 1,
             }}
           >
-            {Number(this.label) > 1 ? this.label : ''}
+            {this.label}
           </div>
           {this.isShowDuration && (
             <div
               style={this.calcPanelPosition}
               class='edge-duration-panel'
+              onClick={this.handlePanelClick}
             >
               <div
                 class={{
@@ -208,7 +219,7 @@ export default defineComponent({
                 <div class='edge-duration-panel-footer'>
                   <i
                     class='icon-monitor icon-arrow-left page-btn'
-                    onClick={e => this.handlePageChange(e, this.page - 1)}
+                    onClick={() => this.handlePageChange(this.page - 1)}
                   ></i>
                   <span class='page'>
                     <span>{this.page}</span>
@@ -217,7 +228,7 @@ export default defineComponent({
                   </span>
                   <i
                     class='icon-monitor icon-arrow-right page-btn'
-                    onClick={e => this.handlePageChange(e, this.page + 1)}
+                    onClick={() => this.handlePageChange(this.page + 1)}
                   ></i>
                 </div>
               )}

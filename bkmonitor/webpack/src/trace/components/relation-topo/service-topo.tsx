@@ -266,6 +266,10 @@ export default defineComponent({
       });
     }
 
+    function handlePanelClick(edgeId: string) {
+      setEdgeSelected([edgeId]);
+    }
+
     return {
       emptyText,
       empty,
@@ -289,6 +293,7 @@ export default defineComponent({
       handleViewportChangeEnd,
       handleNodeClick,
       handleViewportChange,
+      handlePanelClick,
     };
   },
 
@@ -454,6 +459,7 @@ export default defineComponent({
                   {...edgeProps}
                   isShowDuration={this.isShowDuration}
                   scale={this.scale}
+                  onPanelClick={this.handlePanelClick}
                 ></EdgeLabelCustom>
               ),
               default: () => [

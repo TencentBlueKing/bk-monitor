@@ -171,6 +171,9 @@ export default defineComponent({
     const localSpanListWidth = ref(350);
     /** 工具栏输入框搜索内容 */
     const filterKeywords = ref<string[]>([]);
+    const showCompareSelect = computed(() => {
+      return ['topo', 'statistics', 'flame'].includes(state.activePanel) && topoType.value == ETopoType.time;
+    });
 
     const isFullscreen = inject<boolean>('isFullscreen', false);
     const contentLoading = ref<boolean>(false);
@@ -694,6 +697,18 @@ export default defineComponent({
      */
     function handleTopoChangeType(value: ETopoType) {
       topoType.value = value;
+      const viewFilters = traceViewFilters.value.filter(item => item !== 'duration');
+      if (value === ETopoType.service) {
+        // service 默认不展示耗时面板
+        store.updateTraceViewFilters(viewFilters);
+      } else {
+        store.updateTraceViewFilters([...viewFilters, 'duration']);
+        if (state.isCompareView) {
+          setTimeout(() => {
+            handleCompare(state.compareTraceID);
+          }, 10);
+        }
+      }
       state.filterSpanIds = [];
       state.filterSpanSubTitle = '';
     }
@@ -704,6 +719,7 @@ export default defineComponent({
       contentLoading,
       traceView,
       relationTopo,
+      showCompareSelect,
       traceDetailElem,
       traceMainElem,
       statisticsElem,
@@ -885,7 +901,7 @@ export default defineComponent({
                 // 时序图暂不支持
                 ['timeline', 'topo', 'statistics', 'flame'].includes(this.activePanel) ? (
                   <div class='tab-setting'>
-                    {['topo', 'statistics', 'flame'].includes(this.activePanel) ? (
+                    {this.showCompareSelect ? (
                       <CompareSelect
                         ref='compareSelect'
                         appName={this.appName}
@@ -1004,7 +1020,7 @@ export default defineComponent({
                 </Checkbox.Group>
               </div>
             }
-            {['topo', 'flame'].includes(this.activePanel) && this.isCompareView ? (
+            {['topo', 'flame'].includes(this.activePanel) && this.isCompareView && this.showCompareSelect ? (
               <div class='compare-legend'>
                 <span class='tag tag-new'>added</span>
                 <div class='percent-queue'>
