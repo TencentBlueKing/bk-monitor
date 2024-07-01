@@ -70,6 +70,9 @@ export default defineComponent({
     /** 是否显示耗时 */
     const isShowDuration = computed(() => store.traceViewFilters.includes('duration'));
 
+    // 当前classify 用于服务topo搜索
+    const currentClassify = ref(null);
+
     init();
 
     function init() {
@@ -89,11 +92,18 @@ export default defineComponent({
     function clearSearch() {
       relationTopo.value?.clearSearch?.();
     }
-    function handleClassifyFilter(matchedSpanIds: Set<string>) {
+    function handleClassifyFilter(matchedSpanIds: Set<string>, classify) {
+      currentClassify.value = classify;
       relationTopo.value?.handleClassifyFilter(matchedSpanIds);
     }
     function viewCompare(traceID) {
       relationTopo.value?.viewCompare(traceID);
+    }
+    function prevResult() {
+      relationTopo.value?.prevResult();
+    }
+    function nextResult() {
+      relationTopo.value?.nextResult();
     }
 
     return {
@@ -101,11 +111,14 @@ export default defineComponent({
       relationTopo,
       serviceTopoData,
       isShowDuration,
+      currentClassify,
       handleTypeChange,
       handleKeywordFliter,
       clearSearch,
       handleClassifyFilter,
       viewCompare,
+      prevResult,
+      nextResult,
     };
   },
   render() {
@@ -133,6 +146,7 @@ export default defineComponent({
         )}
         {this.type === EType.service && (
           <ServiceTopo
+            classify={this.currentClassify}
             isShowDuration={this.isShowDuration}
             serviceTopoData={this.serviceTopoData}
           ></ServiceTopo>

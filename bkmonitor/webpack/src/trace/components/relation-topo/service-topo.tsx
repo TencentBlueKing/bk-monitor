@@ -74,11 +74,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    classify: {
+      type: Object as PropType<Record<string, string>>,
+      default: () => null,
+    },
   },
   setup(props) {
     const store = useTraceStore();
     // hooks
-    const { setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } = useVueFlow();
+    const { setViewport, fitView, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } =
+      useVueFlow();
     const { layout } = useLayout();
     const { capture } = useScreenshot();
 
@@ -144,12 +149,67 @@ export default defineComponent({
       { immediate: true }
     );
 
+    watch(
+      () => props.classify,
+      classify => {
+        setTimeout(() => {
+          if (!!classify) {
+            if (classify.type === 'service') {
+              const filterValue = classify.filter_value;
+              nodes.value.some(item => {
+                if (item.id === filterValue) {
+                  handleNodeClick(item);
+                  fitView({
+                    nodes: [item.id],
+                  });
+                  nextTick(() => {
+                    const params = getViewport();
+                    zoomValue.value = zoomValueFormat(params.zoom);
+                  });
+                  return true;
+                }
+                return false;
+              });
+            } else if (classify.type === 'max_duration') {
+              const filterValue = classify.filter_value;
+              edges.value.some(item => {
+                return item.data.spans.some(s => {
+                  if (filterValue === s.duration) {
+                    setEdgeSelected([item.id]);
+                    handleEditSpanList(item.data.spans);
+                    fitView({
+                      nodes: [item.target],
+                    });
+                    nextTick(() => {
+                      const params = getViewport();
+                      zoomValue.value = zoomValueFormat(params.zoom);
+                    });
+                    return true;
+                  }
+                  return false;
+                });
+              });
+            }
+          }
+        }, 100);
+      }
+    );
+
+    /**
+     * @description 格式化缩放值
+     * @param value
+     * @returns
+     */
+    function zoomValueFormat(value: number) {
+      return Math.round(value * 100) - 20;
+    }
+
     /**
      * @description 自动布局节点位置
      * @param direction
      */
     function layoutGraph(direction: string) {
-      nodes.value = layout(nodes.value, edges.value, direction, 80);
+      nodes.value = layout(nodes.value, edges.value, direction, 100);
       nextTick(() => {
         const wrapWidth = graphContainer.value.clientWidth;
         const rootX = nodes.value.filter(item => !!item?.data?.is_root)?.[0]?.position?.x || 0;
@@ -225,7 +285,7 @@ export default defineComponent({
      * @param value
      */
     function handleViewportChangeEnd(value: ViewportTransform) {
-      zoomValue.value = Math.round(value.zoom * 100) - 20;
+      zoomValue.value = zoomValueFormat(value.zoom);
     }
     /**
      * 视口变化
@@ -239,8 +299,8 @@ export default defineComponent({
      * @description 节点点击事件
      * @param node
      */
-    function handleNodeClick(node, _e: Event) {
-      _e.stopPropagation();
+    function handleNodeClick(node, _e?: Event) {
+      _e?.stopPropagation();
       selectedNodeKey.value = node.data.key;
       const edgesIds = edges.value.filter(e => e.target === node.data.key).map(e => e.id);
       setEdgeSelected(edgesIds);
@@ -266,6 +326,10 @@ export default defineComponent({
       });
     }
 
+    function handlePanelClick(edgeId: string) {
+      setEdgeSelected([edgeId]);
+    }
+
     return {
       emptyText,
       empty,
@@ -289,6 +353,7 @@ export default defineComponent({
       handleViewportChangeEnd,
       handleNodeClick,
       handleViewportChange,
+      handlePanelClick,
     };
   },
 
@@ -453,7 +518,7 @@ export default defineComponent({
                 <EdgeLabelCustom
                   {...edgeProps}
                   isShowDuration={this.isShowDuration}
-                  scale={this.scale}
+                  onPanelClick={this.handlePanelClick}
                 ></EdgeLabelCustom>
               ),
               default: () => [
