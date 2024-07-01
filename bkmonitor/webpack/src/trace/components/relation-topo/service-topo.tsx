@@ -82,7 +82,8 @@ export default defineComponent({
   setup(props) {
     const store = useTraceStore();
     // hooks
-    const { setViewport, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } = useVueFlow();
+    const { setViewport, fitView, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } =
+      useVueFlow();
     const { layout } = useLayout();
     const { capture } = useScreenshot();
 
@@ -158,6 +159,13 @@ export default defineComponent({
               nodes.value.forEach(item => {
                 if (item.id === filterValue) {
                   handleNodeClick(item);
+                  fitView({
+                    nodes: [item.id],
+                  });
+                  nextTick(() => {
+                    const params = getViewport();
+                    zoomValue.value = zoomValueFormat(params.zoom);
+                  });
                 }
               });
             } else if (classify.type === 'max_duration') {
@@ -167,6 +175,13 @@ export default defineComponent({
                   if (filterValue === s.duration) {
                     setEdgeSelected([item.id]);
                     handleEditSpanList(item.data.spans);
+                    fitView({
+                      nodes: [item.target],
+                    });
+                    nextTick(() => {
+                      const params = getViewport();
+                      zoomValue.value = zoomValueFormat(params.zoom);
+                    });
                     return true;
                   }
                   return false;
@@ -177,6 +192,15 @@ export default defineComponent({
         }, 100);
       }
     );
+
+    /**
+     * @description 格式化缩放值
+     * @param value
+     * @returns
+     */
+    function zoomValueFormat(value: number) {
+      return Math.round(value * 100) - 20;
+    }
 
     /**
      * @description 自动布局节点位置
@@ -259,7 +283,7 @@ export default defineComponent({
      * @param value
      */
     function handleViewportChangeEnd(value: ViewportTransform) {
-      zoomValue.value = Math.round(value.zoom * 100) - 20;
+      zoomValue.value = zoomValueFormat(value.zoom);
     }
     /**
      * 视口变化
