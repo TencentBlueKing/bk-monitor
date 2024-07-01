@@ -492,7 +492,6 @@ export default defineComponent({
                 <EdgeLabelCustom
                   {...edgeProps}
                   isShowDuration={this.isShowDuration}
-                  scale={this.scale}
                   onPanelClick={this.handlePanelClick}
                 ></EdgeLabelCustom>
               ),

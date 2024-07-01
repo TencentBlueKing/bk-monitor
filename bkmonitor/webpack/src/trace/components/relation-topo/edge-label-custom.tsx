@@ -71,16 +71,9 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    scale: {
-      type: Number,
-      default: 1,
-    },
   },
   emits: ['panelClick'],
   setup(props, { emit }) {
-    /** 面板缩放 */
-    const panelScale = computed(() => props.scale * 0.9);
-
     /** 连线路径 */
     const path = computed(() => {
       return getBezierPath({
@@ -121,7 +114,7 @@ export default defineComponent({
     const calcPanelPosition = computed(() => {
       const { data } = props;
       // // 面板高度
-      const panelHeight = (data.spans.length > 1 ? 40 : 24) * panelScale.value;
+      const panelHeight = data.spans.length > 1 ? 40 : 24;
       // // 文本高度
       // const labelHeight = 14 * panelScale.value;
       // // x轴偏移量在10左右，就认定为一条竖线
@@ -148,11 +141,10 @@ export default defineComponent({
       //     transform: `translateX(100%) scale(${panelScale.value})`,
       //   };
       // }
-
       return {
         left: '7px',
-        top: `${-panelHeight - 5}px`,
-        transform: `translateX(-50%)`,
+        top: `${(-panelHeight - 5) * 0.9}px`,
+        transform: 'translateX(-50%) scale(0.9)',
       };
     });
 
@@ -168,7 +160,6 @@ export default defineComponent({
     return {
       path,
       page,
-      panelScale,
       curSpan,
       calcPanelPosition,
       handlePageChange,
