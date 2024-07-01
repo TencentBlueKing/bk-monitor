@@ -1,31 +1,38 @@
 .event-retrieval-wrapper {
   font-size: 12px;
+
   .event-retrieval-bg {
     padding: 16px 24px 24px;
     background-color: #fff;
   }
+
   .field-filtering {
     padding: 21px 24px 0 24px;
   }
+
   .er-from-item {
     &:not(:last-child) {
       margin-bottom: 16px;
     }
+
     .er-from-item-label {
       margin-bottom: 5px;
       line-height: 20px;
       color: #63656e;
+
       .icon-mc-help-fill {
-        font-size: 14px;
         margin-left: 7px;
+        font-size: 14px;
       }
     }
+
     .query-text-input {
       height: 64px;
+      background: #fff;
       border: 1px solid #c4c6cc;
       border-radius: 3px;
-      background: #fff;
     }
+
     .query-string-input {
       .bk-form-textarea {
         resize: vertical;
@@ -33,32 +40,68 @@
     }
   }
 }
+
 .query-tips-content-wrapper {
   .tips-content-title {
     .link {
-      color: #3a84ff;
       margin-left: 5px;
+      color: #3a84ff;
       cursor: pointer;
+
       .icon-mc-link {
         margin-left: 2px;
       }
     }
   }
+
   .tips-content-list {
     margin-top: 10px;
+
     .tips-content-item {
       &:not(:last-child) {
         margin-bottom: 10px;
       }
+
       .tips-content-item-label {
-        color: #63656e;
-        font-weight: 600;
         margin-bottom: 4px;
+        font-weight: 600;
         line-height: 16px;
+        color: #63656e;
       }
+
       .tips-content-item-val {
         line-height: 18px;
       }
+    }
+  }
+}
+
+.event-retrieval-data-id-select-popover {
+  .bk-options .bk-option-content {
+    padding: 0 12px;
+  }
+
+  .event-item-name {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .name-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .platform-tag {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      font-size: 12px;
+      color: #63656E;
+      white-space: nowrap;
+      background: #F0F1F5;
+      border-radius: 2px;
     }
   }
 }
