@@ -478,6 +478,11 @@ class UserIndexSetSearchHistoryNotExistException(BaseException):
     MESSAGE = _("历史记录不存在")
 
 
+class GetMultiResultFailException(BaseException):
+    ERROR_CODE = "444"
+    MESSAGE = _("并发结果[{func_name}]查询失败")
+
+
 # =================================================
 # 导出
 # =================================================

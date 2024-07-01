@@ -313,7 +313,6 @@
                     :clearable="false"
                     :disabled="getCustomizeDisabled(props.row)"
                     :popover-min-width="160"
-                    placeholder=" "
                     @change="val => handleChangeParticipleState(val, props.$index)"
                   >
                     <bk-option
@@ -322,13 +321,13 @@
                       :key="option.id"
                       :name="option.name"
                     >
+                      <div v-bk-tooltips.right="option.placeholder">{{ option.name }}</div>
                     </bk-option>
                   </bk-select>
                   <bk-input
                     v-if="props.row.participleState === 'custom'"
                     v-model="props.row.tokenize_on_chars"
                     :disabled="getCustomizeDisabled(props.row)"
-                    placeholder=" "
                   >
                   </bk-input>
                 </div>
@@ -358,69 +357,71 @@
               align="center"
             >
               <template #default="props">
-                <template v-if="isPreviewMode">
-                  <div class="field-date field-date-disable">
-                    <i :class="{ 'log-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
-                  </div>
-                </template>
-                <template v-else>
-                  <div
-                    v-if="props.row.is_delete"
-                    :class="['field-date field-date-disable', { 'field-date-active': props.row.is_time }]"
-                  >
-                    <i :class="{ 'log-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
-                  </div>
+                <template v-if="isShowFieldDateIcon(props.row)">
+                  <template v-if="isPreviewMode">
+                    <div class="field-date field-date-disable">
+                      <i :class="{ 'log-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
+                    </div>
+                  </template>
                   <template v-else>
-                    <bk-popover
-                      v-if="props.row.is_time"
-                      :arrow="false"
-                      :distance="3"
-                      :ref="`more${props.$index}`"
-                      placement="bottom-start"
-                      theme="light"
-                      trigger="click"
+                    <div
+                      v-if="props.row.is_delete"
+                      :class="['field-date field-date-disable', { 'field-date-active': props.row.is_time }]"
                     >
-                      <div class="field-date field-date-active">
-                        <i class="log-icon icon-date-picker"></i>
-                      </div>
-                      <template #content>
-                        <div>
-                          <ul
-                            class="field-dropdown-list"
-                            slot="dropdown-content"
-                          >
-                            <li
-                              class="dropdown-item"
-                              @click.stop="setDateFormat(props.row, props.$index)"
+                      <i :class="{ 'log-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
+                    </div>
+                    <template v-else>
+                      <bk-popover
+                        v-if="props.row.is_time"
+                        :arrow="false"
+                        :distance="3"
+                        :ref="`more${props.$index}`"
+                        placement="bottom-start"
+                        theme="light"
+                        trigger="click"
+                      >
+                        <div class="field-date field-date-active">
+                          <i class="log-icon icon-date-picker"></i>
+                        </div>
+                        <template #content>
+                          <div>
+                            <ul
+                              class="field-dropdown-list"
+                              slot="dropdown-content"
                             >
-                              {{ '编辑时间格式' }}
-                            </li>
-                            <li
-                              class="dropdown-item"
-                              @click.stop="cancelDateFormat(props.row, props.$index)"
-                            >
-                              {{ '取消设为时间' }}
-                            </li>
-                          </ul>
+                              <li
+                                class="dropdown-item"
+                                @click.stop="setDateFormat(props.row, props.$index)"
+                              >
+                                {{ '编辑时间格式' }}
+                              </li>
+                              <li
+                                class="dropdown-item"
+                                @click.stop="cancelDateFormat(props.row, props.$index)"
+                              >
+                                {{ '取消设为时间' }}
+                              </li>
+                            </ul>
+                          </div>
+                        </template>
+                      </bk-popover>
+                      <template v-else>
+                        <div
+                          v-if="hasDateField"
+                          class="field-date"
+                          v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
+                          @click.stop="setDateFormat(props.row)"
+                        >
+                          <i class="log-icon icon-date-picker"></i>
+                        </div>
+                        <div
+                          v-else
+                          class="field-date"
+                          @click.stop="setDateFormat(props.row)"
+                        >
+                          <i class="log-icon icon-date-picker"></i>
                         </div>
                       </template>
-                    </bk-popover>
-                    <template v-else>
-                      <div
-                        v-if="hasDateField"
-                        class="field-date"
-                        v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
-                        @click.stop="setDateFormat(props.row)"
-                      >
-                        <i class="log-icon icon-date-picker"></i>
-                      </div>
-                      <div
-                        v-else
-                        class="field-date"
-                        @click.stop="setDateFormat(props.row)"
-                      >
-                        <i class="log-icon icon-date-picker"></i>
-                      </div>
                     </template>
                   </template>
                 </template>
@@ -663,10 +664,12 @@
           {
             id: 'default',
             name: this.$t('默认'),
+            placeholder: this.$t('自然语言分词，按照日常语法习惯进行分词'),
           },
           {
             id: 'custom',
             name: this.$t('自定义'),
+            placeholder: this.$t('支持自定义分词符，可按需自行配置符号进行分词'),
           },
         ],
         rules: {
@@ -1264,8 +1267,9 @@
       },
       /** 当前字段是否禁用 */
       getFieldEditDisabled(row) {
+        if (row?.is_delete) return true;
         if (this.selectEtlConfig === 'bk_log_json') return false;
-        return row?.is_delete || this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
+        return this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
       },
       /**
        * @desc: 判断当前分词符或者分词符有关的子项是否禁用
@@ -1280,6 +1284,9 @@
         return (
           this.isPreviewMode || isDelete || fieldType !== 'string' || isTime || !atLastAnalyzed || this.isSetDisabled
         );
+      },
+      isShowFieldDateIcon(row) {
+        return ['string', 'int', 'long'].includes(row.field_type)
       },
     },
   };

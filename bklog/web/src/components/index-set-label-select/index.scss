@@ -28,47 +28,47 @@
   .label-tag-box {
     // flex-wrap: wrap;
     align-items: center;
-  
+
     @include flex-justify(space-between);
-  
+
     .bk-tag {
       position: relative;
       flex-shrink: 0;
     }
-  
+
     .label-tag {
       max-width: 100px;
-    
+
       @include flex-center();
 
       &:hover .icon-close {
         display: flex;
       }
     }
-  
+
     .icon-close {
       display: none;
       font-size: 18px;
       cursor: pointer;
     }
-  
+
     .is-disabled {
       background: transparent;
     }
-  
+
     .tag-container {
       flex-direction: column;
       align-items: start;
 
       @include flex-justify(center);
     }
-  
+
     .tag-label-item {
       flex-shrink: 0;
 
       @include flex-center();
     }
-  
+
     .more-num {
       flex: 1;
       min-width: 26px;
@@ -82,7 +82,6 @@
     }
   }
 }
-
 
 .new-label-container {
   box-sizing: border-box;

@@ -32,7 +32,7 @@ export default {
       disabledTips: {
         terminated: {
           operateType: ['clone', 'storage', 'search', 'clean'],
-          tips: this.$t('未完成配置'),
+          tips: this.$t('请先完成采集接入'),
         },
         delete: this.$t('删除前请先停用'),
       },

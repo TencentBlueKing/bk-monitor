@@ -68,7 +68,7 @@
       padding-left: 20px;
 
       li {
-        list-style-type: disc
+        list-style-type: disc;
       }
     }
   }
@@ -79,21 +79,21 @@
     /* stylelint-disable-next-line declaration-no-important */
     background-color: #313238 !important;
 
-    >div:nth-child(1) {
+    > div:nth-child(1) {
       height: 50px;
 
-      >div:nth-child(1) {
+      > div:nth-child(1) {
         height: 50px;
         line-height: 50px;
       }
 
-      >div:nth-child(2) {
+      > div:nth-child(2) {
         height: 50px;
         font-size: 14px;
         line-height: 50px;
         color: #737987;
 
-        >div {
+        > div {
           display: flex;
           align-items: center;
           justify-content: space-between;

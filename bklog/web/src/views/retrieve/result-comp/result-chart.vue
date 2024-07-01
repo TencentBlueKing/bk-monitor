@@ -171,6 +171,9 @@
         optionData: [],
         totalCount: 0,
         localAddition: [],
+        infoTotal: 0,
+        infoTotalNumLoading: false,
+        infoTotalNumError: false,
       };
     },
     computed: {
@@ -182,6 +185,10 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
+      totalNumShow() {
+        if (!this.infoTotalNumLoading && !this.infoTotalNumError && this.infoTotal > 0) return this.infoTotal;
+        return this.totalCount;
+      },
       // chartInterval() {
       //   return this.retrieveParams.interval;
       // },
@@ -192,6 +199,7 @@
           this.handleLogChartCancel();
           this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();
+          this.getInfoTotalNum();
           this.totalCount = 0;
           this.isRenderChart = true;
           this.isLoading = false;
@@ -199,7 +207,7 @@
           this.isStart = false;
         },
       },
-      totalCount(newVal) {
+      totalNumShow(newVal) {
         this.$emit('change-total-count', newVal);
       },
       finishPolling(newVal) {
@@ -222,6 +230,8 @@
     methods: {
       /** 图表请求中断函数 */
       logChartCancel() {},
+      /** info数据中断函数 */
+      infoTotalCancel() {},
       openChartLoading() {
         this.isLoading = true;
       },
@@ -244,6 +254,7 @@
           this.timeRange = [startTime, endTime];
           this.finishPolling = false;
           this.isStart = false;
+          this.getInfoTotalNum();
           this.totalCount = 0;
           // 框选时间范围
           window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
@@ -366,6 +377,7 @@
             window.bus.$emit('changeTimeByChart', cacheDatePickerValue, cacheTimeRange);
             this.finishPolling = true;
             this.totalCount = 0;
+            this.getInfoTotalNum();
             this.$refs.chartRef.handleCloseTimer();
             setTimeout(() => {
               this.finishPolling = false;
@@ -385,6 +397,38 @@
       },
       handleChartLoading(isLoading) {
         this.isLoading = isLoading;
+      },
+      getInfoTotalNum() {
+        this.infoTotalNumLoading = true;
+        this.infoTotalNumError = false;
+        this.infoTotal = 0;
+        this.$http
+          .request(
+            'retrieve/fieldStatisticsInfo',
+            {
+              data: {
+                ...this.retrieveParams,
+                index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId],
+                agg_field: 'gseIndex',
+                field_type: 'long',
+              },
+            },
+            {
+              cancelToken: new CancelToken(c => {
+                this.infoTotalCancel = c;
+              }),
+            },
+          )
+          .then(res => {
+            const { data, code } = res;
+            if (code === 0) this.infoTotal = data.total_count;
+          })
+          .catch(() => {
+            this.infoTotalNumError = true;
+          })
+          .finally(() => {
+            this.infoTotalNumLoading = false;
+          });
       },
     },
   };
