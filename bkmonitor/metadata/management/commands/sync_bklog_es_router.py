@@ -111,17 +111,30 @@ class Command(BaseCommand):
             tid_list.append(_table_id)
             space_type_and_id.append(tuple(router["space_uid"].split("__")))
 
+        # 过滤存在的结果表，然后更新别名和索引集
+        exist_rt_objs = models.ResultTable.objects.filter(table_id__in=tid_list)
+        exist_tid_list, updated_rt_objs = [], []
+        for obj in exist_rt_objs:
+            obj.data_label = es_router_list[obj.table_id]["data_label"]
+            updated_rt_objs.append(obj)
+            exist_tid_list.append(obj.table_id)
+
         exist_objs = models.ESStorage.objects.filter(table_id__in=tid_list)
-        exist_tid_list, updated_objs = [], []
         # 批量更新数据集
+        updated_objs = []
         for obj in exist_objs:
             obj.index_set = es_router_list[obj.table_id]["index_set"]
             updated_objs.append(obj)
-            exist_tid_list.append(obj.table_id)
+
         try:
-            models.ESStorage.objects.bulk_update(updated_objs, ["index_set"], batch_size=BULK_UPDATE_BATCH_SIZE)
+            with atomic(config.DATABASE_CONNECTION_NAME):
+                models.ResultTable.objects.bulk_update(
+                    updated_rt_objs, ["data_label"], batch_size=BULK_UPDATE_BATCH_SIZE
+                )
+                models.ESStorage.objects.bulk_update(updated_objs, ["index_set"], batch_size=BULK_UPDATE_BATCH_SIZE)
         except Exception as e:
-            self.stderr.write(f"failed to update es storage, err: {e}")
+            self.stderr.write(f"failed to update rt or es storage, err: {e}")
+            return set(), set(), set()
 
         # 组装数据
         space_and_biz = self._get_biz_id_by_space(space_type_and_id)
@@ -156,9 +169,12 @@ class Command(BaseCommand):
                 )
             )
         # 批量创建结果表，批量创建 es 存储
-        with atomic(config.DATABASE_CONNECTION_NAME):
-            models.ResultTable.objects.bulk_create(rt_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
-            models.ESStorage.objects.bulk_create(es_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
+        try:
+            with atomic(config.DATABASE_CONNECTION_NAME):
+                models.ResultTable.objects.bulk_create(rt_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
+                models.ESStorage.objects.bulk_create(es_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
+        except Exception as e:
+            self.stderr.write(f"failed to create rt or es storage, err: {e}")
 
         return update_space_set, update_rt_set, update_data_label_set
 
@@ -166,12 +182,13 @@ class Command(BaseCommand):
         """推送并发布"""
         client = SpaceTableIDRedis()
         # 如果为空时，则不需要进行路由更新
-        if not update_space_set:
-            return
-        # 推送空间
-        for space_type, space_id in update_space_set:
-            client.push_space_table_ids(space_type, space_id, is_publish=True)
+        if update_space_set:
+            # 推送空间
+            for space_type, space_id in update_space_set:
+                client.push_space_table_ids(space_type, space_id, is_publish=True)
         # 推送标签
-        client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
+        if update_data_label_set:
+            client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
         # 推送详情
-        client.push_table_id_detail(list(update_rt_set), is_publish=True, include_es_table_ids=True)
+        if update_rt_set:
+            client.push_table_id_detail(list(update_rt_set), is_publish=True, include_es_table_ids=True)
