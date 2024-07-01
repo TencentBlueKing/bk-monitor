@@ -65,7 +65,7 @@ export default class LogFilter extends tsc<object> {
       {
         fieldindex: '',
         word: '',
-        op: 'eq',
+        op: '=',
         tableIndex: 0,
       },
     ],
@@ -97,6 +97,15 @@ export default class LogFilter extends tsc<object> {
       switcher: this.filterSwitcher,
       separator: this.separator,
     };
+  }
+
+  get operatorShowSelectList() {
+    const showSelect = deepClone(operatorSelectList);
+    showSelect.forEach(el => {
+      if (this.isMatchType && el.id === 'include') el.id = '=';
+      if (!this.isMatchType && el.id === 'eq') el.id = '=';
+    });
+    return showSelect;
   }
 
   @Debounce(100)
@@ -131,12 +140,13 @@ export default class LogFilter extends tsc<object> {
         this.activeType = type;
         /** 旧数据当成一个新table来处理 */
         if (!separatorFilters.length) {
+          const op = matchType === 'include' ? matchType : '=';
           this.filterData = [
             [
               {
                 fieldindex: '-1',
                 word: matchContent,
-                op: matchType,
+                op,
                 tableIndex: 0,
               },
             ],
@@ -311,6 +321,10 @@ export default class LogFilter extends tsc<object> {
     }
   }
 
+  getOperatorDisabled(index: number, tableIndex: number) {
+    return index === 0 && this.filterData[tableIndex].length === 1;
+  }
+
   render() {
     const fieldIndexInputSlot = {
       default: ({ $index, row }) => (
@@ -320,7 +334,7 @@ export default class LogFilter extends tsc<object> {
           active-type={this.activeType}
           input-type={'number'}
           original-filter-item-select={this.originalFilterItemSelect}
-          placeholder={this.$t('请输入行数')}
+          placeholder={this.$t('请输入列数')}
           row-data={row}
           table-index={row.tableIndex}
         />
@@ -343,7 +357,7 @@ export default class LogFilter extends tsc<object> {
             v-model={row.op}
             clearable={false}
           >
-            {operatorSelectList.map(option => (
+            {this.operatorShowSelectList.map(option => (
               <bk-option
                 id={option.id}
                 name={option.name}
@@ -361,7 +375,7 @@ export default class LogFilter extends tsc<object> {
             onClick={() => this.handleAddNewSeparator($index, row.tableIndex, 'add')}
           />
           <i
-            class={['bk-icon icon-minus-circle-shape', { disabled: $index === 0 }]}
+            class={['bk-icon icon-minus-circle-shape', { disabled: this.getOperatorDisabled($index, row.tableIndex) }]}
             onClick={() => this.handleAddNewSeparator($index, row.tableIndex, 'delete')}
           />
         </div>
@@ -378,7 +392,7 @@ export default class LogFilter extends tsc<object> {
           ></bk-switcher>
           <div class='switcher-tips'>
             <i class='bk-icon icon-info-circle' />
-            <span>{this.$t('过滤器支持采集时过滤不符合的日志内容，需采集器版本 XXXXXXXX')}</span>
+            <span>{this.$t('过滤器支持采集时过滤不符合的日志内容，需采集器版本 7.7.2及以上版本')}</span>
           </div>
         </div>
         {this.filterSwitcher && (
@@ -433,7 +447,7 @@ export default class LogFilter extends tsc<object> {
                 <div class='group-table-head'>
                   <span>{this.$t('第{n}组', { n: index + 1 })}</span>
                   <i
-                    class='bk-icon icon-close3-shape'
+                    class='bk-icon icon-delete'
                     onClick={() => this.handleClickDeleteGroup(index)}
                   ></i>
                 </div>

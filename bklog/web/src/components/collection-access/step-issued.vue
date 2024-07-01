@@ -392,7 +392,7 @@
       this.isShowStepInfo = false;
       this.requestIssuedClusterList();
     },
-    unmounted() {
+    beforeDestroy() {
       this.isLeavePage = true;
       this.stopStatusPolling();
     },
