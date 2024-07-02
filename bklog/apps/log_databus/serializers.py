@@ -222,6 +222,7 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("windows事件内容匹配操作符"),
         choices=PluginParamOpEnum.get_choices(),
         required=False,
+        allow_blank=True,
     )
 
     # Redis慢日志相关参数
@@ -437,16 +438,6 @@ class CollectorUpdateSerializer(serializers.Serializer):
         label=_("环境"), required=False, choices=[Environment.LINUX, Environment.WINDOWS]
     )
     params = PluginParamSerializer()
-
-    def to_internal_value(self, data):
-        # 创建一个副本以免修改原始数据
-        data = data.copy()
-        params = data.get("params", {})
-        # winlog_match_op参数为空时,按没传参处理,跳过校验
-        if "winlog_match_op" in params and not params.get('winlog_match_op'):
-            params.pop("winlog_match_op")
-
-        return super().to_internal_value(data)
 
 
 class UpdateContainerCollectorSerializer(serializers.Serializer):
