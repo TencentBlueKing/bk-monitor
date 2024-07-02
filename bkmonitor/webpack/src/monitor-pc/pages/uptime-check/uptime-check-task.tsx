@@ -778,7 +778,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
               <span class='header-arrow'>{'>'}</span>
               <span class='header-name'>{this.groupDataTask.groupName}</span>
             </span>
-            {this.searchGroupToTaskData.map(item => (
+            {this.searchGroupToTaskData?.map(item => (
               <TaskCard
                 data={item}
                 onCardClick={(id: number) => this.handleTaskCardClick(id)}
