@@ -8,7 +8,7 @@ from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.handlers.topo_handler import TopoHandler
 from bkm_ipchooser.tools import batch_request, topo_tool
-from bkm_ipchooser.tools.gse_tool import GseTool
+from bkm_ipchooser.tools.gse_tool import fill_agent_status
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -95,7 +95,7 @@ class Template:
             return result
         result["count"] = hosts["count"]
         hosts = hosts["info"]
-        GseTool.get_adapter().fill_agent_status(hosts)
+        fill_agent_status(hosts, self.bk_biz_id)
         result["data"] = BaseHandler.format_hosts(hosts, self.bk_biz_id)
 
         return result
@@ -267,7 +267,7 @@ class SetTemplate(Template):
         host_list = self.fetch_template_host_total(
             template["id"], fields=constants.CommonEnum.SIMPLE_HOST_FIELDS.value
         )["data"]
-        TopoHandler.fill_agent_status(host_list)
+        TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         result.update(TopoHandler.count_agent_status(host_list))
         result["host_count"] = len(host_list)
         result["node_count"] = len(self.fetch_template_node_total(template["id"])["data"])
@@ -419,7 +419,7 @@ class ServiceTemplate(Template):
         host_list = self.fetch_template_host_total(
             template["id"], fields=constants.CommonEnum.SIMPLE_HOST_FIELDS.value
         )["data"]
-        TopoHandler.fill_agent_status(host_list)
+        TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         result.update(TopoHandler.count_agent_status(host_list))
         result["host_count"] = len(host_list)
         result["node_count"] = len(self.fetch_template_node_total(template["id"])["data"])

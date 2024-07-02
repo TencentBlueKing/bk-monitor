@@ -13,9 +13,8 @@ import time
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
 
-from django.conf import settings
-
 from api.cmdb.define import Host, ServiceInstance, TopoTree
+from bkm_ipchooser import constants
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
@@ -79,52 +78,32 @@ def get_agent_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, int]:
             status[bk_host_id] = AGENT_STATUS.ON
 
     # 后续只查询没数据的主机
-    hosts = [host for host in hosts if host.bk_host_id not in status]
-
-    # 获取Agent状态，兼容新旧版gse api
+    meta = {"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id), "bk_biz_id": bk_biz_id}
+    host_list = [{"host_id": host["bk_host_id"], "meta": meta} for host in hosts if host.bk_host_id not in status]
+    scope_list = [{"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
     pool = ThreadPool()
     futures = []
-    if settings.USE_GSE_AGENT_STATUS_NEW_API:
-        agent_id_to_host_id = {}
-        for host in hosts:
-            if host.bk_agent_id:
-                agent_id_to_host_id[host.bk_agent_id] = host.bk_host_id
-            else:
-                agent_id = f"{host.bk_cloud_id}:{host.bk_host_innerip}"
-                agent_id_to_host_id[agent_id] = host.bk_host_id
-
-        # 并发请求
-        agent_id_list = list(agent_id_to_host_id.keys())
-        for index in range(0, len(agent_id_list), 1000):
-            futures.append(
-                pool.apply_async(api.gse.list_agent_state, kwds={"agent_id_list": agent_id_list[index : index + 1000]})
+    for index in range(0, len(host_list), 1000):
+        futures.append(
+            pool.apply_async(
+                api.node_man.ipchooser_host_detail,
+                kwds={
+                    "host_list": host_list[index : index + 1000],
+                    "scope_list": scope_list,
+                    "agent_realtime_state": True,
+                },
             )
-        pool.close()
-        pool.join()
-        result = []
-        for future in futures:
-            result.extend(future.get())
+        )
+    pool.close()
+    pool.join()
+    result = []
+    for future in futures:
+        result.extend(future.get())
 
-        for record in result:
-            if record["bk_agent_id"] not in agent_id_to_host_id:
-                continue
-            if record["status_code"] == 2:
-                status[agent_id_to_host_id[record["bk_agent_id"]]] = AGENT_STATUS.NO_DATA
-    else:
-        ips = [{"ip": host.bk_host_innerip, "bk_cloud_id": host.bk_cloud_id} for host in hosts if host.bk_host_innerip]
-        for index in range(0, len(ips), 1000):
-            futures.append(pool.apply_async(api.gse.get_agent_status, kwds={"hosts": ips[index : index + 1000]}))
-        pool.close()
-        pool.join()
-
-        result = {}
-        for future in futures:
-            result.update(future.get())
-
-        for agent_id, record in result.items():
-            bk_cloud_id, ip = agent_id.split(":")
-            if record["bk_agent_alive"] == 1 and (ip, int(bk_cloud_id)) in ip_to_host_id:
-                status[ip_to_host_id[(ip, int(bk_cloud_id))]] = AGENT_STATUS.NO_DATA
+    for info in result:
+        host_id = info["host_id"]
+        if info["alive"] == 1:
+            status[host_id] = AGENT_STATUS.NO_DATA
 
     for host in hosts:
         if host.bk_host_id not in status:
