@@ -310,7 +310,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
             : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
         }
       >
-        {this.$t('删除')}
+        <span
+          v-bk-tooltips={{
+            content: this.$t('存在关联的策略，不可删除'),
+            disabled: row.delete_allowed,
+          }}
+        >
+          {this.$t('删除')}
+        </span>
       </bk-button>,
     ];
   }
