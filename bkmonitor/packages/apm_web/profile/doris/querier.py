@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import json
 import logging
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from typing import Optional
 import curlify
 import requests
 from django.conf import settings
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry import trace
 from requests import RequestException
@@ -232,6 +234,39 @@ class QueryTemplate:
             return False
         count = next((i["count(*)"] for i in res["list"] if i.get("app") == self.app_name), None)
         return bool(count)
+
+    def get_profile_service_info(self):
+        """
+        获取此应用下各个服务是否有上报数据
+        eg.
+        {
+            "serviceA": {
+                "profiling_data_count": 1,
+            },
+            "serviceB": {
+                "profiling_data_count": 0,
+            },
+        }
+        """
+
+        # Step1: 获取已发现的所有 Services
+        profile_services = api.apm_api.query_profile_services_detail(
+            **{"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
+        )
+
+        if not profile_services:
+            return {}
+
+        # 时间分界线, svr["last_check_time"] >= last, 表示有数据上报
+        last = (timezone.now() - datetime.timedelta(minutes=60)).strftime("%Y-%m-%d %H:%M:%S")
+        res = {}
+        for svr in profile_services:
+            service_name = svr["name"]
+            if svr["last_check_time"] >= last:
+                res.update({svr[service_name]: {"profiling_data_count": 1}})
+            else:
+                res.update({svr[service_name]: {"profiling_data_count": 0}})
+        return res
 
     def list_services_request_info(self, start: int, end: int):
         """
