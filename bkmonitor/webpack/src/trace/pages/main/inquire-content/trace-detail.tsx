@@ -359,12 +359,7 @@ export default defineComponent({
         state.matchedSpanIds = isTopo ? mathesTopoNodeIds.length : matchesIds.length;
         if (state.activePanel === 'topo') {
           state.filterSpanIds = matchesIds;
-          if (
-            (topoType.value === ETopoType.service && ['service', 'max_duration'].includes(classify.type)) ||
-            topoType.value === ETopoType.time
-          ) {
-            state.filterSpanSubTitle = classify.type === 'service' ? (classify.filter_value as string) : classify.name;
-          }
+          state.filterSpanSubTitle = classify.type === 'service' ? (classify.filter_value as string) : classify.name;
           state.isCollapsefilter = false;
         }
       }
@@ -733,6 +728,15 @@ export default defineComponent({
       }
     }
 
+    /**
+     * @description 选中了服务topo的节点或者边
+     * @param _keys
+     */
+    async function handleServiceTopoClickItem(_keys) {
+      await (searchBarElem.value as any).handleChange([]);
+      clearSearch();
+    }
+
     return {
       ...toRefs(state),
       isLoading,
@@ -785,6 +789,7 @@ export default defineComponent({
       updateCompareStatus,
       topoType,
       handleTopoChangeType,
+      handleServiceTopoClickItem,
     };
   },
 
@@ -1082,6 +1087,7 @@ export default defineComponent({
                     type={this.topoType}
                     updateMatchedSpanIds={this.updateMatchedSpanIds}
                     onCompareSpanListChange={this.handleCompareSpanListChange}
+                    onServiceTopoClickItem={keys => this.handleServiceTopoClickItem(keys)}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onSpanListChange={this.handleSpanListFilter}
                     onTypeChange={this.handleTopoChangeType}

@@ -186,9 +186,10 @@ export default defineComponent({
           <div
             class={{
               'edge-label-custom-label': true,
+              hidden: Number(this.label) === 1 && !this.isShowDuration,
             }}
           >
-            {this.label}
+            {Number(this.label) === 1 && !this.isShowDuration ? '' : this.label}
           </div>
           {this.isShowDuration && (
             <div
