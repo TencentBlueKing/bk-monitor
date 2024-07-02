@@ -140,7 +140,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
+      formatter: row => (row.update_time ? dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
     },
     {
       label: i18n.t('配置来源'),
