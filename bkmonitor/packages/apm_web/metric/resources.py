@@ -451,7 +451,7 @@ class ServiceListResource(PageListResource):
         services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
         # 获取服务的收藏信息
         config_res = pool.apply_async(CollectServiceResource.get_collect_config, args=(app,))
-        # # 获取策略信息
+        # 获取策略信息
         strategy_map_res = pool.apply_async(self.combine_strategy_with_alert, args=(app, start_time, end_time))
         # 仅获取状态列
         service_data_status_res = pool.apply_async(
@@ -501,11 +501,11 @@ class ServiceListResource(PageListResource):
                     if strategy_alert_map[name] > strategy.get("severity", ServiceStatus.NORMAL):
                         strategy_alert_map[name] = strategy.get("severity", ServiceStatus.NORMAL)
 
-        # 获取 profile 服务指标
+        # 获取 profile 服务信息
         if app.is_enabled_profiling:
             profiling_request_info = QueryTemplate(
                 validate_data["bk_biz_id"], validate_data["app_name"]
-            ).list_services_request_info(validate_data["start_time"] * 1000, validate_data["end_time"] * 1000)
+            ).get_profile_service_info()
         else:
             profiling_request_info = {}
 
