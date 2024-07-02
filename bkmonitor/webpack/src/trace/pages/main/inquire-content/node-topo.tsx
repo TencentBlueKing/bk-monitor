@@ -58,7 +58,14 @@ const NodeTopoProps = {
 export default defineComponent({
   name: 'NodeTopo',
   props: NodeTopoProps,
-  emits: ['showSpanDetail', 'spanListChange', 'compareSpanListChange', 'update:loading', 'typeChange'],
+  emits: [
+    'showSpanDetail',
+    'spanListChange',
+    'compareSpanListChange',
+    'update:loading',
+    'typeChange',
+    'serviceTopoClickItem',
+  ],
   setup(props, { emit }) {
     const store = useTraceStore();
     const relationTopo = ref();
@@ -91,6 +98,7 @@ export default defineComponent({
     }
     function clearSearch() {
       relationTopo.value?.clearSearch?.();
+      currentClassify.value = null;
     }
     function handleClassifyFilter(matchedSpanIds: Set<string>, classify) {
       currentClassify.value = classify;
@@ -104,6 +112,9 @@ export default defineComponent({
     }
     function nextResult() {
       relationTopo.value?.nextResult();
+    }
+    function handleClickItem(keys) {
+      emit('serviceTopoClickItem', keys);
     }
 
     return {
@@ -119,6 +130,7 @@ export default defineComponent({
       viewCompare,
       prevResult,
       nextResult,
+      handleClickItem,
     };
   },
   render() {
@@ -149,6 +161,7 @@ export default defineComponent({
             classify={this.currentClassify}
             isShowDuration={this.isShowDuration}
             serviceTopoData={this.serviceTopoData}
+            onClickItem={keys => this.handleClickItem(keys)}
           ></ServiceTopo>
         )}
       </div>

@@ -79,7 +79,8 @@ export default defineComponent({
       default: () => null,
     },
   },
-  setup(props) {
+  emits: ['clickItem'],
+  setup(props, { emit }) {
     const store = useTraceStore();
     // hooks
     const { setViewport, fitView, getViewport, onEdgeClick, findEdge, vueFlowRef, onPaneClick, getSelectedEdges } =
@@ -152,8 +153,15 @@ export default defineComponent({
     watch(
       () => props.classify,
       classify => {
+        const zoomUpdate = () => {
+          nextTick(() => {
+            const params = getViewport();
+            zoomValue.value = zoomValueFormat(params.zoom);
+          });
+        };
         setTimeout(() => {
           if (!!classify) {
+            selectedNodeKey.value = '';
             if (classify.type === 'service') {
               const filterValue = classify.filter_value;
               nodes.value.some(item => {
@@ -162,10 +170,7 @@ export default defineComponent({
                   fitView({
                     nodes: [item.id],
                   });
-                  nextTick(() => {
-                    const params = getViewport();
-                    zoomValue.value = zoomValueFormat(params.zoom);
-                  });
+                  zoomUpdate();
                   return true;
                 }
                 return false;
@@ -180,15 +185,43 @@ export default defineComponent({
                     fitView({
                       nodes: [item.target],
                     });
-                    nextTick(() => {
-                      const params = getViewport();
-                      zoomValue.value = zoomValueFormat(params.zoom);
-                    });
+                    zoomUpdate();
                     return true;
                   }
                   return false;
                 });
               });
+            } else if (classify.type === 'error') {
+              // 从original_data 找出错误的span
+              const errIdSet = new Set();
+              store.traceData.original_data.forEach(item => {
+                if (item?.status?.code === 2 && item.span_id) {
+                  errIdSet.add(item.span_id);
+                }
+              });
+              // 选中所有包含错误span的线
+              const edgeSet = new Set();
+              const selectedSpans = [];
+              let targetKey = '';
+              edges.value.forEach(item => {
+                item.data.spans.forEach(s => {
+                  if (errIdSet.has(s.span_id)) {
+                    edgeSet.add(item.id);
+                    selectedSpans.push(s);
+                    if (!targetKey) {
+                      targetKey = item.target;
+                    }
+                  }
+                });
+              });
+              setEdgeSelected(Array.from(edgeSet) as string[]);
+              handleEditSpanList(selectedSpans);
+              if (!!targetKey) {
+                fitView({
+                  nodes: [targetKey],
+                });
+                zoomUpdate();
+              }
             }
           }
         }, 100);
@@ -232,6 +265,7 @@ export default defineComponent({
           selectedNodeKey.value = '';
           setEdgeSelected([edge.id]);
           handleEditSpanList(edge.data.spans);
+          emit('clickItem', [edge.id]);
         });
 
         onPaneClick(() => {
@@ -327,7 +361,15 @@ export default defineComponent({
     }
 
     function handlePanelClick(edgeId: string) {
+      selectedNodeKey.value = '';
+      const spans = edges.value.find(item => item.id === edgeId)?.data?.spans || [];
       setEdgeSelected([edgeId]);
+      handleEditSpanList(spans);
+      emit('clickItem', [edgeId]);
+    }
+    function handleNodeClickProxy(node, _e?: Event) {
+      handleNodeClick(node, _e);
+      emit('clickItem', [node.data.key]);
     }
 
     return {
@@ -354,6 +396,7 @@ export default defineComponent({
       handleNodeClick,
       handleViewportChange,
       handlePanelClick,
+      handleNodeClickProxy,
     };
   },
 
@@ -466,7 +509,7 @@ export default defineComponent({
                     borderLeftColor: data.data.color,
                   }}
                   class={['node-interface', { selected: data.data.key === this.selectedNodeKey }]}
-                  onClick={e => this.handleNodeClick(data, e)}
+                  onClick={e => this.handleNodeClickProxy(data, e)}
                 >
                   <div
                     style={{
@@ -485,7 +528,7 @@ export default defineComponent({
               [`node-${ENodeType.service}`]: data => (
                 <div
                   class={['node-service', { selected: data.data.key === this.selectedNodeKey }]}
-                  onClick={e => this.handleNodeClick(data, e)}
+                  onClick={e => this.handleNodeClickProxy(data, e)}
                 >
                   <div class='node-service-top'>
                     <div
@@ -501,7 +544,7 @@ export default defineComponent({
               [`node-${ENodeType.component}`]: data => (
                 <div
                   class={['node-service', { selected: data.data.key === this.selectedNodeKey }]}
-                  onClick={e => this.handleNodeClick(data, e)}
+                  onClick={e => this.handleNodeClickProxy(data, e)}
                 >
                   <div class='node-service-top'>
                     <div
