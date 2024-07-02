@@ -73,7 +73,7 @@ export function useLayout() {
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
     const isHorizontal = direction === 'LR';
-    dagreGraph.setGraph({ rankdir: direction, ranksep: ranksep || 50, ranker: 'longest-path' });
+    dagreGraph.setGraph({ rankdir: direction, ranksep: ranksep || 50, ranker: 'network-simplex' });
 
     previousDirection.value = direction;
 
