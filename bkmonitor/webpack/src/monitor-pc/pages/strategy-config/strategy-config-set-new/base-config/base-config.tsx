@@ -237,8 +237,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
           labels: () => this.handleStrategyLabels(),
         };
         for (const field in fields) {
-          // 按顺序给依次给表单 input 聚焦。（仅执行一次）0
-
+          // 按顺序给依次给表单 input 聚焦。（仅执行一次）
           methodMap[field]();
           break;
         }
