@@ -4,13 +4,14 @@
     |---|----------|------|
     | 腾讯云 | 必填 | tencent  | 
     | 谷歌云 | 选填 | google   |
+    | 亚马逊云 | 选填 | aws   |
+    | 微软云 | 选填 | azure   |
     
-    注：路径上的token即以上配置的Token（点击查看）
-    
+    注：路径上的token即以上配置的Token(需要进行urlencode)
     ```
-    例子URL：http://www.bk.com/fta/v1/event/?token={{token}}&source={{source}}
-    腾讯云：http://www.bk.com/fta/v1/event/?token=Token&source=tencent
-    谷歌云：http://www.bk.com/fta/v1/event/?token=Token&source=google
+    例子URL：https://example.com/fta/v1/event/?token={{token}}&source={{source}}
+    腾讯云：https://example.com/fta/v1/event/?token=Token&source=tencent
+    谷歌云：https://example.com/fta/v1/event/?token=Token&source=google
     ```
 
 2. 告警回调配置指引 以下指引腾讯云及谷歌云的告警回调配置
@@ -44,6 +45,5 @@
     （7）保存设置
     
     具体详情可参考谷歌云官网：<https://cloud.google.com/monitoring/support/notification-options?hl=zh-cn#webhooks>
-
 3. 完成
     ##
