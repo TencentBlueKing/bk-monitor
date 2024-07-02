@@ -12,6 +12,8 @@ import json
 
 from opentelemetry.trace import Span, Status, StatusCode
 
+from bkmonitor.trace.utils import MAX_PARAMS_SIZE, jsonify
+
 
 def requests_span_callback(span: Span, response):
     """将 requests 的请求和返回中的有用信息记录在 span 中"""
@@ -29,7 +31,7 @@ def requests_span_callback(span: Span, response):
     code = json_result.get("code", 0)
     errors = str(json_result.get("errors", ""))
     if errors:
-        span.set_attribute("result_errors", errors)
+        span.set_attribute("http.response.errors", errors)
 
     request_id = (
         response.headers.get("x-bkapi-request-id")
@@ -44,16 +46,11 @@ def requests_span_callback(span: Span, response):
     else:
         span.set_status(Status(StatusCode.ERROR))
 
-    span.set_attribute("result_code", code)
-    span.set_attribute("result_message", json_result.get("message", ""))
+    span.set_attribute("http.response.code", code)
+    span.set_attribute("http.response.message", json_result.get("message", ""))
 
     req = response.request
-    body = None
-    if req.body:
-        try:
-            body = req.body.decode() if isinstance(req.body, bytes) else str(body)
-        except Exception:  # noqa
-            pass
+    body = req.body
 
     try:
         authorization_header = req.headers.get("x-bkapi-authorization")
@@ -69,3 +66,5 @@ def requests_span_callback(span: Span, response):
                     span.set_attribute("user.username", username)
             except (TypeError, json.JSONDecodeError):
                 pass
+
+    span.set_attribute("request.body", jsonify(body)[:MAX_PARAMS_SIZE])
