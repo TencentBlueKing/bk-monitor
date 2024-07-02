@@ -13,12 +13,14 @@ from typing import Dict, List, Optional, Union
 
 import kafka
 import requests
+from django.conf import settings
 from django.db.models import Q
 from elasticsearch import Elasticsearch as Elasticsearch
 from kafka.admin import KafkaAdminClient
 
 from core.drf_resource import api
-from metadata import models
+from core.errors.api import BKAPIError
+from metadata import config, models
 from metadata.models.data_pipeline.utils import check_transfer_cluster_exist
 from metadata.models.space.space_data_source import get_real_biz_id
 from metadata.utils.es_tools import compose_es_hosts, get_client
@@ -35,6 +37,7 @@ class ResultTableAndDataSource:
         vm_table_id: Optional[str] = None,
         metric_name: Optional[str] = None,
         data_label: Optional[str] = None,
+        with_gse_router: Optional[bool] = False,
     ):
         self.bk_data_id = bk_data_id
         self.table_id = table_id
@@ -42,6 +45,7 @@ class ResultTableAndDataSource:
         self.metric_name = metric_name
         self.vm_table_id = vm_table_id
         self.data_label = data_label
+        self.with_gse_router = with_gse_router
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
@@ -80,7 +84,34 @@ class ResultTableAndDataSource:
         if data_id:
             detail = {"data_source": self.get_data_source(data_id)}
             detail.update(self.get_clusters(data_id))
+            if self.with_gse_router:
+                detail.update({"gse_router": self.query_gse_router(data_id)})
         return detail
+
+    def query_gse_router(self, bk_data_id: int) -> Dict:
+        """查询GSE路由信息"""
+        params = {
+            "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": bk_data_id},
+            "operation": {"operator_name": settings.COMMON_USERNAME},
+        }
+        try:
+            result = api.gse.query_route(**params)
+        except BKAPIError as e:
+            logger.error("query gse router error, %s", e)
+            return {}
+        if not result:
+            return {}
+        routers = result[0].get("route") or []
+        if not routers:
+            return {}
+        data = {}
+        for router in routers:
+            stream_to = router.get("stream_to") or {}
+            stream_to_id = stream_to.get("stream_to_id")
+            data.setdefault(stream_to_id, []).append(
+                {"topic_name": stream_to["kafka"]["topic_name"], "name": router.get("name")}
+            )
+        return data
 
     def get_data_source(self, bk_data_id: int) -> Dict:
         """获取数据源信息
