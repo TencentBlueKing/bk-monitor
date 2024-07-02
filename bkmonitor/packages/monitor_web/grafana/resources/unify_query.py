@@ -1223,9 +1223,6 @@ class DimensionPromqlQueryResource(Resource):
         match = cls.re_label_value.match(promql)
         promql = match.group(2)
         label = match.group(4)
-        if not promql.startswith("bkmointor:"):
-            promql = f"bkmonitor:{promql}"
-
         try:
             match_promql = [promql]
             if cookies_filter:
