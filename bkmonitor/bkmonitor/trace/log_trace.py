@@ -93,21 +93,29 @@ class BluekingInstrumentor(BaseInstrumentor):
         if sample_all:
             sampler = DEFAULT_ON
 
-        tracer_provider = TracerProvider(
-            resource=Resource.create(
+        resource_info = {
+            "service.name": settings.SERVICE_NAME,
+            "service.version": settings.VERSION,
+            "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", ""),
+            "service.environment": settings.ENVIRONMENT,
+        }
+        if os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"):
+            resource_info.update(
                 {
-                    "service.name": settings.SERVICE_NAME,
-                    "service.version": settings.VERSION,
-                    "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", ""),
+                    "k8s.bcs.cluster.id": os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID", ""),
+                    "k8s.namespace.name": os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE", ""),
+                    "k8s.pod.ip": get_local_ip(),
+                    "k8s.pod.name": socket.gethostname(),
+                }
+            )
+        else:
+            resource_info.update(
+                {
                     "net.host.ip": get_local_ip(),
                     "net.host.name": socket.gethostname(),
-                    "bcs.cluster.id": os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID", ""),
-                    "bcs.cluster.namespace": os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE", ""),
-                    "service.environment": settings.ENVIRONMENT,
                 }
-            ),
-            sampler=sampler,
-        )
+            )
+        tracer_provider = TracerProvider(resource=Resource.create(resource_info), sampler=sampler)
         tracer_provider.add_span_processor(span_processor)
         trace.set_tracer_provider(tracer_provider)
 

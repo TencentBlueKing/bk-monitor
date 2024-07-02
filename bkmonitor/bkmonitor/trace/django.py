@@ -9,30 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from typing import Any
 
 from django.urls import Resolver404, resolve
 from opentelemetry.trace import Span, Status, StatusCode
 
+from bkmonitor.trace.utils import MAX_PARAMS_SIZE, jsonify
 from core.errors import Error
-
-# 参数最大字符限制
-MAX_PARAMS_SIZE = 10000
-
-
-def jsonify(data: Any) -> str:
-    """尝试将数据转为 JSON 字符串"""
-    try:
-        return json.dumps(data)
-    except (TypeError, ValueError):
-        if isinstance(data, dict):
-            return json.dumps({k: v for k, v in data.items() if not v or isinstance(v, (str, int, float, bool))})
-        if isinstance(data, bytes):
-            try:
-                return data.decode('utf-8')
-            except UnicodeDecodeError:
-                return str(data)
-        return str(data)
 
 
 def request_hook(span: Span, request):
@@ -76,9 +58,9 @@ def response_hook(span, request, response):
         return
 
     res_result = result.get("result", True)
-    span.set_attribute("response.code", result.get("code", 0))
-    span.set_attribute("response.message", result.get("message", ""))
-    span.set_attribute("response.result", str(res_result))
+    span.set_attribute("http.response.code", result.get("code", 0))
+    span.set_attribute("http.response.message", result.get("message", ""))
+    span.set_attribute("http.response.result", str(res_result))
     if res_result:
         span.set_status(Status(StatusCode.OK))
     else:
