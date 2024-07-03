@@ -387,3 +387,6 @@ def time_interval_align(timestamp: int, interval: int):
     timestamp -= timezone_offset
 
     return timestamp
+
+
+MAX_DATETIME_STR = datetime2str(datetime.datetime.max)

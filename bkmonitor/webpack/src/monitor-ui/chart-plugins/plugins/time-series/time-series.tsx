@@ -207,6 +207,11 @@ export class LineChart
     return this.panel.options?.time_series?.YAxisLabelWidth || 0;
   }
 
+  // 是否展示所有告警区域数据
+  get needAllAlertMarkArea() {
+    return !!this.panel.options?.time_series?.needAllAlertMarkArea;
+  }
+
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
   handleFieldDictChange(v: IViewOptions, o: IViewOptions) {
@@ -772,8 +777,8 @@ export class LineChart
         if (duration < 60 * 60 * 24 * 1) {
           return dayjs.tz(v).format('HH:mm');
         }
-        if (duration < 60 * 60 * 24 * 8) {
-          return dayjs.tz(v).format('MM-DD');
+        if (duration < 60 * 60 * 24 * 6) {
+          return dayjs.tz(v).format('MM-DD HH:mm');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
           return dayjs.tz(v).format('MM-DD');

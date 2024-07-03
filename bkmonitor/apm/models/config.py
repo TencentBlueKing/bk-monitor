@@ -23,10 +23,9 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
     PLATFORM_METRIC_DIMENSION_FILED,
     ConfigTypes,
-    SpanKind,
 )
 from bkmonitor.utils.db import JsonField
-from constants.apm import OtlpKey, TrpcAttributes
+from constants.apm import OtlpKey, SpanKindKey, TrpcAttributes
 
 logger = logging.getLogger("apm")
 
@@ -626,7 +625,7 @@ class CustomServiceConfig(AppConfigBase):
         "http": {
             # http类型的远程服务发现规则
             "predicate_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_METHOD),
-            "span_kind": SpanKind.SPAN_KIND_CLIENT,
+            "span_kind": SpanKindKey.CLIENT,
             "match_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
         }
     }

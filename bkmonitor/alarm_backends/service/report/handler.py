@@ -123,7 +123,12 @@ async def wait_for_panel_render(page):
             "() => { return document.querySelectorAll('.panel').length "
             "|| document.querySelectorAll('.panel-container').length }"
         )
-        if (rendered_panel_count is not None and rendered_panel_count >= panel_count) or time.time() - start_time > 60:
+        if rendered_panel_count is not None and rendered_panel_count >= panel_count:
+            # 等待图表渲染动画完成
+            time.sleep(3)
+            break
+
+        if time.time() - start_time > 60:
             break
 
 

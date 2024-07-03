@@ -500,7 +500,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   noticeValidate() {
     return new Promise((resolve, reject) => {
       const validate = [ALERT_NOTICE, ACTION_NOTICE].every((type: NoticeType) => {
-        const allNoticeValidator = this.formData[type].some(noticeItem => {
+        this.formData[type].some(noticeItem => {
           const isPass = noticeItem.notify_config.every(item => {
             if (!item.notice_ways?.length) return false;
             return true;
@@ -510,14 +510,11 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           }
           return !isPass;
         });
-        this.$nextTick(() => {
-          const refs = {
-            [ALERT_NOTICE]: this.alertNoticeRef,
-            [ACTION_NOTICE]: this.actionNoticeRef,
-          };
-          refs[type].validator();
-        });
-        return !allNoticeValidator;
+        const refs = {
+          [ALERT_NOTICE]: this.alertNoticeRef,
+          [ACTION_NOTICE]: this.actionNoticeRef,
+        };
+        return refs[type].validator();
       });
       if (validate) {
         resolve(true);

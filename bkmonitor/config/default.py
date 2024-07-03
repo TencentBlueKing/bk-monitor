@@ -541,6 +541,8 @@ APM_TRPC_ENABLED = False
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
+# 拓扑发现允许的最大 Span 数量(预估值)
+PER_ROUND_SPAN_MAX_SIZE = 1000
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
@@ -1045,6 +1047,8 @@ BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
+# 通过 apigw 访问日志平台 api 的地址
+BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
@@ -1179,8 +1183,6 @@ SHOW_REALTIME_STRATEGY = False
 # 强制使用数据平台查询的cmdb层级表
 BKDATA_CMDB_LEVEL_TABLES = []
 
-# 查询 vm 的空间列表
-QUERY_VM_SPACE_UID_LIST = []
 
 # 邮件报表整屏渲染等待时间
 MAIL_REPORT_FULL_PAGE_WAIT_TIME = 60
@@ -1332,6 +1334,11 @@ REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0
 # 需要base64编码的特殊字符
 BASE64_ENCODE_TRIGGER_CHARS = []
 
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
+# 是否启用grafana接口
+ENABLE_GRAFANA_API = False
 # 是否启用新版的数据链路
 # 是否启用通过计算平台获取GSE data_id 资源，默认不启用
 ENABLE_V2_BKDATA_GSE_RESOURCE = False
@@ -1351,3 +1358,9 @@ ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
 # metadta请求es超时配置, 单位为秒，默认10秒
 # 格式: {default: 10, 集群域名: 20}
 METADATA_REQUEST_ES_TIMEOUT = {}
+
+# 是否启用自定义事件休眠
+ENABLE_CUSTOM_EVENT_SLEEP = False
+
+# 平台全局配置
+BK_SHARED_RES_URL = os.environ.get("BK_SHARED_RES_URL", os.environ.get("BKPAAS_SHARED_RES_URL", ""))

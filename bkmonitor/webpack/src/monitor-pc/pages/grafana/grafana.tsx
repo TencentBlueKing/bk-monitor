@@ -52,6 +52,8 @@ export default class MyComponent extends tsc<object> {
   unWatch = null;
   loading = true;
   hasLogin = false;
+  loadingTime: number;
+  isInit = true;
   get orignUrl() {
     return process.env.NODE_ENV === 'development' ? `${process.env.proxyUrl}/` : `${location.origin}${window.site_url}`;
   }
@@ -75,8 +77,11 @@ export default class MyComponent extends tsc<object> {
     }
     this.loading = true;
     const grafanaUrl = await this.handleGetGrafanaUrl();
-    if (!this.grafanaUrl) {
+    // 优化逻辑 若此时距离页面加载在 3s 内，则重载 iframe
+    const needReload = !this.isInit && Date.now() - this.loadingTime < 3000;
+    if (!this.grafanaUrl || needReload) {
       this.grafanaUrl = grafanaUrl;
+      this.isInit = false;
       setTimeout(() => (this.loading = false), 2000);
     } else {
       this.loading = false;
@@ -141,6 +146,7 @@ export default class MyComponent extends tsc<object> {
     return '';
   }
   mounted() {
+    this.loadingTime = Date.now();
     window.addEventListener('message', this.handleMessage, false);
   }
 

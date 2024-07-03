@@ -1,9 +1,9 @@
 .head-row {
   position: relative;
   display: flex;
-  margin-top: 20px;
   flex-wrap: nowrap;
   align-items: center;
+  margin-top: 20px;
 
   .cascader {
     position: relative;
@@ -40,9 +40,9 @@
     overflow: hidden;
     font-size: 12px;
     line-height: 20px;
-    letter-spacing: 0;
     color: #63656e;
     text-overflow: ellipsis;
+    letter-spacing: 0;
     white-space: nowrap;
     cursor: pointer;
     border-radius: 2px;
@@ -112,8 +112,8 @@
     font-size: 12px;
     font-weight: 700;
     line-height: 20px;
-    letter-spacing: 0;
     color: #ff9c01;
+    letter-spacing: 0;
     white-space: nowrap;
     cursor: pointer;
     border-radius: 2px;
@@ -175,8 +175,8 @@
 
 #ip-filter-container {
   display: flex;
-  height: 32px;
   align-items: center;
+  height: 32px;
 
   .add-ip-button {
     font-size: 12px;

@@ -12,14 +12,6 @@ specific language governing permissions and limitations under the License.
 import re
 
 from django.utils.translation import ugettext as _
-from monitor_web.commons.data_access import PluginDataAccessor
-from monitor_web.models.plugin import (
-    CollectorPluginConfig,
-    CollectorPluginInfo,
-    CollectorPluginMeta,
-    OperatorSystem,
-)
-from monitor_web.plugin.constant import PARAM_MODE_CHOICES, SCRIPT_TYPE_CHOICES
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
@@ -29,6 +21,14 @@ from bkmonitor.utils.serializers import (
     MetricJsonSerializer,
     StrictCharField,
 )
+from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.models.plugin import (
+    CollectorPluginConfig,
+    CollectorPluginInfo,
+    CollectorPluginMeta,
+    OperatorSystem,
+)
+from monitor_web.plugin.constant import PARAM_MODE_CHOICES, SCRIPT_TYPE_CHOICES
 
 
 class CollectorPluginMetaSerializer(serializers.ModelSerializer):
@@ -63,6 +63,7 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         visible = serializers.BooleanField(required=False, label="是否可见")
         auth_json = serializers.ListField(required=False, label="认证信息")
         key = serializers.CharField(required=False, label="名称")
+        required = serializers.BooleanField(required=False, label="是否必填", default=False)
 
     config_json = ConfigJsonSeriliazer(required=False, many=True, default=[], label="采集配置")
     plugin_display_name = StrictCharField(required=True, allow_blank=True, label="插件别名")

@@ -1,31 +1,38 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Inject } from 'vue-property-decorator';
-import { utcFormatDate } from '../../../common/util';
-import GroupDropdown from './component/group-dropdown';
-import { IGroupItem, IFavoriteItem } from './collect-index';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Popover } from 'bk-magic-vue';
+
+import { utcFormatDate } from '../../../common/util';
+import { IGroupItem, IFavoriteItem } from './collect-index';
+import GroupDropdown from './component/group-dropdown';
+
 import './collect-group.scss';
 
 interface ICollectProps {
@@ -80,7 +87,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
         onHidden: () => {
           this.favoriteMessageInstance?.destroy();
           this.favoriteMessageInstance = null;
-        }
+        },
       });
       this.favoriteMessageInstance.show(500);
     }
@@ -117,8 +124,8 @@ export default class CollectGroup extends tsc<ICollectProps> {
     const collectDropdownSlot = item => (
       <div onClick={() => (this.clickDrop = true)}>
         <GroupDropdown
-          drop-type={'collect'}
           data={item}
+          drop-type={'collect'}
           group-list={this.groupList}
         />
       </div>
@@ -130,8 +137,8 @@ export default class CollectGroup extends tsc<ICollectProps> {
             'group-title fl-jcsb',
             {
               'is-active': !this.isHiddenList,
-              'is-move-cur': !this.isSearchFilter && !this.isCannotChange
-            }
+              'is-move-cur': !this.isSearchFilter && !this.isCannotChange,
+            },
           ]}
           onMouseenter={() => this.handleHoverTitle(true)}
           onMouseleave={() => this.handleHoverTitle(false)}
@@ -152,14 +159,14 @@ export default class CollectGroup extends tsc<ICollectProps> {
               class={{
                 'group-item': true,
                 'is-disabled': this.isFailFavorite(item),
-                active: item.id === this.activeFavoriteID
+                active: item.id === this.activeFavoriteID,
               }}
               onClick={() => this.handleClickCollect(item)}
             >
               <div
                 class={{
                   'group-item-left': true,
-                  'active-name': item.id === this.activeFavoriteID
+                  'active-name': item.id === this.activeFavoriteID,
                 }}
               >
                 <div
@@ -169,9 +176,9 @@ export default class CollectGroup extends tsc<ICollectProps> {
                   <span>{item.name}</span>
                   {this.isFailFavorite(item) ? (
                     <Popover
-                      theme='light'
-                      placement='bottom'
                       ext-cls='favorite-data-source'
+                      placement='bottom'
+                      theme='light'
                     >
                       <span class='bk-icon log-icon icon-shixiao'></span>
                       <div slot='content'>
@@ -180,7 +187,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                             {item.index_set_names.map((setItem, setIndex) => (
                               <li
                                 class={{
-                                  'index-fail': !item.is_actives[setIndex]
+                                  'index-fail': !item.is_actives[setIndex],
                                 }}
                               >
                                 <span>
@@ -200,7 +207,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                     <span
                       v-bk-tooltips={{
                         content: this.$t('多索引集'),
-                        placement: 'right'
+                        placement: 'right',
                       }}
                     >
                       <span class='bk-icon icon-panels'></span>

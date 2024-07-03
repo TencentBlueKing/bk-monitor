@@ -384,7 +384,7 @@ class PrecalculateStorage:
         id_mapping = {}
         for i in cluster_config:
             key = f"{i['cluster_id']}-{i['table_name']}"
-            instance = ESStorage.objects.filter(table_id=i['table_name']).first()
+            instance = ESStorage.objects.filter(table_id=i["table_name"]).first()
 
             if not instance:
                 try:
@@ -569,7 +569,7 @@ class PrecalculateStorage:
     @classmethod
     def handle_fields_update(cls):
         """
-        检查预计算表字段是否有更新 如果有则更新
+        检查预计算表字段是否有更新/集群变动 如果有则更新
         """
         for i in DataLink.objects.all():
             cluster_config = i.pre_calculate_config.get("cluster")
@@ -590,9 +590,12 @@ class PrecalculateStorage:
                     )
                     cur_res = cls._exact_unique_data(cls.TABLE_SCHEMA, cls.CHECK_UPDATE_FIELDS, "field_name")
 
-                    if count_md5(json.dumps(cur_res, sort_keys=True)) != count_md5(json.dumps(pre_res, sort_keys=True)):
-                        logger.info(f"[PreCalculateStorage-CHECK_UPDATE] FIELD UPDATE!")
-                        cls.update_result_table(j["table_name"])
+                    # 如果字段有更新 或者 存储集群变动 则更新
+                    if (
+                        count_md5(json.dumps(cur_res, sort_keys=True)) != count_md5(json.dumps(pre_res, sort_keys=True))
+                    ) or (instance.storage_cluster_id != j["cluster_id"]):
+                        logger.info(f"[PreCalculateStorage-CHECK_UPDATE] FIELD OR STORAGE UPDATE!")
+                        cls.update_result_table(j["table_name"], j["cluster_id"])
                     else:
                         logger.info(
                             f"[PreCalculateStorage-CHECK_UPDATE] "
@@ -625,7 +628,7 @@ class PrecalculateStorage:
         return res
 
     @classmethod
-    def update_result_table(cls, table_name):
+    def update_result_table(cls, table_name, storage_cluster_id):
         """更新所有DataLink的预计算存储配置"""
         params = {
             "table_id": table_name,
@@ -634,6 +637,8 @@ class PrecalculateStorage:
             "field_list": cls.TABLE_SCHEMA,
             "external_storage": {
                 "elasticsearch": {
+                    "cluster_id": storage_cluster_id,
+                    "storage_cluster_id": storage_cluster_id,
                     "slice_size": settings.APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE,
                     "retention": settings.APM_APP_PRE_CALCULATE_STORAGE_RETENTION,
                     "slice_gap": 60 * 24,

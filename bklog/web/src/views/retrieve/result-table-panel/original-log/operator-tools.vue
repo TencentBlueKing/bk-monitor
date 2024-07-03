@@ -1,31 +1,35 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
     <template v-if="!isUnionSearch">
       <span
-        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
         class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
       >
         <span
           :class="`icon log-icon icon-handle icon-time ${!isActiveLog && 'is-disable'}`"
@@ -34,8 +38,8 @@
         </span>
       </span>
       <span
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
         class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
       >
         <span
           :class="`icon log-icon icon-handle icon-document ${!isActiveLog && 'is-disable'}`"
@@ -45,8 +49,8 @@
       </span>
       <span
         v-if="isActiveWebConsole"
-        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
         class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
       >
         <span
           :class="`icon icon-handle log-icon icon-teminal ${!isCanClickWebConsole && 'is-disable'}`"
@@ -101,12 +105,12 @@
     </template>
     <template v-else>
       <span
+        class="handle-card union-icon"
         v-bk-tooltips="
           $t('{0}日志来源', {
-            0: !isShowSourceField ? $t('显示') : $t('隐藏')
+            0: !isShowSourceField ? $t('显示') : $t('隐藏'),
           })
         "
-        class="handle-card union-icon"
         @click.stop="handleClick('logSource')"
       >
         <i :class="['bk-icon icon-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
@@ -116,132 +120,132 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
-export default {
-  props: {
-    index: {
-      type: Number,
-      default: 0
+  import { mapGetters } from 'vuex';
+  export default {
+    props: {
+      index: {
+        type: Number,
+        default: 0,
+      },
+      rowData: {
+        type: Object,
+        required: true,
+      },
+      operatorConfig: {
+        type: Object,
+        required: true,
+      },
+      logType: {
+        type: String,
+        default: 'table',
+      },
+      handleClick: Function,
     },
-    rowData: {
-      type: Object,
-      required: true
+    data() {
+      return {
+        showAllHandle: false, // hove操作区域显示全部icon
+      };
     },
-    operatorConfig: {
-      type: Object,
-      required: true
-    },
-    logType: {
-      type: String,
-      default: 'table'
-    },
-    handleClick: Function
-  },
-  data() {
-    return {
-      showAllHandle: false // hove操作区域显示全部icon
-    };
-  },
-  computed: {
-    ...mapGetters({
-      unionIndexList: 'unionIndexList',
-      isUnionSearch: 'isUnionSearch'
-    }),
-    isActiveLog() {
-      return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
-    },
-    isActiveWebConsole() {
-      return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
-    },
-    /** 判断webConsole是否能点击 */
-    isCanClickWebConsole() {
-      if (!this.isActiveWebConsole) return false;
-      const { cluster, container_id: containerID, __ext } = this.rowData;
-      let queryData = {};
-      if (cluster && containerID) {
-        queryData = {
-          cluster,
-          container_id: containerID
-        };
-      } else {
-        if (!__ext) return false;
-        if (!__ext.container_id) return false;
-        queryData = { container_id: __ext.container_id };
-        if (__ext.io_tencent_bcs_cluster) {
-          Object.assign(queryData, {
-            cluster: __ext.io_tencent_bcs_cluster
-          });
-        } else if (__ext.bk_bcs_cluster_id) {
-          Object.assign(queryData, {
-            cluster: __ext.bk_bcs_cluster_id
-          });
+    computed: {
+      ...mapGetters({
+        unionIndexList: 'unionIndexList',
+        isUnionSearch: 'isUnionSearch',
+      }),
+      isActiveLog() {
+        return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
+      },
+      isActiveWebConsole() {
+        return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
+      },
+      /** 判断webConsole是否能点击 */
+      isCanClickWebConsole() {
+        if (!this.isActiveWebConsole) return false;
+        const { cluster, container_id: containerID, __ext } = this.rowData;
+        let queryData = {};
+        if (cluster && containerID) {
+          queryData = {
+            cluster,
+            container_id: containerID,
+          };
+        } else {
+          if (!__ext) return false;
+          if (!__ext.container_id) return false;
+          queryData = { container_id: __ext.container_id };
+          if (__ext.io_tencent_bcs_cluster) {
+            Object.assign(queryData, {
+              cluster: __ext.io_tencent_bcs_cluster,
+            });
+          } else if (__ext.bk_bcs_cluster_id) {
+            Object.assign(queryData, {
+              cluster: __ext.bk_bcs_cluster_id,
+            });
+          }
         }
-      }
-      if (!queryData.cluster || !queryData.container_id) return false;
-      return true;
+        if (!queryData.cluster || !queryData.container_id) return false;
+        return true;
+      },
+      toolMessage() {
+        return (
+          this.operatorConfig?.toolMessage ?? {
+            realTimeLog: '',
+            webConsole: '',
+            contextLog: '',
+          }
+        );
+      },
+      isShowSourceField() {
+        return this.operatorConfig?.isShowSourceField;
+      },
     },
-    toolMessage() {
-      return (
-        this.operatorConfig?.toolMessage ?? {
-          realTimeLog: '',
-          webConsole: '',
-          contextLog: ''
-        }
-      );
+    methods: {
+      handleCheckClick(clickType, isActive = false) {
+        if (!isActive) return;
+        return this.handleClick(clickType);
+      },
     },
-    isShowSourceField() {
-      return this.operatorConfig?.isShowSourceField;
-    }
-  },
-  methods: {
-    handleCheckClick(clickType, isActive = false) {
-      if (!isActive) return;
-      return this.handleClick(clickType);
-    }
-  }
-};
+  };
 </script>
 
 <style lang="scss" scoped>
-.handle-content {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  width: 84px;
-  padding: 14px 10px;
-  overflow: hidden;
-  align-items: flex-start;
-  justify-content: flex-end;
-}
+  .handle-content {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    width: 84px;
+    padding: 14px 10px;
+    overflow: hidden;
+  }
 
-.fix-content {
-  width: auto;
-  background-color: #f5f7fa;
-}
+  .fix-content {
+    width: auto;
+    background-color: #f5f7fa;
+  }
 
-.icon-exclamation-circle-shape {
-  color: #d7473f;
-}
+  .icon-exclamation-circle-shape {
+    color: #d7473f;
+  }
 
-.icon-more {
-  transform: translateY(2px) translateX(4px);
-}
+  .icon-more {
+    transform: translateY(2px) translateX(4px);
+  }
 
-.is-disable {
-  /* stylelint-disable-next-line declaration-no-important */
-  color: #eceef2 !important;
+  .is-disable {
+    /* stylelint-disable-next-line declaration-no-important */
+    color: #eceef2 !important;
 
-  /* stylelint-disable-next-line declaration-no-important */
-  cursor: no-drop !important;
-}
+    /* stylelint-disable-next-line declaration-no-important */
+    cursor: no-drop !important;
+  }
 
-.clean-str {
-  color: #3a84ff;
-  cursor: pointer;
-}
+  .clean-str {
+    color: #3a84ff;
+    cursor: pointer;
+  }
 
-.union-icon {
-  margin-right: 8px;
-}
+  .union-icon {
+    margin-right: 8px;
+  }
 </style>

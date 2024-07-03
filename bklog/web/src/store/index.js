@@ -1,23 +1,28 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 /**
@@ -26,13 +31,14 @@
  */
 
 import Vue from 'vue';
+
+import { unifyObjectStyle } from '@/common/util';
 import Vuex from 'vuex';
 
-import retrieve from './retrieve';
 import collect from './collect';
 import globals from './globals';
+import retrieve from './retrieve';
 import http from '@/api';
-import { unifyObjectStyle } from '@/common/util';
 
 Vue.use(Vuex);
 
@@ -41,7 +47,7 @@ const store = new Vuex.Store({
   modules: {
     retrieve,
     collect,
-    globals
+    globals,
   },
   // 公共 store
   state: {
@@ -105,14 +111,15 @@ const store = new Vuex.Store({
     /** 日志灰度 */
     maskingToggle: {
       toggleString: 'off',
-      toggleList: []
+      toggleList: [],
     },
     /** 外部版路由菜单 */
     externalMenu: [],
     isAppFirstLoad: true,
     /** 是否清空了显示字段，展示全量字段 */
     isNotVisibleFieldsShow: false,
-    showAlert: false // 是否展示跑马灯
+    showAlert: false, // 是否展示跑马灯
+    isLimitExpandView: false,
   },
   // 公共 getters
   getters: {
@@ -140,7 +147,7 @@ const store = new Vuex.Store({
       Boolean(
         state.topMenu
           .find(item => item.id === 'manage')
-          ?.children.some(item => item.id === 'permissionGroup' && item.project_manage === true)
+          ?.children.some(item => item.id === 'permissionGroup' && item.project_manage === true),
       ),
     spaceBgColor: state => state.spaceBgColor,
     isEnLanguage: state => state.isEnLanguage,
@@ -152,7 +159,8 @@ const store = new Vuex.Store({
     isNotVisibleFieldsShow: state => state.isNotVisibleFieldsShow,
     /** 脱敏灰度判断 */
     isShowMaskingTemplate: state =>
-      state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId))
+      state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
+    isLimitExpandView: state => state.isLimitExpandView,
   },
   // 公共 mutations
   mutations: {
@@ -212,7 +220,7 @@ const store = new Vuex.Store({
           tags:
             item.space_type_id === 'bkci' && item.space_code
               ? [defaultTag, { id: 'bcs', name: window.mainComponent.$t('容器项目'), type: 'bcs' }]
-              : [defaultTag]
+              : [defaultTag],
         };
       });
     },
@@ -303,7 +311,11 @@ const store = new Vuex.Store({
     },
     updateNoticeAlert(state, val) {
       state.showAlert = val;
-    }
+    },
+    updateIsLimitExpandView(state, val) {
+      localStorage.setItem('EXPAND_SEARCH_VIEW', JSON.stringify(val));
+      state.isLimitExpandView = val;
+    },
   },
   actions: {
     /**
@@ -339,8 +351,8 @@ const store = new Vuex.Store({
     getMenuList({}, spaceUid) {
       return http.request('meta/menu', {
         query: {
-          space_uid: spaceUid
-        }
+          space_uid: spaceUid,
+        },
       });
     },
     getGlobalsData({ commit }) {
@@ -363,20 +375,20 @@ const store = new Vuex.Store({
       return new Promise(async (resolve, reject) => {
         try {
           const checkRes = await http.request('auth/checkAllowed', {
-            data: paramData
+            data: paramData,
           });
           for (const item of checkRes.data) {
             if (item.is_allowed === false) {
               // 无权限
               resolve({
-                isAllowed: false
+                isAllowed: false,
               });
               return;
             }
           }
           // 有权限
           resolve({
-            isAllowed: true
+            isAllowed: true,
           });
         } catch (err) {
           // 请求出错
@@ -387,7 +399,7 @@ const store = new Vuex.Store({
     // 已知无权限，需要获取信息
     getApplyData(context, paramData) {
       return http.request('auth/getApplyData', {
-        data: paramData
+        data: paramData,
       });
     },
     // 判断有无权限，无权限获取相关信息
@@ -395,32 +407,32 @@ const store = new Vuex.Store({
       return new Promise(async (resolve, reject) => {
         try {
           const checkRes = await http.request('auth/checkAllowed', {
-            data: paramData
+            data: paramData,
           });
           for (const item of checkRes.data) {
             if (item.is_allowed === false) {
               // 无权限
               const applyDataRes = await http.request('auth/getApplyData', {
-                data: paramData
+                data: paramData,
               });
               resolve({
                 isAllowed: false,
-                data: applyDataRes.data
+                data: applyDataRes.data,
               });
               return;
             }
           }
           // 有权限
           resolve({
-            isAllowed: true
+            isAllowed: true,
           });
         } catch (err) {
           // 请求出错
           reject(err);
         }
       });
-    }
-  }
+    },
+  },
 });
 
 /**

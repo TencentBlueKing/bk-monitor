@@ -322,6 +322,14 @@ class GetCustomEventGroup(Resource):
         )
         data["event_info_list"] = list()
 
+        # 如果自定义事件有人访问，则结束休眠策略
+        username = get_request_username()
+        if event_info_list.get("status") == "sleep":
+            try:
+                api.metadata.modify_event_group({"event_group_id": event_group_id, "operator": username})
+            except BKAPIError:
+                pass
+
         # 查询事件关联策略ID
         related_query_configs = (
             QueryConfigModel.objects.filter(
