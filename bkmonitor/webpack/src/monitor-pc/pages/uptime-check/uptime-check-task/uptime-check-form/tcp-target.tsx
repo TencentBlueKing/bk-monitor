@@ -230,6 +230,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
       this.ips = v.split('\n').filter(Boolean);
       this.showAddIp = false;
       this.showIpValidateTips = false;
+      this.$emit('addTarget');
       return;
     }
     this.showIpValidateTips = true;
@@ -256,12 +257,14 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
       this.domainRecord = this.defaultDomain.record;
       this.domainIpTypes = this.defaultDomain.type.slice();
       this.showValidateDomainTips = false;
+      this.$emit('addTarget');
       return;
     }
     this.showValidateDomainTips = true;
   }
   handleIpChange(v: IIpV6Value) {
     this.cmdIpValue = v;
+    this.$emit('addTarget');
   }
   closeDialog() {
     this.showAddCmdbIp = false;

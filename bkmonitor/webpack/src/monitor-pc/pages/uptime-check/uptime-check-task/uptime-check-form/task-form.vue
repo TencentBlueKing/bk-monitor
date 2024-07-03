@@ -135,6 +135,7 @@
               v-else
               ref="tcpTarget"
               :default-value="tcpTarget"
+              @addTarget="handleAddTcpTarget"
             />
             <div
               :style="{ color: '#f56c6c' }"
@@ -1225,6 +1226,9 @@ export default {
     validatePort() {
       const port = +this.task.port;
       this.requiredOptions.port = !(0 < port && port <= 65535);
+    },
+    handleAddTcpTarget() {
+      this.requiredOptions.target = false;
     },
     handleHttpConfigChange(httpConfig) {
       this.httpConfig = httpConfig;
