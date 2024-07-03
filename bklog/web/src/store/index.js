@@ -119,6 +119,7 @@ const store = new Vuex.Store({
     /** 是否清空了显示字段，展示全量字段 */
     isNotVisibleFieldsShow: false,
     showAlert: false, // 是否展示跑马灯
+    isLimitExpandView: false,
   },
   // 公共 getters
   getters: {
@@ -159,6 +160,7 @@ const store = new Vuex.Store({
     /** 脱敏灰度判断 */
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
+    isLimitExpandView: state => state.isLimitExpandView,
   },
   // 公共 mutations
   mutations: {
@@ -309,6 +311,10 @@ const store = new Vuex.Store({
     },
     updateNoticeAlert(state, val) {
       state.showAlert = val;
+    },
+    updateIsLimitExpandView(state, val) {
+      localStorage.setItem('EXPAND_SEARCH_VIEW', JSON.stringify(val));
+      state.isLimitExpandView = val;
     },
   },
   actions: {

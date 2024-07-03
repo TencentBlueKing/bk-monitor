@@ -135,6 +135,7 @@ export default {
       isUnionSearch: 'isUnionSearch',
       unionIndexList: 'unionIndexList',
       unionIndexItemList: 'unionIndexItemList',
+      isLimitExpandView: 'isLimitExpandView',
     }),
     showHandleOption() {
       return Boolean(this.tableList.length);
@@ -445,6 +446,10 @@ export default {
         );
       }
       return this.tableRowDeepView(row, field.field_name, field.field_type);
+    },
+    getLimitState(index) {
+      if (this.isLimitExpandView) return false;
+      return !this.cacheExpandStr.includes(index);
     },
   },
 };
