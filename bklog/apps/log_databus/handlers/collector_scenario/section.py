@@ -193,7 +193,7 @@ class SectionCollectorScenario(CollectorScenario):
 
             params = {
                 "paths": config["local"][0]["paths"],
-                "exclude_files": config["local"][0]["exclude_files"],
+                "exclude_files": config["local"][0].get("exclude_files", []),
                 "conditions": conditions,
                 "multiline_pattern": config["local"][0]["multiline_pattern"],
                 "multiline_max_lines": config["local"][0]["multiline_max_lines"],
