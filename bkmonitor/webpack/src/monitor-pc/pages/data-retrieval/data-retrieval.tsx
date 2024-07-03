@@ -1458,7 +1458,7 @@ export default class DataRetrieval extends tsc<object> {
             agg_method: item?.agg_method,
             agg_interval: item?.agg_interval,
             agg_dimension: item?.agg_dimension,
-            agg_condition: item?.agg_condition,
+            agg_condition: item?.agg_condition || [],
             functions: item?.functions,
           }
         : {
