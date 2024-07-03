@@ -175,7 +175,7 @@
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, $index }">
           <div class="pattern">
-            <div :class="['pattern-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
+            <div :class="['pattern-content', { 'is-limit': getLimitState($index) }]">
               <cluster-event-popover
                 :context="row.pattern"
                 :tippy-options="{ distance: 10, placement: 'bottom', boundary: scrollContent }"
@@ -189,20 +189,22 @@
                   {{ getHeightLightStr(row.pattern) }}
                 </text-highlight>
               </cluster-event-popover>
-              <p
-                v-if="!cacheExpandStr.includes($index)"
-                class="show-whole-btn"
-                @click.stop="handleShowWhole($index)"
-              >
-                {{ $t('展开全部') }}
-              </p>
-              <p
-                v-else
-                class="hide-whole-btn"
-                @click.stop="handleHideWhole($index)"
-              >
-                {{ $t('收起') }}
-              </p>
+              <template v-if="!isLimitExpandView">
+                <p
+                  v-if="!cacheExpandStr.includes($index)"
+                  class="show-whole-btn"
+                  @click.stop="handleShowWhole($index)"
+                >
+                  {{ $t('展开全部') }}
+                </p>
+                <p
+                  v-else
+                  class="hide-whole-btn"
+                  @click.stop="handleHideWhole($index)"
+                >
+                  {{ $t('收起') }}
+                </p>
+              </template>
             </div>
           </div>
         </template>
@@ -394,7 +396,7 @@
 <script>
   import TextHighlight from 'vue-text-highlight';
 
-  import { copyMessage, formatDate, deepClone } from '@/common/util';
+  import { copyMessage, formatDate, deepClone, deepEqual } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import ClusteringLoader from '@/skeleton/clustering-loader';
   import BkUserSelector from '@blueking/user-selector';
@@ -451,8 +453,8 @@
         selectList: [], // 当前选中的数组
         isRequestAlarm: false, // 是否正在请求告警接口
         checkValue: 0, // 0为不选 1为半选 2为全选
-        /** 当前编辑备注或标签的 signature */
-        curEditSignature: '',
+        /** 当前编辑备注或标签的 唯一判断数据 */
+        curEditUniqueVal: {},
         /** 输入框弹窗的字符串 */
         verifyData: {
           textInputStr: '',
@@ -524,6 +526,9 @@
       bkBizId() {
         return this.$store.state.bkBizId;
       },
+      isLimitExpandView() {
+        return this.$store.state.isLimitExpandView;
+      },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
       },
@@ -537,15 +542,12 @@
       },
       /** 获取当前编辑操作的数据 */
       getHoverRowValue() {
-        return this.fingerList.find(item => item.signature === this.curEditSignature);
-      },
-      /** 获取当前hover操作的数据 */
-      getHoverRowGroupsValue() {
-        if (!this.requestData.group_by.length) return {};
-        return this.requestData.group_by.reduce((acc, cur, index) => {
-          acc[cur] = this.getHoverRowValue.group[index] ?? '';
-          return acc;
-        }, {});
+        const uniqueVal = this.curEditUniqueVal;
+        // 如果有分组也带上分组的条件
+        const fingerRow = this.fingerList.find(item =>
+          Object.keys(uniqueVal).every(key => deepEqual(item[key], uniqueVal[key])),
+        );
+        return fingerRow;
       },
       scrollContent() {
         return document.querySelector('.result-scroll-container');
@@ -843,7 +845,10 @@
       },
       /** 设置负责人 */
       handleChangePrincipal(val, row) {
-        this.curEditSignature = row.signature;
+        this.curEditUniqueVal = {
+          signature: row.signature,
+          group: row.group,
+        };
         this.$http
           .request('/logClustering/setOwner', {
             params: {
@@ -853,13 +858,16 @@
               signature: this.getHoverRowValue.signature,
               owners: val,
               origin_pattern: this.getHoverRowValue.origin_pattern,
-              groups: this.getHoverRowGroupsValue,
+              groups: this.getGroupsValue(row.group),
             },
           })
           .then(res => {
             if (res.result) {
-              const { signature, owners } = res.data;
-              this.curEditSignature = signature;
+              const { signature, groups, owners } = res.data;
+              this.curEditUniqueVal = {
+                signature,
+                group: this.requestData.group_by.map(gKey => groups[gKey]),
+              };
               this.getHoverRowValue.owners = owners;
               this.$bkMessage({
                 theme: 'success',
@@ -867,7 +875,7 @@
               });
             }
           })
-          .finally(() => (this.curEditSignature = ''));
+          .finally(() => (this.curEditUniqueVal = {}));
       },
       /** 设置备注  */
       remarkQuery(markType = 'add') {
@@ -904,13 +912,16 @@
               signature: this.getHoverRowValue.signature,
               ...additionData,
               origin_pattern: this.getHoverRowValue.origin_pattern,
-              groups: this.getHoverRowGroupsValue,
+              groups: this.getGroupsValue(this.curEditUniqueVal.group),
             },
           })
           .then(res => {
             if (res.result) {
-              const { signature, remark } = res.data;
-              this.curEditSignature = signature;
+              const { signature, groups, remark } = res.data;
+              this.curEditUniqueVal = {
+                signature,
+                group: this.requestData.group_by.map(gKey => groups[gKey]),
+              };
               this.getHoverRowValue.remark = remark;
               this.$bkMessage({
                 theme: 'success',
@@ -919,7 +930,7 @@
             }
           })
           .finally(() => {
-            this.curEditSignature = '';
+            this.curEditUniqueVal = {};
             this.verifyData.textInputStr = '';
             this.catchOperatorVal = {};
           });
@@ -950,7 +961,12 @@
             boundary: 'window',
             placement: 'top',
             width: 240,
-            onShow: () => (this.curEditSignature = row.signature),
+            onShow: () => {
+              this.curEditUniqueVal = {
+                signature: row.signature,
+                group: row.group,
+              };
+            },
             onHidden: () => {
               this.popoverInstance?.destroy();
               this.popoverInstance = null;
@@ -1121,6 +1137,18 @@
             submit: this.handleRemarkSubmit,
           },
         });
+      },
+      /** 将分组的数组改成对像 */
+      getGroupsValue(group) {
+        if (!this.requestData.group_by.length) return {};
+        return this.requestData.group_by.reduce((acc, cur, index) => {
+          acc[cur] = group?.[index] ?? '';
+          return acc;
+        }, {});
+      },
+      getLimitState(index) {
+        if (this.isLimitExpandView) return false;
+        return !this.cacheExpandStr.includes(index);
       },
     },
   };

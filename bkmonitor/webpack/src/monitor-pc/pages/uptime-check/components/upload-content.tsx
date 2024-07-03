@@ -79,6 +79,7 @@ export default class UploadContent extends tsc<IUploadContentProps, IUploadConte
           style={{ backgroundImage: this.curImg ? `url(${this.curImg})` : 'none' }}
           class='upload-content-img'
         >
+          {!this.curImg && <span class='icon-monitor icon-upload-cloud'></span>}
           <div class='mask'>{this.curImg ? this.$t('点击更换') : this.$t('点击上传')}</div>
           <i
             class='bk-icon icon-close'

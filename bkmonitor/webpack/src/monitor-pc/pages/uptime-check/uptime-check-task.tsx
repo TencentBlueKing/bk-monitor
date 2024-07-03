@@ -764,30 +764,28 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           onSearch={(v: string) => this.handleSearch(v)}
         ></HeaderTools>
         {this.groupDataTask.show ? (
-          this.searchGroupToTaskData.length ? (
-            <CardsContainer style={{ marginTop: '20px' }}>
+          <CardsContainer style={{ marginTop: '20px' }}>
+            <span
+              class='card-container-header'
+              slot='title'
+            >
               <span
-                class='card-container-header'
-                slot='title'
+                class='header-btn'
+                onClick={this.handleBackGroup}
               >
-                <span
-                  class='header-btn'
-                  onClick={this.handleBackGroup}
-                >
-                  {this.$t('拨测任务')}
-                </span>
-                <span class='header-arrow'>{'>'}</span>
-                <span class='header-name'>{this.groupDataTask.groupName}</span>
+                {this.$t('拨测任务')}
               </span>
-              {this.searchGroupToTaskData.map(item => (
-                <TaskCard
-                  data={item}
-                  onCardClick={(id: number) => this.handleTaskCardClick(id)}
-                  onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                ></TaskCard>
-              ))}
-            </CardsContainer>
-          ) : undefined
+              <span class='header-arrow'>{'>'}</span>
+              <span class='header-name'>{this.groupDataTask.groupName}</span>
+            </span>
+            {this.searchGroupToTaskData?.map(item => (
+              <TaskCard
+                data={item}
+                onCardClick={(id: number) => this.handleTaskCardClick(id)}
+                onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
+              ></TaskCard>
+            ))}
+          </CardsContainer>
         ) : (
           [
             this.searchGroupData.length ? (

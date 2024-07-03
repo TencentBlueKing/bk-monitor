@@ -251,10 +251,9 @@
               :class="{
                 disable: !item.is_active,
                 'is-selected': item.id === formData.collector_scenario_id,
-                'is-updated': isUpdate && item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
-              :disabled="isUpdate"
+              :disabled="isUpdate && isWinEventLog"
               :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
@@ -1092,6 +1091,8 @@
         // 编辑态ip选择器初始值
         ipSelectorOriginalValue: null,
         enLabelWidth: 180,
+        /** 是否是编状态况并且初始选中的是winevent类型 */
+        isUpdateAndSelectedWinEvent: false,
       };
     },
     computed: {
@@ -1242,6 +1243,9 @@
           if (!this.formData.collector_config_name_en) {
             // 兼容旧数据数据名称为空
             this.formData.collector_config_name_en = this.formData.table_id || '';
+          }
+          if (this.isUpdate && this.isWinEventLog) {
+            this.isUpdateAndSelectedWinEvent = true;
           }
         }
         // 克隆采集项的时候 清空以下回显或者重新赋值 保留其余初始数据
@@ -1855,6 +1859,9 @@
         this.currentEnvironment = name;
         if (!['linux', 'windows'].includes(this.currentEnvironment)) {
           this.formData.configs.forEach(item => (item.labelSelector = [])); // 切换环境清空label
+        }
+        if (name === 'windows' && this.isUpdateAndSelectedWinEvent) {
+          this.formData.collector_scenario_id = 'wineventlog';
         }
       },
       handleAddExtraLabel() {
@@ -2530,12 +2537,6 @@
       .disable {
         color: #dcdee5;
         cursor: not-allowed;
-        border-color: #dcdee5;
-      }
-
-      .is-updated {
-        color: #63656e;
-        background: #fafbfd;
         border-color: #dcdee5;
       }
     }

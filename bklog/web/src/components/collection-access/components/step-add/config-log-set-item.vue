@@ -581,8 +581,9 @@
           delete params.tail_files;
 
           const newEventSettingList = [];
+          const selectStrList = this.selectEventList.map(item => item.id);
           for (const [key, val] of Object.entries(params)) {
-            if (key !== 'winlog_name' && val[0] !== '') {
+            if (selectStrList.includes(key) && val[0] !== '') {
               newEventSettingList.push({
                 type: key,
                 list: val,

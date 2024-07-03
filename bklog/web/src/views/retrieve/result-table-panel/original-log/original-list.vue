@@ -73,7 +73,7 @@
         <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <div :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]">
+            <div :class="['str-content', 'origin-str', { 'is-limit': getLimitState($index) }]">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
               <original-light-height
@@ -83,20 +83,22 @@
                 :visible-fields="getShowTableVisibleFields"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
               />
-              <p
-                v-if="!cacheExpandStr.includes($index)"
-                class="show-whole-btn"
-                @click.stop="handleShowWhole($index)"
-              >
-                {{ $t('展开全部') }}
-              </p>
-              <p
-                v-else
-                class="hide-whole-btn"
-                @click.stop="handleHideWhole($index)"
-              >
-                {{ $t('收起') }}
-              </p>
+              <template v-if="!isLimitExpandView">
+                <p
+                  v-if="!cacheExpandStr.includes($index)"
+                  class="show-whole-btn"
+                  @click.stop="handleShowWhole($index)"
+                >
+                  {{ $t('展开全部') }}
+                </p>
+                <p
+                  v-else
+                  class="hide-whole-btn"
+                  @click.stop="handleHideWhole($index)"
+                >
+                  {{ $t('收起') }}
+                </p>
+              </template>
             </div>
           </template>
         </bk-table-column>

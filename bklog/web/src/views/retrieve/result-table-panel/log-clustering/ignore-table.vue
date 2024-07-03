@@ -83,22 +83,24 @@
     >
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
-        <div :class="['symbol-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
+        <div :class="['symbol-content', { 'is-limit': getLimitState($index) }]">
           <span>{{ row.content }}</span>
-          <p
-            v-if="!cacheExpandStr.includes($index)"
-            class="show-whole-btn"
-            @click.stop="handleShowWhole($index)"
-          >
-            {{ $t('展开全部') }}
-          </p>
-          <p
-            v-else
-            class="hide-whole-btn"
-            @click.stop="handleHideWhole($index)"
-          >
-            {{ $t('收起') }}
-          </p>
+          <template v-if="!isLimitExpandView">
+            <p
+              v-if="!cacheExpandStr.includes($index)"
+              class="show-whole-btn"
+              @click.stop="handleShowWhole($index)"
+            >
+              {{ $t('展开全部') }}
+            </p>
+            <p
+              v-else
+              class="hide-whole-btn"
+              @click.stop="handleHideWhole($index)"
+            >
+              {{ $t('收起') }}
+            </p>
+          </template>
         </div>
       </template>
     </bk-table-column>
@@ -113,8 +115,8 @@
 <script>
   import { copyMessage } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
-
   import ExpandView from '../original-log/expand-view.vue';
+  import { mapGetters } from 'vuex';
 
   export default {
     components: {
@@ -170,6 +172,9 @@
       getTableWidth() {
         return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
       },
+      ...mapGetters({
+        isLimitExpandView: 'isLimitExpandView',
+      }),
     },
     watch: {
       active() {
@@ -191,6 +196,8 @@
           const sampleField = next[this.clusteringField];
           const valStr = sampleField
             .toString()
+            .replace(/<mark>/g, '')
+            .replace(/<\/mark>/g, '')
             .replace(regExp, '*')
             .replace(/\*(\s|\*)+/g, '*');
           const ascription = pre.find(item => item.content === valStr);
@@ -235,6 +242,10 @@
           default:
             break;
         }
+      },
+      getLimitState(index) {
+        if (this.isLimitExpandView) return false;
+        return !this.cacheExpandStr.includes(index);
       },
     },
   };

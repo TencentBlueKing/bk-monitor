@@ -73,7 +73,7 @@
         <template slot-scope="{ row, column, $index }">
           <keep-alive>
             <div
-              :class="['str-content', { 'is-limit': !cacheExpandStr.includes($index) }]"
+              :class="['str-content', { 'is-limit': getLimitState($index) }]"
               :title="isWrap ? '' : tableRowDeepView(row, field.field_name, field.field_type)"
             >
               <table-column
@@ -83,20 +83,22 @@
                 @computed-height="handleOverColumn(field.field_name)"
                 @icon-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
               />
-              <p
-                v-if="!cacheExpandStr.includes($index)"
-                class="show-whole-btn"
-                @click.stop="handleShowWhole($index)"
-              >
-                {{ $t('展开全部') }}
-              </p>
-              <p
-                v-else-if="cacheOverFlowCol.includes(field.field_name)"
-                class="hide-whole-btn"
-                @click.stop="handleHideWhole($index)"
-              >
-                {{ $t('收起') }}
-              </p>
+              <template v-if="!isLimitExpandView">
+                <p
+                  v-if="!cacheExpandStr.includes($index)"
+                  class="show-whole-btn"
+                  @click.stop="handleShowWhole($index)"
+                >
+                  {{ $t('展开全部') }}
+                </p>
+                <p
+                  v-else-if="cacheOverFlowCol.includes(field.field_name)"
+                  class="hide-whole-btn"
+                  @click.stop="handleHideWhole($index)"
+                >
+                  {{ $t('收起') }}
+                </p>
+              </template>
             </div>
           </keep-alive>
         </template>
