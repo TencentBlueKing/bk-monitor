@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-import threading
 from functools import reduce
 from typing import Dict, List
 
@@ -126,22 +125,13 @@ class StrategyTranslator(AbstractTranslator):
 
 
 class BizTranslator(AbstractTranslator):
-    biz_map_cache = None
-    lock = threading.Lock()
-
-    def biz_map(self):
-        with self.__class__.lock:
-            if self.__class__.biz_map_cache is None:
-                self.__class__.biz_map_cache = resource.cc.get_biz_map()
-        return self.__class__.biz_map_cache
-
     def translate(self, values: List[int]) -> Dict:
         if len(values) == 1:
             bk_biz_id = values[0]
             biz = resource.cc.get_app_by_id(bk_biz_id)
             biz_map = {str(bk_biz_id): biz}
         else:
-            biz_map = self.biz_map()
+            biz_map = resource.cc.get_biz_map()
         return {value: biz_map[str(value)].bk_biz_name if str(value) in biz_map else value for value in values}
 
 

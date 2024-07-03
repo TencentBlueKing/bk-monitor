@@ -1,48 +1,41 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
+/* eslint-disable camelcase */
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Dialog, Tag, Input, Switcher, Table, TableColumn, Button, Popover, Sideslider } from 'bk-magic-vue';
 import VueDraggable from 'vuedraggable';
-
-import $http from '../../api';
+import MaskingSelectRuleTable from './masking-select-rule-table';
+import MaskingFieldInput from './masking-field-input';
+import './masking-field.scss';
 import { formatDate, getFlatObjValues } from '../../common/util';
 import { fieldTypeMap } from '../../store/constant';
 import EmptyStatus from '../empty-status/index.vue';
+import $http from '../../api';
 import { deepClone } from '../monitor-echarts/utils';
-import MaskingFieldInput from './masking-field-input';
-import MaskingSelectRuleTable from './masking-select-rule-table';
-
-import './masking-field.scss';
 
 interface IProps {
-  value: boolean;
+  value: Boolean;
 }
 
 interface IOperatorParams {
@@ -80,7 +73,7 @@ interface IRuleItem {
 }
 
 type TOperator = 'mask_shield' | 'text_replace';
-type TRuleChangeType = 'allClear' | 'allInit' | 'merge';
+type TRuleChangeType = 'merge' | 'allInit' | 'allClear';
 
 @Component
 export default class MaskingField extends tsc<IProps> {
@@ -91,6 +84,7 @@ export default class MaskingField extends tsc<IProps> {
   @Prop({ type: String, default: '' }) operateType: string;
   /** 是否隐藏 原始日志的已同步条数 */
   @Prop({ type: Boolean, default: false }) isHiddenSyncNum: boolean;
+  @Ref('syncRuleTable') private readonly syncRuleTableRef: HTMLElement;
 
   /** 日志查询字符串 */
   configStr = '';
@@ -149,9 +143,9 @@ export default class MaskingField extends tsc<IProps> {
     params: {
       preserve_head: 0,
       preserve_tail: 0,
-      replace_mark: '*',
+      replace_mark: '*'
     },
-    disabled: false,
+    disabled: false
   };
 
   /** 当前变更或删除操作的下标 */
@@ -164,7 +158,7 @@ export default class MaskingField extends tsc<IProps> {
     field_class: '',
     field_type: '',
     rules: [],
-    operatorRules: [],
+    operatorRules: []
   };
 
   /** 当前操作的规则 */
@@ -172,7 +166,7 @@ export default class MaskingField extends tsc<IProps> {
 
   /** 当前重新选择的规则 */
   currentSelectRule = {
-    rule_name: '',
+    rule_name: ''
   };
 
   /** 字段名的字符串key */
@@ -189,7 +183,7 @@ export default class MaskingField extends tsc<IProps> {
     bottom: '0',
     right: '0',
     height: '48px',
-    paddingLeft: '20px',
+    paddingLeft: '20px'
   };
 
   /** 默认选中规则的列表 */
@@ -211,18 +205,18 @@ export default class MaskingField extends tsc<IProps> {
     oldRule: {
       match_fields: 'xxx',
       match_pattern: 'xxxs',
-      masking_rule: 'fadsf',
+      masking_rule: 'fadsf'
     },
     newRule: {
       match_fields: 'xxx',
       match_pattern: 'xxxs',
-      masking_rule: 'fadsf',
-    },
+      masking_rule: 'fadsf'
+    }
   };
 
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
-    text_replace: window.mainComponent.$t('替换'),
+    text_replace: window.mainComponent.$t('替换')
   };
 
   ruleDialogI18nMap = {
@@ -230,7 +224,7 @@ export default class MaskingField extends tsc<IProps> {
     newRule: window.mainComponent.$t('现规则'),
     match_fields: window.mainComponent.$t('匹配字段'),
     match_pattern: window.mainComponent.$t('匹配正则'),
-    masking_rule: window.mainComponent.$t('脱敏算子'),
+    masking_rule: window.mainComponent.$t('脱敏算子')
   };
 
   /** json列表 */
@@ -259,10 +253,8 @@ export default class MaskingField extends tsc<IProps> {
   /** 点击脱敏列表的添加规则时 直接回填字段和采样值 */
   addRuleFieldValue = {
     field: '',
-    fieldLog: '',
+    fieldLog: ''
   };
-
-  @Ref('syncRuleTable') private readonly syncRuleTableRef: HTMLElement;
 
   /** 原始日志已同步数 */
   get getSyncNum() {
@@ -441,13 +433,13 @@ export default class MaskingField extends tsc<IProps> {
    * @param {Function} callback 更新的回调函数
    * @param {Array} list 更新的表格
    */
-  tableValueChange(fieldItem: IFieldItem, callback: (any) => void, list = [this.tableList, this.tableShowList]) {
+  tableValueChange(fieldItem: IFieldItem, callback: Function, list = [this.tableList, this.tableShowList]) {
     list.forEach(lItem => {
       // 找到对应fieldClass的索引
       const typeIndex = lItem.findIndex(item => item.field_class === fieldItem.field_class);
       // 找到对应fieldName的索引
       const fieldIndex = lItem[typeIndex].fieldList?.findIndex(
-        (item: IFieldItem) => item.field_name === fieldItem.field_name,
+        (item: IFieldItem) => item.field_name === fieldItem.field_name
       );
       callback(lItem[typeIndex].fieldList[fieldIndex]);
     });
@@ -557,7 +549,7 @@ export default class MaskingField extends tsc<IProps> {
         onHidden: () => {
           this.tagPopoverInstance?.destroy();
           this.tagPopoverInstance = null;
-        },
+        }
       });
       this.tagPopoverInstance.show(300);
     }
@@ -645,13 +637,13 @@ export default class MaskingField extends tsc<IProps> {
       oldRule: {
         match_fields: ruleItem.match_fields?.join(', ') || '-',
         match_pattern: ruleItem.match_pattern || '',
-        masking_rule: this.getMaskingRuleStr(ruleItem),
+        masking_rule: this.getMaskingRuleStr(ruleItem)
       },
       newRule: {
         match_fields: ruleItem.new_rule?.match_fields?.join(', ') || '-',
         match_pattern: ruleItem.new_rule?.match_pattern || '',
-        masking_rule: this.getMaskingRuleStr(ruleItem.new_rule),
-      },
+        masking_rule: this.getMaskingRuleStr(ruleItem.new_rule)
+      }
     };
     this.isShowRuleChangeDialog = true;
   }
@@ -682,7 +674,7 @@ export default class MaskingField extends tsc<IProps> {
                 masking_rule: this.getMaskingRuleStr(item.new_rule),
                 new_rule: item.new_rule,
                 rule_id: item.rule_id, // rule_id不变
-                change_state: 'update',
+                change_state: 'update'
               };
             }
             return;
@@ -698,7 +690,7 @@ export default class MaskingField extends tsc<IProps> {
               masking_rule: this.getMaskingRuleStr(item.new_rule),
               new_rule: item.new_rule,
               rule_id: item.rule_id, // rule_id不变
-              change_state: 'update',
+              change_state: 'update'
             };
           }
         });
@@ -721,8 +713,8 @@ export default class MaskingField extends tsc<IProps> {
       .map(fItem => ({
         ...fItem,
         fieldList: (fItem.fieldList as any).filter(item =>
-          item.field_name.toString().toLowerCase().includes(this.searchStr.toLowerCase()),
-        ),
+          item.field_name.toString().toLowerCase().includes(this.searchStr.toLowerCase())
+        )
       }))
       .filter(item => !!item.fieldList.length);
     this.emptyType = 'search-empty';
@@ -739,7 +731,7 @@ export default class MaskingField extends tsc<IProps> {
     return h(
       'div',
       {
-        class: 'sync-render-header',
+        class: 'sync-render-header'
       },
       [
         h('span', this.$t('脱敏规则')),
@@ -748,12 +740,12 @@ export default class MaskingField extends tsc<IProps> {
           directives: [
             {
               name: 'bk-tooltips',
-              value: this.$t('清空所有规则'),
-            },
+              value: this.$t('清空所有规则')
+            }
           ],
           on: {
-            click: this.handleClearRule,
-          },
+            click: this.handleClearRule
+          }
         }),
         h('span', { class: ['log-icon icon-double-arrow', { 'is-show-sync': this.isShowSyncBtn }] }),
         h(
@@ -761,12 +753,12 @@ export default class MaskingField extends tsc<IProps> {
           {
             class: ['sync-btn', { 'is-show-sync': this.isShowSyncBtn }],
             on: {
-              click: () => this.handleAllSync(),
-            },
+              click: () => this.handleAllSync()
+            }
           },
-          this.$t('同步所有变更'),
-        ),
-      ],
+          this.$t('同步所有变更')
+        )
+      ]
     );
   }
 
@@ -774,7 +766,7 @@ export default class MaskingField extends tsc<IProps> {
     return h(
       'div',
       {
-        class: 'sync-render-header',
+        class: 'sync-render-header'
       },
       [
         h('span', this.$t('脱敏预览')),
@@ -783,11 +775,11 @@ export default class MaskingField extends tsc<IProps> {
           directives: [
             {
               name: 'bk-tooltips',
-              value: this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。'),
-            },
-          ],
-        }),
-      ],
+              value: this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。')
+            }
+          ]
+        })
+      ]
     );
   }
 
@@ -831,8 +823,8 @@ export default class MaskingField extends tsc<IProps> {
         query: {
           start_time: startTime,
           end_time: endTime,
-          is_realtime: 'True',
-        },
+          is_realtime: 'True'
+        }
       });
       return res.data.fields.reduce(
         (pre, cur) => {
@@ -840,25 +832,25 @@ export default class MaskingField extends tsc<IProps> {
           if (cur.field_type === '__virtual__') return pre;
           pre.fieldObj[`${cur.field_name}`] = {
             field_alias: cur.field_alias,
-            field_type: cur.field_type,
+            field_type: cur.field_type
           };
           pre.fieldList.push({
             field_name: cur.field_name,
             field_alias: cur.field_alias,
             field_type: cur.field_type,
-            rules: [],
+            rules: []
           });
           return pre;
         },
         {
           fieldList: [],
-          fieldObj: {},
-        },
+          fieldObj: {}
+        }
       );
     } catch (err) {
       return {
         fieldList: [],
-        fieldObj: {},
+        fieldObj: {}
       };
     }
   }
@@ -872,9 +864,9 @@ export default class MaskingField extends tsc<IProps> {
       const res = await $http.request(
         'masking/getMaskingConfig',
         {
-          params: { index_set_id: this.collectData?.index_set_id },
+          params: { index_set_id: this.collectData?.index_set_id }
         },
-        { catchIsShowMessage: false },
+        { catchIsShowMessage: false }
       );
       return res.data.field_configs;
     } catch (err) {
@@ -919,18 +911,18 @@ export default class MaskingField extends tsc<IProps> {
         {
           field_class_islog: false,
           field_class: window.mainComponent.$t('内置字段'),
-          fieldList: [],
+          fieldList: []
         },
         {
           field_class_islog: false,
           field_class: window.mainComponent.$t('清洗字段'),
-          fieldList: [],
+          fieldList: []
         },
         {
           field_class_islog: true,
           field_class: window.mainComponent.$t('原始日志'),
-          fieldList: [],
-        },
+          fieldList: []
+        }
       ];
 
       const initFieldList = maskingList.reduce((pre, cur) => {
@@ -1049,7 +1041,7 @@ export default class MaskingField extends tsc<IProps> {
       const origin = typeof item === 'object' ? JSON.stringify(item) : String(item);
       previewList[index] = {
         origin,
-        afterMasking: maskingValue,
+        afterMasking: maskingValue
       };
     });
     return previewList;
@@ -1076,11 +1068,11 @@ export default class MaskingField extends tsc<IProps> {
               return {
                 match_pattern: rItem.match_pattern,
                 operator: rItem.operator,
-                params: rItem.params,
+                params: rItem.params
               };
             }
             return { rule_id: rItem.rule_id };
-          }),
+          })
       }));
     if (!fieldConfigs.length) return {};
     try {
@@ -1090,8 +1082,8 @@ export default class MaskingField extends tsc<IProps> {
           field_configs: fieldConfigs,
           text_fields: !this.isHiddenSyncNum
             ? this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name)
-            : [],
-        },
+            : []
+        }
       });
       return res.data;
     } catch (err) {
@@ -1109,7 +1101,7 @@ export default class MaskingField extends tsc<IProps> {
       return this.fieldTypeList.map(item => ({
         field_name: item.field_name,
         operatorRules: [],
-        rules: [],
+        rules: []
       }));
     }
     try {
@@ -1117,14 +1109,14 @@ export default class MaskingField extends tsc<IProps> {
         data: {
           space_uid: this.spaceUid,
           logs: this.jsonParseList,
-          fields: this.fieldTypeList.map(item => item.field_name),
-        },
+          fields: this.fieldTypeList.map(item => item.field_name)
+        }
       });
       return Object.entries(res.data).reduce((pre, [fieldsKey, fieldsVal]) => {
         const fieldsObj = {
           field_name: fieldsKey,
           operatorRules: fieldsVal,
-          rules: [],
+          rules: []
         };
 
         fieldsObj.operatorRules = (fieldsObj.operatorRules as any).map(item => ({
@@ -1132,7 +1124,7 @@ export default class MaskingField extends tsc<IProps> {
           // 获取脱敏规则tips弹窗字符串
           masking_rule: this.getMaskingRuleStr(item),
           // 更新状态 初始化为空字符串 旧的表格也需要缓存
-          change_state: item.change_state ?? 'add',
+          change_state: item.change_state ?? 'add'
         }));
 
         // 初始化生成推荐规则
@@ -1172,9 +1164,9 @@ export default class MaskingField extends tsc<IProps> {
           rules: item.rules.map(item => {
             return {
               rule_id: item.rule_id,
-              state: !!item.change_state ? item.change_state : 'normal',
+              state: !!item.change_state ? item.change_state : 'normal'
             };
-          }),
+          })
         }));
       pre.push(...fieldList);
       return pre;
@@ -1184,7 +1176,7 @@ export default class MaskingField extends tsc<IProps> {
       field_configs: fieldConfigs,
       text_fields: !this.isHiddenSyncNum
         ? this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name)
-        : [],
+        : []
     };
   }
 
@@ -1199,7 +1191,7 @@ export default class MaskingField extends tsc<IProps> {
         ? `${this.$t('替换为')} ${item?.params?.template_string}`
         : this.$t('保留前{0}位, 后{1}位', {
             0: item?.params?.preserve_head,
-            1: item?.params?.preserve_tail,
+            1: item?.params?.preserve_tail
           });
     return `${this.operatorMap[item?.operator]} | ${endStr}`;
   }
@@ -1219,7 +1211,7 @@ export default class MaskingField extends tsc<IProps> {
     // 新增规则直接回填采样和字段
     this.addRuleFieldValue = {
       field: fieldItem.field_name,
-      fieldLog: this.fieldOriginValueList[fieldItem.field_name]?.find((item: any) => Boolean(String(item))) ?? '',
+      fieldLog: this.fieldOriginValueList[fieldItem.field_name]?.find((item: any) => Boolean(String(item))) ?? ''
     };
     this.currentOperateField = fieldItem; // 当前添加更多规则的字段
     this.defaultSelectRuleList = fieldItem.rules.map(item => item.rule_id);
@@ -1263,16 +1255,16 @@ export default class MaskingField extends tsc<IProps> {
           <div class={`field-box ${!this.isShowFieldClass ? 'not-class-width' : ''}`}>
             {row.fieldList.map(item => (
               <div
-                style={this.getFieldItemStyle(item)}
                 class='field'
+                style={this.getFieldItemStyle(item)}
                 onMouseenter={() => this.handleHoverRow(item.field_name)}
                 onMouseleave={() => this.handleLeaveRow()}
               >
                 <i
                   class={['field-type-icon', this.getFieldIcon(item.field_type) || 'log-icon icon-unkown']}
                   v-bk-tooltips={{
-                    content: fieldTypeMap[item.field_type]?.name,
-                    disabled: !fieldTypeMap[item.field_type],
+                    content: fieldTypeMap[item.field_type] && fieldTypeMap[item.field_type].name,
+                    disabled: !fieldTypeMap[item.field_type]
                   }}
                 ></i>
                 <span
@@ -1293,16 +1285,16 @@ export default class MaskingField extends tsc<IProps> {
             ))}
           </div>
         </div>
-      ),
+      )
     };
 
     const getMaskingRuleEndState = (fieldItem: IFieldItem, rItem: IRuleItem, rIndex: number) => {
       if (rItem.state === 'update' && !rItem.change_state) {
         return (
           <Tag
-            ext-cls='sync-tag'
             theme='warning'
             type='filled'
+            ext-cls='sync-tag'
             onClick={() => this.handleShowRuleChangeDialog(fieldItem, rItem, rIndex, 'update')}
           >
             {this.$t('已变更')}
@@ -1312,8 +1304,8 @@ export default class MaskingField extends tsc<IProps> {
       if (rItem.state === 'delete') {
         return (
           <Tag
-            ext-cls='sync-tag'
             theme='danger'
+            ext-cls='sync-tag'
             type='filled'
             onClick={() => this.handleShowRuleChangeDialog(fieldItem, rItem, rIndex, 'delete')}
           >
@@ -1328,8 +1320,8 @@ export default class MaskingField extends tsc<IProps> {
       if (fieldItem.rules.length === index + 1) {
         return (
           <div
-            style={`visibility: ${this.hoverFieldName === fieldItem.field_name ? 'visible' : 'hidden'}`}
             class='add-rule-icon'
+            style={`visibility: ${this.hoverFieldName === fieldItem.field_name ? 'visible' : 'hidden'}`}
             onClick={() => this.handleClickAddRuleIcon(fieldItem)}
           >
             <i class='bk-icon left-icon icon-plus'></i>
@@ -1343,10 +1335,10 @@ export default class MaskingField extends tsc<IProps> {
       return (
         <div class='tag-box'>
           <Tag
-            class='title-overflow'
-            ext-cls={`field-tag ${rItem?.disabled ? 'is-failed' : ''}`}
-            icon={this.getMoveFillIcon(fieldItem.rules)}
             closable
+            ext-cls={`field-tag ${rItem?.disabled ? 'is-failed' : ''}`}
+            class='title-overflow'
+            icon={this.getMoveFillIcon(fieldItem.rules)}
             on-close={() => this.handleCloseRule(rIndex, fieldItem)}
           >
             <span
@@ -1373,8 +1365,8 @@ export default class MaskingField extends tsc<IProps> {
         <div class='masking-rule-box'>
           {row.fieldList.map((item: IFieldItem) => (
             <div
-              style={this.getFieldItemStyle(item)}
               class='rule'
+              style={this.getFieldItemStyle(item)}
               onMouseenter={() => this.handleHoverRow(item.field_name)}
               onMouseleave={() => this.handleLeaveRow()}
             >
@@ -1413,7 +1405,7 @@ export default class MaskingField extends tsc<IProps> {
             </div>
           ))}
         </div>
-      ),
+      )
     };
 
     const getPreviewDom = (fieldItem: IFieldItem) => {
@@ -1470,7 +1462,7 @@ export default class MaskingField extends tsc<IProps> {
               class='bk-icon icon-info-circle-shape'
               v-bk-tooltips={{
                 content: this.$t('该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果'),
-                width: 260,
+                width: 260
               }}
             ></i>
           </div>
@@ -1486,16 +1478,16 @@ export default class MaskingField extends tsc<IProps> {
         return (
           <Popover
             ext-cls='preview-prop'
+            max-width='400'
             tippy-options={{
               placement: 'top',
-              theme: 'light',
+              theme: 'light'
             }}
-            max-width='400'
           >
             <div class='preview-excess-num'>{`+${previewList.length - rLength}`}</div>
             <div
-              class='preview'
               slot='content'
+              class='preview'
             >
               {showPreviewList.map(pItem => (
                 <div class='preview-result'>
@@ -1528,8 +1520,8 @@ export default class MaskingField extends tsc<IProps> {
         >
           {row.fieldList.map(item => (
             <div
-              style={this.getFieldItemStyle(item)}
               class='preview'
+              style={this.getFieldItemStyle(item)}
               v-bkloading={{ isLoading: this.isPreviewLoading && this.previewLoadingField === row.field_name }}
               onMouseenter={() => this.handleHoverRow(item.field_name)}
               onMouseleave={() => this.handleLeaveRow()}
@@ -1539,7 +1531,7 @@ export default class MaskingField extends tsc<IProps> {
             </div>
           ))}
         </div>
-      ),
+      )
     };
 
     return (
@@ -1560,13 +1552,13 @@ export default class MaskingField extends tsc<IProps> {
             <div class='right'>
               <Input
                 class='search-input'
+                clearable
                 v-model={this.searchStr}
                 behavior='simplicity'
                 placeholder={this.$t('搜索字段')}
                 right-icon='bk-icon icon-search'
-                clearable
-                onChange={this.handleSearchChange}
                 onEnter={this.searchField}
+                onChange={this.handleSearchChange}
               ></Input>
               <Switcher
                 v-model={this.previewSwitch}
@@ -1576,14 +1568,14 @@ export default class MaskingField extends tsc<IProps> {
             </div>
           </div>
           <Table
-            ext-cls={`masking-field-table ${this.isShowFieldClass ? 'is-show-field-class' : ''}`}
-            v-bkloading={{ isLoading: this.tableLoading }}
             data={this.tableShowList}
             size='small'
+            ext-cls={`masking-field-table ${this.isShowFieldClass ? 'is-show-field-class' : ''}`}
+            v-bkloading={{ isLoading: this.tableLoading }}
           >
             <TableColumn
-              key={'column_name'}
               label={this.$t('字段信息')}
+              key={'column_name'}
               scopedSlots={fieldSlot}
             ></TableColumn>
 
@@ -1595,16 +1587,16 @@ export default class MaskingField extends tsc<IProps> {
 
             {this.previewSwitch && (
               <TableColumn
-                key={'match_content'}
                 render-header={this.renderHeaderPreview}
+                key={'match_content'}
                 scopedSlots={maskingPreviewSlot}
               ></TableColumn>
             )}
 
             <div slot='empty'>
               <EmptyStatus
-                emptyType={this.emptyType}
                 showText={!this.isShowConfigFiledEmptyTips}
+                emptyType={this.emptyType}
                 onOperation={this.handleOperation}
               >
                 {this.isShowConfigFiledEmptyTips && (
@@ -1616,52 +1608,52 @@ export default class MaskingField extends tsc<IProps> {
         </div>
 
         <Sideslider
-          width={640}
-          ext-cls={`${this.isMarginRight && 'open-add-rule-sideslider'}`}
+          transfer
+          quick-close
           is-show={this.isShowRuleSideslider}
           title={this.$t('选择脱敏规则')}
-          quick-close
-          transfer
+          width={640}
+          ext-cls={`${this.isMarginRight && 'open-add-rule-sideslider'}`}
           {...{
             on: {
-              'update:isShow': () => (this.isShowRuleSideslider = false),
-            },
+              'update:isShow': () => (this.isShowRuleSideslider = false)
+            }
           }}
         >
           <div
-            style='padding: 20px 24px 66px;'
             slot='content'
+            style='padding: 20px 24px 66px;'
           >
             <MaskingSelectRuleTable
               submit-box-style={this.sidesliderSubmitBoxStyle}
+              is-public-list={false}
               add-rule-field-value={this.addRuleFieldValue}
               default-select-rule-list={this.defaultSelectRuleList}
-              is-public-list={false}
               recommend-rule-list={this.recommendRuleList}
               on-new-rule-state={state => (this.isMarginRight = state)}
-              onCancel={() => (this.isShowRuleSideslider = false)}
               onSubmit={selectList => this.handleSelectRule(selectList)}
+              onCancel={() => (this.isShowRuleSideslider = false)}
             />
           </div>
         </Sideslider>
 
         <Dialog
-          width='640'
-          ext-cls='rule-change-dialog'
           v-model={this.isShowRuleChangeDialog}
+          width='640'
           mask-close={false}
-          show-footer={false}
+          ext-cls='rule-change-dialog'
           title={this.$t('规则变更确认')}
+          show-footer={false}
         >
           <div class='rule-change-dialog-container'>
             <span class='rule-text'>
               {this.currentRuleState === 'delete'
                 ? this.$t('当前规则【{n}】已被删除，请确认是否需要更换为新规则或忽略变更', {
-                    n: this.currentOperateRule.rule_name,
+                    n: this.currentOperateRule.rule_name
                   })
                 : this.$t(
                     '当前规则【{n}】已进行了变更，同步该规则可能会导致命中结果变更，请确认是否需要同步该变更或忽略，也可重新选择规则',
-                    { n: this.currentOperateRule.rule_name },
+                    { n: this.currentOperateRule.rule_name }
                   )}
             </span>
             <div class={`rule-change-container rule-${this.currentRuleState}`}>
@@ -1714,10 +1706,10 @@ export default class MaskingField extends tsc<IProps> {
         </Dialog>
 
         <Dialog
-          width='640'
           v-model={this.isShowResetRuleDialog}
-          header-position='left'
+          width='640'
           mask-close={false}
+          header-position='left'
           render-directive='if'
           title={this.$t('选择脱敏规则')}
           on-confirm={this.handleResetSelectRule}
@@ -1725,16 +1717,16 @@ export default class MaskingField extends tsc<IProps> {
           <div>
             <MaskingSelectRuleTable
               ref='syncRuleTable'
+              table-max-height={366}
+              is-sync-select={this.isShowResetRuleDialog}
+              is-public-list={false}
+              default-select-rule-list={this.defaultSelectRuleList}
+              recommend-rule-list={this.recommendRuleList}
+              is-show-submit-content={false}
               prop-pagination={{
                 limit: 6,
-                limitList: [6, 12, 20],
+                limitList: [6, 12, 20]
               }}
-              default-select-rule-list={this.defaultSelectRuleList}
-              is-public-list={false}
-              is-show-submit-content={false}
-              is-sync-select={this.isShowResetRuleDialog}
-              recommend-rule-list={this.recommendRuleList}
-              table-max-height={366}
             />
           </div>
         </Dialog>

@@ -27,8 +27,6 @@ import { defineAsyncComponent, defineComponent, nextTick, PropType, ref, watch }
 
 import { IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 import { Ipv6FieldMap } from '../typing';
-
-import './alarm-shield-ipv6.scss';
 const MonitorIpSelector = defineAsyncComponent(
   () => import('../../../components/monitor-ip-selector/monitor-ip-selector')
 );

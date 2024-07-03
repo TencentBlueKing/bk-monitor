@@ -440,9 +440,10 @@
   .monitor-logo {
     width: 32px;
     height: 32px;
+    background-image: url('../static/images/svg/monitor-logo.svg');
   }
 
-  .monitor-footer {
+  .monitor-navigation-footer {
     display: flex;
     flex-direction: column;
     align-items: center;

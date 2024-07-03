@@ -1,28 +1,24 @@
 <!--
-* Tencent is pleased to support the open source community by making
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
-*
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-*
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
-*
-* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-*
-* ---------------------------------------------------
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-* the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-* IN THE SOFTWARE.
--->
+  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
+  -
+  - License for BK-LOG 蓝鲸日志平台:
+  - -------------------------------------------------------------------
+  -
+  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+  - The above copyright notice and this permission notice shall be included in all copies or substantial
+  - portions of the Software.
+  -
+  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+  -->
 
 <template>
   <section id="json-format">
@@ -33,15 +29,15 @@
       :size="size"
     >
       <bk-table-column
-        style="margin-top: 13px"
-        width="120"
+        type="index"
         :label="$t('序号')"
         align="center"
-        type="index"
+        width="120"
+        style="margin-top: 13px"
       >
       </bk-table-column>
       <bk-table-column :label="$t('原始日志')">
-        <template #default="props">
+        <template slot-scope="props">
           <div
             :class="{ 'text-style': true, 'expand-style': expandIndex === props.$index }"
             @click="showClick($event, props.$index)"
@@ -57,18 +53,18 @@
         </template>
       </bk-table-column>
       <bk-table-column
-        width="200"
         :label="$t('采集时间')"
+        width="200"
       >
-        <template #default="props">
+        <template slot-scope="props">
           <div>{{ props.row.etl.datetime }}</div>
         </template>
       </bk-table-column>
       <bk-table-column
-        width="210"
         :label="$t('操作')"
+        width="210"
       >
-        <template #default="props">
+        <template slot-scope="props">
           <div>
             <span
               class="option-text"
@@ -83,239 +79,236 @@
           </div>
         </template>
       </bk-table-column>
-      <template #empty>
-        <div>
-          <empty-status
-            :show-text="false"
-            empty-type="empty"
-          >
-            <span>{{ $t('暂无内容') }}</span>
-          </empty-status>
-        </div>
-      </template>
+      <div slot="empty">
+        <empty-status
+          empty-type="empty"
+          :show-text="false"
+        >
+          <span>{{ $t('暂无内容') }}</span>
+        </empty-status>
+      </div>
     </bk-table>
     <bk-sideslider
+      transfer
       class="locker-style"
       :is-show.sync="defaultSettings.isShow"
-      :modal="false"
       :quick-close="true"
+      :modal="false"
       :width="596"
-      transfer
     >
-      <template #header>
-        <div>
-          {{ customSettings.title }} <span @click="copyText(JSON.stringify(jsonText))">{{ $t('复制') }}</span>
-        </div>
-      </template>
-      <template #content>
-        <div class="p20 json-text-style">
-          <VueJsonPretty
-            :data="jsonText"
-            :deep="5"
-          />
-        </div>
-      </template>
+      <div slot="header">
+        {{ customSettings.title }} <span @click="copyText(JSON.stringify(jsonText))">{{ $t('复制') }}</span>
+      </div>
+      <div
+        slot="content"
+        class="p20 json-text-style"
+      >
+        <VueJsonPretty
+          :deep="5"
+          :data="jsonText"
+        />
+      </div>
     </bk-sideslider>
   </section>
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  export default {
-    components: {
-      EmptyStatus,
+import EmptyStatus from '@/components/empty-status';
+export default {
+  components: {
+    EmptyStatus
+  },
+  props: {
+    loading: {
+      type: Boolean,
+      required: true
     },
-    props: {
-      loading: {
-        type: Boolean,
-        required: true,
+    data: {
+      type: Array,
+      required: true
+    }
+  },
+  data() {
+    return {
+      instance: null,
+      customSettings: {
+        isShow: false,
+        title: this.$t('上报日志详情')
       },
-      data: {
-        type: Array,
-        required: true,
+      jsonText: '',
+      defaultSettings: {
+        isShow: false
       },
+      size: 'small',
+      expandIndex: -1
+    };
+  },
+  methods: {
+    showClick(e, rowIndex) {
+      if (this.expandIndex === rowIndex) {
+        this.expandIndex = -1;
+        return;
+      }
+      this.expandIndex = rowIndex;
     },
-    data() {
-      return {
-        instance: null,
-        customSettings: {
-          isShow: false,
-          title: this.$t('上报日志详情'),
-        },
-        jsonText: '',
-        defaultSettings: {
-          isShow: false,
-        },
-        size: 'small',
-        expandIndex: -1,
-      };
-    },
-    methods: {
-      showClick(e, rowIndex) {
-        if (this.expandIndex === rowIndex) {
-          this.expandIndex = -1;
-          return;
+    divClose() {
+      const divHeight = document.getElementsByClassName('text-style');
+      for (let i = 0; i < divHeight.length; i++) {
+        if (divHeight[i].offsetHeight > 54) {
+          divHeight[i].style.height = '54px';
         }
-        this.expandIndex = rowIndex;
-      },
-      divClose() {
-        const divHeight = document.getElementsByClassName('text-style');
-        for (let i = 0; i < divHeight.length; i++) {
-          if (divHeight[i].offsetHeight > 54) {
-            divHeight[i].style.height = '54px';
-          }
-        }
-      },
-      handleEnter(e) {
-        this.instance = this.$bkPopover(e.target, {
-          content: this.$t('点击展示全部'),
-          arrow: true,
-          placement: 'top',
+      }
+    },
+    handleEnter(e) {
+      this.instance = this.$bkPopover(e.target, {
+        content: this.$t('点击展示全部'),
+        arrow: true,
+        placement: 'top'
+      });
+      this.instance.show(1000);
+    },
+    handleLeave() {
+      this.instance && this.instance.destroy(true);
+    },
+    chickFile(data) {
+      this.defaultSettings.isShow = true;
+      this.jsonText = data.origin;
+    },
+    copyText(data, val) {
+      let sta = '';
+      if (val === 'log') {
+        data.forEach(item => {
+          sta = `${sta + item}\n`;
         });
-        this.instance.show(1000);
-      },
-      handleLeave() {
-        this.instance?.destroy(true);
-      },
-      chickFile(data) {
-        this.defaultSettings.isShow = true;
-        this.jsonText = data.origin;
-      },
-      copyText(data, val) {
-        let sta = '';
-        if (val === 'log') {
-          data.forEach(item => {
-            sta = `${sta + item}\n`;
-          });
-        }
-        const createInput = document.createElement('textarea');
-        createInput.value = val === 'log' ? sta : data;
-        document.body.appendChild(createInput);
-        createInput.select(); // 选择对象
-        document.execCommand('Copy'); // 执行浏览器复制命令
-        createInput.style.display = 'none';
-        const h = this.$createElement;
-        this.$bkMessage({
-          message: h(
-            'p',
-            {
-              style: {
-                textAlign: 'center',
-              },
-            },
-            this.$t('复制成功'),
-          ),
-          offsetY: 80,
-        });
-      },
-    },
-  };
+      }
+      const createInput = document.createElement('textarea');
+      createInput.value = val === 'log' ? sta : data;
+      document.body.appendChild(createInput);
+      createInput.select(); // 选择对象
+      document.execCommand('Copy'); // 执行浏览器复制命令
+      createInput.style.display = 'none';
+      const h = this.$createElement;
+      this.$bkMessage({
+        message: h(
+          'p',
+          {
+            style: {
+              textAlign: 'center'
+            }
+          },
+          this.$t('复制成功')
+        ),
+        offsetY: 80
+      });
+    }
+  }
+};
 </script>
 
 <style scoped lang="scss">
-  @import '../../../../../../../scss/mixins/clearfix';
-  @import '../../../../../../../scss/conf';
+@import '../../../../../../../scss/mixins/clearfix';
+@import '../../../../../../../scss/conf';
 
-  #json-format {
-    .option-text {
-      margin-right: 6px;
-      color: #3a84ff;
-      cursor: pointer;
-    }
+#json-format {
+  .option-text {
+    margin-right: 6px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
+
+.nav-head {
+  position: relative;
+  height: 20px;
+  font-size: 14px;
+  line-height: 20px;
+
+  i {
+    position: absolute;
+    top: 1px;
+    font-size: 18px;
+    font-weight: 900;
+    color: #3a84ff;
+    cursor: pointer;
   }
 
-  .nav-head {
-    position: relative;
-    height: 20px;
+  span {
+    margin-left: 30px;
     font-size: 14px;
-    line-height: 20px;
-
-    i {
-      position: absolute;
-      top: 1px;
-      font-size: 18px;
-      font-weight: 900;
-      color: #3a84ff;
-      cursor: pointer;
-    }
-
-    span {
-      margin-left: 30px;
-      font-size: 14px;
-    }
   }
+}
 
-  .json-view-wrapper {
-    padding: 10px 0;
-  }
+.json-view-wrapper {
+  padding: 10px 0;
+}
 
-  .text-style {
-    display: flex;
-    flex-flow: column;
-    max-height: 54px;
+.text-style {
+  display: flex;
+  max-height: 54px;
+  overflow: hidden;
+  line-height: 18px;
+  flex-flow: column;
+
+  span {
     overflow: hidden;
-    line-height: 18px;
-
-    span {
-      flex-shrink: 0;
-      overflow: hidden;
-      font-size: 12px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
+}
 
-  .expand-style {
-    max-height: fit-content;
+.expand-style {
+  max-height: fit-content;
 
-    span {
-      white-space: normal;
-    }
+  span {
+    white-space: normal;
   }
+}
 
-  .json-text-style {
-    color: #c4c6cc;
-    background-color: #313238;
-  }
+.json-text-style {
+  color: #c4c6cc;
+  background-color: #313238;
+}
 
-  .locker-style {
-    :deep(section) {
-      /* stylelint-disable-next-line declaration-no-important */
-      background-color: #313238 !important;
+.locker-style {
+  :deep(section) {
+    /* stylelint-disable-next-line declaration-no-important */
+    background-color: #313238 !important;
+
+    > div:nth-child(1) {
+      height: 50px;
 
       > div:nth-child(1) {
         height: 50px;
+        line-height: 50px;
+      }
 
-        > div:nth-child(1) {
-          height: 50px;
-          line-height: 50px;
-        }
+      > div:nth-child(2) {
+        height: 50px;
+        font-size: 14px;
+        line-height: 50px;
+        color: #737987;
 
-        > div:nth-child(2) {
-          height: 50px;
-          font-size: 14px;
-          line-height: 50px;
-          color: #737987;
+        > div {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
 
-          > div {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            span {
-              display: inline-block;
-              width: 68px;
-              height: 32px;
-              margin-right: 20px;
-              line-height: 32px;
-              color: #737987;
-              text-align: center;
-              cursor: pointer;
-              border: 1px solid #c4c6cc;
-            }
+          span {
+            display: inline-block;
+            width: 68px;
+            height: 32px;
+            margin-right: 20px;
+            line-height: 32px;
+            color: #737987;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #c4c6cc;
           }
         }
       }
     }
   }
+}
 </style>

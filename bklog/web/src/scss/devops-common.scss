@@ -105,7 +105,6 @@
     &.active {
       color: $failColor;
       background-color: #fff4f4;
-
       /* stylelint-disable-next-line declaration-no-important */
       border-color: $failColor !important;
     }
@@ -154,7 +153,6 @@ button[disabled='disabled'] {
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   margin: 0;
-
   /* stylelint-disable-next-line declaration-no-important */
   appearance: none !important;
 }
@@ -191,10 +189,10 @@ input[disabled='disabled'] {
     top: -3px;
     left: 0;
     display: block;
-    content: '';
     border-top: 4px solid transparent;
     border-right: 4px solid $primaryColor;
     border-bottom: 4px solid transparent;
+    content: '';
   }
 
   &:after {
@@ -203,8 +201,8 @@ input[disabled='disabled'] {
     left: 4px;
     display: block;
     width: 10px;
-    content: '';
     border-top: 2px solid $primaryColor;
+    content: '';
   }
 }
 

@@ -1044,15 +1044,13 @@ class TimeSeriesMetric(models.Model):
     @classmethod
     def _bulk_update_metrics(
         cls, metrics_dict: Dict, need_update_metrics: Union[List, Set], group_id: int, is_auto_discovery: bool
-    ) -> bool:
+    ):
         """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
         qs_objs = filter_model_by_in_page(
             TimeSeriesMetric, "field_name__in", need_update_metrics, other_filter={"group_id": group_id}
         )
         records, white_list_disabled_metric = [], set()
         # 组装更新的数据
-        # 标识变动是否需要更新路由
-        need_push_router = False
         for obj in qs_objs:
             metric = obj.field_name
             metric_info = metrics_dict.get(metric)
@@ -1075,10 +1073,6 @@ class TimeSeriesMetric(models.Model):
                 is_need_update = True
                 obj.last_modify_time = last_modify_time
 
-            # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
-            if (last_modify_time - obj.last_modify_time).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
-                need_push_router = True
-
             # 如果 tag 不一致，则进行更新
             tag_list = cls.get_metric_tag_from_metric_info(metric_info)
             if set(obj.tag_list or []) != set(tag_list):
@@ -1094,7 +1088,6 @@ class TimeSeriesMetric(models.Model):
 
         # 批量更新指定的字段
         cls.objects.bulk_update(records, ["last_modify_time", "tag_list"], batch_size=BULK_UPDATE_BATCH_SIZE)
-        return need_push_router
 
     @classmethod
     def bulk_refresh_ts_metrics(
@@ -1123,23 +1116,21 @@ class TimeSeriesMetric(models.Model):
         metrics_by_group_id = cls.objects.filter(group_id=group_id).values_list("field_name", flat=True)
         # 获取需要批量创建的指标
         _metrics = set(_metrics_dict.keys())
-        # NOTE: 针对创建或者时间变动时，推送路由数据
-        need_push_router = False
+        # NOTE: 这里仅针对创建时，推送路由数据
+        is_create = False
         need_create_metrics = _metrics - set(metrics_by_group_id)
         # 获取已经存在的指标，然后进行批量更新
         need_update_metrics = _metrics - need_create_metrics
         # 如果存在，则批量创建
         if need_create_metrics:
-            need_push_router = cls._bulk_create_metrics(
+            is_create = cls._bulk_create_metrics(
                 _metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery
             )
         # 批量更新
         if need_update_metrics:
-            need_push_router |= cls._bulk_update_metrics(
-                _metrics_dict, need_update_metrics, group_id, is_auto_discovery
-            )
+            cls._bulk_update_metrics(_metrics_dict, need_update_metrics, group_id, is_auto_discovery)
 
-        return need_push_router
+        return is_create
 
     @classmethod
     def update_metrics(cls, group_id, metric_info_list):
@@ -1235,11 +1226,6 @@ class TimeSeriesMetric(models.Model):
                 if (last_modify_time - metric_obj.last_modify_time).days >= 1:
                     metric_obj.last_modify_time = last_modify_time
                     need_save_op = True
-                # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
-                if (
-                    last_modify_time - metric_obj.last_modify_time
-                ).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
-                    is_updated = True
                 if need_save_op:
                     metric_obj.save()
 

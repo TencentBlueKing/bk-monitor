@@ -1,42 +1,35 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Button } from 'bk-magic-vue';
-
-import $http from '../../api';
-import { deepEqual } from '../../common/util';
 import MaskingField from '../../components/log-masking/masking-field';
-
 import './step-masking.scss';
+import { deepEqual } from '../../common/util';
+import $http from '../../api';
 
 interface IProps {
-  value: boolean;
+  value: Boolean;
 }
 
 @Component
@@ -44,13 +37,12 @@ export default class StepMasking extends tsc<IProps> {
   @Prop({ type: String, required: true }) operateType: string;
   @Prop({ type: Boolean, default: false }) isFinishCreateStep: boolean;
 
+  @Ref('maskingField') private readonly maskingFieldRef: HTMLElement; // 移动到分组实例
   submitLoading = false;
   /** 应用模式下 是否请求了接口 */
   isApplicationSubmit = false;
 
   editComparedData = {};
-
-  @Ref('maskingField') private readonly maskingFieldRef: HTMLElement; // 移动到分组实例
 
   get curCollect() {
     return this.$store.getters['collect/curCollect'];
@@ -62,7 +54,7 @@ export default class StepMasking extends tsc<IProps> {
 
   @Emit('stepChange')
   emitStepChange() {
-    if (this.isApplicationSubmit && !this.isShowJump) (this as any).messageSuccess(this.$t('保存成功'));
+    if (this.isApplicationSubmit && !this.isShowJump) this.messageSuccess(this.$t('保存成功'));
     return this.isShowJump ? '' : 'back';
   }
 
@@ -108,9 +100,9 @@ export default class StepMasking extends tsc<IProps> {
       this.submitLoading = true;
       const res = await $http.request(`masking/${requestStr}`, {
         params: { index_set_id: this.curCollect?.index_set_id },
-        data,
+        data
       });
-      this.$emit('change-index-set-id', this.curCollect?.index_set_id || '');
+      this.$emit('changeIndexSetId', this.curCollect?.index_set_id || '');
       if (callback) {
         callback(true);
         return;
@@ -144,8 +136,8 @@ export default class StepMasking extends tsc<IProps> {
     this.$router.push({
       name: 'collection-item',
       query: {
-        spaceUid: this.$store.state.spaceUid,
-      },
+        spaceUid: this.$store.state.spaceUid
+      }
     });
   }
 
@@ -157,15 +149,15 @@ export default class StepMasking extends tsc<IProps> {
             ref='maskingField'
             collect-data={this.curCollect}
             operate-type={this.operateType}
-            onChangeData={() => this.submitSelectRule()}
             onInitEditComparedData={() => this.initEditCompared()}
+            onChangeData={() => this.submitSelectRule()}
           />
         </div>
         <div class='submit-content'>
           {this.isFinishCreateStep ? (
             <Button
-              loading={this.submitLoading}
               theme='primary'
+              loading={this.submitLoading}
               onClick={() => this.submitSelectRule()}
             >
               {this.$t('应用')}
@@ -173,16 +165,16 @@ export default class StepMasking extends tsc<IProps> {
           ) : (
             <div>
               <Button
-                loading={this.submitLoading}
                 theme='primary'
+                loading={this.submitLoading}
                 onClick={() => this.submitSelectRule(true)}
               >
                 {this.isShowJump ? this.$t('下一步') : this.$t('应用')}
               </Button>
               {this.isShowJump && (
                 <Button
-                  loading={this.submitLoading}
                   theme='default'
+                  loading={this.submitLoading}
                   onClick={() => this.handleNextPage()}
                 >
                   {this.$t('跳过')}

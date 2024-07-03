@@ -1,29 +1,24 @@
-<!-- eslint-disable vue/no-deprecated-slot-attribute -->
 <!--
-* Tencent is pleased to support the open source community by making
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
-*
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-*
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
-*
-* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-*
-* ---------------------------------------------------
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-* the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-* IN THE SOFTWARE.
--->
+  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
+  -
+  - License for BK-LOG 蓝鲸日志平台:
+  - -------------------------------------------------------------------
+  -
+  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+  - The above copyright notice and this permission notice shall be included in all copies or substantial
+  - portions of the Software.
+  -
+  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+  -->
 
 <template>
   <div class="cluster-container">
@@ -43,8 +38,8 @@
       </div>
     </div>
     <div
-      class="cluster-main"
       v-show="isShowTable"
+      class="cluster-main"
     >
       <template v-if="tableList.length">
         <bk-table
@@ -58,11 +53,11 @@
             :render-header="$renderHeader"
             min-width="240"
           >
-            <template #default="{ row }">
+            <template slot-scope="{ row }">
               <bk-radio :checked="clusterSelect === row.storage_cluster_id">
                 <div
-                  class="overflow-tips"
                   v-bk-overflow-tips
+                  class="overflow-tips"
                 >
                   <span @click.stop>{{ row.storage_cluster_name }}</span>
                 </div>
@@ -74,22 +69,22 @@
             :render-header="$renderHeader"
             min-width="100"
           >
-            <template #default="{ row }">
+            <template slot-scope="{ row }">
               <span>{{ formatFileSize(row.storage_total) }}</span>
             </template>
           </bk-table-column>
           <bk-table-column
-            :label="$t('空闲率')"
-            :render-header="$renderHeader"
             min-width="110"
+            :render-header="$renderHeader"
+            :label="$t('空闲率')"
           >
-            <template #default="{ row }">
+            <template slot-scope="{ row }">
               <div class="percent">
                 <div class="percent-progress">
                   <bk-progress
-                    :percent="getPercent(row)"
-                    :show-text="false"
                     :theme="'success'"
+                    :show-text="false"
+                    :percent="getPercent(row)"
                   ></bk-progress>
                 </div>
                 <span>{{ `${100 - row.storage_usage}%` }}</span>
@@ -110,13 +105,13 @@
           </bk-table-column>
         </bk-table>
         <div
-          class="cluster-illustrate"
           v-show="!!activeItem"
+          class="cluster-illustrate"
         >
           <p class="illustrate-title">{{ $t('说明') }}</p>
           <div
-            class="illustrate-container"
             v-en-class="'en-container'"
+            class="illustrate-container"
           >
             <div
               v-for="[key, value] of Object.entries(illustrateLabelData)"
@@ -135,8 +130,8 @@
         <div class="noData-container">
           <div slot="empty">
             <empty-status
-              :show-text="false"
               empty-type="empty"
+              :show-text="false"
             >
               <div class="noData-message">
                 <p class="empty-message">
@@ -162,270 +157,269 @@
   </div>
 </template>
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import { mapGetters } from 'vuex';
+import { formatFileSize } from '../../../common/util';
+import { mapGetters } from 'vuex';
+import EmptyStatus from '@/components/empty-status';
 
-  import { formatFileSize } from '../../../common/util';
-
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus
+  },
+  props: {
+    tableList: {
+      type: Array,
+      default: () => []
     },
-    props: {
-      tableList: {
-        type: Array,
-        default: () => [],
-      },
-      tableType: {
-        type: String,
-        default: 'shared',
-      },
-      storageClusterId: {
-        type: [Number, String],
-        require: true,
-      },
-      isChangeSelect: {
-        type: Boolean,
-        require: true,
-      },
+    tableType: {
+      type: String,
+      default: 'shared'
     },
-    data() {
-      return {
-        isShowTable: true,
-        clusterSelect: null,
-        illustrateLabelData: {
+    storageClusterId: {
+      type: [Number, String],
+      require: true
+    },
+    isChangeSelect: {
+      type: Boolean,
+      require: true
+    }
+  },
+  data() {
+    return {
+      isShowTable: true,
+      clusterSelect: null,
+      illustrateLabelData: {
+        [this.$t('副本数')]: '',
+        [this.$t('过期时间')]: '',
+        [this.$t('热冷数据')]: '',
+        [this.$t('日志归档')]: ''
+      },
+      description: '',
+      activeItem: null,
+      isShow: false,
+      throttle: false
+    };
+  },
+  computed: {
+    ...mapGetters({
+      curCollect: 'collect/curCollect'
+    }),
+    tableShowType() {
+      return this.tableType !== 'exclusive';
+    }
+  },
+  watch: {
+    storageClusterId(val) {
+      if (val === undefined) return;
+      this.clusterSelect = val;
+      this.activeItem = this.tableList.find(item => item.storage_cluster_id === val);
+      if (!!this.activeItem) {
+        const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = this.activeItem.setup_config;
+        const { enable_hot_warm: hotWarm, enable_archive: archive } = this.activeItem;
+        this.illustrateLabelData = {
+          [this.$t('副本数')]: `${this.$t('最大')} ${replicasMax} ${this.$t('个')}`,
+          [this.$t('过期时间')]: `${this.$t('最大')} ${daysMax} ${this.$t('天')}`,
+          [this.$t('热冷数据')]: hotWarm ? this.$t('支持') : this.$t('不支持'),
+          [this.$t('日志归档')]: archive ? this.$t('支持') : this.$t('不支持')
+        };
+        this.description = this.activeItem.description;
+      } else {
+        this.illustrateLabelData = {
           [this.$t('副本数')]: '',
           [this.$t('过期时间')]: '',
           [this.$t('热冷数据')]: '',
-          [this.$t('日志归档')]: '',
-        },
-        description: '',
-        activeItem: null,
-        isShow: false,
-        throttle: false,
-      };
-    },
-    computed: {
-      ...mapGetters({
-        curCollect: 'collect/curCollect',
-      }),
-      tableShowType() {
-        return this.tableType !== 'exclusive';
-      },
-    },
-    watch: {
-      storageClusterId(val) {
-        if (val === undefined) return;
-        this.clusterSelect = val;
-        this.activeItem = this.tableList.find(item => item.storage_cluster_id === val);
-        if (!!this.activeItem) {
-          const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = this.activeItem.setup_config;
-          const { enable_hot_warm: hotWarm, enable_archive: archive } = this.activeItem;
-          this.illustrateLabelData = {
-            [this.$t('副本数')]: `${this.$t('最大')} ${replicasMax} ${this.$t('个')}`,
-            [this.$t('过期时间')]: `${this.$t('最大')} ${daysMax} ${this.$t('天')}`,
-            [this.$t('热冷数据')]: hotWarm ? this.$t('支持') : this.$t('不支持'),
-            [this.$t('日志归档')]: archive ? this.$t('支持') : this.$t('不支持'),
-          };
-          this.description = this.activeItem.description;
-        } else {
-          this.illustrateLabelData = {
-            [this.$t('副本数')]: '',
-            [this.$t('过期时间')]: '',
-            [this.$t('热冷数据')]: '',
-            [this.$t('日志归档')]: '',
-          };
-          this.description = '';
-        }
-      },
-    },
-    mounted() {
-      this.formatFileSize = formatFileSize;
-    },
-    methods: {
-      handleSelectCluster($row) {
-        if (this.throttle || this.storageClusterId === $row.storage_cluster_id) return;
+          [this.$t('日志归档')]: ''
+        };
+        this.description = '';
+      }
+    }
+  },
+  mounted() {
+    this.formatFileSize = formatFileSize;
+  },
+  methods: {
+    handleSelectCluster($row) {
+      if (this.throttle || this.storageClusterId === $row.storage_cluster_id) return;
 
-        this.throttle = true;
-        setTimeout(() => {
-          this.throttle = false;
-        }, 300);
-        if (this.isChangeSelect || this.storageClusterId === '') {
-          this.$emit('update:is-change-select', true);
-          this.$emit('update:storage-cluster-id', $row.storage_cluster_id);
-          return;
-        }
-        this.$emit('update:is-change-select', true);
-        this.$emit('update:storage-cluster-id', $row.storage_cluster_id);
-      },
-      handleCreateCluster() {
-        const newUrl = this.$router.resolve({
-          name: 'es-cluster-manage',
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-        window.open(newUrl.href, '_blank');
-      },
-      getPercent($row) {
-        return (100 - $row.storage_usage) / 100;
-      },
+      this.throttle = true;
+      setTimeout(() => {
+        this.throttle = false;
+      }, 300);
+      if (this.isChangeSelect || this.storageClusterId === '') {
+        this.$emit('update:isChangeSelect', true);
+        this.$emit('update:storageClusterId', $row.storage_cluster_id);
+        return;
+      }
+      this.$emit('update:isChangeSelect', true);
+      this.$emit('update:storageClusterId', $row.storage_cluster_id);
     },
-  };
+    handleCreateCluster() {
+      const newUrl = this.$router.resolve({
+        name: 'es-cluster-manage',
+        query: {
+          spaceUid: this.$store.state.spaceUid
+        }
+      });
+      window.open(newUrl.href, '_blank');
+    },
+    getPercent($row) {
+      return (100 - $row.storage_usage) / 100;
+    }
+  }
+};
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
-  @import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/overflow-tips.scss';
 
-  .cluster-container {
-    min-width: 900px;
-    line-height: 14px;
+.cluster-container {
+  min-width: 900px;
+  line-height: 14px;
 
-    .overflow-tips {
-      display: inline-block;
-      transform: translateY(2px);
+  .overflow-tips {
+    display: inline-block;
+    transform: translateY(2px);
 
-      @include overflow-tips;
-    }
+    @include overflow-tips;
+  }
 
-    .cluster-title {
-      width: 100%;
-      height: 32px;
-      font-size: 12px;
-      color: #626369;
-      background: #eff1f5;
-      border: 1px solid #dcdee5;
-      border-bottom: none;
+  .cluster-title {
+    width: 100%;
+    height: 32px;
+    font-size: 12px;
+    color: #626369;
+    background: #eff1f5;
+    border: 1px solid #dcdee5;
+    border-bottom: none;
 
-      .cluster-title-container {
-        height: 100%;
-        cursor: pointer;
+    .cluster-title-container {
+      height: 100%;
+      cursor: pointer;
 
-        @include flex-align;
+      @include flex-align;
+
+      .icon-angle-up-fill {
+        margin: 0 10px;
+        font-size: 16px;
+      }
+
+      .title-tips {
+        margin-left: 12px;
+        color: #3a84ff;
+      }
+
+      &.is-active {
+        border-bottom: 1px solid #dcdee5;
 
         .icon-angle-up-fill {
-          margin: 0 10px;
-          font-size: 16px;
-        }
-
-        .title-tips {
-          margin-left: 12px;
-          color: #3a84ff;
-        }
-
-        &.is-active {
-          border-bottom: 1px solid #dcdee5;
-
-          .icon-angle-up-fill {
-            transform: rotateZ(-90deg);
-          }
+          transform: rotateZ(-90deg);
         }
       }
     }
+  }
 
-    .cluster-main {
-      display: flex;
-      min-height: 170px;
+  .cluster-main {
+    display: flex;
+    min-height: 170px;
 
-      .cluster-table {
-        width: 58%;
-        min-width: 420px;
+    .cluster-table {
+      width: 58%;
+      min-width: 420px;
+    }
+
+    .cluster-illustrate {
+      width: 42%;
+      max-height: 254px;
+      min-width: 460px;
+      padding: 16px;
+      overflow: hidden;
+      font-size: 12px;
+      border: 1px solid #dcdee5;
+      border-left: none;
+
+      .illustrate-title {
+        font-weight: 700;
+        color: #63656e;
       }
 
-      .cluster-illustrate {
-        width: 42%;
-        min-width: 460px;
-        max-height: 254px;
-        padding: 16px;
-        overflow: hidden;
+      .illustrate-container {
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+
+        @include flex-justify(space-between);
+
+        &.en-container div {
+          display: flex;
+          flex-wrap: wrap;
+        }
+      }
+
+      .illustrate-label {
+        color: #979ba5;
+      }
+
+      .illustrate-value {
+        color: #313238;
+      }
+
+      .illustrate-list {
+        height: calc(100% - 46px);
+        overflow-y: auto;
+        color: #63656e;
+      }
+    }
+
+    .noData-container {
+      width: 100%;
+      border: 1px solid #dcdee5;
+
+      @include flex-center;
+
+      .noData-message {
+        flex-direction: column;
+        padding: 20px 0;
         font-size: 12px;
-        border: 1px solid #dcdee5;
-        border-left: none;
-
-        .illustrate-title {
-          font-weight: 700;
-          color: #63656e;
-        }
-
-        .illustrate-container {
-          padding: 12px 0;
-          border-bottom: 1px solid #eee;
-
-          @include flex-justify(space-between);
-
-          &.en-container div {
-            display: flex;
-            flex-wrap: wrap;
-          }
-        }
-
-        .illustrate-label {
-          color: #979ba5;
-        }
-
-        .illustrate-value {
-          color: #313238;
-        }
-
-        .illustrate-list {
-          height: calc(100% - 46px);
-          overflow-y: auto;
-          color: #63656e;
-        }
-      }
-
-      .noData-container {
-        width: 100%;
-        border: 1px solid #dcdee5;
 
         @include flex-center;
 
-        .noData-message {
-          flex-direction: column;
-          padding: 20px 0;
-          font-size: 12px;
-
-          @include flex-center;
-
-          .empty-message {
-            margin-bottom: 6px;
-            color: #63656e;
-          }
-        }
-
-        .icon-empty {
-          font-size: 65px;
-          color: #c3cdd7;
+        .empty-message {
+          margin-bottom: 6px;
+          color: #63656e;
         }
       }
 
-      .percent {
-        display: flex;
-        align-items: center;
+      .icon-empty {
+        font-size: 65px;
+        color: #c3cdd7;
+      }
+    }
 
-        .percent-progress {
-          width: 40px;
-          margin-right: 4px;
-        }
+    .percent {
+      display: flex;
+      align-items: center;
+
+      .percent-progress {
+        width: 40px;
+        margin-right: 4px;
       }
     }
   }
+}
 
-  :deep(.bk-form-radio) {
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
+:deep(.bk-form-radio) {
+  display: flex;
+  white-space: nowrap;
+  align-items: center;
 
-    & > input[type='radio'] {
-      /* stylelint-disable-next-line declaration-no-important */
-      display: block !important;
-      min-width: 16px;
-    }
+  & > input[type='radio'] {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: block !important;
+    min-width: 16px;
   }
+}
 
-  :deep(.bk-radio-text) {
-    display: inline;
-    width: 100%;
-    font-size: 12px;
-  }
+:deep(.bk-radio-text) {
+  display: inline;
+  width: 100%;
+  font-size: 12px;
+}
 </style>

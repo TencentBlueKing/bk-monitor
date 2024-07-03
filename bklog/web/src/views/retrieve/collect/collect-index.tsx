@@ -1,40 +1,36 @@
+/* eslint-disable no-useless-escape */
+/* eslint-disable no-case-declarations */
+/* eslint-disable camelcase */
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
-
-import $http from '../../../api';
-import { copyMessage, deepClone } from '../../../common/util';
-import AddCollectDialog from './add-collect-dialog';
 import CollectContainer from './collect-container';
 import ManageGroupDialog from './manage-group-dialog';
-
+import AddCollectDialog from './add-collect-dialog';
+import { copyMessage, deepClone } from '../../../common/util';
+import $http from '../../../api';
 import './collect-index.scss';
 
 interface IProps {
@@ -78,6 +74,9 @@ export default class CollectIndex extends tsc<IProps> {
   @Prop({ type: Array, required: true }) favoriteList: any;
   @Prop({ type: Number, required: true }) activeFavoriteID: number;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
+  @Ref('popoverGroup') popoverGroupRef: Popover;
+  @Ref('popoverSort') popoverSortRef: Popover;
+  @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
 
   collectMinWidth = 160; // 收藏最小栏宽度
   collectMaxWidth = 400; // 收藏栏最大宽度
@@ -97,62 +96,58 @@ export default class CollectIndex extends tsc<IProps> {
   editFavoriteID = -1; // 点击编辑时的收藏ID
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
-    private: window.mainComponent.$t('个人收藏'),
+    private: window.mainComponent.$t('个人收藏')
   };
   verifyData = {
-    groupName: '',
+    groupName: ''
   };
   groupSortList = [
     // 排序展示列表
     {
       name: window.mainComponent.$t('按名称 {n} 排序', { n: 'A - Z' }),
-      id: 'NAME_ASC',
+      id: 'NAME_ASC'
     },
     {
       name: window.mainComponent.$t('按名称 {n} 排序', { n: 'Z - A' }),
-      id: 'NAME_DESC',
+      id: 'NAME_DESC'
     },
     {
       name: window.mainComponent.$t('按更新时间排序'),
-      id: 'UPDATED_AT_DESC',
-    },
+      id: 'UPDATED_AT_DESC'
+    }
   ];
   public rules = {
     groupName: [
       {
         validator: this.checkName,
         message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('组名') }),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         validator: this.checkExistName,
         message: window.mainComponent.$t('组名重复'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         max: 30,
         message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
-        trigger: 'blur',
-      },
-    ],
+        trigger: 'blur'
+      }
+    ]
   };
   tippyOption = {
     trigger: 'click',
     interactive: true,
-    theme: 'light',
+    theme: 'light'
   };
   groupList: IGroupItem[] = []; // 分组列表
   collectList: IGroupItem[] = []; // 收藏列表
   filterCollectList: IGroupItem[] = []; // 搜索的收藏列表
-
-  @Ref('popoverGroup') popoverGroupRef: Popover;
-  @Ref('popoverSort') popoverSortRef: Popover;
-  @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
 
   get spaceUid() {
     return this.$store.state.spaceUid;
@@ -193,25 +188,25 @@ export default class CollectIndex extends tsc<IProps> {
     this.handleInitFavoriteList(value);
   }
 
-  @Emit('handle-click')
+  @Emit('handleClick')
   handleClickFavorite(value) {
     return value;
   }
 
-  @Emit('is-refresh-favorite')
+  @Emit('isRefreshFavorite')
   handleUpdateActiveFavoriteData(value) {
     return value;
   }
 
-  @Emit('favorite-dialog-submit')
+  @Emit('favoriteDialogSubmit')
   handleSubmitFavoriteData({ isCreate, resValue }) {
     return {
       isCreate,
-      resValue,
+      resValue
     };
   }
 
-  @Emit('request-favorite-list')
+  @Emit('requestFavoriteList')
   getFavoriteList() {}
 
   async handleUserOperate(obj) {
@@ -237,7 +232,7 @@ export default class CollectIndex extends tsc<IProps> {
       case 'remove-group': // 从组中移除收藏（移动至未分组）
         Object.assign(value, {
           visible_type: 'public',
-          group_id: this.unknownGroupID,
+          group_id: this.unknownGroupID
         });
         await this.handleUpdateFavorite(value);
         this.getFavoriteList();
@@ -253,7 +248,7 @@ export default class CollectIndex extends tsc<IProps> {
           confirmFn: async () => {
             await this.deleteFavorite(value.id);
             this.getFavoriteList();
-          },
+          }
         });
         break;
       case 'dismiss-group': // 解散分组
@@ -264,7 +259,7 @@ export default class CollectIndex extends tsc<IProps> {
           confirmFn: async () => {
             await this.deleteGroup(value.group_id);
             this.getFavoriteList();
-          },
+          }
         });
         break;
       case 'share':
@@ -274,17 +269,17 @@ export default class CollectIndex extends tsc<IProps> {
           const filterQuery = {
             keyword,
             addition: JSON.stringify(addition),
-            ip_chooser: JSON.stringify(ip_chooser),
+            ip_chooser: JSON.stringify(ip_chooser)
           };
           if (value.index_set_type === 'union') {
             Object.assign(filterQuery, {
-              unionList: JSON.stringify(value.index_set_ids.map((item: number) => String(item))),
+              unionList: JSON.stringify(value.index_set_ids.map((item: number) => String(item)))
             });
           }
           const routeData = {
             name: 'retrieve',
             params,
-            query: filterQuery,
+            query: filterQuery
           };
           let shareUrl = window.SITE_URL;
           if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
@@ -317,12 +312,12 @@ export default class CollectIndex extends tsc<IProps> {
             search_fields,
             is_enable_display_fields,
             index_set_id,
-            space_uid: this.spaceUid,
+            space_uid: this.spaceUid
           };
           if (this.isUnionSearch) {
             Object.assign(data, {
               index_set_ids: this.unionIndexList,
-              index_set_type: 'union',
+              index_set_type: 'union'
             });
           }
           $http.request('favorite/createFavorite', { data }).then(res => {
@@ -337,7 +332,7 @@ export default class CollectIndex extends tsc<IProps> {
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim(),
+      this.verifyData.groupName.trim()
     );
   }
   checkExistName() {
@@ -389,8 +384,8 @@ export default class CollectIndex extends tsc<IProps> {
       .map(item => ({
         ...item,
         favorites: item.favorites.filter(
-          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal),
-        ),
+          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal)
+        )
       }))
       .filter(item => item.favorites.length);
     setTimeout(() => {
@@ -411,7 +406,7 @@ export default class CollectIndex extends tsc<IProps> {
     await $http
       .request(`favorite/${requestStr}`, {
         params,
-        data,
+        data
       })
       .then(() => {
         this.showMessagePop(this.$t('操作成功'));
@@ -421,12 +416,12 @@ export default class CollectIndex extends tsc<IProps> {
   handleInitFavoriteList(value) {
     this.collectList = value.map(item => ({
       ...item,
-      group_name: this.groupNameMap[item.group_type] ?? item.group_name,
+      group_name: this.groupNameMap[item.group_type] ?? item.group_name
     }));
     this.groupList = value.map(item => ({
       group_id: item.group_id,
       group_name: this.groupNameMap[item.group_type] ?? item.group_name,
-      group_type: item.group_type,
+      group_type: item.group_type
     }));
     this.unknownGroupID = this.groupList[this.groupList.length - 1]?.group_id;
     this.privateGroupID = this.groupList[0]?.group_id;
@@ -456,7 +451,7 @@ export default class CollectIndex extends tsc<IProps> {
   async deleteGroup(group_id) {
     await $http
       .request('favorite/deleteGroup', {
-        params: { group_id },
+        params: { group_id }
       })
       .then(() => {
         this.showMessagePop(this.$t('操作成功'));
@@ -467,7 +462,7 @@ export default class CollectIndex extends tsc<IProps> {
   async deleteFavorite(favorite_id) {
     await $http
       .request('favorite/deleteFavorite', {
-        params: { favorite_id },
+        params: { favorite_id }
       })
       .then(() => {
         this.showMessagePop(this.$t('删除成功'));
@@ -477,7 +472,7 @@ export default class CollectIndex extends tsc<IProps> {
   showMessagePop(message, theme = 'success') {
     this.$bkMessage({
       message,
-      theme,
+      theme
     });
   }
 
@@ -493,12 +488,12 @@ export default class CollectIndex extends tsc<IProps> {
       ip_chooser,
       addition,
       keyword,
-      search_fields,
+      search_fields
     };
     await $http
       .request('favorite/updateFavorite', {
         params: { id },
-        data,
+        data
       })
       .then(() => {
         this.showMessagePop(this.$t('操作成功'));
@@ -508,7 +503,7 @@ export default class CollectIndex extends tsc<IProps> {
     if (event.code === 'Tab' && !!value) {
       this.handleUserOperate({
         type: 'add-group',
-        value,
+        value
       });
       this.popoverGroupRef.hideHandler();
       setTimeout(() => {
@@ -549,11 +544,11 @@ export default class CollectIndex extends tsc<IProps> {
     return (
       <div class='retrieve-collect-index'>
         <CollectContainer
-          activeFavoriteID={this.activeFavoriteID}
-          collectLoading={this.collectLoading || this.favoriteLoading}
           dataList={this.filterCollectList}
           groupList={this.groupList}
+          activeFavoriteID={this.activeFavoriteID}
           isSearchFilter={this.isSearchFilter}
+          collectLoading={this.collectLoading || this.favoriteLoading}
           on-change={this.handleUserOperate}
         >
           <div class='search-container'>
@@ -569,40 +564,40 @@ export default class CollectIndex extends tsc<IProps> {
             </div>
             <div class='search-box fl-jcsb'>
               <Input
+                right-icon='bk-icon icon-search'
                 vModel={this.searchVal}
                 placeholder={this.$t('搜索收藏名')}
-                right-icon='bk-icon icon-search'
                 on-enter={this.handleSearchFavorite}
-                on-right-icon-click={this.handleSearchFavorite}
                 onKeyup={this.handleInputSearchFavorite}
+                on-right-icon-click={this.handleSearchFavorite}
               ></Input>
               <div class='fl-jcsb operate-box'>
                 <Popover
                   ref='popoverGroup'
-                  ext-cls='new-group-popover'
-                  placement='bottom-start'
                   tippy-options={this.tippyOption}
+                  placement='bottom-start'
+                  ext-cls='new-group-popover'
                 >
                   <span class='bk-icon icon-plus-circle'></span>
                   <div slot='content'>
                     <Form
-                      ref='checkInputForm'
-                      style={{ width: '100%' }}
                       labelWidth={0}
+                      style={{ width: '100%' }}
+                      ref='checkInputForm'
                       {...{
                         props: {
                           model: this.verifyData,
-                          rules: this.rules,
-                        },
+                          rules: this.rules
+                        }
                       }}
                     >
                       <FormItem property='groupName'>
                         <Input
-                          vModel={this.verifyData.groupName}
-                          placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                           clearable
-                          onEnter={() => this.handleClickGroupBtn('add')}
+                          placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
+                          vModel={this.verifyData.groupName}
                           onKeydown={this.handleGroupKeyDown}
+                          onEnter={() => this.handleClickGroupBtn('add')}
                         ></Input>
                       </FormItem>
                     </Form>
@@ -619,9 +614,9 @@ export default class CollectIndex extends tsc<IProps> {
                 </Popover>
                 <Popover
                   ref='popoverSort'
-                  ext-cls='sort-group-popover'
-                  placement='bottom-start'
                   tippy-options={this.tippyOption}
+                  placement='bottom-start'
+                  ext-cls='sort-group-popover'
                 >
                   <div class='icon-box'>
                     <span class='bk-icon icon-sort'></span>
@@ -629,8 +624,8 @@ export default class CollectIndex extends tsc<IProps> {
                   <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏名排序')}</span>
                     <RadioGroup
-                      class='sort-group-container'
                       vModel={this.sortType}
+                      class='sort-group-container'
                     >
                       {this.groupSortList.map(item => (
                         <Radio value={item.id}>{item.name}</Radio>

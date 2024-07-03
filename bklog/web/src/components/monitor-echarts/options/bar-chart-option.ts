@@ -1,34 +1,29 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import deepMerge from 'deepmerge';
-
-import MonitorBaseSeries from './base-chart-option';
-import { lineOrBarOptions } from './echart-options-config';
 import { ILegendItem, IChartInstance } from './type-interface';
+import MonitorBaseSeries from './base-chart-option';
+import deepMerge from 'deepmerge';
+import { lineOrBarOptions } from './echart-options-config';
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;
   public constructor(props: any) {
@@ -40,21 +35,22 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           color: this.colors,
           yAxis: {
             axisLabel: {
-              formatter: this.handleYxisLabelFormatter,
-            },
-          },
+              formatter: this.handleYxisLabelFormatter
+            }
+          }
         },
-        { arrayMerge: this.overwriteMerge },
+        { arrayMerge: this.overwriteMerge }
       ),
       this.chartOption,
-      { arrayMerge: this.overwriteMerge },
+      { arrayMerge: this.overwriteMerge }
     );
   }
   public getOptions(data: any, otherOptions = {}): any {
     let { series } = data || {};
     series = deepMerge([], series);
     const hasSeries = series && series.length > 0;
-    const formatterFunc = hasSeries && series[0].data?.length ? this.handleSetFormatterFunc(series[0].data) : null;
+    const formatterFunc =
+      hasSeries && series[0].data && series[0].data.length ? this.handleSetFormatterFunc(series[0].data) : null;
 
     const { maxThreshold, minThreshold } = this.handleGetMaxAndMinThreholds(series);
 
@@ -62,15 +58,15 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const options = {
       xAxis: {
         axisLabel: {
-          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}',
-        },
+          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}'
+        }
       },
       yAxis: {
         max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
-        min: Math.min(0, minThreshold),
+        min: Math.min(0, minThreshold)
       },
       legend: {
-        show: false,
+        show: false
       },
       series: hasSeries
         ? series.map((item: any, index: number) => {
@@ -81,7 +77,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               avg: 0,
               total: 0,
               color: this.colors[index % this.colors.length],
-              show: true,
+              show: true
             };
             item.data.forEach((seriesItem: any) => {
               if (seriesItem?.length && seriesItem[1]) {
@@ -107,16 +103,16 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               barMinHeight: 4,
               z: 4,
               markLine,
-              markArea,
+              markArea
             };
           })
-        : [],
+        : []
     };
     return {
       options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge,
+        arrayMerge: this.overwriteMerge
       }),
-      legendData,
+      legendData
     };
   }
 
@@ -126,13 +122,13 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       symbol: [],
       label: {
         show: true,
-        position: 'insideStartTop',
+        position: 'insideStartTop'
       },
       lineStyle: {
         color: '#FD9C9C',
         type: 'dashed',
         distance: 3,
-        width: 1,
+        width: 1
       },
       data: thresholdLine.map((item: any) => ({
         ...item,
@@ -140,9 +136,9 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           show: true,
           formatter(v: any) {
             return v.name || '';
-          },
-        },
-      })),
+          }
+        }
+      }))
     };
   }
 
@@ -157,7 +153,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     }, []);
     return {
       minThreshold: Math.min(...thresholdList),
-      maxThreshold: Math.max(...thresholdList),
+      maxThreshold: Math.max(...thresholdList)
     };
   }
 
@@ -165,9 +161,9 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const data = this.handleSetThresholdAreaData(thresholdLine);
     return {
       label: {
-        show: false,
+        show: false
       },
-      data,
+      data
     };
   }
 
@@ -178,7 +174,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const closedInterval = ['lte', 'lt']; // 闭区间
 
     const data = [];
-
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
     for (let index = 0; index < threshold.length; index++) {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
@@ -211,12 +207,12 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       yAxis !== undefined &&
         data.push([
           {
-            ...current,
+            ...current
           },
           {
             yAxis,
-            y: yAxis === 'max' ? '0%' : '',
-          },
+            y: yAxis === 'max' ? '0%' : ''
+          }
         ]);
     }
     return data;

@@ -488,7 +488,7 @@ class DutyRuleDetailSlz(DutyRuleSlz):
             for user_group in user_groups:
                 group_duty_manager = GroupDutyRuleManager(user_group, [self.data])
                 try:
-                    group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d %H:%M:%S"))
+                    group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
                 except Exception:  # noqa
                     continue
         else:
@@ -969,7 +969,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         ).data
 
         group_duty_manager = GroupDutyRuleManager(self.instance, duty_rules)
-        group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d %H:%M:%S"))
+        group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
         # 删除掉已经解除绑定的相关的snap和排班信息
         DutyRuleSnap.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules

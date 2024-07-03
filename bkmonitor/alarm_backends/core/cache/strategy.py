@@ -281,7 +281,7 @@ class StrategyCacheManager(CacheManager):
                 query_config["metric_id"] = fake_event_metric_id_mapping[query_config["metric_id"]]
             # hack agg_interval with fake_event
             if query_config["metric_id"] in fake_event_metric_id_mapping.values():
-                query_config["agg_interval"] = query_config.get("agg_interval", cls.fake_event_agg_interval)
+                query_config["agg_interval"] = cls.fake_event_agg_interval
 
             query_config.setdefault("agg_dimension", [])
             is_instance_dimension = cls.instance_dimensions & set(query_config["agg_dimension"])

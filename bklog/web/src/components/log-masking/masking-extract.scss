@@ -19,7 +19,6 @@
   }
 
   .masking-rule {
-    align-items: center;
     width: 100%;
     height: 32px;
     padding: 0 16px;
@@ -28,6 +27,7 @@
     cursor: pointer;
     background: #f5f7fa;
     border-radius: 2px;
+    align-items: center;
 
     @include flex-justify(space-between);
 
@@ -47,8 +47,8 @@
 
     .rule-value {
       display: inline-block;
-      flex: 1;
       color: #63656e;
+      flex: 1;
     }
 
     .rule-icon {
@@ -67,9 +67,9 @@
   }
 
   .replace-item {
-    align-items: center;
     height: 32px;
     margin-top: 12px;
+    align-items: center;
 
     @include flex-justify(space-between);
 
@@ -88,8 +88,8 @@
 
     .bk-form-input {
       display: block;
-      border-top-left-radius: 0;
       border-bottom-left-radius: 0;
+      border-top-left-radius: 0;
     }
   }
 
@@ -118,8 +118,8 @@
   }
 
   .length-change-item {
-    justify-content: space-between;
     margin-top: 4px;
+    justify-content: space-between;
 
     @include flex-align();
 

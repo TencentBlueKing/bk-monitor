@@ -32,13 +32,9 @@ import { Editor, Viewer } from '@toast-ui/editor';
 // import Prism from 'prismjs';
 // import 'prismjs/components/prism-python.js';
 // import 'prismjs/themes/prism.css';
-import { EditorPlugin } from '@toast-ui/editor/types/editor';
-
-import fixUrlPlugin from './fixUrlPlugin';
-
-import './viewer.scss';
 // import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import '@toast-ui/editor/dist/toastui-editor.css';
+import './viewer.scss';
 
 interface IMarkdowViewerProps {
   height?: number | string;
@@ -75,7 +71,6 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
       initialValue: this.value,
       height: this.height,
       viewer: true,
-      plugins: [fixUrlPlugin as EditorPlugin],
       // plugins: [codeSyntaxHighlight]
     });
   }

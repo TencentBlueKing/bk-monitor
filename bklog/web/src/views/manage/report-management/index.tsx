@@ -27,9 +27,9 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 
 @Component({
-  name: 'ReportManagement',
+  name: 'ReportManagement'
 })
-class ReportManagement extends tsc<object> {
+class ReportManagement extends tsc<{}> {
   get src() {
     const bizId = this.$store.state.bkBizId;
     const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
@@ -41,8 +41,8 @@ class ReportManagement extends tsc<object> {
     return (
       <div>
         <iframe
-          style='width: 100%;height: calc(100vh - 106px);border: none;'
           src={this.src}
+          style='width: 100%;height: calc(100vh - 106px);border: none;'
         ></iframe>
       </div>
     );

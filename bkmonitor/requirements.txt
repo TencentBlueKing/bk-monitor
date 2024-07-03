@@ -1,5 +1,5 @@
 # web server
-gunicorn==20.1.0
+gunicorn==19.6.0
 gevent==22.10.2
 
 # django

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
 import operator
 import re
@@ -189,8 +190,7 @@ class GetStrategyListV2Resource(Resource):
             try:
                 ids = {int(_id) for _id in ids if _id}
             except (ValueError, TypeError):
-                # 无效的过滤条件，查不出数据
-                ids = set()
+                raise ValidationError(_("存在非法的策略ID, {}").format(json.dumps(ids)))
             filter_strategy_ids_set.intersection_update(ids)
 
     @classmethod

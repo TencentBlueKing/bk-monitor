@@ -1,40 +1,34 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Popover } from 'bk-magic-vue';
-
 import './query-statement.scss';
 
 const searchTypeList = ['Lucene', 'UI'];
 
 @Component
-export default class QueryStatement extends tsc<object> {
+export default class QueryStatement extends tsc<{}> {
   @Prop({ type: Array, default: () => [] }) historyRecords;
   @Prop({ type: Boolean, required: true }) isSqlSearchType: boolean;
   @Prop({ type: Boolean, required: true }) isShowUiType: boolean;
@@ -49,7 +43,7 @@ export default class QueryStatement extends tsc<object> {
     allowHtml: true,
     content: '#retrieve-help-tips-content',
     placement: 'bottom-start',
-    distance: 9,
+    distance: 9
   };
 
   @Watch('isSqlSearchType')
@@ -64,7 +58,7 @@ export default class QueryStatement extends tsc<object> {
     this.$emit('updateSearchParam', item.params.keyword, item.params.addition, item.params.ip_chooser);
     this.$nextTick(() => {
       this.$emit('retrieve');
-      this.popoverInstance?.destroy();
+      this.popoverInstance && this.popoverInstance.destroy();
     });
   }
 
@@ -82,9 +76,9 @@ export default class QueryStatement extends tsc<object> {
       placement: 'bottom-end',
       extCls: 'retrieve-history-popover',
       onHidden: () => {
-        this.popoverInstance?.destroy();
+        this.popoverInstance && this.popoverInstance.destroy();
         this.popoverInstance = null;
-      },
+      }
     });
     this.popoverInstance.show();
   }
@@ -140,13 +134,13 @@ export default class QueryStatement extends tsc<object> {
             tippy-options={{
               placement: 'top',
               theme: 'light',
-              trigger: 'mouseenter',
+              trigger: 'mouseenter'
             }}
             disabled={this.isCanUseUiType || !this.isSqlSearchType}
           >
             <div
-              class='search-type-switch'
               v-show={this.isShowUiType}
+              class='search-type-switch'
             >
               {searchTypeList.map(item => (
                 <span
@@ -180,13 +174,13 @@ export default class QueryStatement extends tsc<object> {
               {this.historyRecords.length ? (
                 this.historyRecords.map(item => (
                   <li
-                    key={item.id}
                     class='list-item'
+                    key={item.id}
                     onClick={() => this.handleClickHistory(item)}
                   >
                     <div
-                      class='item-text text-overflow-hidden'
                       v-bk-overflow-tips={{ placement: 'right' }}
+                      class='item-text text-overflow-hidden'
                     >
                       {item.query_string}
                     </div>

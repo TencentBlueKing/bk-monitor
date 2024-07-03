@@ -1,37 +1,30 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
 import { Component, PropSync, Emit, Mixins } from 'vue-property-decorator';
-
-import * as monaco from 'monaco-editor';
-
 import MonacoEditor from '../../../components/collection-access/components/step-add/monaco-editor.vue';
-import classDragMixin from '../../../mixins/class-drag-mixin';
-
+import * as monaco from 'monaco-editor';
 import './retrieve-detail-input-editor.scss';
+import classDragMixin from '../../../mixins/class-drag-mixin';
 
 @Component
 export default class UiQuery extends Mixins(classDragMixin) {
@@ -52,12 +45,12 @@ export default class UiQuery extends Mixins(classDragMixin) {
     renderLineHighlight: 'none', // 当前行高亮方式
     lineNumbers: 'off', // 左侧是否展示行
     minimap: {
-      enabled: false, // 是否启用预览图
+      enabled: false // 是否启用预览图
     },
     find: {
       cursorMoveOnType: false,
       seedSearchStringFromSelection: 'never',
-      addExtraSpaceOnTop: false,
+      addExtraSpaceOnTop: false
     },
     // 折叠
     folding: false,
@@ -68,7 +61,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
     scrollbar: {
       // 滚动条设置
       verticalScrollbarSize: 6, // 竖滚动条
-      useShadows: true, // 失焦阴影动画
+      useShadows: true // 失焦阴影动画
     },
     // 隐藏右上角光标的小黑点
     hideCursorInOverviewRuler: true,
@@ -92,7 +85,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
     wordBasedSuggestions: false,
     wordBasedSuggestionsOnlySameLanguage: false,
     unicodeHighlight: {
-      ambiguousCharacters: false,
+      ambiguousCharacters: false
     },
     autoDetectHighContrast: false,
     roundedSelection: false,
@@ -100,13 +93,13 @@ export default class UiQuery extends Mixins(classDragMixin) {
     renderIndentGuides: false,
     trimAutoWhitespace: false,
     renderControlCharacters: true,
-    insertSpaces: false,
+    insertSpaces: false
   };
   /** 提示样式 */
   placeholderStyle = {
     top: '1px',
     left: '10px',
-    fontSize: '12px',
+    fontSize: '12px'
   };
 
   @Emit('focus')
@@ -124,7 +117,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
       startLineNumber: 0,
       startColumn: 0,
       endLineNumber: 0,
-      endColumn: 0,
+      endColumn: 0
     });
     return value;
   }
@@ -150,11 +143,11 @@ export default class UiQuery extends Mixins(classDragMixin) {
       inherit: true,
       rules: [
         { token: 'AND-OR-color', foreground: 'FF9C01' },
-        { token: 'NOT-color', foreground: 'CB2427' },
+        { token: 'NOT-color', foreground: 'CB2427' }
       ],
       colors: {
-        'editor.foreground': '63656E', // 用户输入的基础颜色
-      },
+        'editor.foreground': '63656E' // 用户输入的基础颜色
+      }
     });
     monaco.languages.register({ id: 'mySpecialLanguage' });
     monaco.languages.setMonarchTokensProvider('mySpecialLanguage', {
@@ -162,9 +155,9 @@ export default class UiQuery extends Mixins(classDragMixin) {
       tokenizer: {
         root: [
           [/\s+(AND|and|OR|or)\s+/g, 'AND-OR-color'],
-          [/\s+(NOT)\s+/g, 'NOT-color'],
-        ],
-      },
+          [/\s+(NOT)\s+/g, 'NOT-color']
+        ]
+      }
     });
     return monaco;
   }
@@ -199,22 +192,22 @@ export default class UiQuery extends Mixins(classDragMixin) {
     return (
       <div class='retrieve-input-editor'>
         <MonacoEditor
-          placeholder-style={this.placeholderStyle}
-          height={this.collectHeight}
           v-model={this.propsValue}
-          font-size={12}
-          init-monaco-before-fun={this.initMonacoBeforeFun}
-          is-show-problem-drag={false}
-          is-show-top-label={false}
-          language='mySpecialLanguage'
-          monaco-config={this.monacoConfig}
-          placeholder={this.$t('请输入') as string}
           theme='myTheme'
-          onBlur={this.emitBlur}
+          language='mySpecialLanguage'
+          is-show-top-label={false}
+          is-show-problem-drag={false}
+          height={this.collectHeight}
+          placeholder={this.$t('请输入') as string}
+          placeholder-style={this.placeholderStyle}
+          font-size={12}
+          monaco-config={this.monacoConfig}
+          init-monaco-before-fun={this.initMonacoBeforeFun}
           onChange={this.emitInput}
-          onEditorDidMount={editor => this.getEditorInstance(editor)}
           onFocus={this.emitFocus}
+          onBlur={this.emitBlur}
           onKeydown={this.emitKeyDown}
+          onEditorDidMount={editor => this.getEditorInstance(editor)}
         />
         <div
           class={['drag-bottom', { 'drag-ing': this.isChanging }]}

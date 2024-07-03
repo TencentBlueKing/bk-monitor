@@ -54,7 +54,7 @@ dayjs.locale({
 // window.timezone = dayjs.tz.guess();
 // dayjs.tz.setDefault(window.timezone);
 export const updateTimezone = (tz: string) => {
-  if (!tz || tz === 'undefined') return;
+  if (!tz) return;
   window.timezone = tz || dayjs.tz.guess();
   sessionStorage.setItem(TIMEZONE_STORE_KEY, window.timezone);
   dayjs.tz.setDefault(window.timezone);
@@ -64,8 +64,7 @@ export const destroyTimezone = () => {
   dayjs.tz.setDefault(window.timezone);
 };
 export const getDefaultTimezone = () => {
-  const storeVal = sessionStorage.getItem(TIMEZONE_STORE_KEY);
-  const timezone = storeVal && storeVal !== 'undefined' ? storeVal : dayjs.tz.guess();
+  const timezone = sessionStorage.getItem(TIMEZONE_STORE_KEY) || dayjs.tz.guess();
   window.timezone = timezone;
   dayjs.tz.setDefault(window.timezone);
   return timezone;
