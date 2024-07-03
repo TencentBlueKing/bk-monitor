@@ -453,6 +453,7 @@ import PollingLoading from '../../../../components/polling-loading/polling-loadi
 import VerifyInput from '../../../../components/verify-input/verify-input';
 import authorityMixinCreate from '../../../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
+import { emojiRegex, allSpaceRegex } from '../../../../utils/index';
 import * as uptimeAuth from '../../authority-map';
 import AdvancedOption, { RESPONSE_FORMAT_OPTIONS } from './advanced-option';
 import HttpTarget from './http-target';
@@ -1202,7 +1203,7 @@ export default {
     },
     validateName() {
       let isPass = true;
-      if (!Boolean(this.task.name)) {
+      if (!Boolean(this.task.name) || allSpaceRegex(this.task.name)) {
         isPass = false;
         this.requiredOptions.name = true;
         this.nameErrorMsg = this.$t('必填项');
@@ -1210,6 +1211,10 @@ export default {
         isPass = false;
         this.requiredOptions.name = true;
         this.nameErrorMsg = this.$t('注意：最大值为50个字符');
+      } else if (emojiRegex(this.task.name)) {
+        isPass = false;
+        this.requiredOptions.name = true;
+        this.nameErrorMsg = this.$t('不能输入emoji表情');
       } else {
         isPass = true;
         this.requiredOptions.name = false;
