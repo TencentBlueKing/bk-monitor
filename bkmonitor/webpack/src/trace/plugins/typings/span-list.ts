@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -24,37 +24,5 @@
  * IN THE SOFTWARE.
  */
 
-import i18n from './i18n/i18n';
-
-import type { IBizItem, ISpaceItem } from './typings';
-import type { Dayjs } from 'dayjs';
-
-declare global {
-  interface Window {
-    site_url: string;
-    static_url: string;
-    user_name: string;
-    username: string;
-    timezone: string;
-    uin: string;
-    space_list: ISpaceItem[];
-    bk_biz_list: IBizItem[];
-    csrf_cookie_name: string;
-    cc_biz_id: number | string;
-    bk_biz_id: number | string;
-    bk_log_search_url: string;
-    bklogsearch_host: string;
-    bk_url: string;
-    source_app: string;
-    i18n: typeof i18n.global;
-    __BK_WEWEB_DATA__?: Record<string, any>;
-    __POWERED_BY_BK_WEWEB__?: boolean;
-    rawWindow?: Window;
-    mermaidClick?: (id: string) => void;
-    apm_ebpf_enabled: boolean;
-    dayjs?: Dayjs;
-    enable_apm_profiling: boolean;
-    bk_docs_site_url: string;
-    graph_watermark: boolean;
-  }
-}
+/** 排序方式 */
+export type SortOrder = 'asc' | 'desc';

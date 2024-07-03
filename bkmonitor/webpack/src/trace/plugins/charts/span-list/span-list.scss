@@ -5,19 +5,20 @@
   flex-direction: column;
   height: 100%;
   padding-left: 16px;
-  color: #313238;
   font-size: 12px;
+  color: #313238;
 
   &-header {
-    @include flex-align(center);
-    margin-bottom: 6px;
-    padding-right: 16px;
     flex: 0 0 20px;
+    justify-content: space-between;
     height: 20px;
+    padding-right: 16px;
+    margin-bottom: 6px;
+    @include flex-align(center);
 
     .title {
-      cursor: pointer;
       white-space: nowrap;
+      cursor: pointer;
     }
 
     .sub-title {
@@ -27,7 +28,7 @@
 
       .back-btn {
         font-size: 20px;
-        color: #3A84FF;
+        color: #3a84ff;
         cursor: pointer;
       }
 
@@ -40,16 +41,45 @@
       }
 
       .count {
-        margin-left: 6px;
         flex: 1;
+        margin-left: 6px;
+      }
+    }
+
+    .filter-wrap {
+      display: flex;
+      align-items: center;
+      color: #9b9da1;
+
+      .sort-select {
+        cursor: pointer;
+        @include flex-align(center);
+
+        .text {
+          margin: 0 4px;
+        }
+      }
+
+      .icon-monitor {
+        font-size: 20px;
+        cursor: pointer;
+      }
+
+      .icon-paixu {
+        margin-right: 4px;
+        font-size: 12px;
+
+        &.up {
+          transform: rotate3d(100, 1, 1, 180deg);
+        }
       }
     }
   }
 
   &-body {
     display: flex;
-    flex-direction: column;
     flex: 1;
+    flex-direction: column;
     overflow: auto;
 
     .list-ul {
@@ -60,22 +90,22 @@
       .list-li {
         display: flex;
         flex: 0 0 48px;
-        height: 48px;
-        border-left: 4px solid #7ec7e7;
         flex-direction: column;
         justify-content: center;
-        background-color: #f5f7fa;
-        border-radius: 2px;
-        margin-bottom: 8px;
-        padding-left: 6px;
+        height: 48px;
         padding-right: 6px;
+        padding-left: 6px;
+        margin-bottom: 8px;
         cursor: pointer;
+        background-color: #f5f7fa;
+        border-left: 4px solid #7ec7e7;
+        border-radius: 2px;
 
         &-header {
           display: flex;
-          align-items: center;
           flex: 0 0 20px;
           flex-wrap: nowrap;
+          align-items: center;
 
           .span-kind {
             margin-right: 6px;
@@ -83,10 +113,10 @@
           }
 
           .span-name {
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
             flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
           .span-eplaced,
@@ -94,27 +124,65 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 0 2px;
+            margin-left: auto;
+            color: white;
             background-color: #989ca7;
             border-radius: 2px;
-            padding: 0 2px;
-            color: white;
-            margin-left: auto;
           }
+
           .span-mark {
             background-color: #fff;
+
             &.removed {
-              color: #D74747;
+              color: #d74747;
             }
+
             &.added {
-              color: #46A28C;
+              color: #46a28c;
             }
+          }
+
+          .collapsed-number {
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            font-size: 12px;
+            line-height: 16px;
+            color: #fff;
+            text-align: center;
+            background-color: #a2afd2;
+            border-radius: 50%;
+          }
+        }
+
+        .arrow-down-icon {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 8px;
+          height: 8px;
+          margin: 0 2.5px;
+
+          .rect {
+            width: 2px;
+            height: 4px;
+            background-color: #9b9da1;
+          }
+
+          .arrow {
+            width: 0;
+            height: 0;
+            border-top: 4px solid #9b9da1; /* 上边为实心 */
+            border-right: 4px solid transparent; /* 右边透明 */
+            border-left: 4px solid transparent; /* 左边透明 */
           }
         }
 
         &-body {
           display: flex;
-          align-items: center;
           flex: 0 0 20px;
+          align-items: center;
 
           .span-icon {
             display: flex;
@@ -126,14 +194,14 @@
           }
 
           .service-name {
-            color: 0;
             flex: 1;
             // display: flex;
             align-items: center;
-            color: #9b9da1;
             overflow: hidden;
-            white-space: nowrap;
+            color: 0;
+            color: #9b9da1;
             text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
           .start-time {
@@ -147,26 +215,40 @@
             color: #9b9da1;
           }
         }
+
         &.is-compare {
           .span-icon,
           .service-name {
             color: #313238;
           }
+
           .span-eplaced {
-            background-color: #63656E;
             color: #fff;
+            background-color: #63656e;
           }
+
           .start-time {
-            color: #63656E;
+            color: #63656e;
+          }
+
+          .arrow-down-icon {
+            .rect {
+              background-color: #313238;
+            }
+
+            .arrow {
+              border-top-color: #313238;
+            }
           }
         }
       }
     }
   }
+
   &-footer {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     padding: 8px 0 22px;
     color: #63656e;
   }
