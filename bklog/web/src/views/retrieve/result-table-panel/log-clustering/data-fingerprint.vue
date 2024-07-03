@@ -175,7 +175,7 @@
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, $index }">
           <div class="pattern">
-            <div :class="['pattern-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
+            <div :class="['pattern-content', { 'is-limit': getLimitState($index) }]">
               <cluster-event-popover
                 :context="row.pattern"
                 :tippy-options="{ distance: 10, placement: 'bottom', boundary: scrollContent }"
@@ -189,20 +189,22 @@
                   {{ getHeightLightStr(row.pattern) }}
                 </text-highlight>
               </cluster-event-popover>
-              <p
-                v-if="!cacheExpandStr.includes($index)"
-                class="show-whole-btn"
-                @click.stop="handleShowWhole($index)"
-              >
-                {{ $t('展开全部') }}
-              </p>
-              <p
-                v-else
-                class="hide-whole-btn"
-                @click.stop="handleHideWhole($index)"
-              >
-                {{ $t('收起') }}
-              </p>
+              <template v-if="!isLimitExpandView">
+                <p
+                  v-if="!cacheExpandStr.includes($index)"
+                  class="show-whole-btn"
+                  @click.stop="handleShowWhole($index)"
+                >
+                  {{ $t('展开全部') }}
+                </p>
+                <p
+                  v-else
+                  class="hide-whole-btn"
+                  @click.stop="handleHideWhole($index)"
+                >
+                  {{ $t('收起') }}
+                </p>
+              </template>
             </div>
           </div>
         </template>
@@ -524,6 +526,9 @@
       bkBizId() {
         return this.$store.state.bkBizId;
       },
+      isLimitExpandView() {
+        return this.$store.state.isLimitExpandView;
+      },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
       },
@@ -540,7 +545,7 @@
         const uniqueVal = this.curEditUniqueVal;
         // 如果有分组也带上分组的条件
         const fingerRow = this.fingerList.find(item =>
-          Object.keys(uniqueVal).every(key => deepEqual(item[key], uniqueVal[key]))
+          Object.keys(uniqueVal).every(key => deepEqual(item[key], uniqueVal[key])),
         );
         return fingerRow;
       },
@@ -842,8 +847,8 @@
       handleChangePrincipal(val, row) {
         this.curEditUniqueVal = {
           signature: row.signature,
-          group: row.group
-        }
+          group: row.group,
+        };
         this.$http
           .request('/logClustering/setOwner', {
             params: {
@@ -861,7 +866,7 @@
               const { signature, groups, owners } = res.data;
               this.curEditUniqueVal = {
                 signature,
-                group: this.requestData.group_by.map(gKey => groups[gKey])
+                group: this.requestData.group_by.map(gKey => groups[gKey]),
               };
               this.getHoverRowValue.owners = owners;
               this.$bkMessage({
@@ -915,7 +920,7 @@
               const { signature, groups, remark } = res.data;
               this.curEditUniqueVal = {
                 signature,
-                group: this.requestData.group_by.map(gKey => groups[gKey])
+                group: this.requestData.group_by.map(gKey => groups[gKey]),
               };
               this.getHoverRowValue.remark = remark;
               this.$bkMessage({
@@ -959,8 +964,8 @@
             onShow: () => {
               this.curEditUniqueVal = {
                 signature: row.signature,
-                group: row.group
-              }
+                group: row.group,
+              };
             },
             onHidden: () => {
               this.popoverInstance?.destroy();
@@ -1140,6 +1145,10 @@
           acc[cur] = group?.[index] ?? '';
           return acc;
         }, {});
+      },
+      getLimitState(index) {
+        if (this.isLimitExpandView) return false;
+        return !this.cacheExpandStr.includes(index);
       },
     },
   };

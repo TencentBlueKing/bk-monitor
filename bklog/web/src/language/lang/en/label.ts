@@ -648,4 +648,5 @@ export default {
   'label-已停用': 'TERMINATED',
   'label-未知': 'UNKNOWN',
   'label-准备中': 'PREPARE',
+  展开长字段: 'Expand long field',
 };
