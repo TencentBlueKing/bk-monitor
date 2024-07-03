@@ -1,27 +1,23 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
 import * as authorityMap from '../common/authority-map';
@@ -32,10 +28,10 @@ export default {
       disabledTips: {
         terminated: {
           operateType: ['clone', 'storage', 'search', 'clean'],
-          tips: this.$t('未完成配置'),
+          tips: this.$t('未完成配置')
         },
-        delete: this.$t('删除前请先停用'),
-      },
+        delete: this.$t('删除前请先停用')
+      }
     };
   },
   methods: {
@@ -51,9 +47,9 @@ export default {
             resources: [
               {
                 type: 'space',
-                id: this.spaceUid,
-              },
-            ],
+                id: this.spaceUid
+              }
+            ]
           });
         }
       } else if (operateType === 'view') {
@@ -64,9 +60,9 @@ export default {
             resources: [
               {
                 type: 'collection',
-                id: row.collector_config_id,
-              },
-            ],
+                id: row.collector_config_id
+              }
+            ]
           });
         }
       } else if (operateType === 'search') {
@@ -77,9 +73,9 @@ export default {
             resources: [
               {
                 type: 'indices',
-                id: row.index_set_id,
-              },
-            ],
+                id: row.index_set_id
+              }
+            ]
           });
         }
       } else if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
@@ -89,9 +85,9 @@ export default {
           resources: [
             {
               type: 'collection',
-              id: row.collector_config_id,
-            },
-          ],
+              id: row.collector_config_id
+            }
+          ]
         });
       } else if (operateType === 'masking') {
         // if (!(row.permission?.[authorityMap.SEARCH_LOG_AUTH])) {
@@ -111,8 +107,8 @@ export default {
       this.$http
         .request('collect/deleteCollect', {
           params: {
-            collector_config_id: row.collector_config_id,
-          },
+            collector_config_id: row.collector_config_id
+          }
         })
         .then(res => {
           if (res.result) {
@@ -151,6 +147,7 @@ export default {
      * @return {[type]}      [description]
      */
     handleLimitChange(page) {
+      // console.log('changelimit');
       if (this.pagination.limit !== page) {
         this.pagination.current = 1;
         this.pagination.limit = page;
@@ -175,9 +172,9 @@ export default {
           resources: [
             {
               type: 'space',
-              id: this.spaceUid,
-            },
-          ],
+              id: this.spaceUid
+            }
+          ]
         });
         this.isAllowedCreate = res.isAllowed;
       } catch (err) {
@@ -207,6 +204,6 @@ export default {
         return !(!row.status || row.status === 'running' || row.is_active || !this.collectProject);
       }
       return true;
-    },
-  },
+    }
+  }
 };

@@ -1,41 +1,34 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Input } from 'bk-magic-vue';
-
-import $http from '../../../api';
 import { deepClone } from '../../../components/monitor-echarts/utils';
-
 import './ui-query.scss';
+import $http from '../../../api';
 
 @Component
-export default class UiQuery extends tsc<object> {
+export default class UiQuery extends tsc<{}> {
   @Prop({ type: Object, required: true }) activeFavorite: object;
   @Prop({ type: Boolean, required: true }) isFavoriteSearch: boolean;
   @Prop({ type: String, required: true }) keyword: string;
@@ -59,7 +52,7 @@ export default class UiQuery extends tsc<object> {
     this.loading = true;
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword },
+        data: { keyword }
       });
       this.searchFieldsList = res.data
         .filter(item => fieldsList.includes(item.name))
@@ -68,7 +61,7 @@ export default class UiQuery extends tsc<object> {
           name: item.is_full_text_field
             ? `${window.mainComponent.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
             : item.name,
-          chName: item.name,
+          chName: item.name
         }));
       this.cacheFieldsList = deepClone(this.searchFieldsList); // 赋值缓存的展示字段
     } finally {
@@ -90,19 +83,19 @@ export default class UiQuery extends tsc<object> {
       .filter(item => Boolean(item.value))
       .map(item => ({
         value: item.value,
-        pos: item.pos,
+        pos: item.pos
       }));
     $http
       .request('favorite/getGenerateQuery', {
         data: {
           keyword: this.isUpdateFavorite ? this.favoriteKeyword : this.keyword,
-          params,
-        },
+          params
+        }
       })
       .then(async res => {
         try {
           const { data } = await $http.request('favorite/checkKeywords', {
-            data: { keyword: res.data },
+            data: { keyword: res.data }
           });
           this.$emit('updateKeyWords', res.data);
           this.$emit('isCanSearch', data.is_legal);

@@ -1,29 +1,27 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
+/* eslint-disable max-len */
+/* eslint-disable no-underscore-dangle */
 const webpackLog = require('webpack-log');
 const crypto = require('crypto');
 const log = webpackLog({ name: 'log-webpack-plugin' });
@@ -44,7 +42,7 @@ module.exports = class LogWebpackPlugin {
   apply(compiler) {
     const hookOption = {
       name: 'LogWebpackPlugin',
-      stage: 'PROCESS_ASSETS_STAGE_ANALYSE',
+      stage: 'PROCESS_ASSETS_STAGE_ANALYSE'
     };
     compiler.hooks.thisCompilation.tap(hookOption, compilation => {
       compilation.hooks.afterProcessAssets.tap(hookOption, () => {
@@ -102,7 +100,7 @@ module.exports = class LogWebpackPlugin {
         let machUrl = url.replace(`${this.staticUrl}${this.modePath}/`, '');
         if (
           !/(data:|manifest\.json|http|\/\/)|\$\{BK_STATIC_URL\}| \$\{WEIXIN_STATIC_URL\} |\$\{SITE_URL\}/gim.test(
-            machUrl,
+            machUrl
           ) &&
           /\.(png|css|js)/gim.test(machUrl)
         ) {
@@ -139,7 +137,7 @@ module.exports = class LogWebpackPlugin {
 
   resolveInternalInfo(chunk) {
     const reg = /((http:\/\/|ftp:\/\/|https:\/\/|\/\/)?(([^./"' \u4e00-\u9fa5（]+\.)*(oa\.com|ied\.com)+))/gi;
-    if (chunk.match?.(reg)) {
+    if (chunk.match && chunk.match(reg)) {
       const res = chunk.replace(reg, 'http://blueking.com');
       return {
         source() {
@@ -147,7 +145,7 @@ module.exports = class LogWebpackPlugin {
         },
         size() {
           return res.length;
-        },
+        }
       };
     }
     return null;

@@ -1557,16 +1557,11 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
 
     # 内置k8s指标映射维度，用于重名指标维度合并
     _build_in_metrics = None
-    IGNORE_DIMENSIONS = ["bk_instance", "bk_job"]
 
     @property
     def build_in_metrics(self):
         if self._build_in_metrics is None:
-            self._build_in_metrics = {}
-            for metric in get_built_in_k8s_metrics():
-                self._build_in_metrics[metric["field_name"]] = [
-                    tag for tag in metric["tag_list"] if tag["field_name"] not in self.IGNORE_DIMENSIONS
-                ]
+            self._build_in_metrics = {metric["field_name"]: metric["tag_list"] for metric in get_built_in_k8s_metrics()}
         return self._build_in_metrics
 
     def get_metric_pool(self):

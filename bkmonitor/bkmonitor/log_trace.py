@@ -8,22 +8,21 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 import os
-import socket
 import threading
 from typing import Collection
 
 import MySQLdb
-from celery.signals import beat_init, worker_process_init
+from celery.signals import worker_process_init
 from django.conf import settings
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation import dbapi
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
-from opentelemetry.instrumentation.django import DjangoInstrumentor, _DjangoMiddleware
+from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.instrumentation.elasticsearch import ElasticsearchInstrumentor
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
-from opentelemetry.instrumentation.kafka import KafkaInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
@@ -31,14 +30,86 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.sampling import DEFAULT_OFF, DEFAULT_ON
+from opentelemetry.trace import Span, Status, StatusCode
 
-from bkmonitor.trace.django import get_span_name
-from bkmonitor.trace.django import request_hook as django_request_hook
-from bkmonitor.trace.django import response_hook as django_response_hook
-from bkmonitor.trace.logging import BkResourceLoggingInstrument
-from bkmonitor.trace.requests import requests_span_callback
-from bkmonitor.trace.threading import ThreadingInstrumentor
 from bkmonitor.utils.common_utils import get_local_ip
+
+
+def requests_callback(span: Span, response):
+    """处理蓝鲸格式返回码"""
+    try:
+        json_result = response.json()
+    except Exception:  # pylint: disable=broad-except
+        return
+    if not isinstance(json_result, dict):
+        return
+
+    # NOTE: esb got a result, but apigateway  /iam backend / search-engine got not result
+    code = json_result.get("code", 0)
+    span.set_attribute("result_code", code)
+    span.set_attribute("result_message", json_result.get("message", ""))
+    span.set_attribute("result_errors", str(json_result.get("errors", "")))
+    try:
+        request_id = (
+            # new esb and apigateway
+            response.headers.get("x-bkapi-request-id")
+            # iam backend
+            or response.headers.get("x-request-id")
+            # old esb
+            or json_result.get("request_id", "")
+        )
+        if request_id:
+            span.set_attribute("bk.request_id", request_id)
+    except Exception:  # pylint: disable=broad-except
+        pass
+
+    if code in [0, "0", "00", 200]:
+        span.set_status(Status(StatusCode.OK))
+    else:
+        span.set_status(Status(StatusCode.ERROR))
+
+
+def django_request_hook(span: Span, request):
+    # Extract parameters from the request
+    params = request.GET if request.method == 'GET' else request.POST
+
+    # Try to serialize parameters as a JSON string
+    try:
+        params_str = json.dumps(params)
+    except TypeError:
+        # If a parameter cannot be serialized, ignore it
+        params_str = json.dumps({k: v for k, v in params.items() if not v or isinstance(v, (str, int, float, bool))})
+
+    # Set the serialized parameters as an attribute on the span
+    span.set_attribute("request.params", params_str)
+
+
+def django_response_hook(span, request, response):
+    # Set user information as an attribute on the span
+    user = getattr(request, "user", None)
+    if user:
+        username = getattr(user, "username", "unknown")
+    else:
+        username = "unknown"
+    span.set_attribute("user.username", username)
+
+    if hasattr(response, "data"):
+        result = response.data
+    else:
+        try:
+            result = json.loads(response.content)
+        except Exception:  # pylint: disable=broad-except
+            return
+    if not isinstance(result, dict):
+        return
+    span.set_attribute("result_code", result.get("code", 0))
+    span.set_attribute("result_message", result.get("message", ""))
+    span.set_attribute("result_errors", result.get("errors", ""))
+    result = result.get("result", True)
+    if result:
+        span.set_status(Status(StatusCode.OK))
+        return
+    span.set_status(Status(StatusCode.ERROR))
 
 
 class LazyBatchSpanProcessor(BatchSpanProcessor):
@@ -71,20 +142,15 @@ class BluekingInstrumentor(BaseInstrumentor):
     has_instrument = False
 
     def _uninstrument(self, **kwargs):
-        DjangoInstrumentor().uninstrument()
-        RedisInstrumentor().uninstrument()
-        ElasticsearchInstrumentor().uninstrument()
-        RequestsInstrumentor().uninstrument()
-        CeleryInstrumentor().uninstrument()
-        LoggingInstrumentor().uninstrument()
-        ThreadingInstrumentor().uninstrument()
-        KafkaInstrumentor().uninstrument()
+        pass
 
     def _instrument(self, **kwargs):
         """Instrument the library"""
         if self.has_instrument:
             return
         otlp_http_host = os.getenv("BKAPP_OTLP_HTTP_HOST")
+        otlp_bk_data_id = os.getenv("BKAPP_OTLP_BK_DATA_ID")
+        otlp_bk_data_token = os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", "")
         sample_all = os.getenv("BKAPP_OTLP_SAMPLE_ALL", "false").lower() == "true"
         otlp_exporter = OTLPSpanExporter(endpoint=otlp_http_host)
         span_processor = LazyBatchSpanProcessor(otlp_exporter)
@@ -98,29 +164,21 @@ class BluekingInstrumentor(BaseInstrumentor):
                 {
                     "service.name": settings.SERVICE_NAME,
                     "service.version": settings.VERSION,
-                    "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", ""),
+                    "bk_data_id": otlp_bk_data_id,
+                    "bk.data.token": otlp_bk_data_token,
                     "net.host.ip": get_local_ip(),
-                    "net.host.name": socket.gethostname(),
-                    "bcs.cluster.id": os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID", ""),
-                    "bcs.cluster.namespace": os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE", ""),
-                    "service.environment": settings.ENVIRONMENT,
                 }
             ),
             sampler=sampler,
         )
         tracer_provider.add_span_processor(span_processor)
         trace.set_tracer_provider(tracer_provider)
-
-        _DjangoMiddleware._get_span_name = get_span_name  # pylint: disable=protected-access
         DjangoInstrumentor().instrument(request_hook=django_request_hook, response_hook=django_response_hook)
         RedisInstrumentor().instrument()
         ElasticsearchInstrumentor().instrument()
-        RequestsInstrumentor().instrument(span_callback=requests_span_callback)
-        CeleryInstrumentor().instrument()
-        BkResourceLoggingInstrument().instrument()
-        ThreadingInstrumentor().instrument()
-        KafkaInstrumentor().instrument()
-
+        RequestsInstrumentor().instrument(tracer_provider=tracer_provider, span_callback=requests_callback)
+        CeleryInstrumentor().instrument(tracer_provider=tracer_provider)
+        LoggingInstrumentor().instrument()
         dbapi.wrap_connect(
             __name__,
             MySQLdb,
@@ -141,12 +199,6 @@ class BluekingInstrumentor(BaseInstrumentor):
 
 
 @worker_process_init.connect(weak=False)
-def init_celery_worker_tracing(*args, **kwargs):
-    if os.getenv("BKAPP_OTLP_HTTP_HOST") and os.getenv("BKAPP_OTLP_BK_DATA_TOKEN"):
-        BluekingInstrumentor().instrument()
-
-
-@beat_init.connect(weak=False)
-def init_celery_beat_tracing(*args, **kwargs):
-    if os.getenv("BKAPP_OTLP_HTTP_HOST") and os.getenv("BKAPP_OTLP_BK_DATA_TOKEN"):
+def init_celery_tracing(*args, **kwargs):
+    if os.getenv("BKAPP_OTLP_GRPC_HOST") and os.getenv("BKAPP_OTLP_BK_DATA_ID"):
         BluekingInstrumentor().instrument()

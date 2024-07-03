@@ -7,9 +7,7 @@ const eslintVueParser = require('vue-eslint-parser');
 const perfectionist = require('eslint-plugin-perfectionist');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
-const OFF = 0;
-const WARNING = 1;
-const ERROR = 2;
+
 // Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
 const deprecateRules = Object.fromEntries(
   [
@@ -36,7 +34,7 @@ const deprecateRules = Object.fromEntries(
     'space-infix-ops',
     'type-annotation-spacing',
     'no-misused-promises',
-  ].map(rule => [`@typescript-eslint/${rule}`, OFF])
+  ].map(rule => [`@typescript-eslint/${rule}`, 'off'])
 );
 const recommendedVue2Config = eslintVuePlugin.configs['flat/vue2-recommended'].find(config => config.files);
 // 以下是 script = js 的vue 文件 需要和 ts 分开检测
@@ -132,7 +130,7 @@ module.exports = [
     plugins: { perfectionist },
     rules: {
       'perfectionist/sort-classes': [
-        ERROR,
+        'error',
         {
           groups: [
             'decorated-accessor-property',
@@ -159,7 +157,7 @@ module.exports = [
         },
       ],
       // 'perfectionist/sort-objects': [
-      //   ERROR,
+      //   'error',
       //   {
       //     'custom-groups': {
       //       ID: '*(id|ID|Id)',
@@ -184,21 +182,21 @@ module.exports = [
     plugins: { perfectionist },
     rules: {
       'perfectionist/sort-enums': [
-        ERROR,
+        'error',
         {
           order: 'asc',
           type: 'natural',
         },
       ],
       'perfectionist/sort-exports': [
-        ERROR,
+        'error',
         {
           order: 'asc',
           type: 'natural',
         },
       ],
       'perfectionist/sort-jsx-props': [
-        ERROR,
+        'error',
         {
           ...jsxOrVueSortGroups,
           order: 'asc',
@@ -206,14 +204,14 @@ module.exports = [
         },
       ],
       'perfectionist/sort-maps': [
-        ERROR,
+        'error',
         {
           order: 'asc',
           type: 'natural',
         },
       ],
       'perfectionist/sort-imports': [
-        ERROR,
+        'error',
         {
           type: 'natural',
           order: 'asc',
@@ -247,21 +245,21 @@ module.exports = [
         },
       ],
       // 'perfectionist/sort-intersection-types': [
-      //   ERROR,
+      //   'error',
       //   {
       //     type: 'natural',
       //     order: 'asc',
       //   },
       // ],
       'perfectionist/sort-union-types': [
-        ERROR,
+        'error',
         {
           order: 'asc',
           type: 'natural',
         },
       ],
       'perfectionist/sort-vue-attributes': [
-        ERROR,
+        'error',
         {
           ...jsxOrVueSortGroups,
           type: 'natural',
@@ -287,7 +285,7 @@ module.exports = [
     },
     rules: {
       'codecc/license': [
-        ERROR,
+        'error',
         {
           license: `/*
 * Tencent is pleased to support the open source community by making
@@ -356,8 +354,8 @@ module.exports = [
     rules: {
       ...recommendedVue2Config.rules,
       ...tencentEslintLegacyRules,
-      '@typescript-eslint/explicit-member-accessibility': OFF,
-      'comma-dangle': [ERROR, 'always-multiline'],
+      '@typescript-eslint/explicit-member-accessibility': 'off',
+      'comma-dangle': ['error', 'always-multiline'],
       ...deprecateRules,
     },
   },
@@ -367,9 +365,9 @@ module.exports = [
   },
   {
     rules: {
-      'vue/html-self-closing': OFF,
-      'vue/require-default-prop': OFF,
-      'vue/attributes-order': OFF,
+      'vue/html-self-closing': 'off',
+      'vue/require-default-prop': 'off',
+      'vue/attributes-order': 'off',
     },
   },
   eslintConfigPrettier,

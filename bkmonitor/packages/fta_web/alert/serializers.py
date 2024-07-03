@@ -10,16 +10,17 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.utils.translation import ugettext as _
+from fta_web.models.alert import AlertFeedback, AlertSuggestion, SearchFavorite
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.iam import Permission
 from bkmonitor.utils.request import get_request
-from fta_web.models.alert import AlertFeedback, AlertSuggestion, SearchFavorite
 
 
 class SearchFavoriteSerializer(serializers.ModelSerializer):
+
     params = serializers.JSONField()
 
     class Meta:
@@ -71,7 +72,7 @@ class AllowedBizIdsField(serializers.ListField):
 
 
 class AlertSearchSerializer(serializers.Serializer):
-    bk_biz_ids = serializers.ListField(label="业务ID", default=None, allow_null=True)
+    bk_biz_ids = serializers.ListField(label="业务ID", default=None)
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
     query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
@@ -81,7 +82,7 @@ class AlertSearchSerializer(serializers.Serializer):
 
 
 class ActionSearchSerializer(serializers.Serializer):
-    bk_biz_ids = serializers.ListField(label="业务ID", default=None, allow_null=True)
+    bk_biz_ids = serializers.ListField(label="业务ID", default=None)
     alert_ids = serializers.ListField(label="告警ID", required=False, child=AlertIDField())
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     start_time = serializers.IntegerField(label="开始时间", required=False)
@@ -98,6 +99,7 @@ class EventSearchSerializer(serializers.Serializer):
 
 
 class AlertSuggestionSerializer(serializers.ModelSerializer):
+
     metric = serializers.JSONField()
     conditions = serializers.JSONField()
 

@@ -1,45 +1,39 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Model, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import { Component, Model, Emit, Ref } from 'vue-property-decorator';
 import { Sideslider, Form, FormItem, Input, Button, Popover } from 'bk-magic-vue';
-
+import './masking-extract.scss';
 import MaskingSelectRuleTable from './masking-select-rule-table';
 
-import './masking-extract.scss';
-
 interface IProps {
-  value: boolean;
+  value: Boolean;
 }
 
 @Component
 export default class MaskingExtract extends tsc<IProps> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
+  @Ref('ruleTable') private readonly ruleTableRef: Popover;
 
   logOriginal = '';
   debugRequesting = false;
@@ -48,8 +42,6 @@ export default class MaskingExtract extends tsc<IProps> {
   tablePopoverInstance = null;
   directoryList = [{}];
   suffixList = [{}];
-
-  @Ref('ruleTable') private readonly ruleTableRef: Popover;
 
   @Emit('change')
   hiddenSlider() {
@@ -110,7 +102,7 @@ export default class MaskingExtract extends tsc<IProps> {
         onHidden: () => {
           this.destroyPopoverInstance();
         },
-        onShow: () => {},
+        onShow: () => {}
       });
       this.tablePopoverInstance.show(100);
     }
@@ -126,8 +118,8 @@ export default class MaskingExtract extends tsc<IProps> {
     const tableSlot = () => (
       <div style={{ display: 'none' }}>
         <div
-          ref='ruleTable'
           class='rule-table-content'
+          ref='ruleTable'
         >
           <div style='padding: 16px;'>
             <span class='title'>{this.$t('选择脱敏规则')}</span>
@@ -138,27 +130,27 @@ export default class MaskingExtract extends tsc<IProps> {
     );
     return (
       <Sideslider
-        width={640}
-        ext-cls={`${this.isMarginRight && 'open-add-rule-sideslider'}`}
+        transfer
+        quick-close
         is-show={this.value}
         title={'新增提取'}
-        quick-close
-        transfer
+        width={640}
+        ext-cls={`${this.isMarginRight && 'open-add-rule-sideslider'}`}
         on-hidden={() => this.destroyPopoverInstance()}
         {...{
           on: {
-            'update:isShow': this.hiddenSlider,
-          },
+            'update:isShow': this.hiddenSlider
+          }
         }}
       >
         <div
-          class='masking-extract-slider'
           slot='content'
+          class='masking-extract-slider'
         >
           <Form
             ext-cls='masking-form'
-            form-type='vertical'
             label-width={200}
+            form-type='vertical'
           >
             <FormItem
               label={'名称'}
@@ -188,8 +180,8 @@ export default class MaskingExtract extends tsc<IProps> {
               </div>
               <div class='form-item-tips'>
                 <i
-                  class='log-icon icon-info-fill'
                   v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
+                  class='log-icon icon-info-fill'
                 ></i>
               </div>
             </FormItem>
@@ -214,7 +206,7 @@ export default class MaskingExtract extends tsc<IProps> {
                     <i
                       class={[
                         'bk-icon icon-minus-circle-shape icons ml9',
-                        { disable: this.directoryList.length === 1 },
+                        { disable: this.directoryList.length === 1 }
                       ]}
                       onClick={() => this.delDirectory(index)}
                     ></i>
@@ -249,9 +241,9 @@ export default class MaskingExtract extends tsc<IProps> {
               <Button size='small'>{this.$t('选择目标')}</Button>
             </FormItem>
             <FormItem
-              desc='hello desc'
               label={'执行人'}
               required
+              desc='hello desc'
             >
               <div class='length-change-item'>
                 <Input></Input>

@@ -102,7 +102,6 @@ export default class IntelligenceScene extends tsc<IProps> {
     this.viewOptions = {
       interval,
       current_target: currentTarget,
-      strategy_id: this.params?.strategy_id,
     };
     this.timeRange = [startTime, endTime];
   }
@@ -133,7 +132,6 @@ export default class IntelligenceScene extends tsc<IProps> {
             custom_timerange: true,
             hoverAllTooltips: true,
             YAxisLabelWidth: 70,
-            needAllAlertMarkArea: true,
           },
         },
       };

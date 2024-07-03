@@ -25,14 +25,16 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": "$datasource",
+      "datasource": {
+        "type": "deepflowio-deepflow-datasource",
+        "uid": "${DS_DeepFlow_-_uid}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -46,7 +48,6 @@
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -120,14 +121,16 @@
       "type": "timeseries"
     },
     {
-      "datasource": "$datasource",
+      "datasource": {
+        "type": "deepflowio-deepflow-datasource",
+        "uid": "${DS_DeepFlow_-_uid}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -141,7 +144,6 @@
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -214,14 +216,16 @@
       "type": "timeseries"
     },
     {
-      "datasource": "$datasource",
+      "datasource": {
+        "type": "deepflowio-deepflow-datasource",
+        "uid": "${DS_DeepFlow_-_uid}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -235,7 +239,6 @@
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -308,7 +311,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "$datasource",
+      "datasource": {
+        "type": "deepflowio-deepflow-datasource",
+        "uid": "${DS_DeepFlow_-_uid}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -316,9 +322,7 @@
           },
           "custom": {
             "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
+            "displayMode": "auto",
             "inspect": false
           },
           "decimals": 2,
@@ -420,10 +424,8 @@
                 "value": "percent"
               },
               {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
+                "id": "custom.displayMode",
+                "value": "color-text"
               },
               {
                 "id": "thresholds",
@@ -454,10 +456,8 @@
                 "value": "µs"
               },
               {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
+                "id": "custom.displayMode",
+                "value": "color-text"
               },
               {
                 "id": "thresholds",
@@ -488,10 +488,8 @@
                 "value": "percent"
               },
               {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
+                "id": "custom.displayMode",
+                "value": "color-text"
               },
               {
                 "id": "thresholds",
@@ -521,9 +519,7 @@
       },
       "id": 11,
       "options": {
-        "cellHeight": "sm",
         "footer": {
-          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -538,7 +534,7 @@
           }
         ]
       },
-      "pluginVersion": "10.2.3",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_port\",\"select\":[{\"type\":\"tag\",\"key\":\"chost\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c66ffeb3-43d2-7c83-be95-e4a364698e26\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2eccdb38-1af9-1197-5c5a-944053ae57ad\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3e02455d-7b7c-0736-48cb-0701445e667b\",\"subFuncs\":[{\"func\":\"PerSecond\"}],\"cache\":{\"subFuncs\":[{\"func\":\"PerSecond\"}]}},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1443427c-4932-00e1-ea8d-370bfdbc2663\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"33aeeb1d-e2e7-bd64-1500-45791d58da1f\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"532702ba-eeda-0950-3c6d-0de4c5189491\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"b034e3d3-5292-2cee-ff53-0d7b370fc153\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$protocol\",\"value\":\"protocol\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"d08a6ddb-c9e6-eb30-4221-bebf3d50835b\",\"subFuncs\":[],\"whereOnly\":false}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c513c654-b4ae-659d-4a08-ef4212d87a31\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c85ef34f-026a-410e-fa4c-71bd730ba1e8\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"94573741-2920-7518-4197-505726c501eb\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9056516f-4c3a-68cb-2a7c-83d6f6d7ad54\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"100\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
@@ -559,23 +555,19 @@
               "time_1": true,
               "time_60": true
             },
-            "includeByName": {},
             "indexByName": {
-              "Avg(client_error_ratio)": 7,
-              "Avg(rrt)": 9,
-              "Avg(server_error_ratio)": 8,
+              "chost": 0,
+              "l7_protocol": 1,
+              "chost_id": 2,
+              "node_type": 3,
+              "icon_id": 4,
               "Enum(l7_protocol)": 5,
               "PerSecond(Avg(request))": 6,
-              "chost": 0,
-              "chost_id": 2,
-              "icon_id": 4,
-              "l7_protocol": 1,
-              "node_type": 3
+              "Avg(client_error_ratio)": 7,
+              "Avg(server_error_ratio)": 8,
+              "Avg(rrt)": 9
             },
             "renameByName": {
-              "Avg(Avg Delay)": "Latency",
-              "Avg(Client Error %)": "Client error",
-              "Avg(Server Error %)": "Server error",
               "Avg(TCP重传比例)": "TCP retrans rate ",
               "Avg(client_error_ratio)": "Client error",
               "Avg(error_ratio)": "Error",
@@ -589,7 +581,6 @@
               "Avg(建连-失败比例)": "TCP conn. establishment fail rate ",
               "Avg(新建连接)": "TCP new conn",
               "Enum(l7_protocol)": "Protocol",
-              "PerSecond(Avg(Request))": "Request",
               "PerSecond(Avg(request))": "Request",
               "PerSecond(Avg(包数))": "Throughput (pps)",
               "PerSecond(Avg(新建连接))": "TCP new conn.",
@@ -606,7 +597,8 @@
     }
   ],
   "refresh": "",
-  "schemaVersion": 39,
+  "schemaVersion": 37,
+  "style": "dark",
   "tags": [],
   "templating": {
     "list": [
@@ -638,7 +630,8 @@
           ]
         },
         "datasource": {
-          "uid": "$datasource"
+          "type": "deepflowio-deepflow-datasource",
+          "uid": "${DS_DeepFlow_-_uid}"
         },
         "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag chost values from vtap_flow_port\",\"useAny\":true,\"useDisabled\":true}",
         "hide": 0,
@@ -669,7 +662,8 @@
           ]
         },
         "datasource": {
-          "uid": "$datasource"
+          "type": "deepflowio-deepflow-datasource",
+          "uid": "${DS_DeepFlow_-_uid}"
         },
         "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag l7_protocol values from vtap_app_port\"}",
         "hide": 0,
@@ -698,7 +692,7 @@
   "timezone": "",
   "title": "Application - Cloud Host",
   "uid": "Application_Cloud_Host",
-  "version": 26,
+  "version": 7,
   "weekStart": "",
   "__inputs": [
     {
@@ -716,5 +710,6 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ]
+  ],
+  "__path": "dashboards/DeepFlow-Templates/Application-Cloud-Host.json"
 }

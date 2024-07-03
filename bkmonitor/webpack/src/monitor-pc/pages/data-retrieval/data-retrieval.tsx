@@ -547,7 +547,7 @@ export default class DataRetrieval extends tsc<object> {
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
     this.compareValue.tools.timezone = getDefaultTimezone();
-    if (timezone && timezone !== 'undefined') {
+    if (timezone) {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);
     }
@@ -810,15 +810,6 @@ export default class DataRetrieval extends tsc<object> {
     } else if (opt === 'delete') {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
-        const promqlExpandedData = [];
-        this.promqlData.forEach(item => {
-          const key = random(8);
-          if (this.promqlExpandedData.includes(item.key)) {
-            promqlExpandedData.push(key);
-          }
-          item.key = key;
-        });
-        this.promqlExpandedData = promqlExpandedData;
       } else if (this.promqlData.length === 1) {
         this.promqlData[0].code = '';
       }

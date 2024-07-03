@@ -1645,12 +1645,15 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
+        # count(_index) -> sum(event.count)X
         for metric in self.metrics:
+            if metric["field"] in ["__INDEX__", "event.count"]:
+                metric["field"] = "event.count"
+                metric["method"] = "SUM"
+            if metric["field"] == "_index":
+                metric["method"] = "COUNT"
             if metric["field"] == "event.count":
                 metric["method"] = "SUM"
-            else:
-                metric["field"] = "_index"
-                metric["method"] = "COUNT"
 
         # 平台级且业务不等于绑定的平台业务
         if judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table):

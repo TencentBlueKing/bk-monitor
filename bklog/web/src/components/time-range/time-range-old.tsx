@@ -1,51 +1,44 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import dayjs from 'dayjs';
-
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import './time-range.scss';
 import {
   DEFAULT_TIME_RANGE,
   handleTransformTime,
   handleTransformToTimestamp,
   intTimestampStr,
-  shortcuts,
+  shortcuts
 } from './utils';
-
-import './time-range.scss';
+import dayjs from 'dayjs';
 
 export type TimeRangeType = [string, string];
 
-type TimeRangeDisplayType = 'border' | 'normal' | 'simple';
+type TimeRangeDisplayType = 'normal' | 'simple' | 'border';
 interface IProps {
   value: TimeRangeType;
   type?: TimeRangeDisplayType;
-  placement?: string;
+  placement?: String;
 }
 interface IEvents {
   onChange: TimeRangeType;
@@ -55,7 +48,7 @@ interface IEvents {
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'normal', type: String }) type: TimeRangeDisplayType; // 组件的样式类型
-  @Prop({ default: 'bottom-end', type: String }) placement: string; // 参照组件库的date-picker
+  @Prop({ default: 'bottom-end', type: String }) placement: String; // 参照组件库的date-picker
 
   /** 本地值存储 */
   localValue: TimeRangeType = DEFAULT_TIME_RANGE;
@@ -183,32 +176,32 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           class='date-picker'
           v-en-class='is-en-timer-list'
           ext-popover-cls='time-range-popover'
+          value={this.timestamp}
           open={this.isShow}
+          type='daterange'
+          disabled
           // transfer
           placement={this.placement}
-          type='daterange'
-          value={this.timestamp}
-          disabled
           on-change={this.dateTimeChange}
-          on-open-change={this.handlePanelShowChange}
           on-pick-click={val => console.log(1111, val)}
+          on-open-change={this.handlePanelShowChange}
         >
           <bk-popover
             slot='trigger'
+            zIndex={2500}
+            placement='bottom'
             tippy-options={{
               onShow: () => {
                 /** 防止代码自动格式化 */
                 this.handleTransformTime();
-              },
+              }
             }}
-            placement='bottom'
             theme='light time-range-tips'
-            zIndex={2500}
           >
             <div
               class={[
                 'time-range-trigger',
-                { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' },
+                { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' }
               ]}
               onClick={() => (this.isShow = true)}
             >
@@ -217,8 +210,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
               {this.type !== 'normal' && <i class='bk-icon icon-angle-down'></i>}
             </div>
             <div
-              class='time-range-tips-content'
               slot='content'
+              class='time-range-tips-content'
             >
               <div>{this.timestamp[0]}</div>
               <div>to</div>
@@ -226,8 +219,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
             </div>
           </bk-popover>
           <div
-            class='time-range-custom'
             slot='header'
+            class='time-range-custom'
           >
             <span>{this.$t('从')}</span>
             <bk-input
@@ -243,8 +236,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
             />
           </div>
           <div
-            class='time-range-footer'
             slot='footer'
+            class='time-range-footer'
           >
             <bk-button
               theme='primary'
@@ -254,8 +247,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
             </bk-button>
           </div>
           <ul
-            class='shortcuts-list'
             slot='shortcuts'
+            class='shortcuts-list'
           >
             {this.shortcuts.map(item => (
               <li

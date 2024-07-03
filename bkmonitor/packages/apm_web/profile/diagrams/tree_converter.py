@@ -42,9 +42,6 @@ class TreeConverter:
 
     def convert(self, raw: Any) -> FunctionTree:
         samples_info = raw["list"]
-        if not samples_info:
-            return self.tree
-
         first_item_sample_type = samples_info[0]["sample_type"].split("/")
         self.sample_type = {"type": first_item_sample_type[0], "unit": first_item_sample_type[1]}
 
