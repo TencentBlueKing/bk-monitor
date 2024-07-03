@@ -372,3 +372,21 @@ export const createOnlyId = (len = 6, keywords = 'abcdefghijklmnopqrstuvwxyz1234
 };
 
 export const isEnFn = () => docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+
+/**
+ * @description 是否包含emoji
+ * @param value
+ * @returns
+ */
+export function emojiRegex(value: string) {
+  return /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value);
+}
+
+/**
+ * @description 是否为连续空格
+ * @param value
+ * @returns
+ */
+export function allSpaceRegex(value: string) {
+  return /^\s*$/.test(value);
+}
