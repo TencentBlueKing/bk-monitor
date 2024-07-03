@@ -396,7 +396,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 class='icon-monitor icon-mc-more more-icon icon-btn'
                 v-bk-tooltips={{
                   content: this.$t('更多'),
-                  delay: 200,
+                  interactive: false,
                 }}
                 tabindex='undefined'
                 onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
