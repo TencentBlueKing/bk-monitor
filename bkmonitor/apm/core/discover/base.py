@@ -17,6 +17,7 @@ import traceback
 from abc import ABC
 from typing import List, NamedTuple, Tuple
 
+from django.conf import settings
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
@@ -172,7 +173,6 @@ class TopoHandler:
     TRACE_ID_MAX_SIZE = 50000
     # 每一轮最多分析多少个TraceId
     PER_ROUND_TRACE_ID_MAX_SIZE = 100
-
     FILTER_KIND = [
         SpanKind.SPAN_KIND_SERVER,
         SpanKind.SPAN_KIND_CLIENT,
@@ -321,6 +321,20 @@ class TopoHandler:
 
         return max_size_count, 1, lastly_index_name
 
+    @classmethod
+    def calculate_round_count(cls, avg_group_span_count):
+        # 最大分析 Span 的数量不能超过 1000，防止每轮 Trace 数量增多导致OOM
+        if cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count > settings.PER_ROUND_SPAN_MAX_SIZE:
+            max_span_count = settings.PER_ROUND_SPAN_MAX_SIZE
+        else:
+            max_span_count = cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count
+
+        per_trace_size = int(max_span_count / avg_group_span_count)
+        if per_trace_size > cls.PER_ROUND_TRACE_ID_MAX_SIZE:
+            per_trace_size = cls.PER_ROUND_TRACE_ID_MAX_SIZE
+
+        return 1 if not per_trace_size else per_trace_size
+
     def discover(self):
         """application spans discover"""
 
@@ -342,20 +356,8 @@ class TopoHandler:
             all_spans_group = [i for i in results if i]
             all_spans = list(itertools.chain(*all_spans_group))
             avg_group_span_count = len(all_spans) / len(get_spans_params)
-            if round_index == 0:
-                # 如果每个 Trace 的 span 数量都远小于最大分析数量 那么可以增大每轮的并发数量
-                if avg_group_span_count * self.PER_ROUND_TRACE_ID_MAX_SIZE * 2 < constants.DISCOVER_BATCH_SIZE:
-                    # 平均每组 span 总数 * 当前轮次 trace 数量 远少于 单 trace 最大数量 认为可以直接使用一次并发就可以解决
-                    per_trace_size = self.PER_ROUND_TRACE_ID_MAX_SIZE
-                else:
-                    # 如果span 数量较多 使用 最大分析数量 / 2 / 每组 span 数量作为之后轮次的并发 trace 数
-                    # 预留一半空间防止真的出现单 trace 超过最大数量问题
-                    per_trace_size = int(
-                        min(
-                            constants.DISCOVER_BATCH_SIZE / 2 / avg_group_span_count,
-                            len(get_spans_params) / 2,
-                        )
-                    )
+            if round_index == 0 and avg_group_span_count:
+                per_trace_size = self.calculate_round_count(avg_group_span_count)
 
                 logger.info(
                     f"[TopoHandler] "

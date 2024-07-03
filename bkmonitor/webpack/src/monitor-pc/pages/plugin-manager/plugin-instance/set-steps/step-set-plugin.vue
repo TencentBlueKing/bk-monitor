@@ -297,7 +297,7 @@
           @click="handleEditParam(param)"
         >
           <div class="wrapper">
-            <span class="param-name">
+            <span :class="{ 'param-name': true, required: param.required }">
               {{ param.alias || param.name }}
             </span>
             <span
@@ -1936,6 +1936,20 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
               content: '';
               background: #fff;
               border-radius: 50%;
+            }
+          }
+
+          .param-name {
+            &.required {
+              position: relative;
+
+              &::after {
+                position: absolute;
+                top: -1px;
+                right: -7px;
+                color: red;
+                content: '*';
+              }
             }
           }
         }

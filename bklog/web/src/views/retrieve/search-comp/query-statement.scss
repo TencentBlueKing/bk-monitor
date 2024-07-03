@@ -1,11 +1,11 @@
 @import '@/scss/mixins/flex.scss';
 
 .retrieve-tab-item-title {
+  align-items: center;
   margin: 16px 0 6px;
   font-size: 12px;
   line-height: 20px;
   color: #63656e;
-  align-items: center;
 
   @include flex-justify(space-between);
 
@@ -80,17 +80,17 @@
     }
 
     .item-text {
+      flex: 1;
       min-width: 150px;
       padding: 0 16px;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       color: #63656e;
-      flex: 1;
     }
 
     .item-description {
+      flex: 2;
       margin-left: 24px;
       color: #979ba5;
-      flex: 2;
 
       .item-callout {
         padding: 0 4px;

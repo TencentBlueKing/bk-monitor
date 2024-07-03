@@ -1,34 +1,41 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Table, TableColumn, Popover, Button } from 'bk-magic-vue';
-import { getFlatObjValues } from '@/common/util';
+
 import $http from '../../../../../../api';
+import { getFlatObjValues } from './../../../../../../common/util';
+
 import './field-info.scss';
 
 interface IProps {
-  value: Boolean;
+  value: boolean;
 }
 
 @Component
@@ -44,7 +51,7 @@ export default class FieldInfo extends tsc<IProps> {
     /** 总数 */
     count: 1,
     /** 每页显示数量 */
-    limit: 10
+    limit: 10,
   };
 
   timeField = '';
@@ -71,7 +78,7 @@ export default class FieldInfo extends tsc<IProps> {
 
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
-    text_replace: window.mainComponent.$t('替换')
+    text_replace: window.mainComponent.$t('替换'),
   };
 
   jsonParseList = [];
@@ -102,7 +109,7 @@ export default class FieldInfo extends tsc<IProps> {
         ? `${this.$t('替换为')} ${item?.params?.template_string}`
         : this.$t('保留前{0}位, 后{1}位', {
             0: item?.params?.preserve_head,
-            1: item?.params?.preserve_tail
+            1: item?.params?.preserve_tail,
           });
     return `${this.operatorMap[item?.operator]} | ${endStr}`;
   }
@@ -111,8 +118,8 @@ export default class FieldInfo extends tsc<IProps> {
     try {
       const res = await $http.request('retrieve/getLogTableHead', {
         params: {
-          index_set_id: (this.collectorData as any).index_set_id
-        }
+          index_set_id: (this.collectorData as any).index_set_id,
+        },
       });
       this.timeField = res.data.time_field;
       this.tableList = res.data.fields.map(item => {
@@ -120,13 +127,13 @@ export default class FieldInfo extends tsc<IProps> {
         return {
           ...item,
           desensitize_config: findRules.rules ?? [],
-          preview: findRules.preview ?? []
+          preview: findRules.preview ?? [],
         };
       });
       this.tableShowList = this.tableList.slice(0, this.pagination.limit);
       this.changePagination({
         current: 1,
-        count: this.tableList.length
+        count: this.tableList.length,
       });
     } catch (e) {
       console.warn(e);
@@ -144,9 +151,9 @@ export default class FieldInfo extends tsc<IProps> {
       const res = await $http.request(
         'masking/getMaskingConfig',
         {
-          params: { index_set_id: (this.collectorData as any)?.index_set_id }
+          params: { index_set_id: (this.collectorData as any)?.index_set_id },
         },
-        { catchIsShowMessage: false }
+        { catchIsShowMessage: false },
       );
       return res.data.field_configs;
     } catch (err) {
@@ -160,7 +167,7 @@ export default class FieldInfo extends tsc<IProps> {
     const endIndex = newPage * limit;
     this.tableShowList = this.tableList.slice(startIndex, endIndex);
     this.changePagination({
-      current: newPage
+      current: newPage,
     });
   }
 
@@ -169,7 +176,7 @@ export default class FieldInfo extends tsc<IProps> {
     this.changePagination({
       limit,
       current: 1,
-      count: this.tableList.length
+      count: this.tableList.length,
     });
   }
 
@@ -183,7 +190,7 @@ export default class FieldInfo extends tsc<IProps> {
   async handleRefreshConfigStr() {
     try {
       const res = await $http.request('masking/getMaskingSearchStr', {
-        params: { index_set_id: (this.collectorData as any)?.index_set_id }
+        params: { index_set_id: (this.collectorData as any)?.index_set_id },
       });
       if (res.data.list.length) {
         this.jsonParseList = res.data.list.slice(0, 1);
@@ -222,26 +229,26 @@ export default class FieldInfo extends tsc<IProps> {
             return {
               match_pattern: rItem.match_pattern,
               operator: rItem.operator,
-              params: rItem.params
+              params: rItem.params,
             };
           }
           return { rule_id: rItem.rule_id };
-        })
+        }),
       }));
     if (!fieldConfigs.length) return fieldList;
     try {
       const res = await $http.request('masking/getConfigPreview', {
         data: {
           logs: this.jsonParseList,
-          field_configs: fieldConfigs
-        }
+          field_configs: fieldConfigs,
+        },
       });
       const previewResult = res.data;
       return fieldList.map(field => {
         const fieldPreview = previewResult[field.field_name];
         return {
           ...field,
-          preview: this.getFieldPreview(field.field_name, fieldPreview)
+          preview: this.getFieldPreview(field.field_name, fieldPreview),
         };
       });
     } catch (err) {
@@ -266,7 +273,7 @@ export default class FieldInfo extends tsc<IProps> {
       const origin = typeof item === 'object' ? JSON.stringify(item) : String(item);
       previewList[index] = {
         origin,
-        afterMasking: maskingValue
+        afterMasking: maskingValue,
       };
     });
     return previewList;
@@ -293,8 +300,8 @@ export default class FieldInfo extends tsc<IProps> {
         data: {
           space_uid: this.spaceUid,
           logs: this.jsonParseList,
-          fields
-        }
+          fields,
+        },
       });
       const matchRuleObj = res.data;
       return maskingConfigs.map(item => ({
@@ -303,7 +310,7 @@ export default class FieldInfo extends tsc<IProps> {
           if (!matchRuleObj[rItem.field_name]) return false;
           const ruleIdList = matchRuleObj[rItem.field_name].map(item => item.rule_id);
           return ruleIdList.includes(rItem.rule_id);
-        })
+        }),
       }));
     } catch (err) {
       return maskingConfigs;
@@ -316,7 +323,7 @@ export default class FieldInfo extends tsc<IProps> {
       return;
     }
     const params = {
-      collectorId: this.$route.params.collectorId
+      collectorId: this.$route.params.collectorId,
     };
     this.$router.push({
       name: 'collectField',
@@ -324,14 +331,14 @@ export default class FieldInfo extends tsc<IProps> {
       query: {
         spaceUid: this.$store.state.spaceUid,
         backRoute: 'manage-collection',
-        type: 'fieldInfo'
-      }
+        type: 'fieldInfo',
+      },
     });
   }
 
   render() {
     const nickNameSlot = {
-      default: ({ row }) => <span>{row.field_alias || '--'}</span>
+      default: ({ row }) => <span>{row.field_alias || '--'}</span>,
     };
 
     const getMaskingPopover = row => {
@@ -341,13 +348,13 @@ export default class FieldInfo extends tsc<IProps> {
           ext-cls='masking-tag'
           tippy-options={{
             placement: 'top',
-            theme: 'light'
+            theme: 'light',
           }}
         >
           <span class='masking-tag-box'>{this.$t('已脱敏')}</span>
           <div
-            slot='content'
             class='masking-popover'
+            slot='content'
           >
             <div class='label-box'>
               <div class='label'>{this.$t('脱敏算子')}:&nbsp;</div>
@@ -388,11 +395,11 @@ export default class FieldInfo extends tsc<IProps> {
     };
 
     const maskingStateSlot = {
-      default: ({ row }) => <div>{getMaskingPopover(row)}</div>
+      default: ({ row }) => <div>{getMaskingPopover(row)}</div>,
     };
 
     const analyzedSlot = {
-      default: ({ row }) => <span class={{ 'bk-icon icon-check-line': row.is_analyzed }}></span>
+      default: ({ row }) => <span class={{ 'bk-icon icon-check-line': row.is_analyzed }}></span>,
     };
 
     const tokenizeSlot = {
@@ -403,15 +410,15 @@ export default class FieldInfo extends tsc<IProps> {
         >
           <span>{getTokenizeOnCharsStr(row)}</span>
         </div>
-      )
+      ),
     };
 
     const caseSensitiveSlot = {
-      default: ({ row }) => <span class={{ 'bk-icon icon-check-line': row.is_case_sensitive }}></span>
+      default: ({ row }) => <span class={{ 'bk-icon icon-check-line': row.is_case_sensitive }}></span>,
     };
 
     const timeSlot = {
-      default: ({ row }) => <span class={{ 'log-icon icon-date-picker': row.field_name === this.timeField }}></span>
+      default: ({ row }) => <span class={{ 'log-icon icon-date-picker': row.field_name === this.timeField }}></span>,
     };
 
     return (
@@ -419,9 +426,9 @@ export default class FieldInfo extends tsc<IProps> {
         {this.isShowEditBtn && (
           <div class='edit-btn-container'>
             <Button
+              style='min-width: 88px; color: #3a84ff'
               v-cursor={{ active: !this.editAuth }}
               theme='default'
-              style='min-width: 88px; color: #3a84ff'
               onClick={() => this.handleClickEdit()}
             >
               {this.$t('编辑')}
@@ -430,28 +437,28 @@ export default class FieldInfo extends tsc<IProps> {
         )}
 
         <Table
-          data={this.tableShowList}
-          size='small'
-          pagination={this.pagination}
           v-bkloading={{ isLoading: this.tableLoading }}
+          data={this.tableShowList}
+          pagination={this.pagination}
+          size='small'
           on-page-change={this.pageChange}
           on-page-limit-change={this.pageLimitChange}
         >
           <TableColumn
-            label={this.$t('字段名')}
             key={'field_name'}
+            label={this.$t('字段名')}
             prop={'field_name'}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('别名')}
             key={'field_alias'}
+            label={this.$t('别名')}
             scopedSlots={nickNameSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('数据类型')}
             key={'field_type'}
+            label={this.$t('数据类型')}
             prop={'field_type'}
           ></TableColumn>
 
@@ -463,39 +470,39 @@ export default class FieldInfo extends tsc<IProps> {
 
           {this.isShowMaskingTemplate && (
             <TableColumn
-              label={this.$t('脱敏状态')}
               key={'masking_state'}
               width='160'
+              label={this.$t('脱敏状态')}
               scopedSlots={maskingStateSlot}
             ></TableColumn>
           )}
 
           <TableColumn
-            label={this.$t('分词')}
             key={'is_analyzed'}
             width='80'
+            label={this.$t('分词')}
             scopedSlots={analyzedSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('分词符')}
             key={'tokenize_on_chars'}
             width='180'
+            label={this.$t('分词符')}
             scopedSlots={tokenizeSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('大小写敏感')}
             key={'is_case_sensitive'}
             width='120'
             align={'center'}
+            label={this.$t('大小写敏感')}
             scopedSlots={caseSensitiveSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('时间')}
             key={'time'}
             width='80'
+            label={this.$t('时间')}
             scopedSlots={timeSlot}
           ></TableColumn>
         </Table>

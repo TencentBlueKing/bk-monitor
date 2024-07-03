@@ -581,18 +581,23 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         self.username = username
         self.request_username = username or get_request_username()
         if self.bk_biz_ids is not None:
-            self.parse_biz_item()
+            self.authorized_bizs, self.unauthorized_bizs = self.parse_biz_item(bk_biz_ids, **kwargs)
 
-    def parse_biz_item(self):
-        try:
-            req = get_request()
-        except Exception:
-            return
-        self.authorized_bizs = Permission(request=req).filter_biz_ids_by_action(
-            action=ActionEnum.VIEW_EVENT, bk_biz_ids=self.bk_biz_ids
-        )
-        if self.bk_biz_ids:
-            self.unauthorized_bizs = list(set(self.bk_biz_ids) - set(self.authorized_bizs))
+    @classmethod
+    def parse_biz_item(self, bk_biz_ids, **kwargs):
+        if "authorized_bizs" in kwargs:
+            authorized_bizs = kwargs["authorized_bizs"] or bk_biz_ids
+            unauthorized_bizs = kwargs["unauthorized_bizs"] or []
+        else:
+            try:
+                req = get_request()
+            except Exception:
+                return bk_biz_ids, []
+            authorized_bizs = Permission(request=req).filter_biz_ids_by_action(
+                action=ActionEnum.VIEW_EVENT, bk_biz_ids=bk_biz_ids
+            )
+            unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
+        return authorized_bizs, unauthorized_bizs
 
 
 class QueryBuilder(ElasticsearchQueryBuilder):

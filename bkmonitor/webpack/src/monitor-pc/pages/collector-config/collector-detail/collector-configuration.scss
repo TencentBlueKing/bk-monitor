@@ -87,16 +87,16 @@
             min-width: 840px;
             border: 1px solid #dcdee5;
             border-radius: 2px;
-  
+
             &-item {
               position: relative;
               display: flex;
               align-items: stretch;
-  
+
               &:not(:last-child) {
                 border-bottom: 1px solid #dcdee5;
               }
-  
+
               .item-name {
                 width: 50%;
                 min-height: 30px;
@@ -107,8 +107,22 @@
                 white-space: nowrap;
                 background: #fafbfd;
                 border-right: 1px solid #dcdee5;
+
+                .name-text {
+                  &.required {
+                    position: relative;
+
+                    &::after {
+                      position: absolute;
+                      top: -12px;
+                      right: -7px;
+                      color: red;
+                      content: '*';
+                    }
+                  }
+                }
               }
-  
+
               .item-content {
                 width: 50%;
                 padding: 6px 20px;

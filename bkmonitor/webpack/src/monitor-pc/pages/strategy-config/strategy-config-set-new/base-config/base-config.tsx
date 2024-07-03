@@ -156,10 +156,25 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     this.strategyLabelsEl.focusInputer();
   }
 
+  emojiRegex(value: string) {
+    return /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value);
+  }
+
   getValidatorSchema() {
     const descriptor = {
       name: [
         { required: true, message: this.$tc('必填项') },
+        {
+          validator: (_rule, value) => {
+            // 校验策略名称是否为连续空格
+            return !/^\s*$/.test(value);
+          },
+          message: this.$tc('必填项'),
+        },
+        {
+          validator: (_rule, value) => !this.emojiRegex(value),
+          message: this.$tc('不能输入emoji表情'),
+        },
         {
           asyncValidator: async (_rule, value) => {
             this.cancelTokenSource?.cancel?.();
@@ -243,8 +258,12 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
    * @description 校验策略名称是否重复
    */
   async verifyStrategyName(value: string) {
-    if (!value) {
+    if (!value || /^\s*$/.test(value)) {
       this.errorsMsg.name = this.$tc('必填项');
+      return;
+    }
+    if (this.emojiRegex(value)) {
+      this.errorsMsg.name = this.$tc('不能输入emoji表情');
       return;
     }
     if (this.cacheName === value || this.oldStrategyName === value) {

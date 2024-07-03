@@ -322,19 +322,11 @@ class GetSceneViewResource(ApiAuthResource):
         if scene_id == SceneSet.HOST:
             ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
-            pop_ai_panel_flag = False
-
             if ai_setting.multivariate_anomaly_detection.host.is_access_aiops():
                 for panel in view_config.get("panels", []):
                     for item in panel.get("panels", []):
                         if item.get("type") == "graph":
                             item["type"] = "performance-chart"
-            else:
-                pop_ai_panel_flag = True
-
-            if pop_ai_panel_flag:
-                view_config["options"].pop("ai_panel", None)
-
         return view_config
 
 
