@@ -29,12 +29,12 @@ import { random } from 'monitor-common/utils/utils';
 
 import axios from './axios/axios';
 import { bkMessage, makeMessage } from './utils/index';
-
+const NO_NEED_ERROR_MESSAGE = 'bk_monitor_api_no_message';
 const defaultConfig = {
   needBiz: true,
   needRes: false,
   isAsync: false,
-  needMessage: true,
+  needMessage: localStorage.getItem(NO_NEED_ERROR_MESSAGE) !== 'true',
   reject403: false,
   cancelToken: null,
   needCancel: false,
