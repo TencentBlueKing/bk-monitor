@@ -849,7 +849,7 @@ class QueryFieldBaseSerializer(serializers.Serializer):
         attrs["result_table_ids"] = []
         result_table_ids = list(
             LogIndexSetData.objects.filter(index_set_id__in=attrs["index_set_ids"]).values_list(
-                "result_table_id", flat=1
+                "result_table_id", flat=True
             )
         )
         if result_table_ids:

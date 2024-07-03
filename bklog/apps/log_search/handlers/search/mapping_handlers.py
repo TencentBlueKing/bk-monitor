@@ -58,7 +58,6 @@ from apps.log_search.models import (
     Scenario,
     UserIndexSetFieldsConfig,
 )
-from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.codecs import unicode_str_encode
 from apps.utils.local import (
@@ -67,7 +66,6 @@ from apps.utils.local import (
     get_request_external_username,
     get_request_username,
 )
-from apps.utils.log import logger
 from apps.utils.time_handler import generate_time_range
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]

@@ -238,7 +238,7 @@ INDEX_SET_LISTS = {
             "apply_status": "normal",
             "apply_status_name": "正常",
             "bk_biz_id": 2,
-            "permission": {},
+            "permission": {'manage_indices_v2': True},
             "is_editable": True,
             "sort_fields": [],
             "target_fields": [],
@@ -512,6 +512,7 @@ class TestIndexSet(TestCase):
     @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=[])
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
     @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_es_router", return_value=None)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def do_create_index_set(self, *args, **kwargs):
         """
@@ -564,6 +565,7 @@ class TestIndexSet(TestCase):
     @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
     @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @patch("apps.api.TransferApi.update_es_router", return_value=None)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_update_index_set(self, *args, **kwargs):
         """

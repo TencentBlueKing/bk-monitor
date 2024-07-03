@@ -503,14 +503,15 @@ class IndexSetViewSet(ModelViewSet):
         )
 
         # 创建结果表路由信息
+
         TransferApi.create_es_router(
             {
                 "cluster_id": storage_cluster_id,
-                "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
-                "source_type": index_set["scenario_id"],
-                "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set["index_set_id"]),
-                "table_id": self.get_rt_id(index_set),
-                "space_uid": index_set["space_uid"],
+                "index_set": ",".join([index["result_table_id"] for index in data["indexes"]]),
+                "source_type": index_set.scenario_id,
+                "data_label": index_set.scenario_id + "_index_set_" + str(index_set.index_set_id),
+                "table_id": "bklog_index_set_" + str(index_set.index_set_id) + ".__default__",
+                "space_uid": index_set.space_uid,
             }
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
@@ -586,11 +587,11 @@ class IndexSetViewSet(ModelViewSet):
         TransferApi.update_es_router(
             {
                 "cluster_id": storage_cluster_id,
-                "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
-                "source_type": index_set["scenario_id"],
-                "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set["index_set_id"]),
-                "table_id": self.get_rt_id(index_set),
-                "space_uid": index_set["space_uid"],
+                "index_set": ",".join([index["result_table_id"] for index in data["indexes"]]),
+                "source_type": index_set.scenario_id,
+                "data_label": index_set.scenario_id + "_index_set_" + str(index_set.index_set_id),
+                "table_id": "bklog_index_set_" + str(index_set.index_set_id) + ".__default__",
+                "space_uid": index_set.space_uid,
             }
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
