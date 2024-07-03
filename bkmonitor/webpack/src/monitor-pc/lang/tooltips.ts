@@ -278,4 +278,5 @@ export default {
   暂未开启主机智能异常检测: 'Host intelligent anomaly detection has not been enabled yet',
   '主机场景检测数据源正在接入中，请稍后重试':
     'The host scene detection data source is currently being connected, please try again later',
+  '存在关联的策略，不可删除': 'There are associated policies that cannot be deleted',
 };

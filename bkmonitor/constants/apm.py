@@ -367,6 +367,30 @@ class SpanStandardField:
             OtlpKey.RESOURCE, "host.ip", _("主机IP(host.ip)"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
         ),
         StandardField(
+            OtlpKey.RESOURCE,
+            "k8s.bcs.cluster.id",
+            _("K8S BCS 集群 ID"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+        ),
+        StandardField(
+            OtlpKey.RESOURCE,
+            "k8s.namespace.name",
+            _("K8S 命名空间"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+        ),
+        StandardField(
+            OtlpKey.RESOURCE, "k8s.pod.ip", _("K8S Pod Ip"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+        ),
+        StandardField(
+            OtlpKey.RESOURCE,
+            "k8s.pod.name",
+            _("K8S Pod 名称"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+        ),
+        StandardField(
             OtlpKey.RESOURCE, "net.host.port", _("主机端口"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
         ),
         StandardField(

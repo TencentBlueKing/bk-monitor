@@ -15,6 +15,8 @@ import logging
 import time
 from typing import Optional
 
+from consul.base import ConsulException
+
 from bkmonitor.utils import consul
 from metadata import config
 from metadata.utils import hash_util
@@ -123,4 +125,8 @@ class HashConsul(object):
             logger.info(
                 "new value hash->[%s] is different from the old hash->[%s], will updated it", new_hash, old_hash
             )
-        return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+        try:
+            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+        except ConsulException as e:
+            logger.error("put consul key error, data_id: %s, error: %s", bk_data_id, e)
+            raise

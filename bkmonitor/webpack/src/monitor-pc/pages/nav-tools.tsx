@@ -234,14 +234,13 @@ class NavTools extends DocumentLinkMixin {
       item.id,
       undefined,
       '/',
-      `${window.bk_domain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')}`
+      `${window.bk_domain && location.hostname.includes(window.bk_domain) ? window.bk_domain : location.hostname}`
     );
     if (window.bk_component_api_url) {
       useJSONP(
-        `${window.bk_component_api_url.replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`.replace(
-          /\/\//,
-          '/'
-        ),
+        `${window.bk_component_api_url
+          .replace(/\/$/, '')
+          .replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`,
         {
           data: {
             language: item.id,

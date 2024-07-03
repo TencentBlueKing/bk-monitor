@@ -2285,6 +2285,7 @@ class Strategy(AbstractConfig):
             query_config = item.query_configs[0]
 
             item_query = {
+                "bk_biz_id": bk_biz_id,
                 "data_source_label": query_config.data_source_label,
                 "data_type_label": query_config.data_type_label,
                 "expression": item.expression,

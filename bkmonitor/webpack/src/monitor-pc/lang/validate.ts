@@ -69,6 +69,7 @@ export default {
   '提交文件，文件大小不能超过{num}M！': 'Submit the file, the file size cannot exceed {num}M!',
   '长度限制2-32字符': 'Length limit 2-32 characters',
   '最大时间（ms）': 'Max Time (ms)',
+  长度不能超过32个字符: 'The length cannot exceed 32 characters',
 
   最大副本数不能超过: 'Maximum number of copies cannot exceed', // 查看位置
   最大分片数不能超过: 'Maximum number of shards cannot be exceeded', // 查看位置

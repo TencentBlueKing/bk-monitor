@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('metadata', '0182_datalinkresource_datalinkresourceconfig'),
+        ('metadata', '0183_auto_20240607_1638'),
     ]
 
     operations = [

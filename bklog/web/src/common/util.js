@@ -1,23 +1,27 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 /**
@@ -25,8 +29,8 @@
  * @author  <>
  */
 
-import JSONBigNumber from 'json-bignumber';
 import dayjs from 'dayjs';
+import JSONBigNumber from 'json-bignumber';
 
 import store from '../store';
 /**
@@ -99,9 +103,9 @@ export function randomColor(baseColor, count) {
   // 生成 count 组颜色，色差 20 * Math.random
   for (let i = 0; i < count; i++) {
     ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16
+      16,
     )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16
+      16,
     )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
   }
   return ret;
@@ -131,25 +135,25 @@ export function catchErrorHandler(err, ctx) {
     if (!data.code || data.code === 404) {
       ctx.exceptionCode = {
         code: '404',
-        msg: '当前访问的页面不存在'
+        msg: '当前访问的页面不存在',
       };
     } else if (data.code === 403) {
       ctx.exceptionCode = {
         code: '403',
-        msg: 'Sorry，您的权限不足!'
+        msg: 'Sorry，您的权限不足!',
       };
     } else {
       console.error(err);
       ctx.bkMessageInstance = ctx.$bkMessage({
         theme: 'error',
-        message: err.message || err.data.msg || err.statusText
+        message: err.message || err.data.msg || err.statusText,
       });
     }
   } else {
     console.error(err);
     ctx.bkMessageInstance = ctx.$bkMessage({
       theme: 'error',
-      message: err.message || err.data.msg || err.statusText
+      message: err.message || err.data.msg || err.statusText,
     });
   }
 }
@@ -359,6 +363,7 @@ export function deepAssign(target, ...sources) {
     target = {};
   }
   if (length === 0) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     target = this;
   }
 
@@ -430,7 +435,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   const rowWidth = [];
   visibleFieldsList.forEach(item => {
     const key = item.field_name;
-    // eslint-disable-next-line camelcase
+
     const maxLength = fieldsWidthInfo[key]?.max_length || 0;
     rowObj[key] = maxLength;
     rowWidth.push(maxLength);
@@ -562,6 +567,7 @@ export function readBlobRespToJson(resp) {
 }
 
 export function bigNumberToString(value) {
+  // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
   return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
 }
 
@@ -587,9 +593,9 @@ export function parseBigNumberList(lsit) {
     Object.keys(item || {}).reduce((output, key) => {
       return {
         ...output,
-        [key]: formatBigNumListValue(item[key])
+        [key]: formatBigNumListValue(item[key]),
       };
-    }, {})
+    }, {}),
   );
 }
 
@@ -643,7 +649,7 @@ export const base64Decode = str => {
     atob(str)
       .split('')
       .map(c => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
-      .join('')
+      .join(''),
   );
 };
 
@@ -673,7 +679,7 @@ export class Storage {
     const data = {
       value,
       updateTime: Date.now(),
-      express
+      express,
     };
     localStorage.setItem(key, JSON.stringify(data));
   }
@@ -747,6 +753,7 @@ export const renderHeader = (h, { column }) => {
  * @returns {Boolean} 两个对象是否相同
  */
 export const deepEqual = (object1, object2, ignoreArr = []) => {
+  if (object1 === object2) return true;
   const keys1Arr = Object.keys(object1);
   const keys2Arr = Object.keys(object2);
   if (keys1Arr.length !== keys2Arr.length) return false;
@@ -769,7 +776,7 @@ export const deepEqual = (object1, object2, ignoreArr = []) => {
 // 是否是ipv6
 export const isIPv6 = (str = '') => {
   return /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/.test(
-    str
+    str,
   );
 };
 
@@ -837,7 +844,7 @@ export const parseTableRowData = (
   key,
   fieldType,
   isFormatDate = store.state.isFormatDate,
-  emptyCharacter = '--'
+  emptyCharacter = '--',
 ) => {
   const keyArr = key.split('.');
   let data;
@@ -974,7 +981,7 @@ export const getFlatObjValues = (currentObject, previousKeyName = '') => {
   const newFlatObj = {
     newKeyStrList: [],
     newValueList: [],
-    newObject: {}
+    newObject: {},
   };
   flatObjTypeFiledKeys(currentObject, newFlatObj, previousKeyName);
   return newFlatObj;

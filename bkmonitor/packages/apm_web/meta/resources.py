@@ -2101,6 +2101,8 @@ class QueryEndpointStatisticsResource(PageListResource):
             uri_queryset = UriServiceRelation.objects.filter(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
             )
+            if "resource.service.name" in validated_data.get("filter_params", {}):
+                uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         res = []
         summary_mappings = defaultdict(list)
@@ -2633,15 +2635,33 @@ class CustomServiceMatchListResource(Resource):
                 if is_match:
                     res.add(f"{item}")
             else:
-                predicates = []
-                if url.hostname and "host" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_host(validated_data["rule"].get("host"), url.hostname))
-                if url.path and "path" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_uri(validated_data["rule"].get("path"), url.path))
-                if url.query and "params" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_params(validated_data["rule"].get("params"), url.query))
-                if predicates and all(predicates):
-                    res.add(f"{item}")
+                host_rule = validated_data["rule"].get("host", {})
+                path_rule = validated_data["rule"].get("path", {})
+                param_rules = validated_data["rule"].get("params", [])
+
+                if host_rule.get("value"):
+                    if not Matcher.operator_match(host_rule["value"], str(url.hostname), host_rule["operator"]):
+                        continue
+
+                if path_rule.get("value"):
+                    if not Matcher.operator_match(path_rule["value"], str(url.path), path_rule["operator"]):
+                        continue
+
+                url_param_paris = {}
+                for i in url.query.split("&"):
+                    if not i:
+                        continue
+                    k, v = str(i).split("=")
+                    url_param_paris[k] = v
+
+                for param in param_rules:
+                    val = url_param_paris.get(param["name"])
+                    if not val:
+                        continue
+                    if not Matcher.operator_match(val, param["value"], param["operator"]):
+                        continue
+
+                res.add(f"{item}")
 
         return list(res)
 

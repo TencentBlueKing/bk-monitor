@@ -140,7 +140,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
+      formatter: row => (row.update_time ? dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
     },
     {
       label: i18n.t('配置来源'),
@@ -310,7 +310,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
             : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
         }
       >
-        {this.$t('删除')}
+        <span
+          v-bk-tooltips={{
+            content: this.$t('存在关联的策略，不可删除'),
+            disabled: row.delete_allowed,
+          }}
+        >
+          {this.$t('删除')}
+        </span>
       </bk-button>,
     ];
   }
