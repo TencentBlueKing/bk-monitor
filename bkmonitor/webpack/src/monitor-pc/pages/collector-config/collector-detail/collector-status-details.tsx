@@ -459,7 +459,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                       </span>
                     );
                   }
-                  if (item.id === EStatus.RUNNING) {
+                  if (item.id === EStatus.RUNNING && this.header.data.pendingNum > 0) {
                     return (
                       <bk-spin
                         class='mr-3'
