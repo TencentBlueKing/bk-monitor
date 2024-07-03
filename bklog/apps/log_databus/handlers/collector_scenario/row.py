@@ -190,7 +190,7 @@ class RowCollectorScenario(CollectorScenario):
 
             params = {
                 "paths": config["local"][0]["paths"],
-                "exclude_files": config["local"][0]["exclude_files"],
+                "exclude_files": config["local"][0].get("exclude_files", []),
                 "conditions": conditions,
                 "encoding": config["local"][0]["encoding"],
             }
