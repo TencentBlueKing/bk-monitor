@@ -124,7 +124,7 @@ class UpdateEsRouter(Resource):
             )
 
 
-class UpdateOrCreateEsRouter(Resource):
+class CreateOrUpdateEsRouter(Resource):
     """更新或者创建es路由信息"""
 
     class RequestSerializer(serializers.Serializer):
