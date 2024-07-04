@@ -30,6 +30,7 @@ import { renameCollectConfig } from 'monitor-api/modules/collecting';
 import { copyText } from 'monitor-common/utils/utils.js';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
+import { allSpaceRegex, emojiRegex } from '../../../utils/index';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 
 import './collector-configuration.scss';
@@ -94,6 +95,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
   input = {
     show: false,
     copyName: '',
+  };
+  errMsg = {
+    name: '',
   };
   name = '';
 
@@ -168,6 +172,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @param e
    */
   handleLabelKey(v, e) {
+    this.errMsg.name = '';
     if (e.code === 'Enter' || e.code === 'NumpadEnter') {
       this.handleTagClickout();
     }
@@ -176,6 +181,14 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @description 隐藏输入框
    */
   handleTagClickout() {
+    if (allSpaceRegex(this.input.copyName) && !!this.input.copyName) {
+      this.errMsg.name = this.$tc('配置名称不能为空');
+      return;
+    }
+    if (emojiRegex(this.input.copyName)) {
+      this.errMsg.name = this.$tc('不能输入emoji表情');
+      return;
+    }
     const data = this.basicInfo;
     const { copyName } = this.input;
     if (copyName.length && copyName !== data.name) {
@@ -183,6 +196,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
     } else {
       data.copyName = data.name;
       this.input.show = false;
+      this.errMsg.name = '';
     }
   }
   /**
@@ -210,6 +224,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
       })
       .finally(() => {
         this.input.show = false;
+        this.errMsg.name = '';
         this.loading = false;
       });
   }
@@ -321,7 +336,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 this.basicInfoMap?.[key],
                 (() => {
                   if (key === 'name') {
-                    return (
+                    return [
                       <span>
                         {this.input.show ? (
                           <bk-input
@@ -341,8 +356,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
                             <span class='icon-monitor icon-bianji'></span>
                           </span>
                         )}
-                      </span>
-                    );
+                      </span>,
+                      !!this.errMsg.name && <div class='err-msg'>{this.errMsg.name}</div>,
+                    ];
                   }
                   if (key === 'plugin_display_name' && this.basicInfo?.collect_type !== 'Log') {
                     return (

@@ -282,4 +282,5 @@ export default {
   各数据源的可用算法不兼容: 'The available algorithms of each data source are incompatible',
   至少选择2个指标: 'Select at least 2 metrics',
   策略名已存在: 'Strategy name already exists',
+  配置名称不能为空: 'Configuration name cannot be empty',
 };
