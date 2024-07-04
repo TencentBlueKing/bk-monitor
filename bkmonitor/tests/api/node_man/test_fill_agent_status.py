@@ -38,7 +38,3 @@ def test_fill_agent_status(cc_hosts, mock_host_info):
 
     result_empty = fill_agent_status([], bk_biz_id)
     assert result_empty == []
-
-    with mock.patch("core.drf_resource.api.node_man.ipchooser_host_detail", side_effect=KeyError):
-        result_key_error = fill_agent_status(cc_hosts, bk_biz_id)
-    assert result_key_error == cc_hosts

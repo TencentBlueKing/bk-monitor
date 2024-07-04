@@ -16,23 +16,20 @@ def fill_agent_status(cc_hosts: List[Dict], bk_biz_id: int) -> List[Dict]:
     for index, cc_host in enumerate(cc_hosts):
         host_map[cc_host["bk_host_id"]] = index
 
-    try:
-        meta = {"scope_type": ScopeType.BIZ.value, "scope_id": str(bk_biz_id), "bk_biz_id": bk_biz_id}
-        host_list = [{"host_id": host["bk_host_id"], "meta": meta} for host in cc_hosts]
-        scope_list = [{"scope_type": ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
-        # 添加no_request参数, 多线程调用时，保证用户信息不漏传
-        request_params = {
-            "no_request": True,
-            "host_list": host_list,
-            "scope_list": scope_list,
-            "agent_realtime_state": True,
-        }
-        host_info = api.node_man.ipchooser_host_detail(request_params)
-        for status in host_info:
-            host_id = status["host_id"]
-            if host_id in host_map:
-                # status["alive"]为 1 时表示 ALIVE，为 0 时表示 NO_ALIVE
-                cc_hosts[host_map[host_id]]["status"] = status["alive"]
-    except KeyError as e:
-        logger.exception("fill_agent_status exception: %s", e)
+    meta = {"scope_type": ScopeType.BIZ.value, "scope_id": str(bk_biz_id), "bk_biz_id": bk_biz_id}
+    host_list = [{"host_id": host["bk_host_id"], "meta": meta} for host in cc_hosts]
+    scope_list = [{"scope_type": ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
+    # 添加no_request参数, 多线程调用时，保证用户信息不漏传
+    request_params = {
+        "no_request": True,
+        "host_list": host_list,
+        "scope_list": scope_list,
+        "agent_realtime_state": True,
+    }
+    host_info = api.node_man.ipchooser_host_detail(request_params)
+    for status in host_info:
+        host_id = status.get("host_id")
+        if host_id in host_map and "alive" in status:
+            # status["alive"]为 1 时表示 ALIVE，为 0 时表示 NO_ALIVE
+            cc_hosts[host_map[host_id]]["status"] = status["alive"]
     return cc_hosts
