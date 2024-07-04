@@ -150,38 +150,6 @@ def clean_influxdb_host():
     models.InfluxDBHostInfo.clean_redis_host_config()
 
 
-@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshDatasource")
-def refresh_datasource():
-    # 更新datasource的外部依赖 及 配置信息
-    # NOTE: 过滤有结果表的数据源并且状态是启动
-    # 过滤到有结果表的数据源
-    ds_rt_map = {
-        ds_rt["table_id"]: ds_rt["bk_data_id"]
-        for ds_rt in models.DataSourceResultTable.objects.values("bk_data_id", "table_id")
-    }
-    # 过滤启用的结果表
-    enabled_rts = models.ResultTable.objects.filter(
-        table_id__in=ds_rt_map.keys(), is_deleted=False, is_enable=True
-    ).values_list("table_id", flat=True)
-    # 过滤到对应的数据源 ID
-    ds_with_rt = {data_id for rt, data_id in ds_rt_map.items() if rt in enabled_rts}
-    for datasource in models.DataSource.objects.filter(is_enable=True, bk_data_id__in=ds_with_rt).order_by(
-        "-last_modify_time"
-    ):
-        try:
-            # 更新前，需要从DB读取一次最新的数据，避免脏数据读写
-            datasource.clean_cache()
-            # 2. 更新ETL及datasource的配置
-            datasource.refresh_outer_config()
-            logger.debug("data_id->[%s] refresh all outer success" % datasource.bk_data_id)
-        except Exception:
-            logger.error(
-                "data_id->[{}] failed to refresh outer config for->[{}]".format(
-                    datasource.bk_data_id, traceback.format_exc()
-                )
-            )
-
-
 @share_lock(identify="metadata_refreshKafkaStorage")
 def refresh_kafka_storage():
     # 确认所有kafka存储都有对应的topic
