@@ -1326,8 +1326,12 @@ class BaseIndexSetHandler(object):
         return self.index_set_obj
 
     @staticmethod
-    def get_rt_id(index_set):
-        return f"bklog_index_set_{str(index_set.index_set_id)}.__default__"
+    def get_rt_id(index_set_id):
+        return f"bklog_index_set_{str(index_set_id)}.__default__"
+
+    @staticmethod
+    def get_data_label(scenario_id, index_set_id):
+        return f"{scenario_id}_index_set_{str(index_set_id)}"
 
     def post_create(self, index_set):
         # 新建授权
@@ -1343,8 +1347,8 @@ class BaseIndexSetHandler(object):
                 "cluster_id": index_set.storage_cluster_id,
                 "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
                 "source_type": index_set.scenario_id,
-                "data_label": self.get_rt_id(index_set),
-                "table_id": self.get_rt_id(index_set),
+                "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
+                "table_id": self.get_rt_id(index_set.index_set_id),
                 "space_uid": index_set.space_uid,
             }
         )
@@ -1429,8 +1433,8 @@ class BaseIndexSetHandler(object):
                 "cluster_id": index_set.storage_cluster_id,
                 "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
                 "source_type": index_set.scenario_id,
-                "data_label": self.get_rt_id(index_set),
-                "table_id": self.get_rt_id(index_set),
+                "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
+                "table_id": self.get_rt_id(index_set.index_set_id),
                 "space_uid": index_set.space_uid,
             }
         )
