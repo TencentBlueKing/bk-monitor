@@ -642,4 +642,11 @@ export default {
   '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
     'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
   '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm',
+  'label-正常': 'SUCCESS',
+  'label-失败': 'FAILED',
+  'label-部署中': 'RUNNING',
+  'label-已停用': 'TERMINATED',
+  'label-未知': 'UNKNOWN',
+  'label-准备中': 'PREPARE',
+  展开长字段: 'Expand long field',
 };

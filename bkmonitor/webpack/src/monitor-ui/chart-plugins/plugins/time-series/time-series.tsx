@@ -777,8 +777,8 @@ export class LineChart
         if (duration < 60 * 60 * 24 * 1) {
           return dayjs.tz(v).format('HH:mm');
         }
-        if (duration < 60 * 60 * 24 * 8) {
-          return dayjs.tz(v).format('MM-DD');
+        if (duration < 60 * 60 * 24 * 6) {
+          return dayjs.tz(v).format('MM-DD HH:mm');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
           return dayjs.tz(v).format('MM-DD');

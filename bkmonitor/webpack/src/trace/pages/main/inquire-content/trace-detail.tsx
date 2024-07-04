@@ -45,7 +45,6 @@ import { copyText, typeTools } from 'monitor-common/utils/utils';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
-import RelationTopo from '../../../components/relation-topo/relation-topo';
 import StatisticsTable, { IFilterItem } from '../../../components/statistics-table/statistics-table';
 import TraceView from '../../../components/trace-view';
 import SearchBar from '../../../components/trace-view/search-bar';
@@ -54,12 +53,18 @@ import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
 import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph';
-import SpanList from '../../../plugins/charts/span-list/span-list';
-import { DEFAULT_TRACE_DATA, TRACE_INFO_TOOL_FILTERS } from '../../../store/constant';
+import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
+import {
+  DEFAULT_TRACE_DATA,
+  SOURCE_CATEGORY_EBPF,
+  TRACE_INFO_TOOL_FILTERS,
+  VIRTUAL_SPAN,
+} from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings';
+import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree, ETopoType } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
+import NodeTopo from './node-topo';
 
 import './trace-detail.scss';
 
@@ -171,6 +176,9 @@ export default defineComponent({
     const localSpanListWidth = ref(350);
     /** 工具栏输入框搜索内容 */
     const filterKeywords = ref<string[]>([]);
+    const showCompareSelect = computed(() => {
+      return ['topo', 'statistics', 'flame'].includes(state.activePanel) && topoType.value == ETopoType.time;
+    });
 
     const isFullscreen = inject<boolean>('isFullscreen', false);
     const contentLoading = ref<boolean>(false);
@@ -209,12 +217,14 @@ export default defineComponent({
         ) + 1
     );
     /** 工具栏过滤选项 */
-
     const filterToolList = computed(() =>
       TRACE_INFO_TOOL_FILTERS.filter(item => item.show && item.effect.includes(state.activePanel))
     );
     /** 是否展示 span list */
     const showSpanList = computed(() => ['sequence', 'topo'].includes(state.activePanel));
+
+    /* 节点拓扑类型 时间/服务 */
+    const topoType = ref<ETopoType>(ETopoType.time);
 
     // 复制操作
     const handleCopy = (content: string) => {
@@ -345,7 +355,7 @@ export default defineComponent({
       } else if (['timeline', 'topo'].includes(state.activePanel)) {
         const comps = curViewElem.value;
         const isTopo = state.activePanel === 'topo';
-        comps?.handleClassifyFilter(isTopo ? mathesTopoNodeIds : new Set(matchesIds));
+        comps?.handleClassifyFilter(isTopo ? mathesTopoNodeIds : new Set(matchesIds), classify);
         state.matchedSpanIds = isTopo ? mathesTopoNodeIds.length : matchesIds.length;
         if (state.activePanel === 'topo') {
           state.filterSpanIds = matchesIds;
@@ -684,12 +694,56 @@ export default defineComponent({
       state.isCompareView = isCompare;
       isCompare && updateTemporaryCompareTrace(state.compareTraceID);
     };
+
+    /**
+     * @description 切换拓扑图类型
+     * @param value
+     */
+    function handleTopoChangeType(value: ETopoType) {
+      topoType.value = value;
+      const viewFilters = traceViewFilters.value.filter(item => item !== 'duration');
+      if (value === ETopoType.service) {
+        // service 默认不展示耗时面板
+        store.updateTraceViewFilters(viewFilters);
+      } else {
+        store.updateTraceViewFilters([...viewFilters, 'duration']);
+        if (state.isCompareView) {
+          setTimeout(() => {
+            handleCompare(state.compareTraceID);
+          }, 10);
+        }
+      }
+      state.filterSpanIds = [];
+      state.filterSpanSubTitle = '';
+      cancelFilter();
+      // 服务topo禁用 SOURCE_CATEGORY_EBPF, VIRTUAL_SPAN
+      const traceViewFiltersV = [];
+      if (topoType.value === ETopoType.service) {
+        traceViewFilters.value.forEach(v => {
+          if (![SOURCE_CATEGORY_EBPF, VIRTUAL_SPAN].includes(v)) {
+            traceViewFiltersV.push(v);
+          }
+        });
+        handleSpanKindChange(traceViewFiltersV);
+      }
+    }
+
+    /**
+     * @description 选中了服务topo的节点或者边
+     * @param _keys
+     */
+    async function handleServiceTopoClickItem(_keys) {
+      await (searchBarElem.value as any).handleChange([]);
+      clearSearch();
+    }
+
     return {
       ...toRefs(state),
       isLoading,
       contentLoading,
       traceView,
       relationTopo,
+      showCompareSelect,
       traceDetailElem,
       traceMainElem,
       statisticsElem,
@@ -733,6 +787,9 @@ export default defineComponent({
       handleCompareSpanListChange,
       filterKeywords,
       updateCompareStatus,
+      topoType,
+      handleTopoChangeType,
+      handleServiceTopoClickItem,
     };
   },
 
@@ -869,7 +926,7 @@ export default defineComponent({
                 // 时序图暂不支持
                 ['timeline', 'topo', 'statistics', 'flame'].includes(this.activePanel) ? (
                   <div class='tab-setting'>
-                    {['topo', 'statistics', 'flame'].includes(this.activePanel) ? (
+                    {this.showCompareSelect ? (
                       <CompareSelect
                         ref='compareSelect'
                         appName={this.appName}
@@ -966,9 +1023,12 @@ export default defineComponent({
                   {this.filterToolList.map(kind => (
                     <Checkbox
                       disabled={
-                        this.activePanel === 'statistics' &&
-                        this.traceViewFilters.length === 1 &&
-                        this.traceViewFilters.includes(kind.id)
+                        (this.activePanel === 'statistics' &&
+                          this.traceViewFilters.length === 1 &&
+                          this.traceViewFilters.includes(kind.id)) ||
+                        (this.activePanel === 'topo' &&
+                          [SOURCE_CATEGORY_EBPF, VIRTUAL_SPAN].includes(kind.id) &&
+                          this.topoType === ETopoType.service)
                       }
                       label={kind.id}
                       size='small'
@@ -988,7 +1048,7 @@ export default defineComponent({
                 </Checkbox.Group>
               </div>
             }
-            {['topo', 'flame'].includes(this.activePanel) && this.isCompareView ? (
+            {['topo', 'flame'].includes(this.activePanel) && this.isCompareView && this.showCompareSelect ? (
               <div class='compare-legend'>
                 <span class='tag tag-new'>added</span>
                 <div class='percent-queue'>
@@ -1020,14 +1080,17 @@ export default defineComponent({
                 )}
                 {/* 拓扑视图 */}
                 {this.activePanel === 'topo' && (
-                  <RelationTopo
+                  <NodeTopo
                     key={traceInfo?.root_span_id || ''}
                     ref='relationTopo'
                     compareTraceID={this.compareTraceID}
+                    type={this.topoType}
                     updateMatchedSpanIds={this.updateMatchedSpanIds}
                     onCompareSpanListChange={this.handleCompareSpanListChange}
+                    onServiceTopoClickItem={keys => this.handleServiceTopoClickItem(keys)}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onSpanListChange={this.handleSpanListFilter}
+                    onTypeChange={this.handleTopoChangeType}
                     onUpdate:loading={this.contentLoadingChange}
                   />
                 )}
@@ -1084,12 +1147,12 @@ export default defineComponent({
                 {{
                   main: () => <div></div>,
                   aside: () => (
-                    <SpanList
+                    <TopoSpanList
                       compareSpanList={this.compareSpanList}
                       filterSpanIds={this.filterSpanIds}
-                      isCollapsed={this.isCollapsefilter}
                       isCompare={this.isCompareView}
                       subTitle={this.filterSpanSubTitle}
+                      type={this.topoType}
                       onListChange={this.handleSpanListFilter}
                       onViewDetail={this.handleShowSpanDetails}
                     />

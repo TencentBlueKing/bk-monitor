@@ -1458,7 +1458,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
     @classmethod
     def _get_measurement_type(cls, table_id_map: Dict) -> Dict:
         """获取 measurement 类型"""
-        from metadata.models.space.space_redis import get_measurement_type_by_table_id
+        from metadata.models.space.ds_rt import get_measurement_type_by_table_id
 
         # 组装需要的结果表列表
         table_list, table_id_list = [], []

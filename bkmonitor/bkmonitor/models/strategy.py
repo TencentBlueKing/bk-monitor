@@ -503,7 +503,7 @@ class UserGroup(AbstractRecordModel):
             ]
             if valid_work_times:
                 plan.work_times = valid_work_times
-                plan.start_time = min([work_time["start_time"] for work_time in plan.work_times])
+                plan.start_time = plan.start_time[:-3]
                 work_finished_time = max([work_time["end_time"] for work_time in plan.work_times])
                 # plan的结束时间，以工作时间和当前排班结束时间的最小值为准
                 plan_finish_time = plan.finished_time[:-3]

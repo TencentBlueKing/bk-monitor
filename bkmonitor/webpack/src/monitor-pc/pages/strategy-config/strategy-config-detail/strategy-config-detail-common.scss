@@ -477,11 +477,10 @@ $levelColor: #ea3636 #ff9c01 #699df4;
     &-right {
       .right-wrapper {
         position: fixed;
-        top: 104px;
-        height: calc(100% - 104px);
-        max-height: calc(100% - 104px);
+        top: calc(104px + var(--notice-alert-height));
+        height: calc(100% - 104px - var(--notice-alert-height));
+        max-height: calc(100% - 104px - var(--notice-alert-height));
         overflow-y: auto;
-        // position: relative;
         background: #fff;
         box-shadow: 0px 1px 2px 0px rgba(253, 207, 207, 0.1);
 

@@ -193,7 +193,7 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   handleMenuClick(event: string, isLink = false) {
-    this.menuClick(event, this.curValue, isLink);
+    this.menuClick(event, this.curValue.replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
     this.handleDestroy();
   }
 

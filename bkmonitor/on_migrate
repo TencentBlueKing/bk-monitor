@@ -16,6 +16,7 @@ bin/manage.sh init_influxdb_proxy_storage
 bin/manage.sh refresh_influxdb_proxy_config
 bin/manage.sh refresh_custom_report_metric_path
 bin/manage.sh init_space_data
+bin/manage.sh sync_bklog_es_router
 
 
 # 更新on_migrate版本
