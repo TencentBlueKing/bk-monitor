@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import OrderedDict
+from typing import Optional
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -121,3 +122,32 @@ class UpdateEsRouter(Resource):
                 source_type=es_storage.source_type,
                 cluster_id=es_storage.storage_cluster_id,
             )
+
+
+class UpdateOrCreateEsRouter(Resource):
+    """更新或者创建es路由信息"""
+
+    class RequestSerializer(serializers.Serializer):
+        space_type = serializers.CharField(required=False, label="空间类型")
+        space_id = serializers.CharField(required=False, label="空间ID")
+        table_id = serializers.CharField(required=True, label="ES 结果表 ID")
+        data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
+        cluster_id = serializers.CharField(required=False, label="ES 集群 ID")
+        index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
+        source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+
+    def perform_request(self, validated_request_data):
+        # 根据结果表判断是创建或更新
+        tableObj = self.get_table_id(validated_request_data["table_id"])
+        # 如果结果表不存在，则进行创建，如果存在，则进行更新
+        if not tableObj:
+            CreateEsRouter().request(validated_request_data)
+        else:
+            UpdateEsRouter().request(validated_request_data)
+
+    def get_table_id(self, table_id: str) -> Optional[models.ResultTable]:
+        """检测结果表是否存在"""
+        try:
+            return models.ResultTable.objects.get(table_id=table_id)
+        except models.ResultTable.DoesNotExist:
+            return None
