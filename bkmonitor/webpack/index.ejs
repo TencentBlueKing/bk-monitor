@@ -11,11 +11,13 @@
       http-equiv="X-UA-Compatible"
       content="ie=edge"
     />
-    <link
-      rel="preload"
-      as="image"
-      href="${STATIC_URL}monitor/loading.gif"
-    />
+    <% if (APP_ENV === 'pc') { %>
+      <link
+        rel="preload"
+        as="image"
+        href="${STATIC_URL}monitor/loading.gif"
+      />
+    <% } %>
     <link
       rel="manifest"
       as="fetch"
@@ -72,39 +74,44 @@
     <script template>
       document.title = '监控平台';
     </script>
-    <style>
-      * {
-        box-sizing: border-box;
-        font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun,
-          sans-serif !important;
-      }
-      html,
-      body {
-        font-size: 12px;
-        color: #63656e;
-      }
-    </style>
+    <% if (APP_ENV === 'pc') { %>
+      <style>
+        * {
+          box-sizing: border-box;
+          font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun,
+            sans-serif !important;
+        }
+        html,
+        body {
+          font-size: 12px;
+          color: #63656e;
+        }
+      </style>
+     <% } %>
   </head>
   <body>
     <noscript> This is your fallback content in case JavaScript fails to load. </noscript>
-    <div
-      id="__app_loading__"
-      style="
-        position: fixed;
-        z-index: 9999;
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        font-weight: bold;
-      "
-    >
-      <img
-        style="width: 200px"
-        src="${STATIC_URL}monitor/loading.gif"
-      />
+    <% if (APP_ENV === 'pc') { %>
+      <div
+        id="__app_loading__"
+        style="
+          position: fixed;
+          z-index: 9999;
+          width: 100vw;
+          height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          font-weight: bold;
+        "
+      >
+        <img
+          style="width: 200px"
+          src="${STATIC_URL}monitor/loading.gif"
+        />
+      </div>
+      <% } %>
     </div>
     <div id="app"></div>
   </body>
