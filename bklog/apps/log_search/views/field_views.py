@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
+from apps.log_search.constants import FieldDataTypeEnum
 from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import LogIndexSet, LogIndexSetData
@@ -24,7 +25,7 @@ from apps.log_search.serializers import (
     FetchTopkListSerializer,
     QueryFieldBaseSerializer,
 )
-from apps.log_unifyquery.constants import FIELD_TYPE_MAP
+from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
 from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.drf import list_route
 from apps.utils.thread import MultiExecuteFunc
@@ -76,16 +77,18 @@ class FieldViewSet(APIViewSet):
 
         for field_name in fields_set:
             query_handler = UnifyQueryHandler({"agg_field": field_name, **params})
-            multi_execute_func.append(field_name, query_handler.get_distinct_count)
+            multi_execute_func.append(f"distinct_count_{field_name}", query_handler.get_distinct_count)
 
-        multi_result = multi_execute_func.run()
+        multi_result = multi_execute_func.run(return_exception=True)
 
-        if not multi_result:
-            raise GetMultiResultFailException(
-                GetMultiResultFailException.MESSAGE.format(func_name="fetch_distinct_count_list")
-            )
-        for field_name, distinct_count in multi_result.items():
-            count_list.append({"field_name": field_name, "distinct_count": distinct_count})
+        for field_name in fields_set:
+            ret = multi_result.get(f"distinct_count_{field_name}")
+            if isinstance(ret, Exception):
+                # 子查询异常
+                raise GetMultiResultFailException(
+                    GetMultiResultFailException.MESSAGE.format(field_name=field_name, e=ret)
+                )
+            count_list.append({"field_name": field_name, "distinct_count": ret})
         return Response(count_list)
 
     @list_route(methods=["POST"], url_path="fetch_topk_list")
@@ -126,6 +129,7 @@ class FieldViewSet(APIViewSet):
         field_count = query_handler.get_field_count()
         distinct_count = query_handler.get_distinct_count()
         if total_count and field_count:
+            # 百分比计算：默认保留两位小数
             field_percent = round(field_count / total_count, 2)
         else:
             field_percent = 0
@@ -136,11 +140,11 @@ class FieldViewSet(APIViewSet):
             "distinct_count": distinct_count,
             "field_percent": field_percent,
         }
-        if FIELD_TYPE_MAP.get(params["field_type"], "string") == "int":
-            max_value = query_handler.get_agg_value("max")
-            min_value = query_handler.get_agg_value("min")
-            avg_value = query_handler.get_agg_value("avg")
-            median_value = query_handler.get_agg_value("median")
+        if FIELD_TYPE_MAP.get(params["field_type"], "string") == FieldDataTypeEnum.INT.value:
+            max_value = query_handler.get_agg_value(AggTypeEnum.MAX.value)
+            min_value = query_handler.get_agg_value(AggTypeEnum.MIN.value)
+            avg_value = query_handler.get_agg_value(AggTypeEnum.AVG.value)
+            median_value = query_handler.get_agg_value(AggTypeEnum.MEDIAN.value)
             data["value_analysis"] = {"max": max_value, "min": min_value, "avg": avg_value, "median": median_value}
 
         return Response(data)
@@ -153,10 +157,10 @@ class FieldViewSet(APIViewSet):
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
         query_handler = UnifyQueryHandler(params)
-        if FIELD_TYPE_MAP[params["field_type"]] == "int":
-            if params["distinct_count"] < 10:
-                return Response(query_handler.get_topk_list(10))
+        if FIELD_TYPE_MAP.get(params["field_type"], "string") == FieldDataTypeEnum.INT.value:
+            if params["distinct_count"] < params["threshold"]:
+                return Response(query_handler.get_topk_list(params["threshold"]))
             else:
                 return Response(query_handler.get_bucket_data(params["min"], params["max"]))
         else:
-            return Response(query_handler.get_topk_ts_data(5))
+            return Response(query_handler.get_topk_ts_data(params["limit"]))

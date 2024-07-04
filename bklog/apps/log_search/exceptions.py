@@ -479,8 +479,8 @@ class UserIndexSetSearchHistoryNotExistException(BaseException):
 
 
 class GetMultiResultFailException(BaseException):
-    ERROR_CODE = "444"
-    MESSAGE = _("并发结果[{func_name}]查询失败")
+    ERROR_CODE = "445"
+    MESSAGE = _("字段数量[{field_name}]查询失败 原因: {e}")
 
 
 # =================================================

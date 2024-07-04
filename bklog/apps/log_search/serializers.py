@@ -42,6 +42,7 @@ from apps.log_search.constants import (
     TemplateType,
 )
 from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
+from apps.log_unifyquery.constants import FIELD_TYPE_MAP
 from apps.utils.drf import DateTimeFieldWithEpoch
 from apps.utils.local import get_local_param
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -872,9 +873,7 @@ class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
     获取字段统计信息
     """
 
-    field_type = serializers.ChoiceField(
-        required=True, choices=["keyword", "text", "integer", "long", "double", "bool", "conflict"]
-    )
+    field_type = serializers.ChoiceField(required=True, choices=FIELD_TYPE_MAP.keys())
 
 
 class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
@@ -882,11 +881,11 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     获取字段统计图表
     """
 
-    field_type = serializers.ChoiceField(
-        required=True, choices=["keyword", "text", "integer", "long", "double", "bool", "conflict"]
-    )
+    field_type = serializers.ChoiceField(required=True, choices=FIELD_TYPE_MAP.keys())
     max = serializers.IntegerField(label=_("最大值"), required=False)
     min = serializers.IntegerField(label=_("最小值"), required=False)
+    threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
+    limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
 
 

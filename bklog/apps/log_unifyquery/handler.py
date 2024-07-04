@@ -14,7 +14,12 @@ from typing import Any, Dict
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
-from apps.log_unifyquery.constants import BASE_OP_MAP, OP_TRANSFORMER, REFERENCE_ALIAS
+from apps.log_unifyquery.constants import (
+    BASE_OP_MAP,
+    FLOATING_NUMERIC_FIELD_TYPES,
+    OP_TRANSFORMER,
+    REFERENCE_ALIAS,
+)
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
 
@@ -151,7 +156,7 @@ class UnifyQueryHandler(object):
             return series["values"][0][1]
         return 0
 
-    def get_bucket_count(self, start, end):
+    def get_bucket_count(self, start: int, end: int):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
@@ -214,7 +219,7 @@ class UnifyQueryHandler(object):
         data = self.query_ts(search_dict)
         return data
 
-    def get_agg_value(self, agg_method):
+    def get_agg_value(self, agg_method: str):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
@@ -242,16 +247,16 @@ class UnifyQueryHandler(object):
             [[s["group_values"][0], s["values"][0][1]] for s in series[:limit]], key=lambda x: x[1], reverse=True
         )
 
-    def get_bucket_data(self, min_value: int, max_value: int):
+    def get_bucket_data(self, min_value: int, max_value: int, bucket_range: int = 10):
         # 浮点数分桶区间精度默认为两位小数
         digits = None
-        if self.search_params.get("field_type") and self.search_params["field_type"] in ["double", "float"]:
+        if self.search_params.get("field_type") and self.search_params["field_type"] in FLOATING_NUMERIC_FIELD_TYPES:
             digits = 2
-        step = round((max_value - min_value) / 10, digits)
+        step = round((max_value - min_value) / bucket_range, digits)
         bucket_data = []
-        for index in range(10):
+        for index in range(bucket_range):
             start = min_value + index * step
-            end = start + step if index < 9 else max_value
+            end = start + step if index < bucket_range - 1 else max_value
             bucket_count = self.get_bucket_count(start, end)
             bucket_data.append([start, bucket_count])
         return bucket_data

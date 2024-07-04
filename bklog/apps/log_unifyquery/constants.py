@@ -8,12 +8,26 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from enum import Enum
+
 from apps.log_search.constants import OperatorEnum
 from apps.log_unifyquery.utils import (
     transform_bool_addition,
     transform_contains_addition,
     transform_exists_addition,
 )
+
+
+class AggTypeEnum(Enum):
+    """
+    聚合类型枚举
+    """
+
+    MAX = "max"
+    MIN = "min"
+    AVG = "avg"
+    MEDIAN = "median"
+
 
 REFERENCE_ALIAS = "abcdefghijklmnopqrstuvwx"
 
@@ -27,6 +41,8 @@ FIELD_TYPE_MAP = {
     "bool": "string",
     "conflict": "string",
 }
+
+FLOATING_NUMERIC_FIELD_TYPES = ["double", "float"]
 
 BASE_OP_MAP = {
     "=": "eq",
