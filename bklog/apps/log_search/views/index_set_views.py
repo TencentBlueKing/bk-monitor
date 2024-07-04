@@ -297,7 +297,9 @@ class IndexSetViewSet(ModelViewSet):
         total = qs.count()
         qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
         index_set_ids = list(qs.values_list("index_set_id", flat=True))
-        index_set_list = list(qs.values("scenario_id", "space_uid", "storage_cluster_id", "index_set_id"))
+        index_set_list = list(
+            qs.values("scenario_id", "space_uid", "storage_cluster_id", "index_set_id", "collector_config_id")
+        )
         index_set_dict = {
             index_set["index_set_id"]: index_set for index_set in index_set_list if index_set.get("index_set_id")
         }
@@ -320,7 +322,7 @@ class IndexSetViewSet(ModelViewSet):
                     "source_type": index_set["scenario_id"],
                     "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set_id),
                     "table_id": BaseIndexSetHandler.get_rt_id(
-                        index_set_id, index_set["collect_config_id"], index_set["indexes"]
+                        index_set_id, index_set["collector_config_id"], index_set["indexes"]
                     ),
                     "space_uid": index_set["space_uid"],
                 }

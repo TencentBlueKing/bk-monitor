@@ -1351,7 +1351,7 @@ class BaseIndexSetHandler(object):
                     "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
                     "source_type": index_set.scenario_id,
                     "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
-                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collect_config_id, self.indexes),
+                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
                     "space_uid": index_set.space_uid,
                 }
             )
