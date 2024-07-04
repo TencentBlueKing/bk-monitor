@@ -370,11 +370,11 @@ class EBPFHandler:
             span.parent_span_id = span_id
             span.span_id = cls.new_span_id()
 
-        if item.get("start_time"):
-            span.start_time = item.get("start_time")
+        if item.get("start_time_us"):
+            span.start_time = item.get("start_time_us")
 
-        if item.get("end_time"):
-            span.end_time = item.get("end_time")
+        if item.get("end_time_us"):
+            span.end_time = item.get("start_time_us")
 
         span.kind = cls.tap_side_to_span_kind(item.get("tap_side"))
 

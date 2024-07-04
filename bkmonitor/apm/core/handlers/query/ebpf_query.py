@@ -65,7 +65,7 @@ class DeepFlowQuery:
             "process_kname_1, trace_id, span_id, parent_span_id, "
             "x_request_id_0, x_request_id_1, syscall_trace_id_request, syscall_trace_id_response, "
             "syscall_thread_0, syscall_thread_1, syscall_cap_seq_0, syscall_cap_seq_1, flow_id, "
-            "toUnixTimestamp64Micro(start_time) AS start_time, toUnixTimestamp64Micro(end_time) AS end_time, "
+            "toUnixTimestamp64Micro(start_time) AS start_time_us, toUnixTimestamp64Micro(end_time) AS end_time_us, "
             "l7_protocol, signal_source, tap_side, tap_port_type, response_status, is_ipv4 FROM l7_flow_log"
         )
         ebpf_spans = []
