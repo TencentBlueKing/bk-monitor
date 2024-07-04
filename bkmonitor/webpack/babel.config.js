@@ -49,19 +49,6 @@ module.exports = function (api) {
   ].filter(Boolean);
   const plugins = [
     '@babel/plugin-transform-runtime',
-    // process.env.APP !== 'trace' ? [
-    //   'babel-plugin-import-bk-magic-vue',
-    //   {
-    //     baseLibName: 'bk-magic-vue'
-    //   }
-    // ] : undefined,
-    // process.env.APP === 'pc' ? [
-    //   'component',
-    //   {
-    //     libraryName: 'element-ui',
-    //     styleLibraryName: 'theme-chalk'
-    //   }
-    // ] : undefined,
     process.env.APP === 'mobile'
       ? [
           'import',
@@ -74,13 +61,6 @@ module.exports = function (api) {
         ]
       : undefined,
     process.env.APP === 'trace' ? '@vue/babel-plugin-jsx' : undefined,
-    // process.env.APP === 'trace' ? [
-    //   'import-bkui-vue',
-    //   {
-    //     libraryName: 'bkui-vue',
-    //     style: true
-    //   }
-    // ] : undefined
   ].filter(Boolean);
   return {
     presets,
