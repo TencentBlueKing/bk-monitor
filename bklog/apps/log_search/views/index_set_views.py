@@ -36,7 +36,7 @@ from apps.iam.handlers.drf import (
 )
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
-from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
@@ -280,10 +280,6 @@ class IndexSetViewSet(ModelViewSet):
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
         return response
 
-    @staticmethod
-    def get_rt_id(index_set):
-        return "bklog_index_set_" + str(index_set["index_set_id"]) + ".__default__"
-
     @list_route(methods=["GET"], url_path="list_es_router")
     def list_es_router(self, request):
         params = self.params_valid(ESRouterListSerializer)
@@ -298,6 +294,7 @@ class IndexSetViewSet(ModelViewSet):
             space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
             qs = qs.filter(space_uid__in=space_uids)
 
+        total = qs.count()
         qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
         index_set_ids = list(qs.values_list("index_set_id", flat=True))
         index_set_list = list(qs.values("scenario_id", "space_uid", "storage_cluster_id", "index_set_id"))
@@ -322,11 +319,11 @@ class IndexSetViewSet(ModelViewSet):
                     "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
                     "source_type": index_set["scenario_id"],
                     "data_label": index_set["scenario_id"] + "_index_set_" + str(index_set_id),
-                    "table_id": self.get_rt_id(index_set),
+                    "table_id": BaseIndexSetHandler.get_rt_id(index_set),
                     "space_uid": index_set["space_uid"],
                 }
             )
-        return Response(router_list)
+        return Response({"total": total, "list": router_list})
 
     def retrieve(self, request, *args, **kwargs):
         """
@@ -583,17 +580,6 @@ class IndexSetViewSet(ModelViewSet):
             sort_fields=data.get("sort_fields", []),
         )
 
-        # 更新结果表路由信息
-        TransferApi.update_es_router(
-            {
-                "cluster_id": storage_cluster_id,
-                "index_set": ",".join([index["result_table_id"] for index in data["indexes"]]),
-                "source_type": index_set.scenario_id,
-                "data_label": index_set.scenario_id + "_index_set_" + str(index_set.index_set_id),
-                "table_id": "bklog_index_set_" + str(index_set.index_set_id) + ".__default__",
-                "space_uid": index_set.space_uid,
-            }
-        )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
     @list_route(methods=["POST"], url_path="replace")

@@ -1325,6 +1325,10 @@ class BaseIndexSetHandler(object):
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
         return self.index_set_obj
 
+    @staticmethod
+    def get_rt_id(index_set):
+        return f"bklog_index_set_{str(index_set.index_set_id)}.__default__"
+
     def post_create(self, index_set):
         # 新建授权
         Permission(username=self.username).grant_creator_action(
@@ -1333,7 +1337,17 @@ class BaseIndexSetHandler(object):
             ),
             creator=index_set.created_by,
         )
-
+        # 创建结果表路由信息
+        TransferApi.create_es_router(
+            {
+                "cluster_id": index_set.storage_cluster_id,
+                "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
+                "source_type": index_set.scenario_id,
+                "data_label": self.get_rt_id(index_set),
+                "table_id": self.get_rt_id(index_set),
+                "space_uid": index_set.space_uid,
+            }
+        )
         return True
 
     def pre_update(self):
@@ -1409,6 +1423,17 @@ class BaseIndexSetHandler(object):
 
     def post_update(self, index_set):
         self.post_create(index_set)
+        # 更新结果表路由信息
+        TransferApi.update_es_router(
+            {
+                "cluster_id": index_set.storage_cluster_id,
+                "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
+                "source_type": index_set.scenario_id,
+                "data_label": self.get_rt_id(index_set),
+                "table_id": self.get_rt_id(index_set),
+                "space_uid": index_set.space_uid,
+            }
+        )
         return index_set
 
     def pre_delete(self):

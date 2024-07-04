@@ -873,7 +873,7 @@ class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
     获取字段统计信息
     """
 
-    field_type = serializers.ChoiceField(required=True, choices=FIELD_TYPE_MAP.keys())
+    field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
 
 
 class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
@@ -881,7 +881,7 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     获取字段统计图表
     """
 
-    field_type = serializers.ChoiceField(required=True, choices=FIELD_TYPE_MAP.keys())
+    field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
     max = serializers.IntegerField(label=_("最大值"), required=False)
     min = serializers.IntegerField(label=_("最小值"), required=False)
     threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)

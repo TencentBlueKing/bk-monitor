@@ -16,8 +16,7 @@ from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.constants import FieldDataTypeEnum
 from apps.log_search.exceptions import GetMultiResultFailException
-from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-from apps.log_search.models import LogIndexSet, LogIndexSetData
+from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchHandler
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
@@ -56,32 +55,18 @@ class FieldViewSet(APIViewSet):
         """
         count_list = []
         params = self.params_valid(QueryFieldBaseSerializer)
-        index_set_id = params["index_set_ids"][0]
-        index_set_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        index_set_data_obj: LogIndexSetData = LogIndexSetData.objects.filter(index_set_id=index_set_id).first()
-
-        mapping_handlers = MappingHandlers(
-            index_set_data_obj.result_table_id,
-            index_set_obj.index_set_id,
-            index_set_obj.scenario_id,
-            index_set_obj.storage_cluster_id,
-            "dtEventTimeStamp",
-            start_time=params["start_time"],
-            end_time=params["end_time"],
-        )
-        mapping_list = mapping_handlers._get_mapping()
-        property_dict: dict = mapping_handlers.find_merged_property(mapping_list)
-        fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
-        fields_set = {field["field_name"] for field in fields_result if field["field_type"] != "text"}
+        fields_result = UnionSearchHandler().union_search_fields(params)
+        fields_list = [field for field in fields_result.get("fields", []) if field["field_type"] != "text"]
         multi_execute_func = MultiExecuteFunc()
 
-        for field_name in fields_set:
-            query_handler = UnifyQueryHandler({"agg_field": field_name, **params})
-            multi_execute_func.append(f"distinct_count_{field_name}", query_handler.get_distinct_count)
+        for field in fields_list:
+            query_handler = UnifyQueryHandler({"agg_field": field["field_name"], **params})
+            multi_execute_func.append(f"distinct_count_{field['field_name']}", query_handler.get_distinct_count)
 
         multi_result = multi_execute_func.run(return_exception=True)
 
-        for field_name in fields_set:
+        for field in fields_list:
+            field_name = field["field_name"]
             ret = multi_result.get(f"distinct_count_{field_name}")
             if isinstance(ret, Exception):
                 # 子查询异常
@@ -140,7 +125,7 @@ class FieldViewSet(APIViewSet):
             "distinct_count": distinct_count,
             "field_percent": field_percent,
         }
-        if FIELD_TYPE_MAP.get(params["field_type"], "string") == FieldDataTypeEnum.INT.value:
+        if FIELD_TYPE_MAP.get(params["field_type"], "") == FieldDataTypeEnum.INT.value:
             max_value = query_handler.get_agg_value(AggTypeEnum.MAX.value)
             min_value = query_handler.get_agg_value(AggTypeEnum.MIN.value)
             avg_value = query_handler.get_agg_value(AggTypeEnum.AVG.value)
@@ -157,7 +142,7 @@ class FieldViewSet(APIViewSet):
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
         query_handler = UnifyQueryHandler(params)
-        if FIELD_TYPE_MAP.get(params["field_type"], "string") == FieldDataTypeEnum.INT.value:
+        if FIELD_TYPE_MAP.get(params["field_type"], "") == FieldDataTypeEnum.INT.value:
             if params["distinct_count"] < params["threshold"]:
                 return Response(query_handler.get_topk_list(params["threshold"]))
             else:

@@ -30,7 +30,7 @@ class UnifyQueryHandler(object):
         self.start_time = params["start_time"]
         self.end_time = params["end_time"]
         self.base_dict = self.init_base_dict()
-        self.is_union_search: bool = len(params.get("result_table_ids", [])) > 1
+        self.is_multi_rt: bool = len(params.get("result_table_ids", [])) > 1
 
     def init_default_interval(self):
         # 兼容查询时间段为默认近十五分钟的情况
@@ -41,7 +41,7 @@ class UnifyQueryHandler(object):
             return "1m"
         elif hour_interval <= 6:
             return "5m"
-        elif hour_interval <= 72:
+        elif hour_interval <= 24 * 3:
             return "1h"
         else:
             return "1d"
@@ -130,7 +130,12 @@ class UnifyQueryHandler(object):
         if data.get("series", []):
             series = data["series"][0]
             return round(series["values"][0][1], digits)
-        return 0
+        elif data.get("status", {}):
+            # 普通异常信息日志记录，暂不抛出异常
+            error_code = data["status"].get("code", "")
+            error_message = data["status"].get("message", "")
+            logger.exception("query ts reference error code: %s, message: %s", error_code, error_message)
+            return 0
 
     def get_total_count(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -178,7 +183,7 @@ class UnifyQueryHandler(object):
     def get_distinct_count(self):
         search_dict = copy.deepcopy(self.base_dict)
         data = {}
-        if self.is_union_search:
+        if self.is_multi_rt:
             reference_list = []
             for query in search_dict["query_list"]:
                 query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}

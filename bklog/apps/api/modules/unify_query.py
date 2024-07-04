@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 """
 UNIFYQUERY 模块，调用接口汇总
@@ -21,7 +22,11 @@ from config.domains import UNIFYQUERY_APIGATEWAY_ROOT  # noqa
 
 def add_unify_query_header_before(params):
     params = add_esb_info_before_request(params)
-    params["X-Bk-Scope-Skip-Space"] = "skip"
+    space_uid = bk_biz_id_to_space_uid(params["bk_biz_id"])
+    if space_uid:
+        params["X-Bk-Scope-Space-Uid"] = space_uid
+    else:
+        params["X-Bk-Scope-Skip-Space"] = "skip"
     return params
 
 
