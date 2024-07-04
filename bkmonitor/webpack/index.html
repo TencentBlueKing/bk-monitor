@@ -10,6 +10,11 @@
       type="image/png"
       href="./public/img/monitor-64.png"
     />
+    <link
+      rel="preload"
+      as="image"
+      href="./loading.gif"
+    />
     <meta charset="utf-8" />
     <title>监控平台 | 蓝鲸蓝鲸智云</title>
     <script template>
@@ -29,25 +34,25 @@
     </style>
   </head>
   <body>
-    <div id="app">
-      <div
-        style="
-          position: fixed;
-          z-index: 9999;
-          width: 100vw;
-          height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 18px;
-          font-weight: bold;
-        "
-      >
-        <img
-          style="width: 200px"
-          src="./loading.gif"
-        />
-      </div>
+    <div
+      id="__app_loading__"
+      style="
+        position: fixed;
+        z-index: 9999;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: bold;
+      "
+    >
+      <img
+        style="width: 200px"
+        src="./loading.gif"
+      />
     </div>
+    <div id="app"></div>
   </body>
 </html>

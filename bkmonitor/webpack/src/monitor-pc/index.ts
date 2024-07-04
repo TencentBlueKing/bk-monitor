@@ -86,6 +86,8 @@ if (hasRouteHash) {
         context_type: 'basic',
       })
       .then(data => {
+        const appLoadingNode = document.getElementById('__app_loading__');
+        appLoadingNode && document.body.removeChild(appLoadingNode);
         Object.keys(data).forEach(key => {
           window[key.toLocaleLowerCase()] = data[key];
         });
