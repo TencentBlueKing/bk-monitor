@@ -22,9 +22,10 @@ from config.domains import UNIFYQUERY_APIGATEWAY_ROOT  # noqa
 
 def add_unify_query_header_before(params):
     params = add_esb_info_before_request(params)
-    space_uid = bk_biz_id_to_space_uid(params["bk_biz_id"])
-    if space_uid:
-        params["X-Bk-Scope-Space-Uid"] = space_uid
+    if params.get("bk_biz_id"):
+        space_uid = bk_biz_id_to_space_uid(params["bk_biz_id"])
+        if space_uid:
+            params["X-Bk-Scope-Space-Uid"] = space_uid
     else:
         params["X-Bk-Scope-Skip-Space"] = "skip"
     return params

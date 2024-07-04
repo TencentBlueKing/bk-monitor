@@ -1326,7 +1326,9 @@ class BaseIndexSetHandler(object):
         return self.index_set_obj
 
     @staticmethod
-    def get_rt_id(index_set_id):
+    def get_rt_id(index_set_id, collector_config_id, indexes):
+        if collector_config_id:
+            return ",".join([index["result_table_id"] for index in indexes])
         return f"bklog_index_set_{str(index_set_id)}.__default__"
 
     @staticmethod
@@ -1342,16 +1344,19 @@ class BaseIndexSetHandler(object):
             creator=index_set.created_by,
         )
         # 创建结果表路由信息
-        TransferApi.create_es_router(
-            {
-                "cluster_id": index_set.storage_cluster_id,
-                "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
-                "source_type": index_set.scenario_id,
-                "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
-                "table_id": self.get_rt_id(index_set.index_set_id),
-                "space_uid": index_set.space_uid,
-            }
-        )
+        try:
+            TransferApi.create_or_update_es_router(
+                {
+                    "cluster_id": index_set.storage_cluster_id,
+                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
+                    "source_type": index_set.scenario_id,
+                    "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
+                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collect_config_id, self.indexes),
+                    "space_uid": index_set.space_uid,
+                }
+            )
+        except Exception as e:
+            logger.exception(f"创建/更新索引({index_set.index_set_id})es路由失败，原因：{e}")
         return True
 
     def pre_update(self):
@@ -1427,17 +1432,6 @@ class BaseIndexSetHandler(object):
 
     def post_update(self, index_set):
         self.post_create(index_set)
-        # 更新结果表路由信息
-        TransferApi.update_es_router(
-            {
-                "cluster_id": index_set.storage_cluster_id,
-                "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
-                "source_type": index_set.scenario_id,
-                "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
-                "table_id": self.get_rt_id(index_set.index_set_id),
-                "space_uid": index_set.space_uid,
-            }
-        )
         return index_set
 
     def pre_delete(self):

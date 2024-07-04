@@ -319,7 +319,9 @@ class IndexSetViewSet(ModelViewSet):
                     "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
                     "source_type": index_set["scenario_id"],
                     "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set_id),
-                    "table_id": BaseIndexSetHandler.get_rt_id(index_set_id),
+                    "table_id": BaseIndexSetHandler.get_rt_id(
+                        index_set_id, index_set["collect_config_id"], index_set["indexes"]
+                    ),
                     "space_uid": index_set["space_uid"],
                 }
             )

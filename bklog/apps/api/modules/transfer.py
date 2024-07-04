@@ -426,18 +426,11 @@ class _TransferApi(object):
             description=_("获取自定义日志组"),
             before_request=add_esb_info_before_request,
         )
-        self.create_es_router = DataAPI(
+        self.create_or_update_es_router = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_es_router/",
+            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_or_update_es_router/",
             module=self.MODULE,
-            description=_("创建es路由"),
-            before_request=add_esb_info_before_request,
-        )
-        self.update_es_router = DataAPI(
-            method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_update_es_router/",
-            module=self.MODULE,
-            description=_("更新es路由"),
+            description=_("创建或更新es路由"),
             before_request=add_esb_info_before_request,
         )
 
