@@ -1591,6 +1591,13 @@ export default {
       if (id) {
         promiseList.push(this.getConfigInfo(id).then(data => (collectDetail = data)));
       }
+      const handlePluginPageParams = () => {
+        // 插件详情跳转过来
+        if (!this.isClone && v.mode === 'add' && v.data?.updateParams?.pluginId) {
+          const res = this.pluginSelectorObj.list.find(item => item.plugin_id === v.data.updateParams.pluginId);
+          res && this.handlePluginChange(res);
+        }
+      };
       // 编辑的时候只获取单个插件
       if (this.config.mode === 'edit') {
         const pulginId = this.config.data?.updateParams?.pluginId;
@@ -1620,6 +1627,7 @@ export default {
               if (this.isClone) {
                 this.setEditOrCloneConfig(v, collectDetail);
               }
+              handlePluginPageParams();
               this.pluginListLoading = false;
             });
         }
@@ -1656,13 +1664,12 @@ export default {
       } else if (v.mode === 'edit') {
         // 编辑
         this.setEditOrCloneConfig(v, collectDetail);
-      } else if (!this.isClone && v.mode === 'add' && v.data?.updateParams?.pluginId) {
-        // 插件详情跳转过来
-        const res = this.pluginSelectorObj.list.find(item => item.plugin_id === v.data.updateParams.pluginId);
-        res && this.handlePluginChange(res);
+      } else {
+        handlePluginPageParams();
       }
       this.loading = false;
     },
+
     // 处理配置信息
     handleConfigInfo(data) {
       const pluginInfo = data.plugin_info;
