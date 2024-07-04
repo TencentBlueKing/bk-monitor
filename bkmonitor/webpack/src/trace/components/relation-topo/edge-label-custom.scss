@@ -42,11 +42,14 @@
   }
 
   .edge-label-custom-label {
+    min-width: 14px;
     min-height: 14px;
     padding: 0 4px;
+    font-size: 12px;
+    line-height: 14px;
     color: #fff;
     background-color: #a2afd2;
-    border-radius: 50%;
+    border-radius: 7px;
 
     &.hidden {
       opacity: 0;
