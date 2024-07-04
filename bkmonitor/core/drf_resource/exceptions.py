@@ -18,7 +18,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
 from bkmonitor.utils.common_utils import failed
-from core.errors import Error
+from core.errors import Error, ErrorDetails
 from core.errors.common import CustomError, DrfApiError, HTTP404Error, UnknownError
 
 logger = logging.getLogger(__name__)
@@ -57,13 +57,20 @@ def custom_exception_handler(exc, context):
         if getattr(exc, "wait", None):
             headers["Retry-After"] = "%d" % exc.wait
 
-        result = failed(exc.message)
-        result["code"] = CustomError.code
-        result["name"] = CustomError.name
+        result = failed(
+            exc.message, error_code=CustomError.code, error_name=CustomError.name, exc_type=type(exc).__name__
+        )
         logger.exception(exc)
         response = Response(result, status=exc.status_code, headers=headers)
     elif isinstance(exc, Error):
-        result = {"result": False, "code": exc.code, "name": exc.name, "message": exc.message, "data": exc.data}
+        result = {
+            "result": False,
+            "code": exc.code,
+            "name": exc.name,
+            "message": exc.message,
+            "data": exc.data,
+            "extra": exc.details.to_dict() if exc.details else {},
+        }
         result.update(getattr(exc, "extra", {}))
         response = Response(result, status=exc.status_code)
     elif isinstance(exc, APIException):
@@ -72,13 +79,20 @@ def custom_exception_handler(exc, context):
             headers["WWW-Authenticate"] = exc.auth_header
         if getattr(exc, "wait", None):
             headers["Retry-After"] = "%d" % exc.wait
-
+        msg = DrfApiError.drf_error_processor(exc.detail)
+        error_detail = ErrorDetails(
+            exc_type=type(exc).__name__,
+            exc_code=DrfApiError.code,
+            overview=msg,
+            detail=msg,
+        )
         result = {
             "result": False,
             "code": DrfApiError.code,
             "name": DrfApiError.name,
-            "message": DrfApiError.drf_error_processor(exc.detail),
+            "message": msg,
             "data": exc.detail,
+            "extra": error_detail,
         }
 
         response = Response(result, status=exc.status_code, headers=headers)
@@ -90,13 +104,24 @@ def custom_exception_handler(exc, context):
             "name": HTTP404Error.name,
             "message": msg,
             "data": None,
+            "extra": ErrorDetails(
+                exc_type=type(exc).__name__,
+                exc_code=HTTP404Error.code,
+                overview=msg,
+                detail=msg,
+                popup_message="danger",  # 红框
+            ).to_dict(),
         }
 
         response = Response(result, status=status.HTTP_404_NOT_FOUND)
     else:
-        result = failed(exc)
-        result["code"] = UnknownError.code
-        result["name"] = UnknownError.name
+        result = failed(
+            exc,
+            error_code=UnknownError.code,
+            error_name=UnknownError.name,
+            exc_type=type(exc).__name__,
+            popup_type="danger",
+        )
         result["data"] = getattr(exc, "data", None)
         logger.exception(exc)
         response = Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
