@@ -8,12 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import arrow
 import json
 import logging
 import random
 import time
 
+import arrow
 from django.conf import settings
 
 from apm.core.deepflow.constants import (
@@ -30,7 +30,7 @@ from apm.core.deepflow.constants import (
     L7_PROTOCOL_POSTGRE,
     L7_PROTOCOL_REDIS,
 )
-from apm_web.constants import EbpfTapSideType, EbpfSignalSourceType
+from apm_web.constants import EbpfSignalSourceType, EbpfTapSideType
 from constants.apm import SpanKind
 
 logger = logging.getLogger("apm")
@@ -295,7 +295,6 @@ class EBPFHandler:
 
     @classmethod
     def signal_source_to_string(cls, signal_source: int):
-
         switcher = {
             0: EbpfSignalSourceType.SIGNAL_SOURCE_PACKET,
             1: EbpfSignalSourceType.SIGNAL_SOURCE_XFLOW,
@@ -372,15 +371,12 @@ class EBPFHandler:
             span.span_id = cls.new_span_id()
 
         if item.get("start_time"):
-            span.start_time = cls.str_time_to_unit_time(item.get("start_time"))
+            span.start_time = item.get("start_time")
 
         if item.get("end_time"):
-            span.end_time = cls.str_time_to_unit_time(item.get("end_time"))
+            span.end_time = item.get("end_time")
 
-        if item.get("kind"):
-            span.kind = item.get("kind")
-        else:
-            span.kind = cls.tap_side_to_span_kind(item.get("tap_side"))
+        span.kind = cls.tap_side_to_span_kind(item.get("tap_side"))
 
         # attribute
         if item.get("attribute"):
