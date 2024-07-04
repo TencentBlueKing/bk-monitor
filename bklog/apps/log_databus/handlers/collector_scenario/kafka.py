@@ -61,8 +61,8 @@ class KafkaScenario(CollectorScenario):
             kafka_ssl_params.update({"enabled": False})
 
         local_params = {
-            "hosts": params.get("kafka_hosts", []),
-            "topics": params.get("kafka_topics", []),
+            "hosts": json.dumps(params.get("kafka_hosts", [])),
+            "topics": json.dumps(params.get("kafka_topics", [])),
             "username": params.get("kafka_username", ""),
             "password": params.get("kafka_password", ""),
             "group_id": params.get("kafka_group_id", data_id),
