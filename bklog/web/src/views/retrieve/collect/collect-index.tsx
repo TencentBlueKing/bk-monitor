@@ -268,6 +268,7 @@ export default class CollectIndex extends tsc<IProps> {
         });
         break;
       case 'share':
+      case 'new-link':
         {
           const { ip_chooser, addition, keyword } = value.params;
           const params = { indexId: value.index_set_id };
@@ -290,7 +291,11 @@ export default class CollectIndex extends tsc<IProps> {
           if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
           if (!shareUrl.endsWith('/')) shareUrl += '/';
           shareUrl = `${window.location.origin + shareUrl}${this.$router.resolve(routeData).href}`;
-          copyMessage(shareUrl, this.$t('复制成功'));
+          if (type === 'new-link') {
+            window.open(shareUrl, '_blank');
+          } else {
+            copyMessage(shareUrl, this.$t('复制成功'));
+          }
         }
         break;
       case 'drag-move-end':
