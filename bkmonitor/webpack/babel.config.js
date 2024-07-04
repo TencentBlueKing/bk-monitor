@@ -30,7 +30,7 @@ module.exports = function (api) {
       '@babel/preset-env',
       {
         targets: {
-          browsers: ['defaults'],
+          browsers: process.env.APP === 'mobile' ? ['> 1%', 'last 1 versions', 'not ie <= 11'] : ['defaults'],
           node: 'current',
         },
         useBuiltIns: 'usage',

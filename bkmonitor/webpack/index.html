@@ -10,16 +10,19 @@
       type="image/png"
       href="./public/img/monitor-64.png"
     />
+    <% if (APP_ENV === 'pc') { %>
     <link
       rel="preload"
       as="image"
       href="./loading.gif"
     />
+    <% } %>
     <meta charset="utf-8" />
     <title>监控平台 | 蓝鲸蓝鲸智云</title>
     <script template>
       document.title = '监控平台 | 蓝鲸蓝鲸智云';
     </script>
+    <% if (APP_ENV === 'pc') { %>
     <style>
       * {
         box-sizing: border-box;
@@ -32,8 +35,10 @@
         color: #63656e;
       }
     </style>
+    <% } %>
   </head>
   <body>
+    <% if (APP_ENV === 'pc') { %>
     <div
       id="__app_loading__"
       style="
@@ -53,6 +58,7 @@
         src="./loading.gif"
       />
     </div>
+    <% } %>
     <div id="app"></div>
   </body>
 </html>
