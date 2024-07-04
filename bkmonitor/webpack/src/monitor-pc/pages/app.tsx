@@ -657,7 +657,6 @@ export default class App extends tsc<object> {
     (this.$refs.commonHeaderDrop as any)?.hide();
   }
   showAlertChange(v: boolean) {
-    console.info(v, '================');
     this.showAlert = v;
   }
   render() {
