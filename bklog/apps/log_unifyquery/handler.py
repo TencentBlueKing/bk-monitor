@@ -125,6 +125,13 @@ class UnifyQueryHandler(object):
                 condition_list.append("and")
         return {"field_list": field_list, "condition_list": condition_list}
 
+    @staticmethod
+    def handle_count_data(data, digits=None):
+        if data.get("series", []):
+            series = data["series"][0]
+            return round(series["values"][0][1], digits)
+        return 0
+
     def get_total_count(self):
         search_dict = copy.deepcopy(self.base_dict)
         reference_list = []
@@ -133,10 +140,7 @@ class UnifyQueryHandler(object):
             reference_list.append(query["reference_name"])
         search_dict.update({"metric_merge": " + ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
-        if data.get("series", []):
-            series = data["series"][0]
-            return series["values"][0][1]
-        return 0
+        return self.handle_count_data(data)
 
     def get_field_count(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -151,10 +155,7 @@ class UnifyQueryHandler(object):
             reference_list.append(query["reference_name"])
         search_dict.update({"metric_merge": " + ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
-        if data.get("series", []):
-            series = data["series"][0]
-            return series["values"][0][1]
-        return 0
+        return self.handle_count_data(data)
 
     def get_bucket_count(self, start: int, end: int):
         search_dict = copy.deepcopy(self.base_dict)
@@ -172,10 +173,7 @@ class UnifyQueryHandler(object):
             )
             query["function"] = [{"method": "count"}]
         data = self.query_ts_reference(search_dict)
-        if data.get("series", []):
-            series = data["series"][0]
-            return series["values"][0][1]
-        return 0
+        return self.handle_count_data(data)
 
     def get_distinct_count(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -194,10 +192,7 @@ class UnifyQueryHandler(object):
                 query["function"] = [{"method": "cardinality"}]
                 search_dict.update({"metric_merge": "a"})
                 data = self.query_ts_reference(search_dict, raise_exception=True)
-        if data.get("series", []):
-            series = data["series"][0]
-            return series["values"][0][1]
-        return 0
+        return self.handle_count_data(data)
 
     def get_topk_ts_data(self, vargs: int = 5):
         topk_group_values = [group[0] for group in self.get_topk_list()]
@@ -228,10 +223,7 @@ class UnifyQueryHandler(object):
             else:
                 query["function"] = [{"method": agg_method}]
         data = self.query_ts_reference(search_dict)
-        if data.get("series", []):
-            series = data["series"][0]
-            return round(series["values"][0][1], 2)
-        return 0
+        return self.handle_count_data(data, digits=2)
 
     def get_topk_list(self, limit: int = 5):
         search_dict = copy.deepcopy(self.base_dict)
