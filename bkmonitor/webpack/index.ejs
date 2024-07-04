@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <title>${PAGE_TITLE}</title>
@@ -7,27 +7,97 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <link rel="manifest" as="fetch" crossorigin="use-credentials" href="${SITE_URL}manifest.json" />
-    <link rel="icon" type="image/png" href="img/monitor-64.png" />
-    <meta name="theme-color" content="#FAFBFD" />
+    <meta
+      http-equiv="X-UA-Compatible"
+      content="ie=edge"
+    />
+    <link
+      rel="manifest"
+      as="fetch"
+      crossorigin="use-credentials"
+      href="${SITE_URL}manifest.json"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      href="img/monitor-64.png"
+    />
+    <meta
+      name="theme-color"
+      content="#FAFBFD"
+    />
     <!-- 针对safari（iOS）的添加到桌面功能进行相关设置 -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="监控平台|蓝鲸" />
-    <link rel="apple-touch-icon" href="img/monitor-256.png" />
+    <meta
+      name="apple-mobile-web-app-capable"
+      content="yes"
+    />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="default"
+    />
+    <meta
+      name="apple-mobile-web-app-title"
+      content="监控平台|蓝鲸"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="img/monitor-256.png"
+    />
     <!-- IE的设置 -->
-    <meta name="application-name" content="监控平台|蓝鲸" />
-    <meta name="msapplication-TileColor" content="#222" />
-    <meta name="msapplication-square70x70logo" content="img/monitor-128.png" />
-    <meta name="msapplication-square150x150logo" content="img/monitor-256.png" />
-    <meta name="msapplication-square310x310logo" content="img/monitor-512.png" />
+    <meta
+      name="application-name"
+      content="监控平台|蓝鲸"
+    />
+    <meta
+      name="msapplication-TileColor"
+      content="#222"
+    />
+    <meta
+      name="msapplication-square70x70logo"
+      content="img/monitor-128.png"
+    />
+    <meta
+      name="msapplication-square150x150logo"
+      content="img/monitor-256.png"
+    />
+    <meta
+      name="msapplication-square310x310logo"
+      content="img/monitor-512.png"
+    />
     <script template>
       document.title = '监控平台';
     </script>
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun,
+          sans-serif !important;
+      }
+      html,
+      body {
+        font-size: 12px;
+        color: #63656e;
+      }
+    </style>
   </head>
   <body>
     <noscript> This is your fallback content in case JavaScript fails to load. </noscript>
-    <div id="app"></div>
+    <div id="app">
+      <div
+        style="
+          position: fixed;
+          z-index: 9999;
+          width: 100vw;
+          height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          font-weight: bold;
+        "
+      >
+        <img src="./loading.gif" />
+      </div>
+    </div>
   </body>
 </html>
