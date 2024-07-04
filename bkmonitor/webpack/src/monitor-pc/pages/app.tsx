@@ -672,7 +672,7 @@ export default class App extends tsc<object> {
       ),
       <div
         key={this.routeViewKey}
-        style={{ height: this.showNav ? 'calc(100% - 52px - var(--notice-alert-height))' : '100%' }}
+        style={{ height: this.showNav ? 'calc(100% - 52px)' : '100%' }}
         class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
       >

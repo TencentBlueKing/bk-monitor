@@ -1,0 +1,35 @@
+.trace-detail-node-topo {
+  position: relative;
+  box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
+
+  .header-type-list {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 2px;
+    background: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 1px 6px 0 #0000001f;
+
+    .header-type-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 28px;
+      padding: 0 13px;
+      cursor: pointer;
+      border-radius: 14px;
+
+      &.active {
+        color: #3A84FF;
+        background: #E1ECFF;
+      }
+    }
+  }
+}

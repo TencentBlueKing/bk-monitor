@@ -89,7 +89,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='graph-tools'>
+      <div class='graph-tools-component'>
         <div class='tools-menu'>
           {this.showThumbnail && (
             <i

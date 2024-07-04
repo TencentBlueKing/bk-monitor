@@ -47,9 +47,9 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         try:
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("bkdata_es_query") as span:
-                # 暂时不支持传入track_total_hits, 因为无法获取计算平台索引集所在的集群版本
-                # if track_total_hits:
-                #     body.update({"track_total_hits": True})
+                # bkdata情景下,当且仅当用户主动传了 track_total_hits: true 时，才允许往 body 中注入该参数
+                if track_total_hits:
+                    body.update({"track_total_hits": True})
                 params = {"prefer_storage": "es", "sql": json.dumps({"index": index, "body": body})}
                 span.set_attribute("db.statement", str(params))
                 span.set_attribute("db.system", "elasticsearch")

@@ -753,6 +753,7 @@ export const renderHeader = (h, { column }) => {
  * @returns {Boolean} 两个对象是否相同
  */
 export const deepEqual = (object1, object2, ignoreArr = []) => {
+  if (object1 === object2) return true;
   const keys1Arr = Object.keys(object1);
   const keys2Arr = Object.keys(object2);
   if (keys1Arr.length !== keys2Arr.length) return false;
