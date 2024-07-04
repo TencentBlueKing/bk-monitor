@@ -483,6 +483,6 @@ class OperatorOnlineTaskEnum(object):
 
 
 class OnlineTaskTrainingArgs(object):
-    IS_NEW = "1"
+    IS_NEW = 1
     USE_OFFLINE_MODEL = 0
     ST_LIST = "0.9,0.8875,0.875,0.8625,0.85"
