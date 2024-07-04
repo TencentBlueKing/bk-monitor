@@ -818,7 +818,7 @@
       !this.authGlobalInfo && (await this.initLabelSelectList());
       !this.authGlobalInfo && this.requestData();
     },
-    unmounted() {
+    beforeDestroy() {
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
     },
