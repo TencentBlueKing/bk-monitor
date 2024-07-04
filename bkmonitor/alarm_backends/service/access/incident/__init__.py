@@ -8,27 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from .processor import AccessIncidentProcess
 
-
-from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
-
-from .alert import AccessAlertProcess
-from .data import AccessDataProcess, AccessRealTimeDataProcess
-from .incident import AccessIncidentProcess
-
-
-class AccessType(object):
-    Data = "data"
-    RealTimeData = "real_time_data"
-    Alert = "alert"
-    Event = "event"
-    Incident = "incident"
-
-
-ACCESS_TYPE_TO_CLASS = {
-    AccessType.Data: AccessDataProcess,
-    AccessType.RealTimeData: AccessRealTimeDataProcess,
-    AccessType.Alert: AccessAlertProcess,
-    AccessType.Event: AccessCustomEventGlobalProcess,  # no use
-    AccessType.Incident: AccessIncidentProcess,
-}
+__all__ = ["AccessIncidentProcess"]

@@ -9,26 +9,27 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.translation import ugettext_lazy as _
 
-from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
-
-from .alert import AccessAlertProcess
-from .data import AccessDataProcess, AccessRealTimeDataProcess
-from .incident import AccessIncidentProcess
+from core.errors import Error
 
 
-class AccessType(object):
-    Data = "data"
-    RealTimeData = "real_time_data"
-    Alert = "alert"
-    Event = "event"
-    Incident = "incident"
+class IncidentError(Error):
+    status_code = 500
+    code = 3336001
+    name = _("故障模块错误")
+    message_tpl = _("故障模块错误")
 
 
-ACCESS_TYPE_TO_CLASS = {
-    AccessType.Data: AccessDataProcess,
-    AccessType.RealTimeData: AccessRealTimeDataProcess,
-    AccessType.Alert: AccessAlertProcess,
-    AccessType.Event: AccessCustomEventGlobalProcess,  # no use
-    AccessType.Incident: AccessIncidentProcess,
-}
+class IncidentNotFoundError(Error):
+    status_code = 404
+    code = 3336002
+    name = _("故障不存在")
+    message_tpl = _("故障UUID ({id}) 对应的故障信息不存在")
+
+
+class IncidentEntityNotFoundError(Error):
+    status_code = 404
+    code = 3336003
+    name = _("实体ID不在当前图谱中")
+    message_tpl = _("实体ID ({entity_id}) 不在当前图谱中")
