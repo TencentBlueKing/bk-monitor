@@ -53,6 +53,13 @@ class KafkaScenario(CollectorScenario):
         """
         filters, params = deal_collector_scenario_param(params)
 
+        kafka_ssl_params = params.get("kafka_ssl_params", {})
+
+        if params.get("kafka_username", "") and params.get("kafka_password", ""):
+            kafka_ssl_params.update({"enable": True})
+        else:
+            kafka_ssl_params.update({"enable": False})
+
         local_params = {
             "hosts": params.get("kafka_hosts", []),
             "topics": params.get("kafka_topics", []),
@@ -60,7 +67,7 @@ class KafkaScenario(CollectorScenario):
             "password": params.get("kafka_password", ""),
             "group_id": params.get("kafka_group_id", data_id),
             "initial_offset": params.get("kafka_initial_offset", KafkaInitialOffsetEnum.NEWEST.value),
-            "ssl": json.dumps(params.get("kafka_ssl_params", {})),
+            "ssl": json.dumps(kafka_ssl_params),
             "filters": filters,
             "delimiter": params["conditions"].get("separator") or "",
         }
