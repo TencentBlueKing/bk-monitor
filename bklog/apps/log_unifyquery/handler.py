@@ -14,6 +14,8 @@ from typing import Any, Dict
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.models import LogIndexSet
 from apps.log_unifyquery.constants import (
     BASE_OP_MAP,
     FLOATING_NUMERIC_FIELD_TYPES,
@@ -53,12 +55,15 @@ class UnifyQueryHandler(object):
         else:
             interval = self.search_params["interval"]
 
+        index_set_list = list(LogIndexSet.objects.filter(index_set_id__in=self.search_params.get("index_set_ids", []))
+                              .values("index_set_id", "scenario_id"))
+
         # 拼接查询参数列表
         query_list = [
             {
                 "query_string": self.search_params.get("keyword", "*"),
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                "table_id": result_table_id,
+                "table_id": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set["index_set_id"]),
                 "field_name": self.search_params["agg_field"],
                 "reference_name": REFERENCE_ALIAS[index],
                 "dimensions": [],
@@ -66,7 +71,7 @@ class UnifyQueryHandler(object):
                 "conditions": self.transform_additions(),
                 "function": [],
             }
-            for index, result_table_id in enumerate(self.search_params.get("result_table_ids", []))
+            for index, index_set in enumerate(index_set_list)
         ]
 
         return {
