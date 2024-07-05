@@ -855,8 +855,6 @@ class QueryFieldBaseSerializer(serializers.Serializer):
         )
         if result_table_ids:
             attrs["result_table_ids"] = result_table_ids
-        else:
-            raise serializers.ValidationError(_("参数校验失败: 请传入有效索引集ID列表: %s" % attrs["index_set_ids"]))
         return attrs
 
 

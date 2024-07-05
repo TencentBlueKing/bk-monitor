@@ -47,7 +47,7 @@ class _UnifyQueryApi(object):
             module=self.MODULE,
             description="时序型检索",
             after_request=add_data_after_request,
-            header_keys=["X-Bk-Scope-Skip-Space"],
+            header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
             before_request=add_unify_query_header_before,
         )
         self.query_ts_reference = DataAPI(
@@ -56,6 +56,6 @@ class _UnifyQueryApi(object):
             module=self.MODULE,
             description="非时序型检索",
             after_request=add_data_after_request,
-            header_keys=["X-Bk-Scope-Skip-Space"],
+            header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
             before_request=add_unify_query_header_before,
         )

@@ -55,8 +55,11 @@ class UnifyQueryHandler(object):
         else:
             interval = self.search_params["interval"]
 
-        index_set_list = list(LogIndexSet.objects.filter(index_set_id__in=self.search_params.get("index_set_ids", []))
-                              .values("index_set_id", "scenario_id"))
+        index_set_list = list(
+            LogIndexSet.objects.filter(index_set_id__in=self.search_params.get("index_set_ids", [])).values(
+                "index_set_id", "scenario_id"
+            )
+        )
 
         # 拼接查询参数列表
         query_list = [
@@ -83,6 +86,7 @@ class UnifyQueryHandler(object):
             "end_time": str(self.end_time),
             "down_sample_range": "",
             "timezone": get_local_param("time_zone", settings.TIME_ZONE),
+            "bk_biz_id": self.search_params["bk_biz_id"],
         }
 
     @staticmethod
