@@ -670,7 +670,6 @@ class BatchTaskResultResource(Resource):
 class IpchooserHostDetailResource(NodeManAPIGWResource):
     action = "core/api/ipchooser_host/details/"
     method = "POST"
-    base_url = settings.BKNODEMAN_API_BASE_URL or "%s/api/bk-nodeman/prod/" % settings.BK_COMPONENT_API_URL
 
     class RequestSerializer(serializers.Serializer):
         class HostSerializer(serializers.Serializer):
