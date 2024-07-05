@@ -513,12 +513,15 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   class='bk-dropdown-list'
                   slot='dropdown-content'
                 >
-                  <li>
-                    <a onClick={() => this.handleCopyTargets('ip')}>{this.$t('复制主机IP')}</a>
-                  </li>
-                  <li>
-                    <a onClick={() => this.handleCopyTargets('instance')}>{this.$t('复制服务实例')}</a>
-                  </li>
+                  {this.config?.target_object_type === 'HOST' ? (
+                    <li>
+                      <a onClick={() => this.handleCopyTargets('ip')}>{this.$t('复制主机IP')}</a>
+                    </li>
+                  ) : (
+                    <li>
+                      <a onClick={() => this.handleCopyTargets('instance')}>{this.$t('复制服务实例')}</a>
+                    </li>
+                  )}
                 </ul>
               </bk-dropdown-menu>
             ) : (
