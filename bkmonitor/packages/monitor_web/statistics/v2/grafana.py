@@ -12,6 +12,7 @@ import json
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
+from django.core.paginator import Paginator
 from django.utils.functional import cached_property
 
 from bk_dataview.models import Dashboard, DataSource, Org, Star
@@ -57,13 +58,7 @@ class GrafanaCollector(BaseCollector):
         获取仪表盘数据
         """
         if self._dashboard_data is None:
-            self._dashboard_data = list(Dashboard.objects.filter(is_folder=0).values("id", "uid", "org_id", "data"))
-            for dashboard in self._dashboard_data:
-                try:
-                    dashboard["data"] = json.loads(dashboard["data"])
-                except json.JSONDecodeError:
-                    dashboard["data"] = {}
-
+            self._dashboard_data = list(Dashboard.objects.filter(is_folder=0).values("id", "uid", "org_id"))
         return self._dashboard_data
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "type"))
@@ -71,7 +66,7 @@ class GrafanaCollector(BaseCollector):
         """
         Grafana数据源实例数
         """
-        data_sources = DataSource.objects.values_list("org_id", "type")
+        data_sources = DataSource.objects.values("org_id", "type")
         org_id_mapping_biz_id = self.org_id_mapping_biz_id
 
         org_metrics: Dict[Tuple[int, str], int] = defaultdict(lambda: 0)
@@ -100,7 +95,7 @@ class GrafanaCollector(BaseCollector):
         for dashboard in self.get_dashboard_data:
             org_metrics[dashboard["org_id"]] += 1
 
-        for org_id, value in org_metrics:
+        for org_id, value in org_metrics.items():
             if org_id not in org_id_mapping_biz_id:
                 continue
             metric.labels(
@@ -115,17 +110,22 @@ class GrafanaCollector(BaseCollector):
         org_id_mapping_biz_id = self.org_id_mapping_biz_id
 
         org_metrics = defaultdict(lambda: 0)
-        for dashboard in self.get_dashboard_data:
-            org_id = dashboard["org_id"]
 
-            # 仪表盘面板数量
-            dashboard_data = json.loads(dashboard["data"])
-            panels = dashboard_data.get("panels", [])
-            for panel in panels:
-                if panel.get("type") == "row":
-                    org_metrics[org_id] += len(panel.get("panels", []))
-                else:
-                    org_metrics[org_id] += 1
+        paginator = Paginator(
+            Dashboard.objects.filter(is_folder=0).values("id", "uid", "org_id", "data").order_by("id"), 1000
+        )
+        for page in paginator.page_range:
+            for dashboard in paginator.page(page):
+                org_id = dashboard["org_id"]
+
+                # 仪表盘面板数量
+                dashboard_data = json.loads(dashboard["data"])
+                panels = dashboard_data.get("panels", [])
+                for panel in panels:
+                    if panel.get("type") == "row":
+                        org_metrics[org_id] += len(panel.get("panels", []))
+                    else:
+                        org_metrics[org_id] += 1
 
         for org_id, value in org_metrics.items():
             if org_id not in org_id_mapping_biz_id:
