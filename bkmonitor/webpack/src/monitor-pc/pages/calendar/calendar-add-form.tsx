@@ -194,7 +194,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     repeatNum: 1, // 重复x天、周、月
     repeatDays: [], // 重复的日期
     endDate: '', // 结束时间
-    endDateNoRepeat: false, // 结束时间永不重复
+    endDateNoRepeat: true, // 结束时间永不重复
   };
 
   /** 删除提示弹窗 */
@@ -273,7 +273,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
       repeatNum: 1, // 重复x天、周、月
       repeatDays: [], // 重复的日期
       endDate: '', // 结束时间
-      endDateNoRepeat: false, // 结束时间永不重复
+      endDateNoRepeat: true, // 结束时间永不重复
     };
   }
 
@@ -499,6 +499,11 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     this.hanldeEditSubmit(this.editData.is_first ? EDelAndEditType.all : EDelAndEditType.currentAndFuture);
   }
 
+  handleEndDateChange(val) {
+    this.repeatFormData.endDate = dayjs.tz(val).format('YYYY-MM-DD 23:59:59');
+    this.repeatFormData.endDateNoRepeat = false;
+  }
+
   render() {
     return (
       <bk-dialog
@@ -704,7 +709,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                 format='yyyy-MM-dd HH:mm:ss'
                 placeholder={this.$t('永不结束')}
                 value={this.repeatFormData.endDate}
-                onChange={val => (this.repeatFormData.endDate = dayjs.tz(val).format('YYYY-MM-DD 23:59:59'))}
+                onChange={this.handleEndDateChange}
               >
                 <div
                   class='repeat-end-date-footer'
