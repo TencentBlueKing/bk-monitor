@@ -1160,7 +1160,7 @@
         this.changePagination({ current });
       },
       handleCollectLimitChange(limit) {
-        this.changePagination({ limit });
+        this.changePagination({ limit, current: 1 });
       },
       changePagination(pagination = {}) {
         Object.assign(this.pagination, pagination);
