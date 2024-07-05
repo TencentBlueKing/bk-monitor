@@ -901,6 +901,10 @@ class CollectorHandler(object):
                     # 当更新itsm流程时 将diff更新前移
                     if not FeatureToggleObject.switch(name=FEATURE_COLLECTOR_ITSM):
                         self.data.target_subscription_diff = self.diff_target_nodes(target_nodes)
+
+                    if "collector_scenario_id" in params:
+                        model_fields["collector_scenario_id"] = params["collector_scenario_id"]
+
                     for key, value in model_fields.items():
                         setattr(self.data, key, value)
                     self.data.save()
