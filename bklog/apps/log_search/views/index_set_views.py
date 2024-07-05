@@ -24,7 +24,6 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.api import TransferApi
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -503,17 +502,6 @@ class IndexSetViewSet(ModelViewSet):
             sort_fields=data.get("sort_fields", []),
         )
 
-        # 创建/更新结果表路由信息
-        TransferApi.create_or_update_es_router(
-            {
-                "cluster_id": storage_cluster_id,
-                "index_set": ",".join([index["result_table_id"] for index in data["indexes"]]),
-                "source_type": index_set.scenario_id,
-                "data_label": index_set.scenario_id + "_index_set_" + str(index_set.index_set_id),
-                "table_id": "bklog_index_set_" + str(index_set.index_set_id) + ".__default__",
-                "space_uid": index_set.space_uid,
-            }
-        )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
     def update(self, request, *args, **kwargs):
