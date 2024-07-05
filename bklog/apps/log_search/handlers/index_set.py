@@ -1352,7 +1352,8 @@ class BaseIndexSetHandler(object):
                     "source_type": index_set.scenario_id,
                     "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
                     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
-                    "space_uid": index_set.space_uid,
+                    "space_id": index_set.space_uid,
+                    "space_type": index_set.space_uid.split("__")[0]
                 }
             )
         except Exception as e:
