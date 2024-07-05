@@ -19,6 +19,8 @@ import six
 from django.conf import settings
 from django.utils import timezone
 
+DEFAULT_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 
 def now():
     return timezone.now()
