@@ -77,7 +77,7 @@ def custom_exception_handler(exc, context):
             exc_code=DrfApiError.code,
             overview=msg,
             detail=msg,
-        )
+        ).to_dict()
         result = {
             "result": False,
             "code": DrfApiError.code,
