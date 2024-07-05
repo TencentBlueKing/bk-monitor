@@ -18,7 +18,6 @@ import uuid
 from typing import Dict, List, Optional, Union
 
 import kafka
-import six
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -33,7 +32,11 @@ from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.utils import consul_tools, hash_util
 
 from .common import Label, OptionBase
-from .constants import IGNORED_CONSUL_SYNC_DATA_IDS, IGNORED_STORAGE_CLUSTER_TYPES
+from .constants import (
+    IGNORED_CONSUL_SYNC_DATA_IDS,
+    IGNORED_STORAGE_CLUSTER_TYPES,
+    DataIdCreatedFromSystem,
+)
 from .space import Space, SpaceDataSource
 from .storage import (
     ClusterInfo,
@@ -113,6 +116,7 @@ class DataSource(models.Model):
         help_text="数据源属于的空间类型，允许授权给对应空间类型",
     )
     space_uid = models.CharField("所属空间的UID", max_length=256, default="")
+    created_from = models.CharField("数据源ID来源", max_length=16, default=DataIdCreatedFromSystem.BKGSE.value)
 
     class Meta:
         verbose_name = "数据源管理"
@@ -280,12 +284,7 @@ class DataSource(models.Model):
             "name": route_name,
             "stream_to": {
                 "stream_to_id": self.mq_cluster.gse_stream_to_id,
-                self.DEFAULT_MQ_TYPE: {
-                    "topic_name": self.mq_config.topic,
-                    "data_set": six.text_type(self.mq_config.topic[:-1]),
-                    "partition": self.mq_config.partition,
-                    "biz_id": 0,
-                },
+                self.DEFAULT_MQ_TYPE: {"topic_name": self.mq_config.topic},
             },
         }
 
@@ -414,6 +413,7 @@ class DataSource(models.Model):
         is_platform_data_id=False,
         authorized_spaces=None,
         space_uid=None,
+        created_from=DataIdCreatedFromSystem.BKGSE.value,
     ):
         """
         创建一个新的数据源, 如果创建过程失败则会抛出异常
@@ -437,6 +437,7 @@ class DataSource(models.Model):
         :param is_platform_data_id: 是否为平台级 ID
         :param authorized_spaces: 授权使用的空间ID
         :param space_uid: 空间 UID
+        :param created_from: 数据源 ID 来源
         :return: DataSource instance | raise Exception
         """
         # 判断两个使用到的标签是否存在
@@ -510,6 +511,7 @@ class DataSource(models.Model):
                 is_platform_data_id=is_platform_data_id,
                 # 如果空间类型为空，则默认为 all
                 space_type_id=space_type_id,
+                created_from=created_from,
             )
 
             # 由监控自己分配的dataid需要校验是否在合理的范围内
@@ -645,6 +647,12 @@ class DataSource(models.Model):
                 DataSourceOption.OPTION_ALIGN_TIME_UNIT,
             )
 
+    def can_refresh_consul_and_gse(self):
+        """判断是否可以刷新consul和gse"""
+        if self.is_enable and self.created_from == DataIdCreatedFromSystem.BKGSE.value:
+            return True
+        return False
+
     def update_config(
         self,
         operator,
@@ -658,6 +666,7 @@ class DataSource(models.Model):
         authorized_spaces=None,
         space_type_id=None,
         space_uid=None,
+        created_from=None,
     ):
         """
         更新一个数据源的配置，操作成功将会返回True 否则 抛出异常
@@ -670,6 +679,7 @@ class DataSource(models.Model):
         :param is_enable: 是否启用数据源
         :param space_type_id: 空间类型
         :param space_uid: 空间 uid
+        :param created_from: 数据源 ID 来源
         :return: True | raise Exception
         """
 
@@ -726,8 +736,9 @@ class DataSource(models.Model):
                     )
                 )
 
-        # 2.5 判断是否需要修改启用标记位
-        if is_enable is not None:
+        # 2.5 判断是否需要修改启用标记位，并且数据源ID来源 BKGSE
+        # TODO: 待 bkdata 支持停用后，再去添加具体的停用和启用逻辑
+        if is_enable is not None and self.created_from == DataIdCreatedFromSystem.BKGSE.value:
             consul_client = consul.BKConsul()
 
             self.is_enable = is_enable
@@ -757,13 +768,21 @@ class DataSource(models.Model):
             logger.info("data_id: %d update space_uid: %s", self.bk_data_id, space_uid)
             is_change = True
 
+        # 2.9 如果 data_id 来源切换到计算平台，则更新属性
+        if created_from is not None:
+            self.created_from = created_from
+            logger.info("data_id: %d update created_from: %s", self.bk_data_id, created_from)
+            is_change = True
+
         # 3. 如果有成功修改，提交修改
         if is_change:
             # 修改后更新ZK配置 和 consul配置
             self.last_modify_user = operator
             self.save()
-            self.refresh_consul_config()
-            self.refresh_gse_config()
+
+            # 使用同一的刷新配置
+            self.refresh_outer_config()
+
             logger.info("data_id->[%s] update success and notify zk & consul success." % self.bk_data_id)
 
         if authorized_spaces is not None:
@@ -788,16 +807,7 @@ class DataSource(models.Model):
         刷新GSE 配置，告知GSE DATA服务最新的MQ配置信息
         :return: True | raise Exception
         """
-        from metadata.models.data_link.constants import DataLinkKind
-        from metadata.models.data_link.resource import DataLinkResourceConfig
-        from metadata.models.data_link.utils import get_bkdata_data_id_name
-
-        if (
-            not self.is_enable
-            or DataLinkResourceConfig.objects.filter(
-                name=get_bkdata_data_id_name(self.data_name), kind=DataLinkKind.DATAID.value
-            ).exists()
-        ):
+        if not self.can_refresh_consul_and_gse():
             logger.info(
                 "data->[%s] is not enable or has been moved to new data link, nothing will refresh to outer systems.",
                 self.bk_data_id,
@@ -1084,16 +1094,8 @@ class DataSource(models.Model):
         3. Consul的配置
         :return: True | raise Exception
         """
-        from metadata.models.data_link.constants import DataLinkKind
-        from metadata.models.data_link.resource import DataLinkResourceConfig
-        from metadata.models.data_link.utils import get_bkdata_data_id_name
 
-        if (
-            not self.is_enable
-            or DataLinkResourceConfig.objects.filter(
-                name=get_bkdata_data_id_name(self.data_name), kind=DataLinkKind.DATAID.value
-            ).exists()
-        ):
+        if not self.can_refresh_consul_and_gse():
             logger.info(
                 "data->[%s] is not enable or has been moved to new data link, nothing will refresh to outer systems.",
                 self.bk_data_id,
