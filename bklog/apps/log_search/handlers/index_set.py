@@ -1325,6 +1325,16 @@ class BaseIndexSetHandler(object):
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
         return self.index_set_obj
 
+    @staticmethod
+    def get_rt_id(index_set_id, collector_config_id, indexes):
+        if collector_config_id:
+            return ",".join([index["result_table_id"] for index in indexes])
+        return f"bklog_index_set_{str(index_set_id)}.__default__"
+
+    @staticmethod
+    def get_data_label(scenario_id, index_set_id):
+        return f"{scenario_id}_index_set_{str(index_set_id)}"
+
     def post_create(self, index_set):
         # 新建授权
         Permission(username=self.username).grant_creator_action(
@@ -1333,7 +1343,21 @@ class BaseIndexSetHandler(object):
             ),
             creator=index_set.created_by,
         )
-
+        # 创建结果表路由信息
+        try:
+            TransferApi.create_or_update_es_router(
+                {
+                    "cluster_id": index_set.storage_cluster_id,
+                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
+                    "source_type": index_set.scenario_id,
+                    "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
+                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
+                    "space_id": index_set.space_uid.split("__")[-1],
+                    "space_type": index_set.space_uid.split("__")[0]
+                }
+            )
+        except Exception as e:
+            logger.exception(f"创建/更新索引({index_set.index_set_id})es路由失败，原因：{e}")
         return True
 
     def pre_update(self):
