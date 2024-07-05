@@ -7,7 +7,7 @@ settings:
 overrides:
   '@blueking/user-selector>vue': v2-latest
   bk-magic-vue: 2.5.8
-  eslint: ^9.2.0
+  eslint: ^9.6.0
   monaco-editor: 0.44.0
   monaco-editor-webpack-plugin>monaco-editor: 0.44.0
   semver: ^7.6.0
@@ -124,7 +124,7 @@ importers:
         version: 1.0.5
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.8
-        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -197,7 +197,7 @@ importers:
         version: 0.0.2
       '@blueking/functional-dependency':
         specifier: 0.0.1-beta.10
-        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.5
         version: 1.0.5
@@ -473,7 +473,7 @@ importers:
         version: 0.0.2
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.8
-        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@toast-ui/editor':
         specifier: ^3.2.2
         version: 3.2.2
@@ -573,7 +573,7 @@ importers:
         version: 4.8.24
       '@blueking/date-picker':
         specifier: 2.0.0-beta.21
-        version: 2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31)
+        version: 2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -999,7 +999,7 @@ packages:
     engines: {node: ^10.13.0 || ^12.13.0 || >=14.0.0}
     peerDependencies:
       '@babel/core': ^7.11.0
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       '@babel/core': 7.24.7
       '@nicolo-ribaudo/eslint-scope-5-internals': 5.1.1-v1
@@ -2438,12 +2438,6 @@ packages:
       '@vue/runtime-dom': 3.4.31
     dev: false
 
-  /@blueking/bkui-library@0.0.0-beta.6:
-    resolution: {integrity: sha512-1M6pNDIOQYWzOu3uVRxo0h67d+huTbBQYDjj8+QF4Ka3HSe/mLgSrIkaZhhUVlJJl5zP8HK+UwXpkWcjL8zIsw==}
-    dependencies:
-      '@vue/runtime-dom': 3.4.31
-    dev: false
-
   /@blueking/date-picker@2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16):
     resolution: {integrity: sha512-QdH/D6wIfz37SB16Fho2Snxl+LGblYZRPNh9Amughfdxi/WPMvSsujd+oy4ADDEOK/sFe6nFQKwZHQXtidRw3g==}
     engines: {node: '>=18.16.0'}
@@ -2459,7 +2453,7 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/date-picker@2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31):
+  /@blueking/date-picker@2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31):
     resolution: {integrity: sha512-QdH/D6wIfz37SB16Fho2Snxl+LGblYZRPNh9Amughfdxi/WPMvSsujd+oy4ADDEOK/sFe6nFQKwZHQXtidRw3g==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
@@ -2468,7 +2462,7 @@ packages:
       dayjs: ^1.11.10
       vue: ^3
     dependencies:
-      '@blueking/bkui-library': 0.0.0-beta.6
+      '@blueking/bkui-library': 0.0.0-beta.4
       bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@3.4.31)
       dayjs: 1.11.11
       vue: 3.4.31(typescript@5.5.3)
@@ -2487,19 +2481,6 @@ packages:
       vue: ^3
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
-      bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@2.7.16)
-      vue: 2.7.16
-    dev: false
-
-  /@blueking/functional-dependency@0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
-    resolution: {integrity: sha512-bQXGIJP5tI+IHtS7moLyqUqX4dDASCCShc2tniMdWakFJCXH7WZasHPJGmzieNhGIzIRFk4lwlVPY6kk5TEzJQ==}
-    engines: {node: '>=18.16.0'}
-    peerDependencies:
-      '@blueking/bkui-library': ^0.0.0-beta.4
-      bkui-vue: ^1.0.3-beta.38
-      vue: ^3
-    dependencies:
-      '@blueking/bkui-library': 0.0.0-beta.6
       bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@2.7.16)
       vue: 2.7.16
     dev: false
@@ -2536,19 +2517,6 @@ packages:
       vue: ^3
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
-      bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@2.7.16)
-      vue: 2.7.16
-    dev: false
-
-  /@blueking/search-select-v3@0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
-    resolution: {integrity: sha512-0Wg/GbGM9ryQ/R3SdiYa8hwlYWK8CMw8XcAgInEQRHZ+W6BrFzitk28PYPUGsJh0zDVwiOpRHQF1AhiJtp4baQ==}
-    engines: {node: '>=18.16.0'}
-    peerDependencies:
-      '@blueking/bkui-library': ^0.0.0-beta.4
-      bkui-vue: ^1.0.3-beta.38
-      vue: ^3
-    dependencies:
-      '@blueking/bkui-library': 0.0.0-beta.6
       bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@2.7.16)
       vue: 2.7.16
     dev: false
@@ -3034,7 +3002,7 @@ packages:
     resolution: {integrity: sha512-1/sA4dwrzBAyeUoQ6oxahHKmrZvsnLCg4RfxW3ZFGGmQkSNQPFNLV9CUEFQP1x9EYXHTo5p6xdhZM1Ne9p/AfA==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       eslint: 9.6.0
       eslint-visitor-keys: 3.4.3
@@ -4016,7 +3984,7 @@ packages:
     engines: {node: ^18.18.0 || >=20.0.0}
     peerDependencies:
       '@typescript-eslint/parser': ^7.0.0
-      eslint: ^9.2.0
+      eslint: ^9.6.0
       typescript: '*'
     peerDependenciesMeta:
       typescript:
@@ -4042,7 +4010,7 @@ packages:
     resolution: {integrity: sha512-k9fYuQNnypLFcqORNClRykkGOMOj+pV6V91R4GO/l1FDGwpqmSwoOQrOHo3cGaH63e+D3ZiCAOsuS/D2c99j/A==}
     engines: {node: ^18.18.0 || >=20.0.0}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
       typescript: '*'
     peerDependenciesMeta:
       typescript:
@@ -4071,7 +4039,7 @@ packages:
     resolution: {integrity: sha512-SkgriaeV6PDvpA6253PDVep0qCqgbO1IOBiycjnXsszNTVQe5flN5wR5jiczoEoDEnAqYFSFFc9al9BSGVltkg==}
     engines: {node: ^18.18.0 || >=20.0.0}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
       typescript: '*'
     peerDependenciesMeta:
       typescript:
@@ -4118,7 +4086,7 @@ packages:
     resolution: {integrity: sha512-hfDMDqaqOqsUVGiEPSMLR/AjTSCsmJwjpKkYQRo1FNbmW4tBwBspYDwO9eh7sKSTwMQgBw9/T4DHudPaqshRWA==}
     engines: {node: ^18.18.0 || >=20.0.0}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       '@eslint-community/eslint-utils': 4.4.0(eslint@9.6.0)
       '@typescript-eslint/scope-manager': 7.15.0
@@ -7107,7 +7075,7 @@ packages:
     resolution: {integrity: sha512-NSWl5BFQWEPi1j4TjVNItzYV7dZXZ+wP6I6ZhrBGpChQhZRUaElihE9uRRkcbRnNb76UMKDF3r+WTmNcGPKsqw==}
     hasBin: true
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       eslint: 9.6.0
     dev: true
@@ -7118,7 +7086,7 @@ packages:
       '@babel/core': ^7.14.6
       '@typescript-eslint/eslint-plugin': ^4.27.0 || ^5.12.0
       '@typescript-eslint/parser': ^4.27.0 || ^5.12.0
-      eslint: ^9.2.0
+      eslint: ^9.6.0
       eslint-plugin-prettier: ^3.4.0 || ^4.0.0
       prettier: ^2.3.1
     dependencies:
@@ -7180,7 +7148,7 @@ packages:
     resolution: {integrity: sha512-FTi6Wi5dSrkXEVHHojRwyRZZnNFXGnTytuWlrJ3P9HkmMZWTZC3vUaDpyb6jNkumdlrqK0FN8eI3XJG70FwBNA==}
     engines: {node: '>=12'}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       chalk: 4.1.2
       eslint: 9.6.0
@@ -7190,7 +7158,7 @@ packages:
     resolution: {integrity: sha512-bftqiG4H8zwABoczSstgKMMIoeySM2wOfceMoOh7Br1tqP3FpSOh1IGCmYpuPVp07L4aInxQ68Uq8JMwN83dkg==}
     engines: {node: '>=18'}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       eslint: 9.6.0
       eslint-utils: 3.0.0(eslint@9.6.0)
@@ -7201,7 +7169,7 @@ packages:
     engines: {node: '>=4'}
     peerDependencies:
       '@typescript-eslint/parser': '*'
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     peerDependenciesMeta:
       '@typescript-eslint/parser':
         optional: true
@@ -7235,7 +7203,7 @@ packages:
     resolution: {integrity: sha512-XrtBtiu5rbQv88gl+1e2RQud9te9luYNvKIgM9emttQ2zutHPzY/AQUucwxscDKV4qlTkvLTxjOFvxqeDpPorw==}
     peerDependencies:
       astro-eslint-parser: ^1.0.2
-      eslint: ^9.2.0
+      eslint: ^9.6.0
       svelte: '>=3.0.0'
       svelte-eslint-parser: ^0.37.0
       vue-eslint-parser: '>=9.0.0'
@@ -7264,7 +7232,7 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       '@types/eslint': '>=8.0.0'
-      eslint: ^9.2.0
+      eslint: ^9.6.0
       eslint-config-prettier: '*'
       prettier: '>=3.0.0'
     peerDependenciesMeta:
@@ -7284,7 +7252,7 @@ packages:
     resolution: {integrity: sha512-5Dw3yxEyuBSXTzT5/Ge1X5kIkRTQ3nvBn/VwPwInNiZBSJOO/timWMUaflONnFBzU6NhB68lxnCda7ULV5N7LA==}
     engines: {node: ^14.17.0 || >=16.0.0}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       '@eslint-community/eslint-utils': 4.4.0(eslint@9.6.0)
       eslint: 9.6.0
@@ -7327,7 +7295,7 @@ packages:
     resolution: {integrity: sha512-uuQC43IGctw68pJA1RgbQS8/NP7rch6Cwd4j3ZBtgo4/8Flj4eGE7ZYSZRN3iq5pVUv6GPdW5Z1RFleo84uLDA==}
     engines: {node: ^10.0.0 || ^12.0.0 || >= 14.0.0}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       eslint: 9.6.0
       eslint-visitor-keys: 2.1.0
@@ -13654,7 +13622,7 @@ packages:
     resolution: {integrity: sha512-2rYRLWlIpaiN8xbPiDyXZXRgLGOtWxERV7ND5fFAv5qo1D2N9Fu9MNajBNc6o13lZ+24DAWCkQCvj4klgmcITg==}
     engines: {node: ^14.17.0 || >=16.0.0}
     peerDependencies:
-      eslint: ^9.2.0
+      eslint: ^9.6.0
     dependencies:
       debug: 4.3.5(supports-color@5.5.0)
       eslint: 9.6.0
