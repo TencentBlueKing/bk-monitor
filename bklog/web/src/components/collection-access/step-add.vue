@@ -1724,7 +1724,7 @@
           }
           params.paths = params.paths.map(item => (typeof item === 'object' ? item.value : item)) || [];
           params.exclude_files =
-            params.exclude_files?.map(item => (typeof item === 'object' ? item.value : item)) || [];
+            params.exclude_files?.map(item => (typeof item === 'object' ? item.value : item)).filter(Boolean) || [];
         } else {
           params = this.$refs.formConfigRef.getWinParamsData;
         }
