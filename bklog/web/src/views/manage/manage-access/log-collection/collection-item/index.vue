@@ -818,7 +818,7 @@
       !this.authGlobalInfo && (await this.initLabelSelectList());
       !this.authGlobalInfo && this.requestData();
     },
-    unmounted() {
+    beforeDestroy() {
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
     },
@@ -1160,7 +1160,7 @@
         this.changePagination({ current });
       },
       handleCollectLimitChange(limit) {
-        this.changePagination({ limit });
+        this.changePagination({ limit, current: 1 });
       },
       changePagination(pagination = {}) {
         Object.assign(this.pagination, pagination);

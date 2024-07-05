@@ -122,7 +122,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       { id: 16, name: i18n.t('修改通知间隔') },
       { id: 17, name: i18n.t('修改通知模板') },
       { id: 18, name: i18n.t('修改告警风暴开关') },
-      { id: 19, name: i18n.t('导出Yaml') },
+      { id: 19, name: i18n.t('导出Yaml（As Code功能）') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -1286,20 +1286,27 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   handleHeadSelectChange(v) {
     // 导出 Yaml 文件
     if (v === 19) {
-      exportConfigFile({
-        rule_ids: (this.table.select || []).map(item => item.id),
-        with_related_config: true,
-      })
-        .then(data => {
-          if (!data?.download_url?.length) return;
-          downFile(data.download_url, this.$tc('策略导出'));
-        })
-        .catch(() => {
-          this.$bkMessage({
-            message: this.$t('导出出错了'),
-            theme: 'error',
-          });
-        });
+      this.$bkInfo({
+        title: this.$t('请确认是否导出'),
+        subTitle: this.$t('导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作'),
+        confirmLoading: true,
+        confirmFn: async () => {
+          await exportConfigFile({
+            rule_ids: (this.table.select || []).map(item => item.id),
+            with_related_config: true,
+          })
+            .then(data => {
+              if (!data?.download_url?.length) return;
+              downFile(data.download_url, this.$tc('策略导出'));
+            })
+            .catch(() => {
+              this.$bkMessage({
+                message: this.$t('导出出错了'),
+                theme: 'error',
+              });
+            });
+        },
+      });
       return;
     }
     // 批量增删目标

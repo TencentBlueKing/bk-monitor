@@ -444,6 +444,7 @@ class ActionEnum:
         related_resource_types=[],
         version=1,
     )
+
     VIEW_APM_APPLICATION = ActionMeta(
         id="view_apm_application_v2",
         name=_("APM应用查看"),
@@ -453,6 +454,7 @@ class ActionEnum:
         related_actions=[VIEW_BUSINESS.id],
         version=1,
     )
+
     MANAGE_APM_APPLICATION = ActionMeta(
         id="manage_apm_application_v2",
         name=_("APM应用管理"),
@@ -462,6 +464,7 @@ class ActionEnum:
         related_actions=[],
         version=1,
     )
+
     MANAGE_CALENDAR = ActionMeta(
         id="manage_calendar",
         name=_("日历服务管理"),
@@ -478,6 +481,26 @@ class ActionEnum:
         type="manage",
         related_resource_types=[SPACE_RESOURCE],
         related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
+    VIEW_INCIDENT = ActionMeta(
+        id="view_incident",
+        name=_("故障查看"),
+        name_en="View Incident",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
+    MANAGE_INCIDENT = ActionMeta(
+        id="manage_incident",
+        name=_("故障管理"),
+        name_en="Manage Incident",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_INCIDENT.id],
         version=1,
     )
 
@@ -562,6 +585,8 @@ MINI_ACTION_IDS = [
     ActionEnum.IMPORT_CONFIG.id,
     ActionEnum.VIEW_APM_APPLICATION.id,
     ActionEnum.MANAGE_APM_APPLICATION.id,
+    ActionEnum.VIEW_INCIDENT.id,
+    ActionEnum.MANAGE_INCIDENT.id,
 ]
 # CMDB（主机依赖）权限
 CMDB_REQUIRE_ACTION_IDS = [
