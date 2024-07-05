@@ -163,7 +163,7 @@ def failed(message="", error_code=None, error_name=None, exc_type=None, popup_ty
     :param popup_type 弹窗类型（danger为红框，warn为黄框）
     :param options: 附加的键值对，将包含在响应字典中。
 
-    :return: 包含错误响应的字典，键包括：'code' 'name' 'result', 'message', 'data', 'msg' 'extra'。
+    :return: 包含错误响应的字典，键包括：'code' 'name' 'result', 'message', 'data', 'msg' 'error_details'。
     """
     if not isinstance(message, str):
         if isinstance(message, str):
@@ -176,7 +176,7 @@ def failed(message="", error_code=None, error_name=None, exc_type=None, popup_ty
         "message": message,
         "data": {},
         "msg": message,
-        "extra": ErrorDetails(
+        "error_details": ErrorDetails(
             exc_type=exc_type,
             exc_code=error_code,
             overview=message,

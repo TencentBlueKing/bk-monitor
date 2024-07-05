@@ -51,6 +51,8 @@ class Error(Exception):
     level = logging.ERROR
     # 错误描述
     description = ""
+    # 错误信息详情
+    error_details = None
 
     def __init__(self, context=None, data=None, extra=None, **kwargs):
         if not context:
@@ -72,10 +74,11 @@ class Error(Exception):
 
         # 返回给前端的额外字段
         self.extra = extra
+        self.set_details(exc_type=type(self).__name__, exc_code=self.code, overview=self.message, detail=self.data)
 
     def set_details(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warn"):
         """设置错误详情信息"""
-        self.details = ErrorDetails(exc_type, exc_code, overview, detail, popup_message)
+        self.error_details = ErrorDetails(exc_type, exc_code, overview, detail, popup_message).to_dict()
 
     def __str__(self):
         return self.message

@@ -69,7 +69,7 @@ def custom_exception_handler(exc, context):
             "name": exc.name,
             "message": exc.message,
             "data": exc.data,
-            "extra": exc.details.to_dict() if exc.details else {},
+            "error_details": exc.error_details,
         }
         result.update(getattr(exc, "extra", {}))
         response = Response(result, status=exc.status_code)
@@ -92,7 +92,7 @@ def custom_exception_handler(exc, context):
             "name": DrfApiError.name,
             "message": msg,
             "data": exc.detail,
-            "extra": error_detail,
+            "error_details": error_detail,
         }
 
         response = Response(result, status=exc.status_code, headers=headers)
@@ -104,7 +104,7 @@ def custom_exception_handler(exc, context):
             "name": HTTP404Error.name,
             "message": msg,
             "data": None,
-            "extra": ErrorDetails(
+            "error_details": ErrorDetails(
                 exc_type=type(exc).__name__,
                 exc_code=HTTP404Error.code,
                 overview=msg,
