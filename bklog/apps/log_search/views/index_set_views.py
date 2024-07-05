@@ -503,9 +503,8 @@ class IndexSetViewSet(ModelViewSet):
             sort_fields=data.get("sort_fields", []),
         )
 
-        # 创建结果表路由信息
-
-        TransferApi.create_es_router(
+        # 创建/更新结果表路由信息
+        TransferApi.create_or_update_es_router(
             {
                 "cluster_id": storage_cluster_id,
                 "index_set": ",".join([index["result_table_id"] for index in data["indexes"]]),
