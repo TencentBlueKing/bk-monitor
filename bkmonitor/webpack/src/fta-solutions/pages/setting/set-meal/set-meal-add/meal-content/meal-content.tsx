@@ -26,22 +26,14 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { createDemoAction, getDemoActionDetail } from 'monitor-api/modules/action';
-import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import CommonItem from '../components/common-item';
-import SimpleForm from '../components/simple-form';
 import AlertNotice from './alert-notice';
 import HttpCallBack from './http-callback';
-import {
-  IMealData,
-  INotice,
-  IPeripheral,
-  IWebhook,
-  mealDataInit,
-  transformMealContentParams,
-} from './meal-content-data';
+import { IMealData, INotice, IPeripheral, IWebhook, mealDataInit } from './meal-content-data';
+import MealDebugDialog from './meal-debug-dialog';
 import PeripheralSystem from './peripheral-system';
 import { setVariableToString } from './utils';
 
@@ -308,15 +300,18 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       } else {
         v = value;
       }
+      const vPlaceholder = !!v ? `${this.$t('案例')} : ${v}` : '';
       const obj = {
         key: item.key,
-        value: v,
+        value: '',
         lable: item.formItemProps.label,
-        placeholder: item?.formChildProps?.placeholder || '',
+        placeholder: vPlaceholder || item?.formChildProps?.placeholder || '',
         subTitle,
+        required: !!item?.formItemProps?.required,
       };
       variableList.push(obj);
     });
+    console.log(variableList, formList, peripheralData);
     this.debugPeripheralForm = variableList;
   }
 
@@ -326,124 +321,8 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
     return list?.filter((item, index, arr) => arr.indexOf(item, 0) === index) || []; // 去重
   }
 
-  // 调试数据替换周边系统变量数据
-  setDebugPeripheralData() {
-    const variableMap = {};
-    this.debugPeripheralForm.forEach(item => {
-      variableMap[item.key] = item.value;
-    });
-    this.debugData.peripheral.data.templateDetail = variableMap;
-  }
-
-  handleCloseDebug() {
-    this.isShowDebug = false;
-  }
-
   handleDebugWebhookDataChange(data: IWebhook) {
     this.debugData.webhook = data;
-  }
-  // 开始调试
-  async handleDebugStart() {
-    let executeConfigData = null;
-    switch (this.debugData.type) {
-      case 'webhook':
-        executeConfigData = transformDataKey(
-          transformMealContentParams({
-            pluginType: 'webhook',
-            webhook: this.debugData.webhook as any,
-          }),
-          true
-        );
-        break;
-      case 'peripheral':
-        executeConfigData = this.peripheralExecuteConfig();
-        break;
-    }
-    this.debugActionLoading = true;
-    const actionId = await createDemoAction({
-      execute_config: executeConfigData,
-      plugin_id: this.data.id,
-      creator: 'username',
-      name: this.name || undefined,
-    })
-      .then(data => data.action_id)
-      .catch(() => 0);
-    this.debugActionLoading = false;
-    if (actionId) {
-      this.isShowDebug = false;
-      this.debugActionId = actionId;
-      this.isQueryStatus = true;
-      this.debugStatusData = await this.getDebugStatus();
-    }
-  }
-
-  // 周边系统调试参数
-  peripheralExecuteConfig() {
-    let executeConfigData = null;
-    this.setDebugPeripheralData();
-    const { templateDetail } = this.debugData.peripheral.data;
-    executeConfigData = transformDataKey(
-      transformMealContentParams({
-        pluginType: 'peripheral',
-        peripheral: this.debugData.peripheral,
-      }),
-      true
-    );
-    executeConfigData.template_detail = templateDetail;
-    return executeConfigData;
-  }
-
-  // 轮询调试状态
-  getDebugStatus() {
-    let timer = null;
-
-    return new Promise(async resolve => {
-      if (!this.isQueryStatus) {
-        resolve({});
-        return;
-      }
-      this.debugStatusData = await getDemoActionDetail({ action_id: this.debugActionId })
-        .then(res => (this.isQueryStatus ? res : {}))
-        .catch(() => false);
-      if (this.debugStatusData.is_finished || !this.debugStatusData) {
-        resolve(this.debugStatusData);
-      } else {
-        timer = setTimeout(() => {
-          clearTimeout(timer);
-          if (!this.isQueryStatus) {
-            resolve({});
-            return;
-          }
-          this.getDebugStatus().then(data => {
-            if (!this.isQueryStatus) {
-              this.debugStatusData = {};
-              resolve(this.debugStatusData);
-              return;
-            }
-            this.debugStatusData = data as any;
-            if (this.debugStatusData.is_finished) {
-              resolve(this.debugStatusData);
-            }
-          });
-        }, 2000);
-      }
-    });
-  }
-
-  /**
-   * @description: 停止调试
-   * @param {*} isRestart 是否重新调试
-   * @return {*}
-   */
-  handleStopDebug(isRestart = false) {
-    this.debugStatusData = {};
-    this.isQueryStatus = false;
-    if (isRestart) {
-      this.isShowDebug = true;
-      if (this.debugData.type === 'peripheral') {
-        this.debugData.peripheral = deepClone(this.data.peripheral);
-      }
-    }
   }
 
   /* 跳转周边系统 */
@@ -503,7 +382,6 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             </bk-select>
           </CommonItem>
         </div>
-        {this.getDebugDialog()}
         {this.data.id ? (
           <div class='wrapper'>
             {(() => {
@@ -547,157 +425,17 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             })()}
           </div>
         ) : undefined}
+        <MealDebugDialog
+          debugData={this.debugData}
+          debugPeripheralForm={this.debugPeripheralForm}
+          mealName={this.name}
+          pluginId={this.data.id}
+          show={this.isShowDebug}
+          onDebugPeripheralStop={() => (this.debugData.peripheral = deepClone(this.data.peripheral))}
+          onDebugWebhookDataChange={v => this.handleDebugWebhookDataChange(v)}
+          onShowChange={v => (this.isShowDebug = v)}
+        ></MealDebugDialog>
       </div>
     );
-  }
-
-  /* 以下为调试内容 */
-  debugStatusText(content) {
-    if (!content) return undefined;
-    const contentText = { text: '', link: '' };
-    const arrContent = content?.text?.split('$');
-    contentText.text = arrContent?.[0] || '';
-    contentText.link = arrContent?.[1] || '';
-    return (
-      <div class='info-jtnr'>
-        {contentText.text}
-        {contentText.link ? (
-          <span
-            class='info-jtnr-link'
-            onClick={() => content?.url && window.open(content.url)}
-          >
-            <span class='icon-monitor icon-copy-link'></span>
-            {contentText.link}
-          </span>
-        ) : undefined}
-      </div>
-    );
-  }
-
-  debugStatusIcon() {
-    const loading = (
-      <svg
-        class='loading-svg'
-        viewBox='0 0 64 64'
-      >
-        <g>
-          <path d='M20.7,15c1.6,1.6,1.6,4.1,0,5.7s-4.1,1.6-5.7,0l-2.8-2.8c-1.6-1.6-1.6-4.1,0-5.7s4.1-1.6,5.7,0L20.7,15z' />
-          <path d='M12,28c2.2,0,4,1.8,4,4s-1.8,4-4,4H8c-2.2,0-4-1.8-4-4s1.8-4,4-4H12z' />
-          <path d='M15,43.3c1.6-1.6,4.1-1.6,5.7,0c1.6,1.6,1.6,4.1,0,5.7l-2.8,2.8c-1.6,1.6-4.1,1.6-5.7,0s-1.6-4.1,0-5.7L15,43.3z' />
-          <path d='M28,52c0-2.2,1.8-4,4-4s4,1.8,4,4v4c0,2.2-1.8,4-4,4s-4-1.8-4-4V52z' />
-          <path d='M51.8,46.1c1.6,1.6,1.6,4.1,0,5.7s-4.1,1.6-5.7,0L43.3,49c-1.6-1.6-1.6-4.1,0-5.7s4.1-1.6,5.7,0L51.8,46.1z' />
-          <path d='M56,28c2.2,0,4,1.8,4,4s-1.8,4-4,4h-4c-2.2,0-4-1.8-4-4s1.8-4,4-4H56z' />
-          <path d='M46.1,12.2c1.6-1.6,4.1-1.6,5.7,0s1.6,4.1,0,5.7l0,0L49,20.7c-1.6,1.6-4.1,1.6-5.7,0c-1.6-1.6-1.6-4.1,0-5.7L46.1,12.2z' />
-          <path d='M28,8c0-2.2,1.8-4,4-4s4,1.8,4,4v4c0,2.2-1.8,4-4,4s-4-1.8-4-4V8z' />
-        </g>
-      </svg>
-    );
-    const statusMap = {
-      received: loading,
-      running: loading,
-      success: (
-        <div class='success'>
-          <span class='icon-monitor icon-mc-check-small'></span>
-        </div>
-      ),
-      failure: (
-        <div class='failure'>
-          <span class='icon-monitor icon-mc-close'></span>
-        </div>
-      ),
-    };
-    return statusMap[this.debugStatusData?.status];
-  }
-
-  debugStatusTitle() {
-    const statusMap = {
-      received: `${this.$t('调试中...')}...`,
-      running: `${this.$t('调试中...')}...`,
-      success: this.$t('调试成功'),
-      failure: this.$t('调试失败'),
-    };
-    return statusMap[this.debugStatusData?.status];
-  }
-
-  debugStatusOperate() {
-    const statusMap = {
-      success: (
-        <div class='status-operate'>
-          {/* <bk-button theme="primary" style={{ marginRight: '8px' }}>{this.$t('查看详情')}</bk-button> */}
-          <bk-button onClick={() => this.handleStopDebug()}>{this.$t('button-完成')}</bk-button>
-        </div>
-      ),
-      failure: (
-        <div class='status-operate'>
-          <bk-button
-            theme='primary'
-            onClick={() => this.handleStopDebug(true)}
-          >
-            {this.$t('再次调试')}
-          </bk-button>
-        </div>
-      ),
-    };
-    return statusMap[this.debugStatusData?.status];
-  }
-
-  // 调试窗口
-  getDebugDialog() {
-    return [
-      <bk-dialog
-        width={this.debugData.type === 'webhook' ? 766 : 480}
-        extCls={'meal-content-debug-dialog'}
-        headerPosition={'left'}
-        maskClose={false}
-        renderDirective={'if'}
-        title={this.$t('输入变量')}
-        value={this.isShowDebug}
-        on-cancel={this.handleCloseDebug}
-      >
-        <div>
-          {this.debugData.type === 'webhook' && (
-            <HttpCallBack
-              isEdit={true}
-              isOnlyHttp={true}
-              value={this.debugData.webhook}
-              onChange={data => this.handleDebugWebhookDataChange(data)}
-            ></HttpCallBack>
-          )}
-          {this.debugData.type === 'peripheral' && (
-            <SimpleForm
-              forms={this.debugPeripheralForm}
-              onChange={data => (this.debugPeripheralForm = data)}
-            ></SimpleForm>
-          )}
-        </div>
-        <div slot='footer'>
-          <bk-button
-            style={{ marginRight: '8px' }}
-            loading={this.debugActionLoading}
-            theme='primary'
-            onClick={() => this.handleDebugStart()}
-          >
-            {this.$t('调试')}
-          </bk-button>
-          <bk-button onClick={this.handleCloseDebug}>{this.$t('取消')}</bk-button>
-        </div>
-      </bk-dialog>,
-      <bk-dialog
-        width={400}
-        extCls={'meal-content-running-dialog'}
-        maskClose={false}
-        renderDirective={'if'}
-        showFooter={false}
-        value={!!this.debugStatusData?.status}
-        on-cancel={() => this.handleStopDebug()}
-      >
-        <div class='status-content'>
-          <div class='spinner'>{this.debugStatusIcon()}</div>
-          <div class='status-title'>{this.debugStatusTitle()}</div>
-          <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
-          {this.debugStatusOperate()}
-        </div>
-      </bk-dialog>,
-    ];
   }
 }
