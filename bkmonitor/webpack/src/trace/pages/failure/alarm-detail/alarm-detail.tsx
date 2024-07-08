@@ -29,13 +29,9 @@ import { useI18n } from 'vue-i18n';
 import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
+import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
+import { random } from 'monitor-common/utils/utils.js';
 
-import {
-  feedbackIncidentRoot,
-  incidentAlertList,
-  incidentRecordOperation,
-} from '../../../../monitor-api/modules/incident';
-import { random } from '../../../../monitor-common/utils/utils.js';
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';

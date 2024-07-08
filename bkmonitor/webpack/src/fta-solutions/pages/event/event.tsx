@@ -939,10 +939,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
-        if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
-        }
+      .catch(({ code }) => {
+        // if (code !== grammaticalErrorCode) {
+        //   this.$bkMessage({ message, theme: 'error' });
+        // }
         return {
           aggs: [],
           alerts: [],
