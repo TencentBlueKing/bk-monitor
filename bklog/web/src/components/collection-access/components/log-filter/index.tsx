@@ -179,7 +179,7 @@ export default class LogFilter extends tsc<object> {
       };
       currentGroup.push(mappingFilter);
       // 检查下一个 filter
-      if (mappingFilter.logic_op === 'or' || index === filters.length - 1) {
+      if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
         groups.push(currentGroup);
         currentGroup = [];
       }
