@@ -738,7 +738,10 @@ class DataSource(models.Model):
 
         # 2.5 判断是否需要修改启用标记位，并且数据源ID来源 BKGSE
         # TODO: 待 bkdata 支持停用后，再去添加具体的停用和启用逻辑
-        if is_enable is not None and self.created_from == DataIdCreatedFromSystem.BKGSE.value:
+        if is_enable is not None and (
+            self.created_from == DataIdCreatedFromSystem.BKGSE.value
+            or created_from == DataIdCreatedFromSystem.BKGSE.value
+        ):
             consul_client = consul.BKConsul()
 
             self.is_enable = is_enable
