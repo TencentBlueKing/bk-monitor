@@ -27,6 +27,7 @@ import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Input } from 'bk-magic-vue';
+import { $bkPopover } from 'bkui-vue/lib/popover';
 
 import './auto-input.scss';
 
@@ -133,7 +134,7 @@ export default class AutoInput extends tsc<IAuto> {
   // 提示列表显示方法
   handlePopoverShow() {
     if (!this.popoverInstance) {
-      this.popoverInstance = this.$bkPopover(this.inputEl, {
+      this.popoverInstance = $bkPopover(this.inputEl, {
         content: this.tipsListEl,
         arrow: false,
         flip: false,
