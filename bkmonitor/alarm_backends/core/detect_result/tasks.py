@@ -14,6 +14,7 @@ import datetime
 import logging
 import time
 
+from celery.task import task
 from django.conf import settings
 
 from alarm_backends.core.detect_result.clean import CleanResult
@@ -31,6 +32,7 @@ def recover_weixin_robot_limit():
         settings.WECOM_ROBOT_BIZ_WHITE_LIST = []
 
 
+@task(ignore_result=True, queue="celery_cron")
 def clean_expired_detect_result(strategy_range=None):
     # 任务分发
     if strategy_range is None:
