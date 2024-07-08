@@ -38,8 +38,8 @@ def clean_expired_detect_result(strategy_range=None):
     if strategy_range is None:
         recover_weixin_robot_limit()
         strategy_score_list = list(CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score"))
-        if 0 not in strategy_score_list:
-            strategy_score_list = [0] + strategy_score_list
+        strategy_score_list.append(0)
+        strategy_score_list = sorted(set(strategy_score_list))
         for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
             clean_expired_detect_result.delay(strategy_range=s_range)
         return
