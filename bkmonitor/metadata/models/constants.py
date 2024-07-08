@@ -471,3 +471,10 @@ class EsSourceType(Enum):
     LOG = "log"
     BKDATA = "bkdata"
     ES = "es"
+
+
+class DataIdCreatedFromSystem(Enum):
+    """数据源 ID 来源"""
+
+    BKGSE = "bkgse"
+    BKDATA = "bkdata"
