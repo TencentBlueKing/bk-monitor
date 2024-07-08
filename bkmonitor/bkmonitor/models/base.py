@@ -822,15 +822,13 @@ class Shield(AbstractRecordModel):
 
     @property
     def status(self):
-        now_time = time_tools.localtime(time_tools.now())
-        end_time = time_tools.localtime(self.end_time)
-        if self.is_enabled:
-            if now_time > end_time:
-                return ShieldStatus.EXPIRED
-            else:
-                return ShieldStatus.SHIELDED
-        else:
+        if not self.is_enabled:
             return ShieldStatus.REMOVED
+
+        if time_tools.now() > self.end_time:
+            return ShieldStatus.EXPIRED
+
+        return ShieldStatus.SHIELDED
 
 
 class CacheNode(Model):
