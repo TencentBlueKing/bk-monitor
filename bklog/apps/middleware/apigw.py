@@ -55,8 +55,7 @@ class UserModelBackend(ModelBackend):
     def authenticate(self, request, gateway_name, bk_username, verified, **credentials):
         try:
             return self.user_model.objects.get(**{self.user_model.USERNAME_FIELD: bk_username})
-        except self.user_model.DoesNotExist as err:  # pylint: disable=broad-except
-            logger.exception("Get User Model Fail: %s" % err)
+        except self.user_model.DoesNotExist:
             return self.user_maker(bk_username)
 
 
