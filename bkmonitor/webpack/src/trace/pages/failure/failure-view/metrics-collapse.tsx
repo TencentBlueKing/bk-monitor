@@ -35,6 +35,13 @@ const DASHBOARD_PANEL_COLUMN_KEY = '__aiops_metrics_chart_view_type__';
 export default defineComponent({
   name: 'MetricsCollapse',
   props: {
+    id: {
+      type: String,
+    },
+    info: {
+      type: Object,
+      default: () => ({}),
+    },
     /** 是否展示头部展开收起 */
     showCollapse: {
       type: Boolean,
@@ -58,7 +65,7 @@ export default defineComponent({
   emits: ['layoutChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const popover = ref<HTMLDivElement>();
+    const popover = ref(null);
     /** 是否展示布局描述 */
     const showLayoutName = ref<boolean>(true);
     /** 展开收起 */
@@ -159,11 +166,10 @@ export default defineComponent({
                     },
                   }}
                   arrow={false}
-                  delay={0}
                   placement='bottom'
                   theme='light'
-                  onHide={() => (this.showLayoutPopover = false)}
-                  onShow={() => (this.showLayoutPopover = true)}
+                  // onHide={() => (this.showLayoutPopover = false)}
+                  // onShow={() => (this.showLayoutPopover = true)}
                 >
                   <span
                     class='panels-tools-layout right-item'
@@ -184,13 +190,11 @@ export default defineComponent({
               )}
             </div>
           </div>
-          {
-            !(this.isCollapse && this.showCollapse) && <div
-              class={['correlation-metrics-collapse-content']}
-            >
+          {!(this.isCollapse && this.showCollapse) && (
+            <div class={['correlation-metrics-collapse-content']}>
               {(this.$slots as any)?.default?.({ column: this.layoutActive + 1 })}
             </div>
-          }
+          )}
         </div>
       </div>
     );

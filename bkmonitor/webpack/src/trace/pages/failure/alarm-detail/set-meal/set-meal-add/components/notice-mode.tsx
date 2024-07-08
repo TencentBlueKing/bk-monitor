@@ -52,6 +52,7 @@ interface INoticeWay {
   channel?: string;
 }
 export interface INoticeWayValue {
+  type?: string[];
   phase?: number;
   level?: number;
   notice_ways?: INoticeWays[];
@@ -133,7 +134,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
               // bkchat的情况还要判断数据里的值是否已过期
               // 根据值是否存在bkchatlist里来判断过期
               const newReceivers = [];
-              ways.receivers.forEach(receiver => {
+              (ways.receivers as string[]).forEach(receiver => {
                 const filter = this.bkchatList.find(bkchat => bkchat.id === receiver);
                 filter && newReceivers.push(filter.id);
               });

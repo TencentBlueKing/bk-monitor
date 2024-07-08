@@ -30,7 +30,7 @@ import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue'
 
 import { editIncident } from '../../../../monitor-api/modules/incident';
 import { strategyLabelList } from '../../../../monitor-api/modules/strategies';
-import MemberSelector from '../../alarm-shield/components/member-selector.tsx';
+import MemberSelector from '../../alarm-shield/components/member-selector';
 import { IIncident } from '../types';
 
 import './failure-edit-dialog.scss';
@@ -54,7 +54,7 @@ export default defineComponent({
     const btnLoading = ref<boolean>(false);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const customLabelsList = ref([]);
-    const editDialogRef = ref<HTMLDivElement>();
+    const editDialogRef = ref(null);
     const incidentDetailData = computed(() => {
       return JSON.parse(JSON.stringify(incidentDetail.value));
     });
@@ -184,7 +184,7 @@ export default defineComponent({
             <TagInput
               v-model={this.incidentDetailData.labels}
               list={this.customLabelsList}
-              trigger="focus"
+              trigger='focus'
               has-delete-icon
             />
           </Form.FormItem>

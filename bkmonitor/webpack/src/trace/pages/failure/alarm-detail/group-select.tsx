@@ -78,7 +78,6 @@ export default defineComponent({
     const activeItem = ref<IGroupItem>(null);
     const activeId = ref('');
     const filterList = computed(() => {
-      console.log(keyword.value, '...computed...');
       if (!keyword.value) return props.list;
       return props.list.filter(item =>
         item?.children?.some(child => child.name.toLocaleLowerCase().includes(keyword.value.toLocaleLowerCase()))
@@ -110,45 +109,8 @@ export default defineComponent({
       { immediate: true }
     );
 
-    const handleWrapClick = (e: any) => {
-      return;
-      keyword.value = '';
-      let target = null;
-      if (e.target?.dataset?.set === 'select-wrap') {
-        target = e.target;
-      } else {
-        target = e.target.parentNode;
-      }
-      if (props.readonly) return;
-      const width = selectWapRef.value.clientWidth;
-      if (isShow.value) {
-        destroyPopoverInstance();
-        return;
-      }
-      destroyPopoverInstance(true);
-      popoverInstance.value = $bkPopover({
-        target,
-        content: selectPanelRef.value,
-        trigger: 'click',
-        theme: 'light common-monitor',
-        boundary: 'window',
-        placement: 'bottom',
-        width,
-        arrow: false,
-        // hideOnClick: true,
-        // interactive: true,
-        onAfterHidden: () => {
-          console.log('asdasd');
-          isShow.value = false;
-        },
-      });
-      setTimeout(popoverInstance.value?.show, 100);
-    };
     // 清除popover实例
-    const destroyPopoverInstance = (show = false) => {
-      selectWapRef.value?.hide(0);
-      return;
-      popoverInstance.value?.hide(0);
+    const destroyPopoverInstance = (show: boolean) => {
       popoverInstance.value?.close();
       popoverInstance.value = null;
       isShow.value = show;
@@ -167,7 +129,7 @@ export default defineComponent({
       activeGroup.value = item;
     };
     const handleSelect = (item: IGroupItem) => {
-      destroyPopoverInstance();
+      destroyPopoverInstance(false);
       if (activeId.value === item.id) return;
       activeId.value = item.id;
       activeItem.value = item;
@@ -180,7 +142,7 @@ export default defineComponent({
       activeItem.value = null;
       activeGroupId.value = '';
       activeGroup.value = null;
-      destroyPopoverInstance();
+      destroyPopoverInstance(false);
       emit('clear');
     };
     const handleChange = (v: string) => {
@@ -200,7 +162,6 @@ export default defineComponent({
       handleSelect,
       handleGroupMouseenter,
       handleKeywordChange,
-      handleWrapClick,
       handleClear,
     };
   },
@@ -216,7 +177,6 @@ export default defineComponent({
               <div
                 class={['select-wrap', { 'is-focus': this.isShow }, { 'is-hover': !this.readonly }]}
                 data-set='select-wrap'
-                onClick={this.handleWrapClick}
               >
                 <div class='select-name'>
                   {this.activeItem?.name ? (
@@ -258,8 +218,8 @@ export default defineComponent({
                       ),
                     }}
                     behavior='simplicity'
-                    leftIcon='bk-icon icon-search'
                     placeholder={this.$t('输入关键字')}
+                    prefixIcon='bk-icon icon-search'
                     onInput={this.handleKeywordChange}
                   ></Input>
                   {this.filterList.length > 0 ? (

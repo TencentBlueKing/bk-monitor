@@ -230,7 +230,7 @@ export default defineComponent({
                 {detail.strategy.name}
                 <i
                   class='icon-monitor icon-mc-wailian'
-                  onClick={() => handleToStrategy(detail.strategy.id)}
+                  onClick={() => handleToStrategy(detail.strategy.id as number)}
                 ></i>
               </div>
             </div>
@@ -308,7 +308,7 @@ export default defineComponent({
               <div class='item-label'> {t('屏蔽原因')} </div>
               <div class='item-desc'>
                 <Input
-                  width={625}
+                  style='width: 625px'
                   v-model={desc.value}
                   maxlength={100}
                   placeholder={t('请输入')}
@@ -355,7 +355,7 @@ export default defineComponent({
         is-show={this.show}
         title={this.$t('快捷屏蔽告警')}
         onClosed={this.handleShowChange}
-        onValueChange={this.handleShowChange}
+        onValue-change={this.handleShowChange}
       ></Dialog>
     );
   },

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeMount, ref } from 'vue';
+import { computed, defineComponent, onBeforeMount, ref, PropType } from 'vue';
 
 import { Checkbox, Form, Input, Radio, Select } from 'bkui-vue';
 
@@ -33,6 +33,30 @@ import SetMealAdd from '../../../../store/modules/set-meal-add';
 import AutoInput from '../auto-input/auto-input';
 
 import './dynamic-form.scss';
+
+interface FormItemProps {
+  property?: string;
+  required?: boolean;
+  sensitive?: boolean;
+  help_text?: string;
+}
+interface FormChildProps {
+  property?: string;
+  placeholder?: string;
+  help_text?: string;
+  label?: string;
+  required?: boolean;
+  options?: {
+    id: string;
+    value: string;
+    name: string;
+  }[];
+}
+interface FormListItem {
+  formItemProps?: FormItemProps;
+  formChildProps?: FormChildProps;
+  type?: string;
+}
 
 export default defineComponent({
   props: {
@@ -49,7 +73,7 @@ export default defineComponent({
       default: false,
     },
     formList: {
-      type: Array,
+      type: Array as PropType<FormListItem[]>,
       default: () => [],
     },
     labelWidth: {
@@ -64,7 +88,7 @@ export default defineComponent({
     const getMessageTemplateList = computed(() =>
       props.noAutoInput ? [] : setMealAddModule.getMessageTemplateList.filter(item => item.group !== 'CONTENT_VAR')
     );
-    const createFormEl = ref<HTMLDivElement>(null);
+    const createFormEl = ref<InstanceType<typeof Form>>(null);
 
     const emitModel = () => {
       emit('change', deepClone(props.formModel));
@@ -81,6 +105,7 @@ export default defineComponent({
     });
 
     return {
+      emitModel,
       createFormEl,
       getMessageTemplateList,
       validator,
@@ -113,7 +138,7 @@ export default defineComponent({
                       class='width-520'
                       behavior={'simplicity'}
                       {...item.formChildProps}
-                      vModel={this.formModel[item.formItemProps.property]}
+                      v-model={this.formModel[item.formItemProps.property]}
                     >
                       {item.formChildProps.options.map(option => (
                         <Select.Option
@@ -127,12 +152,12 @@ export default defineComponent({
                   {item.type === 'checkbox-group' ? (
                     <Checkbox.Group
                       {...item.formChildProps}
-                      vModel={this.formModel[item.formItemProps.property]}
+                      v-model={this.formModel[item.formItemProps.property]}
                     >
                       {item.formChildProps.options.map(option => (
                         <Checkbox
                           key={option.id}
-                          value={option.id}
+                          label={option.id}
                         ></Checkbox>
                       ))}
                     </Checkbox.Group>
@@ -140,12 +165,12 @@ export default defineComponent({
                   {item.type === 'RadioGroup' ? (
                     <Radio.Group
                       {...item.formChildProps}
-                      vModel={this.formModel[item.formItemProps.property]}
+                      v-model={this.formModel[item.formItemProps.property]}
                     >
                       {item.formChildProps.options.map(option => (
                         <Radio
                           key={option.id}
-                          value={option.id}
+                          label={option.id}
                         ></Radio>
                       ))}
                     </Radio.Group>
@@ -160,7 +185,7 @@ export default defineComponent({
                               behavior={'simplicity'}
                               placeholder={item.formChildProps.placeholder || this.$t('请输入')}
                               type={'password'}
-                              on-change={this.emitModel}
+                              onChange={this.emitModel}
                             ></Input>
                           );
                         }
@@ -180,7 +205,7 @@ export default defineComponent({
                     //   behavior={'simplicity'}
                     //   onChange={ this.emitModel }
                     //   {...item.formChildProps}
-                    //   vModel={ this.formModel[item.formItemProps.property] }></Input> : undefined
+                    //   v-model={ this.formModel[item.formItemProps.property] }></Input> : undefined
                   }
                   {item.formItemProps.help_text ? (
                     <div class='form-desc'>{item.formItemProps.help_text}</div>

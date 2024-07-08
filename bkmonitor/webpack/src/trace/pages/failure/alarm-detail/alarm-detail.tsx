@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
+import { TableIColumn, TableSettings } from 'bkui-vue/lib/table';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
@@ -46,6 +47,20 @@ import QuickShield from './quick-shield';
 
 import './alarm-detail.scss';
 
+type PopoverInstance = {
+  show: () => void;
+  hide: () => void;
+  close: () => void;
+  [key: string]: any;
+};
+
+interface IOpetateRow {
+  status?: string;
+  is_ack?: boolean;
+  ack_operator?: string;
+  is_shielded?: boolean;
+  shield_operator?: string[];
+}
 export enum EBatchAction {
   alarmConfirm = 'ack',
   alarmDispatch = 'dispatch',
@@ -136,8 +151,8 @@ export default defineComponent({
     });
     const collapseId = ref('');
     const moreItems = ref<HTMLDivElement>();
-    const popoperOperateInstance = ref<HTMLDivElement>(null);
-    const opetateRow = ref({});
+    const popoperOperateInstance = ref<PopoverInstance>(null);
+    const opetateRow = ref<IOpetateRow>({});
     const popoperOperateIndex = ref(-1);
     const hoverRowIndex = ref(999999);
     const tableToolList = ref([]);
@@ -221,6 +236,7 @@ export default defineComponent({
           incident_root: data.entity.entity_id,
           content: '',
         },
+        is_cancel: false,
       };
       if (isCancel) {
         params.is_cancel = true;
@@ -284,16 +300,21 @@ export default defineComponent({
       }
       return `${ackOperator || ''}${t('已确认')}`;
     };
-    const columns = reactive([
+    const columns = reactive<TableIColumn[]>([
       {
         label: '#',
         type: 'index',
+        prop: 'index',
         width: 40,
         minWidth: 40,
+        render: ({ index }) => {
+          return index + 1;
+        },
       },
       {
         label: t('告警ID'),
-        field: 'id',
+        prop: 'id',
+        width: 'auto',
         render: ({ data }) => {
           return (
             <div class='name-column'>
@@ -308,8 +329,9 @@ export default defineComponent({
         },
       },
       {
+        width: 'auto',
         label: t('告警名称'),
-        field: 'alert_name',
+        prop: 'alert_name',
         render: ({ data }) => {
           const { entity } = data;
           const isRoot = entity.is_root || data.is_feedback_root;
@@ -322,22 +344,25 @@ export default defineComponent({
         },
       },
       {
+        width: 'auto',
         label: t('业务名称'),
-        field: 'project',
+        prop: 'project',
         render: ({ data }) => {
           return `[${data.bk_biz_id}] ${data.bk_biz_name || '--'}`;
         },
       },
       {
+        width: 'auto',
         label: t('分类'),
-        field: 'category_display',
+        prop: 'category_display',
         render: ({ data }) => {
           return data.category_display;
         },
       },
       {
         label: t('告警指标'),
-        field: 'index',
+        prop: 'index',
+        width: 'auto',
         render: ({ data }) => {
           const isEmpty = !data?.metric_display?.length;
           if (isEmpty) return '--';
@@ -377,8 +402,9 @@ export default defineComponent({
       },
       {
         label: t('告警状态'),
-        field: 'status',
+        prop: 'status',
         minWidth: 134,
+        width: '134',
         render: ({ data }) => {
           const { status } = data;
           return (
@@ -390,15 +416,17 @@ export default defineComponent({
       },
       {
         label: t('告警阶段'),
-        field: 'stage_display',
+        width: 'auto',
+        prop: 'stage_display',
         render: ({ data }) => {
           return data?.stage_display ?? '--';
         },
       },
       {
         label: t('告警开始/结束时间'),
-        field: 'time',
+        prop: 'time',
         minWidth: 145,
+        width: '145',
         render: ({ data }) => {
           return (
             <span class='time-column'>
@@ -410,7 +438,7 @@ export default defineComponent({
       },
       {
         label: t('持续时间'),
-        field: 'duration',
+        prop: 'duration',
         width: 136,
         render: ({ data, index: $index }) => {
           return (
@@ -465,15 +493,17 @@ export default defineComponent({
       },
     ]);
 
-    const settings = ref({
-      fields: columns.slice(1, columns.length - 1).map(({ label, field }) => {
+    const settings = ref<TableSettings>({
+      fields: columns.slice(1, columns.length - 1).map(data => {
+        const { label, prop } = data as { label: string; prop: string };
         return {
           label,
-          disabled: field === 'id',
-          field,
+          disabled: prop === 'id',
+          field: prop,
         };
       }),
-      checked: columns.slice(1, columns.length - 1).map(({ field }) => field),
+      checked: columns.slice(1, columns.length - 1).map(({ prop }) => prop as string),
+      trigger: 'manual' as const,
     });
     const getMoreOperate = () => {
       const { status, is_ack: isAck, ack_operator: ackOperator } = opetateRow.value;
@@ -497,6 +527,7 @@ export default defineComponent({
                 content: askTipMsg(isAck, status, ackOperator),
                 delay: 200,
                 appendTo: 'parent',
+                zIndex: 9999999,
               }}
               onClick={() =>
                 !isAck && !['RECOVERED', 'CLOSED'].includes(status) && handleAlertConfirm(opetateRow.value)
@@ -550,11 +581,27 @@ export default defineComponent({
           theme: 'light common-monitor',
           width: 120,
           extCls: 'alarm-detail-table-more-popover',
-          onAfterHidden: () => {
-            popoperOperateInstance.value.destroy();
-            popoperOperateInstance.value = null;
-            popoperOperateIndex.value = -1;
-          },
+          disabled: false,
+          isShow: false,
+          always: false,
+          height: 'auto',
+          maxWidth: '120',
+          maxHeight: 'auto',
+          allowHtml: false,
+          renderType: 'auto',
+          padding: 0,
+          offset: 20,
+          zIndex: 10,
+          disableTeleport: false,
+          autoPlacement: false,
+          autoVisibility: false,
+          disableOutsideClick: false,
+          disableTransform: false,
+          modifiers: [],
+          popoverDelay: 20,
+          componentEventDelay: 0,
+          forceClickoutside: false,
+          immediate: false,
         });
       }
       setTimeout(popoperOperateInstance.value.show, 100);
@@ -605,9 +652,6 @@ export default defineComponent({
      */
     const quickShieldChange = (v: boolean) => {
       dialog.quickShield.show = v;
-      if (!v) {
-        batchUrlUpdate('');
-      }
     };
     const handleGetTable = async () => {
       tableLoading.value = true;
@@ -737,7 +781,7 @@ export default defineComponent({
               show={this.dialog.quickShield.show}
               onChange={this.quickShieldChange}
               onRefresh={this.refresh}
-              onSucces={this.quickShieldSucces}
+              onSuccess={this.quickShieldSucces}
             ></QuickShield>
             <ManualProcess
               alertIds={this.currentIds}

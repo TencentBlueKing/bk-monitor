@@ -58,7 +58,7 @@ export default defineComponent({
     const alertAggregateData = ref<IAggregationRoot[]>([]);
     const listLoading = ref(false);
     const isShowDropdown = ref(false);
-    const cacheAggregateData = ref<IAggregationRoot[]>([]);
+    const cacheAggregateData = ref<string[]>([]);
     const bkBizIds = ref<number[]>([]);
     const queryString = ref('');
     const treeRef = ref(null);
@@ -135,7 +135,8 @@ export default defineComponent({
       props.username.id !== 'all' && Object.assign(params, { username: props.username.id });
       incidentAlertAggregate(params)
         .then(res => {
-          alertAggregateData.value = Object.values(res).filter((item: IAggregationRoot) => item.count !== 0);
+          const list: IAggregationRoot[] = Object.values(res);
+          alertAggregateData.value = list.filter(item => item.count !== 0);
           const isHasRoot = alertAggregateData.value.findIndex(item => item.is_root || item.is_feedback_root) !== -1;
           const isHasChildInd = alertAggregateData.value.findIndex(item => item.children?.length);
           isHasRoot ? handleIsRoot(alertAggregateData.value) : (alertAggregateData.value[isHasChildInd].isOpen = true);

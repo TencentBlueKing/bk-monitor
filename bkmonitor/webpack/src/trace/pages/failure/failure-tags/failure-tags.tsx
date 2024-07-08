@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 
 import { Tag } from 'bkui-vue';
 
-import { IIncident } from '../types';
+import { IIncident, ICurrentISnapshot } from '../types';
 
 // import TagShow from './tag-show';
 import './failure-tags.scss';
@@ -72,8 +72,8 @@ export default defineComponent({
       {
         label: t('故障根因'),
         renderFn: () => {
-          const snapshots = incidentDetailData.value?.current_snapshot || {};
-          const { incident_name_template } = snapshots.content || {};
+          const snapshots: ICurrentISnapshot = incidentDetailData.value?.current_snapshot;
+          const { incident_name_template } = snapshots?.content || {};
           const { elements = [], template } = incident_name_template || {};
           const replacePlaceholders = (template, replacements) => {
             const parts: Array<JSX.Element | string> = [];

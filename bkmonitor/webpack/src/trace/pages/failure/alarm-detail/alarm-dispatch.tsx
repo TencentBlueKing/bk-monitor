@@ -239,7 +239,7 @@ export default defineComponent({
                       v-model={this.reason}
                       maxlength={100}
                       placeholder={this.$t('请输入')}
-                      row={3}
+                      rows={3}
                       type={'textarea'}
                     ></Input>
                   </div>
@@ -279,7 +279,7 @@ export default defineComponent({
         mask-close={true}
         title={this.$t('告警分派')}
         onClosed={this.handleShowChange}
-        onValueChange={this.handleShowChange}
+        onValue-change={this.handleShowChange}
       ></Dialog>
     );
   },

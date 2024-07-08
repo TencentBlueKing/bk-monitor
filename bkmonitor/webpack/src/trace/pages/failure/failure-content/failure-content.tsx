@@ -67,7 +67,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const active = ref<string>('FailureView');
-    const alertIdsObject = ref<IAlertObj>({});
+    const alertIdsObject = ref<IAlertObj>();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');
     const incidentId = useIncidentInject();
@@ -99,7 +99,7 @@ export default defineComponent({
         icon: 'icon-mc-list',
       },
     ];
-    const chooseOperation = ref<IIncidentOperation>({});
+    const chooseOperation = ref<IIncidentOperation>();
     const currentNodeData = computed(() => {
       return props.currentNode;
     });
@@ -145,7 +145,7 @@ export default defineComponent({
       let validate = true;
       if (alertIdsObject.value.ids?.length) {
         validate = await incidentValidateQueryString(
-          { query_string: replaceSpecialCondition(alertIdsObject.value.ids), search_type: 'incident' },
+          { query_string: replaceSpecialCondition(alertIdsObject.value?.ids), search_type: 'incident' },
           { needMessage: false, needRes: true }
         )
           .then(res => res.result)
@@ -227,7 +227,7 @@ export default defineComponent({
                   // valueMap={this.valueMap}
                   inputStatus={this.inputStatus}
                   searchType='incident'
-                  value={this.alertIdsObject.ids}
+                  value={this.alertIdsObject?.ids}
                   onChange={this.handleQueryStringChange}
                   onClear={this.handleQueryStringChange}
                 />

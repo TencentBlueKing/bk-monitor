@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { random } from '../../../../monitor-common/utils/utils.js';
 
+import { random } from '../../../../monitor-common/utils/utils.js';
+import { IRank, IEdge, ITopoData } from '../failure-topo/types';
 export const enum NodeStatus {
   Error = 'error',
   Normal = 'normal',
@@ -40,9 +41,11 @@ export const enum ComboStatus {
   Host = '主机',
   Instance = '服务',
 }
-
+export interface IRanksMap {
+  [key: string]: IRank[];
+}
 /** 创建资源图数据 */
-export const createGraphData = (ranksMap, edges) => {
+export const createGraphData = (ranksMap: IRanksMap, edges: IEdge[]): ITopoData => {
   const combos = [];
   let nodeDatas = [];
   Object.keys(ranksMap).forEach((ranks, index) => {

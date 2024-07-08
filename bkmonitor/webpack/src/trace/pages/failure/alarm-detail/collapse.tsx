@@ -60,7 +60,6 @@ export default defineComponent({
     watch(
       () => props.collapse,
       () => {
-        console.log(props.id, props.collapse);
         isCollapse.value = props.collapse;
       }
     );

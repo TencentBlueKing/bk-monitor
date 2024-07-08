@@ -38,7 +38,7 @@ export default defineComponent({
       type: Object,
       default() {
         return {
-          content: this.$t('必填项'),
+          content: '必填项',
         };
       },
     },
@@ -66,7 +66,9 @@ export default defineComponent({
             v-bk-tooltips={{ ...this.validator, placement: 'top-end' }}
           />
         )}
-        {this.showValidate && this.position === 'bottom' && <span class='bottom-text'>{this.validator.content}</span>}
+        {this.showValidate && this.position === 'bottom' && (
+          <span class='bottom-text'>{this.$t(this.validator.content)}</span>
+        )}
       </div>
     );
   },

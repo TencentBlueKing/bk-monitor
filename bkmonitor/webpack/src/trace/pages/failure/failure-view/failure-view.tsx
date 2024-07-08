@@ -48,7 +48,7 @@ export default defineComponent({
     },
     searchValidate: {
       type: Boolean,
-      default: true
+      default: true,
     },
   },
   emits: ['refresh'],
@@ -77,7 +77,7 @@ export default defineComponent({
           props.searchValidate && getIncidentAlertView();
         }
       },
-      {deep: true}
+      { deep: true }
     );
     const getIncidentAlertView = () => {
       loading.value = true;
