@@ -239,4 +239,6 @@ export default {
   '已开启 Profiling 功能，请参考接入指引进行数据上报':
     'The Profiling has been turned on, please refer to the access guide for data reporting.',
   显示完整信息: 'Show full information',
+  '注意，该功能会调实际套餐去执行。请确认测试变量后再进行测试执行':
+    'Note that this feature will execute the actual package. Please confirm the test variable before testing execution',
 };
