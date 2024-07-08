@@ -67,6 +67,11 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
     filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
     pagination_class = None
 
+    def initialize_request(self, request, *args, **kwargs):
+        request = super(DutyRuleViewSet, self).initialize_request(request, *args, **kwargs)
+        if self.action == "retrieve":
+            setattr(request, "notice_user_detail", True)
+
     def get_serializer_class(self):
         """
         根据不同的action获取
