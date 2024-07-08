@@ -256,7 +256,7 @@
                 'is-selected': item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
-              :disabled="isUpdate && isWinEventLog"
+              :disabled="isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog"
               :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
