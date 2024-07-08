@@ -56,7 +56,12 @@ class FieldViewSet(APIViewSet):
         count_list = []
         params = self.params_valid(QueryFieldBaseSerializer)
         fields_result = UnionSearchHandler().union_search_fields(params)
-        fields_list = [field for field in fields_result.get("fields", []) if field["field_type"] != "text"]
+        # 去除非聚合字段和text类型字段
+        fields_list = [
+            field
+            for field in fields_result.get("fields", [])
+            if field["field_type"] != "text" and field.get("es_doc_values", False)
+        ]
         multi_execute_func = MultiExecuteFunc()
 
         for field in fields_list:
