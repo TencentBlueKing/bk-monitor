@@ -71,6 +71,7 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
         request = super(DutyRuleViewSet, self).initialize_request(request, *args, **kwargs)
         if self.action == "retrieve":
             setattr(request, "notice_user_detail", True)
+        return request
 
     def get_serializer_class(self):
         """
