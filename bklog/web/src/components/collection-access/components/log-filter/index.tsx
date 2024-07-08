@@ -179,7 +179,7 @@ export default class LogFilter extends tsc<object> {
       };
       currentGroup.push(mappingFilter);
       // 检查下一个 filter
-      if (mappingFilter.logic_op === 'or' || index === filters.length - 1) {
+      if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
         groups.push(currentGroup);
         currentGroup = [];
       }
@@ -194,6 +194,9 @@ export default class LogFilter extends tsc<object> {
   handleClickDeleteGroup(index: number) {
     if (this.filterData.length === 1) return;
     this.filterData.splice(index, 1);
+    this.filterData.forEach((fItem, fIndex) => {
+      fItem.forEach(item => (item.tableIndex = fIndex));
+    });
   }
   /** 新增分组 */
   handleClickNewGroupBtn() {
