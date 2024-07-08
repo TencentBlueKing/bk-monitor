@@ -108,7 +108,7 @@
   }
 
   .bk-dialog-body {
-    max-height: 600px;
+    max-height: calc(80vh - 142px);
     overflow-y: auto;
   }
 }

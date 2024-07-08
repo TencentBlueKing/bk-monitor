@@ -56,7 +56,7 @@ interface IProps {
   mealName: string;
   onShowChange?: (v: boolean) => void;
   onDebugWebhookDataChange?: (v: IWebhook) => void;
-  onDebugPeripheralDataChange?: (v: IPeripheral) => void;
+  onDebugPeripheralDataChange?: (v: IDebugPeripheral[]) => void;
   onDebugPeripheralStop?: () => void;
 }
 
@@ -82,6 +82,8 @@ export default class MealDebugDialog extends tsc<IProps> {
   // 调试单据id
   debugActionId = 0;
 
+  top = 130;
+
   @Watch('show')
   handleWatchShow(v: boolean) {
     if (v) {
@@ -90,6 +92,10 @@ export default class MealDebugDialog extends tsc<IProps> {
       } else {
         this.isVerify = true;
       }
+      setTimeout(() => {
+        const dialogHeight = document.querySelector('.meal-content-debug-dialog .bk-dialog-content').clientHeight;
+        this.top = (document.body.clientHeight - dialogHeight) / 2;
+      }, 50);
     }
   }
 
@@ -325,10 +331,13 @@ export default class MealDebugDialog extends tsc<IProps> {
         <bk-dialog
           width={this.debugData.type === 'webhook' ? 766 : 640}
           extCls={'meal-content-debug-dialog'}
+          position={{
+            top: this.top,
+          }}
           headerPosition={'left'}
           maskClose={false}
           renderDirective={'if'}
-          title={this.$t('测试执行')}
+          title={this.debugData.type === 'peripheral' ? this.$t('测试执行') : this.$t('调试')}
           value={this.show}
           on-cancel={() => this.handleShowChange(false)}
         >
@@ -364,7 +373,7 @@ export default class MealDebugDialog extends tsc<IProps> {
               theme='primary'
               onClick={() => this.handleDebugStart()}
             >
-              {this.$t('测试执行')}
+              {this.debugData.type === 'peripheral' ? this.$t('测试执行') : this.$t('调试')}
             </bk-button>
             <bk-button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
           </div>
