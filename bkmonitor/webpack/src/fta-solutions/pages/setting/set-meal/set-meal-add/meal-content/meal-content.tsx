@@ -287,7 +287,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       const value = peripheralData[item.key];
       const varList = this.getVariableStrList(value); // 字符串内的变量
       const hasVar = !!varList.length; // 是否含有变量
-      const subTitle = hasVar ? varList.join(',') : '';
+      // const subTitle = hasVar ? varList.join(',') : '';
       if (hasVar) {
         const varInfos = varList.map(v => templateListMap.get(v.replace(/{{|}}/g, '')));
         const variableMap = {};
@@ -296,7 +296,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             variableMap[vInfo.id] = vInfo;
           }
         });
-        v = `${value}`.replace(/\{\{(.*?)\}\}/g, (match, key) => variableMap[key]?.example || '');
+        v = `${value}`.replace(/\{\{(.*?)\}\}/g, (_match, key) => variableMap[key]?.example || '');
       } else {
         v = value;
       }
@@ -306,12 +306,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         value: '',
         lable: item.formItemProps.label,
         placeholder: vPlaceholder || item?.formChildProps?.placeholder || '',
-        subTitle,
+        subTitle: '',
         required: !!item?.formItemProps?.required,
       };
       variableList.push(obj);
     });
-    console.log(variableList, formList, peripheralData);
     this.debugPeripheralForm = variableList;
   }
 
