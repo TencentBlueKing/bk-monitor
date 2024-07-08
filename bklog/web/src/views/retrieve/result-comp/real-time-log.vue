@@ -194,7 +194,7 @@
       this.togglePolling();
       this.registerScrollEvent();
     },
-    destroyed() {
+    beforeDestroy() {
       document.removeEventListener('keyup', this.handleKeyup);
 
       this.timer && clearInterval(this.timer);

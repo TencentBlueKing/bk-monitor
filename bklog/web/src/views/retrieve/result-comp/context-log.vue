@@ -106,6 +106,8 @@
         :filter-type="filterType"
         :ignore-case="ignoreCase"
         :interval="interval"
+        :log-list="logList"
+        :reverse-log-list="reverseLogList"
         :show-type="showType"
         :height-list="heightLightList"
       />

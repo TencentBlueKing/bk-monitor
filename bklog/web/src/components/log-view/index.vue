@@ -39,7 +39,7 @@
           :light-list="getViewLightList"
           :is-show-key="showType === 'log'"
           :ignore-case="ignoreCase"
-        ></highlight-html>
+        />
       </div>
       <div
         v-for="(item, index) in escapedLogList"
@@ -50,7 +50,8 @@
         <highlight-html
           :item="item"
           :is-show-key="showType === 'log'"
-          :light-list="getViewLightList" />
+          :light-list="getViewLightList" 
+        />
       </div>
     </pre>
   </section>

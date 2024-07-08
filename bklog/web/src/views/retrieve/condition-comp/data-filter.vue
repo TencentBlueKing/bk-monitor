@@ -5,13 +5,11 @@
         <bk-button
           @click="handleSelectShowType('log')"
           :class="{ 'is-selected': showType === 'log' }"
-          >{{ $t('日志') }}</bk-button
-        >
+          >{{ $t('日志') }}</bk-button>
         <bk-button
           @click="handleSelectShowType('code')"
           :class="{ 'is-selected': showType === 'code' }"
-          >{{ $t('代码') }}</bk-button
-        >
+          >{{ $t('代码') }}</bk-button>
       </div>
       <span>{{ $t('label-过滤内容').replace('label-', '') }}</span>
       <bk-select

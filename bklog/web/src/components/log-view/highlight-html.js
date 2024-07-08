@@ -48,11 +48,11 @@ export default {
     const { item, lightList, ignoreCase, isShowKey } = c.props;
 
     /**
-     * @desc:
-     * @param {*} str
-     * @param {*} highlights
-     * @param {*} caseInsensitive
-     * @returns {*}
+     * @desc: 包含和高亮的列表生成的展示数组
+     * @param {String} str 展示的字符串
+     * @param {Array} highlights 高亮数组 包含\高亮
+     * @param {Boolean} caseInsensitive 是否大小写敏感
+     * @returns {Array} 处理完后的高亮数组
      */
     const highlightStringToArray = (str, highlights, caseInsensitive) => {
       // 最终结果数组
