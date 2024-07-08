@@ -26,7 +26,6 @@
 
 <template>
   <section
-    v-bkloading="{ isLoading: logLoading, opacity: 0.6 }"
     :class="{
       'log-full-dialog-wrapper': isScreenFull,
       'bk-form': true,
@@ -100,14 +99,15 @@
       ref="contextLog"
       class="dialog-log-markdown"
       tabindex="0"
+      v-bkloading="{ isLoading: logLoading, opacity: 0.6 }"
     >
       <log-view
         :filter-key="activeFilterKey"
         :filter-type="filterType"
         :ignore-case="ignoreCase"
         :interval="interval"
-        :log-list="logList"
-        :reverse-log-list="reverseLogList"
+        :show-type="showType"
+        :height-list="heightLightList"
       />
     </div>
 
@@ -155,7 +155,7 @@
     data() {
       const id = 'fields-config-tippy';
       return {
-        logLoading: true,
+        logLoading: false,
         totalFields: [], // 所有字段信息
         totalFieldNames: [], // 所有的字段名
         displayFields: [], // 按顺序展示的字段信息
@@ -173,9 +173,9 @@
           onShow: this.requestFields,
         },
         rawList: [],
-        logList: [], // 过滤成字符串的列表
+        logList: [],
         reverseRawList: [],
-        reverseLogList: [], // 过滤成字符串的列表
+        reverseLogList: [],
         isScreenFull: true,
         params: {},
         zero: true,
@@ -192,7 +192,10 @@
           prev: 0,
           next: 0,
         },
+        showType: 'log',
+        heightLightList: [],
         currentConfigID: 0,
+        isRowChange: false,
       };
     },
     computed: {
@@ -220,7 +223,7 @@
         document.querySelector('.dialog-log-markdown').focus();
       });
     },
-    unmounted() {
+    destroyed() {
       document.removeEventListener('keyup', this.handleKeyup);
     },
     methods: {
@@ -242,7 +245,7 @@
       },
       toggleScreenFull() {
         this.isScreenFull = !this.isScreenFull;
-        this.$emit('toggle-screen-full', this.isScreenFull);
+        this.$emit('toggleScreenFull', this.isScreenFull);
       },
       async requestFields() {
         try {
@@ -273,7 +276,7 @@
       async requestContentLog(direction) {
         const data = Object.assign(
           {
-            size: 500,
+            size: 50,
             zero: this.zero,
           },
           this.params,
@@ -294,30 +297,27 @@
           });
 
           const { list } = res.data;
-          if (list?.length) {
-            const stringList = this.formatStringList(
-              list,
-              this.displayFieldNames.length ? this.displayFieldNames : ['log'],
-            );
+          if (list && list.length) {
+            const formatList = this.formatList(list, this.displayFieldNames.length ? this.displayFieldNames : ['log']);
             if (direction) {
               if (direction === 'down') {
-                this.logList.push(...stringList);
+                this.logList.push(...formatList);
                 this.rawList.push(...list);
-                this.nextBegin += stringList.length;
+                this.nextBegin += formatList.length;
               } else {
-                this.reverseLogList.unshift(...stringList);
+                this.reverseLogList.unshift(...formatList);
                 this.reverseRawList.unshift(...list);
-                this.prevBegin -= stringList.length;
+                this.prevBegin -= formatList.length;
               }
             } else {
               const zeroIndex = res.data.zero_index;
               if ((!zeroIndex && zeroIndex !== 0) || zeroIndex === -1) {
                 this.logList.splice(this.logList.length, 0, this.$t('无法定位上下文'));
               } else {
-                this.logList.push(...stringList.slice(zeroIndex, stringList.length));
+                this.logList.push(...formatList.slice(zeroIndex, list.length));
                 this.rawList.push(...list.slice(zeroIndex, list.length));
 
-                this.reverseLogList.unshift(...stringList.slice(0, zeroIndex));
+                this.reverseLogList.unshift(...formatList.slice(0, zeroIndex));
                 this.reverseRawList.unshift(...list.slice(0, zeroIndex));
 
                 const value = zeroIndex - res.data.count_start;
@@ -343,24 +343,21 @@
        * @param {Array} displayFieldNames 当前页码
        * @return {Array<string>}
        **/
-      formatStringList(list, displayFieldNames) {
-        const stringList = [];
+      formatList(list, displayFieldNames) {
+        const filterDisplayList = [];
         list.forEach(listItem => {
-          let logString = '';
+          const displayObj = {};
           displayFieldNames.forEach(field => {
             const listValue = listItem[field];
             if (listValue && typeof listValue === 'object') {
-              // logString += (Object.values(listValue).join(' ') + '    ')
-              logString += `${Object.values(listValue).join(' ')} `;
+              Object.assign(displayObj, { [field]: `${Object.values(listValue).join(' ')}` });
             } else {
-              // logString += (listValue + '    ')
-              logString += `${listValue} `;
+              Object.assign(displayObj, { [field]: listValue });
             }
           });
-          stringList.push(logString);
+          filterDisplayList.push(displayObj);
         });
-
-        return stringList;
+        return filterDisplayList;
       },
       // 确定设置显示字段
       async confirmConfig(list) {
@@ -381,8 +378,8 @@
           });
           const res = await this.requestFields();
           if (res) {
-            this.logList = this.formatStringList(this.rawList, this.displayFieldNames);
-            this.reverseLogList = this.formatStringList(this.reverseRawList, this.displayFieldNames);
+            this.logList = this.formatList(this.rawList, this.displayFieldNames);
+            this.reverseLogList = this.formatList(this.reverseRawList, this.displayFieldNames);
             this.$refs.fieldsConfigRef._tippy.hide();
             this.messageSuccess(this.$t('设置成功'));
           }
@@ -509,11 +506,10 @@
     .dialog-bars {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 14px;
 
       .controls {
         display: flex;
-        align-items: center;
+        align-items: start;
 
         .control-icon {
           display: flex;
@@ -574,6 +570,7 @@
 
   .log-full-dialog-wrapper {
     height: 100%;
+    overflow: hidden;
 
     .dialog-log-markdown {
       height: calc(100% - 132px);
