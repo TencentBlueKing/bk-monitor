@@ -67,7 +67,7 @@
         @handle-filter="handleFilter"
       />
       <!-- 暂停、复制、全屏 -->
-      <div class="dialog-bar controls">
+      <div :class="['dialog-bar controls', { 'not-fill': !isScreenFull }]">
         <div
           class="control-icon"
           v-bk-tooltips.top="{ content: isPolling ? $t('暂停') : $t('启动'), delay: 300 }"
@@ -111,6 +111,8 @@
         :log-list="logList"
         :max-length="maxLength"
         :shift-length="shiftLength"
+        :height-list="heightLightList"
+        :show-type="showType"
       />
     </div>
     <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
@@ -170,6 +172,8 @@
           prev: 0,
           next: 0,
         },
+        showType: 'log',
+        heightLightList: [],
         rowShowParams: {},
       };
     },
@@ -221,12 +225,12 @@
         this.$http
           .request('retrieve/getRealTimeLog', {
             params: { index_set_id: this.$route.params.indexId },
-            data: Object.assign({ order: '-', size: 500, zero: this.zero }, this.params),
+            data: Object.assign({ order: '-', size: 50, zero: this.zero }, this.params),
           })
           .then(res => {
             // 通过gseindex 去掉出返回日志， 并加入现有日志
             const { list } = res.data;
-            if (list?.length) {
+            if (list && list.length) {
               // 超过最大长度时剔除部分日志
               if (this.logList.length > this.maxLength) {
                 this.logList.splice(0, this.shiftLength);
@@ -236,13 +240,7 @@
               const logArr = [];
               list.forEach(item => {
                 const { log } = item;
-                let logString = '';
-                if (typeof log === 'object') {
-                  logString = Object.values(log).join(' ');
-                } else {
-                  logString = log;
-                }
-                logArr.push(logString);
+                logArr.push({ log });
               });
               this.deepClone(list[list.length - 1]);
               this.logList.splice(this.logList.length, 0, ...logArr);
@@ -289,7 +287,7 @@
       },
       toggleScreenFull() {
         this.isScreenFull = !this.isScreenFull;
-        this.$emit('toggle-screen-full', this.isScreenFull);
+        this.$emit('toggleScreenFull', this.isScreenFull);
       },
       registerScrollEvent() {
         this.logWrapperEl = document.querySelector('.dialog-log-markdown');
@@ -373,13 +371,12 @@
     .dialog-bars {
       position: relative;
       display: flex;
-      align-items: center;
-      margin-bottom: 14px;
+      align-items: start;
+      justify-content: space-between;
 
       .dialog-bar {
         display: flex;
         align-items: center;
-        margin-right: 50px;
 
         .label-text {
           margin-right: 10px;
@@ -391,9 +388,7 @@
         }
 
         &.controls {
-          position: absolute;
-          right: 0;
-          margin: 0;
+          flex: 1;
 
           .control-icon {
             display: flex;
@@ -414,6 +409,10 @@
               color: #3a84ff;
               transition: color 0.2s;
             }
+          }
+
+          &.not-fill .control-icon:not(:last-child) {
+            margin-right: 4px;
           }
         }
       }
@@ -437,11 +436,12 @@
     }
 
     &.log-full-dialog-wrapper {
-      height: calc(100% - 78px);
-      margin: 10px 0;
+      height: calc(100% - 16px);
+      margin-top: 10px;
+      overflow: hidden;
 
       .dialog-log-markdown {
-        height: calc(100% - 70px);
+        height: calc(100% - 128px);
       }
     }
   }

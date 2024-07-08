@@ -25,35 +25,35 @@
 -->
 
 <template>
-  <section class="log-view">
+  <section :class="['log-view', { 'light-view': showType === 'log' }]">
     <pre id="log-content">
       <div
         v-for="(item, index) in escapedReverseLogList"
         class="line"
         v-show="checkLineShow(item, index, 'reverse')"
-        :key="item.replace(/\s/g, '') + index">
+        :key="index - reverseLogList.length"
+        :class="['line', { 'filter-line': lineMatch(item) }]">
         <span class="line-num">{{ index - reverseLogList.length }}</span>
         <highlight-html
-          v-if="showHighlight(item)"
-          :filter-key="filterKey"
-          :ignore-case="ignoreCase"
           :item="item"
-        ></highlight-html>
-        <span v-if="checkTextShow(item, index, 'reverse')" class="line-text">{{ item }}</span>
-    </div>
-    <div
-      v-for="(item, index) in escapedLogList"
-      v-show="checkLineShow(item, index, 'normal')"
-      :class="['line', { 'log-init': index === 0, 'new-log-line': newIndex && index >= newIndex }]"
-      :key="item.replace(/\s/g, '') + index">
-      <span class="line-num">{{ index }}</span>
-      <highlight-html
-        v-if="showHighlight(item)"
-        :filter-key="filterKey"
-        :item="item" />
-      <span class="line-text" v-show="checkTextShow(item, index, 'normal')">{{ item }}</span>
-    </div>
-  </pre>
+          :light-list="getViewLightList"
+          :is-show-key="showType === 'log'"
+          :ignore-case="ignoreCase"
+        />
+      </div>
+      <div
+        v-for="(item, index) in escapedLogList"
+        v-show="checkLineShow(item, index, 'normal')"
+        :key="index"
+        :class="['line', { 'log-init': index === 0, 'new-log-line': newIndex && index >= newIndex, 'filter-line': lineMatch(item) }]">
+        <span class="line-num">{{ index }}</span>
+        <highlight-html
+          :item="item"
+          :is-show-key="showType === 'log'"
+          :light-list="getViewLightList" 
+        />
+      </div>
+    </pre>
   </section>
 </template>
 
@@ -106,6 +106,16 @@
         type: Boolean,
         default: false,
       },
+      heightList: {
+        type: Array,
+        default() {
+          return [];
+        },
+      },
+      showType: {
+        type: String,
+        default: 'log',
+      },
     },
     data() {
       return {
@@ -125,6 +135,16 @@
       },
       isIncludeFilter() {
         return this.filterType === 'include';
+      },
+      getViewLightList() {
+        const list = [];
+        if (!!this.filterKey) {
+          list.push({ str: this.filterKey, style: 'background: yellow; color: #313238;', isUnique: true });
+        }
+        list.push(
+          ...this.heightList.map(item => ({ str: item, style: 'background: #FFB946; color: #FFF;', isUnique: false })),
+        );
+        return list;
       },
     },
     watch: {
@@ -179,25 +199,19 @@
         }
         return this.filterKey.length ? !this.handleMatch(item) : true;
       },
-      showHighlight(item) {
-        return this.filterKey.length && this.handleMatch(item);
-      },
-      checkTextShow(item, index, field) {
-        if (this.isIncludeFilter) {
-          const list = field === 'reverse' ? this.reverseResRangeIndexs : this.resRangeIndexs;
-          return !this.filterKey.length || (!this.showHighlight(item) && list.includes(index));
-        }
-        return item;
-      },
-      handleMatch(key) {
+      handleMatch(item) {
+        const valStr = Object.values(item).join(' ');
         let { filterKey } = this;
-        const keyVal = this.ignoreCase ? key : key.toLowerCase();
+        const keyVal = this.ignoreCase ? valStr : valStr.toLowerCase();
         filterKey = this.ignoreCase ? filterKey : filterKey.toLowerCase();
 
         return keyVal.includes(filterKey);
       },
-      escapeString(val) {
-        if (typeof val !== 'string') return '';
+      lineMatch(item) {
+        if (!this.filterKey) return false;
+        return this.handleMatch(item);
+      },
+      escapeString(item) {
         const map = {
           '&amp;': '&',
           '&lt;': '<',
@@ -205,7 +219,17 @@
           '&quot;': '"',
           '&#x27;': "'",
         };
-        return val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+        const escapeObj = Object.fromEntries(
+          Object.entries(item).map(([key, val]) => {
+            return [
+              [key],
+              typeof val !== 'string'
+                ? val.toString()
+                : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]),
+            ];
+          }),
+        );
+        return escapeObj;
       },
       setResRange() {
         this.resRangeIndexs.splice(0, this.resRangeIndexs.length);
@@ -274,7 +298,7 @@
   .log-view {
     min-height: 100%;
     color: #979ba5;
-    background: #222;
+    background: #131313;
 
     #log-content {
       box-sizing: border-box;
@@ -285,10 +309,12 @@
         display: flex;
         flex-direction: row;
         min-height: 16px;
-        padding: 0 15px 0 55px;
+        padding: 8px 15px 8px 55px;
         margin: 0;
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
+        line-height: 24px;
+        border-top: 1px solid transparent;
 
         &.log-init {
           background: #5f3a3a;
@@ -300,6 +326,10 @@
 
         &:hover {
           background-color: #383838;
+        }
+
+        &.filter-line {
+          background-color: #392715;
         }
       }
 
@@ -319,6 +349,37 @@
         word-break: break-all;
         word-wrap: break-word;
         white-space: pre-wrap;
+      }
+    }
+
+    &.light-view {
+      color: #313238;
+      background: #fff;
+
+      #log-content {
+        .line {
+          border-top: 1px solid #dcdee5;
+
+          &.log-init {
+            background: #6cf;
+          }
+
+          &.new-log-line {
+            background: #6cf;
+          }
+
+          &:hover {
+            background-color: #6cc;
+          }
+
+          &.filter-line {
+            background-color: #fff3e1;
+          }
+        }
+
+        .line-num {
+          color: #313238;
+        }
       }
     }
   }
