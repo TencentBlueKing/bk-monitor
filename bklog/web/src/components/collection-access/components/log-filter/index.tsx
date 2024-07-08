@@ -194,6 +194,9 @@ export default class LogFilter extends tsc<object> {
   handleClickDeleteGroup(index: number) {
     if (this.filterData.length === 1) return;
     this.filterData.splice(index, 1);
+    this.filterData.forEach((fItem, fIndex) => {
+      fItem.forEach(item => (item.tableIndex = fIndex));
+    });
   }
   /** 新增分组 */
   handleClickNewGroupBtn() {
