@@ -18,7 +18,11 @@ from django.db.transaction import atomic
 
 from core.drf_resource import api
 from metadata import config, models
-from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
+from metadata.models.constants import (
+    BULK_CREATE_BATCH_SIZE,
+    BULK_UPDATE_BATCH_SIZE,
+    EsSourceType,
+)
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 
@@ -27,8 +31,11 @@ class Command(BaseCommand):
     PAGE_SIZE = 1000
     DEFAULT_QUEUE_MAX_SIZE = 100000
 
+    def add_arguments(self, parser):
+        parser.add_argument("--force", action="store_true", help="强制刷新")
+
     def handle(self, *args, **options):
-        if not self._can_refresh():
+        if not self._can_refresh(options):
             self.stdout.write("data exists, skip refresh")
             return
 
@@ -51,8 +58,10 @@ class Command(BaseCommand):
 
         self.stdout.write("sync bklog es router success")
 
-    def _can_refresh(self):
+    def _can_refresh(self, options):
         """判断是否可以刷新"""
+        if options.get("force"):
+            return True
         # 如果存在索引集的数据，则认为不需要拉取历史数据
         return not models.ESStorage.objects.exclude(index_set=None).exclude(index_set="").exists()
 
@@ -145,7 +154,9 @@ class Command(BaseCommand):
             update_rt_set.add(tid)
             update_data_label_set.add(info["data_label"])
             # 过滤已经存在或者数据为空的数据
-            if tid in exist_tid_list or (not info.get("cluster_id")):
+            if tid in exist_tid_list or (
+                not info.get("cluster_id") and info["source_type"] != EsSourceType.BKDATA.value
+            ):
                 continue
             # 记录需要更新的空间
             update_space_set.add(tuple(info["space_uid"].split("__")))
@@ -164,7 +175,7 @@ class Command(BaseCommand):
             es_obj_list.append(
                 models.ESStorage(
                     table_id=info["table_id"],
-                    storage_cluster_id=info["cluster_id"],
+                    storage_cluster_id=info["cluster_id"] or 0,  # 针对 bkdata 的 es 忽略集群
                     source_type=info["source_type"],
                     index_set=info["index_set"],
                 )
