@@ -58,9 +58,11 @@ export default defineComponent({
     matchFields: { default: () => {}, type: Object },
     /** 自定义高度 */
     customHeightFn: { type: [Function, null], default: null },
+    /** 是否显示告警视图图表 */
+    isAlarmView: { type: Boolean, default: false },
   },
-  emits: ['linkTo', 'lintToDetail', 'backToOverview'],
-  setup(props) {
+  emits: ['linkTo', 'lintToDetail', 'backToOverview', 'successLoad'],
+  setup(props, { emit }) {
     const { t } = useI18n();
     provide('isSplitPanel', toRef(props, 'isSplitPanel'));
     // 视图实例集合
@@ -79,7 +81,7 @@ export default defineComponent({
         localPanels.value = handleInitLocalPanels(props.panels);
       },
       {
-        //   immediate: true
+        immediate: true,
       }
     );
 
@@ -259,6 +261,9 @@ export default defineComponent({
         panel?.updateShow(collapse);
       });
     }
+    const handleSuccessLoad = () => {
+      emit('successLoad');
+    };
 
     function renderFn() {
       if (!props.panels?.length) return <div class='dashboard-panel empty-data'>{t('查无数据')}</div>;
@@ -271,7 +276,10 @@ export default defineComponent({
             <div class='single-chart-content'>
               <div class={['single-chart-main', { 'has-btn': !!props.backToType }]}>
                 <div class='single-chart-wrap'>
-                  <ChartWrapper panel={singleChartPanel.value}></ChartWrapper>
+                  <ChartWrapper
+                    isAlarmView={props.isAlarmView}
+                    panel={singleChartPanel.value}
+                  ></ChartWrapper>
                 </div>
               </div>
             </div>
@@ -297,9 +305,11 @@ export default defineComponent({
                   >
                     <ChartWrapper
                       key={`${panel.id}__key__`}
+                      isAlarmView={props.isAlarmView}
                       panel={panel}
                       onChartCheck={v => handleChartCheck(v, panel)}
                       onCollapse={v => panel.type === 'row' && handleCollapse(v, panel)}
+                      onSuccessLoad={handleSuccessLoad}
                     />
                   </div>
                 ))}

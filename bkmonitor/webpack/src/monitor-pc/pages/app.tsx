@@ -71,6 +71,10 @@ const changeNoticeRouteList = [
   'plugin-add',
   'plugin-edit',
 ];
+
+/** 顶部导航栏点击自身跳回对应首页特殊处理的路由路径 */
+const PATCH_ROUTES = ['event-center-detail', 'incident-detail'];
+
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
@@ -521,7 +525,7 @@ export default class App extends tsc<object> {
     userConfigModal.handleSetUserConfig(NEW_UER_GUDE_KEY, JSON.stringify(['done']));
   }
   handleHeaderNavClick(id: string) {
-    this.headerNavChange = this.$route.name === 'event-center-detail' ? true : this.headerNav !== id;
+    this.headerNavChange = PATCH_ROUTES.includes(this.$route.name) ? true : this.headerNav !== id;
     this.headerNav = id;
   }
   /**

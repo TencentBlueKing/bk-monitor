@@ -1,0 +1,26 @@
+.failure-nav {
+  height: 100%;
+  max-height: calc(100vh - 200px);
+  background: #fff;
+
+  .failure-nav-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .failure-menu {
+    position: absolute;
+    top: -40px;
+  }
+
+  .failure-nav-main {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+  }
+}
