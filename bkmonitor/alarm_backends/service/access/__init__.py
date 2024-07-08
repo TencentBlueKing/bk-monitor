@@ -10,9 +10,11 @@ specific language governing permissions and limitations under the License.
 """
 
 
+from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
+
 from .alert import AccessAlertProcess
 from .data import AccessDataProcess, AccessRealTimeDataProcess
-from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
+from .incident import AccessIncidentProcess
 
 
 class AccessType(object):
@@ -20,6 +22,7 @@ class AccessType(object):
     RealTimeData = "real_time_data"
     Alert = "alert"
     Event = "event"
+    Incident = "incident"
 
 
 ACCESS_TYPE_TO_CLASS = {
@@ -27,4 +30,5 @@ ACCESS_TYPE_TO_CLASS = {
     AccessType.RealTimeData: AccessRealTimeDataProcess,
     AccessType.Alert: AccessAlertProcess,
     AccessType.Event: AccessCustomEventGlobalProcess,  # no use
+    AccessType.Incident: AccessIncidentProcess,
 }

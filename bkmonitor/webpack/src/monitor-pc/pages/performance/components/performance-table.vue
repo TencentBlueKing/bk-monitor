@@ -37,15 +37,15 @@
   >
     <div class="performance-table">
       <bk-table
-        ref="table"
         v-if="Object.keys(columns).length"
-        :key="tableKey"
-        :data="tableData"
+        ref="table"
         :cell-class-name="cellClassName"
+        :data="tableData"
         :header-cell-class-name="cellClassName"
-        @sort-change="handleSortChange"
+        :key="tableKey"
         @row-mouse-enter="handleRowEnter"
         @row-mouse-leave="handleRowLeave"
+        @sort-change="handleSortChange"
       >
         <empty-status
           slot="empty"
@@ -72,9 +72,9 @@
                 </i18n>
               </bk-button>
               <bk-button
+                v-else
                 ext-cls="tips-btn"
                 text
-                v-else
                 @click="handleClearAll"
               >
                 {{ $t('清除所有数据') }}
@@ -83,8 +83,8 @@
           </transition>
         </template>
         <bk-table-column
-          :render-header="renderSelectionHeader"
           width="80"
+          :render-header="renderSelectionHeader"
           align="center"
         >
           <template #default="{ row }">
@@ -95,8 +95,8 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          :label="columns.host_display_name.name"
           v-if="columns.host_display_name.checked"
+          :label="columns.host_display_name.name"
           min-width="270"
         >
           <template #default="{ row }">
@@ -106,16 +106,16 @@
             >
               <router-link
                 class="ip-col-main"
-                tag="span"
                 v-bk-overflow-tips
                 :to="{
                   name: 'performance-detail',
                   params: {
                     title: row.host_display_name,
                     id: row.bk_host_id,
-                    osType: Number(row.bk_os_type)
-                  }
+                    osType: Number(row.bk_os_type),
+                  },
                 }"
+                tag="span"
               >
                 {{ row.host_display_name }}
               </router-link>
@@ -127,40 +127,40 @@
                 @mouseenter="handleIpStatusTips($event, row)"
               />
               <svg
-                viewBox="0 0 28 16"
+                v-if="$i18n.locale !== 'enUS'"
                 class="ip-col-mark"
                 v-show="hoverMarkId === row.rowId || row.mark"
+                viewBox="0 0 28 16"
                 @click.stop.prevent="handleIpMark(row)"
-                v-if="$i18n.locale !== 'enUS'"
               >
                 <path
                   :class="[row.mark ? 'path-primary' : 'path-default']"
                   d="M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z"
                 />
                 <path
-                  fill="#FFFFFF"
                   d="M5.1,11.3h1V7.5h2.6V7.1H5.3V6.3h3.4V5.9H5.7V4h7.7v2h-3.3v0.4h3.6v0.8h-3.6v0.4h2.8v3.8h1v0.8H5.1V11.3z M6.8,5.2h1.1V4.7H6.8V5.2z M11.7,8.2H7.3v0.3h4.4V8.2z M7.3,9.5h4.4V9.1H7.3V9.5z M7.3,10.4h4.4V10H7.3V10.4z M7.3,11.3h4.4v-0.3H7.3V11.3z M9,5.2h1.1V4.7H9V5.2z M12.2,5.2V4.7h-1.1v0.5H12.2z"
+                  fill="#FFFFFF"
                 />
                 <path
-                  fill="#FFFFFF"
                   d="M14.1,4.1h3.1v1.2h-0.8v5.4c0,0.4-0.1,0.6-0.2,0.8c-0.1,0.2-0.3,0.3-0.5,0.4s-0.7,0.1-1.4,0.1c0-0.4-0.1-0.7-0.2-1.1c0.3,0,0.5,0,0.8,0c0.2,0,0.4-0.1,0.4-0.4V5.3h-1.1V4.1z M19.4,7.5h1.2c0,0.9-0.1,1.6-0.2,2.1c0.8,0.5,1.7,1.1,2.5,1.7l-0.7,0.9c-0.6-0.5-1.3-1-2.2-1.7c-0.4,0.7-1.2,1.2-2.5,1.7c-0.2-0.3-0.4-0.7-0.7-1.1c0.6-0.2,1.2-0.4,1.6-0.7c0.4-0.3,0.7-0.7,0.8-1.1C19.3,8.9,19.4,8.3,19.4,7.5z M17.4,4h5.4v1.1h-2.3l-0.2,0.8h2.2v4h-1.2V7h-2.7v3h-1.2V5.9h1.5l0.2-0.8h-1.7V4z"
+                  fill="#FFFFFF"
                 />
               </svg>
               <svg-icon
-                icon-name="top"
-                v-show="hoverMarkId === row.rowId || row.mark"
-                @click.stop.prevent="handleIpMark(row)"
-                class="ip-col-mark"
-                :class="[row.mark ? 'path-primary' : 'path-default']"
                 v-else
+                class="ip-col-mark"
+                v-show="hoverMarkId === row.rowId || row.mark"
+                :class="[row.mark ? 'path-primary' : 'path-default']"
+                icon-name="top"
+                @click.stop.prevent="handleIpMark(row)"
               />
             </div>
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.bk_host_id.checked"
           :label="columns.bk_host_id.name"
           min-width="120"
-          v-if="columns.bk_host_id.checked"
         >
           <template #default="{ row }">
             <div class="ip-col">
@@ -169,8 +169,8 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          :label="columns.bk_host_innerip.name"
           v-if="columns.bk_host_innerip.checked"
+          :label="columns.bk_host_innerip.name"
           min-width="120"
         >
           <template #default="{ row }">
@@ -180,9 +180,9 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.bk_host_outerip.checked"
           :label="columns.bk_host_outerip.name"
           min-width="120"
-          v-if="columns.bk_host_outerip.checked"
         >
           <template #default="{ row }">
             <div class="ip-col">
@@ -191,8 +191,8 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          :label="columns.bk_host_innerip_v6.name"
           v-if="columns.bk_host_innerip_v6.checked"
+          :label="columns.bk_host_innerip_v6.name"
           min-width="270"
         >
           <template #default="{ row }">
@@ -202,9 +202,9 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.bk_host_outerip_v6.checked"
           :label="columns.bk_host_outerip_v6.name"
           min-width="270"
-          v-if="columns.bk_host_outerip_v6.checked"
         >
           <template #default="{ row }">
             <div class="ip-col">
@@ -213,28 +213,29 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.status.checked"
           :label="columns.status.name"
           min-width="120"
-          v-if="columns.status.checked"
         >
           <template #default="{ row }">
             <div
-              class="status-col"
               v-if="statusMap[row.status]"
+              class="status-col"
             >
               <span :class="'status-' + statusMap[row.status].status" />
               <span
                 class="status-name"
                 @mouseenter="handleTipsMouseenter($event, row, 'Host')"
-              >{{ statusMap[row.status].name }}</span>
+                >{{ statusMap[row.status].name }}</span
+              >
             </div>
             <span v-else>--</span>
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.bk_host_name.checked"
           :label="columns.bk_host_name.name"
           min-width="140"
-          v-if="columns.bk_host_name.checked"
         >
           <template #default="{ row }">
             <div class="ip-col">
@@ -243,9 +244,9 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.bk_os_name.checked"
           :label="columns.bk_os_name.name"
           min-width="140"
-          v-if="columns.bk_os_name.checked"
         >
           <template #default="{ row }">
             <div class="ip-col">
@@ -254,21 +255,20 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          :label="columns.bk_cloud_name.name"
           v-if="columns.bk_cloud_name.checked"
+          :label="columns.bk_cloud_name.name"
           min-width="120px"
         >
           <template #default="{ row }">
             <span>{{ row.bk_cloud_name }}</span>
           </template>
         </bk-table-column>
-        <template>
+        <template v-for="item in dynamicColumns">
           <bk-table-column
-            v-for="item in dynamicColumns"
+            v-if="item.checked"
             :key="item.id"
             :label="item.name"
             min-width="140px"
-            v-if="item.checked"
           >
             <template #default="{ row }">
               <span
@@ -277,7 +277,7 @@
                   showOnInit: false,
                   placements: ['top'],
                   interactive: false,
-                  allowHTML: false
+                  allowHTML: false,
                 }"
               >
                 {{ getDynamicColumnValue(row, item.id) }}
@@ -287,9 +287,9 @@
           </bk-table-column>
         </template>
         <bk-table-column
+          v-if="columns.bk_cluster.checked"
           :label="columns.bk_cluster.name"
           min-width="140px"
-          v-if="columns.bk_cluster.checked"
         >
           <template #default="{ row }">
             <span
@@ -298,7 +298,7 @@
                 showOnInit: false,
                 placements: ['top'],
                 interactive: false,
-                allowHTML: false
+                allowHTML: false,
               }"
             >
               {{ row.bk_cluster.map(item => item.name).join() }}
@@ -306,9 +306,9 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.bk_inst_name.checked"
           :label="columns.bk_inst_name.name"
           min-width="120px"
-          v-if="columns.bk_inst_name.checked"
         >
           <template #default="{ row }">
             <span
@@ -317,41 +317,42 @@
                 showOnInit: false,
                 placements: ['top'],
                 interactive: false,
-                allowHTML: false
+                allowHTML: false,
               }"
-            >{{ row.bk_inst_name }}</span>
+              >{{ row.bk_inst_name }}</span
+            >
           </template>
         </bk-table-column>
         <bk-table-column
-          sortable="custom"
-          prop="totalAlarmCount"
-          min-width="150px"
-          :label="columns.alarm_count.name"
           v-if="columns.alarm_count.checked"
+          :label="columns.alarm_count.name"
+          min-width="150px"
+          prop="totalAlarmCount"
+          sortable="custom"
         >
           <template #default="{ row }">
             <span
+              :style="{
+                backgroundColor: getStatusLabelBgColor(row.alarm_count),
+              }"
               class="status-label"
+              :class="{ 'status-unresolve': !!row.totalAlarmCount }"
+              @click="handleGoEventCenter(row)"
               @mouseenter="row.totalAlarmCount && handleUnresolveEnter(row, $event)"
               @mouseleave="row.totalAlarmCount && handleUnresolveLeave()"
-              @click="handleGoEventCenter(row)"
-              :class="{ 'status-unresolve': !!row.totalAlarmCount }"
-              :style="{
-                backgroundColor: getStatusLabelBgColor(row.alarm_count)
-              }"
             >
               {{ row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--' }}
             </span>
           </template>
         </bk-table-column>
         <bk-table-column
-          sortable="custom"
-          prop="cpu_load"
+          v-if="columns.cpu_load.checked"
+          :label="columns.cpu_load.name"
+          :render-header="h => renderHeader(h, columns.cpu_load)"
           align="right"
           min-width="140"
-          :label="columns.cpu_load.name"
-          v-if="columns.cpu_load.checked"
-          :render-header="h => renderHeader(h, columns.cpu_load)"
+          prop="cpu_load"
+          sortable="custom"
         >
           <template #default="{ row }">
             <div class="cpu-col">
@@ -360,12 +361,12 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          sortable="custom"
-          prop="cpu_usage"
-          min-width="180"
-          :label="columns.cpu_usage.name"
           v-if="columns.cpu_usage.checked"
+          :label="columns.cpu_usage.name"
           :render-header="h => renderHeader(h, columns.cpu_usage)"
+          min-width="180"
+          prop="cpu_usage"
+          sortable="custom"
         >
           <template #default="{ row }">
             <div>
@@ -374,19 +375,19 @@
               </div>
               <bk-progress
                 :color="row.cpu_usage | progressColors"
-                :show-text="false"
                 :percent="+(row.cpu_usage * 0.01).toFixed(2) || 0"
+                :show-text="false"
               />
             </div>
           </template>
         </bk-table-column>
         <bk-table-column
-          sortable="custom"
-          prop="disk_in_use"
-          min-width="180"
-          :label="columns.disk_in_use.name"
           v-if="columns.disk_in_use.checked"
+          :label="columns.disk_in_use.name"
           :render-header="h => renderHeader(h, columns.disk_in_use)"
+          min-width="180"
+          prop="disk_in_use"
+          sortable="custom"
         >
           <template #default="{ row }">
             <div>
@@ -395,19 +396,19 @@
               </div>
               <bk-progress
                 :color="row.disk_in_use | progressColors"
-                :show-text="false"
                 :percent="+(row.disk_in_use * 0.01).toFixed(2) || 0"
+                :show-text="false"
               />
             </div>
           </template>
         </bk-table-column>
         <bk-table-column
-          sortable="custom"
-          prop="io_util"
-          min-width="180"
-          :label="columns.io_util.name"
           v-if="columns.io_util.checked"
+          :label="columns.io_util.name"
           :render-header="h => renderHeader(h, columns.io_util)"
+          min-width="180"
+          prop="io_util"
+          sortable="custom"
         >
           <template #default="{ row }">
             <div>
@@ -416,19 +417,19 @@
               </div>
               <bk-progress
                 :color="row.io_util | progressColors"
-                :show-text="false"
                 :percent="+(row.io_util * 0.01).toFixed(2) || 0"
+                :show-text="false"
               />
             </div>
           </template>
         </bk-table-column>
         <bk-table-column
-          sortable="custom"
-          prop="mem_usage"
-          min-width="240px"
-          :label="columns.mem_usage.name"
           v-if="columns.mem_usage.checked"
+          :label="columns.mem_usage.name"
           :render-header="h => renderHeader(h, columns.mem_usage)"
+          min-width="240px"
+          prop="mem_usage"
+          sortable="custom"
         >
           <template #default="{ row }">
             <div>
@@ -437,19 +438,19 @@
               </div>
               <bk-progress
                 :color="row.mem_usage | progressColors"
-                :show-text="false"
                 :percent="+(row.mem_usage * 0.01).toFixed(2) || 0"
+                :show-text="false"
               />
             </div>
           </template>
         </bk-table-column>
         <bk-table-column
-          sortable="custom"
-          prop="psc_mem_usage"
-          min-width="180"
-          :label="columns.psc_mem_usage.name"
           v-if="columns.psc_mem_usage.checked"
+          :label="columns.psc_mem_usage.name"
           :render-header="h => renderHeader(h, columns.psc_mem_usage)"
+          min-width="180"
+          prop="psc_mem_usage"
+          sortable="custom"
         >
           <template #default="{ row }">
             <div>
@@ -457,17 +458,17 @@
                 {{ row.psc_mem_usage | emptyNumberFilter }}
               </div>
               <bk-progress
-                :show-text="false"
                 :color="row.psc_mem_usage | progressColors"
                 :percent="+(row.psc_mem_usage * 0.01).toFixed(2) || 0"
+                :show-text="false"
               />
             </div>
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="columns.bk_biz_name.checked"
           :label="columns.bk_biz_name.name"
           min-width="110"
-          v-if="columns.bk_biz_name.checked"
         >
           <template #default="{ row }">
             <div class="ip-col">
@@ -476,24 +477,25 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          :resizable="false"
-          :label="columns.display_name.name"
           v-if="columns.display_name.checked"
+          :label="columns.display_name.name"
+          :resizable="false"
           min-width="310"
         >
           <template #default="{ row, $index }">
             <div class="process-module">
               <div
+                v-if="row.component.length >= 1"
                 class="process-module-wrap"
                 :ref="'table-row-' + $index"
               >
                 <span
                   v-for="(item, index) in row.component"
-                  :key="item.display_name + '__' + index"
                   :class="[
                     'process-status',
-                    item.status === -1 ? 'process-status-default' : `process-status-${item.status}`
+                    item.status === -1 ? 'process-status-default' : `process-status-${item.status}`,
                   ]"
+                  :key="item.display_name + '__' + index"
                   @click.stop="openProcessView(row, item.display_name)"
                   @mouseenter="handleTipsMouseenter($event, item, 'Thread')"
                 >
@@ -501,11 +503,22 @@
                 </span>
                 <span
                   v-if="overflowRowIds.includes(row.rowId)"
-                  @click="openProcessView(row, 'row-overflow')"
                   class="process-status-3 process-overflow"
+                  @click="openProcessView(row, 'row-overflow')"
                 >
                   {{ `...` }}
                 </span>
+              </div>
+              <div
+                v-else
+                class="process-module-wrap"
+                :ref="'table-row-' + $index"
+              >
+                <span
+                  class="no-process-text"
+                  @mouseenter="handleTipsMouseenter($event, {}, 'noProcess')"
+                  >{{ $t('暂无进程') }}</span
+                >
               </div>
             </div>
           </template>
@@ -513,49 +526,50 @@
       </bk-table>
     </div>
     <div
-      class="performance-footer"
       v-if="data.length"
+      class="performance-footer"
     >
       <bk-pagination
-        size="small"
         class="performance-footer-pagination"
-        align="right"
-        pagination-able
-        show-total-count
+        :count="pageConfig.total"
         :current="pageConfig.page"
         :limit="pageConfig.pageSize"
+        :limit-list="pageConfig.pageList"
+        align="right"
+        size="small"
+        pagination-able
+        show-total-count
         @change="handlePageChange"
         @limit-change="handleLimitChange"
-        :count="pageConfig.total"
-        :limit-list="pageConfig.pageList"
       />
     </div>
     <div v-show="false">
       <tips-tpl
         ref="tipsTpl"
-        :tips-text="tipsData.tipsText"
+        :doc-link="tipsData.docLink"
         :link-text="tipsData.linkText"
         :link-url="tipsData.linkUrl"
-        :doc-link="tipsData.docLink"
+        :tips-text="tipsData.tipsText"
       />
     </div>
     <div v-show="false">
       <ip-status-tips
         ref="ipStatusTips"
+        :host-id="ipStatusData.hostId"
         :ignore-monitoring="ipStatusData.ignoreMonitoring"
         :is-shielding="ipStatusData.isShielding"
-        :host-id="ipStatusData.hostId"
       />
     </div>
     <input
-      type="hidden"
       ref="hiddenFocus"
-    >
+      type="hidden"
+    />
   </div>
 </template>
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import { typeTools } from 'monitor-common/utils/utils.js';
 
 // import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue'
@@ -568,14 +582,13 @@ import ColumnCheck from '../column-check/column-check.vue';
 import { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../performance-type';
 import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
-
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';
 
 /** 告警类型对应的颜色 */
 const alarmColorMap: { [key in AlarmStatus]: string } = {
   [AlarmStatus.DeadlyAlarm]: '#ea3636',
   [AlarmStatus.WarningAlarm]: '#ff8000',
-  [AlarmStatus.RemindAlarm]: '#ffd000'
+  [AlarmStatus.RemindAlarm]: '#ffd000',
 };
 
 @Component({
@@ -583,7 +596,7 @@ const alarmColorMap: { [key in AlarmStatus]: string } = {
   components: {
     TipsTpl,
     IpStatusTips,
-    EmptyStatus
+    EmptyStatus,
   },
   filters: {
     progressColors(v) {
@@ -603,8 +616,8 @@ const alarmColorMap: { [key in AlarmStatus]: string } = {
     },
     isNumberFilter(v) {
       return typeof v === 'number' ? v : '--';
-    }
-  }
+    },
+  },
 } as any)
 export default class PerformanceTable extends Vue<MonitorVue> {
   // 表格数据
@@ -617,9 +630,9 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       page: 1,
       pageSize: 10,
       pageList: [10, 20, 50, 100],
-      total: 0
+      total: 0,
     }),
-    type: Object
+    type: Object,
   })
   readonly pageConfig: IPageConfig;
   @Prop({ default: 0, type: Number }) readonly allCheckValue: 0 | 1 | 2; // 0: 取消全选 1: 半选 2: 全选
@@ -639,7 +652,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     tipsText: '',
     linkText: '',
     linkUrl: '',
-    docLink: ''
+    docLink: '',
   };
   // 未恢复告警组件实例
   unresolveInstance = null;
@@ -650,39 +663,39 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   statusMap = {
     '-1': {
       name: window.i18n.t('未知'),
-      status: '3'
+      status: '3',
     },
     0: {
       name: window.i18n.t('正常'),
-      status: '1'
+      status: '1',
     },
     1: {
       name: window.i18n.t('离线'),
-      status: '1'
+      status: '1',
     },
     2: {
       name: window.i18n.t('无Agent'),
       status: '2',
       tips: window.i18n.t('原因: Agent未安装或者状态异常'),
-      url: `${this.$store.getters.bkNodemanHost}#/agent-manager/status`
+      url: `${this.$store.getters.bkNodemanHost}#/agent-manager/status`,
     },
     3: {
       name: window.i18n.t('无数据上报'),
       status: '3',
       tips: window.i18n.t('原因:bkmonitorbeat未安装或者状态异常'),
-      url: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`
-    }
+      url: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
+    },
   };
 
   selectList = [
     {
       id: 'current',
-      name: window.i18n.t('本页全选')
+      name: window.i18n.t('本页全选'),
     },
     {
       id: 'all',
-      name: window.i18n.t('跨页全选')
-    }
+      name: window.i18n.t('跨页全选'),
+    },
   ];
 
   overflowRowIds: string[] = [];
@@ -694,15 +707,15 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     1: {
       // 异常
       tipsText: window.i18n.t('原因:查看进程本身问题或者检查进程配置是否正常'),
-      docLink: 'processMonitor'
+      docLink: 'processMonitor',
     },
     2: {
       // 无数据
       tipsText: window.i18n.t('原因:bkmonitorbeat进程采集器未安装或者状态异常'),
       linkText: window.i18n.t('前往节点管理处理'),
-      linkUrl: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`
+      linkUrl: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
     },
-    3: {}
+    3: {},
   };
   isLoading = false;
 
@@ -710,7 +723,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   ipStatusData = {
     ignoreMonitoring: false,
     isShielding: false,
-    hostId: null
+    hostId: null,
   };
   get dynamicColumns() {
     const a = Object.values(this.columns).filter((item: any) => item.dynamic);
@@ -718,13 +731,13 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   }
   getDynamicColumnValue(row, id) {
     const list = new Set();
-    row?.module?.forEach((item) => {
+    row?.module?.forEach(item => {
       const index = item.topo_link?.findIndex(i => i.includes(`${id}|`));
       if (index > -1) {
         list.add(item.topo_link_display?.[index]);
       }
     });
-    return list.size ?  Array.from(list).join(',') : '--';
+    return list.size ? Array.from(list).join(',') : '--';
   }
   mounted() {
     this.tableData = JSON.parse(JSON.stringify(this.data));
@@ -736,7 +749,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   // }
 
   public updateDataSelection() {
-    this.tableData.forEach((item) => {
+    this.tableData.forEach(item => {
       if (this.checkType === 'current') {
         item.selection = this.selectionData.some(item => item.rowId === item.rowId);
       } else {
@@ -752,16 +765,16 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     // 状态不存在则需要拉取当前页状态并合并
     if (firstItem && !this.statusMap[firstItem.status]) {
       PerformanceModule.searchHostMetric({
-        bk_host_ids: tableData.map(item => item.bk_host_id)
-      }).then((hostsMap) => {
+        bk_host_ids: tableData.map(item => item.bk_host_id),
+      }).then(hostsMap => {
         // 解决全量数据先返回的时序问题
         const [first] = this.tableData;
         if (!first || !this.statusMap[first.status]) {
-          const data = this.tableData.map((item) => {
+          const data = this.tableData.map(item => {
             const resetData = hostsMap[`${item.bk_host_innerip}|${item.bk_cloud_id}`] || {};
             return {
               ...item,
-              ...resetData
+              ...resetData,
             };
           });
           this.setTableData(data);
@@ -772,7 +785,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   }
 
   async setTableData(tableData) {
-    this.tableData = tableData.map((item) => {
+    this.tableData = tableData.map(item => {
       if (this.checkType === 'all') {
         item.selection = !this.excludeDataIds.includes(item.rowId);
       }
@@ -792,7 +805,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   handleSortChange({ order, prop }: ISort) {
     return {
       order,
-      prop
+      prop,
     };
   }
 
@@ -811,11 +824,11 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       props: {
         list: this.selectList,
         value: this.allCheckValue,
-        defaultType: this.checkType
+        defaultType: this.checkType,
       },
       on: {
-        change: this.handleCheckChange
-      }
+        change: this.handleCheckChange,
+      },
     });
   }
 
@@ -823,7 +836,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   handleCheckChange({ value, type }: ICheck) {
     return {
       value,
-      type
+      type,
     };
   }
 
@@ -852,7 +865,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       content: this.unresolveInstance.$el,
       arrow: true,
       placement: 'right',
-      maxWidth: 520
+      maxWidth: 520,
     });
     this.popoverInstance?.show(100);
   }
@@ -870,7 +883,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   handleRowCheck(value: boolean, row: ITableRow) {
     return {
       value,
-      row
+      row,
     };
   }
 
@@ -887,12 +900,12 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       params: {
         title: row.bk_host_innerip,
         id: row.bk_host_id,
-        osType: Number(row.bk_os_type)
+        osType: Number(row.bk_os_type),
       },
       query: {
         dashboardId: 'process',
-        'var-display_name': process
-      }
+        'var-display_name': process,
+      },
     });
   }
 
@@ -906,8 +919,8 @@ export default class PerformanceTable extends Vue<MonitorVue> {
         queryString: ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale)
           ? `目标IP : ${row.bk_host_innerip}`
           : `ip : ${row.bk_host_innerip}`,
-        activeFilterId: 'NOT_SHIELDED_ABNORMAL'
-      }
+        activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+      },
     });
     window.open(url.href);
   }
@@ -916,7 +929,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   handleSelectAll() {
     this.handleCheckChange({
       value: 2,
-      type: 'all'
+      type: 'all',
     });
   }
 
@@ -924,7 +937,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   handleClearAll() {
     this.handleCheckChange({
       value: 0,
-      type: 'current'
+      type: 'current',
     });
   }
   /**
@@ -943,7 +956,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     });
   }
 
-  handleTipsMouseenter(e: MouseEvent, item, type: 'Host' | 'Thread') {
+  handleTipsMouseenter(e: MouseEvent, item, type: 'Host' | 'Thread' | 'noProcess') {
     if (type === 'Host' && [2, 3].includes(item.status)) {
       this.tipsData.tipsText = this.statusMap[item.status].tips;
       this.tipsData.linkText = this.$t('前往节点管理处理');
@@ -954,6 +967,9 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       this.tipsData.linkText = this.componentStatusMap[item.status].linkText;
       this.tipsData.linkUrl = this.componentStatusMap[item.status].linkUrl;
       this.tipsData.docLink = this.componentStatusMap[item.status].docLink;
+    } else if (type === 'noProcess') {
+      this.tipsData.tipsText = this.$t('若添加进程，请前往配置平台 - 业务拓扑，在对应模块下新增');
+      this.tipsData.docLink = 'processPortMonitor';
     } else {
       return;
     }
@@ -980,7 +996,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
             onHidden: () => {
               this.tipsPopoverInstance?.destroy();
               this.tipsPopoverInstance = null;
-            }
+            },
           },
           options
         )
@@ -1001,10 +1017,10 @@ export default class PerformanceTable extends Vue<MonitorVue> {
         'div',
         {
           class: 'header-custom-title',
-          directives: [{ name: 'bk-overflow-tips' }]
+          directives: [{ name: 'bk-overflow-tips' }],
         },
         [column.name]
-      )
+      ),
     ]);
   }
   cellClassName({ column }) {
@@ -1012,12 +1028,11 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     const columnData = this.columns[id];
     return !!columnData?.headerPreIcon ? 'has-header-pre-icon' : '';
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public sort({ prop, order }: ISort) {
     this?.tableRef?.sort(prop, order);
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   public clearSort() {
     this?.tableRef?.clearSort();
   }
@@ -1035,12 +1050,11 @@ export default class PerformanceTable extends Vue<MonitorVue> {
 
     // 使用 reduce 方法遍历数组，找到最小的 level 且 count 不为 0 的告警项
     // 如果找到，则返回该项的颜色和等级，否则返回之前的 minColor
-    return alarmCount
-      .reduce((minColor, { count, level }) => {
-        return count && (!minColor || level < minColor.level)
-          ? { color: alarmColorMap[level], level }
-          : minColor;
-      }, null)?.color || '';
+    return (
+      alarmCount.reduce((minColor, { count, level }) => {
+        return count && (!minColor || level < minColor.level) ? { color: alarmColorMap[level], level } : minColor;
+      }, null)?.color || ''
+    );
   }
 
   @Emit('empty-status-operation')
@@ -1103,8 +1117,8 @@ $processColors: #ea3636 #c4c6cc #63656e;
       background: #ebecf0;
 
       .tips-num {
-        font-weight: bold;
         margin: 0 4px;
+        font-weight: bold;
       }
 
       .tips-btn {
@@ -1279,6 +1293,12 @@ $processColors: #ea3636 #c4c6cc #63656e;
         .process-overflow {
           position: absolute;
           top: 0;
+        }
+
+        .no-process-text {
+          font-size: 12px;
+          line-height: 30px;
+          color: #c4c6cc;
         }
       }
     }

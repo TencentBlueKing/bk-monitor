@@ -184,10 +184,10 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.bizBgColor = this.getRandomColor();
     this.getFirstCodeBgColor();
   }
-  @Watch('isShrink')
-  isShrinkChange(val: boolean) {
-    val && this.showBizList && this.popoverRef?.instance?.hide();
-  }
+  // @Watch('isShrink')
+  // isShrinkChange(val: boolean) {
+  //   val && this.showBizList && this.popoverRef?.instance?.hide();
+  // }
 
   /** 搜索操作 */
   @Debounce(300)

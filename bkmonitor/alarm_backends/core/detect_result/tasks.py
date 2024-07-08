@@ -17,6 +17,7 @@ import time
 from django.conf import settings
 
 from alarm_backends.core.detect_result.clean import CleanResult
+from bkmonitor.models import CacheRouter
 from common.context_processors import Platform
 
 logger = logging.getLogger("celery")
@@ -30,14 +31,24 @@ def recover_weixin_robot_limit():
         settings.WECOM_ROBOT_BIZ_WHITE_LIST = []
 
 
-def clean_expired_detect_result():
-    recover_weixin_robot_limit()
+def clean_expired_detect_result(strategy_range=None):
+    # 任务分发
+    if strategy_range is None:
+        recover_weixin_robot_limit()
+        strategy_score_list = CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score")
+        for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
+            clean_expired_detect_result.delay(strategy_range=s_range)
+        return
+
+    # 任务负载
+    logger.info("clean_expired_detect_result(%s-%s) start", *strategy_range)
     try:
-        CleanResult.clean_expired_detect_result()
+        CleanResult.clean_expired_detect_result(strategy_range=strategy_range)
     except Exception as e:
-        logger.exception("clean_expired_detect_result Error: ", e)
+        logger.exception("clean_expired_detect_result(%s-%s) Error: %s", *strategy_range, e)
         time.sleep(60)
-        CleanResult.clean_expired_detect_result()
+        CleanResult.clean_expired_detect_result(strategy_range=strategy_range)
+    logger.info("clean_expired_detect_result(%s-%s) done", *strategy_range)
 
 
 def clean_md5_to_dimension_cache():

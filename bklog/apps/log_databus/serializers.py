@@ -427,6 +427,9 @@ class CollectorUpdateSerializer(serializers.Serializer):
     collector_config_name_en = serializers.RegexField(
         label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
+    collector_scenario_id = serializers.ChoiceField(
+        label=_("日志类型"), choices=CollectorScenarioEnum.get_choices(), required=False
+    )
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))
     target_nodes = TargetNodeSerializer(label=_("目标节点"), many=True)

@@ -336,6 +336,7 @@ ACTIVE_VIEWS = {
         "promql_import": "monitor_web.promql_import.views",
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
+        "incident": "monitor_web.incident.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -407,6 +408,9 @@ IS_ALLOW_ALL_CMDB_LEVEL = False
 
 # 是否开启AIOPS功能，业务ID白名单
 AIOPS_BIZ_WHITE_LIST = []
+
+# 是否开启AIOPS根因故障定位功能，业务白名单
+AIOPS_INCIDENT_BIZ_WHITE_LIST = []
 
 # 是否由GSE分配dataid，默认是False，由监控自身来负责分配
 IS_ASSIGN_DATAID_BY_GSE = True
@@ -876,6 +880,13 @@ BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX = "metric_recommendation"
 
 BK_DATA_METRIC_RECOMMEND_SOURCE_PROCESSING_ID = "ieod_system_multivariate_delay"
 
+# 故障增删事件同步配置
+BK_DATA_AIOPS_INCIDENT_BROKER_URL = os.getenv(
+    "BK_DATA_AIOPS_INCIDENT_BROKER_URL", "amqp://127.0.0.1:5672/aiops_incident"
+)
+BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE = os.getenv("BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE", "aiops_incident")
+
+
 # 表后缀(字母或数字([A-Za-z0-9]), 不能有下划线"_", 且最好不超过10个字符)
 BK_DATA_RAW_TABLE_SUFFIX = "raw"  # 数据接入
 BK_DATA_CMDB_FULL_TABLE_SUFFIX = "full"  # 补充cmdb节点信息后的表后缀
@@ -1337,8 +1348,6 @@ BASE64_ENCODE_TRIGGER_CHARS = []
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
-# 是否启用grafana接口
-ENABLE_GRAFANA_API = False
 # 是否启用新版的数据链路
 # 是否启用通过计算平台获取GSE data_id 资源，默认不启用
 ENABLE_V2_BKDATA_GSE_RESOURCE = False

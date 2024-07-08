@@ -1193,11 +1193,12 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
 
         # 增加额外的系统事件指标
         extend_metrics = [
-            {
-                "metric_field": "gse_custom_event",
-                "metric_field_name": _("自定义字符型告警"),
-                "dimensions": DefaultDimensions.host,
-            },
+            # deprecated
+            # {
+            #     "metric_field": "gse_custom_event",
+            #     "metric_field_name": _("自定义字符型告警"),
+            #     "dimensions": DefaultDimensions.host,
+            # },
             {
                 "metric_field": "proc_port",
                 "metric_field_name": _("进程端口"),

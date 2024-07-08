@@ -46,7 +46,7 @@
               @change="handleChangeBiz"
             >
               <bk-option
-                v-for="item in $store.getters.bizList"
+                v-for="item in filterBizList"
                 :id="item.id"
                 :key="item.id"
                 :name="item.text"
@@ -135,6 +135,7 @@
               v-else
               ref="tcpTarget"
               :default-value="tcpTarget"
+              @addTarget="handleAddTcpTarget"
             />
             <div
               :style="{ color: '#f56c6c' }"
@@ -282,6 +283,7 @@
                 class="reset-width"
                 v-model="task.nodes"
                 :clearable="false"
+                :loading="nodeListLoading"
                 :multiple="true"
                 @change="() => (requiredOptions.nodes = false)"
               >
@@ -403,7 +405,7 @@
             <bk-button
               class="btn-submit"
               v-authority="{ active: !authority.MANAGE_AUTH }"
-              :disabled="isSubmit"
+              :disabled="nodeListLoading || isLoading || isSubmit"
               :icon="isSubmit ? 'loading' : ''"
               theme="primary"
               @click="authority.MANAGE_AUTH ? submit() : handleShowAuthorityDetail()"
@@ -587,9 +589,13 @@ export default {
       },
       // 该变量记录上一个访问 拔测节点 数据的 id，避免重复请求。
       previousBizId: -1,
+      nodeListLoading: false,
     };
   },
   computed: {
+    filterBizList() {
+      return this.$store.getters.bizList.filter(item => +item.bk_biz_id === +this.task.business);
+    },
     submitBtnText() {
       if (!this.isSubmit) {
         return this.$t('提交');
@@ -636,9 +642,14 @@ export default {
       this.updateNav(this.$t('加载中...'));
       this.generationFormField();
       this.handleSetBusiness();
-      await Promise.all([this.getNodeList(), this.getGroupList()]).catch(() => {
-        this.isLoading = false;
-      });
+      this.getNodeList();
+      await listUptimeCheckGroup()
+        .then(data => {
+          this.groupList = data;
+        })
+        .catch(() => {
+          this.isLoading = false;
+        });
       if (!Array.isArray(this.task.groups)) {
         this.task.groups = [];
       }
@@ -728,7 +739,8 @@ export default {
     getNodeList() {
       if (this.previousBizId === Number(this.task.business)) return Promise.resolve();
       this.previousBizId = Number(this.task.business);
-      return listUptimeCheckNode({ bk_biz_id: this.task.business })
+      this.nodeListLoading = true;
+      listUptimeCheckNode({ bk_biz_id: this.task.business })
         .then(data => {
           this.$set(this.node, `${this.task.business}`, data);
           const curNode = this.node[this.task.business].map(item => item.id);
@@ -742,7 +754,10 @@ export default {
           this.isLoading = false;
           return data;
         })
-        .catch(err => err);
+        .catch(err => err)
+        .finally(() => {
+          this.nodeListLoading = false;
+        });
     },
     // 获取任务组信息
     getGroupList() {
@@ -1060,9 +1075,13 @@ export default {
       this.task.name = data.name;
       this.task.groups = data.groups.map(group => group.id);
       data.nodes.forEach(node => {
-        const sameNode = this.node[data.bk_biz_id].find(item => item.id === node.id);
-        if (sameNode && !this.task.nodes.some(id => id === node.id) && node.id) {
+        if (!this.node[data.bk_biz_id]) {
           this.task.nodes.push(node.id);
+        } else {
+          const sameNode = this.node[data.bk_biz_id].find(item => item.id === node.id);
+          if (sameNode && !this.task.nodes.some(id => id === node.id) && node.id) {
+            this.task.nodes.push(node.id);
+          }
         }
       });
       if (this.protocol.value === 'HTTP') {
@@ -1225,6 +1244,9 @@ export default {
     validatePort() {
       const port = +this.task.port;
       this.requiredOptions.port = !(0 < port && port <= 65535);
+    },
+    handleAddTcpTarget() {
+      this.requiredOptions.target = false;
     },
     handleHttpConfigChange(httpConfig) {
       this.httpConfig = httpConfig;

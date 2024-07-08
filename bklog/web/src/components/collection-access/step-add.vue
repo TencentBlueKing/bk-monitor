@@ -253,7 +253,7 @@
                 'is-selected': item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
-              :disabled="isUpdate && isWinEventLog"
+              :disabled="isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog"
               :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
@@ -1700,7 +1700,6 @@
           // 物理环境编辑
           physicsFromData.collector_config_id = this.updateCollectorConfigID;
           delete physicsFromData.category_id;
-          delete physicsFromData.collector_scenario_id;
           return Object.assign(physicsFromData, {
             bk_biz_id: this.bkBizId,
           });

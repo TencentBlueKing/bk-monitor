@@ -817,3 +817,10 @@ class GetDisplayNameSerializer(serializers.Serializer):
     """
 
     host_list = serializers.ListField(child=HostInfoSerializer(), default=[])
+
+
+class ESRouterListSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=False, label="空间ID")
+    scenario_id = serializers.CharField(required=False, label="数据源类型")
+    page = serializers.IntegerField(label=_("分页"), required=True)
+    pagesize = serializers.IntegerField(label=_("分页大小"), required=True)

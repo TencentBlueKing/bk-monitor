@@ -8,15 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import functools
 
 import arrow
-from monitor_web.commons.cc.utils import CmdbUtil
 
 from bkmonitor.models import Shield
 from bkmonitor.utils.shield import BaseShieldDisplayManager
 from bkmonitor.utils.time_tools import localtime, now, str2datetime
 from constants.shield import ShieldCategory, ShieldCycleType
 from core.drf_resource import resource
+from monitor_web.commons.cc.utils import CmdbUtil
 
 
 class ShieldDetectManager(object):
@@ -164,6 +165,8 @@ class ShieldDisplayManager(BaseShieldDisplayManager):
     def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
         return self.node_manager.get_node_path(bk_biz_id, bk_topo_node_list)
 
+    @functools.lru_cache(maxsize=128)
     def get_business_name(self, bk_biz_id):
+        """根据 bk_biz_id 获取业务名，使用缓存（基于 self 和 bk_biz_id）以提高性能。"""
         business = resource.cc.get_app_by_id(bk_biz_id)
         return business.name

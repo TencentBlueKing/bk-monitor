@@ -126,6 +126,11 @@
           v-if="checkcFields('storage_cluster_name')"
           :label="$t('存储集群')"
           :render-header="$renderHeader"
+          :filters="checkcFields('storage_cluster_name') ? filterStorageLabelList : []"
+          :filter-multiple="false"
+          class-name="filter-column"
+          column-key="storage_cluster_name"
+          prop="storage_cluster_name"
           min-width="70"
         >
           <template #default="props">
@@ -185,6 +190,11 @@
           width="200"
           :label="$t('标签')"
           :render-header="$renderHeader"
+          :filters="checkcFields('label') ? filterLabelList : []"
+          :filter-multiple="false"
+          class-name="filter-column"
+          column-key="tags"
+          prop="tags"
           min-width="200"
         >
           <template #default="props">
@@ -710,6 +720,8 @@
           status: '',
           collector_scenario_id: '',
           category_id: '',
+          tags: '',
+          storage_cluster_name: '',
         },
         isAllowedCreate: null,
         columnSetting: {
@@ -728,6 +740,8 @@
         isShouldPollCollect: false, // 当前列表是否需要轮询
         settingCacheKey: 'clusterList',
         selectLabelList: [],
+        filterLabelList: [],
+        filterStorageLabelList: [],
       };
     },
     computed: {
@@ -773,7 +787,9 @@
         if (this.isFilterSearch) {
           const fParams = this.filterParams;
           collect = collect.filter(item =>
-            Object.keys(fParams).every(key => (fParams[key] === '' ? true : item[key] === fParams[key])),
+            Object.keys(fParams).every(key =>
+              this.filterIsNotCompared(fParams[key]) ? true : this.compareFilter(item[key], fParams[key], key),
+            ),
           );
         }
         if (this.keyword) {
@@ -781,6 +797,7 @@
             item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase()),
           );
         }
+        this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
         this.changePagination({ count: collect.length });
         const { current, limit } = this.pagination;
         const startIndex = (current - 1) * limit;
@@ -788,7 +805,7 @@
         return collect.slice(startIndex, endIndex);
       },
       isFilterSearch() {
-        return !!Object.values(this.filterParams).some(Boolean);
+        return !!Object.values(this.filterParams).some(item => !this.filterIsNotCompared(item));
       },
     },
     created() {
@@ -801,7 +818,7 @@
       !this.authGlobalInfo && (await this.initLabelSelectList());
       !this.authGlobalInfo && this.requestData();
     },
-    unmounted() {
+    beforeDestroy() {
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
     },
@@ -964,12 +981,18 @@
               const idList = [];
               const indexIdList = data.filter(item => !!item.index_set_id).map(item => item.index_set_id);
               const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
+              const setStorageClusterName = new Set();
               data.forEach(row => {
                 row.status = '';
                 row.status_name = '';
                 idList.push(row.collector_config_id);
                 row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
+                if (!!row.storage_cluster_name) setStorageClusterName.add(row.storage_cluster_name);
               });
+              this.filterStorageLabelList = Array.from(setStorageClusterName).map(item => ({
+                text: item,
+                value: item,
+              }));
               this.collectList = data;
               this.changePagination({ count: data.length });
               this.collectorIdStr = idList.join(',');
@@ -1094,8 +1117,15 @@
         try {
           const res = await this.$http.request('unionSearch/unionLabelList');
           this.selectLabelList = res.data;
+          this.filterLabelList = res.data
+            .filter(item => !item.is_built_in)
+            .map(item => ({
+              value: item.name,
+              text: item.name,
+            }));
         } catch (error) {
           this.selectLabelList = [];
+          this.filterLabelList = [];
         }
       },
       handleRowClassName({ row }) {
@@ -1130,10 +1160,20 @@
         this.changePagination({ current });
       },
       handleCollectLimitChange(limit) {
-        this.changePagination({ limit });
+        this.changePagination({ limit, current: 1 });
       },
       changePagination(pagination = {}) {
         Object.assign(this.pagination, pagination);
+      },
+      filterIsNotCompared(val) {
+        if (typeof val === 'string' && val === '') return true;
+        if (typeof val === 'obj' && JSON.stringify(val) === '{}') return true;
+        if (Array.isArray(val) && !val.length) return true;
+        return false;
+      },
+      compareFilter(compare, fCompare, key) {
+        if (key === 'tags') return compare.some(item => item.name === fCompare);
+        return compare === fCompare;
       },
     },
   };

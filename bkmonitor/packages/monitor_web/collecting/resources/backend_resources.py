@@ -1858,7 +1858,7 @@ class CollectTargetStatusResource(BaseCollectTargetStatusResource):
             contained_modules = topo_tree_tools.get_module_by_node(inst)
 
             instance_category = defaultdict(list)
-            if target_object_type == "host":
+            if target_object_type == TargetObjectType.HOST:
                 # 遍历全业务下的主机，先找到归属该节点下的主机，然后若节点管理下有该主机的运行数据，根据主机的action进行分类
                 for host in extra_info["host_list"]:
                     if not set(host.bk_module_ids) & contained_modules:
