@@ -47,6 +47,7 @@ from constants.data_source import (
     OthersResultTableLabel,
     ResultTableLabelObj,
 )
+from constants.event import ALL_FTA_EVENT_NAME
 from constants.strategy import (
     HOST_SCENARIO,
     SERVICE_SCENARIO,
@@ -1846,6 +1847,15 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         tables = default_tables = self.get_config_tables(bk_biz_id=0)
         if self.bk_biz_id:
             tables = self.get_config_tables(bk_biz_id=self.bk_biz_id)
+        else:
+            tables[ALL_FTA_EVENT_NAME] = {
+                "dimensions": [],
+                "plugin_ids": set(),
+                "target_type": DataTarget.HOST_TARGET,
+                "result_table_label": OthersResultTableLabel.other_rt,
+                "bk_biz_id": 0,
+                "alert_name_alias": "ALL_FTA_ALERT",
+            }
 
         alerts_info = self.search_alerts()
         alert_tags = alerts_info["alert_tags"]
@@ -1939,7 +1949,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                 ],
                 "default_condition": [],
                 "metric_field": table["alert_name"],
-                "metric_field_name": table["alert_name"],
+                "metric_field_name": table.get("alert_name_alias", table["alert_name"]),
                 "dimensions": table["dimensions"],
                 "extend_fields": {
                     "plugin_ids": table["plugin_ids"],

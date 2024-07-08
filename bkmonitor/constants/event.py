@@ -13,3 +13,5 @@ specific language governing permissions and limitations under the License.
 EventTypeNormal = "Normal"
 # These events are to warn that something might go wrong
 EventTypeWarning = "Warning"
+
+ALL_FTA_EVENT_NAME = "__ALL_FTA_EVENT__"

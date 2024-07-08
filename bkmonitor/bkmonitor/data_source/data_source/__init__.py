@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+import constants.event
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
@@ -1779,7 +1780,10 @@ class BkFtaEventDataSource(DataSource):
         self.filter_dict["status"] = EventStatus.ABNORMAL
 
         if self.alert_name:
-            self.filter_dict["alert_name.raw"] = self.alert_name
+            if self.alert_name != constants.event.ALL_FTA_EVENT_NAME:
+                self.filter_dict["alert_name.raw"] = self.alert_name
+            else:
+                self.filter_dict["event.plugin_id__neq"] = "bkmonitor"
 
         if bk_biz_id:
             self.filter_dict["bk_biz_id"] = bk_biz_id
