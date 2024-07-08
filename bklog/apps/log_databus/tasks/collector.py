@@ -353,7 +353,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
                 "etl_config": collect_config["etl_config"],
                 "fields": [field for field in collect_config["fields"] if not field["is_built_in"]],
             }
-            etl_handler = EtlHandler(collector.collector_config_id)
+            etl_handler = EtlHandler.get_instance(collector.collector_config_id)
             etl_handler.update_or_create(**etl_params)
             logger.info(
                 "switch collector->[{}] storage cluster success: {} -> {}".format(

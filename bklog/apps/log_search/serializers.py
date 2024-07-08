@@ -820,6 +820,13 @@ class GetDisplayNameSerializer(serializers.Serializer):
     host_list = serializers.ListField(child=HostInfoSerializer(), default=[])
 
 
+class ESRouterListSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=False, label="空间ID")
+    scenario_id = serializers.CharField(required=False, label="数据源类型")
+    page = serializers.IntegerField(label=_("分页"), required=True)
+    pagesize = serializers.IntegerField(label=_("分页大小"), required=True)
+
+
 class QueryFieldBaseSerializer(serializers.Serializer):
     """
     字段分析查询序列化
@@ -885,10 +892,3 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
     limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
-
-
-class ESRouterListSerializer(serializers.Serializer):
-    space_uid = serializers.CharField(required=False, label="空间ID")
-    scenario_id = serializers.CharField(required=False, label="数据源类型")
-    page = serializers.IntegerField(label=_("分页"), required=True)
-    pagesize = serializers.IntegerField(label=_("分页大小"), required=True)

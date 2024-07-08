@@ -346,6 +346,7 @@ export default class CollectGroup extends tsc<IProps> {
           {!this.isUnknownGroup ? (
             <li onClick={() => this.handleClickLi('remove-group')}>{this.$t('从该组移除')}</li>
           ) : undefined}
+          <li onClick={() => this.handleClickLi('new-link')}>{this.$t('新开标签页')}</li>
           <li
             class='eye-catching'
             onClick={() => this.handleClickLi('delete-favorite')}

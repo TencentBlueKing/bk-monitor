@@ -51,7 +51,7 @@ class Command(ConsulDispatchCommand):
             choices=["process", "celery"],
             help="Which handler does the process use?",
         )
-        parser.add_argument("--access-type", choices=["data", "real_time_data", "event", "alert"])
+        parser.add_argument("--access-type", choices=["data", "real_time_data", "event", "alert", "incident"])
 
     # status
     __COMMAND_NAME__ = __name__.split(".")[-1]
