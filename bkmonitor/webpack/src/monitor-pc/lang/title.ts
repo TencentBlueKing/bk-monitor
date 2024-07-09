@@ -132,4 +132,5 @@ export default {
   '暂未开启 Profiling 功能': 'Profiling is not enabled yet',
   '暂无 Profiling 数据': 'No profiling data yet',
   关闭目标: 'Close target',
+  测试执行: 'Test execution',
 };
