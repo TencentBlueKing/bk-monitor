@@ -53,6 +53,7 @@ class Error(Exception):
     description = ""
     # 错误信息详情
     error_details = None
+    popup_message = "warn"  # 弹框颜色，默认为黄框
 
     def __init__(self, context=None, data=None, extra=None, **kwargs):
         if not context:
@@ -74,7 +75,13 @@ class Error(Exception):
 
         # 返回给前端的额外字段
         self.extra = extra
-        self.set_details(exc_type=type(self).__name__, exc_code=self.code, overview=self.message, detail=self.data)
+        self.set_details(
+            exc_type=type(self).__name__,
+            exc_code=self.code,
+            overview=self.message,
+            detail=self.data,
+            popup_message=self.popup_message,
+        )
 
     def set_details(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warn"):
         """设置错误详情信息"""
