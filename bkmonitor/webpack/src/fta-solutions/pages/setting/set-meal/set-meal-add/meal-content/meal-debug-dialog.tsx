@@ -344,7 +344,7 @@ export default class MealDebugDialog extends tsc<IProps> {
           {this.debugData.type === 'peripheral' && (
             <bk-alert
               class='mb-24'
-              title={this.$t('注意，该功能会调实际套餐去执行。请确认测试变量后再进行测试执行')}
+              title={this.$t('注意，该功能会调实际套餐去执行，请确认测试变量后再进行测试执行。')}
               type='warning'
               closable
             ></bk-alert>

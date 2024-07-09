@@ -65,12 +65,14 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
             <div class={'title'}>
               <span class={{ required: !!item?.required }}>
                 {item.lable}
-                <span
-                  class='sub-title'
-                  title={item?.subTitle || ''}
-                >
-                  {item?.subTitle || ''}
-                </span>
+                {!!item?.subTitle && (
+                  <span
+                    class='sub-title'
+                    title={item.subTitle}
+                  >
+                    {item.subTitle}
+                  </span>
+                )}
               </span>
             </div>,
             <div class='wrap'>
