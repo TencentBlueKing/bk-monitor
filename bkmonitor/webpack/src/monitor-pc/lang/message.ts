@@ -232,6 +232,7 @@ export default {
   暂无权限: 'No permission',
   暂无数据: 'No Data',
   查无数据: 'No data',
+  暂无进程: 'No Process',
   暂无收藏: 'No favorite',
   暂无搜索: 'No search result',
   无需认证: 'No authentication',

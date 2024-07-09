@@ -40,6 +40,7 @@ export const linkMap = {
   quickStartDial: '监控平台/产品白皮书/scene-synthetic/synthetic_monitor.md', //  5分钟快速上手"服务拨测" 功能 前往查看
   bestPractices: '监控平台/产品白皮书/quickstart/best_practices.md', //  了解"快速接入"方法
   processMonitor: '监控平台/产品白皮书/scene-process/process_monitor_overview.md', //  了解进程的配置方法
+  processPortMonitor: '监控平台/产品白皮书/scene-process/process_cmdb_monitor.md', //  了解进程和端口监控配置
   scriptCollect: '监控平台/产品白皮书/integrations-metric-plugins/script_collect.md', //  如何使用脚本进行服务监控？
   multiInstanceMonitor: '监控平台/产品白皮书/integrations-metrics/multi_instance_monitor.md', //  如何实现多实例采集？
   componentMonitor: '监控平台/产品白皮书/integrations-metrics/component_monitor.md', //  如何对开源组件进行监控？

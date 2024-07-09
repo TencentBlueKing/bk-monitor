@@ -241,4 +241,7 @@ export default {
   显示完整信息: 'Show full information',
   '注意，该功能会调实际套餐去执行。请确认测试变量后再进行测试执行':
     'Note that this feature will execute the actual package. Please confirm the test variable before testing execution',
+  请确认是否导出: 'Please confirm whether to export',
+  '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作':
+    'The export YAML function is used for As Code. If you need to import and export policies, please go to Integration-Import and Export to perform operations.',
 };
