@@ -1,28 +1,33 @@
-/* eslint-disable camelcase */
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Emit, Watch, Model } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import {
   Dialog,
   Switcher,
@@ -34,15 +39,17 @@ import {
   Select,
   TableSettingContent,
   DropdownMenu,
-  Tag
+  Tag,
 } from 'bk-magic-vue';
-import FingerSelectColumn from '../result-table-panel/log-clustering/components/finger-select-column.vue';
-import ManageInput from './component/manage-input';
+import jsCookie from 'js-cookie';
+
 import $http from '../../../api';
 import { deepClone, random, utcFormatDate } from '../../../common/util';
-import EmptyStatus from '@/components/empty-status';
+import EmptyStatus from '../../../components/empty-status/index.vue';
+import FingerSelectColumn from '../result-table-panel/log-clustering/components/finger-select-column.vue';
+import ManageInput from './component/manage-input';
+
 import './manage-group-dialog.scss';
-import jsCookie from 'js-cookie';
 
 interface IProps {
   value?: boolean;
@@ -74,33 +81,33 @@ const settingFields = [
   {
     id: 'name',
     label: window.mainComponent.$t('收藏名'),
-    disabled: true
+    disabled: true,
   },
   {
     id: 'group_name',
     label: window.mainComponent.$t('所属组'),
-    disabled: true
+    disabled: true,
   },
   {
     id: 'visible_type',
-    label: window.mainComponent.$t('可见范围')
+    label: window.mainComponent.$t('可见范围'),
   },
   {
     id: 'display_fields',
-    label: window.mainComponent.$t('表单模式')
+    label: window.mainComponent.$t('表单模式'),
   },
   {
     id: 'is_show_switch',
-    label: window.mainComponent.$t('显示字段')
+    label: window.mainComponent.$t('显示字段'),
   },
   {
     id: 'updated_by',
-    label: window.mainComponent.$t('变更人')
+    label: window.mainComponent.$t('变更人'),
   },
   {
     id: 'updated_at',
-    label: window.mainComponent.$t('变更时间')
-  }
+    label: window.mainComponent.$t('变更时间'),
+  },
 ];
 
 @Component
@@ -130,7 +137,7 @@ export default class GroupDialog extends tsc<IProps> {
   tippyOption = {
     trigger: 'click',
     interactive: true,
-    theme: 'light'
+    theme: 'light',
   };
   isShowAddGroup = true;
   cannotComparedData = [
@@ -139,11 +146,11 @@ export default class GroupDialog extends tsc<IProps> {
     'visible_option',
     'group_option',
     'group_option_private',
-    'is_group_disabled'
+    'is_group_disabled',
   ];
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
-    private: window.mainComponent.$t('个人收藏')
+    private: window.mainComponent.$t('个人收藏'),
   };
   sourceFilters = []; // 所属组数组
   updateSourceFilters = []; // 更变人过滤数组
@@ -152,18 +159,18 @@ export default class GroupDialog extends tsc<IProps> {
 
   unPrivateOptionList = [
     // 非本人创建的收藏的可见范围数组
-    { name: window.mainComponent.$t('公开'), id: 'public' }
+    { name: window.mainComponent.$t('公开'), id: 'public' },
   ];
   allOptionList = [
     // 本人创建的收藏的可见范围数组
     { name: window.mainComponent.$t('公开'), id: 'public' },
-    { name: window.mainComponent.$t('私有'), id: 'private' }
+    { name: window.mainComponent.$t('私有'), id: 'private' },
   ];
 
   tableSetting = {
     fields: settingFields,
     selectedFields: settingFields.slice(0, 5),
-    size: 'small'
+    size: 'small',
   };
 
   get spaceUid() {
@@ -302,7 +309,7 @@ export default class GroupDialog extends tsc<IProps> {
   /** 获取字段下拉框列表请求 */
   async getSearchFieldsList(keyword: string) {
     return await $http.request('favorite/getSearchFields', {
-      data: { keyword }
+      data: { keyword },
     });
   }
   /** 获取收藏请求 */
@@ -312,8 +319,8 @@ export default class GroupDialog extends tsc<IProps> {
       const res = await $http.request('favorite/getFavoriteList', {
         query: {
           space_uid: this.spaceUid,
-          order_type: 'NAME_ASC'
-        }
+          order_type: 'NAME_ASC',
+        },
       });
       const updateSourceFiltersSet = new Set();
       const localLanguage = jsCookie.get('blueking_language') || 'zh-cn';
@@ -326,7 +333,7 @@ export default class GroupDialog extends tsc<IProps> {
                   return `${this.$t('全文检索')}${!!p1 ? p1 : ''}`;
                 })
               : item,
-          chName: item
+          chName: item,
         })); // 初始化表单字段
 
         const is_group_disabled = item.visible_type === 'private';
@@ -337,12 +344,12 @@ export default class GroupDialog extends tsc<IProps> {
           group_option: this.unPrivateList,
           group_option_private: this.privateList,
           visible_option,
-          is_group_disabled
+          is_group_disabled,
         };
       });
       this.updateSourceFilters = [...updateSourceFiltersSet].map(item => ({
         text: item,
-        value: item
+        value: item,
       }));
       this.tableList = res.data;
       this.operateTableList = initList;
@@ -359,19 +366,19 @@ export default class GroupDialog extends tsc<IProps> {
     try {
       const res = await $http.request('favorite/getGroupList', {
         query: {
-          space_uid: this.spaceUid
-        }
+          space_uid: this.spaceUid,
+        },
       });
       this.groupList = res.data.map(item => ({
         group_id: item.id,
         group_name: this.groupNameMap[item.group_type] ?? item.name,
-        group_type: item.group_type
+        group_type: item.group_type,
       }));
       this.unPrivateList = this.groupList.slice(1); // 去除个人收藏的列表
       this.privateList = this.groupList.slice(0, 1); // 个人收藏列表
       this.sourceFilters = res.data.map(item => ({
         text: this.groupNameMap[item.group_type] ?? item.name,
-        value: item.name
+        value: item.name,
       }));
       this.unknownGroupID = this.groupList[this.groupList.length - 1]?.group_id;
       this.privateGroupID = this.groupList[0]?.group_id;
@@ -383,7 +390,7 @@ export default class GroupDialog extends tsc<IProps> {
         this.operateTableList = this.operateTableList.map(item => ({
           ...item,
           group_option: this.unPrivateList,
-          group_option_private: this.privateList
+          group_option_private: this.privateList,
         }));
         this.handleSearchFilter();
       }
@@ -409,7 +416,7 @@ export default class GroupDialog extends tsc<IProps> {
       if (res.result) {
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('新建成功')
+          message: this.$t('新建成功'),
         });
         this.getGroupList(true);
       }
@@ -429,7 +436,7 @@ export default class GroupDialog extends tsc<IProps> {
           name: item.is_full_text_field
             ? `${this.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
             : item.name,
-          chName: item.name
+          chName: item.name,
         }));
         this.operateListChange(row, { search_fields_select_list: list });
       } catch (error) {
@@ -445,7 +452,7 @@ export default class GroupDialog extends tsc<IProps> {
       visible_type: nVal,
       is_group_disabled: nVal === 'private',
       group_name,
-      group_id
+      group_id,
     });
   }
   /** 单独修改组 */
@@ -508,9 +515,9 @@ export default class GroupDialog extends tsc<IProps> {
         const index = this.selectFavoriteList.findIndex(item => item === row.id);
         if (index >= 0) this.selectFavoriteList.splice(index, 1);
         $http.request('favorite/deleteFavorite', {
-          params: { favorite_id: row.id }
+          params: { favorite_id: row.id },
         });
-      }
+      },
     });
   }
   /** 点击确定提交管理弹窗数据 */
@@ -532,8 +539,8 @@ export default class GroupDialog extends tsc<IProps> {
     try {
       await $http.request('favorite/batchFavoriteDelete', {
         data: {
-          id_list: this.deleteTableIDList
-        }
+          id_list: this.deleteTableIDList,
+        },
       });
     } catch (error) {}
   }
@@ -553,13 +560,13 @@ export default class GroupDialog extends tsc<IProps> {
       is_enable_display_fields: item.is_enable_display_fields,
       // host_scopes: item.params.host_scopes,
       ip_chooser: item.params.ip_chooser,
-      addition: item.params.addition
+      addition: item.params.addition,
     }));
     try {
       await $http.request('favorite/batchFavoriteUpdate', {
         data: {
-          params
-        }
+          params,
+        },
       });
     } catch (error) {}
   }
@@ -591,15 +598,15 @@ export default class GroupDialog extends tsc<IProps> {
   renderHeader(h) {
     return h(FingerSelectColumn, {
       class: {
-        'header-checkbox': true
+        'header-checkbox': true,
       },
       props: {
         value: this.checkValue,
-        disabled: !this.searchAfterList.length
+        disabled: !this.searchAfterList.length,
       },
       on: {
-        change: this.handleSelectionChange
-      }
+        change: this.handleSelectionChange,
+      },
     });
   }
 
@@ -607,7 +614,7 @@ export default class GroupDialog extends tsc<IProps> {
     return h(
       'div',
       {
-        class: 'render-header'
+        class: 'render-header',
       },
       [
         h(
@@ -620,15 +627,15 @@ export default class GroupDialog extends tsc<IProps> {
                 value: {
                   width: 400,
                   content: this.$t(
-                    '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)'
-                  )
-                }
-              }
-            ]
+                    '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)',
+                  ),
+                },
+              },
+            ],
           },
-          this.$t('表单模式')
-        )
-      ]
+          this.$t('表单模式'),
+        ),
+      ],
     );
   }
 
@@ -636,7 +643,7 @@ export default class GroupDialog extends tsc<IProps> {
     return h(
       'div',
       {
-        class: 'render-header'
+        class: 'render-header',
       },
       [
         h(
@@ -648,14 +655,14 @@ export default class GroupDialog extends tsc<IProps> {
                 name: 'bk-tooltips',
                 value: {
                   width: 400,
-                  content: this.$t('当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。')
-                }
-              }
-            ]
+                  content: this.$t('当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。'),
+                },
+              },
+            ],
           },
-          this.$t('显示字段')
-        )
-      ]
+          this.$t('显示字段'),
+        ),
+      ],
     );
   }
 
@@ -683,7 +690,7 @@ export default class GroupDialog extends tsc<IProps> {
             ))}
           </div>
         </div>
-      )
+      ),
     };
     const nameSlot = {
       default: ({ row }) => [
@@ -697,24 +704,24 @@ export default class GroupDialog extends tsc<IProps> {
             favorite-data={row}
             on-change={val => this.handleChangeFavoriteName(row, val)}
           ></ManageInput>
-        </div>
-      ]
+        </div>,
+      ],
     };
     const groupSlot = {
       default: ({ row }) => [
         <Select
           vModel={row.group_id}
-          searchable
           clearable={false}
           disabled={row.is_group_disabled}
-          popover-min-width={200}
           ext-popover-cls='add-new-page-container'
+          popover-min-width={200}
+          searchable
           on-change={() => this.handleChangeGroup(row)}
         >
           <div slot='trigger'>
             <span
-              class='overflow-tips'
               style='padding: 0 10px;'
+              class='overflow-tips'
               v-bk-overflow-tips
             >
               {this.getGroupName(row)}
@@ -742,8 +749,8 @@ export default class GroupDialog extends tsc<IProps> {
               <li class='add-new-page-input'>
                 <Input
                   vModel={this.groupName}
-                  maxlength={30}
                   behavior={'simplicity'}
+                  maxlength={30}
                 ></Input>
                 <div class='operate-button'>
                   <span
@@ -761,15 +768,15 @@ export default class GroupDialog extends tsc<IProps> {
               </li>
             )}
           </div>
-        </Select>
-      ]
+        </Select>,
+      ],
     };
     const visibleSlot = {
       default: ({ row }) => [
         <Select
           vModel={row.visible_type}
-          on-selected={nVal => this.handleSelectVisible(row, nVal)}
           clearable={false}
+          on-selected={nVal => this.handleSelectVisible(row, nVal)}
         >
           {row.visible_option.map(item => (
             <Option
@@ -778,18 +785,18 @@ export default class GroupDialog extends tsc<IProps> {
               name={item.name}
             ></Option>
           ))}
-        </Select>
-      ]
+        </Select>,
+      ],
     };
     const selectTagSlot = {
       default: ({ row }) => [
         <Select
           vModel={row.search_fields}
-          searchable
-          multiple
-          display-tag
-          placeholder={this.$t('未设置')}
           clearable={false}
+          placeholder={this.$t('未设置')}
+          display-tag
+          multiple
+          searchable
           on-change={nVal => this.handleChangeSearchList(row, nVal)}
           on-toggle={status => this.handleClickFieldsList(row, status)}
         >
@@ -800,8 +807,8 @@ export default class GroupDialog extends tsc<IProps> {
               name={item.name}
             ></Option>
           ))}
-        </Select>
-      ]
+        </Select>,
+      ],
     };
     const switchSlot = {
       default: ({ row }) => [
@@ -811,8 +818,8 @@ export default class GroupDialog extends tsc<IProps> {
             theme='primary'
             on-change={value => this.handleSwitchChange(row, value)}
           ></Switcher>
-        </div>
-      ]
+        </div>,
+      ],
     };
     const deleteSlot = {
       default: ({ row }) => [
@@ -823,19 +830,19 @@ export default class GroupDialog extends tsc<IProps> {
           >
             <span class='bk-icon icon-delete'></span>
           </div>
-        </div>
-      ]
+        </div>,
+      ],
     };
     return (
       <Dialog
-        value={this.value}
-        title={this.$t('管理')}
-        header-position='left'
-        render-directive='if'
-        ext-cls='manage-group'
         width={960}
-        position={{ top: this.positionTop }}
+        ext-cls='manage-group'
         confirm-fn={this.handleSubmitTableData}
+        header-position='left'
+        position={{ top: this.positionTop }}
+        render-directive='if'
+        title={this.$t('管理')}
+        value={this.value}
         on-value-change={this.handleValueChange}
       >
         <div class={`top-operate ${!this.selectCount && 'is-not-select'}`}>
@@ -846,8 +853,8 @@ export default class GroupDialog extends tsc<IProps> {
           </div>
           <Input
             class='operate-input'
-            right-icon='bk-icon icon-search'
             vModel={this.searchValue}
+            right-icon='bk-icon icon-search'
             on-enter={this.handleSearchFilter}
             on-right-icon-click={this.handleSearchFilter}
             onKeyup={this.handleInputSearchFavorite}
@@ -884,80 +891,77 @@ export default class GroupDialog extends tsc<IProps> {
           </div>
         ) : undefined}
         <Table
-          data={this.searchAfterList}
-          size='small'
-          render-directive='if'
-          header-border={true}
-          border={true}
           ext-cls={`${!this.selectCount && 'is-not-select'}`}
-          empty-text={this.$t('暂无数据')}
-          max-height={this.maxHeight}
           v-bkloading={{ isLoading: this.tableLoading }}
+          border={true}
+          data={this.searchAfterList}
+          empty-text={this.$t('暂无数据')}
+          header-border={true}
+          max-height={this.maxHeight}
+          render-directive='if'
+          size='small'
         >
           <TableColumn
             width='64'
-            type='expand'
             render-header={this.renderHeader}
             scopedSlots={expandSlot}
+            type='expand'
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('收藏名')}
-            render-header={this.$renderHeader}
             key={'column_name'}
             width='160'
-            prop={'name'}
             class-name='group-input'
+            label={this.$t('收藏名')}
             label-class-name='group-title'
+            prop={'name'}
+            render-header={this.$renderHeader}
             scopedSlots={nameSlot}
           ></TableColumn>
 
           {this.checkFields('group_name') ? (
             <TableColumn
-              label={this.$t('所属组')}
-              render-header={this.$renderHeader}
-              width={this.getGroupLabelWidth}
               key={'column_group_name'}
-              prop={'group_name'}
-              scopedSlots={groupSlot}
-              label-class-name='group-title'
+              width={this.getGroupLabelWidth}
               class-name='group-select'
-              filters={this.sourceFilters}
-              filter-multiple={false}
               filter-method={this.sourceFilterMethod}
+              filter-multiple={false}
+              filters={this.sourceFilters}
+              label={this.$t('所属组')}
+              label-class-name='group-title'
+              prop={'group_name'}
+              render-header={this.$renderHeader}
+              scopedSlots={groupSlot}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('visible_type') ? (
             <TableColumn
-              label={this.$t('可见范围')}
-              render-header={this.$renderHeader}
-              width='112'
               key={'column_visible_type'}
-              prop={'visible_type'}
-              scopedSlots={visibleSlot}
-              label-class-name='group-title'
+              width='112'
               class-name='group-select'
+              label={this.$t('可见范围')}
+              label-class-name='group-title'
+              prop={'visible_type'}
+              render-header={this.$renderHeader}
+              scopedSlots={visibleSlot}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('display_fields') ? (
             <TableColumn
-              label={this.$t('表单模式')}
-              render-header={this.renderHeaderTable}
               key={'column_search_fields'}
-              prop={'search_fields'}
-              scopedSlots={selectTagSlot}
-              label-class-name='group-title'
               class-name='group-select'
+              label={this.$t('表单模式')}
+              label-class-name='group-title'
+              prop={'search_fields'}
+              render-header={this.renderHeaderTable}
+              scopedSlots={selectTagSlot}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('updated_by') ? (
             <TableColumn
-              label={this.$t('变更人')}
-              render-header={this.$renderHeader}
-              prop={'updated_by'}
               key={'column_update_by'}
               scopedSlots={{
                 default: ({ row }) => [
@@ -966,20 +970,20 @@ export default class GroupDialog extends tsc<IProps> {
                     v-bk-overflow-tips
                   >
                     {row.updated_by}
-                  </span>
-                ]
+                  </span>,
+                ],
               }}
-              filters={this.updateSourceFilters}
-              filter-multiple={false}
               filter-method={this.sourceFilterMethod}
+              filter-multiple={false}
+              filters={this.updateSourceFilters}
+              label={this.$t('变更人')}
+              prop={'updated_by'}
+              render-header={this.$renderHeader}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('updated_at') ? (
             <TableColumn
-              label={this.$t('变更时间')}
-              render-header={this.$renderHeader}
-              prop={'updated_at'}
               key={'column_update_time'}
               scopedSlots={{
                 default: ({ row }) => [
@@ -988,37 +992,40 @@ export default class GroupDialog extends tsc<IProps> {
                     v-bk-overflow-tips
                   >
                     {utcFormatDate(row.updated_at)}
-                  </span>
-                ]
+                  </span>,
+                ],
               }}
+              label={this.$t('变更时间')}
+              prop={'updated_at'}
+              render-header={this.$renderHeader}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('is_show_switch') ? (
             <TableColumn
-              label={this.$t('显示字段')}
-              render-header={this.renderHeaderFields}
-              class-name='group-input'
-              max-width='120'
-              label-class-name='group-title'
               key={'column_switch'}
+              class-name='group-input'
+              label={this.$t('显示字段')}
+              label-class-name='group-title'
+              max-width='120'
+              render-header={this.renderHeaderFields}
               scopedSlots={switchSlot}
             ></TableColumn>
           ) : undefined}
 
           <TableColumn
-            width='0'
             key={'column_delete'}
+            width='0'
             scopedSlots={deleteSlot}
           ></TableColumn>
 
           <TableColumn type='setting'>
             <TableSettingContent
-              v-en-style='width: 510px;'
               key={`${this.tableKey}__settings`}
+              v-en-style='width: 510px;'
               fields={this.tableSetting.fields}
-              size={this.tableSetting.size}
               selected={this.tableSetting.selectedFields}
+              size={this.tableSetting.size}
               on-setting-change={this.handleSettingChange}
             ></TableSettingContent>
           </TableColumn>

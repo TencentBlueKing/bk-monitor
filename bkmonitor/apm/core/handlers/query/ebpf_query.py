@@ -33,7 +33,7 @@ class EbpfQuery(EsQueryBuilderMixin):
     def __init__(self, es_client, index_name):
         self.client = es_client
         self.client = es_client
-        self.index_name = f"{index_name.replace('.', '_')}_*"
+        self.index_name = index_name
 
     @property
     def search(self):
@@ -55,25 +55,18 @@ class DeepFlowQuery:
         获取ebpf数据
         """
         sql = (
-            "SELECT pod_service_0, pod_service_1, pod_group_0, pod_group_1, pod_0, pod_1, service_0, "
-            "service_1, resource_gl0_0, resource_gl0_1, chost_0, chost_1, pod_node_0, pod_node_1, "
-            "Enum(auto_instance_type_0), Enum(auto_instance_type_1), auto_instance_0, auto_instance_1, "
-            "Enum(auto_service_type_0), Enum(auto_service_type_1), auto_service_0, auto_service_1, gprocess_0, "
-            "gprocess_1, _id, ip4_0, ip4_1, ip6_0, ip6_1, attribute, ip_0, ip_1, is_internet_0, "
+            "SELECT chost_0, chost_1, pod_node_0, pod_node_1, auto_instance_0, auto_instance_1, "
+            "auto_service_0, auto_service_1, tap_port, tap_port_name, http_proxy_client, "
+            "_id, ip4_0, ip4_1, ip6_0, ip6_1, attribute, ip_0, ip_1, is_internet_0, tap, vtap, "
             "is_internet_1, Enum(protocol), client_port, server_port, req_tcp_seq, "
             "resp_tcp_seq, Enum(l7_protocol), l7_protocol_str, version, Enum(type), request_type, request_domain, "
             "request_resource, request_id, response_code, response_exception, "
             "response_result, app_service, app_instance, endpoint, process_id_0, process_id_1, process_kname_0, "
-            "process_kname_1, trace_id, span_id, parent_span_id, Enum(span_kind), "
-            "x_request_id_0, x_request_id_1, tap_id, syscall_trace_id_request, syscall_trace_id_response, "
-            "syscall_thread_0, syscall_thread_1, syscall_cap_seq_0, syscall_cap_seq_1, flow_id, vtap_id, "
-            "toString(start_time) AS start_time, toString(end_time) AS end_time, Enum(signal_source), tap, vtap, "
-            "Enum(nat_source), tap_port, tap_port_name, Enum(tap_port_type), Enum(tap_side), "
-            "pod_cluster_id_0, pod_cluster_id_1, pod_ns_id_0, pod_ns_id_1, pod_node_id_0, pod_node_id_1,"
-            "pod_service_id_0, pod_service_id_1, pod_group_id_0, pod_group_id_1, pod_id_0, pod_id_1, "
-            "service_id_1, auto_instance_id_0, auto_instance_id_1, auto_service_id_0, "
-            "auto_service_id_1, service_id_0, http_proxy_client, "
-            "l7_protocol, signal_source, tap_side, tap_port_type, response_status, is_ipv4  FROM l7_flow_log"
+            "process_kname_1, trace_id, span_id, parent_span_id, "
+            "x_request_id_0, x_request_id_1, syscall_trace_id_request, syscall_trace_id_response, "
+            "syscall_thread_0, syscall_thread_1, syscall_cap_seq_0, syscall_cap_seq_1, flow_id, "
+            "toUnixTimestamp64Micro(start_time) AS start_time_us, toUnixTimestamp64Micro(end_time) AS end_time_us, "
+            "l7_protocol, signal_source, tap_side, tap_port_type, response_status, is_ipv4 FROM l7_flow_log"
         )
         ebpf_spans = []
         ebpf_param = {"trace_id": trace_id, "bk_biz_id": bk_biz_id, "sql": sql, "db": "flow_log"}

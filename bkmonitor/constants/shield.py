@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.utils.translation import gettext as _
 
 
 class ScopeType(object):
@@ -17,10 +18,25 @@ class ScopeType(object):
     BIZ = "biz"
 
 
+SCOPE_TYPE_NAME_MAPPING = {
+    ScopeType.INSTANCE: _("服务实例"),
+    ScopeType.IP: _("主机"),
+    ScopeType.NODE: _("节点"),
+    ScopeType.BIZ: _("业务"),
+}
+
+
 class ShieldStatus(object):
     SHIELDED = 1
     EXPIRED = 2
     REMOVED = 3
+
+
+SHIELD_STATUS_NAME_MAPPING = {
+    ShieldStatus.SHIELDED: _("屏蔽中"),
+    ShieldStatus.EXPIRED: _("已过期"),
+    ShieldStatus.REMOVED: _("被解除"),
+}
 
 
 class ShieldCategory(object):
@@ -31,6 +47,14 @@ class ShieldCategory(object):
     DIMENSION = "dimension"
 
     CHOICES = [SCOPE, STRATEGY, EVENT, ALERT, DIMENSION]
+
+
+SHIELD_CATEGORY_NAME_MAPPING = {
+    ShieldCategory.SCOPE: _("范围屏蔽"),
+    ShieldCategory.DIMENSION: _("维度屏蔽"),
+    ShieldCategory.STRATEGY: _("策略屏蔽"),
+    ShieldCategory.ALERT: _("告警事件屏蔽"),
+}
 
 
 class ShieldCycleType(object):

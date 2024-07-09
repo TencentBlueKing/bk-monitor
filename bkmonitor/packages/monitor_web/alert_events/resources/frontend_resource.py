@@ -22,19 +22,6 @@ from django.core.paginator import Paginator
 from django.db.models import Max, Q, Sum
 from django.utils.translation import get_language
 from django.utils.translation import ugettext as _
-from monitor_web.alert_events.constant import (
-    AlertStatus,
-    ConfigChangedStatus,
-    EventActionStatus,
-    EventOperate,
-    EventStatus,
-)
-from monitor_web.alert_events.event_filters import EventFilterManager
-from monitor_web.constants import EVENT_FIELD_CHINESE, AlgorithmType, EventLevel
-from monitor_web.data_explorer.resources import GetGraphQueryConfig
-from monitor_web.models import CustomEventGroup
-from monitor_web.models.alert_events import AlertSolution
-from monitor_web.scene_view.resources import HostIndexQueryMixin
 from pytz import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -86,6 +73,19 @@ from core.errors.event import (
 )
 from core.errors.strategy import StrategyNotExist
 from core.unit import load_unit
+from monitor_web.alert_events.constant import (
+    AlertStatus,
+    ConfigChangedStatus,
+    EventActionStatus,
+    EventOperate,
+    EventStatus,
+)
+from monitor_web.alert_events.event_filters import EventFilterManager
+from monitor_web.constants import EVENT_FIELD_CHINESE, AlgorithmType, EventLevel
+from monitor_web.data_explorer.resources import GetGraphQueryConfig
+from monitor_web.models import CustomEventGroup
+from monitor_web.models.alert_events import AlertSolution
+from monitor_web.scene_view.resources import HostIndexQueryMixin
 
 
 class EventDimensionMixin(object):
@@ -404,7 +404,6 @@ class ListEventResource(EventPermissionResource, EventDimensionMixin):
             event_related_data["latest_anomaly"] = anomaly_message
 
     def get_page(self, page, page_size, status=None, order=None, export=False):
-
         # 按事件状态和事件开始时间进行排序
         if not order:
             event_queryset = self.event_queryset.extra(order_by=["-status", "-end_time", "-id"])
@@ -487,7 +486,6 @@ class ListEventResource(EventPermissionResource, EventDimensionMixin):
             event_related_data = self.related_data.get(event.event_id, {})
             target_key = str(event.target_key).split("|", 1)
             if target_key[0] == "host":
-                # 主机 1.1.1.1
                 target_key = "{} {}".format(_("主机"), target_key[1].split("|", 1)[0])
             else:
                 dimension_translation = event.origin_alarm["dimension_translation"]
@@ -933,7 +931,8 @@ class DetailEventResource(EventPermissionResource, EventDimensionMixin):
                     DataTypeLabel.EVENT,
                 ):
                     # 自定义事件需要添加额外的过滤条件
-                    filter_dict["event_name"] = query_config["custom_event_name"]
+                    if query_config["custom_event_name"]:
+                        filter_dict["event_name"] = query_config["custom_event_name"]
                     query_config["metric_field"] = "_index"
                 elif (query_config["data_source_label"], query_config["data_type_label"]) == (
                     DataSourceLabel.BK_LOG_SEARCH,
@@ -1977,7 +1976,6 @@ class IsHostExistsIndex(EventPermissionResource, HostIndexQueryMixin):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data):
-
         return bool(self.query_indexes(validated_request_data))
 
 
@@ -1989,7 +1987,6 @@ class ListIndexByHost(EventPermissionResource, HostIndexQueryMixin):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data):
-
         infos = self.query_indexes(validated_request_data)
 
         res = []

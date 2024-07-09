@@ -46,6 +46,10 @@ export const DEFAULT_TRACE_DATA: ITraceData = {
     max_duration: 0,
     time_error: false,
   },
+  streamline_service_topo: {
+    nodes: [],
+    edges: [],
+  },
 };
 
 export const SPAN_KIND_MAPS: ISpanKindMaps = {
@@ -64,19 +68,21 @@ export const SPAN_STATUS_CODE = {
   2: window.i18n.t('异常'),
 };
 
+export const SOURCE_CATEGORY_EBPF = 'source_category_ebpf';
+export const VIRTUAL_SPAN = 'virtual_span';
 export const TRACE_INFO_TOOL_FILTERS = [
   { id: 'duration', label: window.i18n.t('耗时'), show: true, effect: ['timeline', 'topo'] },
   // { id: 'async', label: window.i18n.t('异步调用'), effect: ['timeline', 'topo'] },
   // { id: 'internal', label: window.i18n.t('内部调用'), effect: ['timeline', 'topo'] },
   {
-    id: 'source_category_ebpf',
+    id: SOURCE_CATEGORY_EBPF,
     label: 'eBPF',
     show: window.apm_ebpf_enabled ?? false,
     effect: ['timeline', 'topo', 'sequence', 'flame'],
     desc: window.i18n.t('安装了eBPF的采集服务就可以展示eBPF相关的数据'),
   },
   {
-    id: 'virtual_span',
+    id: VIRTUAL_SPAN,
     label: window.i18n.t('推断'),
     show: true,
     effect: ['timeline', 'topo', 'sequence', 'flame'],

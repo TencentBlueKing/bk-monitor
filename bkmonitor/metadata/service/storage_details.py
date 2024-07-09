@@ -13,12 +13,14 @@ from typing import Dict, List, Optional, Union
 
 import kafka
 import requests
+from django.conf import settings
 from django.db.models import Q
 from elasticsearch import Elasticsearch as Elasticsearch
 from kafka.admin import KafkaAdminClient
 
 from core.drf_resource import api
-from metadata import models
+from core.errors.api import BKAPIError
+from metadata import config, models
 from metadata.models.data_pipeline.utils import check_transfer_cluster_exist
 from metadata.models.space.space_data_source import get_real_biz_id
 from metadata.utils.es_tools import compose_es_hosts, get_client
@@ -33,15 +35,20 @@ class ResultTableAndDataSource:
         bk_data_id: Optional[int] = None,
         bcs_cluster_id: Optional[str] = None,
         vm_table_id: Optional[str] = None,
+        metric_name: Optional[str] = None,
+        data_label: Optional[str] = None,
+        with_gse_router: Optional[bool] = False,
     ):
         self.bk_data_id = bk_data_id
         self.table_id = table_id
         self.bcs_cluster_id = bcs_cluster_id
+        self.metric_name = metric_name
         self.vm_table_id = vm_table_id
+        self.data_label = data_label
+        self.with_gse_router = with_gse_router
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
-        # 获取结果表信息
 
         # 获取table id和data id
         try:
@@ -60,13 +67,15 @@ class ResultTableAndDataSource:
         # 组装获取数据详情
         data = []
         for table_id, data_id in table_id_data_id.items():
+            _detail = {}
             if not detail or self.bcs_cluster_id:
                 detail = self.get_basic_detail(data_id)
-            detail.update(self.get_table_id(table_id))
-            detail.update(self.get_biz_info(table_id, detail["data_source"]))
-            detail.update(self.get_storage_cluster(table_id))
-            detail.update(self.get_influxdb_instance_cluster(table_id))
-            data.append(detail)
+            _detail.update(detail)
+            _detail.update(self.get_table_id(table_id))
+            _detail.update(self.get_biz_info(table_id, detail["data_source"]))
+            _detail.update(self.get_storage_cluster(table_id))
+            _detail.update(self.get_influxdb_instance_cluster(table_id))
+            data.append(_detail)
         return data
 
     def get_basic_detail(self, data_id: int) -> Dict:
@@ -75,7 +84,34 @@ class ResultTableAndDataSource:
         if data_id:
             detail = {"data_source": self.get_data_source(data_id)}
             detail.update(self.get_clusters(data_id))
+            if self.with_gse_router:
+                detail.update({"gse_router": self.query_gse_router(data_id)})
         return detail
+
+    def query_gse_router(self, bk_data_id: int) -> Dict:
+        """查询GSE路由信息"""
+        params = {
+            "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": bk_data_id},
+            "operation": {"operator_name": settings.COMMON_USERNAME},
+        }
+        try:
+            result = api.gse.query_route(**params)
+        except BKAPIError as e:
+            logger.error("query gse router error, %s", e)
+            return {}
+        if not result:
+            return {}
+        routers = result[0].get("route") or []
+        if not routers:
+            return {}
+        data = {}
+        for router in routers:
+            stream_to = router.get("stream_to") or {}
+            stream_to_id = stream_to.get("stream_to_id")
+            data.setdefault(stream_to_id, []).append(
+                {"topic_name": stream_to["kafka"]["topic_name"], "name": router.get("name")}
+            )
+        return data
 
     def get_data_source(self, bk_data_id: int) -> Dict:
         """获取数据源信息
@@ -132,10 +168,15 @@ class ResultTableAndDataSource:
         2. 否则，如果数据源存在，则通过数据源查询结果表，这里可能会存在多个
         3. 否则，则按照过滤对应的数据源，然后查询到相应的结果表，一个集群会存在两个必要数据源
         """
-        if self.table_id or self.vm_table_id:
+        if self.table_id or self.vm_table_id or self.data_label:
             table_id = self.table_id
+            # 通过 vm 结果表获取监控结果表
             if self.vm_table_id:
                 table_id = models.AccessVMRecord.objects.get(vm_result_table_id=self.vm_table_id).result_table_id
+            # 通过数据标签获取监控结果表
+            elif self.data_label:
+                table_id = models.ResultTable.objects.get(data_label=self.data_label).table_id
+
             obj = models.DataSourceResultTable.objects.get(table_id=table_id)
             return {obj.table_id: obj.bk_data_id}
 
@@ -151,10 +192,19 @@ class ResultTableAndDataSource:
                 cluster_record.CustomMetricDataID,
                 cluster_record.K8sEventDataID,
             ]
-            return {
+
+            tid_ds = {
                 obj.table_id: obj.bk_data_id
                 for obj in models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_id_list)
             }
+            # 当指标存在时，根据指标过滤结果表
+            if self.metric_name:
+                tids = models.ResultTableField.objects.filter(
+                    field_name=self.metric_name, table_id__in=tid_ds.keys()
+                ).values_list("table_id", flat=True)
+                return {tid: tid_ds[tid] for tid in tids}
+
+            return tid_ds
 
     def get_biz_info(self, table_id: str, data_source: Dict) -> Dict:
         try:
@@ -232,13 +282,17 @@ class ResultTableAndDataSource:
             storage_dict[storage_type] = config
 
         # 通过结果表追加 vm 配置
-        table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id)
+        table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id).first()
         if table_id_vm_obj:
-            obj = table_id_vm_obj.first()
+            try:
+                vm_cluster_domain = models.ClusterInfo.objects.get(cluster_id=table_id_vm_obj.vm_cluster_id).domain_name
+            except models.ClusterInfo.DoesNotExist:
+                vm_cluster_domain = ""
             storage_dict[models.ClusterInfo.TYPE_VM] = {
-                "vm_cluster_id": obj.vm_cluster_id,
-                "bk_base_data_id": obj.bk_base_data_id,
-                "vm_result_table_id": obj.vm_result_table_id,
+                "vm_cluster_domain": vm_cluster_domain,
+                "vm_cluster_id": table_id_vm_obj.vm_cluster_id,
+                "bk_base_data_id": table_id_vm_obj.bk_base_data_id,
+                "vm_result_table_id": table_id_vm_obj.vm_result_table_id,
             }
         else:
             storage_dict[models.ClusterInfo.TYPE_VM] = {}

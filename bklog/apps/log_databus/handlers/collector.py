@@ -369,6 +369,15 @@ class CollectorHandler(object):
                         result_table_storage=result["result_table_storage"][self.data.table_id],
                     )
                 )
+                # 补充es集群端口号 、es集群域名
+                storage_cluster_id = collector_config.get("storage_cluster_id", "")
+                cluster_config = IndexSetHandler.get_cluster_map().get(storage_cluster_id, {})
+                collector_config.update(
+                    {
+                        "storage_cluster_port": cluster_config.get("cluster_port", ""),
+                        "storage_cluster_domain_name": cluster_config.get("cluster_domain_name", ""),
+                    }
+                )
             return collector_config
         return collector_config
 
@@ -892,6 +901,10 @@ class CollectorHandler(object):
                     # 当更新itsm流程时 将diff更新前移
                     if not FeatureToggleObject.switch(name=FEATURE_COLLECTOR_ITSM):
                         self.data.target_subscription_diff = self.diff_target_nodes(target_nodes)
+
+                    if "collector_scenario_id" in params:
+                        model_fields["collector_scenario_id"] = params["collector_scenario_id"]
+
                     for key, value in model_fields.items():
                         setattr(self.data, key, value)
                     self.data.save()
@@ -1462,7 +1475,16 @@ class CollectorHandler(object):
         if not task_ready:
             return {"task_ready": task_ready, "contents": []}
 
-        status_result = NodeApi.get_subscription_task_status(param)
+        status_result = NodeApi.get_subscription_task_status.bulk_request(
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+        )
         instance_status = self.format_task_instance_status(status_result)
 
         # 如果采集目标是HOST-INSTANCE
@@ -1987,9 +2009,28 @@ class CollectorHandler(object):
                     }
                 ]
             }
-        param = {"subscription_id_list": [self.data.subscription_id]}
-        status_result, *__ = NodeApi.get_subscription_instance_status(param)
-        instance_status = self.format_subscription_instance_status(status_result)
+        instance_data = NodeApi.get_subscription_task_status.bulk_request(
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+        )
+
+        bk_host_ids = []
+        for item in instance_data:
+            bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
+
+        plugin_data = NodeApi.plugin_search.batch_request(
+            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
+            chunk_values=bk_host_ids,
+            chunk_key="bk_host_id",
+        )
+
+        instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
         # 如果采集目标是HOST-INSTANCE
         if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
@@ -2044,36 +2085,33 @@ class CollectorHandler(object):
         return {"contents": content_data}
 
     @staticmethod
-    def format_subscription_instance_status(instance_data):
+    def format_subscription_instance_status(instance_data, plugin_data):
         """
         对订阅状态数据按照实例运行状态进行归类
         :param [dict] instance_data:
+        :param [dict] plugin_data:
         :return: [dict]
         """
-        instance_list = list()
-        for instance_obj in instance_data.get("instances", []):
-            # 日志采集暂时只支持本地采集
-            host_statuses = (instance_obj.get("host_statuses") or [{}])[0]
-            host_status = host_statuses.get("status", CollectStatus.FAILED)
+        plugin_status_mapping = {}
+        for plugin_obj in plugin_data:
+            for item in plugin_obj["plugin_status"]:
+                if item["name"] == "bkunifylogbeat":
+                    plugin_status_mapping[plugin_obj["bk_host_id"]] = item
 
-            status = CollectStatus.FAILED
-            status_name = RunStatus.FAILED
+        instance_list = list()
+        for instance_obj in instance_data:
+            # 日志采集暂时只支持本地采集
+            bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
+            plugin_statuses = plugin_status_mapping.get(bk_host_id, {})
             if instance_obj["status"] in [CollectStatus.PENDING, CollectStatus.RUNNING]:
                 status = CollectStatus.RUNNING
                 status_name = RunStatus.RUNNING
-            elif instance_obj["status"] == CollectStatus.FAILED:
+            elif instance_obj["status"] == CollectStatus.SUCCESS:
+                status = CollectStatus.SUCCESS
+                status_name = RunStatus.SUCCESS
+            else:
                 status = CollectStatus.FAILED
                 status_name = RunStatus.FAILED
-            else:
-                if host_status == CollectStatus.RUNNING:
-                    status = CollectStatus.SUCCESS
-                    status_name = RunStatus.SUCCESS
-                elif host_status == CollectStatus.UNKNOWN:
-                    status = CollectStatus.FAILED
-                    status_name = RunStatus.FAILED
-                elif host_status == CollectStatus.TERMINATED:
-                    status = CollectStatus.TERMINATED
-                    status_name = RunStatus.TERMINATED
 
             bk_cloud_id = instance_obj["instance_info"]["host"]["bk_cloud_id"]
             if isinstance(bk_cloud_id, list):
@@ -2082,15 +2120,15 @@ class CollectorHandler(object):
             status_obj = {
                 "status": status,
                 "status_name": status_name,
-                "host_id": instance_obj["instance_info"]["host"]["bk_host_id"],
+                "host_id": bk_host_id,
                 "ip": instance_obj["instance_info"]["host"]["bk_host_innerip"],
                 "ipv6": instance_obj["instance_info"]["host"].get("bk_host_innerip_v6", ""),
                 "cloud_id": bk_cloud_id,
                 "host_name": instance_obj["instance_info"]["host"]["bk_host_name"],
                 "instance_id": instance_obj["instance_id"],
                 "instance_name": instance_obj["instance_info"]["host"]["bk_host_innerip"],
-                "plugin_name": host_statuses.get("name"),
-                "plugin_version": host_statuses.get("version"),
+                "plugin_name": plugin_statuses.get("name"),
+                "plugin_version": plugin_statuses.get("version"),
                 "bk_supplier_id": instance_obj["instance_info"]["host"].get("bk_supplier_account"),
                 "create_time": instance_obj["create_time"],
             }
@@ -3710,15 +3748,12 @@ class CollectorHandler(object):
             raise BcsClusterIdNotValidException()
         return cluster_info
 
-    def _get_shared_cluster_namespace(self, bk_biz_id: int, bcs_cluster_id: int) -> List[Any]:
+    @staticmethod
+    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str) -> List[Any]:
         """
         获取共享集群有权限的namespace
         """
         if not bk_biz_id or not bcs_cluster_id:
-            return []
-
-        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
-        if not cluster_info.get("is_shared"):
             return []
 
         space = Space.objects.get(bk_biz_id=bk_biz_id)

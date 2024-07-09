@@ -427,7 +427,7 @@ class CollectConfigDetailResource(Resource):
                 item["mode"] = "plugin"
             value = params.get(item["mode"], {}).get(item.get("key", item["name"])) or item["default"]
             # 获取敏感信息时采用bool值表示用户是否设置密码
-            if item["type"] == "password":
+            if item["type"] in ["password", "encrypt"]:
                 params[item["mode"]][item["name"]] = bool(value)
 
     def perform_request(self, validated_request_data):
@@ -890,7 +890,7 @@ class SaveCollectConfigResource(Resource):
             {% if metric_relabel_configs %}
                 metric_relabel_configs:
             {% for config in metric_relabel_configs %}
-                  - source_labels: [{{ config.source_labels | join: "', '" }}]
+                 - source_labels: [{{ config.source_labels | join("', '") }}]
                     {% if config.regex %}regex: '{{ config.regex }}'{% endif %}
                     action: {{ config.action }}
                     {% if config.target_label %}target_label: '{{ config.target_label }}'{% endif %}
@@ -1052,7 +1052,7 @@ class SaveCollectConfigResource(Resource):
         deployment_params = config_meta.deployment_config.params
 
         for param in config_params:
-            if param["type"] != "password":
+            if param["type"] not in ["password", "encrypt"]:
                 continue
 
             param_name = param["name"]
@@ -1198,6 +1198,7 @@ class UpgradeCollectPluginResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="采集配置id")
         params = serializers.DictField(required=True, label="采集配置参数")
+        realtime = serializers.BooleanField(required=False, default=False, label=_("是否实时刷新缓存"))
 
     @lock(CacheLock("collect_config"))
     def request_nodeman(self, collect_config, deployment_config):
@@ -1209,6 +1210,11 @@ class UpgradeCollectPluginResource(Resource):
             collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(pk=data["id"])
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
+
+        # 判断是否需要实时刷新缓存
+        if data["realtime"]:
+            # 调用 collect_config_list 接口刷新采集配置的缓存，避免外部调接口可能会无法更新插件
+            resource.collecting.collect_config_list(page=-1, refresh_status=True, search={"id": data["id"]})
 
         # 判断采集配置是否需要升级
         if not collect_config.need_upgrade:
@@ -1852,7 +1858,7 @@ class CollectTargetStatusResource(BaseCollectTargetStatusResource):
             contained_modules = topo_tree_tools.get_module_by_node(inst)
 
             instance_category = defaultdict(list)
-            if target_object_type == "host":
+            if target_object_type == TargetObjectType.HOST:
                 # 遍历全业务下的主机，先找到归属该节点下的主机，然后若节点管理下有该主机的运行数据，根据主机的action进行分类
                 for host in extra_info["host_list"]:
                     if not set(host.bk_module_ids) & contained_modules:

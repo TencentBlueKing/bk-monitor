@@ -24,6 +24,7 @@ from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
 
+from ..constants import EventGroupStatus
 from .base import CustomGroupBase
 
 logger = logging.getLogger("metadata")
@@ -33,8 +34,16 @@ class EventGroup(CustomGroupBase):
 
     """事件分组记录"""
 
+    EVENT_GROUP_STATUS_CHOICES = (
+        (EventGroupStatus.NORMAL, "正常"),
+        (EventGroupStatus.SLEEP, "休眠"),
+    )
+
     event_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     event_group_name = models.CharField(verbose_name="事件分组名", max_length=255)
+
+    status = models.CharField("状态", choices=EVENT_GROUP_STATUS_CHOICES, default="normal", max_length=16)
+    last_check_report_time = models.DateTimeField("最后检查报告时间", null=True, blank=True)
 
     GROUP_ID_FIELD = "event_group_id"
     GROUP_NAME_FIELD = "event_group_name"
@@ -239,6 +248,7 @@ class EventGroup(CustomGroupBase):
                 )
             ],
             "data_label": self.data_label,
+            "status": self.status,
         }
 
     @classmethod
@@ -312,6 +322,7 @@ class EventGroup(CustomGroupBase):
         :param data_label: 数据标签
         :return: True or raise
         """
+        self.status = EventGroupStatus.NORMAL.value
         return self.modify_custom_group(
             operator=operator,
             custom_group_name=event_group_name,

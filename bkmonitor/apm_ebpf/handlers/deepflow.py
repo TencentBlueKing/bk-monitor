@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import typing
 import concurrent
 import operator
 import re
@@ -266,7 +267,7 @@ class DeepflowHandler:
 
         return res
 
-    def _get_cluster_access_ip(self, cluster_id):
+    def _get_cluster_access_ip_by_client(self, cluster_id):
         """
         获取集群某个节点的访问IP
         """
@@ -278,9 +279,37 @@ class DeepflowHandler:
                 for addr in node.status.addresses:
                     if addr.type == "InternalIP":
                         return addr.address
-
-        logger.warning(f"[DeepflowHandler] failed to get node address of cluster_id: {cluster_id} ")
         return None
+
+    def _get_cluster_access_ip_by_api(self, cluster_id):
+        nodes = api.kubernetes.fetch_k8s_node_list_by_cluster({"bcs_cluster_id": cluster_id})
+        for node in nodes:
+            node_ip = node.get("node_ip")
+            if node_ip and node.get("status") == "Ready":
+                return node_ip
+        return None
+
+    def _get_cluster_access_ip(self, cluster_id):
+        access_ip = None
+        # 当使用 BCS Client 获取不到集群节点 IP 时，使用监控自身 API 进行兜底
+        get_cluster_access_ip_funcs: typing.List[typing.Callable[[str], typing.Optional[str]]] = [
+            self._get_cluster_access_ip_by_client, self._get_cluster_access_ip_by_api
+        ]
+        for get_cluster_access_ip_func in get_cluster_access_ip_funcs:
+            try:
+                access_ip = get_cluster_access_ip_func(cluster_id)
+            except Exception as e:
+                logger.warning(
+                    f"[DeepflowHandler][%s] failed to get node address: bcs_cluster_id -> %s, err -> %s",
+                    get_cluster_access_ip_func.__name__, cluster_id, e
+                )
+            if access_ip:
+                logger.info(
+                    "[DeepflowHandler][%s] get node address -> %s, bcs_cluster_id -> %s",
+                    get_cluster_access_ip_func.__name__, access_ip, cluster_id
+                )
+                return access_ip
+        return access_ip
 
     @property
     def _clusters(self):
@@ -430,5 +459,5 @@ class DeepflowHandler:
                 mapping = ApmEbpfProvisioning.get_dashboard_mapping(biz_id)
                 ApmEbpfProvisioning.upsert_dashboards(org_id, biz_id, mapping)
                 logger.info(f"[GrafanaInstaller] biz_id: {biz_id} dashboard registry finished")
-            except ApiException as e:
-                logger.error(f"[GrafanaInstaller] biz_id: {biz_id} occur exception: {e}")
+            except Exception as e:
+                logger.exception(f"[GrafanaInstaller] biz_id: {biz_id} occur exception: {e}")

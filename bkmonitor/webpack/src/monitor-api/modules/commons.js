@@ -91,5 +91,5 @@ export default {
   queryAsyncTaskResult,
   getApiToken,
   getUserDepartments,
-  listDepartments
+  listDepartments,
 };

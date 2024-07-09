@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 import logging
 import operator
 import re
@@ -61,6 +60,7 @@ from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
+from core.errors.strategy import StrategyNameExist
 from monitor.models import ApplicationConfig
 from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.models import (
@@ -189,7 +189,8 @@ class GetStrategyListV2Resource(Resource):
             try:
                 ids = {int(_id) for _id in ids if _id}
             except (ValueError, TypeError):
-                raise ValidationError(_("存在非法的策略ID, {}").format(json.dumps(ids)))
+                # 无效的过滤条件，查不出数据
+                ids = set()
             filter_strategy_ids_set.intersection_update(ids)
 
     @classmethod
@@ -915,14 +916,24 @@ class GetStrategyListV2Resource(Resource):
                     DataSourceLabel.CUSTOM,
                     DataTypeLabel.EVENT,
                 ):
-                    query_tuples.add(
-                        (
-                            query_config["data_source_label"],
-                            query_config["data_type_label"],
-                            query_config["result_table_id"],
-                            query_config["custom_event_name"],
+                    if query_config["custom_event_name"]:
+                        query_tuples.add(
+                            (
+                                query_config["data_source_label"],
+                                query_config["data_type_label"],
+                                query_config["result_table_id"],
+                                query_config["custom_event_name"],
+                            )
                         )
-                    )
+                    else:
+                        query_tuples.add(
+                            (
+                                query_config["data_source_label"],
+                                query_config["data_type_label"],
+                                query_config["result_table_id"],
+                                "__INDEX__",
+                            )
+                        )
                 elif query_config["data_source_label"] == DataSourceLabel.BK_FTA:
                     query_tuples.add(
                         (
@@ -1642,7 +1653,7 @@ class GetMetricListV2Resource(Resource):
                     }
                 )
             elif (metric.data_source_label, metric.data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
-                data["custom_event_name"] = data["metric_field"]
+                data["custom_event_name"] = data["extend_fields"]["custom_event_name"]
                 data["extend_fields"]["bk_data_id"] = metric.result_table_id
             elif metric.data_source_label == DataSourceLabel.BK_DATA:
                 data["time_field"] = "dtEventTimeStamp"
@@ -1743,6 +1754,28 @@ class GetMetricListV2Resource(Resource):
             "scenario_list": scenario_list,
             "count": count,
         }
+
+
+class VerifyStrategyNameResource(Resource):
+    """
+    策略名校验
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        name = serializers.CharField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+        id = serializers.IntegerField(required=False, default=0)
+
+        def validate(self, params):
+            qs = StrategyModel.objects.filter(name=params["name"], bk_biz_id=params["bk_biz_id"])
+            if params["id"]:
+                qs.exclude(id=params["id"])
+            if qs.exists():
+                raise StrategyNameExist(name=params["name"])
+            return super().validate(params)
+
+    def perform_request(self, params):
+        return "ok"
 
 
 class SaveStrategyV2Resource(Resource):

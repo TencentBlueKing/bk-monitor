@@ -1,29 +1,33 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
     class="step-storage"
+    v-bkloading="{ isLoading: basicLoading }"
   >
     <bk-form
       ref="validateForm"
@@ -33,38 +37,35 @@
     >
       <div class="add-collection-title">{{ $t('集群选择') }}</div>
       <cluster-table
-        :table-list="clusterList"
         :is-change-select.sync="isChangeSelect"
         :storage-cluster-id.sync="formData.storage_cluster_id"
+        :table-list="clusterList"
       />
 
       <cluster-table
-        table-type="exclusive"
         style="margin-top: 20px"
-        :table-list="exclusiveList"
         :is-change-select.sync="isChangeSelect"
         :storage-cluster-id.sync="formData.storage_cluster_id"
+        :table-list="exclusiveList"
+        table-type="exclusive"
       />
 
       <div class="add-collection-title">{{ $t('存储信息') }}</div>
       <!-- 存储索索引名 -->
       <div class="form-div mt">
         <bk-form-item
-          :label="$t('索引名')"
           class="form-inline-div"
-          :rules="rules.table_id"
+          :label="$t('索引名')"
           :property="'table_id'"
         >
           <!-- <div class="prefix">{{formData.table_id_prefix}}</div> -->
           <bk-input
-            v-model="formData.table_id"
             style="width: 320px"
+            v-model="formData.table_id"
             :placeholder="$t('英文或者数字，5～50长度')"
-            :disabled="isUnmodfyIndexName"
-            maxlength="50"
-            minlength="5"
+            disabled
           >
-            <template slot="prepend">
+            <template #prepend>
               <div class="group-text">{{ formData.table_id_prefix }}</div>
             </template>
           </bk-input>
@@ -74,17 +75,16 @@
       <!-- 过期时间 -->
       <bk-form-item :label="$t('过期时间')">
         <bk-select
-          v-model="formData.retention"
           style="width: 320px"
+          v-model="formData.retention"
           :clearable="false"
           data-test-id="storageBox_select_selectExpiration"
         >
-          <div
-            slot="trigger"
-            class="bk-select-name"
-          >
-            {{ formData.retention + $t('天') }}
-          </div>
+          <template #trigger>
+            <div class="bk-select-name">
+              {{ formData.retention + $t('天') }}
+            </div>
+          </template>
           <template>
             <bk-option
               v-for="(option, index) in retentionDaysList"
@@ -93,34 +93,33 @@
               :name="option.name"
             ></bk-option>
           </template>
-          <div
-            slot="extension"
-            style="padding: 8px 0"
-          >
-            <bk-input
-              v-model="customRetentionDay"
-              size="small"
-              type="number"
-              data-test-id="storageBox_input_customDayNumber"
-              :placeholder="$t('输入自定义天数，按 Enter 确认')"
-              :show-controls="false"
-              @enter="enterCustomDay($event, 'retention')"
-            ></bk-input>
-          </div>
+          <template #extension>
+            <div style="padding: 8px 0">
+              <bk-input
+                v-model="customRetentionDay"
+                :placeholder="$t('输入自定义天数，按 Enter 确认')"
+                :show-controls="false"
+                data-test-id="storageBox_input_customDayNumber"
+                size="small"
+                type="number"
+                @enter="enterCustomDay($event, 'retention')"
+              ></bk-input>
+            </div>
+          </template>
         </bk-select>
       </bk-form-item>
       <!-- 热数据\冷热集群存储期限 -->
       <bk-form-item
         v-if="selectedStorageCluster.enable_hot_warm"
-        :label="$t('热数据天数')"
         class="hot-data-form-item"
+        :label="$t('热数据天数')"
       >
         <bk-select
-          v-model="formData.allocation_min_days"
           style="width: 320px"
-          data-test-id="storageBox_select_selectHotData"
+          v-model="formData.allocation_min_days"
           :clearable="false"
           :disabled="!selectedStorageCluster.enable_hot_warm"
+          data-test-id="storageBox_select_selectHotData"
         >
           <template>
             <bk-option
@@ -130,20 +129,19 @@
               :name="option.name"
             ></bk-option>
           </template>
-          <div
-            slot="extension"
-            style="padding: 8px 0"
-          >
-            <bk-input
-              v-model="customHotDataDay"
-              size="small"
-              type="number"
-              data-test-id="storageBox_input_customize"
-              :placeholder="$t('输入自定义天数，按 Enter 确认')"
-              :show-controls="false"
-              @enter="enterCustomDay($event, 'hot')"
-            ></bk-input>
-          </div>
+          <template #extension>
+            <div style="padding: 8px 0">
+              <bk-input
+                v-model="customHotDataDay"
+                :placeholder="$t('输入自定义天数，按 Enter 确认')"
+                :show-controls="false"
+                data-test-id="storageBox_input_customize"
+                size="small"
+                type="number"
+                @enter="enterCustomDay($event, 'hot')"
+              ></bk-input>
+            </div>
+          </template>
         </bk-select>
         <span
           v-if="!selectedStorageCluster.enable_hot_warm"
@@ -159,37 +157,37 @@
       </bk-form-item>
       <!-- 副本数 -->
       <bk-form-item
-        :label="$t('副本数')"
-        :rules="rules.storage_replies"
-        :property="'storage_replies'"
         ext-cls="number-input"
+        :label="$t('副本数')"
+        :property="'storage_replies'"
+        :rules="rules.storage_replies"
       >
         <bk-input
-          v-model="formData.storage_replies"
           class="copy-number-input"
-          type="number"
+          v-model="formData.storage_replies"
+          :clearable="false"
           :min="0"
           :precision="0"
-          :clearable="false"
           :show-controls="true"
+          type="number"
           @blur="changeCopyNumber"
         ></bk-input>
       </bk-form-item>
       <!-- 分片数 -->
       <bk-form-item
-        :label="$t('分片数')"
-        :rules="rules.es_shards"
-        :property="'es_shards'"
         ext-cls="number-input"
+        :label="$t('分片数')"
+        :property="'es_shards'"
+        :rules="rules.es_shards"
       >
         <bk-input
-          v-model="formData.es_shards"
           class="copy-number-input"
-          type="number"
+          v-model="formData.es_shards"
+          :clearable="false"
           :min="1"
           :precision="0"
-          :clearable="false"
           :show-controls="true"
+          type="number"
           @blur="changeShardsNumber"
         ></bk-input>
       </bk-form-item>
@@ -221,7 +219,7 @@
             {{
               $t('分片数（{x}）：1个主分片+{n}个副本数，避免节点故障导致数据丢失', {
                 x: formData.storage_replies * 1 + 1,
-                n: formData.storage_replies
+                n: formData.storage_replies,
               })
             }}
           </p>
@@ -230,16 +228,16 @@
         <bk-form-item :label="$t('每日单台日志量')">
           <div class="capacity-message">
             <bk-input
-              v-model="formData.assessment_config.log_assessment"
               class="capacity-input"
-              type="number"
+              v-model="formData.assessment_config.log_assessment"
               :min="0.1"
+              type="number"
             >
             </bk-input>
             <div class="unit-container">G</div>
             <span
-              v-bk-tooltips.right="$t('基于单台最大的日志存储量粗略评估')"
               class="right"
+              v-bk-tooltips.right="$t('基于单台最大的日志存储量粗略评估')"
             >
               <i class="bk-icon icon-info"></i>
             </span>
@@ -255,16 +253,15 @@
           </bk-checkbox>
           <bk-alert
             style="width: 607px"
-            type="warning"
             :show-icon="false"
+            type="warning"
           >
-            <div
-              slot="title"
-              class="approval-alert"
-            >
-              <span class="bk-icon icon-exclamation-circle"></span>
-              <p>{{ $t('勾选需要审批后需等待审批通过后，才会继续进行存储流程') }}</p>
-            </div>
+            <template #title>
+              <div class="approval-alert">
+                <span class="bk-icon icon-exclamation-circle"></span>
+                <p>{{ $t('勾选需要审批后需等待审批通过后，才会继续进行存储流程') }}</p>
+              </div>
+            </template>
           </bk-alert>
         </div>
 
@@ -299,21 +296,21 @@
       <bk-form-item class="operate-container">
         <template v-if="!isFinishCreateStep">
           <bk-button
-            theme="default"
             class="mr10"
-            data-test-id="storageBox_button_previousPage"
-            :title="$t('上一步')"
             :disabled="isLoading"
+            :title="$t('上一步')"
+            data-test-id="storageBox_button_previousPage"
+            theme="default"
             @click="prevHandler"
           >
             {{ $t('上一步') }}
           </bk-button>
           <bk-button
-            theme="primary"
             class="mr10"
-            data-test-id="storageBox_button_nextPage"
-            :loading="isLoading"
             :disabled="!collectProject"
+            :loading="isLoading"
+            data-test-id="storageBox_button_nextPage"
+            theme="primary"
             @click.stop.prevent="finish()"
           >
             {{ $t('下一步') }}
@@ -321,10 +318,10 @@
         </template>
         <template v-else>
           <bk-button
-            theme="primary"
             class="mr10"
-            :loading="isLoading"
             :disabled="!collectProject"
+            :loading="isLoading"
+            theme="primary"
             @click.stop.prevent="finish()"
           >
             {{ $t('保存') }}
@@ -342,727 +339,714 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
-import { projectManages, deepEqual } from '@/common/util';
-import storageMixin from '@/mixins/storage-mixin';
-import ClusterTable from './components/cluster-table';
+  import { projectManages, deepEqual } from '@/common/util';
+  import storageMixin from '@/mixins/storage-mixin';
+  import { mapGetters } from 'vuex';
 
-export default {
-  components: {
-    ClusterTable
-  },
-  mixins: [storageMixin],
-  props: {
-    operateType: String,
-    curStep: {
-      type: Number,
-      default: 1
-    },
-    collectorId: String,
-    /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
-    isFinishCreateStep: {
-      type: Boolean,
-      require: true
-    }
-  },
-  data() {
-    return {
-      isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
-      HOST_COUNT: window.ASSESSMEN_HOST_COUNT,
-      refresh: false,
-      // eslint-disable-next-line no-useless-escape
-      isLoading: false,
-      basicLoading: true,
-      isUnmodifiable: false,
-      isUnmodfyIndexName: false,
-      // roleList: [],
-      fieldType: '',
-      deletedVisible: true,
-      copysText: {},
-      jsonText: {},
-      defaultSettings: {
-        isShow: false
-      },
-      logOriginal: '',
-      params: {
-        // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
-        etl_config: 'bk_log_text',
-        etl_params: {
-          separator_regexp: '',
-          separator: ''
-        }
-      },
-      formData: {
-        // 最后一次正确的结果，保存以此数据为准
-        table_id: '',
-        etl_config: 'bk_log_text',
-        etl_params: {
-          retain_original_text: true,
-          retain_extra_json: false,
-          separator_regexp: '',
-          separator: ''
-          // separator_field_list: ''
-        },
-        fields: [],
-        view_roles: [],
-        retention: '',
-        storage_replies: 0,
-        es_shards: 0,
-        allocation_min_days: '0',
-        storage_cluster_id: '',
-        assessment_config: {
-          log_assessment: '',
-          need_approval: false,
-          approvals: []
-        }
-      },
-      selectedStorageCluster: {}, // 选择的es集群
-      retentionDaysList: [], // 过期天数列表
-      customRetentionDay: '', // 自定义过期天数
-      hotDataDaysList: [], // 冷热集群存储期限列表
-      customHotDataDay: '', // 自定义冷热集群存储期限天数
-      rules: {
-        table_id: [
-          {
-            required: true,
-            trigger: 'blur'
-          },
-          {
-            max: 50,
-            trigger: 'blur'
-          },
-          {
-            min: 5,
-            trigger: 'blur'
-          },
-          {
-            regex: /^[A-Za-z0-9_]+$/,
-            trigger: 'blur'
-          }
-        ],
-        cluster_id: [
-          {
-            validator(val) {
-              return val !== '';
-            },
-            trigger: 'change'
-          }
-        ],
-        view_roles: [
-          {
-            validator(val) {
-              return val.length >= 1;
-            },
-            trigger: 'change'
-          }
-        ],
-        storage_replies: [
-          {
-            validator: this.checkStorageReplies,
-            message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
-            trigger: 'blur'
-          },
-          {
-            validator: this.checkStorageReplies,
-            message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
-            trigger: 'change'
-          }
-        ],
-        es_shards: [
-          {
-            validator: this.checkEsShards,
-            message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
-            trigger: 'blur'
-          },
-          {
-            validator: this.checkEsShards,
-            message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
-            trigger: 'change'
-          }
-        ]
-      },
-      storage_capacity: '',
-      tips_storage: [],
-      tip_storage: [],
-      storageList: [],
-      clusterList: [], // 共享集群
-      exclusiveList: [], // 独享集群
-      dialogVisible: false,
-      rowTemplate: {
-        alias_name: '',
-        description: '',
-        field_type: '',
-        is_analyzed: false,
-        is_built_in: false,
-        is_delete: false,
-        is_dimension: false,
-        is_time: false,
-        value: '',
-        option: {
-          time_format: '',
-          time_zone: ''
-        }
-      },
-      stashCleanConf: null, // 清洗缓存,
-      isShowAssessment: false,
-      isChangeSelect: false,
-      hostNumber: 0,
-      replicasMax: 7,
-      shardsMax: 7,
-      isForcedFillAssessment: false, // 是否必须容量评估
-      editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
-      editComparedData: {}
-    };
-  },
-  computed: {
-    ...mapGetters({
-      bkBizId: 'bkBizId',
-      spaceUid: 'spaceUid',
-      curCollect: 'collect/curCollect',
-      globalsData: 'globals/globalsData',
-      accessUserManage: 'accessUserManage',
-      isShowMaskingTemplate: 'isShowMaskingTemplate'
-    }),
-    collectProject() {
-      return projectManages(this.$store.state.topMenu, 'collection-item');
-    },
-    defaultRetention() {
-      const { storage_duration_time } = this.globalsData;
-      // eslint-disable-next-line camelcase
-      return storage_duration_time && storage_duration_time.filter(item => item.default === true)[0].id;
-    },
-    isCanUseAssessment() {
-      /**
-       * itsm开启时, 当前选择的集群容量评估开启时
-       * isChangeSelect 当前步骤非新增,且进行集群切换满足上面条件则展示容量评估
-       */
-      return this.isItsm && this.selectedStorageCluster.enable_assessment && this.isChangeSelect;
-    },
-    getApprover() {
-      if (this.isCanUseAssessment) {
-        this.formData.assessment_config.approvals = this.selectedStorageCluster?.admin || [];
-        return this.selectedStorageCluster?.admin.join(', ') || '';
-      }
-      return '';
-    }
-  },
-  async mounted() {
-    this.getStorage();
-    this.operateType === 'add' && (this.isChangeSelect = true);
-  },
-  created() {
-    this.curCollect.environment !== 'container' && this.getHostNumber();
-  },
-  methods: {
-    // 获取采集项清洗基础配置缓存 用于存储入库提交
-    getCleanStash() {
-      this.$http
-        .request('clean/getCleanStash', {
-          params: {
-            collector_config_id: this.curCollect.collector_config_id
-          }
-        })
-        .then(res => {
-          if (res.data) {
-            this.stashCleanConf = res.data;
-          }
-        })
-        .finally(() => {
-          this.getDetail();
-        });
-    },
-    // 存储入库
-    fieldCollection(callback) {
-      const data = this.getSubmitData();
-      /* eslint-enable */
-      this.isLoading = true;
-      this.$http
-        .request('collect/fieldCollection', {
-          params: {
-            collector_config_id: this.curCollect.collector_config_id
-          },
-          data
-        })
-        .then(res => {
-          if (res.code === 0) {
-            // this.storageList = res.data
-            // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
-            if (res.data) {
-              this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
-              this.$emit('changeIndexSetId', res.data.index_set_id || '');
-            }
-            if (data.need_assessment && data.assessment_config.need_approval) {
-              this.$emit('setAssessmentItem', {
-                iframe_ticket_url: res.data.ticket_url,
-                itsm_ticket_status: 'applying'
-              });
-            } else {
-              this.$emit('setAssessmentItem', {});
-            }
-            if (this.isFinishCreateStep) {
-              this.messageSuccess(this.$t('保存成功'));
-              if (callback) {
-                this.$emit('resetCurCollectVal');
-                callback(true);
-                return;
-              }
-              this.$emit('changeSubmit', true);
-              this.$emit('stepChange', 'back');
-              return;
-            }
-            // 只有在不展示日志脱敏的情况下才改变保存状态
-            if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
-            this.$emit('stepChange');
-          }
-        })
-        .catch(() => callback?.(false))
-        .finally(() => {
-          this.isLoading = false;
-        });
-    },
-    /** 导航切换提交函数 */
-    stepSubmitFun(callback) {
-      this.finish(callback);
-    },
-    // 完成按钮
-    finish(callback) {
-      const isCanSubmit = this.getSubmitAuthority();
-      if (!isCanSubmit) {
-        callback(false);
-        return;
-      }
-      const promises = [this.checkStore()];
-      Promise.all(promises).then(
-        () => {
-          this.fieldCollection(callback);
-        },
-        validator => {
-          console.warn('保存失败', validator);
-        }
-      );
-    },
-    // 存储校验
-    checkStore() {
-      return new Promise((resolve, reject) => {
-        // if (!this.isUnmodifiable) {
+  import ClusterTable from './components/cluster-table';
 
-        // } else {
-        //   resolve();
-        // }
-        this.$refs.validateForm
-          .validate()
-          .then(validator => {
-            resolve(validator);
-          })
-          .catch(err => {
-            console.warn('存储校验错误');
-            reject(err);
-          });
-      });
+  export default {
+    components: {
+      ClusterTable,
     },
-    prevHandler() {
-      this.$emit('stepChange', this.curStep - 1);
+    mixins: [storageMixin],
+    props: {
+      operateType: String,
+      curStep: {
+        type: Number,
+        default: 1,
+      },
+      collectorId: String,
+      /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
+      isFinishCreateStep: {
+        type: Boolean,
+        require: true,
+      },
     },
-    // 获取详情
-    getDetail() {
-      const tsStorageId = this.formData.storage_cluster_id;
-      const {
-        table_id,
-        storage_cluster_id,
-        retention,
-        storage_replies,
-        storage_shards_nums: storageShardsNums,
-        allocation_min_days,
-        table_id_prefix,
-        view_roles,
-        etl_config,
-        etl_params,
-        fields,
-        collector_config_name_en
-      } = this.curCollect;
-      const option = { time_zone: '', time_format: '' };
-      const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
-      copyFields.forEach(row => {
-        row.value = '';
-        if (row.is_delete) {
-          const copyRow = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), JSON.parse(JSON.stringify(row)));
-          Object.assign(row, copyRow);
-        }
-        if (row.option) {
-          row.option = Object.assign({}, option, row.option || {});
-        } else {
-          row.option = Object.assign({}, option);
-        }
-      });
-      /* eslint-disable */
-      this.params.etl_config = etl_config;
-      Object.assign(this.params.etl_params, {
-        separator_regexp: etl_params.separator_regexp || '',
-        separator: etl_params.separator || ''
-      });
-      this.isUnmodifiable = !!(table_id || storage_cluster_id);
-      this.isUnmodfyIndexName = !!(table_id || storage_cluster_id || collector_config_name_en);
-      this.fieldType = etl_config || 'bk_log_text';
-      let default_exclusive_cluster_id;
-      if (!storage_cluster_id && this.exclusiveList.length) {
-        // 新增时若有业务独享集群则直接赋值独享集群列表第一条id
-        this.isChangeSelect = true; // 不提示切换集群dialog
-        default_exclusive_cluster_id = this.exclusiveList[0].storage_cluster_id;
-      }
-      // this.switcher = etl_config ? etl_config !== 'bk_log_text' : false
-      /* eslint-enable */
-      Object.assign(this.formData, {
-        // eslint-disable-next-line camelcase
-        table_id: table_id ? table_id : collector_config_name_en ? collector_config_name_en : '',
-        // eslint-disable-next-line camelcase
-        storage_cluster_id: default_exclusive_cluster_id ? default_exclusive_cluster_id : storage_cluster_id,
-        es_shards: storageShardsNums,
-        table_id_prefix,
-        etl_config: this.fieldType,
-        etl_params: Object.assign(
-          {
+    data() {
+      return {
+        isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
+        HOST_COUNT: window.ASSESSMEN_HOST_COUNT,
+        refresh: false,
+
+        isLoading: false,
+        basicLoading: true,
+        isUnmodifiable: false,
+        isUnmodfyIndexName: false,
+        // roleList: [],
+        fieldType: '',
+        deletedVisible: true,
+        copysText: {},
+        jsonText: {},
+        defaultSettings: {
+          isShow: false,
+        },
+        logOriginal: '',
+        params: {
+          // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
+          etl_config: 'bk_log_text',
+          etl_params: {
+            separator_regexp: '',
+            separator: '',
+          },
+        },
+        formData: {
+          // 最后一次正确的结果，保存以此数据为准
+          table_id: '',
+          etl_config: 'bk_log_text',
+          etl_params: {
             retain_original_text: true,
             retain_extra_json: false,
-            original_text_is_case_sensitive: false,
-            original_text_tokenize_on_chars: '',
             separator_regexp: '',
-            separator: ''
+            separator: '',
             // separator_field_list: ''
           },
-          // eslint-disable-next-line camelcase
-          etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}
-        ),
-        fields: copyFields.filter(item => !item.is_built_in),
-        retention: retention ? `${retention}` : this.defaultRetention,
-        storage_replies,
-        // eslint-disable-next-line camelcase
-        allocation_min_days: allocation_min_days ? `${allocation_min_days}` : '0',
-        view_roles
-      });
+          fields: [],
+          view_roles: [],
+          retention: '',
+          storage_replies: 0,
+          es_shards: 0,
+          allocation_min_days: '0',
+          storage_cluster_id: '',
+          assessment_config: {
+            log_assessment: '',
+            need_approval: false,
+            approvals: [],
+          },
+        },
+        selectedStorageCluster: {}, // 选择的es集群
+        retentionDaysList: [], // 过期天数列表
+        customRetentionDay: '', // 自定义过期天数
+        hotDataDaysList: [], // 冷热集群存储期限列表
+        customHotDataDay: '', // 自定义冷热集群存储期限天数
+        rules: {
+          cluster_id: [
+            {
+              validator(val) {
+                return val !== '';
+              },
+              trigger: 'change',
+            },
+          ],
+          view_roles: [
+            {
+              validator(val) {
+                return val.length >= 1;
+              },
+              trigger: 'change',
+            },
+          ],
+          storage_replies: [
+            {
+              validator: this.checkStorageReplies,
+              message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
+              trigger: 'blur',
+            },
+            {
+              validator: this.checkStorageReplies,
+              message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
+              trigger: 'change',
+            },
+          ],
+          es_shards: [
+            {
+              validator: this.checkEsShards,
+              message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
+              trigger: 'blur',
+            },
+            {
+              validator: this.checkEsShards,
+              message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
+              trigger: 'change',
+            },
+          ],
+        },
+        storage_capacity: '',
+        tips_storage: [],
+        tip_storage: [],
+        storageList: [],
+        clusterList: [], // 共享集群
+        exclusiveList: [], // 独享集群
+        dialogVisible: false,
+        rowTemplate: {
+          alias_name: '',
+          description: '',
+          field_type: '',
+          is_analyzed: false,
+          is_built_in: false,
+          is_delete: false,
+          is_dimension: false,
+          is_time: false,
+          value: '',
+          option: {
+            time_format: '',
+            time_zone: '',
+          },
+        },
+        stashCleanConf: null, // 清洗缓存,
+        isShowAssessment: false,
+        isChangeSelect: false,
+        hostNumber: 0,
+        replicasMax: 7,
+        shardsMax: 7,
+        isForcedFillAssessment: false, // 是否必须容量评估
+        editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
+        editComparedData: {},
+      };
+    },
+    computed: {
+      ...mapGetters({
+        bkBizId: 'bkBizId',
+        spaceUid: 'spaceUid',
+        curCollect: 'collect/curCollect',
+        globalsData: 'globals/globalsData',
+        accessUserManage: 'accessUserManage',
+        isShowMaskingTemplate: 'isShowMaskingTemplate',
+      }),
+      collectProject() {
+        return projectManages(this.$store.state.topMenu, 'collection-item');
+      },
+      defaultRetention() {
+        const { storage_duration_time } = this.globalsData;
 
-      if (this.stashCleanConf) {
-        // 缓存清洗配置
-        Object.assign(this.formData, {
-          etl_config: this.stashCleanConf.clean_type,
-          etl_params: this.stashCleanConf.etl_params,
-          fields: this.stashCleanConf.etl_fields
-        });
-      }
-      // eslint-disable-next-line camelcase
-      this.editStorageClusterID = storage_cluster_id;
-      this.formData.storage_cluster_id =
-        this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
-      this.basicLoading = false;
-      this.$nextTick(() => {
-        this.editComparedData = this.getSubmitData();
-      });
-    },
-    cancel() {
-      if (this.isFinishCreateStep) {
-        this.$emit('changeSubmit', true);
-      }
-      let routeName;
-      const { backRoute, ...reset } = this.$route.query;
-      if (backRoute) {
-        routeName = backRoute;
-      } else {
-        routeName = 'collection-item';
-      }
-      this.$router.push({
-        name: routeName,
-        query: {
-          ...reset,
-          spaceUid: this.$store.state.spaceUid
+        return storage_duration_time?.filter(item => item.default === true)[0].id;
+      },
+      isCanUseAssessment() {
+        /**
+         * itsm开启时, 当前选择的集群容量评估开启时
+         * isChangeSelect 当前步骤非新增,且进行集群切换满足上面条件则展示容量评估
+         */
+        return this.isItsm && this.selectedStorageCluster.enable_assessment && this.isChangeSelect;
+      },
+      getApprover() {
+        if (this.isCanUseAssessment) {
+          // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+          this.formData.assessment_config.approvals = this.selectedStorageCluster?.admin || [];
+          return this.selectedStorageCluster?.admin.join(', ') || '';
         }
-      });
+        return '';
+      },
     },
-    /**
-     * @desc: 获取主机数数量 若主机数大于assessment_host_count则显示容量评估
-     */
-    getHostNumber() {
-      const curTaskIdList = new Set();
-      this.curCollect.task_id_list.forEach(id => curTaskIdList.add(id));
-      const params = {
-        collector_config_id: this.curCollect.collector_config_id
-      };
-      this.$http
-        .request('collect/getIssuedClusterList', {
-          params,
-          query: { task_id_list: [...curTaskIdList.keys()].join(',') }
-        })
-        .then(res => {
-          const data = res.data.contents;
-          let hostLength = 0;
-          data.forEach(cluster => {
-            hostLength += cluster.child.length;
+    async mounted() {
+      this.getStorage();
+      this.operateType === 'add' && (this.isChangeSelect = true);
+    },
+    created() {
+      this.curCollect.environment !== 'container' && this.getHostNumber();
+    },
+    methods: {
+      // 获取采集项清洗基础配置缓存 用于存储入库提交
+      getCleanStash() {
+        this.$http
+          .request('clean/getCleanStash', {
+            params: {
+              collector_config_id: this.curCollect.collector_config_id,
+            },
+          })
+          .then(res => {
+            if (res.data) {
+              this.stashCleanConf = res.data;
+            }
+          })
+          .finally(() => {
+            this.getDetail();
           });
-          // 这里获取主机总数量赋值并与HOST_COUNT比较如果主机数量大于最大值则必填容量评估内容
-          const isOverHost = hostLength > Number(this.HOST_COUNT);
-          this.hostNumber = hostLength;
-          this.isShowAssessment = isOverHost;
-          this.isForcedFillAssessment = isOverHost;
-          this.formData.assessment_config.need_approval = isOverHost;
-        })
-        .catch(() => {
-          this.hostNumber = 0;
-          this.isForcedFillAssessment = false;
-          this.formData.assessment_config.need_approval = false;
+      },
+      // 存储入库
+      fieldCollection(callback) {
+        const data = this.getSubmitData();
+
+        this.isLoading = true;
+        this.$http
+          .request('collect/fieldCollection', {
+            params: {
+              collector_config_id: this.curCollect.collector_config_id,
+            },
+            data,
+          })
+          .then(res => {
+            if (res.code === 0) {
+              // this.storageList = res.data
+              // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
+              if (res.data) {
+                this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
+                this.$emit('change-index-set-id', res.data.index_set_id || '');
+              }
+              if (data.need_assessment && data.assessment_config.need_approval) {
+                this.$emit('set-assessment-item', {
+                  iframe_ticket_url: res.data.ticket_url,
+                  itsm_ticket_status: 'applying',
+                });
+              } else {
+                this.$emit('set-assessment-item', {});
+              }
+              if (this.isFinishCreateStep) {
+                this.messageSuccess(this.$t('保存成功'));
+                if (callback) {
+                  this.$emit('reset-cur-collect-val');
+                  callback(true);
+                  return;
+                }
+                this.$emit('change-submit', true);
+                this.$emit('step-change', 'back');
+                return;
+              }
+              // 只有在不展示日志脱敏的情况下才改变保存状态
+              if (!this.isShowMaskingTemplate) this.$emit('change-submit', true);
+              this.$emit('step-change');
+            }
+          })
+          .catch(() => callback?.(false))
+          .finally(() => {
+            this.isLoading = false;
+          });
+      },
+      /** 导航切换提交函数 */
+      stepSubmitFun(callback) {
+        this.finish(callback);
+      },
+      // 完成按钮
+      finish(callback) {
+        const isCanSubmit = this.getSubmitAuthority();
+        if (!isCanSubmit) {
+          callback(false);
+          return;
+        }
+        const promises = [this.checkStore()];
+        Promise.all(promises).then(
+          () => {
+            this.fieldCollection(callback);
+          },
+          validator => {
+            console.warn('保存失败', validator);
+          },
+        );
+      },
+      // 存储校验
+      checkStore() {
+        return new Promise((resolve, reject) => {
+          // if (!this.isUnmodifiable) {
+
+          // } else {
+          //   resolve();
+          // }
+          this.$refs.validateForm
+            .validate()
+            .then(validator => {
+              resolve(validator);
+            })
+            .catch(err => {
+              console.warn('存储校验错误');
+              reject(err);
+            });
         });
-    },
-    getSubmitAuthority() {
+      },
+      prevHandler() {
+        this.$emit('step-change', this.curStep - 1);
+      },
+      // 获取详情
+      getDetail() {
+        const tsStorageId = this.formData.storage_cluster_id;
+        const {
+          table_id,
+          storage_cluster_id,
+          retention,
+          storage_replies,
+          storage_shards_nums: storageShardsNums,
+          allocation_min_days,
+          table_id_prefix,
+          view_roles,
+          etl_config,
+          etl_params,
+          fields,
+          collector_config_name_en,
+        } = this.curCollect;
+        const option = { time_zone: '', time_format: '' };
+        const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
+        copyFields.forEach(row => {
+          row.value = '';
+          if (row.is_delete) {
+            const copyRow = Object.assign(
+              JSON.parse(JSON.stringify(this.rowTemplate)),
+              JSON.parse(JSON.stringify(row)),
+            );
+            Object.assign(row, copyRow);
+          }
+          if (row.option) {
+            row.option = Object.assign({}, option, row.option || {});
+          } else {
+            row.option = Object.assign({}, option);
+          }
+        });
+        /* eslint-disable */
+        this.params.etl_config = etl_config;
+        Object.assign(this.params.etl_params, {
+          separator_regexp: etl_params.separator_regexp || '',
+          separator: etl_params.separator || '',
+        });
+        this.isUnmodifiable = !!(table_id || storage_cluster_id);
+        this.isUnmodfyIndexName = !!(table_id || storage_cluster_id || collector_config_name_en);
+        this.fieldType = etl_config || 'bk_log_text';
+        let default_exclusive_cluster_id;
+        if (!storage_cluster_id && this.exclusiveList.length) {
+          // 新增时若有业务独享集群则直接赋值独享集群列表第一条id
+          this.isChangeSelect = true; // 不提示切换集群dialog
+          default_exclusive_cluster_id = this.exclusiveList[0].storage_cluster_id;
+        }
+        // this.switcher = etl_config ? etl_config !== 'bk_log_text' : false
+        /* eslint-enable */
+        Object.assign(this.formData, {
+          table_id: table_id ? table_id : collector_config_name_en ? collector_config_name_en : '',
+
+          storage_cluster_id: default_exclusive_cluster_id ? default_exclusive_cluster_id : storage_cluster_id,
+          es_shards: storageShardsNums,
+          table_id_prefix,
+          etl_config: this.fieldType,
+          etl_params: Object.assign(
+            {
+              retain_original_text: true,
+              retain_extra_json: false,
+              original_text_is_case_sensitive: false,
+              original_text_tokenize_on_chars: '',
+              separator_regexp: '',
+              separator: '',
+              // separator_field_list: ''
+            },
+
+            etl_params ? JSON.parse(JSON.stringify(etl_params)) : {},
+          ),
+          fields: copyFields.filter(item => !item.is_built_in),
+          retention: retention ? `${retention}` : this.defaultRetention,
+          storage_replies,
+
+          allocation_min_days: allocation_min_days ? `${allocation_min_days}` : '0',
+          view_roles,
+        });
+
+        if (this.stashCleanConf) {
+          // 缓存清洗配置
+          Object.assign(this.formData, {
+            etl_config: this.stashCleanConf.clean_type,
+            etl_params: this.stashCleanConf.etl_params,
+            fields: this.stashCleanConf.etl_fields,
+          });
+        }
+
+        this.editStorageClusterID = storage_cluster_id;
+        this.formData.storage_cluster_id =
+          this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
+        this.basicLoading = false;
+        this.$nextTick(() => {
+          this.editComparedData = this.getSubmitData();
+        });
+      },
+      cancel() {
+        if (this.isFinishCreateStep) {
+          this.$emit('change-submit', true);
+        }
+        let routeName;
+        const { backRoute, ...reset } = this.$route.query;
+        if (backRoute) {
+          routeName = backRoute;
+        } else {
+          routeName = 'collection-item';
+        }
+        this.$router.push({
+          name: routeName,
+          query: {
+            ...reset,
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+      },
       /**
-       * 当前未选择集群 提示
-       * 主机数量 >= assessment_host_count 强制审批 提示
+       * @desc: 获取主机数数量 若主机数大于assessment_host_count则显示容量评估
        */
-      const { storage_cluster_id: clusterID, assessment_config: assessmentConfig } = this.formData;
-      const isNotSelectedID = clusterID === '';
-      const isNotFillLog =
-        this.isForcedFillAssessment && this.isCanUseAssessment && assessmentConfig.log_assessment === '';
-      if (isNotSelectedID || isNotFillLog) {
-        const message = isNotSelectedID ? this.$t('请选择集群') : this.$t('请填写容量评估的每日单台日志量');
-        this.$bkMessage({
-          theme: 'error',
-          message
-        });
-        return false;
-      }
-      return true;
-    },
-    getNeedAssessmentStatus() {
-      const {
-        assessment_config: { log_assessment: logAssessment, need_approval: needApproval }
-      } = this.formData;
-      return this.isCanUseAssessment && (logAssessment !== '' || needApproval);
-    },
-    /** 判断提交信息是否有更改过值 */
-    getIsUpdateSubmitValue() {
-      // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
-      if (this.basicLoading) return false;
-      const params = this.getSubmitData();
-      return !deepEqual(this.editComparedData, params);
-    },
-    getSubmitData() {
-      const {
-        etl_config,
-        table_id,
-        storage_cluster_id,
-        retention,
-        storage_replies,
-        es_shards,
-        allocation_min_days: allMinDays,
-        view_roles,
-        fields,
-        etl_params: etlParams,
-        assessment_config: assessmentConfig
-      } = this.formData;
-      const isNeedAssessment = this.getNeedAssessmentStatus();
-      const isOpenHotWarm = this.selectedStorageCluster.enable_hot_warm;
-      const data = {
-        etl_config,
-        table_id,
-        storage_cluster_id,
-        retention: Number(retention),
-        storage_replies: Number(storage_replies),
-        es_shards: Number(es_shards),
-        allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
-        view_roles,
-        etl_params: {
-          retain_original_text: etlParams.retain_original_text,
-          retain_extra_json: etlParams.retain_extra_json ?? false,
-          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-          separator_regexp: etlParams.separator_regexp,
-          separator: etlParams.separator
-        },
-        fields,
-        assessment_config: {
-          log_assessment: `${assessmentConfig.log_assessment}G`,
-          need_approval: assessmentConfig.need_approval,
-          approvals: assessmentConfig.approvals
-        },
-        need_assessment: isNeedAssessment
-      };
-      !isNeedAssessment && delete data.assessment_config;
-      /* eslint-disable */
-      if (etl_config !== 'bk_log_text') {
-        const payload = {
-          retain_original_text: etlParams.retain_original_text,
-          retain_extra_json: etlParams.retain_extra_json ?? false,
-          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? ''
+      getHostNumber() {
+        const curTaskIdList = new Set();
+        this.curCollect.task_id_list.forEach(id => curTaskIdList.add(id));
+        const params = {
+          collector_config_id: this.curCollect.collector_config_id,
         };
-        if (etl_config === 'bk_log_delimiter') {
-          payload.separator = etlParams.separator;
+        this.$http
+          .request('collect/getIssuedClusterList', {
+            params,
+            query: { task_id_list: [...curTaskIdList.keys()].join(',') },
+          })
+          .then(res => {
+            const data = res.data.contents;
+            let hostLength = 0;
+            data.forEach(cluster => {
+              hostLength += cluster.child.length;
+            });
+            // 这里获取主机总数量赋值并与HOST_COUNT比较如果主机数量大于最大值则必填容量评估内容
+            const isOverHost = hostLength > Number(this.HOST_COUNT);
+            this.hostNumber = hostLength;
+            this.isShowAssessment = isOverHost;
+            this.isForcedFillAssessment = isOverHost;
+            this.formData.assessment_config.need_approval = isOverHost;
+          })
+          .catch(() => {
+            this.hostNumber = 0;
+            this.isForcedFillAssessment = false;
+            this.formData.assessment_config.need_approval = false;
+          });
+      },
+      getSubmitAuthority() {
+        /**
+         * 当前未选择集群 提示
+         * 主机数量 >= assessment_host_count 强制审批 提示
+         */
+        const { storage_cluster_id: clusterID, assessment_config: assessmentConfig } = this.formData;
+        const isNotSelectedID = clusterID === '';
+        const isNotFillLog =
+          this.isForcedFillAssessment && this.isCanUseAssessment && assessmentConfig.log_assessment === '';
+        if (isNotSelectedID || isNotFillLog) {
+          const message = isNotSelectedID ? this.$t('请选择集群') : this.$t('请填写容量评估的每日单台日志量');
+          this.$bkMessage({
+            theme: 'error',
+            message,
+          });
+          return false;
         }
-        if (etl_config === 'bk_log_regexp') {
-          payload.separator_regexp = etlParams.separator_regexp;
+        return true;
+      },
+      getNeedAssessmentStatus() {
+        const {
+          assessment_config: { log_assessment: logAssessment, need_approval: needApproval },
+        } = this.formData;
+        return this.isCanUseAssessment && (logAssessment !== '' || needApproval);
+      },
+      /** 判断提交信息是否有更改过值 */
+      getIsUpdateSubmitValue() {
+        // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
+        if (this.basicLoading) return false;
+        const params = this.getSubmitData();
+        return !deepEqual(this.editComparedData, params);
+      },
+      getSubmitData() {
+        const {
+          etl_config,
+          table_id,
+          storage_cluster_id,
+          retention,
+          storage_replies,
+          es_shards,
+          allocation_min_days: allMinDays,
+          view_roles,
+          fields,
+          etl_params: etlParams,
+          assessment_config: assessmentConfig,
+        } = this.formData;
+        const isNeedAssessment = this.getNeedAssessmentStatus();
+        const isOpenHotWarm = this.selectedStorageCluster.enable_hot_warm;
+        const data = {
+          etl_config,
+          table_id,
+          storage_cluster_id,
+          retention: Number(retention),
+          storage_replies: Number(storage_replies),
+          es_shards: Number(es_shards),
+          allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
+          view_roles,
+          etl_params: {
+            retain_original_text: etlParams.retain_original_text,
+            retain_extra_json: etlParams.retain_extra_json ?? false,
+            original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+            original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+            separator_regexp: etlParams.separator_regexp,
+            separator: etlParams.separator,
+          },
+          fields,
+          assessment_config: {
+            log_assessment: `${assessmentConfig.log_assessment}G`,
+            need_approval: assessmentConfig.need_approval,
+            approvals: assessmentConfig.approvals,
+          },
+          need_assessment: isNeedAssessment,
+        };
+        !isNeedAssessment && delete data.assessment_config;
+        /* eslint-disable */
+        if (etl_config !== 'bk_log_text') {
+          const payload = {
+            retain_original_text: etlParams.retain_original_text,
+            retain_extra_json: etlParams.retain_extra_json ?? false,
+            original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+            original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+          };
+          if (etl_config === 'bk_log_delimiter') {
+            payload.separator = etlParams.separator;
+          }
+          if (etl_config === 'bk_log_regexp') {
+            payload.separator_regexp = etlParams.separator_regexp;
+          }
+          data.etl_params = payload;
         }
-        data.etl_params = payload;
-      }
-      return data;
+        return data;
+      },
+      checkStorageReplies() {
+        return this.formData.storage_replies <= this.replicasMax;
+      },
+      checkEsShards() {
+        return this.formData.es_shards <= this.shardsMax;
+      },
     },
-    checkStorageReplies() {
-      return this.formData.storage_replies <= this.replicasMax;
-    },
-    checkEsShards() {
-      return this.formData.es_shards <= this.shardsMax;
-    }
-  }
-};
+  };
 </script>
 
 <style lang="scss">
-@import '@/scss/mixins/clearfix';
-@import '@/scss/storage.scss';
-@import '@/scss/mixins/flex.scss';
-/* stylelint-disable no-descending-specificity */
-.step-storage {
-  position: relative;
-  max-height: 100%;
-  min-width: 950px;
-  padding: 0 42px 42px;
-  overflow: auto;
+  @import '@/scss/mixins/clearfix';
+  @import '@/scss/storage.scss';
+  @import '@/scss/mixins/flex.scss';
 
-  .bk-label {
-    font-size: 12px;
-  }
+  /* stylelint-disable no-descending-specificity */
+  .step-storage {
+    position: relative;
+    min-width: 950px;
+    max-height: 100%;
+    padding: 0 42px 42px;
+    overflow: auto;
 
-  .tips {
-    margin-left: 8px;
-    font-size: 12px;
-    line-height: 32px;
-    color: #aeb0b7;
-  }
+    .bk-label {
+      font-size: 12px;
+    }
 
-  .form-div {
-    display: flex;
-    margin: 20px 0;
+    .tips {
+      margin-left: 8px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #aeb0b7;
+    }
 
-    .form-inline-div {
-      white-space: nowrap;
+    .form-div {
+      display: flex;
+      margin: 20px 0;
 
-      .bk-form-content {
-        display: flex;
-        flex-wrap: nowrap;
+      .form-inline-div {
+        white-space: nowrap;
+
+        .bk-form-content {
+          display: flex;
+          flex-wrap: nowrap;
+        }
+      }
+
+      .prefix {
+        min-width: 80px;
+        margin-right: 8px;
+        font-size: 14px;
+        line-height: 32px;
+        color: #858790;
+        text-align: right;
       }
     }
 
-    .prefix {
-      min-width: 80px;
-      margin-right: 8px;
+    .add-collection-title {
+      width: 100%;
+      padding-bottom: 10px;
+      margin: 30px 0 20px 0;
       font-size: 14px;
-      line-height: 32px;
-      color: #858790;
-      text-align: right;
+      font-weight: 600;
+      color: #63656e;
+      border-bottom: 1px solid #dcdee5;
     }
-  }
 
-  .add-collection-title {
-    width: 100%;
-    padding-bottom: 10px;
-    margin: 30px 0 20px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: #63656e;
-    border-bottom: 1px solid #dcdee5;
-  }
+    .capacity-assessment {
+      margin: 20px 0;
+      font-size: 14px;
 
-  .capacity-assessment {
-    margin: 20px 0;
-    font-size: 14px;
+      @include flex-align;
 
-    @include flex-align;
+      .capacity-message {
+        margin-left: 20px;
+        color: #63656e;
+      }
+
+      .icon-angle-double-down {
+        font-size: 24px;
+
+        &.is-active {
+          transform: rotateZ(180deg) translateY(-2px);
+        }
+      }
+
+      .button-text {
+        @include flex-align;
+      }
+    }
+
+    .capacity-illustrate {
+      height: 104px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+
+      .illustrate-title {
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: #63656e;
+      }
+    }
 
     .capacity-message {
-      margin-left: 20px;
-      color: #63656e;
-    }
+      display: flex;
+      align-items: center;
 
-    .icon-angle-double-down {
-      font-size: 24px;
+      .capacity-input {
+        width: 320px;
+      }
 
-      &.is-active {
-        transform: rotateZ(180deg) translateY(-2px);
+      .unit-container {
+        width: 40px;
+        margin: 1px 0 0 -1px;
+        margin-right: 8px;
+        color: #63656e;
+        text-align: center;
+        background: #f2f4f8;
+        border: 1px solid #c4c6cc;
+      }
+
+      .right {
+        color: #63656e;
       }
     }
 
-    .button-text {
+    .need-approval {
+      margin: 12px 0 12px 116px;
+
       @include flex-align;
+
+      .bk-checkbox-text {
+        margin-right: 12px;
+        font-size: 12px;
+      }
+
+      .approval-alert {
+        display: flex;
+        align-items: center;
+      }
+
+      .icon-exclamation-circle {
+        margin-right: 8px;
+        font-size: 16px;
+        color: #ff9c01;
+      }
     }
-  }
 
-  .capacity-illustrate {
-    height: 104px;
-    padding: 12px 20px;
-    margin-bottom: 20px;
-    background: #fafbfd;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-
-    .illustrate-title {
-      font-weight: 700;
-    }
-
-    p {
-      margin-bottom: 4px;
+    .approver {
       font-size: 12px;
-      color: #63656e;
+      color: #313238;
+    }
+
+    .operate-container {
+      margin-top: 32px;
+      transform: translateX(-115px);
     }
   }
-
-  .capacity-message {
-    display: flex;
-    align-items: center;
-
-    .capacity-input {
-      width: 320px;
-    }
-
-    .unit-container {
-      width: 40px;
-      margin: 1px 0 0 -1px;
-      margin-right: 8px;
-      color: #63656e;
-      text-align: center;
-      background: #f2f4f8;
-      border: 1px solid #c4c6cc;
-    }
-
-    .right {
-      color: #63656e;
-    }
-  }
-
-  .need-approval {
-    margin: 12px 0 12px 116px;
-
-    @include flex-align;
-
-    .bk-checkbox-text {
-      margin-right: 12px;
-      font-size: 12px;
-    }
-
-    .approval-alert {
-      display: flex;
-      align-items: center;
-    }
-
-    .icon-exclamation-circle {
-      margin-right: 8px;
-      font-size: 16px;
-      color: #ff9c01;
-    }
-  }
-
-  .approver {
-    font-size: 12px;
-    color: #313238;
-  }
-
-  .operate-container {
-    margin-top: 32px;
-    transform: translateX(-115px);
-  }
-}
 </style>

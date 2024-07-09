@@ -1645,21 +1645,11 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
-        # 支持metric_field为自定义事件名
-        if (
-            self.metrics
-            and self.metrics[0]["field"] not in ["_index", "event.count"]
-            and "event_name" not in self.filter_dict
-        ):
-            event_name = self.metrics[0]["field"]
-            self.metrics[0]["field"] = "_index"
-            self.metrics[0]["method"] = "COUNT"
-            self.filter_dict["event_name"] = event_name
-
-        # 锁定指标聚合方法为Count
-        # todo count(_index) -> sum(event.count)X
         for metric in self.metrics:
-            if metric["field"] == "_index":
+            if metric["field"] == "event.count":
+                metric["method"] = "SUM"
+            else:
+                metric["field"] = "_index"
                 metric["method"] = "COUNT"
 
         # 平台级且业务不等于绑定的平台业务

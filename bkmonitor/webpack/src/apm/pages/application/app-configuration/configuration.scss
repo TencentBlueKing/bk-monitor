@@ -49,9 +49,9 @@ $statusType2: 'green' 'red' 'yellow';
           @include flex-align;
 
           .underline-text {
-            border-bottom: 1px dashed #979ba5;
             font-size: 12px;
             cursor: default;
+            border-bottom: 1px dashed #979ba5;
           }
         }
 
@@ -448,9 +448,9 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     &.sampling-rules-item {
-      margin-top: 10px;
       align-items: normal;
       height: auto;
+      margin-top: 10px;
     }
   }
 
@@ -461,20 +461,20 @@ $statusType2: 'green' 'red' 'yellow';
     width: 12px;
     height: calc(100% - 34px);
     border: 1px solid #DCDEE5;
-    border-radius: 4px 0 0 4px;
     border-right: 0;
+    border-radius: 4px 0 0 4px;
 
     .or-condition {
       position: absolute;
       top: 50%;
-      margin-top: -8px;
       left: -14px;
       display: inline-block;
-      padding: 0 2px;
-      line-height: 14px;
       height: 14px;
-      background-color: #FFF3E1;
+      padding: 0 2px;
+      margin-top: -8px;
+      line-height: 14px;
       color: #FE9C00;
+      background-color: #FFF3E1;
       border-radius: 2px;
     }
   }
@@ -503,7 +503,6 @@ $statusType2: 'green' 'red' 'yellow';
   }
 
   .sampling-rule-form-item {
-
     .add-rule-btn {
       padding-left: 0;
 
@@ -514,8 +513,8 @@ $statusType2: 'green' 'red' 'yellow';
 
     .sampling-rule-item {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
+      align-items: center;
       margin-bottom: 8px;
       line-height: 18px;
 
@@ -539,41 +538,41 @@ $statusType2: 'green' 'red' 'yellow';
         margin-bottom: 2px;
   
         &-label {
-          height: 32px;
-          line-height: 32px;
           flex-shrink: 0;
+          height: 32px;
+          padding: 0 16px;
+          margin-left: -1px;
+          line-height: 32px;
+          color: #313238;
           background: #e7e9ef;
           border: 1px solid #dcdee5;
-          padding: 0 16px;
-          color: #313238;
-          margin-left: -1px;
         }
   
         &-method {
           display: flex;
           align-items: center;
           justify-content: center;
+          min-width: 32px;
+          height: 32px;
+          padding: 0 5px;
+          margin-left: -1px;
+          font-weight: bold;
           color: #3a84ff;
           cursor: pointer;
-          margin-left: -1px;
           border: 1px solid #dcdee5;
           border-radius: 0;
-          height: 32px;
-          min-width: 32px;
-          font-weight: bold;
-          padding: 0 5px;
   
           &:focus {
-            border-color: #3a84ff;
-            background-color: white;
             z-index: 9;
+            background-color: white;
+            border-color: #3a84ff;
             box-shadow: 0 0 4px rgba(58,132,255,.4);
           }
         }
   
         &-value {
-          margin-left: -1px;
           min-width: 170px;
+          margin-left: -1px;
   
           &.bk-tag-selector .bk-tag-input {
             border: 1px solid #dcdee5;
@@ -587,40 +586,40 @@ $statusType2: 'green' 'red' 'yellow';
         }
   
         &-condition {
-          margin-left: -1px;
-          padding: 0 4px;
-          text-align: center;
-          color: #ff9c01;
           min-width: 46px;
           max-width: 46px;
           height: 32px;
+          padding: 0 4px;
+          margin-left: -1px;
+          font-weight: bold;
+          color: #ff9c01;
+          text-align: center;
           border: 1px solid #dcdee5;
           border-radius: 0;
-          font-weight: bold;
         }
       }
   
       &-add {
-        border: 1px solid #dcdee5;
-        border-radius: 0;
-        width: 32px;
-        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 32px;
+        height: 32px;
         margin-left: -1px;
-        cursor: pointer;
         color: #979ba5;
+        cursor: pointer;
+        border: 1px solid #dcdee5;
+        border-radius: 0;
   
         .icon-plus {
           font-size: 24px;
         }
   
         &:hover {
-          color: #3a84ff;
-          border-color: #3a84ff;
-          background-color: white;
           z-index: 9;
+          color: #3a84ff;
+          background-color: white;
+          border-color: #3a84ff;
           box-shadow: 0 0 4px rgba(58,132,255,.4);
         }
       }
@@ -1133,7 +1132,6 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     .desc-contnet {
-      height: 87px;
       padding: 6px 16px;
       margin: 16px 0 12px;
       background: #f0f1f5;

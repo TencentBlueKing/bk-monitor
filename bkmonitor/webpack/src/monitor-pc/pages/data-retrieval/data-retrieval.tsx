@@ -64,7 +64,7 @@ import {
   handleTransformToTimestamp,
   timestampTransformStr,
 } from '../../components/time-range/utils';
-import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
@@ -207,7 +207,7 @@ export default class DataRetrieval extends tsc<object> {
     tools: {
       refleshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: getDefautTimezone(),
+      timezone: getDefaultTimezone(),
     },
   };
 
@@ -546,8 +546,8 @@ export default class DataRetrieval extends tsc<object> {
     } = this.$route.query.targets ? this.$route.query : this.$route.params;
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
-    this.compareValue.tools.timezone = getDefautTimezone();
-    if (timezone) {
+    this.compareValue.tools.timezone = getDefaultTimezone();
+    if (timezone && timezone !== 'undefined') {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);
     }
@@ -810,6 +810,15 @@ export default class DataRetrieval extends tsc<object> {
     } else if (opt === 'delete') {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
+        const promqlExpandedData = [];
+        this.promqlData.forEach(item => {
+          const key = random(8);
+          if (this.promqlExpandedData.includes(item.key)) {
+            promqlExpandedData.push(key);
+          }
+          item.key = key;
+        });
+        this.promqlExpandedData = promqlExpandedData;
       } else if (this.promqlData.length === 1) {
         this.promqlData[0].code = '';
       }
@@ -1449,7 +1458,7 @@ export default class DataRetrieval extends tsc<object> {
             agg_method: item?.agg_method,
             agg_interval: item?.agg_interval,
             agg_dimension: item?.agg_dimension,
-            agg_condition: item?.agg_condition,
+            agg_condition: item?.agg_condition || [],
             functions: item?.functions,
           }
         : {

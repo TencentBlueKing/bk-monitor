@@ -21,6 +21,8 @@ from django.conf import settings
 from prometheus_client.exposition import push_to_gateway
 from prometheus_client.metrics import MetricWrapperBase
 
+from alarm_backends.core.cluster import get_cluster
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,6 +38,12 @@ def get_udp_socket(address, port) -> socket.socket:
 
 
 def get_metric_agg_gateway_url(udp: bool = False):
+    if settings.IS_CONTAINER_MODE and get_cluster().name != "default":
+        url = f"bk-monitor-{get_cluster().name}-prom-agg-gateway"
+        if udp:
+            url = f"{url}:81"
+        return url
+
     if udp:
         return settings.METRIC_AGG_GATEWAY_UDP_URL
     return settings.METRIC_AGG_GATEWAY_URL

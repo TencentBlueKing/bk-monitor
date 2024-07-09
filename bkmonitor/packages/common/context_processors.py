@@ -136,11 +136,15 @@ def get_core_context(request):
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
         "LANGUAGES": settings.LANGUAGES,
         # 页面title
+        # todo 后续弃用(使用：全局配置资源链接）
         "PAGE_TITLE": (
             settings.HEADER_FOOTER_CONFIG["header"][0]["en"]
             if get_language() == "en"
             else settings.HEADER_FOOTER_CONFIG["header"][0]["zh-cn"]
         ),
+        # 全局配置资源链接
+        "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
+        "FOOTER_VERSION": settings.VERSION,
     }
 
 
@@ -199,6 +203,18 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             context["ENABLE_AIOPS"] = "true"
     except Exception as e:
         logger.error(f"Get AIOPS_BIZ_WHITE_LIST Failed: {e}")
+
+    # 根因古战定位页面渲染
+    context["ENABLE_AIOPS_INCIDENT"] = "false"
+    try:
+        # 判断是否在白名单中
+        if settings.IS_ACCESS_BK_DATA and (
+            not settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+            or {-1, safe_int(context["BK_BIZ_ID"])} & set(settings.AIOPS_INCIDENT_BIZ_WHITE_LIST)
+        ):
+            context["ENABLE_AIOPS_INCIDENT"] = "true"
+    except Exception as e:
+        logger.error(f"Get AIOPS_INCIDENT_BIZ_WHITE_LIST Failed: {e}")
 
     return context
 

@@ -11,7 +11,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.2-5.beta.15",
+    "@blueking/bk-weweb": "0.0.26",
     "@blueking/bkui-library": "0.0.0-beta.4",
     "@blueking/date-picker": "^2.0.0-beta.14",
     "@blueking/fork-resize-detector": "^0.0.2",
@@ -19,6 +19,7 @@
     "@blueking/ip-selector": "0.2.0-beta.1",
     "@blueking/login-modal": "^1.0.1",
     "@blueking/notice-component-vue2": "^2.0.3",
+    "@blueking/platform-config": "^1.0.2",
     "@blueking/search-select-v3": "0.0.1-beta.8",
     "@blueking/user-selector": "^1.0.12",
     "@prometheus-io/lezer-promql": "0.51.2",

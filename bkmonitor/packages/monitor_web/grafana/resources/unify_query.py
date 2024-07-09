@@ -636,7 +636,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 result_table_id=metric.result_table_id,
                 index_set_id=metric.related_id,
                 metric_field=metric.metric_field,
-                custom_event_name=metric.metric_field,
+                custom_event_name=metric.extend_fields.get("custom_event_name", ""),
             )
             metric_infos.append(metric_info)
         return metric_infos
@@ -947,11 +947,31 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             str(service_instance.service_instance_id): service_instance.name for service_instance in service_instances
         }
 
+        # 节点类型、节点名称
+        bk_obj_id_to_name = {}
+        bk_inst_id_to_name = {}
+        topo_tree = None
+        all_nodes = None
+        for row in data:
+            bk_obj_id = row["dimensions"].get("bk_obj_id")
+            bk_inst_id = row["dimensions"].get("bk_inst_id")
+            if bk_obj_id and bk_inst_id:
+                if topo_tree is None or all_nodes is None:
+                    topo_tree = api.cmdb.get_topo_tree(bk_biz_id=params["bk_biz_id"])
+                    all_nodes = topo_tree.get_all_nodes_with_relation()
+                node_key = f"{bk_obj_id}|{bk_inst_id}"
+                node = all_nodes.get(node_key)
+                if node:
+                    bk_obj_id_to_name[bk_obj_id] = node.bk_obj_name
+                    bk_inst_id_to_name[bk_inst_id] = node.bk_inst_name
+
         # 字段映射
         field_mapper = {
             "bk_host_id": host_id_to_name,
             "service_instance_id": service_instance_id_to_name,
             "bk_target_service_instance_id": service_instance_id_to_name,
+            "bk_obj_id": bk_obj_id_to_name,
+            "bk_inst_id": bk_inst_id_to_name,
         }
         for row in data:
             dimensions_translation = {}
@@ -1203,9 +1223,6 @@ class DimensionPromqlQueryResource(Resource):
         match = cls.re_label_value.match(promql)
         promql = match.group(2)
         label = match.group(4)
-        if not promql.startswith("bkmointor:"):
-            promql = f"bkmonitor:{promql}"
-
         try:
             match_promql = [promql]
             if cookies_filter:

@@ -1,27 +1,34 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
+import TextHighlight from 'vue-text-highlight';
+
 import { Component, Model, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import {
   Sideslider,
   Form,
@@ -36,17 +43,18 @@ import {
   Table,
   TableColumn,
   Dialog,
-  TagInput
+  TagInput,
 } from 'bk-magic-vue';
-import './masking-add-rule.scss';
+
 import $http from '../../api';
 import { deepClone } from '../monitor-echarts/utils';
-import TextHighlight from 'vue-text-highlight';
+
+import './masking-add-rule.scss';
 
 interface IProps {
   value: boolean;
   isEdit: boolean;
-  ruleID: string | number;
+  ruleID: number | string;
 }
 
 interface IEditAccessValue {
@@ -65,24 +73,23 @@ export default class MaskingAddRule extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) isEdit: boolean;
   @Prop({ type: Boolean, default: true }) isPublicRule: boolean;
   @Prop({ type: Array, default: () => [] }) tableStrList: Array<string>;
-  @Prop({ type: Number, default: 0 }) ruleID: string | number;
+  @Prop({ type: Number, default: 0 }) ruleID: number | string;
   @Prop({
     type: Object,
     default: () => ({
       field: '',
-      fieldLog: ''
-    })
+      fieldLog: '',
+    }),
   })
   addRuleFieldValue: IAddRuleFieldValue;
   @Prop({
     type: Object,
     default: () => ({
       accessNum: 0,
-      accessInfo: []
-    })
+      accessInfo: [],
+    }),
   })
   editAccessValue: IEditAccessValue;
-  @Ref('submitForm') private readonly submitFormRef: Form;
 
   /** 用于存储当前展开的折叠项的数组 */
   activeCollapse = [];
@@ -109,9 +116,9 @@ export default class MaskingAddRule extends tsc<IProps> {
       preserve_head: 0,
       preserve_tail: 0,
       replace_mark: '*',
-      template_string: ''
+      template_string: '',
     },
-    is_public: false
+    is_public: false,
   };
   /** 表单是否正在加载 */
   formLoading = false;
@@ -125,7 +132,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     bkdata: 'bkdata-index-set-list',
     es: 'es-index-set-list',
     index_set: 'log-index-set-list',
-    log_custom: 'custom-report'
+    log_custom: 'custom-report',
   };
   /** 缓存的规则名 */
   cacheRuleName = '';
@@ -137,7 +144,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     height: '94px',
     'line-height': '24px',
     color: '#C4C6CC',
-    borderRadius: '2px'
+    borderRadius: '2px',
   };
 
   public rules = {
@@ -145,41 +152,43 @@ export default class MaskingAddRule extends tsc<IProps> {
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkRuleName,
         message: window.mainComponent.$t('已有脱敏规则名, 请重新填写。'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     match_fields: [
       {
         validator: this.checkFieldsMatch,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     match_pattern: [
       {
         validator: this.checkExpressionMatch,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     params: [
       {
         validator: this.checkOperatorParams,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
+
+  @Ref('submitForm') private readonly submitFormRef: Form;
 
   get markList() {
     let markVal = this.debugLog.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
@@ -266,7 +275,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     try {
       this.formLoading = true;
       const resData = await $http.request('masking/getDesensitize', {
-        params: { rule_id: this.ruleID }
+        params: { rule_id: this.ruleID },
       });
       Object.assign(this.formData, (resData as any).data);
       if (this.isEdit) this.cacheRuleName = this.formData.rule_name;
@@ -305,7 +314,7 @@ export default class MaskingAddRule extends tsc<IProps> {
         ? {
             preserve_tail: Number(fParams.preserve_tail),
             preserve_head: Number(fParams.preserve_head),
-            replace_mark: fParams.replace_mark
+            replace_mark: fParams.replace_mark,
           }
         : { template_string: fParams.template_string ?? '' };
     const paramsData = {
@@ -313,7 +322,7 @@ export default class MaskingAddRule extends tsc<IProps> {
       match_fields: this.formData.match_fields,
       match_pattern: this.formData.match_pattern,
       operator: this.formData.operator,
-      operator_params: operatorParams
+      operator_params: operatorParams,
     };
     const createObj = this.isPublicRule ? { is_public: true } : { is_public: false, space_uid: this.spaceUid };
     const data = this.isEdit ? { ...paramsData } : { ...createObj, ...paramsData };
@@ -321,7 +330,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     await $http
       .request(`masking/${requestStr}`, {
         params,
-        data
+        data,
       })
       .then(res => {
         this.isShowSecondConfirmDialog = false;
@@ -338,14 +347,14 @@ export default class MaskingAddRule extends tsc<IProps> {
         ? {
             preserve_tail: Number(fParams.preserve_tail),
             preserve_head: Number(fParams.preserve_head),
-            replace_mark: fParams.replace_mark
+            replace_mark: fParams.replace_mark,
           }
         : { template_string: fParams.template_string ?? '' };
     const data = {
       log_sample: this.logOriginal,
       match_pattern: this.formData.match_pattern,
       operator: this.formData.operator,
-      params: operatorParams
+      params: operatorParams,
     };
     await $http
       .request('masking/desensitizeDebug', { data }, { catchIsShowMessage: false })
@@ -408,8 +417,8 @@ export default class MaskingAddRule extends tsc<IProps> {
       name: this.scenarioRouteMap[row.scenario_id],
       query: {
         ids: encodeURIComponent(idList),
-        spaceUid: this.$store.state.spaceUid
-      }
+        spaceUid: this.$store.state.spaceUid,
+      },
     });
     window.open(href, '_blank');
   }
@@ -417,7 +426,7 @@ export default class MaskingAddRule extends tsc<IProps> {
   handleChangeCoverNumber() {
     // 默认赋值0
     const {
-      params: { preserve_head: preserveHead, preserve_tail: preserveTail }
+      params: { preserve_head: preserveHead, preserve_tail: preserveTail },
     } = this.formData;
     this.formData.params.preserve_head = !!preserveHead ? preserveHead : 0;
     this.formData.params.preserve_tail = !!preserveHead ? preserveTail : 0;
@@ -426,28 +435,24 @@ export default class MaskingAddRule extends tsc<IProps> {
   render() {
     const accessTableSlot = () => (
       <Table
-        data={this.editAccessValue.accessInfo}
-        border={false}
-        outer-border={false}
-        header-border={false}
-        row-border={false}
-        col-border={false}
-        ext-cls='access-table'
         row-style={this.getShowRowStyle}
+        ext-cls='access-table'
+        border={false}
+        col-border={false}
+        data={this.editAccessValue.accessInfo}
+        header-border={false}
+        outer-border={false}
+        row-border={false}
       >
         <TableColumn
-          label={this.$t('日志来源')}
           key={'scenario_name'}
+          label={this.$t('日志来源')}
           prop={'scenario_name'}
         ></TableColumn>
 
         <TableColumn
-          sortable
-          label={this.$t('应用次数')}
-          width='125'
           key={'ids'}
-          prop={'ids'}
-          align='center'
+          width='125'
           scopedSlots={{
             default: ({ row }) => (
               <Button
@@ -456,54 +461,58 @@ export default class MaskingAddRule extends tsc<IProps> {
               >
                 {row.ids.length}
               </Button>
-            )
+            ),
           }}
+          align='center'
+          label={this.$t('应用次数')}
+          prop={'ids'}
+          sortable
         ></TableColumn>
       </Table>
     );
 
     return (
       <Sideslider
-        transfer
-        quick-close
+        width={640}
         is-show={this.value}
         title={this.$t('{n}脱敏规则', { n: this.isEdit ? this.$t('编辑') : this.$t('新增') })}
-        width={640}
+        quick-close
+        transfer
         {...{
           on: {
             'update:isShow': this.hiddenSlider,
-            shown: this.showSlider
-          }
+            shown: this.showSlider,
+          },
         }}
       >
         <div
-          slot='content'
           class='masking-rule-slider'
+          slot='content'
           v-bkloading={{ isLoading: this.formLoading }}
         >
           <Form
             ref='submitForm'
             ext-cls='masking-form'
-            label-width={200}
             form-type='vertical'
+            label-width={200}
             {...{
               props: {
                 model: this.formData,
-                rules: this.rules
-              }
+                rules: this.rules,
+              },
             }}
           >
             <FormItem
               label={this.$t('规则名称')}
-              required
               property='rule_name'
+              required
             >
               <Input v-model={this.formData.rule_name}></Input>
             </FormItem>
             <FormItem
               label={this.$t('匹配项')}
-              required
               property='match_fields'
+              required
             >
               <div class='masking-field'>
                 <Checkbox
@@ -515,11 +524,11 @@ export default class MaskingAddRule extends tsc<IProps> {
                   {this.$t('匹配字段名')}
                 </Checkbox>
                 <TagInput
-                  allow-create
-                  free-paste
-                  has-delete-icon={false}
                   v-model={this.formData.match_fields}
                   disabled={!this.matchFieldCheckValue}
+                  has-delete-icon={false}
+                  allow-create
+                  free-paste
                   onBlur={this.handleValueBlur}
                 ></TagInput>
               </div>
@@ -530,12 +539,12 @@ export default class MaskingAddRule extends tsc<IProps> {
                 <div>{this.$t('且')}</div>
               </div>
               <div
-                class='form-item-tips'
                 v-en-style='left: 80px;'
+                class='form-item-tips'
               >
                 <i
-                  v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
                   class='log-icon icon-info-fill'
+                  v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
                 ></i>
               </div>
             </FormItem>
@@ -558,22 +567,22 @@ export default class MaskingAddRule extends tsc<IProps> {
               </div>
             </FormItem>
             <FormItem
-              label={(this.$t('脱敏算子') as String).replace('label-', '')}
               class='masking-rule'
-              required
+              label={(this.$t('脱敏算子') as string).replace('label-', '')}
               property='params'
+              required
             >
               {this.formData.operator === 'text_replace' && (
                 <div
-                  class='regex-item-tips'
                   v-en-style='left: 175px;'
+                  class='regex-item-tips'
                 >
                   <i
+                    class='log-icon icon-info-fill'
                     v-bk-tooltips={{
                       allowHtml: true,
-                      content: '#rule-tips'
+                      content: '#rule-tips',
                     }}
-                    class='log-icon icon-info-fill'
                   ></i>
                   <div id='rule-tips'>
                     <span>
@@ -602,15 +611,15 @@ export default class MaskingAddRule extends tsc<IProps> {
                   path='保留前{0}位, 后{1}位'
                 >
                   <Input
-                    type='number'
                     v-model={this.formData.params.preserve_head}
                     min={0}
+                    type='number'
                     onBlur={() => this.handleChangeCoverNumber()}
                   ></Input>
                   <Input
-                    type='number'
                     v-model={this.formData.params.preserve_tail}
                     min={0}
+                    type='number'
                     onBlur={() => this.handleChangeCoverNumber()}
                   ></Input>
                 </i18n>
@@ -637,27 +646,27 @@ export default class MaskingAddRule extends tsc<IProps> {
             v-model={this.activeCollapse}
           >
             <CollapseItem
-              name='1'
               disabled={!this.matchExpressionCheckValue}
+              name='1'
             >
               <div class='debugging-title'>
                 <i class={{ 'bk-icon icon-play-shape': true, 'is-active': this.activeCollapse.length }}></i>
                 <span>{this.$t('脱敏结果预览')}</span>
               </div>
               <div
-                slot='content'
                 class='debugging-box'
+                slot='content'
               >
                 <div class='debug-input'>
                   <span class='debug-title'>{this.$t('原始日志')}</span>
                   <div class='debugging-log'>
                     <Input
-                      placeholder={this.$t('请输入')}
-                      type='textarea'
-                      rows={3}
-                      class='debugging-input'
                       input-style={this.inputStyle}
+                      class='debugging-input'
                       v-model={this.logOriginal}
+                      placeholder={this.$t('请输入')}
+                      rows={3}
+                      type='textarea'
                     ></Input>
                     {!!this.debugErrorTipsStr && <span class='debug-error'>{this.debugErrorTipsStr}</span>}
                   </div>
@@ -666,14 +675,14 @@ export default class MaskingAddRule extends tsc<IProps> {
                   v-bk-tooltips={{
                     disabled: !this.isCanClickDebugBtn,
                     placement: 'right',
-                    content: this.$t('正则表达式，脱敏算子，原始日志都填写后才可点击预览。')
+                    content: this.$t('正则表达式，脱敏算子，原始日志都填写后才可点击预览。'),
                   }}
                 >
                   <Button
-                    outline
-                    theme='primary'
                     style='font-size: 12px;'
                     disabled={this.isCanClickDebugBtn}
+                    theme='primary'
+                    outline
                     onClick={this.handleDebugging}
                   >
                     {this.$t('结果预览')}
@@ -698,15 +707,15 @@ export default class MaskingAddRule extends tsc<IProps> {
           </Collapse>
 
           <Dialog
-            v-model={this.isShowSecondConfirmDialog}
             width='400'
+            v-model={this.isShowSecondConfirmDialog}
             show-footer={false}
           >
             <div class='delete-dialog-container'>
               <span class='delete-title'>{this.$t('确认{n}该规则？', { n: this.$t('修改') })}</span>
               <span class='delete-text'>
                 {this.$t('当前脱敏规则被应用{n}次，修改规则后，现有脱敏配置需同步后生效，请确认是否保存编辑。', {
-                  n: this.editAccessValue.accessNum
+                  n: this.editAccessValue.accessNum,
                 })}
               </span>
               {accessTableSlot()}

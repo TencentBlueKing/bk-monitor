@@ -1,4 +1,7 @@
 .event-source-detail-wrap {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 5555 !important;
+
   .bk-dialog-close {
     display: none;
   }
@@ -113,7 +116,7 @@
               display: inline-block;
               font-size: 20px;
               line-height: 1;
-              transform: scale(.5);
+              transform: scale(0.5);
             }
           }
         }
@@ -156,7 +159,7 @@
                 margin-right: -3px;
                 font-size: 22px;
                 vertical-align: middle;
-                transform: scale(.5);
+                transform: scale(0.5);
               }
             }
 

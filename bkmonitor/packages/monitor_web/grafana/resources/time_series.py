@@ -476,6 +476,11 @@ class GetVariableValue(Resource):
         scenario = serializers.CharField(required=False, label="场景", default="os")
         params = serializers.DictField(label="查询参数")
 
+        def validate_params(self, attrs):
+            # 数据维度字段 去掉 告警落es时补充的  tags. 前缀
+            attrs["field"] = attrs.get("field", "").replace("tags.", "")
+            return attrs
+
     @staticmethod
     def format_label_and_value(labels, values):
         new_labels = []

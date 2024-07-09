@@ -280,6 +280,7 @@ class SearchAttrSerializer(serializers.Serializer):
     start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     time_range = serializers.CharField(required=False, default=None)
+    from_favorite_id = serializers.IntegerField(required=False, default=0)
 
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(required=False, default=0)
@@ -816,3 +817,10 @@ class GetDisplayNameSerializer(serializers.Serializer):
     """
 
     host_list = serializers.ListField(child=HostInfoSerializer(), default=[])
+
+
+class ESRouterListSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=False, label="空间ID")
+    scenario_id = serializers.CharField(required=False, label="数据源类型")
+    page = serializers.IntegerField(label=_("分页"), required=True)
+    pagesize = serializers.IntegerField(label=_("分页大小"), required=True)

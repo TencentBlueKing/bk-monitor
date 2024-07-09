@@ -121,6 +121,7 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.bk.instance.id": "$bk_instance_id",
+              "resource.service.name": "$service_name",
               "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
@@ -158,6 +159,7 @@
             "exception_type": "$exception_type",
             "filter_params": {
               "resource.bk.instance.id": "$bk_instance_id",
+              "resource.service.name": "$service_name",
               "span_name": "$endpoint"
             }
           }
@@ -185,6 +187,7 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.bk.instance.id": "$bk_instance_id",
+              "resource.service.name": "$service_name",
               "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
@@ -236,7 +239,8 @@
             "endpoint": "endpoint",
             "app_name": "app_name",
             "exception_type": "exception_type",
-            "message": "message"
+            "message": "message",
+            "service_name": "service"
           }
         }
       ]

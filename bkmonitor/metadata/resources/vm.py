@@ -20,7 +20,9 @@ from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import Resource
 from metadata import config, models
+from metadata.models.space.constants import SpaceTypes
 from metadata.models.space.space_data_source import get_real_biz_id
+from metadata.service.data_source import query_biz_plugin_data_id_list
 from metadata.service.vm_storage import (
     get_table_id_from_vm,
     query_bcs_cluster_vm_rts,
@@ -149,6 +151,44 @@ class QueryVmDatalink(Resource):
 
     def perform_request(self, data: OrderedDict) -> Dict:
         return query_vm_datalink(data["bk_data_id"])
+
+
+class QueryVmRtBySpace(Resource):
+    class RequestSerializer(serializers.Serializer):
+        space_type = serializers.CharField(required=True, label="空间类型")
+        space_id = serializers.CharField(required=True, label="空间 ID")
+
+    def perform_request(self, data: OrderedDict) -> Dict:
+        # 通过空间转换业务ID
+        biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
+        if not biz_id:
+            raise ValidationError(f"not found space by space_type: {data['space_type']}, space_id: {data['space_id']}")
+        biz_id = int(biz_id)
+        # 如果是空间类型为业务类型，则还需要查看是否有配置插件
+        tids = list(
+            models.ResultTable.objects.filter(bk_biz_id=biz_id, default_storage="influxdb", is_enable=True).values_list(
+                "table_id", flat=True
+            )
+        )
+        if data["space_type"] == SpaceTypes.BKCC.value:
+            biz_data_ids = query_biz_plugin_data_id_list(biz_id_list=[biz_id])
+            data_id_list = biz_data_ids.get(biz_id) or []
+            if data_id_list:
+                _tids = list(
+                    models.DataSourceResultTable.objects.filter(bk_data_id__in=data_id_list).values_list(
+                        "table_id", flat=True
+                    )
+                )
+                # 过滤可用的结果表
+                tids.extend(
+                    models.ResultTable.objects.filter(
+                        table_id__in=_tids, default_storage="influxdb", is_enable=True
+                    ).values_list("table_id", flat=True)
+                )
+        # 获取计算平台的结果表(后续获取不到计算平台数据源ID，不返回具体的计算平台数据源ID)
+        return list(
+            models.AccessVMRecord.objects.filter(result_table_id__in=tids).values_list("vm_result_table_id", flat=True)
+        )
 
 
 class QueryBcsClusterVmTableIds(Resource):

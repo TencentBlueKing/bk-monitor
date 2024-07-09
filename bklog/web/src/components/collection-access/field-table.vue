@@ -1,29 +1,34 @@
+<!-- eslint-disable vue/no-deprecated-slot-attribute -->
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div
-    v-bkloading="{ isLoading: isExtracting }"
     class="field-table-container"
+    v-bkloading="{ isLoading: isExtracting }"
   >
     <div
       v-if="!isPreviewMode"
@@ -40,13 +45,13 @@
               v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen"
               v-model="retainExtraText"
               :checked="false"
-              :true-value="true"
               :false-value="false"
+              :true-value="true"
               @change="handleKeepField"
             >
               <span
-                class="bk-label"
                 style="margin-right: 20px"
+                class="bk-label"
                 >{{ $t('保留未定义字段') }}</span
               >
             </bk-checkbox>
@@ -87,10 +92,10 @@
       >
         <bk-table
           class="field-table"
-          size="small"
-          row-key="field_index"
-          :empty-text="$t('暂无内容')"
           :data="changeTableList"
+          :empty-text="$t('暂无内容')"
+          row-key="field_index"
+          size="small"
         >
           <template>
             <!-- <bk-table-column -->
@@ -107,11 +112,11 @@
               :resizable="false"
               min-width="100"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <div
                   v-if="isPreviewMode"
-                  v-bk-overflow-tips
                   class="overflow-tips"
+                  v-bk-overflow-tips
                 >
                   <span>{{ props.row.field_name }}</span>
                 </div>
@@ -126,9 +131,9 @@
                   ></bk-input>
                   <template v-if="props.row.fieldErr">
                     <i
-                      v-bk-tooltips.top="props.row.fieldErr"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                       style="right: 8px"
+                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                      v-bk-tooltips.top="props.row.fieldErr"
                     >
                     </i>
                   </template>
@@ -142,11 +147,11 @@
               :resizable="false"
               min-width="100"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <div
                   v-if="isPreviewMode"
-                  v-bk-overflow-tips
                   class="overflow-tips"
+                  v-bk-overflow-tips
                 >
                   <span>{{ props.row.alias_name }}</span>
                 </div>
@@ -162,9 +167,9 @@
                   </bk-input>
                   <template v-if="props.row.aliasErr">
                     <i
-                      v-bk-tooltips.top="props.row.aliasErr"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                       style="right: 8px"
+                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                      v-bk-tooltips.top="props.row.aliasErr"
                     ></i>
                   </template>
                 </bk-form-item>
@@ -176,11 +181,11 @@
               :resizable="false"
               min-width="100"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <div
                   v-if="isPreviewMode"
-                  v-bk-overflow-tips
                   class="overflow-tips"
+                  v-bk-overflow-tips
                 >
                   <span>{{ props.row.description }}</span>
                 </div>
@@ -198,11 +203,11 @@
               :resizable="false"
               min-width="100"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <div
                   v-if="isPreviewMode"
-                  v-bk-overflow-tips
                   class="overflow-tips"
+                  v-bk-overflow-tips
                 >
                   <span>{{ props.row.field_type }}</span>
                 </div>
@@ -245,18 +250,18 @@
                   >
                     <bk-option
                       v-for="option in globalsData.field_data_type"
+                      :disabled="isTypeDisabled(props.row, option)"
                       :id="option.id"
                       :key="option.id"
-                      :disabled="isTypeDisabled(props.row, option)"
                       :name="option.name"
                     >
                     </bk-option>
                   </bk-select>
                   <template v-if="props.row.typeErr">
                     <i
-                      v-bk-tooltips.top="$t('必填项')"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                       style="right: 8px"
+                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                      v-bk-tooltips.top="$t('必填项')"
                     ></i>
                   </template>
                 </bk-form-item>
@@ -280,11 +285,11 @@
             <!-- 分词 -->
             <bk-table-column
               :render-header="renderHeaderParticipleName"
-              align="center"
               :resizable="false"
               :width="getParticipleWidth"
+              align="center"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <bk-checkbox
                   v-model="props.row.is_analyzed"
                   :disabled="getCustomizeDisabled(props.row, 'analyzed')"
@@ -295,20 +300,20 @@
             </bk-table-column>
             <!-- 分词符 -->
             <bk-table-column
-              align="left"
               :label="$t('分词符')"
               :resizable="false"
               :width="getCustomizeTableWidth"
+              align="left"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <div class="participle-box">
                   <bk-select
+                    ext-cls="select-custom"
                     v-model="props.row.participleState"
-                    :disabled="getCustomizeDisabled(props.row)"
                     :clearable="false"
+                    :disabled="getCustomizeDisabled(props.row)"
                     :popover-min-width="160"
                     placeholder=" "
-                    ext-cls="select-custom"
                     @change="val => handleChangeParticipleState(val, props.$index)"
                   >
                     <bk-option
@@ -322,8 +327,8 @@
                   <bk-input
                     v-if="props.row.participleState === 'custom'"
                     v-model="props.row.tokenize_on_chars"
-                    placeholder=" "
                     :disabled="getCustomizeDisabled(props.row)"
+                    placeholder=" "
                   >
                   </bk-input>
                 </div>
@@ -332,11 +337,11 @@
             <!-- 大小写敏感 -->
             <bk-table-column
               :label="$t('大小写敏感')"
-              align="center"
               :resizable="false"
               :width="80"
+              align="center"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <bk-checkbox
                   v-model="props.row.is_case_sensitive"
                   :disabled="getCustomizeDisabled(props.row)"
@@ -346,13 +351,13 @@
             </bk-table-column>
             <!-- 时间 -->
             <bk-table-column
+              width="60"
               :label="$t('时间')"
               :render-header="$renderHeader"
-              align="center"
               :resizable="false"
-              width="60"
+              align="center"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <template v-if="isPreviewMode">
                   <div class="field-date field-date-disable">
                     <i :class="{ 'log-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
@@ -368,41 +373,43 @@
                   <template v-else>
                     <bk-popover
                       v-if="props.row.is_time"
-                      :ref="`more${props.$index}`"
+                      :arrow="false"
                       :distance="3"
+                      :ref="`more${props.$index}`"
                       placement="bottom-start"
                       theme="light"
                       trigger="click"
-                      :arrow="false"
                     >
                       <div class="field-date field-date-active">
                         <i class="log-icon icon-date-picker"></i>
                       </div>
-                      <div slot="content">
-                        <ul
-                          slot="dropdown-content"
-                          class="field-dropdown-list"
-                        >
-                          <li
-                            class="dropdown-item"
-                            @click.stop="setDateFormat(props.row, props.$index)"
+                      <template #content>
+                        <div>
+                          <ul
+                            class="field-dropdown-list"
+                            slot="dropdown-content"
                           >
-                            {{ '编辑时间格式' }}
-                          </li>
-                          <li
-                            class="dropdown-item"
-                            @click.stop="cancelDateFormat(props.row, props.$index)"
-                          >
-                            {{ '取消设为时间' }}
-                          </li>
-                        </ul>
-                      </div>
+                            <li
+                              class="dropdown-item"
+                              @click.stop="setDateFormat(props.row, props.$index)"
+                            >
+                              {{ '编辑时间格式' }}
+                            </li>
+                            <li
+                              class="dropdown-item"
+                              @click.stop="cancelDateFormat(props.row, props.$index)"
+                            >
+                              {{ '取消设为时间' }}
+                            </li>
+                          </ul>
+                        </div>
+                      </template>
                     </bk-popover>
                     <template v-else>
                       <div
                         v-if="hasDateField"
-                        v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
                         class="field-date"
+                        v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
                         @click.stop="setDateFormat(props.row)"
                       >
                         <i class="log-icon icon-date-picker"></i>
@@ -422,17 +429,17 @@
             <!-- 操作 -->
             <bk-table-column
               v-if="getOperatorDisabled"
+              width="60"
               :label="$t('操作')"
               :render-header="$renderHeader"
               :resizable="false"
               align="center"
-              width="60"
               prop="plugin_version"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <span
-                  class="table-link"
                   :style="`color:${isSetDisabled ? '#dcdee5' : '#3a84ff'};`"
+                  class="table-link"
                   @click="isDisableOperate(props.row)"
                 >
                   {{ props.row.is_delete ? $t('复原') : $t('隐藏') }}
@@ -440,8 +447,8 @@
               </template>
             </bk-table-column>
             <div
-              slot="empty"
               class="empty-text"
+              slot="empty"
             >
               {{ $t('请先选择字段提取模式') }}
             </div>
@@ -455,8 +462,8 @@
       <template v-if="deletedVisible">
         <div
           v-for="(row, index) in hideDeletedTable"
-          :key="index"
           class="preview-item"
+          :key="index"
           :title="row.value"
         >
           {{ row.value }}
@@ -465,8 +472,8 @@
       <template v-else>
         <div
           v-for="(row, index) in tableList"
-          :key="index"
           class="preview-item"
+          :key="index"
           :title="row.value"
         >
           {{ row.value }}
@@ -476,103 +483,104 @@
 
     <bk-dialog
       v-if="!isPreviewMode"
-      v-model="dialogDate"
       width="680"
       ext-cls="field-date-dialog"
+      v-model="dialogDate"
+      :auto-close="false"
       :header-position="'left'"
       :mask-close="false"
       :title="$t('选择时间格式')"
-      :auto-close="false"
       @cancel="resetDateDialog"
     >
-      <div
-        slot
-        style="width: 560px; padding-left: 12px"
-      >
-        <p class="prompt">{{ $t('设置了时间格式后将替换默认的数据时间') }}</p>
-        <!-- <p class="prompt">时间指<span>数据时间</span>，而非录入时间</p> -->
-        <bk-form
-          ref="dateForm"
-          :label-width="145"
-          :model="dialogField"
-        >
-          <bk-form-item
-            :label="$t('数据时间')"
-            :property="'source_name'"
+      <template #default>
+        <div style="width: 560px; padding-left: 12px">
+          <p class="prompt">{{ $t('设置了时间格式后将替换默认的数据时间') }}</p>
+          <!-- <p class="prompt">时间指<span>数据时间</span>，而非录入时间</p> -->
+          <bk-form
+            ref="dateForm"
+            :label-width="145"
+            :model="dialogField"
           >
-            <bk-input
-              v-model="dialogField.time_value"
-              :placeholder="$t('字段的预览值')"
-              disabled
-            ></bk-input>
-          </bk-form-item>
-          <bk-form-item
-            :label="$t('时间格式')"
-            required
-            :rules="rules.time_format"
-            :property="'time_format'"
-          >
-            <bk-select
-              v-model="dialogField.time_format"
-              searchable
-              :clearable="false"
-              @selected="formatChange"
+            <bk-form-item
+              :label="$t('数据时间')"
+              :property="'source_name'"
             >
-              <bk-option
-                v-for="item in globalsData.field_date_format"
-                :id="item.id"
-                :key="item.id"
-                :name="item.name + ' (' + item.description + ')'"
-              >
-              </bk-option>
-            </bk-select>
-          </bk-form-item>
-          <bk-form-item
-            :label="$t('时区选择')"
-            required
-            :rules="rules.time_zone"
-            :property="'time_zone'"
-          >
-            <bk-select
-              v-model="dialogField.time_zone"
-              :clearable="false"
+              <bk-input
+                v-model="dialogField.time_value"
+                :placeholder="$t('字段的预览值')"
+                disabled
+              ></bk-input>
+            </bk-form-item>
+            <bk-form-item
+              :label="$t('时间格式')"
+              :property="'time_format'"
+              :rules="rules.time_format"
+              required
             >
-              <bk-option
-                v-for="item in globalsData.time_zone"
-                :id="item.id"
-                :key="item.id"
-                :name="item.name"
+              <bk-select
+                v-model="dialogField.time_format"
+                :clearable="false"
+                searchable
+                @selected="formatChange"
               >
-              </bk-option>
-            </bk-select>
-          </bk-form-item>
-        </bk-form>
-      </div>
-      <div slot="footer">
-        <bk-button
-          v-if="!timeCheckResult"
-          :icon="checkLoading ? 'loading' : ''"
-          theme="primary"
-          :disabled="!dialogField.time_value || checkLoading"
-          @click.stop="requestCheckTime"
-        >
-          {{ $t('确定') }}
-        </bk-button>
-        <bk-button
-          v-else
-          theme="primary"
-          :icon="checkLoading ? 'loading' : ''"
-          @click.stop="confirmHandle"
-        >
-          {{ $t('确定') }}
-        </bk-button>
-        <bk-button @click.stop="resetDateDialog">{{ $t('取消') }}</bk-button>
-      </div>
+                <bk-option
+                  v-for="item in globalsData.field_date_format"
+                  :id="item.id"
+                  :key="item.id"
+                  :name="item.name + ' (' + item.description + ')'"
+                >
+                </bk-option>
+              </bk-select>
+            </bk-form-item>
+            <bk-form-item
+              :label="$t('时区选择')"
+              :property="'time_zone'"
+              :rules="rules.time_zone"
+              required
+            >
+              <bk-select
+                v-model="dialogField.time_zone"
+                :clearable="false"
+              >
+                <bk-option
+                  v-for="item in globalsData.time_zone"
+                  :id="item.id"
+                  :key="item.id"
+                  :name="item.name"
+                >
+                </bk-option>
+              </bk-select>
+            </bk-form-item>
+          </bk-form>
+        </div>
+      </template>
+      <template #footer>
+        <div>
+          <bk-button
+            v-if="!timeCheckResult"
+            :disabled="!dialogField.time_value || checkLoading"
+            :icon="checkLoading ? 'loading' : ''"
+            theme="primary"
+            @click.stop="requestCheckTime"
+          >
+            {{ $t('确定') }}
+          </bk-button>
+          <bk-button
+            v-else
+            :icon="checkLoading ? 'loading' : ''"
+            theme="primary"
+            @click.stop="confirmHandle"
+          >
+            {{ $t('确定') }}
+          </bk-button>
+          <bk-button @click.stop="resetDateDialog">{{ $t('取消') }}</bk-button>
+        </div>
+      </template>
     </bk-dialog>
     <bk-dialog
       v-model="isReset"
-      theme="primary"
       :title="$t('重置确认')"
+      theme="primary"
       @confirm="resetField"
     >
       {{ $t('重置将丢失当前的配置信息，重置为上一次保存的配置内容。确认请继续。') }}
@@ -581,896 +589,896 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+  import { mapGetters } from 'vuex';
 
-export default {
-  name: 'FieldTable',
-  props: {
-    isEditJson: {
-      type: Boolean,
-      default: undefined
-    },
-    tableType: {
-      type: String,
-      default: 'edit'
-    },
-    extractMethod: {
-      type: String,
-      default: 'bk_log_json'
-    },
-    deletedVisible: {
-      type: Boolean,
-      default: true
-    },
-    // jsonText: {
-    //     type: Array
-    // },
-    fields: {
-      type: Array,
-      default: () => []
-    },
-    isTempField: {
-      type: Boolean,
-      default: false
-    },
-    isExtracting: {
-      type: Boolean,
-      default: false
-    },
-    originalTextTokenizeOnChars: {
-      type: String,
-      default: ''
-    },
-    retainExtraJson: {
-      type: Boolean,
-      default: false
-    },
-    selectEtlConfig: {
-      type: String,
-      default: 'bk_log_json'
-    },
-    isSetDisabled: {
-      type: Boolean,
-      default: false
-    }
-  },
-  data() {
-    return {
-      isReset: false,
-      dialogDate: false,
-      dialogField: {
-        time_zone: '', // 默认值 8
-        time_format: '',
-        time_value: ''
+  export default {
+    name: 'FieldTable',
+    props: {
+      isEditJson: {
+        type: Boolean,
+        default: undefined,
       },
-      curRow: {},
-      formData: {
-        tableList: []
+      tableType: {
+        type: String,
+        default: 'edit',
       },
-      timeCheckResult: false,
-      checkLoading: false,
-      retainOriginalText: true, // 保留原始日志
-      retainExtraText: false,
-      participleList: [
-        {
-          id: 'default',
-          name: this.$t('默认')
+      extractMethod: {
+        type: String,
+        default: 'bk_log_json',
+      },
+      deletedVisible: {
+        type: Boolean,
+        default: true,
+      },
+      // jsonText: {
+      //     type: Array
+      // },
+      fields: {
+        type: Array,
+        default: () => [],
+      },
+      isTempField: {
+        type: Boolean,
+        default: false,
+      },
+      isExtracting: {
+        type: Boolean,
+        default: false,
+      },
+      originalTextTokenizeOnChars: {
+        type: String,
+        default: '',
+      },
+      retainExtraJson: {
+        type: Boolean,
+        default: false,
+      },
+      selectEtlConfig: {
+        type: String,
+        default: 'bk_log_json',
+      },
+      isSetDisabled: {
+        type: Boolean,
+        default: false,
+      },
+    },
+    data() {
+      return {
+        isReset: false,
+        dialogDate: false,
+        dialogField: {
+          time_zone: '', // 默认值 8
+          time_format: '',
+          time_value: '',
         },
-        {
-          id: 'custom',
-          name: this.$t('自定义')
-        }
-      ],
-      rules: {
-        field_name: [
-          // 存在bug，暂时启用
-          // {
-          //     required: true,
-          //     trigger: 'blur'
-          // },
-          // {
-          //     validator: this.checkFieldNameFormat,
-          //     trigger: 'blur'
-          // },
-          // {
-          //     validator: this.checkFieldName,
-          //     trigger: 'blur'
-          // }
-        ],
-        alias_name: [
-          // 目前组件不能拿到其他字段的值，不能通过validator进行验证
-          // {
-          //     validator: this.checkAliasName,
-          //     trigger: 'blur'
-          // }
+        curRow: {},
+        formData: {
+          tableList: [],
+        },
+        timeCheckResult: false,
+        checkLoading: false,
+        retainOriginalText: true, // 保留原始日志
+        retainExtraText: false,
+        participleList: [
           {
-            max: 50,
-            trigger: 'blur'
+            id: 'default',
+            name: this.$t('默认'),
           },
           {
-            regex: /^[A-Za-z0-9_]+$/,
-            trigger: 'blur'
-          }
+            id: 'custom',
+            name: this.$t('自定义'),
+          },
         ],
-        field_type: [
-          // {
-          //     required: true,
-          //     trigger: 'change'
-          // }
-        ],
-        time_zone: [
-          {
-            required: true,
-            trigger: 'change'
-          }
-        ],
-        time_format: [
-          {
-            required: true,
-            trigger: 'change'
-          }
-        ],
-        notCheck: [
-          {
-            validator() {
-              return true;
+        rules: {
+          field_name: [
+            // 存在bug，暂时启用
+            // {
+            //     required: true,
+            //     trigger: 'blur'
+            // },
+            // {
+            //     validator: this.checkFieldNameFormat,
+            //     trigger: 'blur'
+            // },
+            // {
+            //     validator: this.checkFieldName,
+            //     trigger: 'blur'
+            // }
+          ],
+          alias_name: [
+            // 目前组件不能拿到其他字段的值，不能通过validator进行验证
+            // {
+            //     validator: this.checkAliasName,
+            //     trigger: 'blur'
+            // }
+            {
+              max: 50,
+              trigger: 'blur',
             },
-            trigger: 'change'
-          }
-        ]
-      }
-    };
-  },
-  computed: {
-    ...mapGetters({
-      bkBizId: 'bkBizId'
-    }),
-    ...mapGetters('collect', ['curCollect']),
-    ...mapGetters('globals', ['globalsData']),
-    isSettingDisable() {
-      return !this.fields.length;
-    },
-    hasDateField() {
-      return this.formData.tableList.find(item => item.is_time && !item.is_delete);
-    },
-    deletedNum() {
-      return this.formData.tableList.filter(item => item.is_delete).length;
-    },
-    isPreviewMode() {
-      return this.tableType === 'preview';
-    },
-    tableList() {
-      return this.formData.tableList;
-    },
-    hideDeletedTable() {
-      return this.formData.tableList.filter(item => !item.is_delete);
-    },
-    changeTableList() {
-      return this.deletedVisible ? this.hideDeletedTable : this.tableList;
-    },
-    defaultZone() {
-      // 默认时区
-      const item = this.globalsData.time_zone.find(item => item.default);
-      return item ? item.id : '';
-    },
-    getParticipleWidth() {
-      return this.$store.getters.isEnLanguage ? '65' : '50';
-    },
-    retainExtraJsonIsOpen() {
-      return this.globalsData?.retain_extra_json ?? false;
-    },
-    getOperatorDisabled() {
-      if (this.selectEtlConfig === 'bk_log_json') return true;
-      return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
-    },
-    getCustomizeTableWidth() {
-      return this.changeTableList.some(item => item.participleState === 'custom') ? 255 : 70;
-    }
-  },
-  watch: {
-    fields: {
-      deep: true,
-      handler() {
-        this.reset();
-      }
-    },
-    retainExtraJson(newVal) {
-      this.retainExtraText = newVal;
-    }
-  },
-  async mounted() {
-    this.retainExtraText = this.retainExtraJson;
-    this.reset();
-  },
-  methods: {
-    reset() {
-      let arr = [];
-      const copyFields = JSON.parse(JSON.stringify(this.fields)); // option指向地址bug
-      const errTemp = {
-        fieldErr: '',
-        typeErr: false,
-        aliasErr: ''
+            {
+              regex: /^[A-Za-z0-9_]+$/,
+              trigger: 'blur',
+            },
+          ],
+          field_type: [
+            // {
+            //     required: true,
+            //     trigger: 'change'
+            // }
+          ],
+          time_zone: [
+            {
+              required: true,
+              trigger: 'change',
+            },
+          ],
+          time_format: [
+            {
+              required: true,
+              trigger: 'change',
+            },
+          ],
+          notCheck: [
+            {
+              validator() {
+                return true;
+              },
+              trigger: 'change',
+            },
+          ],
+        },
       };
-      if (this.extractMethod !== 'bk_log_json') {
-        errTemp.aliasErr = false;
-      }
-      copyFields.reduce((list, item) => {
-        list.push(Object.assign({}, errTemp, item));
-        return list;
-      }, arr);
-      arr.forEach(item => (item.previous_type = item.field_type));
+    },
+    computed: {
+      ...mapGetters({
+        bkBizId: 'bkBizId',
+      }),
+      ...mapGetters('collect', ['curCollect']),
+      ...mapGetters('globals', ['globalsData']),
+      isSettingDisable() {
+        return !this.fields.length;
+      },
+      hasDateField() {
+        return this.formData.tableList.find(item => item.is_time && !item.is_delete);
+      },
+      deletedNum() {
+        return this.formData.tableList.filter(item => item.is_delete).length;
+      },
+      isPreviewMode() {
+        return this.tableType === 'preview';
+      },
+      tableList() {
+        return this.formData.tableList;
+      },
+      hideDeletedTable() {
+        return this.formData.tableList.filter(item => !item.is_delete);
+      },
+      changeTableList() {
+        return this.deletedVisible ? this.hideDeletedTable : this.tableList;
+      },
+      defaultZone() {
+        // 默认时区
+        const item = this.globalsData.time_zone.find(item => item.default);
+        return item ? item.id : '';
+      },
+      getParticipleWidth() {
+        return this.$store.getters.isEnLanguage ? '65' : '50';
+      },
+      retainExtraJsonIsOpen() {
+        return this.globalsData?.retain_extra_json ?? false;
+      },
+      getOperatorDisabled() {
+        if (this.selectEtlConfig === 'bk_log_json') return true;
+        return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
+      },
+      getCustomizeTableWidth() {
+        return this.changeTableList.some(item => item.participleState === 'custom') ? 255 : 70;
+      },
+    },
+    watch: {
+      fields: {
+        deep: true,
+        handler() {
+          this.reset();
+        },
+      },
+      retainExtraJson(newVal) {
+        this.retainExtraText = newVal;
+      },
+    },
+    async mounted() {
+      this.retainExtraText = this.retainExtraJson;
+      this.reset();
+    },
+    methods: {
+      reset() {
+        let arr = [];
+        const copyFields = JSON.parse(JSON.stringify(this.fields)); // option指向地址bug
+        const errTemp = {
+          fieldErr: '',
+          typeErr: false,
+          aliasErr: '',
+        };
+        if (this.extractMethod !== 'bk_log_json') {
+          errTemp.aliasErr = false;
+        }
+        copyFields.reduce((list, item) => {
+          list.push(Object.assign({}, errTemp, item));
+          return list;
+        }, arr);
+        arr.forEach(item => (item.previous_type = item.field_type));
 
-      if (!this.isPreviewMode) {
-        arr = arr.filter(item => !item.is_built_in);
-      }
+        if (!this.isPreviewMode) {
+          arr = arr.filter(item => !item.is_built_in);
+        }
 
-      if (this.isEditJson === false && !this.isTempField) {
-        // 新建JSON时，类型如果不是数字，则默认为字符串
+        if (this.isEditJson === false && !this.isTempField) {
+          // 新建JSON时，类型如果不是数字，则默认为字符串
+          arr.forEach(item => {
+            if (typeof item.value !== 'number') {
+              item.field_type = 'string';
+              item.previous_type = 'string';
+            }
+          });
+        }
+
+        // 根据预览值 value 判断不是数字，则默认为字符串
         arr.forEach(item => {
-          if (typeof item.value !== 'number') {
+          const { value, field_type } = item;
+          item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
+
+          if (field_type === '' && value !== '' && this.judgeNumber(value)) {
             item.field_type = 'string';
             item.previous_type = 'string';
           }
         });
-      }
-
-      // 根据预览值 value 判断不是数字，则默认为字符串
-      arr.forEach(item => {
-        const { value, field_type } = item;
-        item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
-        // eslint-disable-next-line camelcase
-        if (field_type === '' && value !== '' && this.judgeNumber(value)) {
-          item.field_type = 'string';
-          item.previous_type = 'string';
+        this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
+      },
+      resetField() {
+        this.$emit('reset');
+      },
+      setDateFormat(row, $index) {
+        if (this.isSetDisabled) return;
+        if ($index || $index === 0) {
+          this.$refs[`more${$index}`].instance.hide(); // 解决当前版本popover层在dialog层之上的问题
         }
-      });
-      this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
-    },
-    resetField() {
-      this.$emit('reset');
-    },
-    setDateFormat(row, $index) {
-      if (this.isSetDisabled) return;
-      if ($index || $index === 0) {
-        this.$refs[`more${$index}`].instance.hide(); // 解决当前版本popover层在dialog层之上的问题
-      }
-      this.curRow = row;
-      const option = {
-        time_zone: row.option
-          ? row.option.time_zone || (row.option.time_zone === 0 ? row.option.time_zone : this.defaultZone)
-          : this.defaultZone,
-        time_format: row.option ? row.option.time_format : '',
-        time_value: row.value || ''
-      };
-      if ((!row.is_time || (row.is_time && row.is_delete)) && this.hasDateField) {
-        this.$bkInfo({
-          title: this.$t('重设时间列'),
-          subTitle: this.$t('将此列设置为时间，会将取消已设为时间的列，是否继续？'),
-          type: 'warning',
-          confirmFn: () => {
-            Object.assign(this.dialogField, option);
-            this.dialogDate = true;
-            this.timeCheckResult = !!row.is_time;
-          }
-        });
-        return false;
-      }
-      Object.assign(this.dialogField, option);
-      this.timeCheckResult = !!row.is_time;
-      this.dialogDate = true;
-    },
-    confirmHandle() {
-      this.$refs.dateForm.validate().then(
-        () => {
-          if (!this.timeCheckResult) return;
-          if (!this.curRow.is_time) {
-            this.formData.tableList.forEach(row => {
-              const isCur =
-                this.extractMethod === 'bk_log_delimiter'
-                  ? this.curRow.field_index === row.field_index
-                  : this.curRow.field_name === row.field_name;
-              if (row.is_time && !isCur) {
-                this.cancelDateFormat(row);
-              }
-            });
-          }
-          this.curRow.is_analyzed = false; // 分词和时间不能同时设置
-          this.curRow.is_time = true;
-          // this.curRow.is_dimension = true
-          Object.assign(this.curRow.option, {
-            time_zone: this.dialogField.time_zone,
-            time_format: this.dialogField.time_format
-          });
-          this.resetDateDialog();
-          this.dialogDate = false;
-        },
-        () => {}
-      );
-    },
-    requestCheckTime() {
-      this.$refs.dateForm.validate().then(() => {
-        this.checkLoading = true;
-        const { time_format, time_zone, time_value: timeValue } = this.dialogField;
-        this.$http
-          .request('collect/getCheckTime', {
-            params: {
-              collector_config_id: this.curCollect.collector_config_id
-            },
-            data: {
-              time_format,
-              time_zone,
-              data: timeValue
-            }
-          })
-          .then(() => {
-            this.timeCheckResult = true;
-            this.confirmHandle();
-          })
-          .catch(() => {
-            this.timeCheckResult = false;
-          })
-          .finally(() => {
-            this.checkLoading = false;
-          });
-      });
-    },
-    cancelDateFormat(row, $index) {
-      if ($index || $index === 0) {
-        this.$refs[`more${$index}`].instance.hide(); // 解决当前版本popover层在dialog层之上的问题
-      }
-      row.is_time = false;
-      Object.assign(row.option, {
-        time_zone: '',
-        time_format: ''
-      });
-    },
-    resetDateDialog() {
-      this.dialogDate = false;
-      Object.assign(this.dialogField, {
-        time_zone: '',
-        time_format: '',
-        time_value: ''
-      });
-    },
-    // 当前字段类型是否禁用
-    isTypeDisabled(row, option) {
-      if (row.verdict) {
-        // 不是数值，相关数值类型选项被禁用
-        return ['int', 'long', 'double', 'float'].includes(option.id);
-      }
-      // 是数值，如果值大于 2147483647 即 2^31 - 1，int 选项被禁用
-      return option.id === 'int' && row.value > 2147483647;
-    },
-    fieldTypeSelect(val, $row, $index) {
-      const fieldName = $row.field_name;
-      const fieldType = $row.field_type;
-      const previousType = $row.previous_type;
-      const isAnalyzed = $row.is_analyzed;
-      const isCaseSensitive = $row.is_case_sensitive;
-      const participleState = $row.participleState;
-      const tokenizeOnChars = $row.tokenize_on_chars;
-      if (val !== 'string') {
-        const assignObj = {
-          is_analyzed: false,
-          participleState: 'default',
-          tokenize_on_chars: '',
-          is_case_sensitive: false
+        this.curRow = row;
+        const option = {
+          time_zone: row.option
+            ? row.option.time_zone || (row.option.time_zone === 0 ? row.option.time_zone : this.defaultZone)
+            : this.defaultZone,
+          time_format: row.option ? row.option.time_format : '',
+          time_value: row.value || '',
         };
-        Object.assign(this.changeTableList[$index], assignObj);
-      }
-      if (fieldType && this.curCollect.table_id) {
-        const row = this.fields.find(item => item.field_name === fieldName);
-        if (row && row.field_type && row.field_type !== val) {
-          const h = this.$createElement;
+        if ((!row.is_time || (row.is_time && row.is_delete)) && this.hasDateField) {
           this.$bkInfo({
-            // title: '修改',
-            // subTitle: '修改类型后，会影响到之前采集的数据',
-            subHeader: h(
-              'p',
-              {
-                style: {
-                  whiteSpace: 'normal'
-                }
-              },
-              this.$t('更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续')
-            ),
+            title: this.$t('重设时间列'),
+            subTitle: this.$t('将此列设置为时间，会将取消已设为时间的列，是否继续？'),
             type: 'warning',
             confirmFn: () => {
-              this.changeTableList[$index].field_type = val;
-              this.changeTableList[$index].previousType = val;
-              this.checkTypeItem($row);
+              Object.assign(this.dialogField, option);
+              this.dialogDate = true;
+              this.timeCheckResult = !!row.is_time;
             },
-            cancelFn: () => {
-              const assignObj = {
-                field_type: previousType,
-                is_analyzed: isAnalyzed,
-                participleState,
-                tokenize_on_chars: tokenizeOnChars,
-                is_case_sensitive: isCaseSensitive
-              };
-              Object.assign(this.changeTableList[$index], assignObj);
-              this.checkTypeItem($row);
-            }
           });
           return false;
         }
-      } else {
-        this.changeTableList[$index].field_type = val;
-      }
-      this.checkTypeItem($row);
-    },
-    handelChangeAnalyzed(isAnalyzed, $index) {
-      if (!isAnalyzed) {
-        this.changeTableList[$index].is_case_sensitive = false;
-        this.changeTableList[$index].tokenize_on_chars = '';
-        this.changeTableList[$index].participleState = 'default';
-      }
-    },
-    handleChangeParticipleState(state, $index) {
-      this.changeTableList[$index].tokenize_on_chars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
-    },
-    formatChange(val) {
-      this.timeCheckResult = false;
-      this.dialogField.time_format = val;
-    },
-    viewStandard() {
-      if (this.isSettingDisable) return;
-
-      this.$emit('standard');
-    },
-    judgeNumber(value) {
-      if (value === 0) return false;
-
-      return value && value !== ' ' ? isNaN(value) : true;
-    },
-    getData() {
-      // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
-      const data = JSON.parse(JSON.stringify(this.formData.tableList));
-      data.forEach(item => {
-        // eslint-disable-next-line no-prototype-builtins
-        if (item.hasOwnProperty('fieldErr')) {
-          delete item.fieldErr;
-        }
-        // eslint-disable-next-line no-prototype-builtins
-        if (item.hasOwnProperty('aliasErr')) {
-          delete item.aliasErr;
-        }
-        // eslint-disable-next-line no-prototype-builtins
-        if (item.hasOwnProperty('typeErr')) {
-          delete item.typeErr;
-        }
-      });
-      return data;
-    },
-    // checkFieldNameFormat (val) {
-    //     return /^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/ig.test(val)
-    // },
-    // checkFieldName (val) {
-    //     return this.extractMethod === 'bk_log_json' ?
-    //             true : !this.globalsData.field_built_in.find(item => item.id === val.toLocaleLowerCase())
-    // },
-    checkTypeItem(row) {
-      row.typeErr = row.is_delete ? false : !row.field_type;
-      return !row.typeErr;
-    },
-    checkType() {
-      return new Promise((resolve, reject) => {
-        try {
-          let result = true;
-          this.formData.tableList.forEach(row => {
-            if (!this.checkTypeItem(row)) {
-              result = false;
+        Object.assign(this.dialogField, option);
+        this.timeCheckResult = !!row.is_time;
+        this.dialogDate = true;
+      },
+      confirmHandle() {
+        this.$refs.dateForm.validate().then(
+          () => {
+            if (!this.timeCheckResult) return;
+            if (!this.curRow.is_time) {
+              this.formData.tableList.forEach(row => {
+                const isCur =
+                  this.extractMethod === 'bk_log_delimiter'
+                    ? this.curRow.field_index === row.field_index
+                    : this.curRow.field_name === row.field_name;
+                if (row.is_time && !isCur) {
+                  this.cancelDateFormat(row);
+                }
+              });
             }
-          });
-          if (result) {
-            resolve();
-          } else {
-            console.warn('Type校验错误');
-            reject(result);
-          }
-        } catch (err) {
-          console.warn('Type校验错误');
-          reject(err);
+            this.curRow.is_analyzed = false; // 分词和时间不能同时设置
+            this.curRow.is_time = true;
+            // this.curRow.is_dimension = true
+            Object.assign(this.curRow.option, {
+              time_zone: this.dialogField.time_zone,
+              time_format: this.dialogField.time_format,
+            });
+            this.resetDateDialog();
+            this.dialogDate = false;
+          },
+          () => {},
+        );
+      },
+      requestCheckTime() {
+        this.$refs.dateForm.validate().then(() => {
+          this.checkLoading = true;
+          const { time_format, time_zone, time_value: timeValue } = this.dialogField;
+          this.$http
+            .request('collect/getCheckTime', {
+              params: {
+                collector_config_id: this.curCollect.collector_config_id,
+              },
+              data: {
+                time_format,
+                time_zone,
+                data: timeValue,
+              },
+            })
+            .then(() => {
+              this.timeCheckResult = true;
+              this.confirmHandle();
+            })
+            .catch(() => {
+              this.timeCheckResult = false;
+            })
+            .finally(() => {
+              this.checkLoading = false;
+            });
+        });
+      },
+      cancelDateFormat(row, $index) {
+        if ($index || $index === 0) {
+          this.$refs[`more${$index}`].instance.hide(); // 解决当前版本popover层在dialog层之上的问题
         }
-      });
-    },
-    checkFieldNameItem(row) {
-      const { field_name, is_delete, field_index } = row;
-      let result = '';
-      /* eslint-disable */
-      if (!is_delete) {
-        if (!field_name) {
-          result = this.$t('必填项');
-        } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
-          result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
-        } else if (
-          this.extractMethod !== 'bk_log_json' &&
-          this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
-        ) {
-          result =
-            this.extractMethod === 'bk_log_regexp'
-              ? this.$t('字段名与系统字段重复，必须修改正则表达式')
-              : this.$t('字段名与系统内置字段重复');
-        } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
-          result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
+        row.is_time = false;
+        Object.assign(row.option, {
+          time_zone: '',
+          time_format: '',
+        });
+      },
+      resetDateDialog() {
+        this.dialogDate = false;
+        Object.assign(this.dialogField, {
+          time_zone: '',
+          time_format: '',
+          time_value: '',
+        });
+      },
+      // 当前字段类型是否禁用
+      isTypeDisabled(row, option) {
+        if (row.verdict) {
+          // 不是数值，相关数值类型选项被禁用
+          return ['int', 'long', 'double', 'float'].includes(option.id);
+        }
+        // 是数值，如果值大于 2147483647 即 2^31 - 1，int 选项被禁用
+        return option.id === 'int' && row.value > 2147483647;
+      },
+      fieldTypeSelect(val, $row, $index) {
+        const fieldName = $row.field_name;
+        const fieldType = $row.field_type;
+        const previousType = $row.previous_type;
+        const isAnalyzed = $row.is_analyzed;
+        const isCaseSensitive = $row.is_case_sensitive;
+        const participleState = $row.participleState;
+        const tokenizeOnChars = $row.tokenize_on_chars;
+        if (val !== 'string') {
+          const assignObj = {
+            is_analyzed: false,
+            participleState: 'default',
+            tokenize_on_chars: '',
+            is_case_sensitive: false,
+          };
+          Object.assign(this.changeTableList[$index], assignObj);
+        }
+        if (fieldType && this.curCollect.table_id) {
+          const row = this.fields.find(item => item.field_name === fieldName);
+          if (row?.field_type && row.field_type !== val) {
+            const h = this.$createElement;
+            this.$bkInfo({
+              // title: '修改',
+              // subTitle: '修改类型后，会影响到之前采集的数据',
+              subHeader: h(
+                'p',
+                {
+                  style: {
+                    whiteSpace: 'normal',
+                  },
+                },
+                this.$t('更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续'),
+              ),
+              type: 'warning',
+              confirmFn: () => {
+                this.changeTableList[$index].field_type = val;
+                this.changeTableList[$index].previousType = val;
+                this.checkTypeItem($row);
+              },
+              cancelFn: () => {
+                const assignObj = {
+                  field_type: previousType,
+                  is_analyzed: isAnalyzed,
+                  participleState,
+                  tokenize_on_chars: tokenizeOnChars,
+                  is_case_sensitive: isCaseSensitive,
+                };
+                Object.assign(this.changeTableList[$index], assignObj);
+                this.checkTypeItem($row);
+              },
+            });
+            return false;
+          }
+        } else {
+          this.changeTableList[$index].field_type = val;
+        }
+        this.checkTypeItem($row);
+      },
+      handelChangeAnalyzed(isAnalyzed, $index) {
+        if (!isAnalyzed) {
+          this.changeTableList[$index].is_case_sensitive = false;
+          this.changeTableList[$index].tokenize_on_chars = '';
+          this.changeTableList[$index].participleState = 'default';
+        }
+      },
+      handleChangeParticipleState(state, $index) {
+        this.changeTableList[$index].tokenize_on_chars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
+      },
+      formatChange(val) {
+        this.timeCheckResult = false;
+        this.dialogField.time_format = val;
+      },
+      viewStandard() {
+        if (this.isSettingDisable) return;
+
+        this.$emit('standard');
+      },
+      judgeNumber(value) {
+        if (value === 0) return false;
+
+        return value && value !== ' ' ? isNaN(value) : true;
+      },
+      getData() {
+        // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
+        const data = JSON.parse(JSON.stringify(this.formData.tableList));
+        data.forEach(item => {
+          if (item.hasOwnProperty('fieldErr')) {
+            delete item.fieldErr;
+          }
+
+          if (item.hasOwnProperty('aliasErr')) {
+            delete item.aliasErr;
+          }
+
+          if (item.hasOwnProperty('typeErr')) {
+            delete item.typeErr;
+          }
+        });
+        return data;
+      },
+      // checkFieldNameFormat (val) {
+      //     return /^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/ig.test(val)
+      // },
+      // checkFieldName (val) {
+      //     return this.extractMethod === 'bk_log_json' ?
+      //             true : !this.globalsData.field_built_in.find(item => item.id === val.toLocaleLowerCase())
+      // },
+      checkTypeItem(row) {
+        row.typeErr = row.is_delete ? false : !row.field_type;
+        return !row.typeErr;
+      },
+      checkType() {
+        return new Promise((resolve, reject) => {
+          try {
+            let result = true;
+            this.formData.tableList.forEach(row => {
+              if (!this.checkTypeItem(row)) {
+                result = false;
+              }
+            });
+            if (result) {
+              resolve();
+            } else {
+              console.warn('Type校验错误');
+              reject(result);
+            }
+          } catch (err) {
+            console.warn('Type校验错误');
+            reject(err);
+          }
+        });
+      },
+      checkFieldNameItem(row) {
+        const { field_name, is_delete, field_index } = row;
+        let result = '';
+
+        if (!is_delete) {
+          if (!field_name) {
+            result = this.$t('必填项');
+          } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+            result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
+          } else if (
+            this.extractMethod !== 'bk_log_json' &&
+            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+          ) {
+            result =
+              this.extractMethod === 'bk_log_regexp'
+                ? this.$t('字段名与系统字段重复，必须修改正则表达式')
+                : this.$t('字段名与系统内置字段重复');
+          } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
+            result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
+          } else {
+            result = '';
+          }
         } else {
           result = '';
         }
-      } else {
-        result = '';
-      }
-      row.fieldErr = result;
-      /* eslint-enable */
-      return result;
-    },
-    checkFieldName() {
-      return new Promise((resolve, reject) => {
-        try {
-          let result = true;
-          this.formData.tableList.forEach(row => {
-            if (this.checkFieldNameItem(row)) {
-              // 返回 true 的时候未通过
-              result = false;
+        row.fieldErr = result;
+
+        return result;
+      },
+      checkFieldName() {
+        return new Promise((resolve, reject) => {
+          try {
+            let result = true;
+            this.formData.tableList.forEach(row => {
+              if (this.checkFieldNameItem(row)) {
+                // 返回 true 的时候未通过
+                result = false;
+              }
+            });
+            if (result) {
+              resolve();
+            } else {
+              console.warn('FieldName校验错误');
+              reject(result);
             }
-          });
-          if (result) {
-            resolve();
-          } else {
+          } catch (err) {
             console.warn('FieldName校验错误');
-            reject(result);
+            reject(err);
           }
-        } catch (err) {
-          console.warn('FieldName校验错误');
-          reject(err);
+        });
+      },
+      checkAliasNameItem(row) {
+        const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
+        if (isDelete) {
+          return true;
         }
-      });
-    },
-    checkAliasNameItem(row) {
-      const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
-      if (isDelete) {
+
+        if (aliasName) {
+          // 设置了别名
+          if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
+            // 别名只支持【英文、数字、下划线】，并且不能以数字开头
+            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+            return false;
+          }
+          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())) {
+            // 别名不能与内置字段名相同
+            row.aliasErr = this.$t('别名不能与内置字段名相同');
+            return false;
+          }
+        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
+          // 字段名与内置字段冲突，必须设置别名
+          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
+          return false;
+        }
+
+        row.aliasErr = '';
         return true;
-      }
-
-      if (aliasName) {
-        // 设置了别名
-        if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
-          // 别名只支持【英文、数字、下划线】，并且不能以数字开头
-          row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
-          return false;
-        }
-        if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())) {
-          // 别名不能与内置字段名相同
-          row.aliasErr = this.$t('别名不能与内置字段名相同');
-          return false;
-        }
-      } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
-        // 字段名与内置字段冲突，必须设置别名
-        row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
-        return false;
-      }
-
-      row.aliasErr = '';
-      return true;
-    },
-    checkAliasName() {
-      return new Promise((resolve, reject) => {
-        try {
-          let result = true;
-          this.formData.tableList.forEach(row => {
-            if (!this.checkAliasNameItem(row)) {
-              result = false;
+      },
+      checkAliasName() {
+        return new Promise((resolve, reject) => {
+          try {
+            let result = true;
+            this.formData.tableList.forEach(row => {
+              if (!this.checkAliasNameItem(row)) {
+                result = false;
+              }
+            });
+            if (result) {
+              resolve();
+            } else {
+              console.warn('AliasName校验错误');
+              reject(result);
             }
-          });
-          if (result) {
-            resolve();
-          } else {
+          } catch (err) {
             console.warn('AliasName校验错误');
-            reject(result);
+            reject(err);
           }
-        } catch (err) {
-          console.warn('AliasName校验错误');
-          reject(err);
-        }
-      });
-    },
-    validateFieldTable() {
-      const promises = [];
-      promises.push(this.checkFieldName());
-      promises.push(this.checkAliasName());
-      promises.push(this.checkType());
-      return promises;
-    },
-    visibleHandle() {
-      if (this.isSettingDisable) return;
+        });
+      },
+      validateFieldTable() {
+        const promises = [];
+        promises.push(this.checkFieldName());
+        promises.push(this.checkAliasName());
+        promises.push(this.checkType());
+        return promises;
+      },
+      visibleHandle() {
+        if (this.isSettingDisable) return;
 
-      this.$emit('deleteVisible', !this.deletedVisible);
-    },
-    handleKeepLog(value) {
-      this.$emit('handleKeepLog', value);
-    },
-    handleKeepField(value) {
-      this.$emit('handleKeepField', value);
-    },
-    renderHeaderAliasName(h) {
-      return h(
-        'div',
-        {
-          class: 'render-header'
-        },
-        [
-          h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('重命名')]),
-          h('span', this.$t('(选填)')),
-          h('span', {
-            class: 'icon log-icon icon-info-fill',
+        this.$emit('delete-visible', !this.deletedVisible);
+      },
+      handleKeepLog(value) {
+        this.$emit('handle-keep-log', value);
+      },
+      handleKeepField(value) {
+        this.$emit('handle-keep-field', value);
+      },
+      renderHeaderAliasName(h) {
+        return h(
+          'div',
+          {
+            class: 'render-header',
+          },
+          [
+            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('重命名')]),
+            h('span', this.$t('(选填)')),
+            h('span', {
+              class: 'icon log-icon icon-info-fill',
+              directives: [
+                {
+                  name: 'bk-tooltips',
+                  value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
+                },
+              ],
+            }),
+          ],
+        );
+      },
+      renderHeaderDescription(h) {
+        return h(
+          'div',
+          {
+            class: 'render-header',
+          },
+          [
+            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段说明')]),
+            h('span', this.$t('(选填)')),
+          ],
+        );
+      },
+      renderHeaderParticipleName(h) {
+        return h(
+          'span',
+          {
             directives: [
               {
                 name: 'bk-tooltips',
-                value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。')
-              }
-            ]
-          })
-        ]
-      );
+                value: this.$t('选中分词,适用于分词检索,不能用于指标和维度'),
+              },
+            ],
+          },
+          [
+            h(
+              'span',
+              {
+                class: 'render-Participle title-overflow',
+                directives: [{ name: 'bk-overflow-tips' }],
+              },
+              [this.$t('分词')],
+            ),
+          ],
+        );
+      },
+      isDisableOperate(row) {
+        if (this.isSetDisabled) return;
+        row.is_delete = !row.is_delete;
+      },
+      filedNameIsConflict(fieldIndex, fieldName) {
+        const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
+        return otherFieldNameList.some(item => item.field_name === fieldName);
+      },
+      /** 当前字段是否禁用 */
+      getFieldEditDisabled(row) {
+        if (this.selectEtlConfig === 'bk_log_json') return false;
+        return row?.is_delete || this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
+      },
+      /**
+       * @desc: 判断当前分词符或者分词符有关的子项是否禁用
+       * @param {Any} row 字段信息
+       * @param {String} type 是分词还是分词有关的子项
+       * @returns {Boolean}
+       */
+      getCustomizeDisabled(row, type = 'analyzed-item') {
+        const { is_delete: isDelete, field_type: fieldType, is_time: isTime, is_analyzed: isAnalyzed } = row;
+        let atLastAnalyzed = isAnalyzed;
+        if (type === 'analyzed') atLastAnalyzed = true;
+        return (
+          this.isPreviewMode || isDelete || fieldType !== 'string' || isTime || !atLastAnalyzed || this.isSetDisabled
+        );
+      },
     },
-    renderHeaderDescription(h) {
-      return h(
-        'div',
-        {
-          class: 'render-header'
-        },
-        [
-          h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段说明')]),
-          h('span', this.$t('(选填)'))
-        ]
-      );
-    },
-    renderHeaderParticipleName(h) {
-      return h(
-        'span',
-        {
-          directives: [
-            {
-              name: 'bk-tooltips',
-              value: this.$t('选中分词,适用于分词检索,不能用于指标和维度')
-            }
-          ]
-        },
-        [
-          h(
-            'span',
-            {
-              class: 'render-Participle title-overflow',
-              directives: [{ name: 'bk-overflow-tips' }]
-            },
-            [this.$t('分词')]
-          )
-        ]
-      );
-    },
-    isDisableOperate(row) {
-      if (this.isSetDisabled) return;
-      row.is_delete = !row.is_delete;
-    },
-    filedNameIsConflict(fieldIndex, fieldName) {
-      const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
-      return otherFieldNameList.some(item => item.field_name === fieldName);
-    },
-    /** 当前字段是否禁用 */
-    getFieldEditDisabled(row) {
-      if (this.selectEtlConfig === 'bk_log_json') return false;
-      return row?.is_delete || this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
-    },
-    /**
-     * @desc: 判断当前分词符或者分词符有关的子项是否禁用
-     * @param {Any} row 字段信息
-     * @param {String} type 是分词还是分词有关的子项
-     * @returns {Boolean}
-     */
-    getCustomizeDisabled(row, type = 'analyzed-item') {
-      const { is_delete: isDelete, field_type: fieldType, is_time: isTime, is_analyzed: isAnalyzed } = row;
-      let atLastAnalyzed = isAnalyzed;
-      if (type === 'analyzed') atLastAnalyzed = true;
-      return (
-        this.isPreviewMode || isDelete || fieldType !== 'string' || isTime || !atLastAnalyzed || this.isSetDisabled
-      );
-    }
-  }
-};
+  };
 </script>
 
 <style lang="scss">
-@import '@/scss/mixins/clearfix';
-@import '@/scss/mixins/overflow-tips.scss';
-/* stylelint-disable no-descending-specificity */
-.field-table-container {
-  position: relative;
-  display: flex;
+  @import '@/scss/mixins/clearfix';
+  @import '@/scss/mixins/overflow-tips.scss';
 
-  .field-method-head {
-    position: absolute;
-    top: -30px;
-    right: 0;
-  }
+  /* stylelint-disable no-descending-specificity */
+  .field-table-container {
+    position: relative;
+    display: flex;
 
-  .field-table {
-    .cell {
-      padding-right: 5px;
-      padding-left: 5px;
+    .field-method-head {
+      position: absolute;
+      top: -30px;
+      right: 0;
     }
 
-    .bk-label {
-      display: none;
-    }
+    .field-table {
+      .cell {
+        padding-right: 5px;
+        padding-left: 5px;
+      }
 
-    .render-header {
-      display: flex;
-      align-items: center;
-      height: 100%;
+      .bk-label {
+        display: none;
+      }
 
-      span:nth-child(2) {
+      .render-header {
+        display: flex;
+        align-items: center;
+        height: 100%;
+
+        span:nth-child(2) {
+          color: #979ba5;
+        }
+
+        .render-Participle {
+          display: inline-block;
+          width: 100%;
+          text-align: center;
+        }
+
+        span:nth-child(3) {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 14px;
+          height: 14px;
+          margin-top: 2px;
+          font-size: 14px;
+          outline: none;
+        }
+      }
+
+      .bk-table-empty-text {
+        padding: 12px 0;
+      }
+
+      .bk-table-empty-block {
+        min-height: 32px;
+      }
+
+      .empty-text {
         color: #979ba5;
       }
+    }
 
-      .render-Participle {
-        display: inline-block;
-        width: 100%;
-        text-align: center;
+    .preview-panel-left {
+      flex: 1;
+    }
+
+    .participle-box {
+      display: flex;
+      align-items: center;
+      justify-content: start;
+      width: 100%;
+
+      .select-custom {
+        width: 70px;
+        margin-right: 8px;
       }
 
-      span:nth-child(3) {
-        display: flex;
-        width: 14px;
-        height: 14px;
-        margin-top: 2px;
-        font-size: 14px;
-        outline: none;
-        justify-content: center;
-        align-items: center;
+      .bk-select-name {
+        padding: 0 22px 0 10px;
+      }
+
+      .bk-form-control {
+        width: 175px;
       }
     }
 
-    .bk-table-empty-text {
-      padding: 12px 0;
-    }
+    .preview-panel-right {
+      width: 335px;
+      font-size: 12px;
+      color: #c4c6cc;
+      background: #63656e;
+      border-bottom: 1px solid #72757d;
+      border-radius: 0 2px 2px 0;
 
-    .bk-table-empty-block {
-      min-height: 32px;
-    }
-
-    .empty-text {
-      color: #979ba5;
-    }
-  }
-
-  .preview-panel-left {
-    flex: 1;
-  }
-
-  .participle-box {
-    display: flex;
-    width: 100%;
-    justify-content: start;
-    align-items: center;
-
-    .select-custom {
-      width: 70px;
-      margin-right: 8px;
-    }
-
-    .bk-select-name {
-      padding: 0 22px 0 10px;
-    }
-
-    .bk-form-control {
-      width: 175px;
-    }
-  }
-
-  .preview-panel-right {
-    width: 335px;
-    font-size: 12px;
-    color: #c4c6cc;
-    background: #63656e;
-    border-bottom: 1px solid #72757d;
-    border-radius: 0 2px 2px 0;
-
-    .preview-item {
-      height: 43px;
-      padding: 0 10px;
-      overflow: hidden;
-      line-height: 43px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      border-top: 1px solid #72757d;
-
-      &:first-child {
+      .preview-item {
         height: 43px;
-        border-top: 1px solid transparent;
+        padding: 0 10px;
+        overflow: hidden;
+        line-height: 43px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        border-top: 1px solid #72757d;
+
+        &:first-child {
+          height: 43px;
+          border-top: 1px solid transparent;
+        }
+      }
+
+      .preview-title {
+        color: #fff;
       }
     }
 
-    .preview-title {
-      color: #fff;
-    }
-  }
-
-  .bk-table .table-link {
-    cursor: pointer;
-  }
-
-  .field-date {
-    display: inline-block;
-    padding: 0 10px;
-    font-size: 14px;
-    outline: none;
-
-    &:hover {
-      color: #3a84ff;
+    .bk-table .table-link {
       cursor: pointer;
     }
 
-    &.field-date-active {
-      color: #3a84ff;
+    .field-date {
+      display: inline-block;
+      padding: 0 10px;
+      font-size: 14px;
+      outline: none;
 
-      .icon-date-picker {
+      &:hover {
         color: #3a84ff;
+        cursor: pointer;
+      }
+
+      &.field-date-active {
+        color: #3a84ff;
+
+        .icon-date-picker {
+          color: #3a84ff;
+        }
+      }
+
+      &.field-date-disable {
+        color: #dcdee5;
+        cursor: not-allowed;
       }
     }
 
-    &.field-date-disable {
-      color: #dcdee5;
-      cursor: not-allowed;
+    .icon-date-picker {
+      color: #979ba5;
+
+      &.active {
+        color: #3a84ff;
+      }
     }
   }
 
-  .icon-date-picker {
-    color: #979ba5;
+  .field-date-dialog {
+    .prompt {
+      padding: 6px 7px;
+      margin-bottom: 20px;
+      font-size: 12px;
+      color: #63656e;
+      background: #f6f6f6;
 
-    &.active {
-      color: #3a84ff;
+      span {
+        font-weight: 600;
+        color: #313238;
+      }
     }
-  }
-}
 
-.field-date-dialog {
-  .prompt {
-    padding: 6px 7px;
-    margin-bottom: 20px;
-    font-size: 12px;
-    color: #63656e;
-    background: #f6f6f6;
-
-    span {
-      font-weight: 600;
-      color: #313238;
+    .bk-label {
+      text-align: left;
     }
   }
 
-  .bk-label {
-    text-align: left;
-  }
-}
+  .field-dropdown-list {
+    padding: 7px 0;
+    margin: -7px -14px;
 
-.field-dropdown-list {
-  padding: 7px 0;
-  margin: -7px -14px;
+    .dropdown-item {
+      padding: 0 10px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #63656e;
+      cursor: pointer;
 
-  .dropdown-item {
-    padding: 0 10px;
-    font-size: 12px;
-    line-height: 32px;
-    color: #63656e;
-    cursor: pointer;
-
-    &:hover {
-      color: #3a84ff;
-      background: #e1ecff;
+      &:hover {
+        color: #3a84ff;
+        background: #e1ecff;
+      }
     }
   }
-}
 
-.header {
-  /* stylelint-disable-next-line declaration-no-important */
-  white-space: normal !important;
-}
+  .header {
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
+  }
 </style>

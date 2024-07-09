@@ -38,7 +38,7 @@ __doc__ = """
 """
 
 BK_USERNAME_FIELD = "bk_username"
-APIPermissionDeniedCodeList = ["9900403", 9900403]
+APIPermissionDeniedCodeList = ["9900403", "35999999"]
 
 
 def get_bk_login_ticket(request):
@@ -227,9 +227,12 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
 
         result_json = result.json()
 
+        if not isinstance(result_json, dict):
+            return result_json
+
         ret_code = result_json.get("code")
         # 权限中心无权限结构特殊处理
-        if ret_code in APIPermissionDeniedCodeList:
+        if ret_code and str(ret_code) in APIPermissionDeniedCodeList:
             self.report_api_failure_metric(error_code=ret_code, exception_type=APIPermissionDeniedError.__name__)
             raise APIPermissionDeniedError(
                 context={"system_name": self.module_name, "url": self.action},

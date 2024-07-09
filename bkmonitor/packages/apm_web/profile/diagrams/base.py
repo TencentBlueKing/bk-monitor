@@ -7,28 +7,32 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import logging
+import threading
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict, List, Optional
+from typing import Dict, List, Optional
 
-from apm_web.profile.converter import Converter
+logger = logging.getLogger("apm")
+
+ROOT_DISPLAY_NAME = "root"
 
 
 @dataclass
 class FunctionNode:
     """Function based flame node"""
 
-    id: int
+    id: str
     name: str
     system_name: str
     filename: str
 
     is_root: bool = False
-    parent: Optional["FunctionNode"] = None
+    has_parent: bool = False
     children: List["FunctionNode"] = field(default_factory=list)
     value: int = 0
     values: List[int] = field(default=list)
-    ROOT_DISPLAY_NAME: ClassVar[str] = "root"
+
+    lock: threading.Lock = field(default=threading.Lock())
 
     @property
     def self_time(self) -> int:
@@ -36,103 +40,92 @@ class FunctionNode:
         sub = self.value - sum(x.value for x in self.children)
         return sub if sub > 0 else 0
 
-    @property
-    def display_name(self) -> str:
-        """display name"""
-        if self.is_root:
-            return self.ROOT_DISPLAY_NAME
-
-        return self.name
-
-    @property
-    def unique_together(self) -> tuple:
-        return self.name, self.system_name, self.filename
-
     def to_dict(self):
         return {
             "id": self.id,
             "value": self.value,
             "self": self.self_time,
-            "name": self.display_name,
+            "name": self.name,
             "system_name": self.system_name,
             "filename": self.filename,
         }
 
+    def add_child(self, child):
+        self.lock.acquire()
+        child.has_parent = True
+        self.children.append(child)
+        self.lock.release()
+
+    def add_value(self, value):
+        self.lock.acquire()
+        self.values.append(value)
+        self.lock.release()
+
+    @classmethod
+    def generate_id(cls, stacktrace_line):
+        """根据 sample 的堆栈信息生成功能节点的 ID"""
+        return "".join(
+            [
+                stacktrace_line["function"]["systemName"],
+                stacktrace_line["function"]["fileName"],
+                stacktrace_line["function"]["name"],
+            ]
+        )
+
 
 @dataclass
 class FunctionTree:
-    """Function based flame tree"""
-
     root: FunctionNode
-
-    nodes_map: Dict[int, FunctionNode] = field(default_factory=dict)
-
-    def add_function_node(self, function_id: int, v: int, parent: FunctionNode, converter: Converter) -> FunctionNode:
-        """Add function node to tree"""
-        f = converter.get_function(function_id)
-        node = FunctionNode(
-            id=f.id,
-            name=converter.get_string(f.name),
-            system_name=converter.get_string(f.system_name),
-            filename=converter.get_string(f.filename),
-            values=[v],
-        )
-        self.nodes_map[f.id] = node
-
-        if parent:
-            node.parent = parent
-            parent.children.append(node)
-
-        return node
-
-    @classmethod
-    def load_from_profile(cls, converter: Converter) -> "FunctionTree":
-        root = FunctionNode(
-            id=0,
-            is_root=True,
-            name=FunctionNode.ROOT_DISPLAY_NAME,
-            system_name="",
-            filename="",
-            values=[],
-        )
-        tree = cls(root=root)
-
-        for sample in converter.profile.sample:
-            value = sample.value[0]
-            parent = None
-
-            for stacktrace_id in reversed(sample.location_id):
-                stacktrace = converter.get_location(stacktrace_id)
-                if not stacktrace.line:
-                    parent = None
-                    continue
-
-                for line in stacktrace.line:
-                    if not line:
-                        parent = None
-                        continue
-
-                    if line.function_id not in tree.nodes_map:
-                        node = tree.add_function_node(line.function_id, value, parent, converter)
-                    else:
-                        node = tree.nodes_map[line.function_id]
-                        node.values.append(value)
-                    parent = node
-
-        for node in tree.nodes_map.values():
-            if not node.parent:
-                node.parent = root
-                root.children.append(node)
-
-        ValueCalculator.calculate_nodes(tree, converter.get_sample_type())
-
-        return tree
+    function_node_map: Dict[str, FunctionNode] = field(default_factory=dict)
+    lock: threading.Lock = field(default=threading.Lock())
 
     def find_similar_child(self, other_child: "FunctionNode") -> Optional["FunctionNode"]:
-        for node in self.nodes_map.values():
-            if node.unique_together == other_child.unique_together:
+        for node in self.function_node_map.values():
+            if node.id == other_child.id:
                 return node
         return None
+
+    @classmethod
+    def combine(cls, tree, other_tree, sample_type):
+        """合并两个 FunctionTree 树"""
+
+        def merge_node(node1, node2):
+            node1.values.extend(node2.values)
+
+            child_map = {child.id: child for child in node1.children}
+            for child2 in node2.children:
+                if child2.id in child_map:
+                    merge_node(child_map[child2.id], child2)
+                else:
+                    node1.add_child(child2)
+
+        for other_node_id, other_node in other_tree.function_node_map.items():
+            if other_node_id in tree.function_node_map:
+                node = tree.function_node_map[other_node_id]
+                merge_node(node, other_node)
+            else:
+                parent_node = None
+                if other_node.has_parent:
+                    # 寻找 other_node 的 parent 节点
+                    for possible_parent in other_tree.function_node_map.items():
+                        if other_node in possible_parent.children:
+                            parent_node = possible_parent
+                            break
+
+                if parent_node:
+                    if parent_node.id in tree.function_node_map:
+                        tree.function_node_map[parent_node.id].add_child(other_node)
+                    else:
+                        # 如果找不到父节点(tree 可能有问题正常情况下不会走到这里) 则添加到 root
+                        tree.root.add_child(other_node)
+                else:
+                    # 如果没有父节点 则添加到 root
+                    tree.root.add_child(other_node)
+
+                tree.function_node_map[other_node.id] = other_node
+
+        ValueCalculator.calculate_nodes(tree, sample_type)
+        return tree
 
 
 class ValueCalculator:
@@ -147,7 +140,7 @@ class ValueCalculator:
     @classmethod
     def calculate_nodes(cls, tree, sample_type):
         c = cls.mapping().get(sample_type["type"], {}).get(sample_type["unit"], cls.Default)
-        for node in tree.nodes_map.values():
+        for node in tree.function_node_map.values():
             node.value = c.calculate(node.values)
 
         tree.root.value = cls.adjust_node_values(tree.root)

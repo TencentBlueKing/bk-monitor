@@ -65,7 +65,7 @@ class DashboardPermission(BasePermission):
                 continue
             filtered_uids.add(split_result[-1])
 
-        return uids
+        return filtered_uids
 
     @classmethod
     def get_user_role(cls, request, org_name: str) -> GrafanaRole:

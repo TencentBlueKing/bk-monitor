@@ -2046,12 +2046,14 @@ class QueryEndpointStatisticsResource(PageListResource):
         """
         添加 url 归类统计数据
         """
-        res = []
+        match_res = []
+        no_match_res = []
         for summary, items in summary_mappings.items():
             request_count = len(items)
-            res.append(
+
+            (no_match_res, match_res)[summary[-1]].append(
                 {
-                    "summary": summary,
+                    "summary": summary[0],
                     "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
                     "request_count": request_count,
                     "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
@@ -2060,7 +2062,9 @@ class QueryEndpointStatisticsResource(PageListResource):
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )
-        return res
+
+        # 匹配到正则的结果优先展示
+        return match_res + no_match_res
 
     def perform_request(self, validated_data):
         """
@@ -2097,6 +2101,8 @@ class QueryEndpointStatisticsResource(PageListResource):
             uri_queryset = UriServiceRelation.objects.filter(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
             )
+            if "resource.service.name" in validated_data.get("filter_params", {}):
+                uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         res = []
         summary_mappings = defaultdict(list)
@@ -2109,14 +2115,18 @@ class QueryEndpointStatisticsResource(PageListResource):
             filter_key = self.GROUP_KEY_ATT_CONFIG.get(tmp_filter_key, "span_name")
             # http_url 归类处理
             if not is_component and filter_key in [OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)]:
-                url = None
+                http_summary_is_match = False
                 for uri in uri_list:
-                    if re.match(uri, summary):
-                        url = SpanHandler.generate_uri(urlparse(summary))
-                        summary_mappings[url].append(bucket)
-                        break
-                if url:
-                    continue
+                    pure_http_url = SpanHandler.generate_uri(urlparse(summary))
+                    if re.match(uri, pure_http_url):
+                        summary_mappings[(uri, True)].append(bucket)
+                        http_summary_is_match = True
+
+                if not http_summary_is_match:
+                    summary_mappings[(summary, False)].append(bucket)
+
+                continue
+
             res.append(
                 {
                     "summary": summary,
@@ -2625,15 +2635,33 @@ class CustomServiceMatchListResource(Resource):
                 if is_match:
                     res.add(f"{item}")
             else:
-                predicates = []
-                if url.hostname and "host" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_host(validated_data["rule"].get("host"), url.hostname))
-                if url.path and "path" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_uri(validated_data["rule"].get("path"), url.path))
-                if url.query and "params" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_params(validated_data["rule"].get("params"), url.query))
-                if predicates and all(predicates):
-                    res.add(f"{item}")
+                host_rule = validated_data["rule"].get("host", {})
+                path_rule = validated_data["rule"].get("path", {})
+                param_rules = validated_data["rule"].get("params", [])
+
+                if host_rule.get("value"):
+                    if not Matcher.operator_match(host_rule["value"], str(url.hostname), host_rule["operator"]):
+                        continue
+
+                if path_rule.get("value"):
+                    if not Matcher.operator_match(path_rule["value"], str(url.path), path_rule["operator"]):
+                        continue
+
+                url_param_paris = {}
+                for i in url.query.split("&"):
+                    if not i:
+                        continue
+                    k, v = str(i).split("=")
+                    url_param_paris[k] = v
+
+                for param in param_rules:
+                    val = url_param_paris.get(param["name"])
+                    if not val:
+                        continue
+                    if not Matcher.operator_match(val, param["value"], param["operator"]):
+                        continue
+
+                res.add(f"{item}")
 
         return list(res)
 

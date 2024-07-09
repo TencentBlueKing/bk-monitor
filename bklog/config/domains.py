@@ -21,9 +21,10 @@ the project delivered to anyone in the future.
 """
 
 
+from django.conf import settings
+
 from apps.utils.function import ignored
 from config.env import load_domains
-from django.conf import settings
 
 API_ROOTS = [
     # 蓝鲸平台模块域名
@@ -33,6 +34,7 @@ API_ROOTS = [
     "GSE_APIGATEWAY_ROOT_V2",
     "GSE_APIGATEWAY_ROOT_V3",
     "MONITOR_APIGATEWAY_ROOT",
+    "MONITOR_APIGATEWAY_ROOT_NEW",
     "BCS_CC_APIGATEWAY_ROOT",
     "USER_MANAGE_APIGATEWAY_ROOT",
     # 数据平台模块域名

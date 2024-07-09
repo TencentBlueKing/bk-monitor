@@ -45,5 +45,5 @@ export default {
   groupCustomTsItem,
   modifyCustomTsGroupingRuleList,
   deleteCustomTimeSeries,
-  addCustomMetric
+  addCustomMetric,
 };

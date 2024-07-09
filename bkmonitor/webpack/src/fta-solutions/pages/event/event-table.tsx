@@ -338,7 +338,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         },
         this.bizIds.length > 1 || this.bizIds?.[0] === -1
           ? {
-              id: 'bizName',
+              id: 'bk_biz_name',
               name: this.$t('空间名'),
               disabled: true,
               checked: true,

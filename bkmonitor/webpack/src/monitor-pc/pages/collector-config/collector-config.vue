@@ -610,9 +610,6 @@ export default {
       return this.tableInstance.tabItemMap || {};
     },
     retrievalUrl() {
-      if (process.env.NODE_ENV === 'development') {
-        return `${process.env.loginHost}/t/log-search-4#/manage/collect?bizId=${this.bizId}`;
-      }
       return `${this.$store.getters.bkLogSearchUrl}#/manage/collect?bizId=${this.bizId}`;
     },
     /** 是否展示分页 */

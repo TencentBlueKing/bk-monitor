@@ -1422,6 +1422,10 @@ class UpdateTaskRunningStatusResource(Resource):
                 return
             log = []
             nodeman_task_id = ""
+            if len(status_result) == 0:
+                logger.info("celery period task: 订阅任务%s正在启用中" % subscription_id)
+                logger.info("error_log: %s" % log)
+                return UptimeCheckTask.Status.STARTING, log, nodeman_task_id
             for item in status_result:
                 if item["status"] in [CollectStatus.RUNNING, CollectStatus.PENDING]:
                     break
@@ -1470,6 +1474,82 @@ class UpdateTaskRunningStatusResource(Resource):
             task.status = UptimeCheckTask.Status.RUNNING
 
         task.save()
+
+
+class BatchUpdateTaskRunningStatusResource(Resource):
+    """周期更新任务状态，用于celery周期任务"""
+
+    def __init__(self):
+        super(BatchUpdateTaskRunningStatusResource, self).__init__()
+
+    @staticmethod
+    def check_task_status(subscription_id_list):
+        def chunks(lst, n):
+            """
+            切割数组
+            :param lst: 数组
+            :param n: 每组多少份
+            """
+            for i in range(0, len(lst), n):
+                yield lst[i : i + n]
+
+        result = {}
+        for subscription_ids in chunks(subscription_id_list, 20):
+            try:
+                status_result = api.node_man.batch_task_result.bulk_request(
+                    [{"subscription_id": s_id} for s_id in subscription_ids]
+                )
+            except BKAPIError as e:
+                logger.error("请求节点管理任务执行结果接口失败: {}".format(e))
+                return
+            for index, subscription_id in enumerate(subscription_ids):
+                result[subscription_id] = status_result[index][0].get("status")
+        return result
+
+    @staticmethod
+    def judge_task_status(subscription_ids, subscription_status):
+        """通过从节点管理获取的订阅的状态，来判断当前的任务应该是什么状态"""
+        for subscription_id in subscription_ids:
+            status = subscription_status.get(subscription_id)
+            # 如果没有获取到状态，则跳过
+            if not status:
+                logger.info("celery period task: 订阅任务%s未能获取状态" % subscription_id)
+                return None
+            if status in [CollectStatus.RUNNING, CollectStatus.PENDING]:
+                return UptimeCheckTask.Status.STARTING
+            if status == CollectStatus.FAILED:
+                return UptimeCheckTask.Status.START_FAILED
+        return UptimeCheckTask.Status.RUNNING
+
+    def perform_request(self, task_id_list):
+        logger.info("start celery period task: period update uptime check task running status")
+        # 拨测任务的当前状态关系
+        task_list = UptimeCheckTask.objects.filter(id__in=task_id_list)
+        # 所有的订阅ID 和 任务与订阅ID的关系
+        subscription_id_list = []
+        task_subscription_dict = {}
+        for task_id, subscription_id in UptimeCheckTaskSubscription.objects.filter(
+            uptimecheck_id__in=task_id_list
+        ).values_list("uptimecheck_id", "subscription_id"):
+            task_subscription_dict.setdefault(task_id, []).append(subscription_id)
+            subscription_id_list.append(subscription_id)
+
+        # 获取所有订阅ID的节点管理状态
+        subscription_status = self.check_task_status(subscription_id_list)
+        need_update_task = []
+
+        for task in task_list:
+            # 获取该 task_id 下的所有订阅 ID
+            s_id = task_subscription_dict.get(task.id)
+            if not s_id:
+                continue
+            new_status = self.judge_task_status(s_id, subscription_status)
+            if task.status == new_status:
+                continue
+            task.status = new_status
+            need_update_task.append(task)
+
+        UptimeCheckTask.objects.bulk_update(need_update_task, ["status"], batch_size=500)
 
 
 class FrontPageDataResource(Resource):

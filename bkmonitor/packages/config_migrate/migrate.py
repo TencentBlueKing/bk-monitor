@@ -21,18 +21,18 @@ import MySQLdb
 import requests
 import yaml
 from django.core.files import File
-from monitor_web.models import (
-    CollectConfigMeta,
-    CollectorPluginMeta,
-    CustomEventGroup,
-    CustomTSTable,
-)
 
 from bkmonitor.as_code.parse import import_code_config
 from bkmonitor.as_code.parse_yaml import StrategyConfigParser
 from bkmonitor.strategy.new_strategy import Strategy
 from constants.action import ActionSignal
 from core.drf_resource import api, resource
+from monitor_web.models import (
+    CollectConfigMeta,
+    CollectorPluginMeta,
+    CustomEventGroup,
+    CustomTSTable,
+)
 
 
 class ConfigMigrator:
@@ -470,7 +470,6 @@ class ConfigMigrator:
 
             # 下载并导入插件包
             with tempfile.TemporaryDirectory() as temp_dir:
-
                 # 下载插件包
                 package_path = os.path.join(temp_dir, f"{plugin_id}.tgz")
                 r = requests.get(download_url, stream=True)
@@ -664,7 +663,7 @@ class ConfigMigrator:
                     continue
 
                 item["result_table_id"] = self.custom_events[item["bk_event_group_id"]]["table_id"]
-                item["metric_field"] = item["extend_fields"]["custom_event_name"]
+                item["metric_field"] = item["extend_fields"]["custom_event_name"] or "__INDEX__"
 
             # 配置转换
             strategies[strategy_id] = Strategy.from_dict_v1(strategy).to_dict()

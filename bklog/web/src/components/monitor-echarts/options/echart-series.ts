@@ -1,23 +1,27 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import { ILegendItem, ChartType } from './type-interface';
@@ -43,7 +47,7 @@ export default class EchartsSeries {
         avg: 0,
         total: 0,
         color: this.colors[index % this.colors.length],
-        show: true
+        show: true,
       };
       item.data.forEach((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && seriesItem[1]) {
@@ -61,11 +65,11 @@ export default class EchartsSeries {
                 borderWidth: 6,
                 enabled: true,
                 shadowBlur: 0,
-                opacity: 1
+                opacity: 1,
               },
               label: {
-                show: false
-              }
+                show: false,
+              },
             };
           } else {
             const hasBrother = pre && next && pre.length && next.length && !pre[1] && !next[1];
@@ -76,8 +80,8 @@ export default class EchartsSeries {
                 borderWidth: hasBrother ? 4 : 1,
                 enabled: true,
                 shadowBlur: 0,
-                opacity: 1
-              }
+                opacity: 1,
+              },
             };
           }
         } else if (seriesItem.symbolSize) {
@@ -92,7 +96,7 @@ export default class EchartsSeries {
         showSymbol,
         symbol: 'circle',
         z: 4,
-        smooth: 0.2
+        smooth: 0.2,
       };
       if (thresholdLine?.length) {
         seriesItem.markLine = this.handleSetThresholdLine(thresholdLine);
@@ -111,18 +115,18 @@ export default class EchartsSeries {
       symbol: [],
       label: {
         show: true,
-        position: 'insideStartTop'
+        position: 'insideStartTop',
       },
       lineStyle: {
         color: '#FD9C9C',
         type: 'dashed',
         distance: 3,
-        width: 1
+        width: 1,
       },
       data: thresholdLine.map(item => ({
         name: item.name,
-        yAxis: item.value
-      }))
+        yAxis: item.value,
+      })),
     };
   }
   // 设置阈值面板
@@ -135,19 +139,19 @@ export default class EchartsSeries {
         borderWidth: 1,
         borderColor: '#FFE9D5',
         shadowColor: '#FFF5EC',
-        shadowBlur: 0
+        shadowBlur: 0,
       },
       data: plotBands.map(item => [
         {
           xAxis: item.from,
-          yAxis: 0
+          yAxis: 0,
         },
         {
           xAxis: item.to || 'max',
-          yAxis: 'max' // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
-        }
+          yAxis: 'max', // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
+        },
       ]),
-      opacity: 0.1
+      opacity: 0.1,
     };
   }
 }
