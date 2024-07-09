@@ -56,6 +56,7 @@ import {
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
 import { debounce, deepClone, random } from 'monitor-common/utils/utils';
+import { handleGotoLink } from 'monitor-pc/common/constant';
 import { type IEventRetrieval, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import Condition from '../../components/condition/condition';
@@ -1107,8 +1108,8 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <a
             class='link'
-            href='/'
             target='_blank'
+            onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link'></i>
