@@ -287,6 +287,7 @@ export default class AiSettingsSet extends tsc<object> {
                   v-model={settingsItem.data.default_plan_id}
                   clearable={false}
                   ext-popover-cls='ai-settings-scheme-select'
+                  placeholder={this.$t('选择方案')}
                   searchable
                   on-change={() => {
                     settingsItem.errorsMsg.default_plan_id = '';
