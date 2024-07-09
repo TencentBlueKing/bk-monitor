@@ -131,3 +131,6 @@ graphviz==0.19.1
 
 # kafka with sasl
 confluent-kafka==2.4.0
+
+# incident
+pika==1.3.1

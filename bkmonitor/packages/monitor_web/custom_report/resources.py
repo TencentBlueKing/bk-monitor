@@ -189,10 +189,11 @@ class ValidateCustomTsGroupLabel(Resource):
         data_label_filter_params = {"data_label": data_label}
         data_label_unique_qs = CustomTSTable.objects
         # 获取插件类型前缀列表，自定义指标data_label前缀不可与插件类型data_label前缀重名
+        # process采集 复用自定义创建逻辑
         plugin_type_list = [
             f"{getattr(PluginType, attr).lower()}_"
             for attr in dir(PluginType)
-            if not callable(getattr(PluginType, attr)) and not attr.startswith("__")
+            if not callable(getattr(PluginType, attr)) and not attr.startswith("__") and attr != "PROCESS"
         ]
         label_pattern = re.compile(r'^(?!' + '|'.join(plugin_type_list) + r')[a-zA-Z][a-zA-Z0-9_]*$')
         if data_label == "":

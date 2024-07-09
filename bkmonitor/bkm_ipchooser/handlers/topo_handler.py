@@ -11,7 +11,7 @@ from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.query import resource
 from bkm_ipchooser.tools import batch_request, topo_tool
-from bkm_ipchooser.tools.gse_tool import GseTool
+from bkm_ipchooser.tools.gse_tool import fill_agent_status
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -192,8 +192,8 @@ class TopoHandler:
         return {"total": resp["count"], "data": BaseHandler.format_host_id_infos(resp["info"], tree_node["bk_biz_id"])}
 
     @classmethod
-    def fill_agent_status(cls, cc_hosts):
-        GseTool.get_adapter().fill_agent_status(cc_hosts)
+    def fill_agent_status(cls, cc_hosts, bk_biz_id):
+        fill_agent_status(cc_hosts, bk_biz_id)
 
     @classmethod
     def count_agent_status(cls, cc_hosts) -> typing.Dict:
@@ -262,7 +262,7 @@ class TopoHandler:
         hosts = resp["info"]
 
         # TODO: 抽取常用cc查询接口到一个单独的文件，目前components下很多文件都没用，比如：components/cc,cmdb,itsm等
-        TopoHandler.fill_agent_status(hosts)
+        TopoHandler.fill_agent_status(hosts, bk_biz_id)
         TopoHandler.fill_cloud_name(hosts)
 
         return hosts
@@ -401,7 +401,7 @@ class TopoHandler:
         resp = BkApi.list_biz_hosts(params)
 
         if resp["info"] and return_status:
-            cls.fill_agent_status(resp["info"])
+            cls.fill_agent_status(resp["info"], bk_biz_id)
 
         return resp
 
@@ -440,7 +440,7 @@ class TopoHandler:
         hosts = batch_request.batch_request(func=BkApi.list_biz_hosts, params=params)
         if not hosts:
             return result
-        cls.fill_agent_status(hosts)
+        cls.fill_agent_status(hosts, bk_biz_id)
         result.update(cls.count_agent_status(hosts))
 
         return result

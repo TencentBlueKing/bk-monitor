@@ -52,7 +52,7 @@ def get_kihan_prom_field_list(domain: str) -> List:
     return list({i["metric"] for i in metrics["data"]})
 
 
-def push_and_publish_es_space_router(space_type: str, space_id: str, table_id: str):
+def push_and_publish_es_space_router(space_type: str, space_id: str):
     """推送并发布es空间路由"""
     client = SpaceTableIDRedis()
     if space_type == SpaceTypes.BKCC.value:
@@ -60,7 +60,7 @@ def push_and_publish_es_space_router(space_type: str, space_id: str, table_id: s
     elif space_type == SpaceTypes.BKCI.value:
         values = client._push_bkci_space_table_ids(space_type, space_id, can_push_data=False)
     elif space_type == SpaceTypes.BKSAAS.value:
-        values = client._push_bksaas_space_table_ids(space_type, space_id, table_id, can_push_data=False)
+        values = client._push_bksaas_space_table_ids(space_type, space_id, can_push_data=False)
     else:
         logger.error("not found space_type: %s, space_id: %s", space_type, space_id)
         raise ValueError("not found space type")
@@ -109,7 +109,7 @@ def push_and_publish_es_table_id(table_id: str, index_set: str, source_type: str
 
     RedisTools.hmset_to_redis(
         RESULT_TABLE_DETAIL_KEY,
-        {table_id: json.dumps({"storage_id": cluster_id, "db": table_id_db, "measurement": ""})},
+        {table_id: json.dumps({"storage_id": cluster_id, "db": table_id_db, "measurement": "__default__"})},
     )
     RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
 
