@@ -250,7 +250,7 @@ class PluginParamSerializer(serializers.Serializer):
     )
     kafka_username = serializers.CharField(label=_("kafka用户名"), required=False, allow_blank=True)
     kafka_password = serializers.CharField(label=_("kafka密码"), required=False, allow_blank=True)
-    kafka_ssl_params = serializers.DictField(label=_("kafka ssl配置"), required=False, allow_blank=True, default=dict)
+    kafka_ssl_params = serializers.DictField(label=_("kafka ssl配置"), required=False, default=dict)
     kafka_topics = serializers.ListField(
         label=_("kafka topic"), required=False, default=[], child=serializers.CharField()
     )
