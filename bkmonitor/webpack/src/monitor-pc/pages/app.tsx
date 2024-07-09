@@ -498,6 +498,8 @@ export default class App extends tsc<object> {
         });
         return false;
       }
+    } else {
+      setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
     }
     await Promise.all(promiseList);
     return true;
