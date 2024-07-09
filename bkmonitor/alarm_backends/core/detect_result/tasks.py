@@ -32,18 +32,22 @@ def recover_weixin_robot_limit():
         settings.WECOM_ROBOT_BIZ_WHITE_LIST = []
 
 
-@task(ignore_result=True, queue="celery_cron")
-def clean_expired_detect_result(strategy_range=None):
+def clean_expired_detect_result():
     # 任务分发
-    if strategy_range is None:
-        recover_weixin_robot_limit()
-        strategy_score_list = list(CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score"))
-        strategy_score_list.append(0)
-        strategy_score_list = sorted(set(strategy_score_list))
-        for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
-            clean_expired_detect_result.delay(strategy_range=s_range)
-        return
+    recover_weixin_robot_limit()
+    strategy_score_list = list(CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score"))
+    if len(strategy_score_list) < 2:
+        # 只有一个节点，直接清理就行
+        return async_clean_expired_detect_result((0, 2**20))
 
+    strategy_score_list.append(0)
+    strategy_score_list = sorted(set(strategy_score_list))
+    for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
+        async_clean_expired_detect_result.delay(strategy_range=s_range)
+
+
+@task(ignore_result=True, queue="celery_cron")
+def async_clean_expired_detect_result(strategy_range=None):
     # 任务负载
     logger.info("clean_expired_detect_result(%s-%s) start", *strategy_range)
     try:
