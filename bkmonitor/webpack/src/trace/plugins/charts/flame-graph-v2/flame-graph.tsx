@@ -106,7 +106,7 @@ export default defineComponent({
     /** 是否显示图例 */
     const showLegend = ref(false);
     let graphInstance: FlameChart<BaseDataType> = null;
-    let svgRect: DOMRect = null;
+    let svgRect: Partial<DOMRect> = {};
     const filterData = shallowRef();
     const filterMaxHeight = ref(0);
     // 放大系数

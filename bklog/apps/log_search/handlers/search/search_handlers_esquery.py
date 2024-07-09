@@ -1854,6 +1854,8 @@ class SearchHandler(object):
         """
         递归更新嵌套字典
         """
+        if not isinstance(base_dict, dict):
+            return base_dict
         for key, value in update_dict.items():
             if isinstance(value, dict):
                 base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)

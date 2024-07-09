@@ -112,13 +112,10 @@ export default defineComponent({
     const isEmpty = ref(true);
     const dataType = ref('');
     const dataTypeList = ref<DataTypeItem[]>([]);
-
-    /** 查询参数 */
-    const queryParams = ref(getParams());
-
     /* 当前选择的文件 */
     const curFileInfo = ref(null);
-
+    /** 查询参数 */
+    const queryParams = ref(getParams());
     /**
      * 检索面板和收藏面板显示状态切换
      * @param type 面板类型
@@ -289,7 +286,7 @@ export default defineComponent({
       const { server, isComparison, where, comparisonWhere, type, startTime, endTime } = searchState.formData;
       const profilingParams = { ...server, global_query: false };
       const uploadParams = {
-        profile_id: curFileInfo?.value?.profile_id,
+        profile_id: curFileInfo.value?.profile_id,
         global_query: true,
         start: startTime,
         end: endTime,

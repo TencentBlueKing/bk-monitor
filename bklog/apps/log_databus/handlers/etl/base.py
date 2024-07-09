@@ -274,6 +274,11 @@ class EtlHandler(object):
         """
         fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
         fmt = fmts.get(time_format)
+
+        if fmt.get("is_custom"):
+            # 自定义格式跳过校验
+            return {"epoch_millis": f"{arrow.now().timestamp}000"}
+
         if fmt["name"] in [ISO_8601_TIME_FORMAT_NAME, "ISO8601"]:
             try:
                 epoch_second = arrow.get(data, tzinfo=f"GMT{time_zone}").timestamp

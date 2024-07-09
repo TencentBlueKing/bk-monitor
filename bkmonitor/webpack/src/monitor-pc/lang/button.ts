@@ -372,6 +372,7 @@ export default {
   // 导出
   导出CSV: 'Export CSV',
   导出Yaml: 'Export Yaml',
+  '导出Yaml（As Code功能）': 'Export YAML (As Code function)',
 
   // 设置
   设为公共插件: 'Public Plugin',

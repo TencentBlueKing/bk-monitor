@@ -154,7 +154,7 @@ export default defineComponent({
             </span>
             {props.isInclude && (
               <Cascader
-                v-model={hoverArea}
+                v-model={hoverArea.value}
                 clearable={false}
                 list={props.labelList}
                 trigger='hover'

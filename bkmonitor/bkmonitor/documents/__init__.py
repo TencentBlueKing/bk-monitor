@@ -8,16 +8,24 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 from .event import EventDocument  # noqa
-from .alert import AlertDocument  # noqa
-from .log import AlertLog  # noqa
 from .action import ActionInstanceDocument  # noqa
-
+from .alert import AlertDocument  # noqa
+from .incident import (  # noqa
+    IncidentDocument,
+    IncidentNoticeDocument,
+    IncidentOperationDocument,
+    IncidentSnapshotDocument,
+)
+from .log import AlertLog  # noqa
 
 ALL_DOCUMENTS = [
     EventDocument,
     AlertDocument,
     AlertLog,
     ActionInstanceDocument,
+    IncidentDocument,
+    IncidentNoticeDocument,
+    IncidentOperationDocument,
+    IncidentSnapshotDocument,
 ]
