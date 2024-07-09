@@ -14,10 +14,10 @@ import datetime
 import logging
 import time
 
-from celery.task import task
 from django.conf import settings
 
 from alarm_backends.core.detect_result.clean import CleanResult
+from alarm_backends.service.scheduler.app import app
 from bkmonitor.models import CacheRouter
 from common.context_processors import Platform
 
@@ -46,7 +46,7 @@ def clean_expired_detect_result():
         async_clean_expired_detect_result.delay(strategy_range=s_range)
 
 
-@task(ignore_result=True, queue="celery_cron")
+@app.task(ignore_result=True, queue="celery_cron")
 def async_clean_expired_detect_result(strategy_range=None):
     # 任务负载
     logger.info("clean_expired_detect_result(%s-%s) start", *strategy_range)
