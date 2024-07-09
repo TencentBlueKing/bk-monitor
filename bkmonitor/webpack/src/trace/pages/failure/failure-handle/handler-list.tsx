@@ -34,17 +34,19 @@ import { useIncidentInject } from '../utils';
 import './handler-list.scss';
 
 interface IHandleListItem {
-  alert_count: number;
-  id: string;
+  alert_count?: number;
+  id?: string;
   index?: number;
-  name: string;
+  name?: string;
   children?: Array<IHandleListItem>;
 }
 interface IHandleData {
-  all: object;
-  mine: object;
+  all: IHandleListItem;
+  mine: IHandleListItem;
   not_dispatch: object;
-  other: object;
+  other: {
+    children?: any[];
+  };
 }
 export default defineComponent({
   name: 'HandlerList',
@@ -59,7 +61,7 @@ export default defineComponent({
     });
     const orderByType = ref('abnormal_alert_count');
     const listLoading = ref<boolean>(false);
-    const sortRef = ref<HTMLDivElement>();
+    const sortRef = ref(null);
     const searchText = ref<string>('');
     const incidentId = useIncidentInject();
     const activeId = ref<string>('admin');
@@ -207,40 +209,6 @@ export default defineComponent({
               />
             </span>
           </Popover>
-          {/* <Dropdown
-            trigger='manual'
-            is-show={this.isShowDropdown}
-            placement='bottom-start'
-            v-slots={{
-              content: () => (
-                <Dropdown.DropdownMenu extCls={'search-btn-drop'}>
-                  {this.filterList.map(item => (
-                    <Dropdown.DropdownItem
-                      extCls={`${this.orderByType === item.key ? 'active' : ''}`}
-                      onClick={() => this.filterListHandle(item.key)}
-                    >
-                      <i class={`icon-monitor icon-${item.icon} search-btn-icon`}></i>
-                      {item.name}
-                    </Dropdown.DropdownItem>
-                  ))}
-                </Dropdown.DropdownMenu>
-              ),
-            }}
-            is-show={this.isShowDropdown}
-            placement='bottom-start'
-            trigger='manual'
-          >
-            <span
-              class='head-btn'
-              onClick={() => (this.isShowDropdown = true)}
-            >
-              <i
-                class={`icon-monitor icon-${
-                  this.filterList.filter(item => this.orderByType === item.key)[0].icon
-                } head-btn-icon`}
-              />
-            </span>
-          </Dropdown> */}
         </div>
         <Loading loading={this.listLoading}>
           <div class='handler-list-main'>

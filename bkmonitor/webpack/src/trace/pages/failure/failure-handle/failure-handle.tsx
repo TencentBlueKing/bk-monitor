@@ -47,7 +47,7 @@ export default defineComponent({
   emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll'],
   setup() {
     const { t } = useI18n();
-    const handleSearchRef = ref<HTMLDivElement>();
+    const handleSearchRef = ref(null);
     const username = ref<IUserName>({
       id: 'admin',
       name: t('我负责'),
@@ -70,8 +70,8 @@ export default defineComponent({
         <HandlerList onClick={this.getIUserName} />
         <HandleSearch
           ref='handleSearchRef'
-          topoNodeId={this.$props.topoNodeId}
           tagInfo={this.$props.tagInfo}
+          topoNodeId={this.$props.topoNodeId}
           username={this.username}
           onFilterSearch={(data: any) => this.$emit('filterSearch', data)}
           onNodeClick={(item: any) => this.$emit('nodeClick', item)}

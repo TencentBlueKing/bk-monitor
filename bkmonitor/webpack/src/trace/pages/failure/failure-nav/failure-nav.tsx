@@ -30,6 +30,7 @@ import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
 import { ITagInfoType } from '../types';
+
 import './failure-nav.scss';
 
 export default defineComponent({
@@ -48,7 +49,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const refNav = ref<HTMLDivElement>();
+    const refNav = ref(null);
     const tabList = [
       {
         name: 'FailureHandle',

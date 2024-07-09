@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Loading, Select } from 'bkui-vue';
 
@@ -65,7 +66,7 @@ interface IFormRule {
 }
 interface IFormData {
   formList: {
-    formChildProps?: { placeholder?: string };
+    formChildProps?: { placeholder?: string; options?: [] };
     formItemProps?: {
       help_text?: string;
       label?: string;
@@ -113,8 +114,9 @@ export default defineComponent({
   },
   emits: ['showChange', 'debugStatus', 'mealInfo', 'refresh'],
   setup(props, { emit }) {
-    const dynamicform = ref<HTMLDivElement>();
-    const httpCallBack = ref<HTMLDivElement>();
+    const { t } = useI18n();
+    const dynamicform = ref<InstanceType<typeof DynamicForm>>();
+    const httpCallBack = ref<InstanceType<typeof HttpCallBack>>();
     /* 动态表单 */
     const formData = ref<IFormData>({
       formList: [],
@@ -193,7 +195,7 @@ export default defineComponent({
             if (item.rules?.length) {
               formRules[item.key] = item.rules;
             } else if (item.formItemProps.required) {
-              formRules[item.key] = [{ message: this.$tc('必填项'), required: true, trigger: 'blur' }];
+              formRules[item.key] = [{ message: t('必填项'), required: true, trigger: 'blur' }];
             }
             formList.push(item);
           }
@@ -499,7 +501,6 @@ export default defineComponent({
                                 id={Number(item.id)}
                                 key={item.id}
                                 name={item.name}
-                                value={item.id}
                               ></Select.Option>
                             );
                           });
@@ -577,11 +578,10 @@ export default defineComponent({
         }}
         header-position='left'
         is-show={this.show}
-        loading={this.confirmLoading}
         mask-close={true}
         title={this.$t('手动处理')}
         onClosed={this.handleShowChange}
-        onValueChange={this.handleShowChange}
+        onValue-change={this.handleShowChange}
       ></Dialog>
     );
   },

@@ -36,6 +36,13 @@ import { getNodeAttrs } from './utils';
 
 import './failure-topo-tooltips.scss';
 
+type PopoverInstance = {
+  show: () => void;
+  hide: () => void;
+  close: () => void;
+  [key: string]: any;
+};
+
 export default defineComponent({
   props: {
     /** 显示查看资源的icon */
@@ -230,7 +237,7 @@ export default defineComponent({
         return;
       }
       activeEdge.value = null;
-      proxy.$refs?.[`popover_${activeNode.value.id}`]?.hide?.();
+      (proxy.$refs?.[`popover_${activeNode.value.id}`] as PopoverInstance)?.hide?.();
       activeNode.value = null;
     };
     /** 跳转详情 */

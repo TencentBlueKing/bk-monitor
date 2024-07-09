@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 @import '../scss/mixin.scss';
 
 .filter-input-wrap {
@@ -19,8 +20,8 @@
     .filter-icon {
       width: 24px !important;
       height: 30px !important;
-      line-height: 18px !important;
       margin-left: 4px;
+      line-height: 18px !important;
       color: #979ba5;
 
       @include icon-size(16px, false);
@@ -102,7 +103,6 @@
 }
 
 .filter-search-input-popover {
-    /* stylelint-disable-next-line declaration-no-important */
     padding: 0 !important;
 }
 
@@ -110,7 +110,6 @@
   z-index: 9999;
   display: flex;
 
-  /* stylelint-disable-next-line declaration-no-important */
   width: 100% !important;
   height: 280px; 
   overflow: auto;
@@ -147,7 +146,6 @@
       &-item {
         .edit-icon,
         .close-icon {
-          /* stylelint-disable-next-line declaration-no-important */
           display: none !important;
           color: #63656e;
           
@@ -177,7 +175,6 @@
 
         &:hover {
           .icon-monitor {
-            /* stylelint-disable-next-line declaration-no-important */
             display: flex !important;
           }
         }

@@ -46,7 +46,7 @@ export default defineComponent({
     },
   },
   setup() {
-    const sectionRef = ref<HTMLDivElement>();
+    const sectionRef = ref(null);
     const calculateTagCount = computed({
       get: () => {
         const domList = sectionRef.value?.children || [];

@@ -28,10 +28,10 @@ import { TranslateResult, useI18n } from 'vue-i18n';
 
 import { Select, Tag } from 'bkui-vue';
 
+import { incidentValidateQueryString } from '../../../../monitor-api/modules/incident';
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import { IIncident } from '../types';
 import FilterSearchInput from './filter-search-input';
-import { incidentValidateQueryString } from '../../../../monitor-api/modules/incident';
 
 import './filter-search-main.scss';
 
@@ -144,7 +144,7 @@ export default defineComponent({
       // 由于验证 queryString 不允许使用单引号，为提升体验，这里单双引号的空串都会进行替换。
       const regExp = new RegExp(`${t('通知人')}\\s*:\\s*(""|'')`, 'gi');
       return qs.replace(regExp, `NOT ${t('通知人')} : *`);
-    }
+    };
     const handleValidateQueryString = async () => {
       let validate = true;
       if (queryString.value?.length) {
@@ -157,7 +157,7 @@ export default defineComponent({
       }
       inputStatus.value = !validate ? 'error' : 'success';
       return validate;
-    }
+    };
     return {
       t,
       handleQueryStringChange,
@@ -215,10 +215,10 @@ export default defineComponent({
         </div>
         <div class='main-bot'>
           <FilterSearchInput
+            inputStatus={this.inputStatus}
             searchType={this.searchType}
             value={this.queryString}
             valueMap={this.valueMap}
-            inputStatus={this.inputStatus}
             onChange={this.handleQueryStringChange}
             onClear={this.handleQueryStringChange}
           />

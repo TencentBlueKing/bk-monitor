@@ -36,6 +36,7 @@ declare global {
     user_name: string;
     username: string;
     timezone: string;
+    bkchat_manage_url: string;
     uin: string;
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];

@@ -27,9 +27,9 @@ import { computed, defineComponent, inject, nextTick, onMounted, onUnmounted, Re
 import { useI18n } from 'vue-i18n';
 
 import { Arrow, Graph, ICombo, registerBehavior, registerCombo, registerEdge, registerNode, Tooltip } from '@antv/g6';
-import { feedbackIncidentRoot, incidentTopology } from '@api/modules/incident';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message, Popover, Slider } from 'bkui-vue';
+import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { debounce } from 'throttle-debounce';
 
 import { random } from '../../../../monitor-common/utils/utils.js';
@@ -1412,16 +1412,14 @@ export default defineComponent({
       if (isCancel) {
         (params as any).is_cancel = true;
       }
-      feedbackIncidentRoot(params)
-        .then(async () => {
-          Message({
-            theme: 'success',
-            message: t('取消反馈成功'),
-          });
-          await getGraphData();
-          renderGraph();
-        })
-        .catch(() => {});
+      feedbackIncidentRoot(params).then(async () => {
+        Message({
+          theme: 'success',
+          message: t('取消反馈成功'),
+        });
+        await getGraphData();
+        renderGraph();
+      });
     };
     /** 反馈新根因， 反馈后需要重新调用接口拉取数据 */
     const handleFeedBack = model => {

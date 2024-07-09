@@ -34,6 +34,7 @@ import { editIncident, incidentAlertAggregate } from '../../../../monitor-api/mo
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
 import { IIncident } from '../types';
+import { IAggregationRoot } from '../types';
 import { useIncidentInject } from '../utils';
 import FailureEditDialog from './failure-edit-dialog';
 
@@ -48,7 +49,7 @@ export default defineComponent({
     const isShowResolve = ref<boolean>(false);
     const router = useRouter();
     const listLoading = ref(false);
-    const alertAggregateData = ref([]);
+    const alertAggregateData = ref<IAggregationRoot[]>([]);
     const alertAggregateTotal = ref(0);
     const showTime = ref('00:00:00');
     const timer = ref(null);
@@ -95,9 +96,11 @@ export default defineComponent({
       })
         .then(res => {
           alertAggregateData.value = res;
-          alertAggregateTotal.value = Object.values(res || {}).reduce((prev, cur) => {
+          const list: IAggregationRoot[] = Object.values(res || {});
+          const total: any = list.reduce((prev, cur) => {
             return prev + cur?.count;
           }, 0);
+          alertAggregateTotal.value = total;
         })
         .catch(err => {
           console.log(err);
@@ -138,11 +141,10 @@ export default defineComponent({
     const renderStatusIcon = (status = 'closed') => {
       // 未恢复
       if (status === 'abnormal') {
-        const data = alertAggregateData.value.filter(item => item.id === 'ABNORMAL')[0] || {};
+        const data: IAggregationRoot = alertAggregateData.value.filter(item => item.id === 'ABNORMAL')[0];
         return (
           <Popover
             width='200'
-            // width='350'
             v-slots={{
               content: () => {
                 return statusTips();
@@ -235,7 +237,7 @@ export default defineComponent({
       getIncidentAlertAggregate();
     });
     onBeforeUnmount(() => {
-      clearInterval(timer);
+      clearInterval(timer.value);
     });
     const onEditSuccess = () => {
       setTimeout(() => {

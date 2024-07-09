@@ -63,7 +63,6 @@ export const localDataConvertToRequest = (data: IHeaderInfo[]) => {
   authValue && (res.authorize.authConfig = authValue);
   res.authorize.insecure_skip_verify = authorize.insecure_skip_verify ?? false;
   // body
-  //   console.log(body)
   res.body.dataType = body.type;
   const { type } = body;
   const bodyValue = body[body.type];

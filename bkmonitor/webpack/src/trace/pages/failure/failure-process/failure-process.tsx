@@ -28,9 +28,10 @@ import { computed, defineComponent, inject, nextTick, onMounted, Ref, ref, watch
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
-import { useIncidentInject } from '../utils';
+
 import { incidentOperationTypes } from '../../../../monitor-api/modules/incident';
 import { IIncident } from '../types';
+import { useIncidentInject } from '../utils';
 import { renderMap } from './process';
 
 import './failure-process.scss';
@@ -43,7 +44,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['choose-operation'],
+  emits: ['chooseOperation'],
   setup(props, { emit }) {
     const failureProcessListRef = ref<HTMLDivElement>();
     const renderStep = () => {};
@@ -88,22 +89,6 @@ export default defineComponent({
       return result;
     });
 
-    // const getIncidentOperations = () => {
-    //   incidentOperations({
-    //     incident_id: incidentDetailData.value?.incident_id
-    //   })
-    //     .then(res => {
-    //       res.forEach(item => {
-    //         const { operation_type, extra_info } = item;
-    //         item.str = replaceStr(typeTextMap[operation_type], extra_info);
-    //       });
-    //       operations.value = res;
-    //       // console.log(res);
-    //     })
-    //     .catch(err => {
-    //       console.log(err);
-    //     });
-    // };
     const getIncidentOperationTypes = () => {
       tableLoading.value = true;
       incidentOperationTypes({
@@ -136,7 +121,7 @@ export default defineComponent({
       e.stopPropagation();
       operations.value.filter(item => Object.assign(item, { isActive: item.id === operation.id }));
       operationId.value = operation.id;
-      emit('choose-operation', operation.id, operation);
+      emit('chooseOperation', operation.id, operation);
     };
     watch(
       () => searchOperations.value,
@@ -144,7 +129,7 @@ export default defineComponent({
         nextTick(() => {
           const ind = val.findIndex(item => item.isActive);
           if (ind !== -1) {
-            const element = failureProcessListRef.value.children[ind];
+            const element: any = failureProcessListRef.value.children[ind];
             failureProcessListRef.value.scrollTo({
               top: element.offsetTop - 55,
               behavior: 'smooth',
@@ -193,7 +178,7 @@ export default defineComponent({
             width='242'
             extCls='failure-process-search-setting-popover'
             arrow={false}
-            placement='bottom-center'
+            placement='bottom'
             theme='light'
             trigger='click'
             onAfterHidden={this.handleHide}
@@ -259,7 +244,7 @@ export default defineComponent({
                   <li
                     key={`${operation.operation_type}_${index}`}
                     class={['failure-process-item', { active: operation?.isActive }]}
-                    onClick={(e) => this.handleOperationId(e, operation)}
+                    onClick={e => this.handleOperationId(e, operation)}
                   >
                     <div class='failure-process-item-avatar'>
                       {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line'></span>}
@@ -282,7 +267,11 @@ export default defineComponent({
                         </span>
                       </p>
                       <p class='failure-process-item-flex'>
-                        {renderMap[operation.operation_type]?.(operation, this.incidentId, this.incidentDetail.bk_biz_id) || '--'}
+                        {renderMap[operation.operation_type]?.(
+                          operation,
+                          this.incidentId,
+                          this.incidentDetail.bk_biz_id
+                        ) || '--'}
                       </p>
                     </div>
                   </li>

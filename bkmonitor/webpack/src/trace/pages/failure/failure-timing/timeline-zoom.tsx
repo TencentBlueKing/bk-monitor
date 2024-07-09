@@ -99,17 +99,17 @@ export default defineComponent({
     const showLegend = ref<boolean>(localStorage.getItem('showTimeLegend') === 'true');
     const showMinimap = ref<boolean>(false);
     const zoomValue = ref<number>(0);
-    const legendRef = ref<HTMLDivElement>();
-    const minimapRef = ref<HTMLDivElement>();
+    const legendRef = ref(null);
+    const minimapRef = ref(null);
     const mapContentWidth = ref<number>(240);
     const isDragging = ref<boolean>(false);
     const selectionLeft = ref<number>(0);
     const selectionWidth = ref<number>(240);
-    const canvasRef = ref<HTMLDivElement>();
-    const ctx = ref<HTMLDivElement>();
+    const canvasRef = ref(null);
+    const ctx = ref(null);
     const step = ref<number>(0);
     const beginTick = ref<number>(0);
-    const selectionRef = ref<HTMLDivElement>();
+    const selectionRef = ref(null);
     const legendFn = () => (
       <div class='failure-topo-graph-legend-content'>
         <ul class='node-type'>
@@ -237,7 +237,7 @@ export default defineComponent({
       handleUpdateZoom(0);
     };
     function getTransformX(elem) {
-      const style = window.getComputedStyle(elem);
+      const style: any = window.getComputedStyle(elem);
       const matrix = style.transform || style.webkitTransform || style.mozTransform;
       if (matrix === 'none' || !matrix) return 0;
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
@@ -379,7 +379,6 @@ export default defineComponent({
           arrow={false}
           boundary='parent'
           isShow={this.showLegend}
-          minWidth={162}
           offset={{ crossAxis: 90, mainAxis: 10 }}
           placement='top'
           renderType='auto'
@@ -429,7 +428,6 @@ export default defineComponent({
           arrow={false}
           boundary='parent'
           isShow={this.showMinimap}
-          minWidth={242}
           offset={{ crossAxis: 70, mainAxis: 10 }}
           placement='top'
           renderType='auto'

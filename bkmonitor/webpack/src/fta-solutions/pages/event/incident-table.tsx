@@ -35,15 +35,34 @@ import { transformLogUrlQuery } from '../../../monitor-pc/utils';
 import { handleToAlertList } from './event-detail/action-detail';
 import { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { getStatusInfo } from './event-detail/type';
-import { eventPanelType, IEventItem, IPagination, SearchType } from './typings/event';
+import { eventPanelType, IPagination, SearchType } from './typings/event';
 
 import './incident-table.scss';
 
 // const alertStoreKey = '__ALERT_EVENT_COLUMN__';
 // const actionStoreKey = '__ACTION_EVENT_COLUMN__';
 type TableSizeType = 'large' | 'medium' | 'small';
+
+interface IncidentItem {
+  labels: { key: string; value: string }[];
+  assignees: string[];
+  incident_reason: string;
+  bk_biz_id: string;
+  id: string;
+  level: string;
+  duration: string;
+  begin_time: string;
+  event_time: string;
+  alert_count: number;
+  severity: number;
+  create_time: number | string;
+  end_time: number | string;
+  last_time: string;
+  status: string;
+}
+
 interface IEventTableProps {
-  tableData: IEventItem[];
+  tableData: IncidentItem[];
   pagination: IPagination;
   loading?: boolean;
   searchType: SearchType;
@@ -76,18 +95,18 @@ interface IEventTableEvent {
   onLimitChange: number;
   onShowDetail?: { id: string; type: TSliderType };
   onSelectChange: string[];
-  onAlertConfirm?: IEventItem;
-  onQuickShield?: IEventItem;
+  onAlertConfirm?: IncidentItem;
+  onQuickShield?: IncidentItem;
   onSortChange: string;
   onBatchSet: string;
-  onManualProcess?: IEventItem;
-  onChatGroup?: IEventItem;
-  onAlarmDispatch?: IEventItem;
+  onManualProcess?: IncidentItem;
+  onChatGroup?: IncidentItem;
+  onAlarmDispatch?: IncidentItem;
 }
 
 export interface IShowDetail {
   id: string;
-  bizId: number;
+  bizId: string;
   type: TSliderType;
   activeTab?: string;
 }
@@ -95,7 +114,7 @@ export interface IShowDetail {
   // components: { Popover, Pagination, Checkbox }
 })
 export default class IncidentTable extends tsc<IEventTableProps, IEventTableEvent> {
-  @Prop({ required: true }) tableData: IEventItem[];
+  @Prop({ required: true }) tableData: IncidentItem[];
   @Prop({ required: true }) pagination: IPagination;
   @Prop({ default: false }) loading: boolean;
   @Prop({ default: () => [] }) bizIds: number[];
@@ -103,7 +122,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   @Prop({ required: true, type: String }) searchType: SearchType;
   @Prop({ type: Array, default: () => [] }) selectedList: string[];
 
-  @Ref('table') tableRef: Table;
+  @Ref('table') tableRef: any;
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
   eventStatusMap: Record<string, IEventStatusMap> = {};
@@ -131,7 +150,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   opetateRow = null;
   enableCreateChatGroup = false;
   metricPopoverIns = null;
-  handleMetricMouseenter(e: MouseEvent, data: string[]) {
+  handleMetricMouseenter(e: MouseEvent, data: { key: string; value: string }[] | string[]) {
     this.metricPopoverIns?.hide?.(0);
     const { clientWidth, scrollWidth } = e.target as HTMLDivElement;
     if (scrollWidth > clientWidth) {
@@ -162,7 +181,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 160,
             minWidth: 160,
-            fixed: 'left'
+            fixed: 'left',
           },
         },
         {
@@ -205,7 +224,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 120,
             minWidth: 120,
-            formatter: (row: IEventItem) => {
+            formatter: (row: IncidentItem) => {
               return (
                 <div class='tag-column-wrap'>
                   <div
@@ -230,7 +249,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             width: 174,
             minWidth: 150,
             // sortable: 'curstom',
-            formatter: (row: IEventItem) => {
+            formatter: (row: IncidentItem) => {
               return (
                 <span>
                   {this.formatterTime(row.begin_time)} / <br></br>
@@ -249,7 +268,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             width: 100,
             minWidth: 100,
             sortable: 'curstom',
-            formatter: (row: IEventItem) => {
+            formatter: (row: IncidentItem) => {
               return row.duration || '--';
             },
           },
@@ -262,7 +281,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 150,
             minWidth: 150,
-            formatter: (row: IEventItem) => {
+            formatter: (row: IncidentItem) => {
               return (
                 (row?.assignees || []).map(name => (
                   <span
@@ -284,7 +303,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 240,
             showOverflowTooltip: true,
-            formatter: (row: IEventItem) => row.incident_reason || '--', // row.content.text || '--'
+            formatter: (row: IncidentItem) => row.incident_reason || '--', // row.content.text || '--'
           },
         },
       ] as IColumnItem[]
@@ -335,11 +354,13 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         color: '#14A568',
         bgColor: '#E4FAF0',
         name: this.$t('已恢复'),
+        icon: '',
       },
       CLOSED: {
         color: '#63656E',
         bgColor: '#F0F1F5',
         name: this.$t('已关闭'),
+        icon: '',
       },
     };
     this.extendInfoMap = {
@@ -392,7 +413,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
    * @return {*}
    */
   @Emit('showDetail')
-  handleShowDetail(item: IEventItem, activeTab = ''): IShowDetail {
+  handleShowDetail(item: IncidentItem, activeTab = ''): IShowDetail {
     const typeMap = {
       alert: 'eventDetail',
       action: 'handleDetail',
@@ -419,7 +440,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   }
 
   @Emit('selectChange')
-  handleSelectChange(selectList: IEventItem[]) {
+  handleSelectChange(selectList: IncidentItem[]) {
     this.selectedCount = selectList?.length || 0;
     return selectList.map(item => item.id);
   }
@@ -542,7 +563,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     return '--';
   }
   // 跳转关联事件
-  handleClickEventCount(item: IEventItem) {
+  handleClickEventCount(item: IncidentItem) {
     this.handleShowDetail(item, 'relatedEvents');
   }
   /**
@@ -550,14 +571,14 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
    * @param {string} id
    * @return {*}
    */
-  handleClickActionCount(type: 'defense' | 'trigger', row: IEventItem) {
+  handleClickActionCount(type: 'defense' | 'trigger', row: IncidentItem) {
     // const data = { queryString: `action_id : ${id}`, timeRange }
     const { id, create_time: createTime, end_time: endTime } = row;
     handleToAlertList(
       type,
       {
-        create_time: createTime,
-        end_time: endTime,
+        create_time: createTime as number,
+        end_time: endTime as number,
         id,
       },
       row.bk_biz_id || this.$store.getters.bizId
@@ -636,7 +657,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         prop={column.id}
         {...{ props: column.props }}
         scopedSlots={{
-          default: ({ row }: { row: IEventItem }) => (
+          default: ({ row }: { row: IncidentItem }) => (
             <span
               class={`event-status status-${row.severity} id-column ${row.level}_id`}
               v-bk-overflow-tips
@@ -702,7 +723,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         prop={column.id}
         {...{ props: column.props }}
         scopedSlots={{
-          default: ({ row }: { row: IEventItem }) =>
+          default: ({ row }: { row: IncidentItem }) =>
             row.alert_count > -1 ? (
               <bk-button
                 text={true}
@@ -726,11 +747,11 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
 
         switch (column.id) {
           case 'id':
-            break;
+            return this.handleRenderIdColumn(column);
           case 'status':
-            break;
+            return this.handleRenderStatus(column);
           case 'alert_count':
-            break;
+            return this.handleRenderAlarmCount(column);
           default: {
             return this.handleRenderDefaultColumn(column);
           }

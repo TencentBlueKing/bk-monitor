@@ -169,7 +169,7 @@ export default defineComponent({
                       </div>
                     ),
                   }}
-                  type='info'
+                  theme='info'
                 ></Alert>
                 {this.infoContent.length
                   ? [
@@ -216,7 +216,7 @@ export default defineComponent({
         is-show={this.show}
         title={this.$t('告警确认')}
         onClosed={this.handleShowChange}
-        onValueChange={this.handleShowChange}
+        onValue-change={this.handleShowChange}
       ></Dialog>
     );
   },

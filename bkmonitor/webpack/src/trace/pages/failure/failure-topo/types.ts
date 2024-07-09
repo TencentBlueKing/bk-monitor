@@ -68,6 +68,10 @@ export interface IRank {
   rank_id: number;
   rank_name: string;
   rank_alias: string;
+  nodes: ITopoNode[];
+  anomaly_count: number;
+  total: number;
+  is_sub_rank: boolean;
   rank_category: {
     category_alias: string;
     category_id: number;
@@ -110,7 +114,7 @@ export interface ITopoCombo extends ModelConfig {
 
 export interface ITopoData {
   combos: ITopoCombo[];
-  edges: ITopoEdge[];
+  edges: IEdge[];
   nodes: ITopoNode[];
 }
 

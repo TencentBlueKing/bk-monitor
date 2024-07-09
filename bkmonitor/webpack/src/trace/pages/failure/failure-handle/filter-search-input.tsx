@@ -133,21 +133,21 @@ export default defineComponent({
     const textTypeList = ['field', 'method', 'value', 'condition'];
     const { t } = useI18n();
     const inputValue = ref<string>('');
-    const focusData = ref({});
+    const focusData = ref<IFocusData>({});
     const panelWidth = ref<number>(700);
     const blurInPanel = ref<boolean>(false);
-    const popoverInstance = ref<HTMLDivElement>(null);
-    const popoverMenuInstance = ref<HTMLDivElement>(null);
-    const filterPanelRef = ref<HTMLDivElement>(null);
-    const filterSearchRef = ref<HTMLDivElement>(null);
-    const inputRef = ref<HTMLDivElement>(null);
+    const popoverInstance = ref(null);
+    const popoverMenuInstance = ref(null);
+    const filterPanelRef = ref(null);
+    const filterSearchRef = ref(null);
+    const inputRef = ref(null);
     const isEn = ref(docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en');
     const historyList = ref([]);
     const favoriteList = ref([]);
     const isManualInput = ref<boolean>(false);
-    const menuPanelRef = ref<string>('');
-    const favoriteInputRef = ref<string>('');
-    const preTextRef = ref<string>('');
+    const menuPanelRef = ref(null);
+    const favoriteInputRef = ref(null);
+    const preTextRef = ref(null);
     const textListArr = ref([]);
     /* 添加可被移除的事件监听器 */
     const mouseDownController = ref(null);
@@ -446,7 +446,6 @@ export default defineComponent({
       return isEn.value ? list.map(item => ({ ...item, name: item.id })) : list;
     });
     const menuList = computed(() => {
-      // console.log(focusData.value, 'focusData.value.show');
       if (focusData.value.show === 'condition') return conditionList;
       if (focusData.value.show === 'method') return methodList;
       if (focusData.value.show === 'value') return props.valueMap?.[focusData.value.filedId] || [];
@@ -496,7 +495,6 @@ export default defineComponent({
         setTimeout(() => {
           const offset = inputRef.value.selectionStart;
           const textList = handleGetTextList(valueText);
-          console.log(textList, 'textList');
           textListArr.value = textList;
           const filterItemIndex = textList.findIndex(item => {
             return offset >= item.startOffset && offset <= item.endOffset;
@@ -558,7 +556,6 @@ export default defineComponent({
                 }
               }
             } else {
-              console.log(filterItem.dataType, 'filterItem');
               const list = this[`${filterItem.dataType}List`] as IListItem[];
               const item = list.find(
                 item => item.id.trim() === filterItem.text || item.name.toString().trim() === filterItem.text
@@ -636,22 +633,43 @@ export default defineComponent({
       panelWidth.value = filterSearchRef.value.getBoundingClientRect().width - 64;
       if (!popoverInstance.value) {
         popoverInstance.value = $bkPopover({
+          maxWidth: 800,
+          always: false,
           target: filterSearchRef.value,
           content: filterPanelRef.value,
           arrow: false,
-          trigger: 'click',
+          trigger: 'manual',
           placement: 'bottom',
           theme: 'light common-monitor',
+          isShow: false,
+          disabled: false,
           width: 700,
+          height: 'auto',
+          maxHeight: '300',
+          allowHtml: true,
+          renderType: 'auto',
+          padding: 0,
+          offset: 0,
+          zIndex: 9999,
+          disableTeleport: false,
+          autoPlacement: false,
+          autoVisibility: false,
+          disableOutsideClick: false,
+          disableTransform: false,
+          modifiers: [],
+          popoverDelay: 0,
           extCls: 'filter-search-input-popover',
-          onShow: () => {
-            typeof onShown === 'function' && onShown();
-          },
-          onAfterHidden: () => {
-            popoverInstance.value.destroy();
-            popoverInstance.value = null;
-          },
+          componentEventDelay: 0,
+          forceClickoutside: false,
+          immediate: false,
         });
+        popoverInstance.value.onShow = () => {
+          typeof onShown === 'function' && onShown();
+        };
+        popoverInstance.value.onAfterHidden = () => {
+          popoverInstance.value.destroy();
+          popoverInstance.value = null;
+        };
       } else {
         popoverInstance.value.content = filterPanelRef.value;
         popoverInstance.value.onShow = () => {
@@ -694,15 +712,35 @@ export default defineComponent({
         const offsetY = -2;
         if (!popoverMenuInstance.value) {
           popoverInstance.value = $bkPopover({
+            maxWidth: 400,
+            always: false,
             target: filterSearchRef.value,
             content: menuPanelRef.value,
             arrow: false,
             trigger: 'manual',
             placement: 'bottom',
-            hideOnClick: false,
-            interactive: true,
             theme: 'light common-monitor',
-            offset: `${offsetX}, ${offsetY}`,
+            isShow: false,
+            disabled: false,
+            width: 300,
+            height: 'auto',
+            maxHeight: '300',
+            allowHtml: true,
+            renderType: 'auto',
+            padding: 0,
+            offset: { mainAxis: offsetX, crossAxis: offsetY },
+            zIndex: 9999,
+            disableTeleport: false,
+            autoPlacement: false,
+            autoVisibility: false,
+            disableOutsideClick: false,
+            disableTransform: false,
+            modifiers: [],
+            popoverDelay: 0,
+            extCls: 'filter-menu-popover',
+            componentEventDelay: 0,
+            forceClickoutside: false,
+            immediate: false,
           });
         } else {
           popoverMenuInstance.value.set({

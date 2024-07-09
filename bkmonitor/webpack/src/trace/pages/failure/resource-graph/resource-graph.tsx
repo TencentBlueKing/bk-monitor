@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   Arrow,
@@ -68,6 +69,7 @@ export default defineComponent({
   },
   emits: ['toDetail'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const graphRef = ref<HTMLElement>(null);
     const graphData = ref<ITopoData>({
       nodes: [],
@@ -846,7 +848,6 @@ export default defineComponent({
                 graph.clearItemStates(node, ['dark', 'highlight']);
               });
             }
-            console.log(name, value, 'setstate');
           },
         },
         'rect'
@@ -872,7 +873,6 @@ export default defineComponent({
     const registerCustomLayout = () => {
       registerLayout('resource-layout', {
         execute() {
-          // console.info('execute', this);
           const { nodes, combos } = this;
           const nodeBegin = 80;
           const { height } = document.querySelector('.resource-graph').getBoundingClientRect();
@@ -972,7 +972,6 @@ export default defineComponent({
         const xBegin = 100; /** 节点的宽度为46 名称为120 */
         const x = comboBBox.x + 65;
         const y = comboBBox.y + comboBBox.height / 2 - 12; /** 节点存在文字展示的问题需要减少一点偏移 */
-        console.log(x, y, node);
         graph.updateItem(node, {
           x: x + index * xBegin,
           y,
@@ -1303,7 +1302,6 @@ export default defineComponent({
       /** 打开时会触发导致动画消失 */
       if (props.resourceNodeId) {
         const node = graph.findById(props.resourceNodeId);
-        console.log(props.resourceNodeId, node);
 
         node && graph.setItemState(node, 'running', true);
       }

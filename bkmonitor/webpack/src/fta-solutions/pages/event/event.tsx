@@ -461,7 +461,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   get commonFilterDataIdMap() {
     const idMap = {};
     this.commonFilterData.forEach(item => {
-      idMap[item.id] = [item.id].concat(item.children.map(child => child.id));
+      idMap[item.id] = [item.id].concat(item.children?.map?.(child => child.id) || []);
     });
     return idMap;
   }
@@ -1222,11 +1222,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       filterDataPromise.push(this.handleGetSearchFaultList(true));
     }
     const [{ overview }, { overview: actionOverview }, faultOverviewData] = await Promise.all(filterDataPromise).catch(
-      () => [{ overview: [] }, { overview: [] }]
+      () => [{ overview: [] }, { overview: [] }, { overview: [] }]
     );
-    const faultOverview = faultOverviewData?.overview;
+    const faultOverview = faultOverviewData?.overview ?? {};
     this.commonFilterData = [overview, enable_aiops_incident ? { ...faultOverview } : '', { ...actionOverview }].filter(
-      item => !!item
+      item => !!item && item.id
     );
     this.commonFilterLoading = false;
     if (!this.activeFilterId) {
@@ -1240,7 +1240,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           faultOverview,
           ...overview.children,
           ...actionOverview.children,
-          ...[enable_aiops_incident ? faultOverview.concat(faultOverview.children) : []],
+          ...[enable_aiops_incident && faultOverview.children ? faultOverview.children : []],
         ].find(item => item.id === this.activeFilterId)?.name || '';
       if (!this.activeFilterName) {
         this.activeFilterId = overview.id;

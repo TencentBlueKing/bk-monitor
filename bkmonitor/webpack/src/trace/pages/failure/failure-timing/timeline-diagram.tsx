@@ -451,7 +451,11 @@ export default defineComponent({
     watch(
       () => tickArr.value,
       val => {
-        tickArr.value = val.sort((a: string, b: string) => new Date(a) - new Date(b));
+        tickArr.value = val.sort((a: string, b: string) => {
+          const aTime: any = new Date(a);
+          const bTime: any = new Date(b);
+          return aTime - bTime;
+        });
         const len = tickArr.value.length - 1;
         len > 0 && handleTick();
       },
@@ -474,7 +478,7 @@ export default defineComponent({
         circleOnClick([val]);
         if (percentage.value !== 0) {
           nextTick(() => {
-            const activeElements = processRef.value.querySelectorAll('.active');
+            const activeElements: any = processRef.value.querySelectorAll('.active');
             const num = -activeElements[0].offsetLeft + 100;
             const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
             mainLeft.value = num > max ? num : max;
@@ -678,7 +682,7 @@ export default defineComponent({
     /** 绘制流转的圆 */
     const renderCircle = (isMore = false, ele, index: number) => {
       const step = mainWidth.value / (segmentDuration.value * showTickArr.value.length);
-      const daysDiff = ele[0].create_time * 1000 - showTickArr.value[index];
+      const daysDiff = ele[0].create_time * 1000 - Number(showTickArr.value[index]);
       const offset = daysDiff * step;
       const distance = offset + tickWidth.value * index + tickWidth.value / 2;
       const number = ele.length;
@@ -822,7 +826,7 @@ export default defineComponent({
       emit('refresh');
     };
     function getTransformX(elem) {
-      const style = window.getComputedStyle(elem);
+      const style: any = window.getComputedStyle(elem);
       const matrix = style.transform || style.webkitTransform || style.mozTransform;
       if (matrix === 'none' || !matrix) return 0;
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
@@ -834,7 +838,7 @@ export default defineComponent({
       }
       isDragging.value = true;
       const startX = event.clientX;
-      const selection = timeLineMainRef.value;
+      const selection: any = timeLineMainRef.value;
       const startTransform = getTransformX(selection);
 
       const onMouseMove = (e: MouseEvent) => {
@@ -845,9 +849,7 @@ export default defineComponent({
         const newPos = Math.max(-maxTransformX, Math.min(maxTransformX, newTransformX));
         const ratio = newPos / maxTransformX;
         mainLeft.value = newPos > 0 ? 0 : newPos;
-        // console.log(newPos, newTransformX, deltaX, maxTransformX, ratio);
         mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
-        // emit('move', ratio);
       };
 
       const onMouseUp = () => {
@@ -925,10 +927,11 @@ export default defineComponent({
               }}
               class={['node-span', item.alert_example?.status]}
               onClick={() => {
-                this.currentSpan = {
+                const curr: any = {
                   ...alert_example,
                   ...{ is_feedback_root, is_root, incident_id: this.incidentDetail?.incident_id },
                 };
+                this.currentSpan = curr;
               }}
             >
               {hasRoot ? <span class={['root-text', ...style]}>{this.t('根因')}</span> : ''}

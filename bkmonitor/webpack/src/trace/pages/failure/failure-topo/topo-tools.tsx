@@ -26,8 +26,8 @@
 import { defineComponent, onMounted, PropType, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { incidentTopologyMenu } from '@api/modules/incident';
-import { random } from '@common/utils/utils';
+import { incidentTopologyMenu } from 'monitor-api/modules/incident';
+import { random } from 'monitor-common/utils/utils';
 
 import { useIncidentInject } from '../utils';
 import AggregationSelect from './aggregation-select';

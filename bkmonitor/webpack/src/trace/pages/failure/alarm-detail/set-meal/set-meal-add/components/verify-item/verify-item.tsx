@@ -39,7 +39,6 @@ export default defineComponent({
     });
   },
   render() {
-    console.log('verify-item-wrap', this.$slots, this.$slots.default);
     return (
       <div class={['verify-item-wrap', { 'verify-item-is-error': !!this.errorMsg }]}>
         {this.$slots.default()}

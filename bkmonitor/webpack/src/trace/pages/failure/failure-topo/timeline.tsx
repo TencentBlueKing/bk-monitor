@@ -215,7 +215,7 @@ export default defineComponent({
           disabled={this.isPlay}
           disabledDate={this.handleDisabledDate}
           type='datetime'
-          onPickSuccess={this.handlePickSuccess}
+          onPick-success={this.handlePickSuccess}
         ></DatePicker>
 
         <Dropdown

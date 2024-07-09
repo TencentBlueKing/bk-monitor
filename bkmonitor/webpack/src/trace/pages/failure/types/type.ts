@@ -538,7 +538,7 @@ export interface IDetail {
   trigger?: string;
   strategy?: {
     name?: string;
-    id?: number;
+    id?: number | string;
   };
 }
 export interface IAlertObj {

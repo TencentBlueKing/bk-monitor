@@ -28,6 +28,13 @@ import { computed, defineComponent, PropType, ref } from 'vue';
 import { Input } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 
+type PopoverInstance = {
+  show: () => void;
+  hide: () => void;
+  close: () => void;
+  [key: string]: any;
+};
+
 import './auto-input.scss';
 
 interface ITipsList {
@@ -56,9 +63,7 @@ export default defineComponent({
   },
   emits: ['change', 'input', 'update:modelValue'],
   setup(props, { emit }) {
-    const popoverInstance = ref<HTMLDivElement>();
-    const offsetX = ref(0);
-    const offsetY = ref(0);
+    const popoverInstance = ref<PopoverInstance>();
     const keyword = ref('');
     const oldVal = ref('');
     const startIndex = ref(0);
@@ -104,7 +109,6 @@ export default defineComponent({
     // 获取光标的位置
     const getIndex = (newVal: string, oldVal: string): number => {
       const tempStr = newVal.length > oldVal.length ? newVal : oldVal;
-      console.log(newVal, oldVal, 'old');
       let diffIndex = 0;
       tempStr.split('').find((item, idx) => {
         diffIndex = idx;
@@ -142,36 +146,47 @@ export default defineComponent({
 
     // 提示列表显示方法
     const handlePopoverShow = () => {
-      console.log('handlePopoverShow', popoverInstance.value);
       if (!popoverInstance.value) {
         popoverInstance.value = $bkPopover({
-          target: inputEl.value,
-          content: tipsListEl.value,
+          maxWidth: 520,
+          always: false,
+          target: inputEl.value as HTMLElement,
+          content: tipsListEl.value as HTMLElement,
           arrow: false,
-          flip: false,
-          flipBehavior: 'bottom',
           trigger: 'manual',
           placement: 'top-start',
-          theme: 'light auto-input',
-          maxWidth: 520,
-          duration: [200, 0],
-          offset: [offsetX.value, offsetY.value],
-        });
-      } else {
-        // 更新提示的位置
-        popoverInstance.value.set({
-          offset: `${offsetX.value}, ${offsetY.value}`,
+          theme: 'light',
+          isShow: false,
+          disabled: false,
+          width: 'auto',
+          height: 'auto',
+          maxHeight: '300',
+          allowHtml: true,
+          renderType: 'auto',
+          padding: 0,
+          offset: 0,
+          zIndex: 9999,
+          disableTeleport: false,
+          autoPlacement: false,
+          autoVisibility: false,
+          disableOutsideClick: false,
+          disableTransform: false,
+          modifiers: [],
+          popoverDelay: 0,
+          extCls: 'auto-input-popover',
+          componentEventDelay: 0,
+          forceClickoutside: false,
+          immediate: false,
         });
       }
       // 显示
-      popoverInstance.value.show(100);
+      popoverInstance.value.show();
     };
 
     // 隐藏
     const handleDestroyPopover = (): void => {
       if (popoverInstance.value) {
-        popoverInstance.value.hide(0);
-        popoverInstance.value.destroy?.();
+        popoverInstance.value.hide();
         popoverInstance.value = null;
       }
     };

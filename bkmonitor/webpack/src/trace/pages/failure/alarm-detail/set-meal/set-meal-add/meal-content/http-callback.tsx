@@ -474,7 +474,6 @@ export default defineComponent({
      */
     const tplAuthorization = () => {
       const data = curHeaderData.value[curHeaderData.value.type];
-      console.log(curHeaderData.value.type, '......');
       const radioChange = () => {
         emitLocalHeaderInfo();
       };
@@ -491,7 +490,6 @@ export default defineComponent({
                 disabled={!props.isEdit}
                 label={item.id}
                 name={item.id}
-                value={item.id}
               >
                 {item.name}
               </Radio>
@@ -546,7 +544,7 @@ export default defineComponent({
      * @return {*}
      */
     const tplParams = () => {
-      const data = curHeaderData.value.value;
+      const data = curHeaderData.value.value as IParamsValueItem[];
       const handleDel = index => {
         (data as IParamsValueItem[]).splice(index, 1);
         emitLocalHeaderInfo();
@@ -652,7 +650,6 @@ export default defineComponent({
                   key={item.id}
                   disabled={!props.isEdit}
                   label={item.id}
-                  value={item.id}
                 >
                   <span>{item.name}</span>
                 </Radio>
@@ -666,7 +663,7 @@ export default defineComponent({
                 clearable={false}
                 disabled={!props.isEdit}
                 popover-min-width={100}
-                onSelected={() => handleRawBlur(data.type, data.content)}
+                onSelect={() => handleRawBlur(data.type, data.content)}
               >
                 {rowTypeList.map(option => (
                   <Select.Option
@@ -736,7 +733,7 @@ export default defineComponent({
                 item,
                 <Switcher
                   class='switch'
-                  vModel={valueKeyMap[item.id]}
+                  v-model={valueKeyMap[item.id]}
                   disabled={!props.isEdit}
                   size='small'
                   theme='primary'
@@ -753,7 +750,6 @@ export default defineComponent({
                   v-bk-tooltips={{ content: t('开启周期回调'), disabled: (valueKeyMap as ISetingValue).needPoll }}
                   behavior='simplicity'
                   disabled={!(valueKeyMap as ISetingValue).needPoll || !props.isEdit}
-                  showControls={false}
                   type='number'
                   onInput={setingChange}
                 />
@@ -763,10 +759,9 @@ export default defineComponent({
               item,
               <Input
                 class='input'
-                vModel={valueKeyMap[item.id]}
+                v-model={valueKeyMap[item.id]}
                 behavior='simplicity'
                 disabled={!props.isEdit}
-                showControls={false}
                 type='number'
                 onInput={setingChange}
               />
@@ -934,7 +929,6 @@ export default defineComponent({
                       class='input-inline'
                       v-model={this.data.timeout}
                       behavior={'simplicity'}
-                      showControls={false}
                       type={'number'}
                       on-change={() => this.emitLocalHeaderInfo()}
                     ></Input>
