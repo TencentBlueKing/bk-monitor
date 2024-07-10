@@ -67,3 +67,6 @@ OP_TRANSFORMER = {
     OperatorEnum.IS_TRUE["operator"]: transform_bool_addition,
     OperatorEnum.IS_FALSE["operator"]: transform_bool_addition,
 }
+
+# 检索选项历史记录API返回数据数量大小
+SEARCH_OPTION_HISTORY_NUM = 10
