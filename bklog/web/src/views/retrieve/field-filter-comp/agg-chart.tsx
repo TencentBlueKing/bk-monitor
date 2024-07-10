@@ -40,6 +40,8 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Boolean, default: false }) parentExpand: boolean;
   @Prop({ type: Object, required: true }) retrieveParams: any;
   @Prop({ type: String, required: true }) reQueryAggChart: string;
+  @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
+  @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
 
   @Inject('addFilterCondition') addFilterCondition;
 
@@ -68,19 +70,41 @@ export default class AggChart extends tsc<object> {
   get isUnionSearch() {
     return this.$store.getters.isUnionSearch;
   }
+  get topFiveList() {
+    const totalList = Object.entries(this.statisticalFieldData);
+    totalList.sort((a, b) => Number(b[1]) - Number(a[1]));
+    totalList.forEach(item => {
+      const markList = item[0].toString().match(/(<mark>).*?(<\/mark>)/g) || [];
+      if (markList.length) {
+        item[0] = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
+      }
+    });
+    this.shouldShowMore = totalList.length > 5;
+    return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
+  }
+  get showFiveList() {
+    return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
+  }
+  get showValidCount() {
+    return this.isFrontStatistics ? this.statisticalFieldData.__validCount : this.fieldValueData.field_count;
+  }
+  get showTotalCount() {
+    return this.isFrontStatistics ? this.statisticalFieldData.__totalCount : this.fieldValueData.total_count;
+  }
 
   mounted() {
-    this.queryFieldFetchTopList();
+    if (!this.isFrontStatistics) this.queryFieldFetchTopList();
   }
 
   @Watch('reQueryAggChart')
   watchPicker() {
+    if (this.isFrontStatistics) return;
     this.queryFieldFetchTopList(this.limitSize);
   }
 
   // 计算百分比
   computePercent(count) {
-    const percentageNum = count / this.fieldValueData.field_count;
+    const percentageNum = count / this.showTotalCount;
     // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
     const showPercentageStr =
       percentageNum >= 0.01 ? Math.round(+percentageNum.toFixed(2) * 100) : (percentageNum * 100).toFixed(2);
@@ -142,13 +166,13 @@ export default class AggChart extends tsc<object> {
       >
         <div class='title'>
           <i18n path='{0}/{1}条记录中数量排名前 {2} 的数据值'>
-            <span>{this.fieldValueData.field_count}</span>
-            <span>{this.fieldValueData.total_count}</span>
+            <span>{this.showValidCount}</span>
+            <span>{this.showTotalCount}</span>
             <span>{this.limitSize}</span>
           </i18n>
         </div>
         <ul class='chart-list'>
-          {this.fieldValueData.values.map(item => (
+          {this.showFiveList.map(item => (
             <li class='chart-item'>
               <div class='chart-content'>
                 <div class='text-container'>
@@ -188,6 +212,7 @@ export default class AggChart extends tsc<object> {
                   <span
                     onClick={() => {
                       this.showAllList = !this.showAllList;
+                      if (this.isFrontStatistics) return;
                       this.queryFieldFetchTopList(100);
                     }}
                   >

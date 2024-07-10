@@ -156,6 +156,7 @@
                 </div>
                 <field-filter
                   ref="fieldFilterRef"
+                  :index-set-item="indexSetItem"
                   :retrieve-params="retrieveParams"
                   :sort-list="sortList"
                   :field-alias-map="fieldAliasMap"
