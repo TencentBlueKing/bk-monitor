@@ -1230,11 +1230,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const faultOverview = faultOverviewData?.overview ?? {};
     /** 是否打开故障根因 */
     const { enable_aiops_incident } = faultOverviewData as any;
-    this.commonFilterData = [
-      overview,
-      !enable_aiops_incident ? { ...faultOverview } : '',
-      { ...actionOverview },
-    ].filter(item => !!item && item.id);
+    this.commonFilterData = [overview, enable_aiops_incident ? { ...faultOverview } : '', { ...actionOverview }].filter(
+      item => !!item && item.id
+    );
     this.commonFilterLoading = false;
     if (!this.activeFilterId) {
       this.activeFilterId = overview.id;
