@@ -103,7 +103,7 @@ def get_toggle_data():
         # 超过此长度删除部分日志
         "REAL_TIME_LOG_SHIFT_LENGTH": "10000",
         # 字段分析白名单
-        FIELD_ANALYSIS_CONFIG: FeatureToggleObject.toggle(FIELD_ANALYSIS_CONFIG).feature_config,
+        "FIELD_ANALYSIS_CONFIG": FeatureToggleObject.toggle(FIELD_ANALYSIS_CONFIG).feature_config,
         # 特性开关
         "FEATURE_TOGGLE": json.dumps({toggle.name: toggle.status for toggle in toggle_list}),
         "FEATURE_TOGGLE_WHITE_LIST": json.dumps(
