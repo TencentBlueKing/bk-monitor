@@ -196,10 +196,23 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 未开启白名单时 是否由前端来统计总数 */
   get isFrontStatistics() {
-    const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
-    const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
-    const scenarioID = this.indexSetItem?.scenario_id;
-    return !(scenarioIdWhiteList.includes(scenarioID) && fieldAnalysisConfig.includes(Number(this.bkBizId)));
+    let isFront = true;
+    const { field_analysis_config: fieldAnalysisToggle } = (window as any).FEATURE_TOGGLE;
+    switch (fieldAnalysisToggle) {
+      case 'on':
+        isFront = false;
+        break;
+      case 'off':
+        isFront = true;
+        break;
+      default:
+        const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
+        const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
+        const scenarioID = this.indexSetItem?.scenario_id;
+        isFront = !(scenarioIdWhiteList.includes(scenarioID) && fieldAnalysisConfig.includes(Number(this.bkBizId)));
+        break;
+    }
+    return isFront;
   }
 
   @Watch('$route.params.indexId')
