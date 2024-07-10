@@ -47,6 +47,8 @@ export default class FieldFilterComp extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
+  @Prop({ type: Object, default: () => ({}) }) statisticalFieldsData: object;
+  @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
 
   showFilterPopover = false; // 字段类型过滤 popover 显示状态
@@ -188,6 +190,29 @@ export default class FieldFilterComp extends tsc<object> {
   }
   get isUnionSearch() {
     return this.$store.getters.isUnionSearch;
+  }
+  get bkBizId() {
+    return this.$store.state.bkBizId;
+  }
+  /** 未开启白名单时 是否由前端来统计总数 */
+  get isFrontStatistics() {
+    let isFront = true;
+    const { field_analysis_config: fieldAnalysisToggle } = (window as any).FEATURE_TOGGLE;
+    switch (fieldAnalysisToggle) {
+      case 'on':
+        isFront = false;
+        break;
+      case 'off':
+        isFront = true;
+        break;
+      default:
+        const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
+        const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
+        const scenarioID = this.indexSetItem?.scenario_id;
+        isFront = !(scenarioIdWhiteList.includes(scenarioID) && fieldAnalysisConfig.includes(Number(this.bkBizId)));
+        break;
+    }
+    return isFront;
   }
 
   @Watch('$route.params.indexId')
@@ -389,9 +414,11 @@ export default class FieldFilterComp extends tsc<object> {
                       field-alias-map={this.fieldAliasMap}
                       field-item={item}
                       filed-count-array={this.filedCountArray}
+                      is-front-statistics={this.isFrontStatistics}
                       retrieve-params={this.retrieveParams}
                       retrieve-search-number={this.retrieveSearchNumber}
                       show-field-alias={this.showFieldAlias}
+                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
                       type='visible'
                       visible-fields={this.visibleFields}
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
@@ -416,9 +443,11 @@ export default class FieldFilterComp extends tsc<object> {
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
                   filed-count-array={this.filedCountArray}
+                  is-front-statistics={this.isFrontStatistics}
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}
                   show-field-alias={this.showFieldAlias}
+                  statistical-field-data={this.statisticalFieldsData[item.field_name]}
                   type='hidden'
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                 />
@@ -446,9 +475,11 @@ export default class FieldFilterComp extends tsc<object> {
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
                   filed-count-array={this.filedCountArray}
+                  is-front-statistics={this.isFrontStatistics}
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}
                   show-field-alias={this.showFieldAlias}
+                  statistical-field-data={this.statisticalFieldsData[item.field_name]}
                   type='hidden'
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                 />

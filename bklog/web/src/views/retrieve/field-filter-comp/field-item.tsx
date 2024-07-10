@@ -43,6 +43,8 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Object, required: true }) retrieveParams: object;
   @Prop({ type: Array, required: true }) filedCountArray: Array<any>;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
+  @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
+  @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
 
   isExpand = false;
   analysisActive = false;
@@ -62,6 +64,7 @@ export default class FieldItem extends tsc<object> {
     return this.$store.getters.unionIndexItemList;
   }
   get gatherFieldsCount() {
+    if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
     // 聚合字段有多少个
     return this.filedCountArray.find(item => item.field_name === this.fieldItem.field_name)?.distinct_count ?? 0;
   }
@@ -209,15 +212,17 @@ export default class FieldItem extends tsc<object> {
               <div
                 class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
                 v-bk-tooltips={{
-                  content: this.isUnionSearch
-                    ? this.$t('暂不支持')
-                    : !this.gatherFieldsCount
-                      ? this.$t('该字段暂无匹配日志')
-                      : this.$t('图表分析'),
+                  content:
+                    this.isUnionSearch || this.isFrontStatistics
+                      ? this.$t('暂不支持')
+                      : !this.gatherFieldsCount
+                        ? this.$t('该字段暂无匹配日志')
+                        : this.$t('图表分析'),
                 }}
                 onClick={e => {
                   e.stopPropagation();
-                  if (!this.gatherFieldsCount || this.isUnionSearch) return;
+                  // 统计数量为0 联合查询 或 非白名单业务和索引集类型 时不能点击字段分析
+                  if (!this.gatherFieldsCount || this.isUnionSearch || this.isFrontStatistics) return;
                   this.handleClickAnalysisItem();
                 }}
               >
@@ -244,9 +249,11 @@ export default class FieldItem extends tsc<object> {
           <AggChart
             field-name={this.fieldItem.field_name}
             field-type={this.fieldItem.field_type}
+            is-front-statistics={this.isFrontStatistics}
             parent-expand={this.isExpand}
             re-query-agg-chart={this.reQueryAggChart}
             retrieve-params={this.retrieveParams}
+            statistical-field-data={this.statisticalFieldData}
           />
         )}
       </li>
