@@ -1780,10 +1780,12 @@ class BkFtaEventDataSource(DataSource):
         self.filter_dict["status"] = EventStatus.ABNORMAL
 
         if self.alert_name:
-            if self.alert_name != constants.event.ALL_FTA_EVENT_NAME:
-                self.filter_dict["alert_name.raw"] = self.alert_name
+            if self.alert_name == constants.event.ALL_EVENT_PLUGIN_METRIC:
+                self.filter_dict["plugin_id__neq"] = "bkmonitor"
+            elif self.alert_name.startswith(constants.event.EVENT_PLUGIN_METRIC_PREFIX):
+                self.filter_dict["plugin_id"] = self.alert_name[len(constants.event.EVENT_PLUGIN_METRIC_PREFIX) :]
             else:
-                self.filter_dict["event.plugin_id__neq"] = "bkmonitor"
+                self.filter_dict["alert_name.raw"] = self.alert_name
 
         if bk_biz_id:
             self.filter_dict["bk_biz_id"] = bk_biz_id

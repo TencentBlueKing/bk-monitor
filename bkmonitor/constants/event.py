@@ -14,4 +14,7 @@ EventTypeNormal = "Normal"
 # These events are to warn that something might go wrong
 EventTypeWarning = "Warning"
 
-ALL_FTA_EVENT_NAME = "__ALL_FTA_EVENT__"
+# 全部第三方告警
+ALL_EVENT_PLUGIN_METRIC = "__ALL_EVENT_PLUGIN__"
+# 告警源插件指标模板
+EVENT_PLUGIN_METRIC_PREFIX = "__EVENT_PLUGIN__."
