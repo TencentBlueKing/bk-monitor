@@ -1,5 +1,6 @@
 {
-  "src/**/*.(ts|tsx|js)": ["eslint --cache --fix", "git add"],
-  "src/**/*.vue": ["eslint --cache --fix", "git add"],
-  "src/**/*.(vue|scss|css|sass)": ["stylelint --cache --fix", "git add"]
+  "*.(ts|tsx|js)": ["biome check --write", "eslint --cache --fix"],
+  "src/**/*.(vue|scss|css|sass)": ["stylelint --cache --fix"],
+  "*.json": ["stylelint --cache --fix"],
+  "*.{md,yml}": ["prettier --ignore-unknown --write"]
 }

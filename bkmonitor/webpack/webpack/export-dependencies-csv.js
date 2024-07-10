@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const path = require('path');
-const file = require('fs');
+const path = require('node:path');
+const file = require('node:fs');
 const paths = [
   './package.json',
   './src/apm/package.json',
@@ -76,7 +76,7 @@ Object.keys(traceData).forEach(name => {
     });
   }
 });
-const jsonToExcel = function (data, head = 'name,value,link', name = './前端依赖.csv') {
+const jsonToExcel = (data, head = 'name,value,link', name = './前端依赖.csv') => {
   let str = head ? `${head}\n` : '';
   data.forEach(item => {
     Object.keys(item).forEach(key => {
