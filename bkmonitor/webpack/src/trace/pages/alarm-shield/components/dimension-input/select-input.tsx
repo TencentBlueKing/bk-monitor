@@ -27,7 +27,7 @@ import { computed, defineComponent, nextTick, PropType, reactive, ref, watch } f
 import { useI18n } from 'vue-i18n';
 
 import { bkTooltips, Input, Loading, Popover, Radio } from 'bkui-vue';
-import { getMetricListV2, getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { getMetricListV2, getStrategyListV2, promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
@@ -261,45 +261,61 @@ export default defineComponent({
           const {
             items: [{ query_configs: queryConfigs }],
           } = strategyItem;
-          if (queryConfigs?.length) {
-            const { metric_list: metricListTemp = [] } = await getMetricListV2({
-              page: 1,
-              page_size: queryConfigs.length,
-              // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
-              conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }],
-            }).catch(() => ({}));
-            const [metricItem] = metricListTemp;
-            if (metricItem) {
-              const metricMeta = {
-                dataSourceLabel: metricItem.data_source_label,
-                dataTypeLabel: metricItem.data_type_label,
-                metricField: metricItem.metric_field,
-                resultTableId: metricItem.result_table_id,
-                indexSetId: metricItem.index_set_id,
-              };
-              curMetricMeta.value = metricMeta;
-              props.metricMetaSet(v, metricMeta);
+          const isPrometheus = queryConfigs?.[0]?.data_source_label === 'prometheus';
+          if (isPrometheus) {
+            //
+            const promqlData = await promqlToQueryConfig('', {
+              promql: queryConfigs?.[0]?.promql || '',
+            }).catch(() => null);
+            if (promqlData) {
+              const dimension = promqlData.query_configs?.[0]?.agg_dimension || [];
+              const dimensionList = dimension.map(d => ({ id: d, name: d }));
+              props.dimensionSet(v, dimensionList);
+              selectData.options = dimensionList;
             }
-            const dimensionList = !!metricListTemp.length
-              ? metricListTemp.reduce((pre, cur) => {
-                  const dimensionList = pre
-                    .concat(
-                      cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
-                    )
-                    .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
-                  return dimensionList;
-                }, [])
-              : [];
-            // 取策略各指标agg_dimension的合集
-            const strategyDimensionSet = new Set();
-            queryConfigs.forEach(q => {
-              q?.agg_dimension?.forEach(d => {
-                strategyDimensionSet.add(d);
-              });
-            });
-            const dimensionListFilter = dimensionList.filter(item => strategyDimensionSet.has(item.id));
-            props.dimensionSet(v, dimensionListFilter);
-            selectData.options = dimensionListFilter;
+          } else {
+            if (queryConfigs?.length) {
+              const { metric_list: metricListTemp = [] } = await getMetricListV2({
+                page: 1,
+                page_size: queryConfigs.length,
+                // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
+                conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }],
+              }).catch(() => ({}));
+              const [metricItem] = metricListTemp;
+              if (metricItem) {
+                const metricMeta = {
+                  dataSourceLabel: metricItem.data_source_label,
+                  dataTypeLabel: metricItem.data_type_label,
+                  metricField: metricItem.metric_field,
+                  resultTableId: metricItem.result_table_id,
+                  indexSetId: metricItem.index_set_id,
+                };
+                curMetricMeta.value = metricMeta;
+                props.metricMetaSet(v, metricMeta);
+              }
+              const dimensionList = !!metricListTemp.length
+                ? metricListTemp.reduce((pre, cur) => {
+                    const dimensionList = pre
+                      .concat(
+                        cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
+                      )
+                      .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
+                    return dimensionList;
+                  }, [])
+                : [];
+              props.dimensionSet(v, dimensionList);
+              selectData.options = dimensionList;
+              // 取策略各指标agg_dimension的合集
+              // const strategyDimensionSet = new Set();
+              // queryConfigs.forEach(q => {
+              //   q?.agg_dimension?.forEach(d => {
+              //     strategyDimensionSet.add(d);
+              //   });
+              // });
+              // const dimensionListFilter = dimensionList.filter(item => strategyDimensionSet.has(item.id));
+              // props.dimensionSet(v, dimensionListFilter);
+              // selectData.options = dimensionListFilter;
+            }
           }
         }
         selectData.rightLoading = false;
