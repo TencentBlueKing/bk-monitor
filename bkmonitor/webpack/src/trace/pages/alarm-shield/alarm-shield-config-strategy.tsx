@@ -243,8 +243,20 @@ export default defineComponent({
                   promql: queryConfig.promql,
                 }).catch(() => null);
                 if (promqlData) {
-                  const dimension = promqlData.query_configs?.[0]?.agg_dimension || [];
-                  promqlDimensions.push(...dimension.map(d => ({ id: d, name: d })));
+                  const metricItem = promqlData.query_configs?.[0];
+                  if (metricItem) {
+                    dimensionCondition.metricMeta = {
+                      dataSourceLabel: metricItem.data_source_label,
+                      dataTypeLabel: metricItem.data_type_label,
+                      metricField: metricItem.metric_field,
+                      resultTableId: metricItem.result_table_id,
+                      indexSetId: metricItem.index_set_id,
+                    };
+                    const dimension = metricItem?.agg_dimension || [];
+                    promqlDimensions.push(...dimension.map(d => ({ id: d, name: d })));
+                  } else {
+                    dimensionCondition.metricMeta = null;
+                  }
                 }
                 resolve(promqlData);
               });

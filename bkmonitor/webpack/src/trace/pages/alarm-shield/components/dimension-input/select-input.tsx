@@ -268,10 +268,22 @@ export default defineComponent({
               promql: queryConfigs?.[0]?.promql || '',
             }).catch(() => null);
             if (promqlData) {
-              const dimension = promqlData.query_configs?.[0]?.agg_dimension || [];
-              const dimensionList = dimension.map(d => ({ id: d, name: d }));
-              props.dimensionSet(v, dimensionList);
-              selectData.options = dimensionList;
+              const metricItem = promqlData.query_configs?.[0];
+              if (metricItem) {
+                const metricMeta = {
+                  dataSourceLabel: metricItem.data_source_label,
+                  dataTypeLabel: metricItem.data_type_label,
+                  metricField: metricItem.metric_field,
+                  resultTableId: metricItem.result_table_id,
+                  indexSetId: metricItem.index_set_id,
+                };
+                curMetricMeta.value = metricMeta;
+                props.metricMetaSet(v, metricMeta);
+                const dimension = metricItem?.agg_dimension || [];
+                const dimensionList = dimension.map(d => ({ id: d, name: d }));
+                props.dimensionSet(v, dimensionList);
+                selectData.options = dimensionList;
+              }
             }
           } else {
             if (queryConfigs?.length) {
