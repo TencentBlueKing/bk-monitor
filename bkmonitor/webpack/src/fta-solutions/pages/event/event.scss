@@ -9,13 +9,22 @@
 @mixin item-active {
   &.item-active {
     @include item-hover();
+
+    .item-count {
+      color: #fff;
+      background: #A3C5FD;
+    }
   }
 }
 
-@mixin item-count($color: #c4c6cc) {
+@mixin item-count($color: #979BA5) {
   .item-count {
+    padding: 2px 5px;
     margin-left: auto;
+    font-size: 12px;
     color: $color;
+    background: #F0F1F5;
+    border-radius: 8px;
   }
 }
 
@@ -93,11 +102,11 @@
         flex: 0 0 36px;
         align-items: center;
         height: 36px;
-        padding: 0 24px 0 14px;
+        padding: 0 14px;
         margin: 0;
 
         @include item-active();
-        @include item-count(#63656e);
+        @include item-count(#979BA5);
 
         .bk-icon {
           margin-right: 6px;
@@ -127,7 +136,7 @@
           flex: 0 0 36px;
           align-items: center;
           height: 36px;
-          padding: 0 24px 0 32px;
+          padding: 0 14px 0 32px;
 
           @include item-active();
           @include item-count();

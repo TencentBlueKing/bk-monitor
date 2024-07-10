@@ -445,6 +445,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     fieldList: [],
     count: 0,
   };
+  listOpenId = '';
 
   get panelList(): IPanelItem[] {
     return this.searchType === 'action' ? this.actionPanelList : this.alertPanelList;
@@ -934,6 +935,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       overview,
       total,
       code,
+      enable_aiops_incident,
     } = await incidentOverview(this.handleGetSearchParams(onlyOverview), { needRes: true, needMessage: false })
       .then(res => {
         !onlyOverview && (this.filterInputStatus = 'success');
@@ -944,6 +946,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         //   this.$bkMessage({ message, theme: 'error' });
         // }
         return {
+          enable_aiops_incident: false,
           aggs: [],
           alerts: [],
           overview: [],
@@ -957,6 +960,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.handleGetEventCount(ids);
     }
     return {
+      enable_aiops_incident,
       aggs,
       list: list?.map(item => ({
         ...item,
@@ -1215,19 +1219,22 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   async handleGetFilterData() {
     this.commonFilterLoading = true;
-    /** 是否打开故障根因 */
-    const { enable_aiops_incident } = window as any;
-    const filterDataPromise = [this.handleGetSearchAlertList(true), this.handleGetSearchActionList(true)];
-    if (enable_aiops_incident) {
-      filterDataPromise.push(this.handleGetSearchFaultList(true));
-    }
+    const filterDataPromise = [
+      this.handleGetSearchAlertList(true),
+      this.handleGetSearchActionList(true),
+      this.handleGetSearchFaultList(true),
+    ];
     const [{ overview }, { overview: actionOverview }, faultOverviewData] = await Promise.all(filterDataPromise).catch(
-      () => [{ overview: [] }, { overview: [] }, { overview: [] }]
+      () => [{ overview: [] }, { overview: [] }, { overview: [], enable_aiops_incident: false }]
     );
     const faultOverview = faultOverviewData?.overview ?? {};
-    this.commonFilterData = [overview, enable_aiops_incident ? { ...faultOverview } : '', { ...actionOverview }].filter(
-      item => !!item && item.id
-    );
+    /** 是否打开故障根因 */
+    const { enable_aiops_incident } = faultOverviewData as any;
+    this.commonFilterData = [
+      overview,
+      !enable_aiops_incident ? { ...faultOverview } : '',
+      { ...actionOverview },
+    ].filter(item => !!item && item.id);
     this.commonFilterLoading = false;
     if (!this.activeFilterId) {
       this.activeFilterId = overview.id;
@@ -1283,6 +1290,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {*} isPageChange 是否切换分页
    */
   async handleGetTableData(searchTypeChange = false, refleshAgg = true, needTopN = true) {
+    this.listOpenId =
+      Object.keys(this.commonFilterDataIdMap).find(key =>
+        this.commonFilterDataIdMap[key].includes(this.activeFilterId)
+      ) || this.listOpenId;
+
     this.tableLoading = true;
     if (refleshAgg) this.advancedFilterLoading = true;
     // await this.handleValidateQueryString()
@@ -2238,13 +2250,20 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     );
   }
   filterListComponent(item: ICommonTreeItem) {
-    const isOpen = this.commonFilterDataIdMap[item.id].includes(this.activeFilterId);
+    const isOpen = this.commonFilterDataIdMap[item.id].includes(this.listOpenId);
     return [
       <div
         class={['list-title', { 'item-active': item.id === this.activeFilterId }]}
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >
-        <i class={['bk-icon', isOpen ? 'icon-down-shape' : 'icon-right-shape']}></i>
+        <i
+          class={['bk-icon', isOpen ? 'icon-down-shape' : 'icon-right-shape']}
+          on-click={e => {
+            e.stopPropagation();
+            const status = this.listOpenId;
+            this.listOpenId = status === item.id ? '' : item.id;
+          }}
+        ></i>
         {item.name}
         {this.commonFilterLoading ? (
           <div class='count-skeleton skeleton-element'></div>
