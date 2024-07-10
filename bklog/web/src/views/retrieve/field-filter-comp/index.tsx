@@ -209,7 +209,7 @@ export default class FieldFilterComp extends tsc<object> {
         const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
         const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
         const scenarioID = this.indexSetItem?.scenario_id;
-        isFront = !(scenarioIdWhiteList.includes(scenarioID) && fieldAnalysisConfig.includes(Number(this.bkBizId)));
+        isFront = !(scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId)));
         break;
     }
     return isFront;
