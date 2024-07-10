@@ -119,4 +119,6 @@ export default {
   已存储: 'Stored',
   存储失败: 'Storage Failed',
   解析成功: 'Parsed Successfully',
+  字符: 'Character',
+  截断: 'Truncate',
 };

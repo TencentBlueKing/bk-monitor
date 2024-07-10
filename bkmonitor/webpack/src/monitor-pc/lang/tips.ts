@@ -244,4 +244,8 @@ export default {
   请确认是否导出: 'Please confirm whether to export',
   '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作':
     'The export YAML function is used for As Code. If you need to import and export policies, please go to Integration-Import and Export to perform operations.',
+  '当前数据还未加载完成，如数据长时间未加载出来可{0}':
+    'The current data has not been loaded yet. If the data has not been loaded for a long time, {0}',
+  '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html':
+    'By default, the URI in the URL is taken for statistics. In actual production, many IDs are applied to the URI, so it is necessary to manually set and classify the same type of URI for statistics. For example:/user/{ID}/index.com',
 };

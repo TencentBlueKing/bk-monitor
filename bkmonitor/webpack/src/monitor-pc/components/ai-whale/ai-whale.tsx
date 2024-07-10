@@ -423,7 +423,7 @@ export default class AiWhale extends tsc<object> {
           onClick={() => !!this.data.alert.abnormal_count && this.handleToEventCenter()}
         >
           <i18n path='当前空间: [{0}] {1}  ； 未恢复告警: {2}'>
-            <span>{this.$t(this.space.type_name)}</span>
+            <span>{this.space.type_name}</span>
             <span>{this.space.name}</span>
             <span class='blue-bold'>{this.data.alert.abnormal_count}</span>
           </i18n>
@@ -473,7 +473,7 @@ export default class AiWhale extends tsc<object> {
                           onClick={() => !!this.data.alert.abnormal_count && this.handleToEventCenter()}
                         >
                           <i18n path='当前空间: [{0}] {1}  ； 未恢复告警: {2}'>
-                            <span>{this.$t(this.space.type_name)}</span>
+                            <span>{this.space.type_name}</span>
                             <span>{this.space.name}</span>
                             <span class='blue-bold'>{this.data.alert.abnormal_count}</span>
                           </i18n>

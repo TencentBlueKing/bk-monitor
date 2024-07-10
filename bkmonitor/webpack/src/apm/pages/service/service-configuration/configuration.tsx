@@ -45,7 +45,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
   serviceName = '';
   // 导航条设置
   routeList: INavItem[] = [];
-  menuList = [{ id: 'baseInfo', name: '基本设置' }];
+  menuList = [{ id: 'baseInfo', name: window.i18n.tc('基本设置') }];
 
   /** 页面权限校验实例资源 */
   get authorityResource() {
@@ -86,7 +86,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         // }
         {
           id: 'configuration',
-          name: window.i18n.tc('配置服务'),
+          name: window.i18n.tc('route-配置服务'),
         },
       ];
       vm.appName = appName;
