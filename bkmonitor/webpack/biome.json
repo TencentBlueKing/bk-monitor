@@ -10,7 +10,8 @@
       "suspicious": {
         "noExplicitAny": {
           "level": "off"
-        }
+        },
+        "noAssignInExpressions": "warn"
       },
       "style": {
         "useSelfClosingElements": {
@@ -24,6 +25,10 @@
           "level": "error"
         },
         "noForEach": "warn"
+      },
+      "a11y": {
+        "useKeyWithMouseEvents": "off",
+        "useKeyWithClickEvents": "off"
       }
     }
   },
