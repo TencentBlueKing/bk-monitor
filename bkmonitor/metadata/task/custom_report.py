@@ -23,8 +23,10 @@ from django.db.models import Q
 from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
+from bkmonitor.models import QueryConfigModel
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from metadata import models
 from metadata.models.constants import EVENT_GROUP_SLEEP_THRESHOLD, EventGroupStatus
@@ -185,22 +187,40 @@ def check_custom_event_group_sleep():
         | Q(event_group_name__startswith="Log_log_")
     )
 
+    # 获取已配置测试
+    custom_event_query_configs = QueryConfigModel.objects.filter(
+        data_source_label=DataSourceLabel.CUSTOM, data_type_label=DataTypeLabel.EVENT
+    )
+    table_ids_with_strategy = set()
+    for query_config in custom_event_query_configs:
+        if not query_config.config.get("result_table_id"):
+            continue
+        table_ids_with_strategy.add(query_config.config.get("result_table_id"))
+
     need_clean_es_storages: List[models.ESStorage] = []
-    need_update_event_groups = []
     for event_group in event_groups:
+        if event_group.table_id in table_ids_with_strategy:
+            continue
+
         try:
             es = models.ESStorage.objects.get(table_id=event_group.table_id)
         except models.ESStorage.DoesNotExist:
-            logger.info(f"EventGroup {event_group.event_group_name} has no ESStorage, set status to SLEEP")
+            logger.info(
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} "
+                f"has no ESStorage, set status to SLEEP"
+            )
             event_group.status = EventGroupStatus.SLEEP.value
-            need_update_event_groups.append(event_group)
+            event_group.save(update_fields=["status"])
             continue
 
         indices, index_version = es.get_index_stats()
         if not indices:
-            logger.info(f"EventGroup {event_group.event_group_name} does not have any index, set status to SLEEP")
+            logger.info(
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} "
+                f"does not have any index, set status to SLEEP"
+            )
             event_group.status = EventGroupStatus.SLEEP.value
-            need_update_event_groups.append(event_group)
+            event_group.save(update_fields=["status"])
             continue
 
         last_check_report_time = None
@@ -221,19 +241,17 @@ def check_custom_event_group_sleep():
 
         if last_check_report_time is None:
             logger.info(
-                f"EventGroup {event_group.event_group_name} has no data for a long time, "
-                f"set status to SLEEP and delete index"
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} "
+                f"has no data for a long time, set status to SLEEP and delete index"
             )
             need_clean_es_storages.append(es)
-            event_group.status = EventGroupStatus.SLEEP.value
-            need_update_event_groups.append(event_group)
         else:
             logger.info(
-                f"EventGroup {event_group.event_group_name} has data, "
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} has data, "
                 f"set last_check_report_time {last_check_report_time}"
             )
             event_group.last_check_report_time = last_check_report_time
-            need_update_event_groups.append(event_group)
+            event_group.save(update_fields=["last_check_report_time"])
 
     if not settings.ENABLE_CUSTOM_EVENT_SLEEP:
         logger.info("ENABLE_CUSTOM_EVENT_SLEEP is False, skip cleaning ESStorage")
@@ -250,6 +268,4 @@ def check_custom_event_group_sleep():
 
             client.indices.delete(index)
             logger.info(f"Delete index for ESStorage {es.table_id} {index}")
-
-    # 批量更新事件组状态和最后检查时间
-    models.EventGroup.objects.bulk_update(need_update_event_groups, ["status", "last_check_report_time"])
+        models.EventGroup.objects.filter(table_id=es.table_id).update(status=EventGroupStatus.SLEEP.value)
