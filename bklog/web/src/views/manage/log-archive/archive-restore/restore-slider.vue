@@ -33,8 +33,7 @@
       :title="isEdit ? $t('编辑回溯') : $t('新建回溯')"
       :width="676"
       transfer
-      @animation-end="$emit('hidden')"
-      @update:is-show="updateIsShow"
+      @animation-end="updateIsShow"
     >
       <template #content>
         <div
@@ -315,8 +314,9 @@
             this.sliderLoading = false;
           });
       },
-      updateIsShow(val) {
-        this.$emit('update:show-slider', val);
+      updateIsShow() {
+        this.$emit('hidden');
+        this.$emit('update:show-slider', false);
       },
       handleCancel() {
         this.$emit('update:show-slider', false);
