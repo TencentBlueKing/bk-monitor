@@ -1612,7 +1612,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               <DashboardTools
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
-                menuList={this.sceneData.dasbordToolMenuList}
+                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dasbordToolMenuList}
                 refleshInterval={this.refleshInterval}
                 showDownSampleRange={false}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}
