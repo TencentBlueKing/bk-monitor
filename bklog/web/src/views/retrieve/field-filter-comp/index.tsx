@@ -75,7 +75,6 @@ export default class FieldFilterComp extends tsc<object> {
     '__ipv6__',
     '__ext',
   ];
-  filedCountArray = [];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
 
@@ -328,24 +327,6 @@ export default class FieldFilterComp extends tsc<object> {
       sortList.push(...sortItem);
     });
     return sortList;
-  }
-
-  /**
-   * @desc: 获取字段去重count
-   */
-  async getFieldCount() {
-    try {
-      const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
-      const res = await $http.request('retrieve/fieldDistinctCount', {
-        data: {
-          ...this.retrieveParams,
-          index_set_ids: indexSetIDs,
-        },
-      });
-      this.filedCountArray = res.data;
-    } catch (error) {
-      this.filedCountArray = [];
-    }
   }
 
   render() {

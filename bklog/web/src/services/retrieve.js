@@ -145,6 +145,11 @@ const fieldStatisticsInfo = {
   url: '/field/index_set/statistics/info/',
   method: 'post',
 };
+/** 获取趋势图总数的信息 */
+const fieldStatisticsTotal = {
+  url: '/field/index_set/statistics/total/',
+  method: 'post',
+};
 /** 获取图表分析图表 */
 const fieldStatisticsGraph = {
   url: '/field/index_set/statistics/graph/',
@@ -185,6 +190,7 @@ export {
   getAggsTerms,
   fieldFetchTopList,
   fieldStatisticsInfo,
+  fieldStatisticsTotal,
   fieldStatisticsGraph,
   fieldDistinctCount,
 };
