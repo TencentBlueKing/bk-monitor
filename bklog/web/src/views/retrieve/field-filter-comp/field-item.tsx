@@ -209,19 +209,17 @@ export default class FieldItem extends tsc<object> {
           >
             {this.isShowFieldsAnalysis && (
               <div
-                class={{ 'operation-icon-box': true, 'analysis-disabled': !this.gatherFieldsCount }}
+                class={{
+                  'operation-icon-box': true,
+                  'analysis-disabled': !(this.isUnionSearch || this.isFrontStatistics),
+                }}
                 v-bk-tooltips={{
-                  content:
-                    this.isUnionSearch || this.isFrontStatistics
-                      ? this.$t('暂不支持')
-                      : !this.gatherFieldsCount
-                        ? this.$t('该字段暂无匹配日志')
-                        : this.$t('图表分析'),
+                  content: this.isUnionSearch || this.isFrontStatistics ? this.$t('暂不支持') : this.$t('图表分析'),
                 }}
                 onClick={e => {
                   e.stopPropagation();
                   // 统计数量为0 联合查询 或 非白名单业务和索引集类型 时不能点击字段分析
-                  if (!this.gatherFieldsCount || this.isUnionSearch || this.isFrontStatistics) return;
+                  if (this.isUnionSearch || this.isFrontStatistics) return;
                   this.handleClickAnalysisItem();
                 }}
               >
