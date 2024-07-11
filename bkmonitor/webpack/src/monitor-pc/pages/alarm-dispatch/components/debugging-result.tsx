@@ -86,9 +86,13 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
   loading = false;
   curTimeRange: TimeRangeType = ['now-7d', 'now'];
   curGroupId = 0;
+  localShow = false;
 
   @Watch('isShow', { immediate: true })
   handleShow(v: boolean) {
+    setTimeout(() => {
+      this.localShow = v;
+    }, 50);
     if (v) {
       this.getRuleMatchDebug();
     }
@@ -190,8 +194,9 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
     return (
       <bk-sideslider
         ext-cls='debugging-result-siderlider'
-        isShow={this.isShow}
-        quick-close={true}
+        isShow={this.localShow}
+        quickClose={true}
+        showMask={true}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
         width={960}
       >
@@ -235,14 +240,14 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                         </span>
                       </div>
                       <div class='priority-wrap'>
-                        <span class='title'>{this.$t('优先级')}: </span>
+                        <span class='title'>{this.$t('优先级')}：</span>
                         <span class='count'>{item.priority}</span>
                       </div>
                     </div>
 
                     <div class='count-warp'>
                       <i18n path='共{0}条'>
-                        <span>{item.alerts_count || 0}</span>
+                        <span class='mr-4 ml-4'>{item.alerts_count || 0}</span>
                       </i18n>
                     </div>
                   </div>
@@ -301,7 +306,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                         {config.is_enabled && (
                           <div class='header-right'>
                             <i18n path='命中{0}条'>
-                              <span>{config.alerts?.length || 0}</span>
+                              <span class='mr-4 ml-4'>{config.alerts?.length || 0}</span>
                             </i18n>
                           </div>
                         )}
