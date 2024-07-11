@@ -41,7 +41,6 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
-  @Prop({ type: Array, required: true }) filedCountArray: Array<any>;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
@@ -65,15 +64,15 @@ export default class FieldItem extends tsc<object> {
   }
   get gatherFieldsCount() {
     if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
-    // 聚合字段有多少个
-    return this.filedCountArray.find(item => item.field_name === this.fieldItem.field_name)?.distinct_count ?? 0;
+    return 0;
   }
   // 显示融合字段统计比例图表
   get showFieldsChart() {
-    return this.fieldItem.field_type !== 'text' && this.gatherFieldsCount;
+    if (this.fieldItem.field_type === 'text') return false;
+    return this.isFrontStatistics ? !!this.gatherFieldsCount : true;
   }
   get isShowFieldsCount() {
-    return !['object', 'nested', 'text'].includes(this.fieldItem.field_type);
+    return !['object', 'nested', 'text'].includes(this.fieldItem.field_type) && this.isFrontStatistics;
   }
   get isShowFieldsAnalysis() {
     return ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type);
