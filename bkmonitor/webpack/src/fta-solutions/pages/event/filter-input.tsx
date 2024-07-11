@@ -283,6 +283,10 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         id: 'plugin_id',
         name: this.$t('告警来源'),
       },
+      {
+        id: 'stage_display',
+        name: this.$t('处理阶段'),
+      },
     ];
     // 事件建议字段列表
     this.eventFieldList = [
