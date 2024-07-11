@@ -139,6 +139,16 @@ class FieldViewSet(APIViewSet):
 
         return Response(data)
 
+    @list_route(methods=["POST"], url_path="statistics/total")
+    def fetch_statistics_total(self, request, *args, **kwargs):
+        """
+        @api {get} /field/index_set/statistics/total/ 获取索引集日志总条数
+        @apiName fetch_total_count
+        """
+        params = self.params_valid(QueryFieldBaseSerializer)
+        total_count = UnifyQueryHandler(params).get_total_count()
+        return Response({"total_count": total_count})
+
     @list_route(methods=["POST"], url_path="statistics/graph")
     def fetch_statistics_graph(self, request, *args, **kwargs):
         """constants.py:1515
