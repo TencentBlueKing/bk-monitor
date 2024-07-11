@@ -86,7 +86,7 @@ RESULT_DATA = [
 
 
 class TestPatternSearch(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:  # pylint: disable=invalid-name
         # 测试数据库添加一条ClusteringConfig数据
         ClusteringConfig.objects.create(
             index_set_id=INDEX_SET_ID,
