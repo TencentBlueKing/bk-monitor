@@ -6,7 +6,25 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": {
+          "level": "off"
+        }
+      },
+      "style": {
+        "useSelfClosingElements": {
+          "fix": "safe",
+          "level": "warn"
+        }
+      },
+      "complexity": {
+        "noBannedTypes": {
+          "fix": "safe",
+          "level": "error"
+        },
+        "noForEach": "warn"
+      }
     }
   },
   "formatter": {
