@@ -180,6 +180,7 @@ class UnifyQueryHandler(object):
             logger.exception("query ts reference error: %s, search params: %s", e, search_dict)
             if raise_exception:
                 raise e
+            return {"series": []}
 
     def transform_additions(self):
         field_list = []
@@ -212,7 +213,7 @@ class UnifyQueryHandler(object):
             error_code = data["status"].get("code", "")
             error_message = data["status"].get("message", "")
             logger.exception("query ts reference error code: %s, message: %s", error_code, error_message)
-            return 0
+        return 0
 
     def get_total_count(self):
         search_dict = copy.deepcopy(self.base_dict)
