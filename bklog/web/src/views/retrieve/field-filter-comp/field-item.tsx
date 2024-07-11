@@ -218,7 +218,7 @@ export default class FieldItem extends tsc<object> {
                 }}
                 onClick={e => {
                   e.stopPropagation();
-                  // 统计数量为0 联合查询 或 非白名单业务和索引集类型 时不能点击字段分析
+                  // 联合查询 或 非白名单业务和索引集类型 时不能点击字段分析
                   if (this.isUnionSearch || this.isFrontStatistics) return;
                   this.handleClickAnalysisItem();
                 }}
