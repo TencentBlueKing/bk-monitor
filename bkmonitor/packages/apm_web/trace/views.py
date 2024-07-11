@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from apm_web.decorators import user_visit_record
 from apm_web.models import Application
 from apm_web.trace.resources import (
     ApplyTraceComparisonResource,
@@ -52,21 +53,59 @@ class TraceQueryViewSet(ResourceViewSet):
         return []
 
     resource_routes = [
+        ResourceRoute(
+            "POST", ListTraceResource,
+            endpoint="list_traces",
+            decorators=[user_visit_record, ]
+        ),
+        ResourceRoute(
+            "POST", ListSpanResource,
+            endpoint="list_spans",
+            decorators=[user_visit_record, ]
+        ),
+        ResourceRoute(
+            "POST", TraceStatisticsResource,
+            endpoint="trace_statistics",
+            decorators=[user_visit_record, ]
+        ),
+
+        ResourceRoute(
+            "POST", TraceDiagramResource,
+            endpoint="trace_diagram",
+            decorators=[user_visit_record, ]
+        ),
+
+        ResourceRoute(
+            "POST", TraceDetailResource,
+            endpoint="trace_detail",
+            decorators=[user_visit_record, ]
+        ),
+        ResourceRoute(
+            "POST", SpanDetailResource,
+            endpoint="span_detail",
+            decorators=[user_visit_record, ]
+        ),
+
+        ResourceRoute(
+            "POST", ListSpanStatisticsResource,
+            endpoint="list_span_statistics",
+            decorators=[user_visit_record, ]
+        ),
+        ResourceRoute(
+            "POST", ListServiceStatisticsResource,
+            endpoint="list_service_statistics",
+            decorators=[user_visit_record, ]
+        ),
+
         ResourceRoute("GET", TraceChatsResource, "trace_charts"),
         ResourceRoute("GET", TraceOptionsResource, "trace_options"),
-        ResourceRoute("POST", ListTraceResource, "list_traces"),
-        ResourceRoute("POST", ListSpanResource, "list_spans"),
         ResourceRoute("GET", ListStandardFilterFieldsResource, "standard_fields"),
-        ResourceRoute("POST", TraceStatisticsResource, "trace_statistics"),
-        ResourceRoute("POST", TraceListByIdResource, "trace_list_by_id"),
-        ResourceRoute("POST", TraceListByHostInstanceResource, "trace_list_by_host_instance"),
-        ResourceRoute("POST", TraceDetailResource, "trace_detail"),
-        ResourceRoute("POST", SpanDetailResource, "span_detail"),
-        ResourceRoute("POST", TraceDiagramResource, "trace_diagram"),
         ResourceRoute("POST", ListOptionValuesResource, "list_option_values"),
         ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
-        ResourceRoute("POST", ListSpanStatisticsResource, "list_span_statistics"),
-        ResourceRoute("POST", ListServiceStatisticsResource, "list_service_statistics"),
+
+        ResourceRoute("POST", TraceListByIdResource, "trace_list_by_id"),
+        ResourceRoute("POST", TraceListByHostInstanceResource, "trace_list_by_host_instance"),
+
         ResourceRoute("POST", ApplyTraceComparisonResource, "apply_trace_comparison"),
         ResourceRoute("POST", DeleteTraceComparisonResource, "delete_trace_comparison"),
         ResourceRoute("POST", ListTraceComparisonResource, "list_trace_comparison"),

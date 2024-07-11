@@ -160,6 +160,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @Ref('noticeConfigPanel') noticeConfigPanelRef: InstanceType<typeof GroupPanel>;
   @Ref() contentRef: HTMLElement;
   @Ref('aiopsMonitorData') aiopsMonitorDataRef: InstanceType<typeof AiopsMonitorData>;
+  @Ref('setFooterRef') setFooterRef: HTMLDivElement;
+  @Ref('setFooterBottomRef') setFooterBottomRef: HTMLDivElement;
 
   /** 导航面包屑 */
   routeList = [
@@ -390,13 +392,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   timezone = getDefaultTimezone();
   /* 是否可编辑 */
   editAllowed = true;
-
+  stickyObserver: IntersectionObserver | null = null;
   get isEdit(): boolean {
     return !!this.$route.params.id;
   }
 
   get bizList(): ISpaceItem[] {
-    return this.$store.getters.bizList;
+    return this.$store.getters.bizList?.filter(item => +item.bk_biz_id === +this.bizId) || [];
   }
   get bizId(): number | string {
     return this.$store.getters.bizId;
@@ -519,11 +521,28 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.strategyView.rightWidth = Math.ceil(width / 3);
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
     // 异步初始化所有ai模型列表 用于判断是否展示功能依赖 以及前置后面选择ai模型的初始化数据
-    IntelligentModelsStore.initAllListIntelligentModels();
+    if (window.enable_aiops) IntelligentModelsStore.initAllListIntelligentModels();
+  }
+  activated() {
+    this.stickyObserver = new IntersectionObserver(
+      ([entry]) => {
+        this.setFooterRef.classList.toggle('is-sticky', entry.intersectionRatio < 1);
+      },
+      {
+        threshold: 1,
+      }
+    );
+    this.stickyObserver.observe(this.setFooterBottomRef);
+  }
+  deactivated() {
+    this.clearErrorMsg();
+    (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
+    this.stickyObserver.unobserve(this.setFooterBottomRef);
   }
   beforeDestroy() {
     bus.$off(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
+
   @Watch('fromRouteName', { immediate: true })
   async handleRouteChange(v: string) {
     if (!v) return;
@@ -549,10 +568,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       }
     }
     // this.addDefaultAlarmHandling();
-  }
-  deactivated() {
-    this.clearErrorMsg();
-    (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
   handleUpdateCalendarList(settings: string) {
     if (settings === 'calendar') {
@@ -2436,7 +2451,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
           onMetricChange={this.handleSceneConfigMetricChange}
+          onModelChange={this.handleModelChange}
           onTargetChange={this.handleTargetChange}
+          onTargetTypeChange={this.handleTargetTypeChange}
         ></AiopsMonitorData>
       );
     }
@@ -2539,6 +2556,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               title={this.$t('基本信息')}
             >
               <BaseConfig
+                id={this.id && !this.isClone ? this.id : ''}
                 ref='base-config'
                 scenarioReadonly={
                   this.monitorDataEditMode === 'Source' ? false : !!this.metricData.some(item => !!item.metric_id)
@@ -2680,8 +2698,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 ></NoticeConfigNew>
               )}
             </GroupPanel>
-            {!this.isDetailMode && (
-              <div class='set-footer mt20 mb20'>
+            {!this.isDetailMode && [
+              <div
+                ref='setFooterRef'
+                class='set-footer'
+              >
                 <div
                   v-bk-tooltips={{
                     disabled: this.submitBtnTipDisabled,
@@ -2698,15 +2719,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                     {this.$t('提交')}
                   </bk-button>
                 </div>
-                <bk-button
-                  class='btn cancel'
-                  on-click={this.handleCancel}
-                >
-                  {this.$t('取消')}
-                </bk-button>
-              </div>
-            )}
-            <div style='padding-top: 16px;'></div>
+                <bk-button on-click={this.handleCancel}>{this.$t('取消')}</bk-button>
+              </div>,
+              <div ref='setFooterBottomRef' />,
+            ]}
           </div>
           {/* <!-- 策略辅助视图 --> */}
           <div

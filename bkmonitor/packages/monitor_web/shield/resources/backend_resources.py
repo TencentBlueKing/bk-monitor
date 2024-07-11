@@ -23,11 +23,12 @@ from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import Event, Shield
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.time_tools import (
-    datetime2timestamp,
+    DEFAULT_FORMAT,
     localtime,
     now,
     parse_time_range,
     str2datetime,
+    strftime_local,
     utc2biz_str,
 )
 from bkmonitor.views import serializers
@@ -115,7 +116,10 @@ class ShieldListResource(Resource):
                 value = [value]
             filter_dict[f"{key}__in"].extend(value)
         if filter_dict:
-            shields = shields.filter(**filter_dict)
+            try:
+                shields = shields.filter(**filter_dict)
+            except ValueError:
+                shields = shields.none()
         shields = shields.order_by(order)
 
         # 筛选屏蔽中，根据范围进行筛选
@@ -123,12 +127,12 @@ class ShieldListResource(Resource):
             shields = [shield for shield in shields if shield.status == ShieldStatus.SHIELDED]
             if time_range:
                 start, end = parse_time_range(data["time_range"])
-                shields = [shield for shield in shields if start <= datetime2timestamp(shield.begin_time) <= end]
+                shields = [shield for shield in shields if start <= shield.begin_time.timestamp() <= end]
         else:
             shields = [shield for shield in shields if shield.status != ShieldStatus.SHIELDED]
             if time_range:
                 start, end = parse_time_range(data["time_range"])
-                shields = [shield for shield in shields if start <= datetime2timestamp(shield.failure_time) <= end]
+                shields = [shield for shield in shields if start <= shield.failure_time.timestamp() <= end]
 
         # 统计数目
         count = len(shields)
@@ -146,9 +150,9 @@ class ShieldListResource(Resource):
                     "bk_biz_id": shield.bk_biz_id,
                     "category": shield.category,
                     "status": shield.status,
-                    "begin_time": utc2biz_str(shield.begin_time),
-                    "end_time": utc2biz_str(shield.end_time),
-                    "failure_time": utc2biz_str(shield.failure_time),
+                    "begin_time": strftime_local(shield.begin_time, DEFAULT_FORMAT),
+                    "end_time": strftime_local(shield.end_time, DEFAULT_FORMAT),
+                    "failure_time": strftime_local(shield.failure_time, DEFAULT_FORMAT),
                     "is_enabled": shield.is_enabled,
                     "scope_type": shield.scope_type,
                     "dimension_config": shield.dimension_config,

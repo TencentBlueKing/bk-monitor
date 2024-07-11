@@ -167,14 +167,14 @@ class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
         choices=PluginParamOpEnum.get_choices(),
         required=False,
         default=PluginParamOpEnum.OP_INCLUDE.value,
-        allow_blank=True
+        allow_blank=True,
     )
     syslog_logic_op = serializers.ChoiceField(
         label=_("逻辑操作符"),
         choices=PluginParamLogicOpEnum.get_choices(),
         required=False,
         default=PluginParamLogicOpEnum.AND.value,
-        allow_blank=True
+        allow_blank=True,
     )
 
 
@@ -222,6 +222,7 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("windows事件内容匹配操作符"),
         choices=PluginParamOpEnum.get_choices(),
         required=False,
+        allow_blank=True,
     )
 
     # Redis慢日志相关参数
@@ -425,6 +426,9 @@ class CollectorUpdateSerializer(serializers.Serializer):
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
         label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+    )
+    collector_scenario_id = serializers.ChoiceField(
+        label=_("日志类型"), choices=CollectorScenarioEnum.get_choices(), required=False
     )
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))

@@ -37,7 +37,7 @@ import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
 import { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
-import { reviewInterval } from '../../utils';
+import { padTextToWidth, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -159,10 +159,12 @@ export default class PerformanceChart extends TimeSeries {
           // 主机ai异常指标检查
           anomalyRange = await this.$api.aiops
             .hostIntelligenAnomalyRange({
+              ...(this.bkBizId ? { bk_biz_id: this.bkBizId } : {}),
               start_time: params.start_time,
               end_time: params.end_time,
               interval: isNaN(+this.viewOptions.interval) ? this.viewOptions.interval : this.viewOptions.interval + 's', // 默认 interval 单位 s
               metric_ids: metrics?.map(item => item.metric_id),
+              strategy_id: this.viewOptions?.strategy_id || undefined,
               host: [
                 {
                   ...this.viewOptions.current_target,
@@ -175,7 +177,11 @@ export default class PerformanceChart extends TimeSeries {
         let seriesList = this.handleTransformSeries(
           series.map((item, index) => {
             if (anomalyRange?.[item.metric_id]?.length) {
-              item.markTimeRange = anomalyRange[item.metric_id];
+              if (item.markTimeRange?.length && this.needAllAlertMarkArea) {
+                item.markTimeRange.push(...(anomalyRange[item.metric_id] || []));
+              } else {
+                item.markTimeRange = anomalyRange[item.metric_id];
+              }
             }
             return {
               name: item.name,
@@ -253,13 +259,15 @@ export default class PerformanceChart extends TimeSeries {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
+                      let value = v;
                       if (seriesList[0].unit !== 'none') {
                         const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                        value = obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
-                      return v;
+                      return padTextToWidth(value, this.YAxisLabelWidth);
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                  : (v: number) =>
+                      padTextToWidth(this.handleYxisLabelFormatter(v - this.minBase), this.YAxisLabelWidth),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
@@ -401,6 +409,7 @@ export default class PerformanceChart extends TimeSeries {
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}

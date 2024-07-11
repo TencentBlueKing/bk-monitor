@@ -1,27 +1,33 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import {
   Select,
   Option,
@@ -34,12 +40,14 @@ import {
   FormItem,
   Input,
   Button,
-  Checkbox
+  Checkbox,
 } from 'bk-magic-vue';
-import * as authorityMap from '../../../common/authority-map';
+
 import $http from '../../../api';
+import * as authorityMap from '../../../common/authority-map';
+import EmptyStatus from '../../../components/empty-status/index.vue';
 import SelectIndexSetInput from './select-index-set-input';
-import EmptyStatus from '@/components/empty-status';
+
 import './select-index-set.scss';
 
 type IndexSetType = 'single' | 'union';
@@ -48,15 +56,10 @@ type ActiveType = 'favorite' | 'history';
 const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
-export default class QueryStatement extends tsc<{}> {
+export default class QueryStatement extends tsc<object> {
   @Prop({ type: String, required: true }) indexId: string;
   @Prop({ type: Array, required: true }) indexSetList: Array<any>;
   @Prop({ type: Boolean, required: true }) basicLoading: boolean;
-  @Ref('selectIndexBox') private readonly selectIndexBoxRef: HTMLElement;
-  @Ref('tagBox') private readonly tagBoxRef: HTMLElement;
-  @Ref('selectInput') private readonly selectInputRef: Select;
-  @Ref('favoritePopover') private readonly favoritePopoverRef: Popover;
-  @Ref('checkInputForm') private readonly checkInputFormRef: Form;
 
   /** 表示集合数据是否正在加载 */
   isCollectionLoading = false;
@@ -110,32 +113,32 @@ export default class QueryStatement extends tsc<{}> {
   typeBtnSelectList = [
     {
       id: 'single',
-      label: window.mainComponent.$t('单选')
+      label: window.mainComponent.$t('单选'),
     },
     {
       id: 'union',
-      label: window.mainComponent.$t('多选')
-    }
+      label: window.mainComponent.$t('多选'),
+    },
   ];
 
   tabPanels = [
     {
       name: 'history',
       icon: 'log-icon icon-lishijilu',
-      label: window.mainComponent.$t('历史记录')
+      label: window.mainComponent.$t('历史记录'),
     },
     {
       name: 'favorite',
       icon: 'log-icon icon-star-shape',
-      label: window.mainComponent.$t('收藏')
-    }
+      label: window.mainComponent.$t('收藏'),
+    },
   ];
 
   /** 当前活跃的采样日志下标 */
   activeTab: ActiveType = 'history';
 
   verifyData = {
-    favoriteName: ''
+    favoriteName: '',
   };
 
   rules = {
@@ -143,14 +146,14 @@ export default class QueryStatement extends tsc<{}> {
       {
         validator: this.checkFavoriteName,
         message: window.mainComponent.$t('已有同名收藏'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   tippyOptions = {
@@ -158,8 +161,14 @@ export default class QueryStatement extends tsc<{}> {
     interactive: true,
     theme: 'light',
     placement: 'left-start',
-    arrow: true
+    arrow: true,
   };
+
+  @Ref('selectIndexBox') private readonly selectIndexBoxRef: HTMLElement;
+  @Ref('tagBox') private readonly tagBoxRef: HTMLElement;
+  @Ref('selectInput') private readonly selectInputRef: Select;
+  @Ref('favoritePopover') private readonly favoritePopoverRef: Popover;
+  @Ref('checkInputForm') private readonly checkInputFormRef: Form;
 
   /** 索引集权限 */
   get authorityMap() {
@@ -199,7 +208,7 @@ export default class QueryStatement extends tsc<{}> {
   get renderOptionList() {
     const list = [
       { name: '', children: [] },
-      { name: this.$t('无数据'), children: [] }
+      { name: this.$t('无数据'), children: [] },
     ];
     const haveDataFavoriteList = [];
     const haveDataList = [];
@@ -234,7 +243,7 @@ export default class QueryStatement extends tsc<{}> {
         indexName: this.$t('全选'),
         lightenName: '',
         tagAllID: this.filterTagID,
-        tags: []
+        tags: [],
       });
     }
     if (!notDataList.length) {
@@ -274,12 +283,12 @@ export default class QueryStatement extends tsc<{}> {
     if (isNotHaveLabel) {
       const notLabelHightHeight = this.isTagHave2Rows ? '266px' : '292px';
       return {
-        height: isUnion ? notLabelHightHeight : '360px'
+        height: isUnion ? notLabelHightHeight : '360px',
       };
     }
     const unionHeight = this.isTagHave2Rows ? '222px' : '248px';
     return {
-      height: isUnion ? unionHeight : '314px'
+      height: isUnion ? unionHeight : '314px',
     };
   }
 
@@ -320,14 +329,14 @@ export default class QueryStatement extends tsc<{}> {
   emitSelected() {
     return {
       ids: this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist,
-      selectIsUnionSearch: !this.isAloneType
+      selectIsUnionSearch: !this.isAloneType,
     };
   }
 
   /** 判断当前索引集是否有权限 */
   isHaveAuthority(item) {
     if (item.tagAllID) return true;
-    return item.permission && item.permission[this.authorityMap.SEARCH_LOG_AUTH];
+    return item.permission?.[this.authorityMap.SEARCH_LOG_AUTH];
   }
 
   /** 选中索引集 */
@@ -350,7 +359,7 @@ export default class QueryStatement extends tsc<{}> {
         // 当前未全选中  则把过滤后的标签索引集id全放到缓存的id列表
         this.selectTagCatchIDList = [...new Set([...this.selectedItemIDlist, ...this.havValRenderIDSetList])].slice(
           0,
-          MAX_UNION_INDEXSET_LIMIT
+          MAX_UNION_INDEXSET_LIMIT,
         ); // 最多选10条数据
       } else {
         // 全选选中 清空 已有的过滤后的标签索引集id
@@ -441,21 +450,21 @@ export default class QueryStatement extends tsc<{}> {
   async applySearchAccess(item) {
     (this.$el as any).click(); // 手动关闭下拉
     try {
-      this.$emit('update:basicLoading', true);
+      this.$emit('update:basic-loading', true);
       const res = await this.$store.dispatch('getApplyData', {
         action_ids: [authorityMap.SEARCH_LOG_AUTH],
         resources: [
           {
             type: 'indices',
-            id: item.index_set_id
-          }
-        ]
+            id: item.index_set_id,
+          },
+        ],
       });
       window.open(res.data.apply_url);
     } catch (err) {
       console.warn(err);
     } finally {
-      this.$emit('update:basicLoading', false);
+      this.$emit('update:basic-loading', false);
     }
   }
 
@@ -471,11 +480,11 @@ export default class QueryStatement extends tsc<{}> {
       await $http
         .request(url, {
           params: {
-            index_set_id: item.index_set_id
-          }
+            index_set_id: item.index_set_id,
+          },
         })
         .then(() => {
-          this.$emit('updateIndexSetList');
+          this.$emit('update-index-set-list');
         });
     } finally {
       this.isCollectionLoading = false;
@@ -541,8 +550,8 @@ export default class QueryStatement extends tsc<{}> {
             space_uid: this.spaceUid,
             index_set_type: this.indexSearchType,
             history_id: item?.id,
-            is_delete_all: isDeleteAll
-          }
+            is_delete_all: isDeleteAll,
+          },
         })
         .then(() => {
           this.getIndexSetHistoryList(this.indexSearchType, true);
@@ -566,8 +575,8 @@ export default class QueryStatement extends tsc<{}> {
       await $http
         .request('unionSearch/unionDeleteFavorite', {
           params: {
-            favorite_union_id: item.id
-          }
+            favorite_union_id: item.id,
+          },
         })
         .then(() => {
           this.multipleFavoriteSelectID = null;
@@ -588,8 +597,8 @@ export default class QueryStatement extends tsc<{}> {
               data: {
                 space_uid: this.spaceUid,
                 name: this.verifyData.favoriteName,
-                index_set_ids: this.selectTagCatchIDList
-              }
+                index_set_ids: this.selectTagCatchIDList,
+              },
             })
             .then(res => {
               this.verifyData.favoriteName = '';
@@ -598,7 +607,7 @@ export default class QueryStatement extends tsc<{}> {
               this.multipleFavoriteSelectID = res.data.id;
             });
         },
-        () => {}
+        () => {},
       );
     } else {
       this.favoritePopoverRef.hideHandler();
@@ -610,8 +619,8 @@ export default class QueryStatement extends tsc<{}> {
     await $http
       .request('unionSearch/unionFavoriteList', {
         params: {
-          space_uid: this.spaceUid
-        }
+          space_uid: this.spaceUid,
+        },
       })
       .then(res => {
         this.multipleFavorite = res.data;
@@ -626,7 +635,7 @@ export default class QueryStatement extends tsc<{}> {
     const leftPx = moveType === 'left' ? this.tagBoxRef.scrollLeft - 550 : this.tagBoxRef.scrollLeft + 550;
     this.tagBoxRef.scrollTo({
       left: leftPx,
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
   }
 
@@ -648,8 +657,8 @@ export default class QueryStatement extends tsc<{}> {
       [this.spaceUid]: {
         spaceUid: this.spaceUid,
         oftenTags: this.oftenTags, // 缓存的标签
-        expires: new Date().getTime() + expires * 1000 // 过期时间
-      }
+        expires: new Date().getTime() + expires * 1000, // 过期时间
+      },
     });
     localStorage.setItem('INDEX_SET_TAG_CATCH', JSON.stringify(tagCatch));
   }
@@ -707,8 +716,8 @@ export default class QueryStatement extends tsc<{}> {
       .request('unionSearch/unionHistoryList', {
         data: {
           space_uid: this.spaceUid,
-          index_set_type: queryType
-        }
+          index_set_type: queryType,
+        },
       })
       .then(res => {
         if (queryType === 'single') {
@@ -751,8 +760,8 @@ export default class QueryStatement extends tsc<{}> {
           {!!this.labelSelectList.length && (
             <div class='label-tag-container'>
               <div
-                class='tag-box'
                 ref='tagBox'
+                class='tag-box'
               >
                 {this.showLabelSelectList().map(item => (
                   <div>
@@ -760,8 +769,8 @@ export default class QueryStatement extends tsc<{}> {
                       class={[
                         'tag-item',
                         {
-                          'tag-select': this.filterTagID === item.tag_id
-                        }
+                          'tag-select': this.filterTagID === item.tag_id,
+                        },
                       ]}
                       onClick={() => this.handleClickTag(item.tag_id)}
                     >
@@ -771,14 +780,14 @@ export default class QueryStatement extends tsc<{}> {
                 ))}
               </div>
               <div
-                onClick={() => this.scrollMove('left')}
                 class='move-icon left-icon'
+                onClick={() => this.scrollMove('left')}
               >
                 <i class='bk-icon icon-angle-left-line'></i>
               </div>
               <div
-                onClick={() => this.scrollMove('right')}
                 class='move-icon right-icon'
+                onClick={() => this.scrollMove('right')}
               >
                 <i class='bk-icon icon-angle-right-line'></i>
               </div>
@@ -796,8 +805,8 @@ export default class QueryStatement extends tsc<{}> {
                 class={[
                   'favorite-item',
                   {
-                    active: this.favoriteActive(item)
-                  }
+                    active: this.favoriteActive(item),
+                  },
                 ]}
                 onClick={() => this.handleClickFavorite(item)}
               >
@@ -845,8 +854,8 @@ export default class QueryStatement extends tsc<{}> {
                     class={[
                       'history-alone-item',
                       {
-                        active: this.favoriteActive(item)
-                      }
+                        active: this.favoriteActive(item),
+                      },
                     ]}
                     onClick={() => this.handleClickFavorite(item)}
                   >
@@ -872,17 +881,17 @@ export default class QueryStatement extends tsc<{}> {
                     class={[
                       'history-multiple-item',
                       {
-                        active: this.multipleHistorySelectID === item.id
-                      }
+                        active: this.multipleHistorySelectID === item.id,
+                      },
                     ]}
                     onClick={() => this.handleClickHistory(item)}
                   >
                     <div class='tag-box'>
                       {item.index_set_names?.map(setName => (
                         <Tag
+                          class='title-overflow'
                           ext-cls='tag-item'
                           v-bk-overflow-tips
-                          class='title-overflow'
                         >
                           {setName}
                         </Tag>
@@ -906,8 +915,8 @@ export default class QueryStatement extends tsc<{}> {
       return (
         <div class='favorite-and-history'>
           <Tab
-            type='unborder-card'
             active={this.activeTab}
+            type='unborder-card'
             on-tab-change={this.handleTabChange}
           >
             {this.tabPanels.map((panel, index) => (
@@ -916,8 +925,8 @@ export default class QueryStatement extends tsc<{}> {
                 key={index}
               >
                 <div
-                  slot='label'
                   class='top-label'
+                  slot='label'
                 >
                   <i class={panel.icon}></i>
                   <span class='panel-name'>{panel.label}</span>
@@ -931,9 +940,9 @@ export default class QueryStatement extends tsc<{}> {
     };
     const selectIndexContainer = () => (
       <div
-        v-show={!!this.selectedItemList.length && !this.isAloneType}
-        class='select-index-container'
         ref='selectIndexBox'
+        class='select-index-container'
+        v-show={!!this.selectedItemList.length && !this.isAloneType}
       >
         <div class='title'>
           <div class='index-select'>
@@ -947,13 +956,13 @@ export default class QueryStatement extends tsc<{}> {
           </div>
           <Popover
             ref='favoritePopover'
+            ext-cls='new-favorite-popover'
             tippy-options={{
               ...this.tippyOptions,
-              appendTo: () => this.selectIndexBoxRef
+              appendTo: () => this.selectIndexBoxRef,
             }}
-            placement='bottom-start'
-            ext-cls='new-favorite-popover'
             disabled={!!this.multipleFavoriteSelectID}
+            placement='bottom-start'
           >
             <span class='favorite-btn'>
               <i
@@ -963,21 +972,21 @@ export default class QueryStatement extends tsc<{}> {
             </span>
             <div slot='content'>
               <Form
-                labelWidth={0}
-                style={{ width: '100%' }}
                 ref='checkInputForm'
+                style={{ width: '100%' }}
+                labelWidth={0}
                 {...{
                   props: {
                     model: this.verifyData,
-                    rules: this.rules
-                  }
+                    rules: this.rules,
+                  },
                 }}
               >
                 <FormItem property='favoriteName'>
                   <span style='color: #63656E;'>{this.$t('收藏名称')}</span>
                   <Input
-                    clearable
                     vModel={this.verifyData.favoriteName}
+                    clearable
                     onEnter={() => this.handleClickFavoritePopoverBtn('add')}
                   ></Input>
                 </FormItem>
@@ -1000,14 +1009,14 @@ export default class QueryStatement extends tsc<{}> {
           </Popover>
         </div>
         <div
-          class='index-tag-box'
           id='union-tag-box'
+          class='index-tag-box'
         >
           {this.selectedItemList.map(item => (
             <Tag
-              closable
               style='background: #FAFBFD;'
               type='stroke'
+              closable
               onClose={() => this.handleCloseSelectTag(item)}
             >
               <span class='tag-name'>
@@ -1032,21 +1041,19 @@ export default class QueryStatement extends tsc<{}> {
         ></span>
       ) : (
         <Checkbox
-          disabled={this.getDisabled(item.index_set_id)}
           checked={this.getCheckedVal(item.index_set_id)}
+          disabled={this.getDisabled(item.index_set_id)}
         ></Checkbox>
       );
     };
     const selectGroupDom = () => {
       return (
         <div
-          class='group-list'
           style={this.groupListStyle}
+          class='group-list'
         >
           {this.renderOptionList.map(group => (
             <OptionGroup
-              show-count={false}
-              name={group.name}
               id={(group as any).id}
               class={{ 'not-child': !group.children.length }}
               scopedSlots={{
@@ -1057,15 +1064,17 @@ export default class QueryStatement extends tsc<{}> {
                       <span>{group.children[0].no_data_check_time}</span>
                     </div>
                   ) : undefined;
-                }
+                },
               }}
+              name={group.name}
+              show-count={false}
             >
               {group.children.map(item => (
                 <Option
-                  class={['custom-no-padding-option', { 'union-select-item': !this.isAloneType }]}
                   id={String(item.index_set_id)}
-                  name={this.getOptionName(item)}
+                  class={['custom-no-padding-option', { 'union-select-item': !this.isAloneType }]}
                   disabled={this.getDisabled(item.index_set_id)}
+                  name={this.getOptionName(item)}
                 >
                   {this.isHaveAuthority(item) ? (
                     <div
@@ -1118,8 +1127,8 @@ export default class QueryStatement extends tsc<{}> {
         .slice(0, 2);
       return showTags.map(tag => (
         <span
-          v-bk-overflow-tips
           class={['tag-card title-overflow', `tag-card-${tag.color}`]}
+          v-bk-overflow-tips
         >
           {tag.name}
         </span>
@@ -1129,29 +1138,29 @@ export default class QueryStatement extends tsc<{}> {
       <SelectIndexSetInput
         is-alone-type={this.isAloneType}
         is-show-select-popover={this.isShowSelectPopover}
-        selected-item-list={this.selectedItemList}
         selected-item={this.selectedItem}
+        selected-item-list={this.selectedItemList}
       />
     );
     return (
       <Select
-        searchable
-        multiple
+        ref='selectInput'
+        class='retrieve-index-select'
+        v-model={this.selectTagCatchIDList}
+        scopedSlots={{
+          trigger: () => triggerSlot(),
+        }}
+        clearable={false}
+        data-test-id='dataQuery_div_indexSetSelect'
         display-tag={!this.isAloneType}
         ext-popover-cls='retrieve-index-select-popover'
-        class='retrieve-index-select'
-        data-test-id='dataQuery_div_indexSetSelect'
-        ref='selectInput'
-        clearable={false}
-        v-model={this.selectTagCatchIDList}
         popover-min-width={600}
         popover-options={{ boundary: 'window' }}
         scroll-height={400}
+        multiple
+        searchable
         onSelected={this.handleSelectIndex}
         onToggle={this.toggleSelect}
-        scopedSlots={{
-          trigger: () => triggerSlot()
-        }}
       >
         {labelFilter()}
         {favoriteAndHistory()}

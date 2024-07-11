@@ -19,6 +19,8 @@ import six
 from django.conf import settings
 from django.utils import timezone
 
+DEFAULT_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 
 def now():
     return timezone.now()
@@ -387,3 +389,6 @@ def time_interval_align(timestamp: int, interval: int):
     timestamp -= timezone_offset
 
     return timestamp
+
+
+MAX_DATETIME_STR = datetime2str(datetime.datetime.max)

@@ -189,10 +189,11 @@ class ValidateCustomTsGroupLabel(Resource):
         data_label_filter_params = {"data_label": data_label}
         data_label_unique_qs = CustomTSTable.objects
         # 获取插件类型前缀列表，自定义指标data_label前缀不可与插件类型data_label前缀重名
+        # process采集 复用自定义创建逻辑
         plugin_type_list = [
             f"{getattr(PluginType, attr).lower()}_"
             for attr in dir(PluginType)
-            if not callable(getattr(PluginType, attr)) and not attr.startswith("__")
+            if not callable(getattr(PluginType, attr)) and not attr.startswith("__") and attr != "PROCESS"
         ]
         label_pattern = re.compile(r'^(?!' + '|'.join(plugin_type_list) + r')[a-zA-Z][a-zA-Z0-9_]*$')
         if data_label == "":
@@ -321,6 +322,14 @@ class GetCustomEventGroup(Resource):
             event_group_id=event_group_id, need_refresh=need_refresh
         )
         data["event_info_list"] = list()
+
+        # 如果自定义事件有人访问，则结束休眠策略
+        username = get_request_username()
+        if event_info_list.get("status") == "sleep":
+            try:
+                api.metadata.modify_event_group({"event_group_id": event_group_id, "operator": username})
+            except BKAPIError:
+                pass
 
         # 查询事件关联策略ID
         related_query_configs = (

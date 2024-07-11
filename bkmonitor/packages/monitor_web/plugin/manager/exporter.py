@@ -240,7 +240,8 @@ class ExporterPluginManager(PluginManager):
         collector_json = {}
         # collector_json存入文件系统
         for sys_name, file_instance in list(collector_file.items()):
-            file_manager = PluginFileManager.save_file(file_data=file_instance.data, file_name=file_instance.name)
+            file_name = "_".join([sys_name, file_instance.name])
+            file_manager = PluginFileManager.save_file(file_data=file_instance.data, file_name=file_name)
             collector_json[sys_name] = {
                 "file_id": file_manager.file_obj.id,
                 "file_name": file_manager.file_obj.actual_filename,

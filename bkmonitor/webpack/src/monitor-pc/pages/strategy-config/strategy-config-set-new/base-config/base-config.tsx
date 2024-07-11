@@ -29,11 +29,12 @@
  * @Description: 策略基本信息
  */
 
-import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import Schema from 'async-validator';
-import { strategyLabelList } from 'monitor-api/modules/strategies';
+import axios from 'axios';
+import { strategyLabelList, verifyStrategyName } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import ErrorMsg from '../../../../components/error-msg/error-msg';
@@ -60,6 +61,7 @@ export interface IBaseConfig {
   labels: string[];
   isEnabled: boolean;
   priority: null | number | string;
+  id?: number | string;
 }
 @Component
 export default class BaseInfo extends tsc<IBaseConfigProps> {
@@ -69,6 +71,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
   @Prop({ type: Boolean, default: false }) scenarioReadonly: boolean;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
+  @Prop({ type: [String, Number], default: '' }) id: number | string;
 
   @Ref('strategyName') strategyNameEl;
   @Ref('strategyPriority') strategyPriorityEl;
@@ -81,6 +84,21 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     priority: '',
     labels: '',
   };
+
+  // 缓存获取焦点时的策略名
+  cacheName = '';
+  // 编辑时旧的策略名
+  oldStrategyName = '';
+  watchNameFlag = false;
+  cancelTokenSource = null;
+
+  @Watch('baseConfig.name', { immediate: true })
+  handleWatchStrategyNameChange(value) {
+    if (!this.watchNameFlag && !!value && !!this.id) {
+      this.oldStrategyName = value;
+      this.watchNameFlag = true;
+    }
+  }
 
   created() {
     this.getLabelListApi();
@@ -138,58 +156,93 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     this.strategyLabelsEl.focusInputer();
   }
 
-  // 校验方法
-  public validate(): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const descriptor = {
-        name: [{ required: true, message: this.$tc('必填项') }],
-        priority: [
-          {
-            asyncValidator: (rule, value) => {
-              return new Promise<void>((resolve, reject) => {
-                if (value < 0 || value > 10000) {
-                  reject(this.$t('优先级应为 0 - 10000 之间的整数'));
-                } else {
-                  resolve();
-                }
-              });
-            },
-          },
-        ],
-        labels: [
-          {
-            validator: (rule, value) => {
-              return !value.some(item => item.length > 120);
-            },
-            message: this.$tc('标签长度不能超过 120 字符'),
-          },
-        ],
-      };
-      const validator = new Schema(descriptor);
-      const { name, priority, labels } = this.baseConfig;
-      validator.validate({ name, priority, labels }, {}, (errors, fields) => {
-        if (!errors) {
-          this.errorsMsg = { name: '', priority: '', labels: '' };
-          resolve(null);
-        } else {
-          this.errorsMsg = { name: '', priority: '', labels: '' };
-          errors.forEach(item => {
-            this.errorsMsg[item.field] = item.message;
-          });
+  emojiRegex(value: string) {
+    return /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value);
+  }
 
-          for (const field in fields) {
-            // 按顺序给依次给表单 input 聚焦。（仅执行一次）
-            const methodMap = {
-              name: () => this.handleFocusStrategyName(),
-              priority: () => this.handleFocusStrategyPriority(),
-              labels: () => this.handleStrategyLabels(),
-            };
-            methodMap[field]();
-            break;
-          }
-          reject({ errors, fields });
+  getValidatorSchema() {
+    const descriptor = {
+      name: [
+        { required: true, message: this.$tc('必填项') },
+        {
+          validator: (_rule, value) => {
+            // 校验策略名称是否为连续空格
+            return !/^\s*$/.test(value);
+          },
+          message: this.$tc('必填项'),
+        },
+        {
+          validator: (_rule, value) => !this.emojiRegex(value),
+          message: this.$tc('不能输入emoji表情'),
+        },
+        {
+          asyncValidator: async (_rule, value) => {
+            this.cancelTokenSource?.cancel?.();
+            if (this.oldStrategyName === value) {
+              return Promise.resolve();
+            }
+            const hasSameName = await verifyStrategyName(
+              { name: value, id: this.id || undefined },
+              { needMessage: false, needRes: true }
+            )
+              .then(() => true)
+              .catch(error => {
+                return error?.status !== 400;
+              });
+            if (!hasSameName) {
+              return Promise.reject(this.$tc('策略名已存在'));
+            }
+            return Promise.resolve();
+          },
+        },
+      ],
+      priority: [
+        {
+          asyncValidator: async (rule, value) => {
+            if (value < 0 || value > 10000) {
+              return Promise.reject(this.$t('优先级应为 0 - 10000 之间的整数'));
+            } else {
+              return Promise.resolve();
+            }
+          },
+        },
+      ],
+      labels: [
+        {
+          validator: (rule, value) => {
+            return !value.some(item => item.length > 120);
+          },
+          message: this.$tc('标签长度不能超过 120 字符'),
+        },
+      ],
+    };
+    return new Schema(descriptor);
+  }
+  // 校验方法
+  public async validate(): Promise<any> {
+    const validatorSchema = this.getValidatorSchema();
+    const { name, priority, labels } = this.baseConfig;
+    return await validatorSchema.validate({ name, priority, labels }, {}, (errors, fields) => {
+      if (!errors) {
+        this.clearErrorMsg();
+        return Promise.resolve(null);
+      } else {
+        this.clearErrorMsg();
+        errors.forEach(item => {
+          this.errorsMsg[item.field] = item.message;
+        });
+        const methodMap = {
+          name: () => this.handleFocusStrategyName(),
+          priority: () => this.handleFocusStrategyPriority(),
+          labels: () => this.handleStrategyLabels(),
+        };
+        for (const field in fields) {
+          // 按顺序给依次给表单 input 聚焦。（仅执行一次）
+          methodMap[field]();
+          break;
         }
-      });
+        return Promise.reject({ errors, fields });
+      }
     });
   }
   // 清除校验
@@ -199,6 +252,35 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
       priority: '',
       labels: '',
     };
+  }
+
+  /**
+   * @description 校验策略名称是否重复
+   */
+  async verifyStrategyName(value: string) {
+    if (!value || /^\s*$/.test(value)) {
+      this.errorsMsg.name = this.$tc('必填项');
+      return;
+    }
+    if (this.emojiRegex(value)) {
+      this.errorsMsg.name = this.$tc('不能输入emoji表情');
+      return;
+    }
+    if (this.cacheName === value || this.oldStrategyName === value) {
+      return;
+    }
+    this.cancelTokenSource = axios.CancelToken.source();
+    const hasSameName = await verifyStrategyName(
+      { name: value, id: this.id || undefined },
+      { needMessage: false, cancelToken: this.cancelTokenSource.token, needRes: true }
+    )
+      .then(() => true)
+      .catch(error => {
+        return error?.status !== 400;
+      });
+    if (!hasSameName) {
+      this.errorsMsg.name = this.$tc('策略名已存在');
+    }
   }
 
   handleBaseConfigPriorityInput(value) {
@@ -217,7 +299,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             class='base-config-select simplicity-select'
             behavior='simplicity'
             clearable={false}
-            readonly={Number(this.bizId) > 0}
+            readonly={true}
             value={this.bizId}
             searchable
             on-change={this.handleBaseConfigChange}
@@ -280,6 +362,8 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
               readonly={this.readonly}
               on-change={this.handleBaseConfigChange}
               on-input={() => (this.errorsMsg.name = '')}
+              onBlur={this.verifyStrategyName}
+              onFocus={() => (this.cacheName = this.baseConfig.name)}
             />
           </ErrorMsg>
         </CommonItem>

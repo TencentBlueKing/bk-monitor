@@ -2,14 +2,14 @@
 
 .label-select {
   position: relative;
-  padding: 4px 0;
   align-items: center;
+  padding: 4px 0;
 
   @include flex-justify(start);
 
   .bk-select {
-    margin-left: 4px;
     flex-shrink: 0;
+    margin-left: 4px;
     border: none;
     box-shadow: none;
   }
@@ -70,6 +70,7 @@
     }
   
     .more-num {
+      flex: 1;
       min-width: 26px;
       padding: 0 5px;
       margin-left: 6px;
@@ -78,26 +79,25 @@
       text-align: center;
       cursor: pointer;
       background: #f0f1f5;
-      flex: 1;
     }
   }
 }
 
 
 .new-label-container {
+  box-sizing: border-box;
   height: 40px;
   font-size: 12px;
-  box-sizing: border-box;
 
   @include flex-center();
 
   .new-label-input {
     display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
     padding: 0;
-    align-items: center;
-    flex-wrap: nowrap;
-    justify-content: space-between;
   }
 
   .add-new-label {
@@ -149,9 +149,9 @@
     z-index: -1;
     width: 100%;
     height: 100%;
+    content: ' ';
     background: transparent;
     border-radius: 50%;
-    content: ' ';
   }
 
   &.disabled {

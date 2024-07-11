@@ -60,6 +60,7 @@ class ActionProcessor(BaseActionProcessor):
 
         send_message = self.context["alarm"].alert_info
         if settings.COMPATIBLE_ALARM_FORMAT:
+            # COMPATIBLE_ALARM_FORMAT 表示是否使用老版本告警格式（设置为True的话，推送的字段会少一些）
             send_message = self.context["alarm"].callback_message
         try:
             self.client.send(send_message)

@@ -503,7 +503,7 @@ class UserGroup(AbstractRecordModel):
             ]
             if valid_work_times:
                 plan.work_times = valid_work_times
-                plan.start_time = min([work_time["start_time"] for work_time in plan.work_times])
+                plan.start_time = plan.start_time[:-3]
                 work_finished_time = max([work_time["end_time"] for work_time in plan.work_times])
                 # plan的结束时间，以工作时间和当前排班结束时间的最小值为准
                 plan_finish_time = plan.finished_time[:-3]
@@ -799,7 +799,7 @@ class DutyPlan(Model):
     """
 
     id = models.BigAutoField("主键", primary_key=True)
-    user_group_id = models.IntegerField("关联的告警组", null=False, db_index=True)
+    user_group_id = models.IntegerField("关联的告警组", null=False)
     duty_rule_id = models.IntegerField("关联的告警信息", null=True, db_index=True)
     duty_arrange_id = models.IntegerField("轮值组ID", null=True, db_index=True)
     order = models.IntegerField("轮班组的顺序")
@@ -808,7 +808,7 @@ class DutyPlan(Model):
     is_active = models.BooleanField("是否生效状态（已废弃）", default=False)
 
     # 是否有效，替换原来的is_active字段，这样可以设置索引
-    is_effective = models.IntegerField("是否有效", default=0, db_index=True)
+    is_effective = models.IntegerField("是否有效", default=0)
     start_time = models.CharField("当前轮班生效开始时间", null=False, max_length=32, default="1970-01-01 00:00:00")
     finished_time = models.CharField("当前轮班生效结束时间", null=True, max_length=32, db_index=True)
 
@@ -825,6 +825,12 @@ class DutyPlan(Model):
 
     # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
     duty_time = models.JSONField(verbose_name="轮班时间安排", default=dict)
+
+    class Meta:
+        indexes = [
+            # 避免定时任务 index merge 引起的死锁，finished_time 用于加速用户组视图
+            models.Index(fields=["user_group_id", "is_effective", "finished_time"])
+        ]
 
     def is_active_plan(self, data_time=None):
         """

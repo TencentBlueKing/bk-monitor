@@ -390,6 +390,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 metricMetaId,
                 time_field: timeField,
                 bkmonitor_strategy_id: bkmonitorStrategyId,
+                custom_event_name,
                 curRealMetric,
               }) => {
                 dataSourceLabel = curRealMetric?.data_source_label || dataSourceLabel;
@@ -447,6 +448,22 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                   }
                   return !isDetect ? resultTableId : intelligent_detect?.result_table_id || resultTableId;
                 };
+                const getFieldDict = () => {
+                  const fieldDict: Record<string, string> =
+                    this.shortcutsType === EShortcutsType.NEAR
+                      ? {}
+                      : Object.keys(this.dimensions).reduce((pre, key) => {
+                          if (!typeTools.isNull(this.dimensions[key]) && agg_dimension.includes(key)) {
+                            pre[key] = this.dimensions[key];
+                          }
+                          return pre;
+                        }, {});
+
+                  if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
+                    fieldDict.event_name = custom_event_name;
+                  }
+                  return fieldDict;
+                };
                 const result = {
                   originMetricData: isDetect ? originMetricData : undefined,
                   data_source_label: !isDetect ? dataSourceLabel : 'bk_data',
@@ -460,15 +477,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                     : agg_condition.filter(item => item.key && item.value?.length),
                   interval: agg_interval,
                   time_field: isDetect ? 'dtEventTimeStamp' : timeField || 'time',
-                  filter_dict:
-                    this.shortcutsType === EShortcutsType.NEAR
-                      ? {}
-                      : Object.keys(this.dimensions).reduce((pre, key) => {
-                          if (!typeTools.isNull(this.dimensions[key]) && agg_dimension.includes(key)) {
-                            pre[key] = this.dimensions[key];
-                          }
-                          return pre;
-                        }, {}),
+                  filter_dict: getFieldDict(),
                   functions: isDetect ? [] : func,
                   target: this.strategyTarget || [],
                   ...logParam,

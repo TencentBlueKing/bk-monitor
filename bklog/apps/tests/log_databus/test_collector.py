@@ -77,6 +77,86 @@ PARAMS = {
     "storage_expires": 1,
 }
 DELETE_MSG = {"result": True}
+
+TASK_RESULT_DATA = [
+    {
+        "task_id": 7878,
+        "record_id": 1362,
+        "instance_id": "host|instance|host|127.0.0.1-0-0",
+        "create_time": "2019-09-19T20:32:19.957883",
+        "pipeline_id": "5e5a6fe5b1864393803adf",
+        "instance_info": {
+            "host": {
+                "bk_biz_id": 2,
+                "bk_host_id": 1,
+                "bk_biz_name": "",
+                "bk_cloud_id": 0,
+                "bk_host_name": "rbtnode1",
+                "bk_cloud_name": "",
+                "bk_host_innerip": "127.0.0.1",
+                "bk_host_innerip_v6": "",
+                "bk_supplier_account": "0",
+            },
+            "service": {},
+        },
+        "status": "FAILED",
+    },
+    {
+        "task_id": 7878,
+        "record_id": 1362,
+        "instance_id": "host|instance|host|127.0.0.1-0-0",
+        "create_time": "2019-09-19T20:32:19.957883",
+        "pipeline_id": "5e5a6fe5b1864393803adf",
+        "instance_info": {
+            "host": {
+                "bk_biz_id": 2,
+                "bk_host_id": 1,
+                "bk_biz_name": "",
+                "bk_cloud_id": 0,
+                "bk_host_name": "rbtnode1",
+                "bk_cloud_name": "",
+                "bk_host_innerip": "127.0.0.1",
+                "bk_host_innerip_v6": "",
+                "bk_supplier_account": "0",
+            },
+            "service": {},
+        },
+        "status": "SUCCESS",
+    },
+]
+
+PLUGIN_RESULT_DATA = [
+    {
+        "status": "FAILED",
+        "node_from": "NODE_MAN",
+        "ap_id": 2,
+        "bk_host_id": 1,
+        "bk_agent_id": "0200000000525400fbd53",
+        "bk_host_name": "rbtnode1",
+        "plugin_status": [
+            {"name": "bkunifylogbeat", "status": "UNKNOWN", "version": "3.0.10", "host_id": 1},
+            {"name": "unifytlogc", "status": "UNKNOWN", "version": "3.0.10", "host_id": 1},
+        ],
+        "operate_permission": True,
+        "setup_path": "/usr/local/abc_paas",
+    },
+    {
+        "status": "SUCCESS",
+        "node_from": "NODE_MAN",
+        "ap_id": 2,
+        "bk_host_id": 1,
+        "bk_agent_id": "0200000000525400fbd53",
+        "bk_host_name": "rbtnode1",
+        "plugin_status": [
+            {"name": "bkunifylogbeat", "status": "RUNNING", "version": "3.0.10", "host_id": 1},
+            {"name": "unifytlogc", "status": "RUNNING", "version": "3.0.10", "host_id": 1},
+        ],
+        "operate_permission": True,
+        "setup_path": "/usr/local/abc_paas",
+    },
+]
+
+
 PART_FAILED_INSTANCE_DATA = {
     "instances": [
         {
@@ -278,7 +358,7 @@ STATUS_DATA_RETURN = [
         "cloud_id": 0,
         "instance_id": "host|instance|host|127.0.0.1-0-0",
         "instance_name": "127.0.0.1",
-        "plugin_name": "unifytlogc",
+        "plugin_name": "bkunifylogbeat",
         "plugin_version": "3.0.10",
         "bk_supplier_id": "0",
         "create_time": "2019-09-19T20:32:19.957883",
@@ -295,7 +375,7 @@ STATUS_DATA_RETURN = [
         "host_name": "rbtnode1",
         "instance_id": "host|instance|host|127.0.0.1-0-0",
         "instance_name": "127.0.0.1",
-        "plugin_name": "unifytlogc",
+        "plugin_name": "bkunifylogbeat",
         "plugin_version": "3.0.10",
         "bk_supplier_id": "0",
         "create_time": "2019-09-19T20:32:19.957883",
@@ -918,33 +998,33 @@ PROJECT_CLUSTER_LIST = [
 
 
 LIST_NAMESPACES = [
-        {
-            "cluster_id": BCS_CLUSTER_ID,
-            "created_at": "2021-01-01T00:00:00+08:00",
-            "creator": "admin",
-            "description": "",
-            "env_type": "dev",
-            "has_image_secret": False,
-            "id": 2,
-            "name": "test-cluster-share-test1",
-            "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
-            "status": "",
-            "updated_at": "2021-01-01T00:00:00+08:00",
-        },
-        {
-            "cluster_id": BCS_CLUSTER_ID,
-            "created_at": "2021-01-01T00:00:00+08:00",
-            "creator": "admin",
-            "description": "",
-            "env_type": "dev",
-            "has_image_secret": False,
-            "id": 3,
-            "name": "test-cluster-share-test2",
-            "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
-            "status": "",
-            "updated_at": "2021-01-01T00:00:00+08:00",
-        },
-    ]
+    {
+        "cluster_id": BCS_CLUSTER_ID,
+        "created_at": "2021-01-01T00:00:00+08:00",
+        "creator": "admin",
+        "description": "",
+        "env_type": "dev",
+        "has_image_secret": False,
+        "id": 2,
+        "name": "test-cluster-share-test1",
+        "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
+        "status": "",
+        "updated_at": "2021-01-01T00:00:00+08:00",
+    },
+    {
+        "cluster_id": BCS_CLUSTER_ID,
+        "created_at": "2021-01-01T00:00:00+08:00",
+        "creator": "admin",
+        "description": "",
+        "env_type": "dev",
+        "has_image_secret": False,
+        "id": 3,
+        "name": "test-cluster-share-test2",
+        "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
+        "status": "",
+        "updated_at": "2021-01-01T00:00:00+08:00",
+    },
+]
 
 
 def subscription_statistic(params):
@@ -1121,12 +1201,13 @@ class TestCollector(TestCase):
             CollectorHandler(collector_config_id=collector_config_id)
 
     def test_format_subscription_instance_status(self, *args, **kwargs):
-        result = CollectorHandler.format_subscription_instance_status(PART_FAILED_INSTANCE_DATA)
+        result = CollectorHandler.format_subscription_instance_status(TASK_RESULT_DATA, PLUGIN_RESULT_DATA)
         self.assertEqual(result, STATUS_DATA_RETURN)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
-    @patch("apps.api.NodeApi.get_subscription_instance_status", lambda _: STATUS_DATA)
-    def _test_get_subscription_status(self, collector_config_id):
+    @patch("apps.api.base.DataAPI.bulk_request", return_value=TASK_RESULT_DATA)
+    @patch("apps.api.base.DataAPI.batch_request", return_value=PLUGIN_RESULT_DATA)
+    def _test_get_subscription_status(self, collector_config_id, mock_bulk_request, mock_batch_request):
         collector = CollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-INSTANCE
@@ -1269,8 +1350,8 @@ class TestCollector(TestCase):
         self.assertEqual(result[0]["task_id"], 24626)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
-    @patch("apps.api.NodeApi.get_subscription_task_status", lambda _: [TASK_DETAIL_DATA])
-    def _test_get_subscription_task_status(self, collector_config_id):
+    @patch("apps.api.base.DataAPI.bulk_request", return_value=TASK_RESULT_DATA)
+    def _test_get_subscription_task_status(self, collector_config_id, mock_bulk_request):
         collector = CollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-TOPO

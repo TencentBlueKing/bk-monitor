@@ -1,9 +1,35 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
-import { copyText, deepClone, transformDataKey } from '../../../../../../components/monitor-echarts/utils';
+
 import BkUserSelector from '@blueking/user-selector';
 import dayjs from 'dayjs';
 
+import { copyText, deepClone, transformDataKey } from '../../../../../../components/monitor-echarts/utils';
 import { FrequencyType, Report } from './types';
 
 import './create-subscription-form.scss';
@@ -13,7 +39,7 @@ const PatternLevelEnum = {
   '03': 75,
   '05': 50,
   '07': 25,
-  '09': 0
+  '09': 0,
 };
 
 interface IProps {
@@ -27,13 +53,13 @@ const EXCLUDES_WEEKEND = [1, 2, 3, 4, 5];
 const Scenario = {
   clustering: window.mainComponent.$t('日志聚类'),
   dashboard: window.mainComponent.$t('仪表盘'),
-  scene: window.mainComponent.$t('观测场景')
+  scene: window.mainComponent.$t('观测场景'),
 };
 const hours = [0.5, 1, 2, 6, 12];
 /** 发送频率 中 按小时 的小时选项。 */
 const hourOption = hours.map(hour => ({
   id: hour,
-  name: window.mainComponent.$t('{0}小时', [hour])
+  name: window.mainComponent.$t('{0}小时', [hour]),
 }));
 /** 敏感度的 间隙 值。 */
 const customSliderContent = [0, 25, 50, 75, 100].reduce((acc, value) => {
@@ -44,15 +70,15 @@ const customSliderContent = [0, 25, 50, 75, 100].reduce((acc, value) => {
 const daysOfWeek = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
 const weekList = daysOfWeek.map((day, index) => ({
   name: window.mainComponent.$t(day),
-  id: index + 1
+  id: index + 1,
 }));
 /** 展示同比 的选项。 */
 const YOYList = [
   { id: 0, name: window.mainComponent.$t('不比对') },
   ...[1, 2, 3, 6, 12, 24].map(hour => ({
     id: hour,
-    name: window.mainComponent.$t('{0}小时前', [hour])
-  }))
+    name: window.mainComponent.$t('{0}小时前', [hour]),
+  })),
 ];
 const timeOptions = [
   // 20240308 暂时不需要该选项。
@@ -67,18 +93,18 @@ const timeOptions = [
   { id: '24hours', n: 24, unit: '小时' },
   { id: '2days', n: 2, unit: '天' },
   { id: '7days', n: 7, unit: '天' },
-  { id: '30days', n: 30, unit: '天' }
+  { id: '30days', n: 30, unit: '天' },
 ];
 /** 时间范围选项 */
 const timeRangeOption = timeOptions.map(({ id, label, n, unit }) => ({
   id,
-  name: label || window.mainComponent.$t(`近{n}${unit}`, { n })
+  name: label || window.mainComponent.$t(`近{n}${unit}`, { n }),
 }));
 @Component({
   name: 'QuickCreateSubscription',
   components: {
-    BkUserSelector
-  }
+    BkUserSelector,
+  },
 })
 class QuickCreateSubscription extends tsc<IProps> {
   /**
@@ -107,7 +133,7 @@ class QuickCreateSubscription extends tsc<IProps> {
       // 是否只展示新类
       is_show_new_pattern: false,
       // 这个同比配置也不需要前端展示，暂不开放配置入口 （不用管）
-      year_on_year_change: 'all'
+      year_on_year_change: 'all',
     },
     // 这里不可以直接对组件赋值，不然最后会带上不必要的参数。
     frequency: {
@@ -117,36 +143,36 @@ class QuickCreateSubscription extends tsc<IProps> {
       hour: 0.5,
       run_time: '',
       week_list: [],
-      day_list: []
+      day_list: [],
     },
     content_config: {
       title: '',
-      is_link_enabled: true
+      is_link_enabled: true,
     },
     channels: [
       {
         is_enabled: true,
         subscribers: [],
-        channel_name: 'user'
+        channel_name: 'user',
       },
       {
         is_enabled: false,
         subscribers: [],
         send_text: '',
-        channel_name: 'email'
+        channel_name: 'email',
       },
       {
         is_enabled: false,
         subscribers: [],
-        channel_name: 'wxbot'
-      }
+        channel_name: 'wxbot',
+      },
     ],
     timerange: [],
     // 表单的验证的 bug ，后期再考虑删掉
     scenario_config__log_display_count: 0,
     // 同上一个道理
     content_config__title: '',
-    bk_biz_id: 0
+    bk_biz_id: 0,
   };
 
   /** 发送频率相关。该对象最后会把该对象数据copy到 formData 上，因为其中 run_time 的日期格式不同导致 日期组件 报异常，所以这里单独抽出整个对象。 */
@@ -156,7 +182,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     run_time: dayjs().format('HH:mm:ss'),
     only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
     week_list: [],
-    day_list: []
+    day_list: [],
   };
 
   /** Pattern 选择器 */
@@ -169,12 +195,12 @@ class QuickCreateSubscription extends tsc<IProps> {
   subscriberInput = {
     user: [],
     email: '',
-    wxbot: ''
+    wxbot: '',
   };
 
   isIncludeWeekend = true;
 
-  subscribeFor: 'self' | 'others' = 'self';
+  subscribeFor: 'others' | 'self' = 'self';
 
   /** 索引集 列表 */
   indexSetIDList = [];
@@ -191,7 +217,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   isShowYOY = true;
 
   variableTable = {
-    data: []
+    data: [],
   };
 
   /** 是否 生成附件 */
@@ -204,18 +230,18 @@ class QuickCreateSubscription extends tsc<IProps> {
     user: {
       message: '',
       defaultMessage: window.mainComponent.$t('内部邮件不可为空'),
-      isShow: false
+      isShow: false,
     },
     email: {
       message: '',
       defaultMessage: window.mainComponent.$t('外部邮件不可为空'),
-      isShow: false
+      isShow: false,
     },
     wxbot: {
       message: '',
       defaultMessage: window.mainComponent.$t('企业微信群不可为空'),
-      isShow: false
-    }
+      isShow: false,
+    },
   };
 
   /** 是否 附带链接 */
@@ -232,7 +258,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   /** 任务有效期，视图绑定用。 */
   timerange = {
     start: '',
-    end: ''
+    end: '',
   };
 
   /** 表单验证规则，因为这里需要大量引用 this 指向本组件，所以要使用函数去返回配置对象 */
@@ -251,8 +277,8 @@ class QuickCreateSubscription extends tsc<IProps> {
             }
           },
           message: this.$t('必填项'),
-          trigger: 'change'
-        }
+          trigger: 'change',
+        },
       ],
       channels: [
         {
@@ -305,14 +331,14 @@ class QuickCreateSubscription extends tsc<IProps> {
             return true;
           },
           message: ' ',
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ],
       scenario_config__log_display_count: [
         {
           required: true,
           message: this.$t('必填项'),
-          trigger: 'change'
+          trigger: 'change',
         },
         {
           validator: () => {
@@ -320,15 +346,15 @@ class QuickCreateSubscription extends tsc<IProps> {
           },
           message: this.$t('必需为正整数'),
           // 不要写成数组，会有 bug 。（validate 永远为 true）
-          trigger: 'change'
-        }
+          trigger: 'change',
+        },
       ],
       content_config__title: [
         {
           required: true,
           message: this.$t('必填项'),
-          trigger: 'change'
-        }
+          trigger: 'change',
+        },
       ],
       timerange: [
         {
@@ -336,7 +362,7 @@ class QuickCreateSubscription extends tsc<IProps> {
             return this.formData.timerange.length === 2 && !!this.formData.timerange[0];
           },
           message: this.$t('生效起始时间必填'),
-          trigger: 'change'
+          trigger: 'change',
         },
         {
           validator: () => {
@@ -347,16 +373,16 @@ class QuickCreateSubscription extends tsc<IProps> {
             return result < 0;
           },
           message: this.$t('生效结束时间不能小于生效起始时间'),
-          trigger: 'change'
-        }
+          trigger: 'change',
+        },
       ],
       name: [
         {
           required: true,
           message: this.$t('必填项'),
-          trigger: 'change'
-        }
-      ]
+          trigger: 'change',
+        },
+      ],
     };
   }
 
@@ -372,14 +398,14 @@ class QuickCreateSubscription extends tsc<IProps> {
     if (str === 'none') return undefined;
     let res = {
       timeLevel: 'hours',
-      number: 24
+      number: 24,
     };
     const isMatch = str.match(/(\d+)(minutes|hours|days)/);
     if (isMatch) {
       const [, date, level] = isMatch;
       res = {
         timeLevel: level,
-        number: +date
+        number: +date,
       };
     }
     return transformDataKey(res, true);
@@ -392,35 +418,35 @@ class QuickCreateSubscription extends tsc<IProps> {
       hour: 0,
       run_time: '',
       week_list: [],
-      day_list: []
+      day_list: [],
     });
     switch (this.formData.frequency.type) {
       case FrequencyType.hourly:
         Object.assign(this.formData.frequency, {
-          hour: this.frequency.hour
+          hour: this.frequency.hour,
         });
         break;
       case FrequencyType.dayly:
         Object.assign(this.formData.frequency, {
           run_time: this.frequency.run_time,
-          week_list: this.isIncludeWeekend ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND
+          week_list: this.isIncludeWeekend ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND,
         });
         break;
       case FrequencyType.weekly:
         Object.assign(this.formData.frequency, {
           run_time: this.frequency.run_time,
-          week_list: this.frequency.week_list
+          week_list: this.frequency.week_list,
         });
         break;
       case FrequencyType.monthly:
         Object.assign(this.formData.frequency, {
           run_time: this.frequency.run_time,
-          day_list: this.frequency.day_list
+          day_list: this.frequency.day_list,
         });
         break;
       case FrequencyType.onlyOnce:
         Object.assign(this.formData.frequency, {
-          run_time: dayjs(this.frequency.only_once_run_time).format('YYYY-MM-DD HH:mm:ss')
+          run_time: dayjs(this.frequency.only_once_run_time).format('YYYY-MM-DD HH:mm:ss'),
         });
         break;
       default:
@@ -450,7 +476,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     return Promise.all([
       this.refOfContentForm?.validate?.(),
       this.refOfEmailSubscription?.validate?.(),
-      this.refOfSendingConfigurationForm?.validate?.()
+      this.refOfSendingConfigurationForm?.validate?.(),
     ])
       .then(() => {
         const cloneFormData: Report = deepClone(this.formData);
@@ -466,11 +492,11 @@ class QuickCreateSubscription extends tsc<IProps> {
                 {
                   id: this.$store.state.userMeta?.username || '',
                   type: 'user',
-                  is_enabled: true
-                }
+                  is_enabled: true,
+                },
               ],
-              channel_name: 'user'
-            }
+              channel_name: 'user',
+            },
           ];
         }
         // 调整 订阅名称 ，这里 订阅名称 由于没有录入的地方将是用默认方式组合。
@@ -506,7 +532,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   ? !item.subscribers.length
                   : // 检查订阅邮箱格式是否正确。
                     !item.subscribers.every(email => String(email.id).toLowerCase().match(this.emailRegex)) ||
-                    !item.subscribers.length)
+                    !item.subscribers.length),
             )?.channel_name;
             if (targetChannel) this.$refs?.[`${targetChannel}-input`]?.focus?.();
             else {
@@ -527,13 +553,13 @@ class QuickCreateSubscription extends tsc<IProps> {
     copyText(`{{${text}}}`, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -547,10 +573,10 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.bizName = spaceList.find(item => item.bk_biz_id === bizId)?.space_name || '';
     const currentDate = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
     const titleMapping = {
-      clustering: this.$t('{0}-日志聚类统计报表-{1}', [this.bizName, currentDate])
+      clustering: this.$t('{0}-日志聚类统计报表-{1}', [this.bizName, currentDate]),
     };
     const nameMapping = {
-      clustering: this.$t('{0}-日志聚类统计报表-{1}', ['{{business_name}}', '{{time}}'])
+      clustering: this.$t('{0}-日志聚类统计报表-{1}', ['{{business_name}}', '{{time}}']),
     };
     const targetTitle = titleMapping[this.scenario] || '';
     const targetName = nameMapping[this.scenario] || '';
@@ -574,8 +600,8 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.$http
       .request('retrieve/getIndexSetList', {
         query: {
-          space_uid: this.$route.query.spaceUid
-        }
+          space_uid: this.$route.query.spaceUid,
+        },
       })
       .then(response => {
         this.indexSetIDList = response.data;
@@ -587,8 +613,8 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.$http
       .request('newReport/getVariables', {
         query: {
-          scenario: this.scenario
-        }
+          scenario: this.scenario,
+        },
       })
       .then(response => {
         this.variableTable.data = response.data;
@@ -617,7 +643,7 @@ class QuickCreateSubscription extends tsc<IProps> {
       .map(item => {
         return {
           id: item,
-          is_enabled: true
+          is_enabled: true,
         };
       })
       .filter(item => item.id);
@@ -631,7 +657,7 @@ class QuickCreateSubscription extends tsc<IProps> {
       .map(item => {
         return {
           id: item,
-          is_enabled: true
+          is_enabled: true,
         };
       })
       .filter(item => item.id);
@@ -674,23 +700,23 @@ class QuickCreateSubscription extends tsc<IProps> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.formDataRules()
-              }
+                rules: this.formDataRules(),
+              },
             }}
             label-width={200}
           >
             {this.mode === 'create' && (
               <bk-form-item
-                label={this.$t('订阅场景')}
                 class='text-content'
+                label={this.$t('订阅场景')}
               >
                 {Scenario[this.scenario]}
               </bk-form-item>
             )}
             {this.mode === 'create' && (
               <bk-form-item
-                label={this.$t('索引集')}
                 class='text-content'
+                label={this.$t('索引集')}
               >
                 {this.indexSetName}
               </bk-form-item>
@@ -698,19 +724,19 @@ class QuickCreateSubscription extends tsc<IProps> {
 
             <div>
               <bk-button
-                text
-                theme='primary'
-                onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)}
                 style='margin-left: 120px; margin-bottom: 10px; margin-top: 20px;font-size: 12px;'
+                theme='primary'
+                text
+                onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)}
               >
                 <div style='display: flex; align-items: center;'>
                   {this.mode === 'create' && this.$t('内容配置')}
                   <i
+                    style='font-size: 26px;'
                     class={[
                       'icon-monitor',
-                      this.isShowAdvancedOption ? 'log-icon icon-expand-small' : 'log-icon icon-collapse-small'
+                      this.isShowAdvancedOption ? 'log-icon icon-expand-small' : 'log-icon icon-collapse-small',
                     ]}
-                    style='font-size: 26px;'
                   ></i>
                 </div>
               </bk-button>
@@ -722,14 +748,14 @@ class QuickCreateSubscription extends tsc<IProps> {
                 {this.mode === 'create' && (
                   <div>
                     <bk-form-item
+                      style='margin-top: 20px;'
                       label={this.$t('时间范围')}
                       required
-                      style='margin-top: 20px;'
                     >
                       <bk-select
+                        style='width: 465px;'
                         v-model={this.dataRange}
                         clearable={false}
-                        style='width: 465px;'
                       >
                         {timeRangeOption.map(item => {
                           return (
@@ -742,9 +768,9 @@ class QuickCreateSubscription extends tsc<IProps> {
                       </bk-select>
                       <div style='margin-top: 8px;width: 100%;'>
                         <bk-alert
-                          type='warning'
                           style='width: 465px;'
                           title={this.$t('当前日志查询时间范围不支持静态区间')}
+                          type='warning'
                         ></bk-alert>
                       </div>
                     </bk-form-item>
@@ -752,19 +778,19 @@ class QuickCreateSubscription extends tsc<IProps> {
                 )}
 
                 <bk-form-item
+                  style='margin-top: 20px;'
                   label='Pattern'
                   property='scenario_config.pattern_level'
                   required
-                  style='margin-top: 20px;'
                 >
                   <div class='slider-container'>
                     <span class='text-content'>{this.$t('少')}</span>
                     <bk-slider
                       class='slider'
                       v-model={this.pattenLevelSlider}
-                      step={25}
-                      show-tip={false}
                       custom-content={customSliderContent}
+                      show-tip={false}
+                      step={25}
                       onChange={this.handleSliderChange}
                     ></bk-slider>
                     <span class='text-content'>{this.$t('多')}</span>
@@ -772,17 +798,17 @@ class QuickCreateSubscription extends tsc<IProps> {
                 </bk-form-item>
 
                 <bk-form-item
+                  error-display-type='normal'
                   label={this.$t('最大展示数量')}
                   property='scenario_config__log_display_count'
                   required
-                  error-display-type='normal'
                 >
                   <bk-input
-                    v-model={this.formData.scenario_config.log_display_count}
-                    type='number'
-                    min={0}
-                    max={500}
                     style='width: 160px;'
+                    v-model={this.formData.scenario_config.log_display_count}
+                    max={500}
+                    min={0}
+                    type='number'
                     onChange={() => {
                       this.formData.scenario_config__log_display_count =
                         this.formData.scenario_config.log_display_count;
@@ -811,16 +837,16 @@ class QuickCreateSubscription extends tsc<IProps> {
                       }}
                     ></bk-switcher>
                     <bk-select
-                      v-model={this.formData.scenario_config.year_on_year_hour}
-                      disabled={!this.isShowYOY}
-                      clearable={false}
                       style='width: 120px;margin-left: 24px;'
+                      v-model={this.formData.scenario_config.year_on_year_hour}
+                      clearable={false}
+                      disabled={!this.isShowYOY}
                     >
                       {YOYList.map(item => {
                         return (
                           <bk-option
-                            v-show={this.isShowYOY && item.id !== 0}
                             id={item.id}
+                            v-show={this.isShowYOY && item.id !== 0}
                             name={item.name}
                           ></bk-option>
                         );
@@ -872,41 +898,41 @@ class QuickCreateSubscription extends tsc<IProps> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.formDataRules()
-              }
+                rules: this.formDataRules(),
+              },
             }}
             label-width={200}
           >
             <bk-form-item
+              error-display-type='normal'
               label={this.$t('邮件标题')}
               property='content_config__title'
               required
-              error-display-type='normal'
             >
               <div style='display: flex;'>
                 <bk-input
+                  style='width: 465px;'
                   v-model={this.formData.content_config.title}
                   placeholder={this.$t('请输入')}
-                  style='width: 465px;'
                   onChange={() => {
                     this.formData.content_config__title = this.formData.content_config.title;
                   }}
                 ></bk-input>
 
                 <bk-popover
-                  trigger='click'
+                  width='420px'
                   placement='bottom-start'
                   theme='light'
-                  width='420px'
+                  trigger='click'
                 >
                   <bk-button
-                    text
-                    theme='primary'
                     style='margin-left: 16px;font-size: 12px;'
+                    theme='primary'
+                    text
                   >
                     <i
-                      class='icon-monitor icon-mc-detail'
                       style='margin-right: 7px;'
+                      class='icon-monitor icon-mc-detail'
                     ></i>
                     {this.$t('变量列表')}
                   </bk-button>
@@ -917,8 +943,6 @@ class QuickCreateSubscription extends tsc<IProps> {
                       stripe
                     >
                       <bk-table-column
-                        label={this.$t('变量名')}
-                        prop='variable'
                         width='160px'
                         scopedSlots={{
                           default: ({ row }) => {
@@ -926,25 +950,27 @@ class QuickCreateSubscription extends tsc<IProps> {
                               <div style='display: flex; align-items: center;'>
                                 <span style='width: calc(100% - 20px);'>{row.name}</span>
                                 <i
-                                  class='log-icon icon-copy-2'
                                   style='font-size: 16px; margin-left: 5px; color: #3A84FF; cursor: pointer;'
+                                  class='log-icon icon-copy-2'
                                   onClick={() => {
                                     this.handleCopy(row.name);
                                   }}
                                 ></i>
                               </div>
                             );
-                          }
+                          },
                         }}
+                        label={this.$t('变量名')}
+                        prop='variable'
                       ></bk-table-column>
                       <bk-table-column
-                        label={this.$t('变量说明')}
                         width='90px'
+                        label={this.$t('变量说明')}
                         prop='description'
                       ></bk-table-column>
                       <bk-table-column
-                        label={this.$t('示例')}
                         width='160px'
+                        label={this.$t('示例')}
                         prop='example'
                       ></bk-table-column>
                     </bk-table>
@@ -979,37 +1005,37 @@ class QuickCreateSubscription extends tsc<IProps> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.formDataRules()
-              }
+                rules: this.formDataRules(),
+              },
             }}
             label-width={200}
           >
             <bk-form-item
+              error-display-type='normal'
               label={this.$t('订阅名称')}
               property='name'
               required
-              error-display-type='normal'
             >
               <bk-input
-                v-model={this.formData.name}
                 style='width: 465px;'
+                v-model={this.formData.name}
               ></bk-input>
             </bk-form-item>
 
             {/* 需要自定义校验规则 */}
             <bk-form-item
               id='subscriptor-item'
-              tabindex='1'
+              error-display-type='normal'
               label={this.$t('订阅人')}
               property='channels'
+              tabindex='1'
               required
-              error-display-type='normal'
             >
               {this.mode === 'create' && (
                 <div>
                   <bk-radio-group
-                    v-model={this.formData.subscriber_type}
                     style='display: inline;'
+                    v-model={this.formData.subscriber_type}
                   >
                     <bk-radio-button value='self'>{this.$t('仅自己')}</bk-radio-button>
                     <bk-radio-button value='others'>{this.$t('给他人')}</bk-radio-button>
@@ -1017,8 +1043,8 @@ class QuickCreateSubscription extends tsc<IProps> {
                   {this.formData.subscriber_type === 'others' && (
                     <span style='margin-left: 10px;'>
                       <i
-                        class='log-icon icon-info-fill'
                         style='margin-right: 10px; color: #EA3636; font-size: 14px;'
+                        class='log-icon icon-info-fill'
                       ></i>
                       <span style='color: #63656E; font-size: 12px;'>{this.$t('给他人订阅需要经过管理员审批')}</span>
                     </span>
@@ -1033,19 +1059,19 @@ class QuickCreateSubscription extends tsc<IProps> {
                   <div data-is-show-error-msg={String(this.errorTips.user.isShow)}>
                     <bk-user-selector
                       ref='user-input'
+                      style='width: 465px; display: block;'
                       v-model={this.subscriberInput.user}
                       api={window.BK_LOGIN_URL}
-                      placeholder={this.$t('选择通知对象')}
                       empty-text={this.$t('无匹配人员')}
+                      placeholder={this.$t('选择通知对象')}
                       tag-type='avatar'
-                      style='width: 465px; display: block;'
                       on-change={v => {
                         const userChannel = this.formData.channels.find(item => item.channel_name === 'user');
                         userChannel.subscribers = v.map(username => {
                           return {
                             id: username,
                             type: 'user',
-                            is_enabled: true
+                            is_enabled: true,
                           };
                         });
                         this.$nextTick(() => {
@@ -1060,25 +1086,25 @@ class QuickCreateSubscription extends tsc<IProps> {
 
                   <div style='margin-top: 10px;'>
                     <bk-checkbox
-                      v-model={this.formData.channels[1].is_enabled}
                       style='margin-top: 10px;'
+                      v-model={this.formData.channels[1].is_enabled}
                     >
                       {this.$t('外部邮件')}
                     </bk-checkbox>
                   </div>
                   <div>
                     <bk-popover
-                      trigger='click'
+                      content={this.$t('多个邮箱使用逗号隔开')}
                       placement='right'
                       theme='light'
-                      content={this.$t('多个邮箱使用逗号隔开')}
+                      trigger='click'
                     >
                       <div data-is-show-error-msg={String(this.errorTips.email.isShow)}>
                         <bk-input
                           ref='email-input'
+                          style='width: 465px;'
                           v-model={this.subscriberInput.email}
                           disabled={!this.formData.channels[1].is_enabled}
-                          style='width: 465px;'
                         >
                           <template slot='prepend'>
                             <div class='group-text'>{this.$t('邮件列表')}</div>
@@ -1089,10 +1115,10 @@ class QuickCreateSubscription extends tsc<IProps> {
 
                     <div data-is-show-error-msg='false'>
                       <bk-input
+                        style='width: 465px; margin-top: 10px;'
                         v-model={this.formData.channels[1].send_text}
                         disabled={!this.formData.channels[1].is_enabled}
                         placeholder={this.$t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
-                        style='width: 465px; margin-top: 10px;'
                       >
                         <template slot='prepend'>
                           <div class='group-text'>{this.$t('提示文案')}</div>
@@ -1104,8 +1130,8 @@ class QuickCreateSubscription extends tsc<IProps> {
 
                   <div style='margin-top: 10px;'>
                     <bk-checkbox
-                      v-model={this.formData.channels[2].is_enabled}
                       style='margin-top: 10px;'
+                      v-model={this.formData.channels[2].is_enabled}
                     >
                       {this.$t('企业微信群')}
                     </bk-checkbox>
@@ -1113,15 +1139,15 @@ class QuickCreateSubscription extends tsc<IProps> {
 
                   <div data-is-show-error-msg={String(this.errorTips.wxbot.isShow)}>
                     <bk-popover
-                      trigger='click'
                       placement='bottom-start'
                       theme='light'
+                      trigger='click'
                     >
                       <bk-input
                         ref='wxbot-input'
+                        style='width: 465px;'
                         v-model={this.subscriberInput.wxbot}
                         disabled={!this.formData.channels[2].is_enabled}
-                        style='width: 465px;'
                       >
                         <template slot='prepend'>
                           <div class='group-text'>{this.$t('群ID')}</div>
@@ -1145,11 +1171,11 @@ class QuickCreateSubscription extends tsc<IProps> {
 
             {/* 需要自定义校验规则 */}
             <bk-form-item
+              class='no-relative'
+              error-display-type='normal'
               label={this.$t('发送频率')}
               property='frequency'
               required
-              error-display-type='normal'
-              class='no-relative'
             >
               <bk-radio-group v-model={this.formData.frequency.type}>
                 <bk-radio label={FrequencyType.hourly}>{this.$t('按小时')}</bk-radio>
@@ -1162,9 +1188,9 @@ class QuickCreateSubscription extends tsc<IProps> {
               {this.formData.frequency.type === FrequencyType.hourly && (
                 <bk-select
                   ref='refOfFrequencyHour'
+                  style='width: 240px;'
                   v-model={this.frequency.hour}
                   clearable={false}
-                  style='width: 240px;'
                   onToggle={() => {
                     // 强行将 input 的type设置为number（组件库不允许直接设置）将操作逻辑改成和监控一样。
                     const targetEle = document.querySelector('#customHourInput input');
@@ -1181,22 +1207,18 @@ class QuickCreateSubscription extends tsc<IProps> {
                     );
                   })}
                   <div
-                    slot='extension'
                     style='padding: 10px 0;'
+                    slot='extension'
                   >
                     <bk-input
                       id='customHourInput'
                       v-model={this.customHourInput}
-                      type='number'
-                      size='small'
-                      placeholder={this.$t('输入自定义小时，按 Enter 确认')}
-                      min={1}
                       max={24}
+                      min={1}
+                      placeholder={this.$t('输入自定义小时，按 Enter 确认')}
                       precision={0}
-                      // @ts-ignore 只允许输入正整数
-                      oninput={() => {
-                        this.customHourInput = this.customHourInput.replace(/^(0+)|[^\d]+/g, '');
-                      }}
+                      size='small'
+                      type='number'
                       onEnter={() => {
                         // 添加自定义 发送频率 ，如果输入有重复要直接选中。
                         let inputNumber = Number(this.customHourInput);
@@ -1204,7 +1226,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                           // @ts-ignore
                           return this.$bkMessage({
                             theme: 'warning',
-                            message: this.$t('请输入有效数值')
+                            message: this.$t('请输入有效数值'),
                           });
                         }
                         const minNum = 0.5;
@@ -1226,21 +1248,25 @@ class QuickCreateSubscription extends tsc<IProps> {
                         // @ts-ignore
                         this.$refs.refOfFrequencyHour?.close?.();
                       }}
+                      // @ts-ignore 只允许输入正整数
+                      oninput={() => {
+                        this.customHourInput = this.customHourInput.replace(/^(0+)|[^\d]+/g, '');
+                      }}
                     ></bk-input>
                   </div>
                 </bk-select>
               )}
 
               {[FrequencyType.monthly, FrequencyType.weekly, FrequencyType.dayly].includes(
-                this.formData.frequency.type
+                this.formData.frequency.type,
               ) && (
                 <div style='display: flex; align-items: center;'>
                   {this.formData.frequency.type === 3 && (
                     <bk-select
-                      v-model={this.frequency.week_list}
-                      multiple
-                      clearable={false}
                       style='width: 160px; margin-right: 10px; height: 32px;'
+                      v-model={this.frequency.week_list}
+                      clearable={false}
+                      multiple
                     >
                       {weekList.map(item => {
                         return (
@@ -1254,10 +1280,10 @@ class QuickCreateSubscription extends tsc<IProps> {
                   )}
                   {this.formData.frequency.type === FrequencyType.monthly && (
                     <bk-select
-                      v-model={this.frequency.day_list}
-                      multiple
-                      clearable={false}
                       style='width: 160px; margin-right: 10px; height: 32px;'
+                      v-model={this.frequency.day_list}
+                      clearable={false}
+                      multiple
                     >
                       {Array(31)
                         .fill('')
@@ -1272,17 +1298,17 @@ class QuickCreateSubscription extends tsc<IProps> {
                     </bk-select>
                   )}
                   <bk-time-picker
-                    v-model={this.frequency.run_time}
-                    transfer
-                    placeholder={this.$t('选择时间范围')}
-                    clearable={false}
                     style='width: 130px;'
+                    v-model={this.frequency.run_time}
+                    clearable={false}
+                    placeholder={this.$t('选择时间范围')}
+                    transfer
                   />
                   {/* 该复选值不需要提交，后续在编辑的时候需要通过 INCLUDES_WEEKEND 和 weekList 去判断即可 */}
                   {this.formData.frequency.type === FrequencyType.dayly && (
                     <bk-checkbox
-                      v-model={this.isIncludeWeekend}
                       style='margin-left: 10px;'
+                      v-model={this.isIncludeWeekend}
                     >
                       {this.$t('包含周末')}
                     </bk-checkbox>
@@ -1293,10 +1319,10 @@ class QuickCreateSubscription extends tsc<IProps> {
               {this.formData.frequency.type === FrequencyType.onlyOnce && (
                 <div>
                   <bk-date-picker
-                    v-model={this.frequency.only_once_run_time}
-                    type='datetime'
-                    clearable={false}
                     style='width: 168px;'
+                    v-model={this.frequency.only_once_run_time}
+                    clearable={false}
+                    type='datetime'
                   ></bk-date-picker>
                 </div>
               )}
@@ -1304,12 +1330,12 @@ class QuickCreateSubscription extends tsc<IProps> {
 
             {this.formData.frequency.type !== FrequencyType.onlyOnce && (
               <bk-form-item
+                class='no-relative'
+                desc={this.$t('有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。')}
+                error-display-type='normal'
                 label={this.$t('任务有效期')}
                 property='timerange'
                 required
-                error-display-type='normal'
-                class='no-relative'
-                desc={this.$t('有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。')}
               >
                 {/* <bk-date-picker
                   v-model={this.formData.timerange}
@@ -1320,24 +1346,24 @@ class QuickCreateSubscription extends tsc<IProps> {
                   onChange={this.handleTimeRangeChange}
                 ></bk-date-picker> */}
                 <bk-date-picker
-                  v-model={this.timerange.start}
-                  type='datetime'
-                  placeholder={`${this.$t('如')}: 2019-01-30 12:12:21`}
-                  clearable={false}
                   style='width: 220px;'
+                  v-model={this.timerange.start}
+                  clearable={false}
+                  placeholder={`${this.$t('如')}: 2019-01-30 12:12:21`}
+                  type='datetime'
                   onChange={() => {
                     this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
                   }}
                 ></bk-date-picker>
                 <span style='padding: 0 10px;'>-</span>
                 <bk-date-picker
-                  v-model={this.timerange.end}
                   ref='effectiveEndRef'
-                  class='effective-end'
-                  clearable
-                  type='datetime'
-                  placeholder={this.$t('永久')}
                   style='width: 220px;'
+                  class='effective-end'
+                  v-model={this.timerange.end}
+                  placeholder={this.$t('永久')}
+                  type='datetime'
+                  clearable
                   onChange={() => {
                     this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
                   }}

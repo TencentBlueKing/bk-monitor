@@ -61,7 +61,7 @@ def run_action(action_type, action_info):
     """
     # import action's call function
     module_name = "alarm_backends.service.fta_action.%s.processor" % action_type or action_info.get("module")
-    logger.info("$%s Action start, call back module name %s", action_info["id"], module_name)
+    logger.info("$%s Action start, call back module name %s", action_info["id"], action_type)
     try:
         module = importlib.import_module(module_name)
     except ImportError as error:
@@ -84,7 +84,7 @@ def run_action(action_type, action_info):
         func_name = action_info.get("function", "execute")
         func = getattr(processor, func_name)
         # call func
-        logger.info("$%s Action callback: module name %s function %s", action_info["id"], module_name, func_name)
+        logger.info("$%s Action callback: module name %s function %s", action_info["id"], action_type, func_name)
         func(**action_info.get("kwargs", {}))
     except ActionAlreadyFinishedError as error:
         logger.info("action(%s) already finished: %s", action_info["id"], str(error))

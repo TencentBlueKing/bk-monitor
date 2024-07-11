@@ -55,8 +55,10 @@ import {
   traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
-import { debounce, deepClone, random } from 'monitor-common/utils/utils';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { handleGotoLink } from 'monitor-pc/common/constant';
 import { type IEventRetrieval, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
+import { debounce } from 'throttle-debounce';
 
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
@@ -284,6 +286,7 @@ export default defineComponent({
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
+      debugger;
       if (val) {
         if (!Object.keys(scopeSelects.value).length) {
           await getQueryOptions();
@@ -304,31 +307,6 @@ export default defineComponent({
       options.forEach((item: IScopeSelect) => {
         scopeSelects.value[item.id] = { ...item, key: random(8), value: [] };
       });
-    };
-    /** 获取范围查询条件候选值 */
-    const getQueryOptionsValues = async (queryOptionValue: any) => {
-      setTimeout(() => {
-        /** 重新获取候选值时 需要清空原来所选项 */
-        Object.keys(scopeSelects.value).forEach(key => {
-          // queryOptionValue 路由带条件查询
-          if (queryOptionValue?.[key]) {
-            if (key === 'service') {
-              scopeSelects.value[key].value = queryOptionValue[key];
-            } else {
-              const curOptions = searchSelectData.value.find(item => item.id === key);
-              if (curOptions) {
-                searchSelectValue.value.push({
-                  id: key,
-                  name: curOptions.name,
-                  values: curOptions.children.filter(val => queryOptionValue[key].includes(val.id)),
-                });
-              }
-            }
-          } else {
-            scopeSelects.value[key].value = [];
-          }
-        });
-      }, 100);
     };
     /** 切换ID精确查询类型 */
     const handleChangeSearchIdType = () => {
@@ -541,6 +519,7 @@ export default defineComponent({
     }
     /* 范围查询 */
     async function handleQueryScope(isClickQueryBtn = false, needLoading = true) {
+      debugger;
       if ((!state.autoQuery && !isClickQueryBtn && state.isAlreadyScopeQuery) || !state.app) {
         return;
       }
@@ -569,6 +548,7 @@ export default defineComponent({
 
       setRouterQueryParams();
       collectCheckValue.value = params;
+      debugger;
       // Trace List 查询相关
       if (selectedListType.value === 'trace') {
         const listData = await listTrace(params).catch(() => []);
@@ -720,7 +700,7 @@ export default defineComponent({
         query,
       });
     };
-    const handleQueryScopeDebounce = debounce(handleQueryScope, 300, false);
+    const handleQueryScopeDebounce = debounce(300, handleQueryScope);
     /* 范围查询动态参数更新 */
     function handleScopeQueryChange() {
       traceListPagination.offset = 0;
@@ -931,16 +911,12 @@ export default defineComponent({
     /* 时间切换 */
     function handleTimeRangeChange(value: TimeRangeType) {
       timeRange.value = value;
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
     function handleTimezoneChange(v: string) {
       timezone.value = v;
       window.timezone = v;
       updateTimezone(v);
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
 
@@ -1136,8 +1112,8 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <a
             class='link'
-            href='/'
             target='_blank'
+            onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link'></i>

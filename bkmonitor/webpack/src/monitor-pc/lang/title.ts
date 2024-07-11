@@ -132,4 +132,9 @@ export default {
   '暂未开启 Profiling 功能': 'Profiling is not enabled yet',
   '暂无 Profiling 数据': 'No profiling data yet',
   关闭目标: 'Close target',
+  测试执行: 'Test execution',
+  配置选择: 'Configuration selection',
+  流程指引: 'Process guidance',
+  关联设置: 'Related settings',
+  URI规则设置: 'URI rule settings',
 };

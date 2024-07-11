@@ -90,6 +90,10 @@ export function formatTime(duration: number, isMs = false) {
   return dayjs.tz(duration / ONE_MILLISECOND).format(isMs ? STANDARD_TIME_MS_FORMAT : STANDARD_TIME_FORMAT);
 }
 
+export function customFormatTime(duration: number, format = 'HH:mm') {
+  return dayjs.tz(duration / ONE_MILLISECOND).format(format);
+}
+
 /**
  * @param {number} duration (in microseconds)
  * @return {string} formatted, unit-labelled string with time in milliseconds

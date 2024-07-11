@@ -1,0 +1,2473 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 14,
+      "panels": [],
+      "title": "端点列表",
+      "type": "row"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "decimals": 2,
+          "links": [
+            {
+              "title": "Open in current dashboard",
+              "url": "/d/Application_Out_Of_The_Box_CN/application-e5bc80-e7aeb1-e58db3-e794a8?var-server=${__data.fields.服务端服务}&var-endpoint=${__data.fields.端点}&var-l7_protocol=${__data.fields.应用协议}&${datasource:queryparam}&${signal_source:queryparam}"
+            }
+          ],
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "应用协议"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 78
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "请求速率"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "binBps"
+              },
+              {
+                "id": "custom.width",
+                "value": 94
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "客户端异常比例"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.width",
+                "value": 121
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "服务端异常比例"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 114
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P90响应时延"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 101
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P99响应时延"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 111
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "客户端服务"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 173
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "超时总数"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 87
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "端点"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": "*"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "id": 2,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "服务端异常比例"
+          }
+        ]
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_edge_port\",\"select\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d4ee9d24-88e5-e61b-3b75-04632c0c4ba7\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c8855acb-4e4b-aa65-6d08-06c06f546982\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"80754042-4f53-2f98-d3c3-abdd3c8f204b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"979afd36-4083-d5b9-3613-5ee1bfb6f57e\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"11ec40a4-9b32-81af-201d-aaedce6364f1\",\"subFuncs\":[{\"func\":\"PerSecond\"}],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[],\"subFuncs\":[{\"func\":\"PerSecond\"}]}},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6588a489-2cd6-04dc-4169-71bddd40a539\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b56abf09-c508-a7b7-bdb7-a2744976c56f\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"timeout\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2791fc39-ea75-a7e9-7569-ced6faae0355\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"rrt_max\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[\"90\"],\"uuid\":\"0efb5384-eb46-d2ae-b287-f7c96c5630fe\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"90\"]}},{\"type\":\"metric\",\"key\":\"rrt_max\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[\"99\"],\"uuid\":\"3f0d79ea-ce45-6d10-3ec6-e7c960234718\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"99\"]}}],\"where\":[{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$l7_protocol\",\"value\":\"l7_protocol\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f60b0d0f-7a3c-49cd-21b9-b2de67b4e8eb\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$server\",\"value\":\"server\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"d6a6ab8e-fa60-d897-5119-f93375042677\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$endpoint\",\"value\":\"endpoint\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"b38f08ac-2ae8-9b08-1f85-e99e9f74b54d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"3b93b04e-47b7-25c3-b904-0393087c303a\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"48bc17b8-1193-1e47-5c28-e88e65934819\",\"type\":\"metric\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"14f45d17-ea2b-2b57-65c8-4535191bcf39\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"34e873e9-b6a8-d92c-a287-4921503dfbe9\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3fd198d5-0df9-2044-4aad-28eb8a8e330b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"97895847-de97-b26d-9a4a-8b44c1a36831\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "PerSecond(Avg(request))",
+              "name": "PerSecond(Avg(request))",
+              "type": 1,
+              "unit": "/s"
+            },
+            {
+              "displayName": "Max(client_error_ratio)",
+              "name": "Max(client_error_ratio)",
+              "type": 4,
+              "unit": "%"
+            },
+            {
+              "displayName": "Max(server_error_ratio)",
+              "name": "Max(server_error_ratio)",
+              "type": 4,
+              "unit": "%"
+            },
+            {
+              "displayName": "Sum(timeout)",
+              "name": "Sum(timeout)",
+              "type": 1,
+              "unit": ""
+            },
+            {
+              "displayName": "Percentile(rrt_max,0.9)",
+              "name": "Percentile(rrt_max,0.9)",
+              "type": 3,
+              "unit": "us"
+            },
+            {
+              "displayName": "Percentile(rrt_max,0.99)",
+              "name": "Percentile(rrt_max,0.99)",
+              "type": 3,
+              "unit": "us"
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_1",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "Enum(l7_protocol)"
+            },
+            {
+              "displayName": "Endpoint",
+              "isResource": false,
+              "name": "endpoint"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_id_1",
+              "role": "server"
+            },
+            {
+              "displayName": "节点类型",
+              "isResource": true,
+              "name": "`server_node_type`",
+              "role": "server"
+            },
+            {
+              "displayName": "图标",
+              "isResource": true,
+              "name": "`server_icon_id`",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "l7_protocol"
+            }
+          ],
+          "sql": "SELECT PerSecond(Avg(`request`)) AS `PerSecond(Avg(request))`, Max(`client_error_ratio`) AS `Max(client_error_ratio)`, Max(`server_error_ratio`) AS `Max(server_error_ratio)`, Sum(`timeout`) AS `Sum(timeout)`, Percentile(`rrt_max`,0.9) AS `Percentile(rrt_max,0.9)`, Percentile(`rrt_max`,0.99) AS `Percentile(rrt_max,0.99)`, auto_service_1, Enum(l7_protocol), endpoint, auto_service_id_1, node_type(auto_service_1) AS `server_node_type`, icon_id(auto_service_1) AS `server_icon_id`, l7_protocol FROM vtap_app_edge_port WHERE exist(l7_protocol) AND exist(auto_service_id_1) AND endpoint LIKE('*') AND signal_source IN (3) AND time>=1704679620 AND time<=1704680520 GROUP BY auto_service_1, l7_protocol, endpoint, auto_service_id_1, `server_node_type` LIMIT 1000"
+        }
+      ],
+      "title": "端点列表",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "auto_service_id_0": true,
+              "auto_service_id_1": true,
+              "auto_service_type_0": true,
+              "auto_service_type_1": true,
+              "client_icon_id": true,
+              "client_node_type": true,
+              "client_resource": true,
+              "client_resource_id": true,
+              "client_resource_type": true,
+              "l7_protocol": true,
+              "server_icon_id": true,
+              "server_node_type": true,
+              "server_resource": true,
+              "server_resource_id": true,
+              "server_resource_type": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "Enum(l7_protocol)": 3,
+              "Max(client_error_ratio)": 22,
+              "Max(server_error_ratio)": 23,
+              "PerSecond(Avg(request))": 4,
+              "Percentile(rrt_max,0.9)": 20,
+              "Percentile(rrt_max,0.99)": 21,
+              "Sum(timeout)": 24,
+              "auto_service_0": 0,
+              "auto_service_1": 1,
+              "auto_service_id_0": 5,
+              "auto_service_id_1": 6,
+              "auto_service_type_0": 7,
+              "auto_service_type_1": 8,
+              "client_icon_id": 9,
+              "client_node_type": 10,
+              "client_resource": 11,
+              "client_resource_id": 12,
+              "client_resource_type": 13,
+              "endpoint": 2,
+              "l7_protocol": 14,
+              "server_icon_id": 15,
+              "server_node_type": 16,
+              "server_resource": 17,
+              "server_resource_id": 18,
+              "server_resource_type": 19
+            },
+            "renameByName": {
+              "Enum(l7_protocol)": "应用协议",
+              "Max(Client Error %)": "客户端异常比例",
+              "Max(Server Error %)": "服务端异常比例",
+              "Max(client_error_ratio)": "客户端异常比例",
+              "Max(server_error_ratio)": "服务端异常比例",
+              "PerSecond(Avg(Request))": "请求速率",
+              "PerSecond(Avg(request))": "请求速率",
+              "Percentile(Max Delay,0.9)": "P90响应时延",
+              "Percentile(Max Delay,0.99)": "P99响应时延",
+              "Percentile(rrt_max,0.9)": "P90响应时延",
+              "Percentile(rrt_max,0.99)": "P99响应时延",
+              "Sum(Timeout)": "超时总数",
+              "Sum(timeout)": "超时总数",
+              "auto_service_0": "客户端服务",
+              "auto_service_1": "服务端服务",
+              "endpoint": "端点",
+              "server_resource_type": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 13,
+      "panels": [],
+      "title": "端点详情",
+      "type": "row"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "links": [],
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "binBps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "请求速率"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "binBps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "客户端异常比例"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "服务端异常比例"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P90响应时延"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P99响应时延"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "超时总数"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.5",
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c8855acb-4e4b-aa65-6d08-06c06f546982\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"80754042-4f53-2f98-d3c3-abdd3c8f204b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"979afd36-4083-d5b9-3613-5ee1bfb6f57e\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"11ec40a4-9b32-81af-201d-aaedce6364f1\",\"subFuncs\":[{\"func\":\"PerSecond\"}],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[],\"subFuncs\":[{\"func\":\"PerSecond\"}]}}],\"where\":[{\"key\":\"signal_source\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f536818b-c94a-707b-ca21-fce1b5daebd0\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$l7_protocol\",\"value\":\"l7_protocol\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f60b0d0f-7a3c-49cd-21b9-b2de67b4e8eb\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$server\",\"value\":\"server\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"bbb8356d-341c-ed53-ef42-c66265fa9f43\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$endpoint\",\"value\":\"endpoint\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"4eb413c0-ca8c-afc5-62d9-2a056c68c618\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6538eb29-269f-3a00-d2da-1ab52a116297\",\"type\":\"metric\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"14f45d17-ea2b-2b57-65c8-4535191bcf39\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"34e873e9-b6a8-d92c-a287-4921503dfbe9\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3fd198d5-0df9-2044-4aad-28eb8a8e330b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"97895847-de97-b26d-9a4a-8b44c1a36831\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"$__interval\",\"slimit\":\"10\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${auto_service_1} ${Enum(l7_protocol)} ${endpoint}\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "PerSecond(Avg(request))",
+              "name": "PerSecond(Avg(request))",
+              "type": 1,
+              "unit": "/s"
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_1",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "Enum(l7_protocol)"
+            },
+            {
+              "displayName": "Endpoint",
+              "isResource": false,
+              "name": "endpoint"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_id_1",
+              "role": "server"
+            },
+            {
+              "displayName": "time_$__interval",
+              "isResource": false,
+              "name": "`time_$__interval`"
+            },
+            {
+              "displayName": "节点类型",
+              "isResource": true,
+              "name": "`server_node_type`",
+              "role": "server"
+            },
+            {
+              "displayName": "图标",
+              "isResource": true,
+              "name": "`server_icon_id`",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "l7_protocol"
+            }
+          ],
+          "sql": "SELECT PerSecond(Avg(`request`)) AS `PerSecond(Avg(request))`, auto_service_1, Enum(l7_protocol), endpoint, auto_service_id_1, time(time, $__interval) AS `time_$__interval`, node_type(auto_service_1) AS `server_node_type`, icon_id(auto_service_1) AS `server_icon_id`, l7_protocol FROM vtap_app_edge_port WHERE signal_source IN (3) AND exist(l7_protocol) AND exist(auto_service_id_1) AND endpoint LIKE('*') AND time>=1704762983 AND time<=1704763883 GROUP BY `time_$__interval`, auto_service_1, l7_protocol, endpoint, auto_service_id_1, `server_node_type` SLIMIT 10 LIMIT 1000"
+        }
+      ],
+      "title": "请求速率",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "auto_service_id_0": true,
+              "auto_service_id_1": true,
+              "auto_service_type_0": true,
+              "auto_service_type_1": true,
+              "client_icon_id": true,
+              "client_node_type": true,
+              "client_resource": true,
+              "client_resource_id": true,
+              "client_resource_type": true,
+              "l7_protocol": true,
+              "server_icon_id": true,
+              "server_node_type": true,
+              "server_resource": true,
+              "server_resource_id": true,
+              "server_resource_type": true
+            },
+            "indexByName": {
+              "Enum(l7_protocol)": 3,
+              "Max(client_error_ratio)": 22,
+              "Max(server_error_ratio)": 23,
+              "PerSecond(Avg(request))": 4,
+              "Percentile(rrt_max,0.9)": 20,
+              "Percentile(rrt_max,0.99)": 21,
+              "Sum(timeout)": 24,
+              "auto_service_0": 0,
+              "auto_service_1": 1,
+              "auto_service_id_0": 5,
+              "auto_service_id_1": 6,
+              "auto_service_type_0": 7,
+              "auto_service_type_1": 8,
+              "client_icon_id": 9,
+              "client_node_type": 10,
+              "client_resource": 11,
+              "client_resource_id": 12,
+              "client_resource_type": 13,
+              "endpoint": 2,
+              "l7_protocol": 14,
+              "server_icon_id": 15,
+              "server_node_type": 16,
+              "server_resource": 17,
+              "server_resource_id": 18,
+              "server_resource_type": 19
+            },
+            "renameByName": {
+              "Enum(l7_protocol)": "应用协议",
+              "Max(client_error_ratio)": "客户端异常比例",
+              "Max(server_error_ratio)": "服务端异常比例",
+              "PerSecond(Avg(request))": "请求速率",
+              "Percentile(rrt_max,0.9)": "P90响应时延",
+              "Percentile(rrt_max,0.99)": "P99响应时延",
+              "Sum(timeout)": "超时总数",
+              "auto_service_0": "客户端服务",
+              "auto_service_1": "服务端服务",
+              "endpoint": "端点"
+            }
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "links": [],
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "µs"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "请求速率"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "binBps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "客户端异常比例"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "服务端异常比例"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P90响应时延"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P99响应时延"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "超时总数"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.5",
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c8855acb-4e4b-aa65-6d08-06c06f546982\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"80754042-4f53-2f98-d3c3-abdd3c8f204b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"979afd36-4083-d5b9-3613-5ee1bfb6f57e\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"rrt_max\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"P90响应时延\",\"params\":[\"90\"],\"uuid\":\"0efb5384-eb46-d2ae-b287-f7c96c5630fe\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"90\"]}},{\"type\":\"metric\",\"key\":\"rrt_max\",\"func\":\"Percentile\",\"op\":\"\",\"val\":\"\",\"as\":\"P99响应时延\",\"params\":[\"99\"],\"uuid\":\"3f0d79ea-ce45-6d10-3ec6-e7c960234718\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Percentile\",\"params\":[\"99\"]}}],\"where\":[{\"key\":\"signal_source\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f536818b-c94a-707b-ca21-fce1b5daebd0\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$l7_protocol\",\"value\":\"l7_protocol\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f60b0d0f-7a3c-49cd-21b9-b2de67b4e8eb\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$server\",\"value\":\"server\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"bbb8356d-341c-ed53-ef42-c66265fa9f43\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$endpoint\",\"value\":\"endpoint\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"d8e0d2c1-4531-7b95-a370-d869f433af38\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"19d8782d-1a56-ae06-6103-5a19c7711037\",\"type\":\"metric\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"14f45d17-ea2b-2b57-65c8-4535191bcf39\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"34e873e9-b6a8-d92c-a287-4921503dfbe9\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3fd198d5-0df9-2044-4aad-28eb8a8e330b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"97895847-de97-b26d-9a4a-8b44c1a36831\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"$__interval\",\"slimit\":\"10\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${auto_service_1} ${Enum(l7_protocol)} ${endpoint}\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "P90响应时延",
+              "name": "P90响应时延",
+              "type": 3,
+              "unit": "us"
+            },
+            {
+              "displayName": "P99响应时延",
+              "name": "P99响应时延",
+              "type": 3,
+              "unit": "us"
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_1",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "Enum(l7_protocol)"
+            },
+            {
+              "displayName": "Endpoint",
+              "isResource": false,
+              "name": "endpoint"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_id_1",
+              "role": "server"
+            },
+            {
+              "displayName": "time_$__interval",
+              "isResource": false,
+              "name": "`time_$__interval`"
+            },
+            {
+              "displayName": "节点类型",
+              "isResource": true,
+              "name": "`server_node_type`",
+              "role": "server"
+            },
+            {
+              "displayName": "图标",
+              "isResource": true,
+              "name": "`server_icon_id`",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "l7_protocol"
+            }
+          ],
+          "sql": "SELECT Percentile(`rrt_max`,0.9) AS `P90响应时延`, Percentile(`rrt_max`,0.99) AS `P99响应时延`, auto_service_1, Enum(l7_protocol), endpoint, auto_service_id_1, time(time, $__interval) AS `time_$__interval`, node_type(auto_service_1) AS `server_node_type`, icon_id(auto_service_1) AS `server_icon_id`, l7_protocol FROM vtap_app_edge_port WHERE signal_source IN (3) AND exist(l7_protocol) AND exist(auto_service_id_1) AND endpoint LIKE('*') AND time>=1704762983 AND time<=1704763883 GROUP BY `time_$__interval`, auto_service_1, l7_protocol, endpoint, auto_service_id_1, `server_node_type` SLIMIT 10 LIMIT 1000"
+        }
+      ],
+      "title": "响应时延",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "auto_service_id_0": true,
+              "auto_service_id_1": true,
+              "auto_service_type_0": true,
+              "auto_service_type_1": true,
+              "client_icon_id": true,
+              "client_node_type": true,
+              "client_resource": true,
+              "client_resource_id": true,
+              "client_resource_type": true,
+              "l7_protocol": true,
+              "server_icon_id": true,
+              "server_node_type": true,
+              "server_resource": true,
+              "server_resource_id": true,
+              "server_resource_type": true
+            },
+            "indexByName": {
+              "Enum(l7_protocol)": 3,
+              "Max(client_error_ratio)": 22,
+              "Max(server_error_ratio)": 23,
+              "PerSecond(Avg(request))": 4,
+              "Percentile(rrt_max,0.9)": 20,
+              "Percentile(rrt_max,0.99)": 21,
+              "Sum(timeout)": 24,
+              "auto_service_0": 0,
+              "auto_service_1": 1,
+              "auto_service_id_0": 5,
+              "auto_service_id_1": 6,
+              "auto_service_type_0": 7,
+              "auto_service_type_1": 8,
+              "client_icon_id": 9,
+              "client_node_type": 10,
+              "client_resource": 11,
+              "client_resource_id": 12,
+              "client_resource_type": 13,
+              "endpoint": 2,
+              "l7_protocol": 14,
+              "server_icon_id": 15,
+              "server_node_type": 16,
+              "server_resource": 17,
+              "server_resource_id": 18,
+              "server_resource_type": 19
+            },
+            "renameByName": {
+              "Enum(l7_protocol)": "应用协议",
+              "Max(client_error_ratio)": "客户端异常比例",
+              "Max(server_error_ratio)": "服务端异常比例",
+              "PerSecond(Avg(request))": "请求速率",
+              "Percentile(rrt_max,0.9)": "P90响应时延",
+              "Percentile(rrt_max,0.99)": "P99响应时延",
+              "Sum(timeout)": "超时总数",
+              "auto_service_0": "客户端服务",
+              "auto_service_1": "服务端服务",
+              "endpoint": "端点"
+            }
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "area"
+            }
+          },
+          "decimals": 2,
+          "links": [],
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.1
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "deepflowio-deepflow-datasource",
+            "uid": "${datasource}"
+          },
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c8855acb-4e4b-aa65-6d08-06c06f546982\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"80754042-4f53-2f98-d3c3-abdd3c8f204b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"979afd36-4083-d5b9-3613-5ee1bfb6f57e\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"客户端异常\",\"params\":[],\"uuid\":\"6588a489-2cd6-04dc-4169-71bddd40a539\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"服务端异常\",\"params\":[],\"uuid\":\"b56abf09-c508-a7b7-bdb7-a2744976c56f\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}}],\"where\":[{\"key\":\"signal_source\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f536818b-c94a-707b-ca21-fce1b5daebd0\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$l7_protocol\",\"value\":\"l7_protocol\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f60b0d0f-7a3c-49cd-21b9-b2de67b4e8eb\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$server\",\"value\":\"server\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"bbb8356d-341c-ed53-ef42-c66265fa9f43\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$endpoint\",\"value\":\"endpoint\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"aa6d01cb-0078-d40c-fffe-f09198d1a637\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"dc0c7395-6c58-2991-3403-d1e287fb8186\",\"type\":\"metric\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"14f45d17-ea2b-2b57-65c8-4535191bcf39\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"34e873e9-b6a8-d92c-a287-4921503dfbe9\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3fd198d5-0df9-2044-4aad-28eb8a8e330b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"97895847-de97-b26d-9a4a-8b44c1a36831\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"$__interval\",\"slimit\":\"10\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${auto_service_1} ${Enum(l7_protocol)} ${endpoint}\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "客户端异常",
+              "name": "客户端异常",
+              "type": 4,
+              "unit": "%"
+            },
+            {
+              "displayName": "服务端异常",
+              "name": "服务端异常",
+              "type": 4,
+              "unit": "%"
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_1",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "Enum(l7_protocol)"
+            },
+            {
+              "displayName": "Endpoint",
+              "isResource": false,
+              "name": "endpoint"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_id_1",
+              "role": "server"
+            },
+            {
+              "displayName": "time_$__interval",
+              "isResource": false,
+              "name": "`time_$__interval`"
+            },
+            {
+              "displayName": "节点类型",
+              "isResource": true,
+              "name": "`server_node_type`",
+              "role": "server"
+            },
+            {
+              "displayName": "图标",
+              "isResource": true,
+              "name": "`server_icon_id`",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "l7_protocol"
+            }
+          ],
+          "sql": "SELECT Max(`client_error_ratio`) AS `客户端异常`, Max(`server_error_ratio`) AS `服务端异常`, auto_service_1, Enum(l7_protocol), endpoint, auto_service_id_1, time(time, $__interval) AS `time_$__interval`, node_type(auto_service_1) AS `server_node_type`, icon_id(auto_service_1) AS `server_icon_id`, l7_protocol FROM vtap_app_edge_port WHERE signal_source IN (3) AND exist(l7_protocol) AND exist(auto_service_id_1) AND endpoint LIKE('*') AND time>=1704762983 AND time<=1704763883 GROUP BY `time_$__interval`, auto_service_1, l7_protocol, endpoint, auto_service_id_1, `server_node_type` SLIMIT 10 LIMIT 1000"
+        }
+      ],
+      "title": "异常比例",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "auto_service_id_0": true,
+              "auto_service_id_1": true,
+              "auto_service_type_0": true,
+              "auto_service_type_1": true,
+              "client_icon_id": true,
+              "client_node_type": true,
+              "client_resource": true,
+              "client_resource_id": true,
+              "client_resource_type": true,
+              "l7_protocol": true,
+              "server_icon_id": true,
+              "server_node_type": true,
+              "server_resource": true,
+              "server_resource_id": true,
+              "server_resource_type": true
+            },
+            "indexByName": {
+              "Enum(l7_protocol)": 3,
+              "Max(client_error_ratio)": 22,
+              "Max(server_error_ratio)": 23,
+              "PerSecond(Avg(request))": 4,
+              "Percentile(rrt_max,0.9)": 20,
+              "Percentile(rrt_max,0.99)": 21,
+              "Sum(timeout)": 24,
+              "auto_service_0": 0,
+              "auto_service_1": 1,
+              "auto_service_id_0": 5,
+              "auto_service_id_1": 6,
+              "auto_service_type_0": 7,
+              "auto_service_type_1": 8,
+              "client_icon_id": 9,
+              "client_node_type": 10,
+              "client_resource": 11,
+              "client_resource_id": 12,
+              "client_resource_type": 13,
+              "endpoint": 2,
+              "l7_protocol": 14,
+              "server_icon_id": 15,
+              "server_node_type": 16,
+              "server_resource": 17,
+              "server_resource_id": 18,
+              "server_resource_type": 19
+            },
+            "renameByName": {
+              "Enum(l7_protocol)": "应用协议",
+              "Max(client_error_ratio)": "客户端异常比例",
+              "Max(server_error_ratio)": "服务端异常比例",
+              "PerSecond(Avg(request))": "请求速率",
+              "Percentile(rrt_max,0.9)": "P90响应时延",
+              "Percentile(rrt_max,0.99)": "P99响应时延",
+              "Sum(timeout)": "超时总数",
+              "auto_service_0": "客户端服务",
+              "auto_service_1": "服务端服务",
+              "endpoint": "端点"
+            }
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "links": [],
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "请求速率"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "binBps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "客户端异常比例"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "服务端异常比例"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P90响应时延"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P99响应时延"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "超时总数"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "deepflowio-deepflow-datasource",
+            "uid": "${datasource}"
+          },
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c8855acb-4e4b-aa65-6d08-06c06f546982\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"80754042-4f53-2f98-d3c3-abdd3c8f204b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"979afd36-4083-d5b9-3613-5ee1bfb6f57e\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"timeout\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2791fc39-ea75-a7e9-7569-ced6faae0355\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}}],\"where\":[{\"key\":\"signal_source\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f536818b-c94a-707b-ca21-fce1b5daebd0\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$l7_protocol\",\"value\":\"l7_protocol\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"f60b0d0f-7a3c-49cd-21b9-b2de67b4e8eb\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$server\",\"value\":\"server\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"bbb8356d-341c-ed53-ef42-c66265fa9f43\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$endpoint\",\"value\":\"endpoint\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"8195bfde-60c7-21a4-3ca7-fba9541d778d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"842f02d2-404a-2c13-f500-29982b47d370\",\"type\":\"metric\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"14f45d17-ea2b-2b57-65c8-4535191bcf39\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"34e873e9-b6a8-d92c-a287-4921503dfbe9\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"endpoint\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3fd198d5-0df9-2044-4aad-28eb8a8e330b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"97895847-de97-b26d-9a4a-8b44c1a36831\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"$__interval\",\"slimit\":\"10\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${auto_service_1} ${Enum(l7_protocol)} ${endpoint}\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Sum(timeout)",
+              "name": "Sum(timeout)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_1",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "Enum(l7_protocol)"
+            },
+            {
+              "displayName": "Endpoint",
+              "isResource": false,
+              "name": "endpoint"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_id_1",
+              "role": "server"
+            },
+            {
+              "displayName": "time_$__interval",
+              "isResource": false,
+              "name": "`time_$__interval`"
+            },
+            {
+              "displayName": "节点类型",
+              "isResource": true,
+              "name": "`server_node_type`",
+              "role": "server"
+            },
+            {
+              "displayName": "图标",
+              "isResource": true,
+              "name": "`server_icon_id`",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "l7_protocol"
+            }
+          ],
+          "sql": "SELECT Sum(`timeout`) AS `Sum(timeout)`, auto_service_1, Enum(l7_protocol), endpoint, auto_service_id_1, time(time, $__interval) AS `time_$__interval`, node_type(auto_service_1) AS `server_node_type`, icon_id(auto_service_1) AS `server_icon_id`, l7_protocol FROM vtap_app_edge_port WHERE signal_source IN (3) AND exist(l7_protocol) AND exist(auto_service_id_1) AND endpoint LIKE('*') AND time>=1704762983 AND time<=1704763883 GROUP BY `time_$__interval`, auto_service_1, l7_protocol, endpoint, auto_service_id_1, `server_node_type` SLIMIT 10 LIMIT 1000"
+        }
+      ],
+      "title": "超时总量",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "auto_service_id_0": true,
+              "auto_service_id_1": true,
+              "auto_service_type_0": true,
+              "auto_service_type_1": true,
+              "client_icon_id": true,
+              "client_node_type": true,
+              "client_resource": true,
+              "client_resource_id": true,
+              "client_resource_type": true,
+              "l7_protocol": true,
+              "server_icon_id": true,
+              "server_node_type": true,
+              "server_resource": true,
+              "server_resource_id": true,
+              "server_resource_type": true
+            },
+            "indexByName": {
+              "Enum(l7_protocol)": 3,
+              "Max(client_error_ratio)": 22,
+              "Max(server_error_ratio)": 23,
+              "PerSecond(Avg(request))": 4,
+              "Percentile(rrt_max,0.9)": 20,
+              "Percentile(rrt_max,0.99)": 21,
+              "Sum(timeout)": 24,
+              "auto_service_0": 0,
+              "auto_service_1": 1,
+              "auto_service_id_0": 5,
+              "auto_service_id_1": 6,
+              "auto_service_type_0": 7,
+              "auto_service_type_1": 8,
+              "client_icon_id": 9,
+              "client_node_type": 10,
+              "client_resource": 11,
+              "client_resource_id": 12,
+              "client_resource_type": 13,
+              "endpoint": 2,
+              "l7_protocol": 14,
+              "server_icon_id": 15,
+              "server_node_type": 16,
+              "server_resource": 17,
+              "server_resource_id": 18,
+              "server_resource_type": 19
+            },
+            "renameByName": {
+              "Enum(l7_protocol)": "应用协议",
+              "Max(client_error_ratio)": "客户端异常比例",
+              "Max(server_error_ratio)": "服务端异常比例",
+              "PerSecond(Avg(request))": "请求速率",
+              "Percentile(rrt_max,0.9)": "P90响应时延",
+              "Percentile(rrt_max,0.99)": "P99响应时延",
+              "Sum(timeout)": "超时总数",
+              "auto_service_0": "客户端服务",
+              "auto_service_1": "服务端服务",
+              "endpoint": "端点"
+            }
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "links": [
+            {
+              "title": "Open in current dashboard",
+              "url": "/d/Application_Out_Of_The_Box_CN/application-e5bc80-e7aeb1-e58db3-e794a8?&var-deepflow_tracing_id=${__data.fields._id}&${datasource:queryparam}&${signal_source:queryparam}&${server:queryparam}&${endpoint:queryparam}&${l7_protocol:queryparam}&from=${__from}&to=${__to}"
+            }
+          ],
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "响应时延"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green"
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 84
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "响应状态"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "Client Error": {
+                        "color": "yellow",
+                        "index": 3
+                      },
+                      "Server Error": {
+                        "color": "red",
+                        "index": 2
+                      },
+                      "Success": {
+                        "color": "green",
+                        "index": 1
+                      },
+                      "Unknown": {
+                        "color": "purple",
+                        "index": 0
+                      },
+                      "客户端异常": {
+                        "color": "yellow",
+                        "index": 5
+                      },
+                      "服务端异常": {
+                        "color": "red",
+                        "index": 6
+                      },
+                      "未知": {
+                        "color": "purple",
+                        "index": 4
+                      },
+                      "正常": {
+                        "color": "green",
+                        "index": 7
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.filterable",
+                "value": true
+              },
+              {
+                "id": "custom.width",
+                "value": 108
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "应用协议"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 74
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "响应码"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 60
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "请求类型"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 94
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 8,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "响应状态"
+          }
+        ]
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "deepflowio-deepflow-datasource",
+            "uid": "${datasource}"
+          },
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"appTracing\",\"db\":\"flow_log\",\"sources\":\"\",\"from\":\"l7_flow_log\",\"select\":[{\"key\":\"auto_service_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d4ee9d24-88e5-e61b-3b75-04632c0c4ba7\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b064e052-eb9b-ae3b-a836-65532a44eb7b\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b4890c93-7a68-9bd1-6c9a-56a82272c8bf\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"request_type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"abff4e34-1f29-7e63-536d-34d61b5ca7dd\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"request_domain\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c5ed5940-d402-c847-6b17-7ddb62c9b759\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"request_resource\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1c755824-7dcd-74c3-5261-ef73af3416ee\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"response_status\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"102be145-394f-e291-a5e8-7a201bb5e3c3\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"response_code\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"0bc267d0-3817-3fb9-4c98-fc791b773cf3\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"response_exception\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2e819def-47a8-2483-6d30-17789be635c4\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"metric\",\"key\":\"response_duration\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b1ad3c0b-d860-1612-82a8-23fc0e0e5b52\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"where\":[{\"key\":\"endpoint\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$endpoint\",\"value\":\"endpoint\",\"isVariable\":true,\"variableType\":\"textbox\"}],\"as\":\"\",\"params\":[],\"uuid\":\"0256776d-65a9-5134-8ce7-0eb1f35eaa08\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$l7_protocol\",\"value\":\"l7_protocol\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"d944642f-87cd-bc79-b5eb-41cb0e04914a\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"auto_service_1\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$server\",\"value\":\"server\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"9aaa4d2f-c967-f44e-fabe-019bf796e7fe\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\",\"isResourceType\":true,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"signal_source\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$signal_source\",\"value\":\"signal_source\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"02945035-da2b-5c78-133e-de37bc81eaef\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"Server Process\",\"value\":\"s-p\"},{\"label\":\"Server NIC\",\"value\":\"s\"}],\"as\":\"\",\"params\":[],\"uuid\":\"5ffaa031-bcbf-b62a-edbb-ccbe5409dfff\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1984ad1f-0c8d-2995-6c44-7deee6b45ab5\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9732ea75-fc2d-1d6f-2ce8-db3d5f999dfe\",\"type\":\"tag\"}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"97895847-de97-b26d-9a4a-8b44c1a36831\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Response Delay",
+              "name": "Response Delay",
+              "type": 3,
+              "unit": "us"
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_0",
+              "role": "client"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_1",
+              "role": "server"
+            },
+            {
+              "displayName": "Application Protocol",
+              "isResource": false,
+              "name": "Enum(l7_protocol)"
+            },
+            {
+              "displayName": "Request Type",
+              "isResource": false,
+              "name": "request_type"
+            },
+            {
+              "displayName": "Request Domain",
+              "isResource": false,
+              "name": "request_domain"
+            },
+            {
+              "displayName": "Request Resource",
+              "isResource": false,
+              "name": "request_resource"
+            },
+            {
+              "displayName": "Response Status",
+              "isResource": false,
+              "name": "Enum(response_status)"
+            },
+            {
+              "displayName": "Response Code",
+              "isResource": false,
+              "name": "response_code"
+            },
+            {
+              "displayName": "Response Exception",
+              "isResource": false,
+              "name": "response_exception"
+            },
+            {
+              "displayName": "UID",
+              "isResource": false,
+              "name": "toString(_id)"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_id_0",
+              "role": "client"
+            },
+            {
+              "displayName": "Instance - K8s Service First",
+              "isResource": true,
+              "name": "auto_service_id_1",
+              "role": "server"
+            }
+          ],
+          "sql": "SELECT `response_duration` AS `Response Delay`, auto_service_0, auto_service_1, Enum(l7_protocol), request_type, request_domain, request_resource, Enum(response_status), response_code, response_exception, toString(_id), auto_service_id_0, auto_service_id_1 FROM l7_flow_log WHERE endpoint LIKE('*') AND exist(l7_protocol) AND exist(auto_service_id_1) AND signal_source IN (3) AND tap_side IN ('s-p','s') AND time>=1704679620 AND time<=1704680520 LIMIT 1000"
+        }
+      ],
+      "title": "调用列表",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_id": false,
+              "auto_service_id_0": true,
+              "auto_service_id_1": true
+            },
+            "indexByName": {
+              "Enum(l7_protocol)": 4,
+              "Enum(response_status)": 8,
+              "Response Delay": 11,
+              "_id": 12,
+              "auto_service_0": 0,
+              "auto_service_1": 1,
+              "auto_service_id_0": 2,
+              "auto_service_id_1": 3,
+              "request_domain": 6,
+              "request_resource": 7,
+              "request_type": 5,
+              "response_code": 9,
+              "response_exception": 10
+            },
+            "renameByName": {
+              "Enum(l7_protocol)": "应用协议",
+              "Enum(response_status)": "响应状态",
+              "Response Delay": "响应时延",
+              "_id": "追踪ID",
+              "auto_service_0": "客户端",
+              "auto_service_1": "服务端",
+              "auto_service_id_0": "",
+              "request_domain": "请求域名",
+              "request_resource": "请求资源",
+              "request_type": "请求类型",
+              "response_code": "响应码",
+              "response_exception": "响应异常"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 23,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 6,
+      "pluginVersion": "9.2.4",
+      "targets": [
+        {
+          "datasource": {
+            "type": "deepflowio-deepflow-datasource",
+            "uid": "${datasource}"
+          },
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"appTracingFlame\",\"db\":\"flow_log\",\"sources\":\"\",\"from\":\"l7_flow_log\",\"select\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d4ee9d24-88e5-e61b-3b75-04632c0c4ba7\",\"type\":\"metric\"}],\"where\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"bc518d2a-d9fa-a41e-0e2a-82df339b54b3\",\"type\":\"tag\"}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"420cfa6e-9c11-b174-7aa7-9a64b50808ea\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9732ea75-fc2d-1d6f-2ce8-db3d5f999dfe\",\"type\":\"tag\"}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"97895847-de97-b26d-9a4a-8b44c1a36831\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"\",\"slimit\":\"\",\"limit\":\"100\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":{\"label\":\"$deepflow_tracing_id\",\"value\":\"$deepflow_tracing_id\",\"isVariable\":true,\"variableType\":\"textbox\"}}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "响应时延",
+              "name": "响应时延",
+              "type": 3,
+              "unit": "微秒"
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "资源-服务优先",
+              "isResource": true,
+              "name": "auto_service_0",
+              "role": "client"
+            },
+            {
+              "displayName": "资源-服务优先",
+              "isResource": true,
+              "name": "auto_service_1",
+              "role": "server"
+            },
+            {
+              "displayName": "应用协议",
+              "isResource": false,
+              "name": "Enum(l7_protocol)"
+            },
+            {
+              "displayName": "请求类型",
+              "isResource": false,
+              "name": "request_type"
+            },
+            {
+              "displayName": "请求域名",
+              "isResource": false,
+              "name": "request_domain"
+            },
+            {
+              "displayName": "请求资源",
+              "isResource": false,
+              "name": "request_resource"
+            },
+            {
+              "displayName": "响应状态",
+              "isResource": false,
+              "name": "Enum(response_status)"
+            },
+            {
+              "displayName": "响应码",
+              "isResource": false,
+              "name": "response_code"
+            },
+            {
+              "displayName": "响应异常",
+              "isResource": false,
+              "name": "response_exception"
+            },
+            {
+              "displayName": "UID",
+              "isResource": false,
+              "name": "toString(_id)"
+            },
+            {
+              "displayName": "资源-服务优先",
+              "isResource": true,
+              "name": "auto_service_id_0",
+              "role": "client"
+            },
+            {
+              "displayName": "资源-服务优先",
+              "isResource": true,
+              "name": "auto_service_id_1",
+              "role": "server"
+            }
+          ],
+          "sql": "SELECT `response_duration` AS `响应时延`, auto_service_0, auto_service_1, Enum(l7_protocol), request_type, request_domain, request_resource, Enum(response_status), response_code, response_exception, toString(_id), auto_service_id_0, auto_service_id_1 FROM l7_flow_log WHERE time>=1704439550 AND time<=1704461150 LIMIT 1000"
+        }
+      ],
+      "title": "调用链追踪",
+      "type": "deepflowio-tracing-panel"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "DeepFlow",
+          "value": "DeepFlow"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "deepflowio-deepflow-datasource",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "Any",
+          "value": "__any"
+        },
+        "datasource": {
+          "type": "deepflowio-deepflow-datasource",
+          "uid": "${datasource}"
+        },
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag auto_service values from vtap_flow_edge_port\",\"useAny\":true}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "server",
+        "options": [],
+        "query": {
+          "database": "flow_metrics",
+          "sql": "show tag auto_service values from vtap_flow_edge_port",
+          "useAny": true
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "*",
+          "value": "*"
+        },
+        "hide": 0,
+        "name": "endpoint",
+        "options": [
+          {
+            "selected": true,
+            "text": "*",
+            "value": "*"
+          }
+        ],
+        "query": "*",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "Disabled",
+          "value": "__disabled"
+        },
+        "datasource": {
+          "type": "deepflowio-deepflow-datasource",
+          "uid": "${datasource}"
+        },
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag l7_protocol values from vtap_app_edge_port\",\"useAny\":true,\"useDisabled\":true}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "l7_protocol",
+        "options": [],
+        "query": {
+          "database": "flow_metrics",
+          "sql": "show tag l7_protocol values from vtap_app_edge_port",
+          "useAny": true,
+          "useDisabled": true
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "value": "1"
+        },
+        "hide": 2,
+        "name": "deepflow_tracing_id",
+        "options": [
+          {
+            "selected": true,
+            "text": "*",
+            "value": "*"
+          }
+        ],
+        "query": "*",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "eBPF",
+          "value": "3"
+        },
+        "datasource": {
+          "type": "deepflowio-deepflow-datasource",
+          "uid": "${datasource}"
+        },
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag signal_source values from vtap_app_edge_port\"}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "signal_source",
+        "options": [],
+        "query": {
+          "database": "flow_metrics",
+          "sql": "show tag signal_source values from vtap_app_edge_port"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Application - 开箱即用",
+  "uid": "Application_Out_Of_The_Box_CN",
+  "version": 3,
+  "weekStart": "",
+  "__inputs": [
+    {
+      "name": "DS_DeepFlow_-_uid",
+      "label": "蓝鲸监控 - DeepFlow数据",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "deepflowio-deepflow-datasource",
+      "pluginName": "DeepFlow Datasource"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "deepflowio-deepflow-datasource",
+      "name": "DeepFlow Datasource"
+    }
+  ]
+}

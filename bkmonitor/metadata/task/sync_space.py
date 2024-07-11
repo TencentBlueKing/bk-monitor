@@ -33,7 +33,6 @@ from metadata.models.space.space_data_source import (
     get_biz_data_id,
     get_real_zero_biz_data_id,
 )
-from metadata.models.space.space_redis import SpaceRedis, push_and_publish_all_space
 from metadata.models.space.utils import (
     cached_cluster_k8s_data_id,
     create_bcs_spaces,
@@ -449,19 +448,6 @@ def refresh_cluster_resource():
         logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
 
 
-@share_lock(identify="metadata__refresh_redis_data")
-def refresh_redis_data():
-    """刷新 redis 数据，以保证数据一致性
-
-    TODO: 待移除
-    """
-    logger.info("start refresh redis data task")
-    # 获取所有数据，然后更新一遍 redis 数据
-    push_and_publish_all_space(is_publish=False)
-
-    logger.info("push redis data successfully")
-
-
 @share_lock(identify="metadata_refresh_bkci_project")
 def refresh_bkci_space_name():
     """刷新 bkci 空间名称"""
@@ -492,90 +478,6 @@ def refresh_bkci_space_name():
         )
 
     logger.info("refresh only bkci space successfully")
-
-
-@share_lock(identify="metadata_refresh_bksaas_space")
-def refresh_not_biz_space_data_source():
-    """
-    TODO: 待移除
-    """
-    logger.info("start to refresh not biz space data source")
-
-    # 过滤使用的 table_id
-    table_id_list = list(models.InfluxDBStorage.objects.values_list("table_id", flat=True))
-    table_id_list.extend(list(models.AccessVMRecord.objects.values_list("result_table_id", flat=True)))
-    table_id_list = list(set(table_id_list))
-
-    # 过滤业务 ID 为负的记录，并转换服务的业务 ID 为空间 ID
-    table_id_biz_id_map = {
-        rt["table_id"]: abs(rt["bk_biz_id"])
-        for rt in models.ResultTable.objects.filter(table_id__in=table_id_list, bk_biz_id__lt=0).values(
-            "table_id", "bk_biz_id"
-        )
-    }
-    # 过滤对应的空间信息
-    space_id_map = {
-        space["id"]: (space["space_type_id"], space["space_id"])
-        for space in models.Space.objects.filter(id__in=table_id_biz_id_map.values()).values(
-            "id", "space_type_id", "space_id"
-        )
-    }
-
-    # 过滤对应的数据源
-    table_id_data_id_map = {
-        ds["table_id"]: ds["bk_data_id"]
-        for ds in models.DataSourceResultTable.objects.filter(table_id__in=table_id_biz_id_map.keys()).values(
-            "table_id", "bk_data_id"
-        )
-    }
-    # 过滤使用的空间，这里需要注意可能为空的情况
-    filter_q = Q()
-    for space in space_id_map.values():
-        filter_q |= Q(space_type_id=space[0], space_id=space[1])
-    space_data_id = {}
-    if filter_q:
-        space_data_source_qs = models.SpaceDataSource.objects.filter(filter_q).values(
-            "space_type_id", "space_id", "bk_data_id"
-        )
-        for sd in space_data_source_qs:
-            space_data_id.setdefault((sd["space_type_id"], sd["space_id"]), []).append(sd["bk_data_id"])
-
-    # 要写入的数据记录
-    data, space_type_and_ids = [], set()
-    for table_id, biz_id in table_id_biz_id_map.items():
-        space_type_and_id = space_id_map.get(biz_id)
-        # 如果获取不到数据，则跳过
-        if space_type_and_id is None:
-            continue
-        # 获取 bk_data_id
-        bk_data_id = table_id_data_id_map.get(table_id)
-        if bk_data_id is None:
-            continue
-        # 如果已经存在，则跳过
-        if bk_data_id in space_data_id.get(space_type_and_id, []):
-            continue
-
-        # 标识数据源已添加到指定的空间下
-        space_data_id.setdefault(space_type_and_id, []).append(bk_data_id)
-
-        # 记录变更的空间
-        space_type_and_ids.add(space_type_and_id)
-        data.append(
-            models.SpaceDataSource(
-                space_type_id=space_type_and_id[0], space_id=space_type_and_id[1], bk_data_id=bk_data_id
-            )
-        )
-    # 批量写入数据
-    models.SpaceDataSource.objects.bulk_create(data, BULK_CREATE_BATCH_SIZE)
-    if space_type_and_ids:
-        for space in space_type_and_ids:
-            SpaceRedis().push_not_biz_type_space(space_type=space[0], space_id=space[1])
-        logger.info(
-            "push space resource to redis successfully, space: %s",
-            json.dumps(space_type_and_ids),
-        )
-
-    logger.info("refresh not biz space data source successfully")
 
 
 def push_and_publish_space_router(

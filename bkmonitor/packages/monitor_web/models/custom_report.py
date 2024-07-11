@@ -13,14 +13,14 @@ import time
 from typing import Any, Dict, List
 
 from django.db import models
-from monitor_web.constants import EVENT_TYPE
-from monitor_web.models import OperateRecordModelBase
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.db import JsonField
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
+from monitor_web.constants import EVENT_TYPE
+from monitor_web.models import OperateRecordModelBase
 
 
 class CustomEventGroup(OperateRecordModelBase):

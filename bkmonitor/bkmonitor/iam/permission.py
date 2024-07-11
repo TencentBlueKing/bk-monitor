@@ -76,6 +76,8 @@ ActionIdMap = {
     "dashboard": [ActionEnum.VIEW_SINGLE_DASHBOARD],
     # APM
     "apm": [ActionEnum.VIEW_APM_APPLICATION],
+    # 故障根因定位
+    "incident": [ActionEnum.VIEW_INCIDENT],
 }
 
 api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace_query/"]

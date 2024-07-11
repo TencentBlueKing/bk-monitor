@@ -25,13 +25,13 @@
 -->
 <template>
   <bk-dialog
-    :value="show"
-    theme="primary"
     :mask-close="false"
-    header-position="left"
     :show-footer="!disabledEditConfig"
-    :width="480"
     :title="disabledEditConfig ? $t('参数配置') : $t('定义参数')"
+    :value="show"
+    :width="480"
+    header-position="left"
+    theme="primary"
     @after-leave="handleCancel"
   >
     <div
@@ -40,8 +40,8 @@
     >
       <div
         v-for="(item, index) in readonlyParam"
-        :key="index"
         class="item"
+        :key="index"
       >
         <div class="label">{{ item.label }} ：</div>
         <div class="value">
@@ -93,7 +93,7 @@
       <div class="item-param">
         <span> {{ $t('默认值') }} </span>
         <i
-          v-show="config.types.type === 'dms_insert'"
+          class="bk-icon icon-info"
           v-bk-tooltips="{
             content: $t(
               config.default.type === 'service'
@@ -101,7 +101,7 @@
                 : '维度名:主机字段名，如host_ip:bk_host_innerip'
             ),
           }"
-          class="bk-icon icon-info"
+          v-show="config.types.type === 'dms_insert'"
         />
         <verify-input
           :show-validate="dmsInsertError"
@@ -129,24 +129,24 @@
               />
               <bk-input
                 v-else-if="['password', 'encrypt'].includes(config.default.type)"
+                ext-cls="value-password"
                 v-model="config.default.value"
                 type="password"
-                ext-cls="value-password"
               />
               <bk-switcher
                 v-else-if="config.default.type === 'switch'"
-                v-model="config.default.value"
                 class="value-switch"
-                true-value="true"
+                v-model="config.default.value"
                 false-value="false"
+                true-value="true"
               />
               <div
                 v-else-if="config.default.type === 'file'"
                 class="file-input-wrap"
               >
                 <import-file
-                  :file-name="config.default.value"
                   :file-content="config.default.fileBase64"
+                  :file-name="config.default.value"
                   @change="handleFileChange"
                   @error-message="handleImportError"
                 />
@@ -175,21 +175,24 @@
           :disabled="config.types.type === 'dms_insert'"
         />
       </div>
+      <div class="item-param">
+        <bk-checkbox v-model="config.required">{{ $t('必填') }}</bk-checkbox>
+      </div>
     </div>
     <div slot="footer">
       <bk-button
         class="mr-5"
-        theme="primary"
-        :title="$t('提交')"
         :disabled="disabledEditConfig"
+        :title="$t('提交')"
+        theme="primary"
         @click="handleConfirm"
         @keyup.enter="handleConfirm"
       >
         {{ $t('提交') }}
       </bk-button>
       <bk-button
-        theme="default"
         :title="$t('取消')"
+        theme="default"
         @click="handleCancel"
       >
         {{ $t('取消') }}
@@ -215,7 +218,7 @@ export default {
     },
     paramList: {
       type: Array,
-      default: () => ({}),
+      default: () => [],
     },
     pluginType: {
       type: String,
@@ -308,6 +311,7 @@ export default {
         paramName: '',
         alias: '',
         description: '',
+        required: false,
       },
       rules: {
         name: {
@@ -406,6 +410,7 @@ export default {
           ? this.config.default.value.trim()
           : this.config.default.value,
         description: this.config.description.trim(),
+        required: this.config.required || false,
       };
       if (this.config.types.type === 'dms_insert') {
         // ['a:1','b:2'] -----> { a: '1', b: '2' }
@@ -428,6 +433,7 @@ export default {
       this.config.alias = '';
       this.config.types.type = this.paramType[0]?.id || 'opt_cmd';
       this.config.default.type = this.defaultTypeList[0]?.id || 'text';
+      this.config.required = false;
       this.handleDefaultTypeChange(this.config.default.type);
     },
     /**
@@ -439,6 +445,7 @@ export default {
       this.config.alias = param.alias || '';
       this.config.types.type = param.mode;
       this.config.default.type = param.type;
+      this.config.required = param.required || false;
       if (param.mode === 'dms_insert') {
         // { a:1, b:2 } ----->  ['a:1','b:2']
         this.config.default.value = Object.entries(param.default).map(item => `${item[0]}:${item[1]}`);

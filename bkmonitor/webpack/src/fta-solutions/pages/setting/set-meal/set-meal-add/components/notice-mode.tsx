@@ -213,14 +213,35 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
       window.i18n.tc('每个执行阶段至少选择一种通知方式'),
     ];
     const res = this.handleParams();
-    const isPass = res.every(item => {
+    const isSelect = res.every(item => {
       if (!item.notice_ways?.length) {
         this.errMsg = msg[this.type];
         return !isStrict;
       }
       return true;
     });
-    return isPass;
+    if (!isSelect) return false;
+
+    const isRobotValidPass = res.every(item => {
+      return item.notice_ways.every(({ name, receivers }) => {
+        if (name === robot.wxworkBot) {
+          if (receivers.length > 32) {
+            this.errMsg = window.i18n.tc('长度不能超过32个字符');
+            return false;
+          }
+          if (
+            /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(receivers as string)
+          ) {
+            this.errMsg = window.i18n.tc('不能输入emoji表情');
+            return false;
+          }
+        }
+        return true;
+      });
+    });
+    if (!isRobotValidPass) return false;
+
+    return true;
   }
 
   handleJumpAddGroup() {
@@ -299,13 +320,13 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                           <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]}></i>
                         ) : ['bkchat', 'wxwork-bot'].includes(notice.name) ? undefined : (
                           <bk-checkbox
+                            v-model={notice.checked}
                             v-bk-tooltips={{
                               content: `${this.$t('电话按通知对象顺序依次拨打,用户组里无法保证顺序')}`,
                               placements: ['top'],
                               boundary: 'window',
                               disabled: notice.type !== 'voice',
                             }}
-                            v-model={notice.checked}
                             size={'small'}
                             theme='primary'
                             on-change={() => this.handleParams()}
@@ -320,7 +341,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                 v-model={notice.receivers}
                                 placeholder={this.$tc('输入群ID')}
                                 on-change={v => {
-                                  notice.checked = !!v;
+                                  notice.checked = !!v.trim();
                                   this.handleParams();
                                 }}
                               ></AutoHeightTextarea>

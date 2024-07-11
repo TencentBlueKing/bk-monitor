@@ -251,6 +251,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   activeFilterName = '';
   activeFilterId = '';
   searchType: SearchType = 'alert';
+  filterScrollTop = 0;
 
   // 告警分析
   analyzeData = [];
@@ -654,6 +655,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @return {*}
    */
   handleGetSearchParams(onlyOverview = false, commonParams = false) {
+    // 查询条件语法格式错误，清除查询条件
+    if (this.filterInputStatus === 'error') {
+      this.queryString = '';
+    }
     // const { startTime, endTime } = this.handleGetTimeRange();
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     let params: any = {
@@ -2046,6 +2051,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
           class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
+          onScroll={e => (this.filterScrollTop = (e.target as HTMLDivElement).scrollTop)}
         >
           <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
           <div class='filter-search'>
@@ -2070,6 +2076,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             lineText={''}
             theme={'line'}
             toggleSet={this.toggleSet}
+            top={this.filterScrollTop}
             on-move={this.handleDragFilter}
           />
           <div

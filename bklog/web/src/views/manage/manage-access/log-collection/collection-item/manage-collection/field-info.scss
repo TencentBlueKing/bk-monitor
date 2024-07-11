@@ -22,14 +22,14 @@
       @include flex-align(flex-start);
 
       .label {
+        flex-shrink: 0;
         height: 24px;
         line-height: 24px;
-        flex-shrink: 0;
       }
 
       .rule {
-        line-height: 24px;
         flex-direction: column;
+        line-height: 24px;
 
         @include flex-align(flex-start)
       ;
@@ -76,8 +76,8 @@
 
 .field-info-table {
   .edit-btn-container {
-    width: 100%;
     justify-content: end;
+    width: 100%;
     margin-bottom: 10px;
 
     @include flex-align(center);

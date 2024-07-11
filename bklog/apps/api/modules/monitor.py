@@ -27,7 +27,7 @@ from django.utils.translation import ugettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request  # noqa
-from config.domains import MONITOR_APIGATEWAY_ROOT  # noqa
+from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW  # noqa
 
 
 class _MonitorApi(object):
@@ -100,7 +100,7 @@ class _MonitorApi(object):
         )
         self.create_or_update_report = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "create_or_update_report/",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "create_or_update_report/",
             module=self.MODULE,
             description="创建或更新订阅报表",
             default_return_value=None,
@@ -108,7 +108,7 @@ class _MonitorApi(object):
         )
         self.send_report = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "send_report/",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "send_report/",
             module=self.MODULE,
             description="发送阅报表",
             default_return_value=None,
@@ -116,7 +116,7 @@ class _MonitorApi(object):
         )
         self.get_reports = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "get_exist_reports/",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_exist_reports/",
             module=self.MODULE,
             description="获取已存在的订阅报表",
             default_return_value=None,
@@ -124,7 +124,7 @@ class _MonitorApi(object):
         )
         self.get_report_variables = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "get_report_variables/",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_report_variables/",
             module=self.MODULE,
             description="获取订阅报表的变量列表",
             default_return_value=None,

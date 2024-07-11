@@ -1531,7 +1531,7 @@ class Strategy(AbstractConfig):
         labels: List[str] = None,
         app: str = "",
         path: str = "",
-        priority: int = 0,
+        priority: int = None,
         priority_group_key: str = None,
         metric_type: str = "",
         **kwargs,
@@ -2031,7 +2031,7 @@ class Strategy(AbstractConfig):
             create_user=self._get_username(),
             update_user=self._get_username(),
             priority=self.priority,
-            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items),
+            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else "",
         )
         self.id = strategy.id
 
@@ -2106,7 +2106,9 @@ class Strategy(AbstractConfig):
                 strategy.invalid_type = self.invalid_type
                 strategy.update_user = self._get_username()
                 strategy.priority = self.priority
-                strategy.priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
+                strategy.priority_group_key = (
+                    self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else ""
+                )
                 strategy.save()
             else:
                 self._create()
@@ -2283,6 +2285,7 @@ class Strategy(AbstractConfig):
             query_config = item.query_configs[0]
 
             item_query = {
+                "bk_biz_id": bk_biz_id,
                 "data_source_label": query_config.data_source_label,
                 "data_type_label": query_config.data_type_label,
                 "expression": item.expression,

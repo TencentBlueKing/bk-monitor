@@ -32,7 +32,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BkLogApi, MonitorApi, BcsApi
+from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -189,6 +189,7 @@ class SearchHandler(object):
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
+        self.from_favorite_id = self.search_dict.get("from_favorite_id", 0)
 
         self.use_time_range = search_dict.get("use_time_range", True)
         # 构建时间字段
@@ -786,12 +787,16 @@ class SearchHandler(object):
                         "params": history_params,
                         "index_set_id": self.index_set_id,
                         "search_type": search_type,
+                        "from_favorite_id": self.from_favorite_id,
                     }
                 }
             )
         else:
             UserIndexSetSearchHistory.objects.create(
-                index_set_id=self.index_set_id, params=history_params, search_type=search_type
+                index_set_id=self.index_set_id,
+                params=history_params,
+                search_type=search_type,
+                from_favorite_id=self.from_favorite_id,
             )
 
     def _can_scroll(self, result) -> bool:
@@ -1849,6 +1854,8 @@ class SearchHandler(object):
         """
         递归更新嵌套字典
         """
+        if not isinstance(base_dict, dict):
+            return base_dict
         for key, value in update_dict.items():
             if isinstance(value, dict):
                 base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
@@ -2394,6 +2401,7 @@ class UnionSearchHandler(object):
                     "params": params,
                     "index_set_ids": sorted(self.index_set_ids),
                     "search_type": search_type,
+                    "from_favorite_id": self.search_dict.get("from_favorite_id", 0),
                 }
             }
         )

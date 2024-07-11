@@ -22,6 +22,11 @@ BUILTIN_APP_NAME = "builtin_profile_app"
 CPU_DESCRIBING_SAMPLE_TYPE = "samples/count"
 DESCRIBING_SAMPLE_UNIT = "count"
 
+# 大应用 profile 服务最大可以查询 5000条 sample 数据
+LARGE_SERVICE_MAX_QUERY_SIZE = 5000
+# 普通 profile 服务最大可以查询 10000条 sample 数据
+NORMAL_SERVICE_MAX_QUERY_SIZE = 10000
+
 
 class InputType(Enum):
     PPROF = "pprof"

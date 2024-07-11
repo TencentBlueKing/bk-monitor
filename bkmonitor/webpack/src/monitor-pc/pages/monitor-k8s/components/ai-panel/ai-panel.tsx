@@ -27,6 +27,7 @@ import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decora
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { isShadowEqual, reviewInterval } from 'monitor-ui/chart-plugins/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
@@ -86,7 +87,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 对比类型
   @InjectReactive('compareType') compareType: PanelToolsType.CompareId;
-  cancelToken: Function = null;
+  cancelToken = null;
   // 表格数据
   tableData: IAiPanelTableItem[] = [];
   filtersData = {};
@@ -95,6 +96,9 @@ export default class Aipanel extends tsc<ICommonListProps> {
 
   showViewDetail = false;
   viewConfig = null;
+
+  aiSettings = null;
+
   // scoped 变量
   get scopedVars() {
     return {
@@ -151,6 +155,19 @@ export default class Aipanel extends tsc<ICommonListProps> {
         searchValue: [],
       },
     };
+  }
+
+  /** 是否开启主机智能异常检测 */
+  get isOpenDetection() {
+    return this.aiSettings?.multivariate_anomaly_detection?.host?.is_enabled;
+  }
+
+  mounted() {
+    this.getAiSettings();
+  }
+
+  async getAiSettings() {
+    this.aiSettings = await fetchAiSetting().catch(() => null);
   }
 
   @Watch('timeRange')
@@ -253,16 +270,6 @@ export default class Aipanel extends tsc<ICommonListProps> {
       }
     }
   }
-  handleFilterChange(_val, val: Object = {}) {
-    const { columns } = this.tableRef;
-    this.filtersData = Object.entries(val).reduce((total, [key, value]) => {
-      const column = columns.find(col => col.id === key);
-      if (value.length) {
-        total[column.property] = value;
-      }
-      return total;
-    }, {}) as any;
-  }
 
   handleCloseViewDetail() {
     this.showViewDetail = false;
@@ -271,6 +278,67 @@ export default class Aipanel extends tsc<ICommonListProps> {
 
   handleToAddStrategy() {
     window.open(`${location.href.replace(location.hash, '#/strategy-config/add')}?scene_id=${this.sceneId}`);
+  }
+
+  handleToOpen() {
+    this.$router.push({
+      name: 'ai-settings-set',
+    });
+  }
+
+  /** 主机智能异常检测结果 */
+  renderResultContent() {
+    if (!this.isOpenDetection)
+      return (
+        <bk-exception
+          class='no-data'
+          scene='part'
+          type='empty'
+        >
+          <div class='no-data-text'>{this.$t('暂未开启主机智能异常检测')}</div>
+          <bk-button
+            class='open-btn'
+            title='primary'
+            text
+            onClick={this.handleToOpen}
+          >
+            {this.$t('前往开启')}
+          </bk-button>
+        </bk-exception>
+      );
+
+    if (this.tableData.length)
+      return (
+        <div class='ai-panel-list'>
+          {this.tableData.map(item => (
+            <div
+              class='ai-panel-list-item'
+              v-bk-tooltips={{
+                content: item.id,
+                placements: ['left'],
+                allowHTML: false,
+              }}
+              onClick={() => this.handleSetMetricIndex(item)}
+            >
+              <div class='metric-name'>{item.name}</div>
+              <div class='count-info'>
+                <div class='left'>{`${this.$t('指标值')}: ${item.value}`}</div>
+                <div class='right'>
+                  <span>{this.$t('异常得分')}: </span>
+                  <span class='red'>{Number(item.score || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+
+    return (
+      <div class='no-data'>
+        <div class='no-data-img'></div>
+        <div class='no-data-text'>{this.$t('智能检测一切正常')}</div>
+      </div>
+    );
   }
 
   render() {
@@ -307,55 +375,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
             {this.$t('最后一次异常时间')}： {this.tableData[0]?.dtEventTime}
           </div>
         )}
-        {this.tableData.length ? (
-          <div class='ai-panel-list'>
-            {this.tableData.map(item => (
-              <div
-                class='ai-panel-list-item'
-                v-bk-tooltips={{
-                  content: item.id,
-                  placements: ['left'],
-                  allowHTML: false,
-                }}
-                onClick={() => this.handleSetMetricIndex(item)}
-              >
-                <div class='metric-name'>{item.name}</div>
-                <div class='count-info'>
-                  <div class='left'>{`${this.$t('指标值')}: ${item.value}`}</div>
-                  <div class='right'>
-                    <span>{this.$t('异常得分')}: </span>
-                    <span class='red'>{Number(item.score || 0).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div class='no-data'>
-            <div class='no-data-img'></div>
-            <div class='no-data-text'>{this.$t('智能检测一切正常')}</div>
-          </div>
-        )}
-        {/* <bk-table
-          class="ai-panel-table"
-          ref="table"
-          row-auto-height={true}
-          outer-border={false}
-          data={this.filterTabelData}
-          on-filter-change={this.handleFilterChange}
-        >
-          <bk-table-column
-            show-overflow-tooltip={true}
-            property={'name'}
-            label={this.$t('异常指标')}
-            filters={this.nameFilterOptions}
-            formatter={(row: IAiPanelTableItem) =>
-              <span class="name-col" onClick={() => this.handleSetMetricIndex(row)}>{row.name}</span>}
-          ></bk-table-column>
-          <bk-table-column label={this.$t('指标值')} prop="value" width="80" align="right"/>
-          <bk-table-column label={this.$t('异常分值')} prop="score" width="90" align="right"
-            formatter={(row: IAiPanelTableItem) => <span class="score-col">{row.score}</span>}/>
-        </bk-table> */}
+        {this.renderResultContent()}
         {this.showViewDetail && (
           <ViewDetail
             show={this.showViewDetail}

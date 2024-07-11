@@ -53,6 +53,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
+        ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),
         (
@@ -64,15 +65,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS", slz.IntegerField(label="计算平台中结果表(HDFS)默认保存天数", default=180)),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_NAME",
-            slz.CharField(label="计算平台 MYSQL 存储集群名称", default="default", allow_blank=True),
+            slz.CharField(label="计算平台 MYSQL 存储集群名称", default="mysql-default", allow_blank=True),
         ),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
-            slz.CharField(label="计算平台 SQL 类存储集群类型", default="mysql_storage", allow_blank=True),
-        ),
-        (
-            "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
-            slz.CharField(label="计算平台 SQL 类存储集群类型", default="mysql_storage", allow_blank=True),
+            slz.CharField(label="计算平台 MYSQL类 存储类型", default="mysql_storage", allow_blank=True),
         ),
         (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
@@ -103,6 +100,17 @@ ADVANCED_OPTIONS = OrderedDict(
         (
             "BK_DATA_METRIC_RECOMMEND_SOURCE_PROCESSING_ID",
             slz.CharField(label="指标推荐 FLOW 数据源", default="ieod_system_multivariate_delay"),
+        ),
+        (
+            "BK_DATA_AIOPS_INCIDENT_BROKER_URL",
+            slz.CharField(
+                label=_("故障接入的 RabbitMQ 地址"),
+                default="amqp://bkbase-rabbitmq.bkbase.svc.cluster.local:5672/aiops_incident",
+            ),
+        ),
+        (
+            "BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE",
+            slz.CharField(label=_("故障接入队列名"), default="aiops_incident"),
         ),
         # === AIOPS 相关配置 结束 ===
         ("EVENT_NO_DATA_TOLERANCE_WINDOW_SIZE", slz.IntegerField(label="Event 模块最大容忍无数据周期数", default=5)),
@@ -262,8 +270,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SHOW_REALTIME_STRATEGY", slz.BooleanField(label="是否默认展示策略模块实时功能", default=False)),
         ("BKDATA_CMDB_LEVEL_TABLES", slz.ListField(label="数据平台CMDB聚合表", default=[])),
         ("MAX_TASK_PROCESS_NUM", slz.IntegerField(label="后台任务多进程并行数量", default=1)),
-        ("MAX_TS_METRIC_TASK_PROCESS_NUM", slz.IntegerField(label="指标后台任务多进程并行数量", default=1)),
-        ("QUERY_VM_SPACE_UID_LIST", slz.ListField(label="通过 vm 查询的空间列表", default=[])),
         ("MAIL_REPORT_FULL_PAGE_WAIT_TIME", slz.IntegerField(label="邮件报表整屏渲染等待时间", default=60)),
         ("KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST", slz.ListField(label="容器关联关系丰富业务白名单", default=[])),
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
@@ -383,6 +389,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("APM_BMW_DEPLOY_BIZ_ID", slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0)),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
+        ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
         ("COLLECTING_CONFIG_FILE_MAXSIZE", slz.IntegerField(label=_("采集配置文件参数最大值(M)"), default=2)),
@@ -452,6 +459,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
+        # 自定义事件休眠开关
+        ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
     ]
 )
 

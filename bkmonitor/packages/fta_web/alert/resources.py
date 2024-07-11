@@ -83,8 +83,9 @@ from core.unit import load_unit
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
-from fta_web.alert.handlers.translator import PluginTranslator
+from fta_web.alert.handlers.translator import BizTranslator, PluginTranslator
 from fta_web.alert.serializers import (
     ActionIDField,
     ActionSearchSerializer,
@@ -94,6 +95,7 @@ from fta_web.alert.serializers import (
     AlertSuggestionSerializer,
     EventSearchSerializer,
 )
+from fta_web.alert.utils import add_aggs, add_overview, slice_time_interval
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
     AlertFeedback,
@@ -303,9 +305,39 @@ class AlertDateHistogramResource(Resource):
         interval = serializers.CharField(label="聚合周期", default="auto")
 
     def perform_request(self, validated_request_data):
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
         interval = validated_request_data.pop("interval")
-        handler = AlertQueryHandler(**validated_request_data)
-        data = list(handler.date_histogram(interval=interval).values())[0]
+        interval = BaseQueryHandler.calculate_agg_interval(start_time, end_time, interval)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+        results = resource.alert.alert_date_histogram_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "interval": interval,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+
+        data = {status: {} for status in EVENT_STATUS_DICT}
+        for result in results:
+            for status, series in result.items():
+                if status == "default_time_series":
+                    interval = series["interval"]
+                    start_time = series["start_time"] // interval * interval
+                    end_time = series["end_time"] // interval * interval + interval
+                    default_time_series = {ts * 1000: 0 for ts in range(start_time, end_time, interval)}
+                    for sta in EVENT_STATUS_DICT:
+                        data[sta].update(default_time_series)
+                    continue
+
+                data[status].update(series)
         return {
             "series": [
                 {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
@@ -313,6 +345,19 @@ class AlertDateHistogramResource(Resource):
             ],
             "unit": "",
         }
+
+
+class AlertDateHistogramResultResource(Resource):
+    def perform_request(self, validated_request_data):
+        interval = validated_request_data.pop("interval")
+        start_time = validated_request_data.get("start_time")
+        end_time = validated_request_data.get("end_time")
+        handler = AlertQueryHandler(**validated_request_data)
+        datas = list(handler.date_histogram(interval=interval).values())
+        if not datas:
+            data = {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}
+            return data
+        return datas[0]
 
 
 class AlertDetailResource(Resource):
@@ -1285,6 +1330,65 @@ class SearchActionResource(ApiAuthResource):
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
 
     def perform_request(self, validated_request_data):
+        show_overview = validated_request_data.get("show_overview")
+        show_aggs = validated_request_data.get("show_aggs")
+        show_dsl = validated_request_data.get("show_dsl")
+        start_time = validated_request_data.pop("start_time", None)
+        end_time = validated_request_data.pop("end_time", None)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
+        if start_time and end_time:
+            results = resource.alert.search_action_result.bulk_request(
+                [
+                    {
+                        "start_time": sliced_start_time,
+                        "end_time": sliced_end_time,
+                        **validated_request_data,
+                    }
+                    for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+                ]
+            )
+        else:
+            results = [resource.alert.search_action_result.perform_request(validated_request_data)]
+
+        result = {
+            "actions": [],
+            "total": 0,
+        }
+        if show_aggs:
+            result["aggs"] = []
+            agg_id_map = {}
+        if show_dsl:
+            is_change = True
+        for sliced_result in results:
+            result["actions"].extend(sliced_result["actions"])
+            result["total"] += sliced_result["total"]
+            if show_overview:
+                add_overview(result, sliced_result)
+            if show_aggs:
+                add_aggs(agg_id_map, result, sliced_result)
+            if show_dsl:
+                if is_change:
+                    sliced_result["dsl"]["query"]["bool"]["filter"][2]["bool"]["should"][1]["range"]["end_time"][
+                        "gte"
+                    ] = start_time
+                    sliced_result["dsl"]["query"]["bool"]["filter"][2]["bool"]["must"][0]["range"]["create_time"][
+                        "lte"
+                    ] = end_time
+                    result["dsl"] = sliced_result["dsl"]
+                    is_change = False
+
+        if show_overview:
+            result["overview"]["children"] = list(result["overview"]["children"].values())
+
+        return result
+
+
+class SearchActionResultResource(Resource):
+    def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
@@ -1496,11 +1600,83 @@ class BaseTopNResource(Resource):
         return handler.top_n(fields=validated_request_data["fields"], size=validated_request_data["size"])
 
 
-class AlertTopNResource(BaseTopNResource):
+class AlertTopNResultResource(BaseTopNResource):
+    handler_cls = AlertQueryHandler
+
+    class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
+        is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
+        is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
+        authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+        unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+
+
+class AlertTopNResource(Resource):
     handler_cls = AlertQueryHandler
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
         pass
+
+    def perform_request(self, validated_request_data):
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = self.handler_cls.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+        # 并发前提前获取
+        if len(validated_request_data["authorized_bizs"]) > 1:
+            BizTranslator.biz_map_cache = resource.cc.get_biz_map()
+
+        results = resource.alert.alert_top_n_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "is_finaly_partition": True if index == len(slice_times) - 1 else False,
+                    "is_time_partitioned": True,
+                    **validated_request_data,
+                }
+                for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
+            ]
+        )
+
+        result = {
+            "doc_count": 0,
+            "fields": [],
+        }
+
+        # 创建字段映射和ID映射
+        field_map = {}
+        id_map = {}
+
+        # 处理每个部分结果
+        for sliced_result in results:
+            result["doc_count"] += sliced_result["doc_count"]
+
+            for field in sliced_result["fields"]:
+                if field["field"] not in field_map:
+                    new_field = copy.deepcopy(field)
+                    new_field["buckets"] = []  # 清空buckets
+                    new_field["bucket_count"] = 0  # 初始化bucket_count
+                    result["fields"].append(new_field)
+                    field_index = len(result["fields"]) - 1
+                    field_map[field["field"]] = field_index
+                    id_map[field["field"]] = {}
+                else:
+                    field_index = field_map[field["field"]]
+
+                for bucket in field["buckets"]:
+                    if bucket["id"] not in id_map[field["field"]]:
+                        new_bucket = copy.deepcopy(bucket)
+                        result["fields"][field_index]["buckets"].append(new_bucket)
+                        bucket_index = len(result["fields"][field_index]["buckets"]) - 1
+                        id_map[field["field"]][bucket["id"]] = bucket_index
+                        result["fields"][field_index]["bucket_count"] += 1
+                    else:
+                        bucket_index = id_map[field["field"]][bucket["id"]]
+                        result["fields"][field_index]["buckets"][bucket_index]["count"] += bucket["count"]
+        return result
 
 
 class ActionTopNResource(BaseTopNResource):
@@ -1528,6 +1704,22 @@ class EventTopNResource(BaseTopNResource, ApiAuthResource):
         return handler.top_n(fields=validated_request_data["fields"], size=validated_request_data["size"])
 
 
+class ListAlertTagsResultResource(Resource):
+    """
+    获取告警标签
+    """
+
+    class RequestSerializer(AlertSearchSerializer):
+        is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
+        is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
+        authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+        unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+
+    def perform_request(self, validated_request_data):
+        handler = AlertQueryHandler(**validated_request_data)
+        return handler.list_tags()
+
+
 class ListAlertTagsResource(Resource):
     """
     获取告警标签
@@ -1537,8 +1729,38 @@ class ListAlertTagsResource(Resource):
         pass
 
     def perform_request(self, validated_request_data):
-        handler = AlertQueryHandler(**validated_request_data)
-        return handler.list_tags()
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
+        results = resource.alert.list_alert_tags_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "is_finaly_partition": True if index == len(slice_times) - 1 else False,
+                    "is_time_partitioned": True,
+                    **validated_request_data,
+                }
+                for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
+            ]
+        )
+
+        result = []
+        id_map = {}
+        for sliced_result in results:
+            for tag in sliced_result:
+                if tag['id'] not in id_map:
+                    result.append(copy.deepcopy(tag))
+                    id_map[tag['id']] = len(result) - 1
+                else:
+                    index = id_map[tag["id"]]
+                    result[index]["count"] += tag["count"]
+        return result
 
 
 class StrategySnapshotResource(Resource):
@@ -2047,6 +2269,7 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
                 anomaly_metrics = parse_anomaly(anomaly_sort, strategy_algorithm["config"])
 
                 base_graph_panel = AIOPSManager.get_graph_panel(alert, use_raw_query_config=True)
+                base_graph_panel["type"] = "performance-chart"
                 for anomaly_metric in anomaly_metrics:
                     graph_panel = self.generate_metric_graph_panel(
                         copy.deepcopy(base_graph_panel),

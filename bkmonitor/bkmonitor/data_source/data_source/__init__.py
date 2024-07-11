@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+import constants.event
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
@@ -1645,15 +1646,12 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
-        # count(_index) -> sum(event.count)X
         for metric in self.metrics:
-            if metric["field"] in ["__INDEX__", "event.count"]:
-                metric["field"] = "event.count"
-                metric["method"] = "SUM"
-            if metric["field"] == "_index":
-                metric["method"] = "COUNT"
             if metric["field"] == "event.count":
                 metric["method"] = "SUM"
+            else:
+                metric["field"] = "_index"
+                metric["method"] = "COUNT"
 
         # 平台级且业务不等于绑定的平台业务
         if judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table):
@@ -1782,7 +1780,12 @@ class BkFtaEventDataSource(DataSource):
         self.filter_dict["status"] = EventStatus.ABNORMAL
 
         if self.alert_name:
-            self.filter_dict["alert_name.raw"] = self.alert_name
+            if self.alert_name == constants.event.ALL_EVENT_PLUGIN_METRIC:
+                self.filter_dict["plugin_id__neq"] = "bkmonitor"
+            elif self.alert_name.startswith(constants.event.EVENT_PLUGIN_METRIC_PREFIX):
+                self.filter_dict["plugin_id"] = self.alert_name[len(constants.event.EVENT_PLUGIN_METRIC_PREFIX) :]
+            else:
+                self.filter_dict["alert_name.raw"] = self.alert_name
 
         if bk_biz_id:
             self.filter_dict["bk_biz_id"] = bk_biz_id

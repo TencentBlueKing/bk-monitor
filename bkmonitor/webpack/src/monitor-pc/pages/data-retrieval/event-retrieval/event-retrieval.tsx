@@ -172,26 +172,17 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   }
 
   created() {
-    let queryConfig = null;
-    try {
-      queryConfig = JSON.parse((this.$route.query?.queryConfig || null) as string);
-      if (!queryConfig) {
-        queryConfig = JSON.parse((this.$route.query?.targets || null) as string)?.[0]?.data?.query_configs?.[0];
-      }
-    } catch (err) {
-      queryConfig = null;
-      console.log(err);
-    }
-    if (queryConfig) {
-      const { data_source_label, data_type_label, result_table_id, where } = queryConfig;
+    if (this.$route.query?.queryConfig) {
+      const { data_source_label, data_type_label, result_table_id, where } = JSON.parse(
+        this.$route.query.queryConfig as string
+      );
       this.localValue.where = where;
-
       this.localValue.result_table_id = result_table_id;
-
       this.localValue.eventType = `${data_source_label}_${data_type_label}` as IEventRetrieval.ILocalValue['eventType'];
-      this.initData(false);
-    } else {
-      this.initData(!this.queryConfig?.result_table_id);
+    }
+
+    if (!this.$route.query?.targets) {
+      this.initData(!this.localValue.result_table_id);
     }
   }
 
@@ -213,13 +204,10 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       this.isEdit = true;
       const { where, result_table_id, query_string, data_source_label, data_type_label } = this.queryConfig;
       this.localValue.where = where;
-
       this.localValue.result_table_id = result_table_id;
-
       this.localValue.query_string = query_string;
-
       this.localValue.eventType = `${data_source_label}_${data_type_label}` as IEventRetrieval.ILocalValue['eventType'];
-      this.initData(false);
+      this.initData(!result_table_id);
     }
   }
 
@@ -473,14 +461,35 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                 key={JSON.stringify(this.dataIdList)}
                 vModel={this.localValue.result_table_id}
                 clearable={false}
+                ext-popover-cls={'event-retrieval-data-id-select-popover'}
+                searchable={true}
                 onSelected={this.handleInitLocalValue}
               >
-                {this.dataIdList.map(item => (
-                  <bk-option
-                    id={item.id}
-                    name={item.name}
-                  />
-                ))}
+                {this.localValue.eventType === 'custom_event'
+                  ? this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      >
+                        <span class='event-item-name'>
+                          <span
+                            class='name-text'
+                            v-bk-overflow-tips
+                          >
+                            {item.name}
+                          </span>
+                          {!!item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
+                        </span>
+                      </bk-option>
+                    ))
+                  : this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
               </bk-select>
             </div>
           ) : undefined}

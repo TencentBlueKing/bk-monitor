@@ -78,7 +78,7 @@ export default class AiSettingsSet extends tsc<object> {
     multivariate_anomaly_detection: {
       host: {
         default_plan_id: 0,
-        default_sensitivity: 0,
+        default_sensitivity: 1,
         is_enabled: true,
         exclude_target: [],
         intelligent_detect: {},
@@ -91,7 +91,7 @@ export default class AiSettingsSet extends tsc<object> {
       type: AISettingType.IntelligentDetect,
       title: window.i18n.t('单指标异常检测'),
       data: {
-        default_plan_id: 0,
+        default_plan_id: '',
       },
       errorsMsg: {
         default_plan_id: '',
@@ -105,8 +105,8 @@ export default class AiSettingsSet extends tsc<object> {
           type: 'host',
           title: window.i18n.t('主机'),
           data: {
-            default_plan_id: 0,
-            default_sensitivity: 0,
+            default_plan_id: '',
+            default_sensitivity: 1,
             is_enabled: true,
             exclude_target: [],
             intelligent_detect: {},
@@ -151,8 +151,16 @@ export default class AiSettingsSet extends tsc<object> {
     const aiSetting = await fetchAiSetting().catch(() => null);
     if (aiSetting) {
       this.aiSetting = aiSetting;
-      this.settingsData[0].data.default_plan_id = this.aiSetting.kpi_anomaly_detection.default_plan_id;
-      this.settingsData[1].data[0].data = this.aiSetting.multivariate_anomaly_detection.host;
+      const {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        kpi_anomaly_detection: { default_plan_id },
+        multivariate_anomaly_detection: { host },
+      } = this.aiSetting;
+      this.settingsData[0].data.default_plan_id = default_plan_id || '';
+      this.settingsData[1].data[0].data = {
+        ...host,
+        default_plan_id: host.default_plan_id || '',
+      };
     }
   }
 
@@ -287,6 +295,7 @@ export default class AiSettingsSet extends tsc<object> {
                   v-model={settingsItem.data.default_plan_id}
                   clearable={false}
                   ext-popover-cls='ai-settings-scheme-select'
+                  placeholder={this.$t('选择方案')}
                   searchable
                   on-change={() => {
                     settingsItem.errorsMsg.default_plan_id = '';
@@ -376,6 +385,7 @@ export default class AiSettingsSet extends tsc<object> {
                             <bk-slider
                               v-model={child.data.default_sensitivity}
                               max-value={10}
+                              min-value={1}
                             ></bk-slider>
                             <div class='sensitivity-tips'>
                               <span>{this.$t('较少告警')}</span>
