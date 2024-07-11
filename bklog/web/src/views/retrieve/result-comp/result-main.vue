@@ -56,6 +56,7 @@
       <result-chart
         :date-picker-value="datePickerValue"
         :retrieve-params="retrieveParams"
+        :index-set-item="indexSetItem"
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount"
       />
@@ -73,6 +74,7 @@
         :retrieve-params="retrieveParams"
         :table-list="tableList"
         :total-count="totalCount"
+        :index-set-item="indexSetItem"
       />
     </div>
     <!-- 滚动到顶部 -->
@@ -121,6 +123,10 @@
       datePickerValue: {
         type: Array,
         default: () => [],
+      },
+      indexSetItem: {
+        type: Object,
+        default: () => ({}),
       },
     },
     data() {
@@ -255,7 +261,7 @@
       },
       getShowTotalNum(num) {
         return formatNumberWithRegex(num);
-      }
+      },
     },
   };
 </script>

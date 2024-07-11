@@ -124,6 +124,10 @@
         type: Array,
         default: () => [],
       },
+      indexSetItem: {
+        type: Object,
+        default: () => ({}),
+      },
     },
     data() {
       return {
@@ -184,10 +188,33 @@
       ...mapGetters({
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
+        bkBizId: 'bkBizId',
       }),
       totalNumShow() {
         if (!this.infoTotalNumLoading && !this.infoTotalNumError && this.infoTotal > 0) return this.infoTotal;
         return this.totalCount;
+      },
+      /** 未开启白名单时 是否由前端来统计总数 */
+      isFrontStatistics() {
+        let isFront = true;
+        const { field_analysis_config: fieldAnalysisToggle } = window.FEATURE_TOGGLE;
+        switch (fieldAnalysisToggle) {
+          case 'on':
+            isFront = false;
+            break;
+          case 'off':
+            isFront = true;
+            break;
+          default:
+            const { scenario_id_white_list: scenarioIdWhiteList } = window.FIELD_ANALYSIS_CONFIG;
+            const { field_analysis_config: fieldAnalysisConfig } = window.FEATURE_TOGGLE_WHITE_LIST;
+            const scenarioID = this.indexSetItem?.scenario_id;
+            isFront = !(
+              scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId))
+            );
+            break;
+        }
+        return isFront;
       },
       // chartInterval() {
       //   return this.retrieveParams.interval;
@@ -199,7 +226,7 @@
           this.handleLogChartCancel();
           this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();
-          this.getInfoTotalNum();
+          !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           this.isRenderChart = true;
           this.isLoading = false;
@@ -254,7 +281,7 @@
           this.timeRange = [startTime, endTime];
           this.finishPolling = false;
           this.isStart = false;
-          this.getInfoTotalNum();
+          !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           // 框选时间范围
           window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
@@ -377,7 +404,7 @@
             window.bus.$emit('changeTimeByChart', cacheDatePickerValue, cacheTimeRange);
             this.finishPolling = true;
             this.totalCount = 0;
-            this.getInfoTotalNum();
+            !this.isFrontStatistics && this.getInfoTotalNum();
             this.$refs.chartRef.handleCloseTimer();
             setTimeout(() => {
               this.finishPolling = false;
@@ -404,13 +431,11 @@
         this.infoTotal = 0;
         this.$http
           .request(
-            'retrieve/fieldStatisticsInfo',
+            'retrieve/fieldStatisticsTotal',
             {
               data: {
                 ...this.retrieveParams,
                 index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId],
-                agg_field: 'gseIndex',
-                field_type: 'long',
               },
             },
             {
