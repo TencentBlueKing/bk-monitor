@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
+import { computed, defineComponent, onMounted, type PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 
 import { Scenario } from '../mapping';
-import { FrequencyType, Report } from '../types';
+import { FrequencyType, type Report } from '../types';
 import { getDefaultReportData, getSendFrequencyText } from '../utils';
 import DetailRow from './detail-row';
 

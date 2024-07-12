@@ -112,7 +112,7 @@ export interface IChatGroupDialogOptions {
   alertIds?: string[];
 }
 
-export type SearchType = 'action' | 'alert' | 'event';
+export type SearchType = 'action' | 'alert' | 'event' | 'incident';
 export type FilterInputStatus = 'error' | 'success';
 export type anlyzeChartType = 'pie' | 'process';
 export type eventPanelType = 'analyze' | 'list';

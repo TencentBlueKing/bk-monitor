@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, onMounted, type PropType, reactive, type Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Switcher } from 'bkui-vue';
@@ -33,12 +33,12 @@ import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_pr
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
-  ApplicationList,
+  type ApplicationList,
   ConditionType,
-  IConditionItem,
-  RetrievalFormData,
+  type IConditionItem,
+  type RetrievalFormData,
   SearchType,
-  ToolsFormData,
+  type ToolsFormData,
 } from '../typings';
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';

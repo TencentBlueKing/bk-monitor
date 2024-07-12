@@ -33,7 +33,7 @@ import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modul
 
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
-import { IAuthority } from '../../typings/authority';
+import { type IAuthority } from '../../typings/authority';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
 import { EStatus, getEffectiveStatus, statusMap } from './typings/common';

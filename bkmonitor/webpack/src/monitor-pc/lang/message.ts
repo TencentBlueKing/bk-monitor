@@ -285,6 +285,7 @@ export default {
   '当前数据无维度，所以没有变量选择': 'No variables available as there are no dimensions for the current data',
   '你当前有 {0} 个业务权限，暂无告警事件':
     'You currently have {0} business permissions, and there are no alarm events temporarily',
+  '你当前有 {0} 个业务权限，暂无故障': 'You currently have {0} business permissions and there are no faults yet.',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
   无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',
@@ -447,4 +448,29 @@ export default {
   '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
   取消订阅成功: 'Unsubscribe successful',
   重新订阅成功: 'Re-subscribe successful',
+
+  标记成功: "Marked successfully",
+  分派成功: "Dispatched successfully",
+
+  取消反馈成功: "Feedback canceled successfully",
+  告警已恢复: "Alarm restored",
+  告警已关闭: "Alarm closed",
+  已确认: "Acknowledged",
+  '您一共选择了{0}条告警': "You have selected a total of {0} alarms",
+  '当前业务下没有可使用的处理套餐，请前往{0}页面配置': "There are no available handling packages under the current business, please go to the {0} page for configuration",
+  '每个告警级别至少选择一种通知方式': "Select at least one notification method for each alarm level",
+  '每个执行阶段至少选择一种通知方式': "Select at least one notification method for each execution stage",
+  '按通知次数的指数递增，依次按N，2N，4N，8N,依次类推执行，最大24小时': "按通知次数的指数递增，依次按N，2N，4N，8N, accordingly executing, maximum 24 hours",
+  '高危代表执行此类操作影响比较大，在执行处理套餐时需要进行及时的通知。': "High risk means executing such operations have significant impact, timely notifications are needed during the handling package execution.",
+  '谨慎代表执行此类操作影响比高危小，但是也不可多次反复的执行，一般在失败时需要提示。': "Caution level implies lesser impact but cannot be executed repeatedly. Prompt notifications are needed upon failure.",
+  '大部分的处理套餐建议是可以做成可以反复执行并且风险可控的，常见的回调、发工单等甚至都不需要有额外的通知。': "Most handling packages should be designed to be repeatable and risk-controlled. Common callbacks and work orders usually do not need extra notifications.",
+  输入收藏名称: "Enter favorite name",
+  输入搜索条件: "Enter search criteria",
+  请输入关键字: "Please enter keywords",
+  暂无告警视图: "No views",
+  未恢复: "Not recovered",
+  观察中: "Under observation",
+  已恢复: "Recovered",
+  已解决: "Resolved",
+  暂无更多数据: "No more data"
 };

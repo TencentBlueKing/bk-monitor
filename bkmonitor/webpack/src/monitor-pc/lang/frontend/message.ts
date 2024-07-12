@@ -279,6 +279,7 @@ export default {
   '当前数据无维度，所以没有变量选择': 'No variables available as there are no dimensions for the current data',
   '你当前有 {0} 个业务权限，暂无告警事件':
     'You currently have {0} business permissions, and there are no alarm events temporarily',
+  '你当前有 {0} 个业务权限，暂无故障': 'You currently have {0} business permissions and there are no faults yet.',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
   无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',

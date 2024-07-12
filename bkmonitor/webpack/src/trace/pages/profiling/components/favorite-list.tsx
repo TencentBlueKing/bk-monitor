@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref, watch } from 'vue';
+import { computed, defineComponent, type PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Popover, Radio } from 'bkui-vue';
 import { EnlargeLine, Transfer } from 'bkui-vue/lib/icon';
 
-import { IFavList } from '../typings/favorite-list';
+import { type IFavList } from '../typings/favorite-list';
 
 import './favorite-list.scss';
 

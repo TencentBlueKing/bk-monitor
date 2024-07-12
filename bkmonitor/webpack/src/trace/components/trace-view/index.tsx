@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, nextTick, onMounted, PropType, ref } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, type PropType, ref } from 'vue';
 
 import { useTraceStore } from '../../store/modules/trace';
-import { ITraceTree } from '../../typings';
+import { type ITraceTree } from '../../typings';
 import { useFocusMatchesProvide, useSpanBarCurrentProvide, useViewRangeProvide } from './hooks';
 import SpanGraph from './span-graph';
 import TraceTimelineViewer from './trace-timeline-viewer';
 // import { trackRange } from './index.track';
-import { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from './typings';
+import { type IViewRange, type Span, type TUpdateViewRangeTimeFunction, type ViewRangeTimeUpdate } from './typings';
 import filterSpans from './utils/filter-spans';
 
 import './index.scss';

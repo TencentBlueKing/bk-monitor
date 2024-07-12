@@ -25,7 +25,7 @@
  */
 import { defineComponent, ref, watch } from 'vue';
 
-import { ILegendItem, TableLegendHeadType } from '../typings';
+import { type ILegendItem, type TableLegendHeadType } from '../typings';
 import { commonLegendEmits, commonLegendProps, useCommonLegend } from './common-legend';
 
 import './table-legend.scss';

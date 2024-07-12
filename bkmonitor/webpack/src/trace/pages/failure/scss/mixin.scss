@@ -1,0 +1,66 @@
+@mixin overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, .1);
+  }
+  @mixin ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @mixin icon-size($size: 16px, $hasHover: false) {
+    display: flex;
+    flex: 0 0 $size;
+    align-items: center;
+    justify-content: center;
+    width: $size;
+    height: $size;
+    font-size: $size;
+  
+    @if $hasHover {
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    &::before {
+      width: $size;
+      height: $size;
+    }
+  }
+  @mixin common-list($maxHeight: 108px) {
+    display: flex;
+    flex-direction: column;
+    max-height: $maxHeight;
+    padding: 6px 0;
+    overflow: auto;
+    font-size: 12px;
+
+    &-item {
+      display: flex;
+      flex: 0 0 32px;
+      align-items: center;
+      width: 100%;
+      height: 32px;
+      padding: 0 10px;
+  
+      @include text-ellipsis;
+
+      &.item-active,
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: rgba(163,197,253,.30);
+      }
+    }
+  }
+  @mixin text-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+  }

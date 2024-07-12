@@ -33,7 +33,7 @@ import { deepClone } from 'monitor-common/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
-import { TestSendingTarget } from './types';
+import { type TestSendingTarget } from './types';
 
 import './create-subscription.scss';
 

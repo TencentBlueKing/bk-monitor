@@ -30,9 +30,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 
-import EmptyStatus, { EmptyStatusType } from '../../components/empty-status/empty-status';
+import EmptyStatus, { type EmptyStatusType } from '../../components/empty-status/empty-status';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
-import { IAuthority } from '../../typings/authority';
+import { type IAuthority } from '../../typings/authority';
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
 

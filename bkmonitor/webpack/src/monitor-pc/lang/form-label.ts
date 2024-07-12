@@ -1850,6 +1850,11 @@ export default {
   系统恢复: 'System recovery',
   系统关闭: 'System closed',
   生成告警级别: 'Generate alarm levels',
+  // 故障
+  故障根因描述: 'Desc',
+  根因所属节点: 'Root Node',
+  通知人: 'Notifier',
+  标准提示: 'Type',
   屏蔽类型: 'Mute type',
   执行时间: 'Execution time',
   语言: 'Language',

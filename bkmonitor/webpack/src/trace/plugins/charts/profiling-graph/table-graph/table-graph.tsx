@@ -24,17 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
+import { defineComponent, type PropType, ref, shallowRef, Teleport, watch } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
-import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  parseProfileDataTypeValue,
+  type ProfileDataUnit,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
-import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
+import {
+  type ITableTipsDetail,
+  type ProfilingTableItem,
+  type TableColumn,
+} from 'monitor-ui/chart-plugins/typings/profiling-graph';
 
-import { DirectionType } from '../../../../typings';
+import { type DirectionType } from '../../../../typings';
 
 import './table-graph.scss';
 

@@ -43,15 +43,6 @@ interface IPlatformConfig {
   version?: string;
 }
 
-export const initialConfig = {
-  name: '监控平台',
-  nameEn: 'BK MONITOR',
-  brandName: '腾讯蓝鲸智云',
-  brandNameEn: 'BlueKing',
-  favIcon: '/static/monitor/img/monitor-64.png',
-  version: window.footer_version,
-};
-
 @Module({ name: 'platform-config', dynamic: true, namespaced: true, store })
 class PlatformConfigStore extends VuexModule {
   public publicConfig: IPlatformConfig = {};
@@ -59,11 +50,19 @@ class PlatformConfigStore extends VuexModule {
   @Action
   public async fetchConfig() {
     let configPromise;
-    const bkRepoUrl = window.bk_shared_res_url;
-
-    if (bkRepoUrl) {
-      const repoUrl = bkRepoUrl.endsWith('/') ? bkRepoUrl : `${bkRepoUrl}/`;
-      configPromise = getPlatformConfig(`${repoUrl}bk_monitorv3/base.js`, initialConfig);
+    const initialConfig = {
+      name: '监控平台',
+      nameEn: 'BK MONITOR',
+      brandName: '腾讯蓝鲸智云',
+      brandNameEn: 'BlueKing',
+      favIcon: '/static/monitor/img/monitor-64.png',
+      version: window.footer_version,
+    };
+    if (window.bk_shared_res_url) {
+      configPromise = getPlatformConfig(
+        `${window.bk_shared_res_url.replace(/\/$/, '')}/bk_monitorv3/base.js`,
+        initialConfig
+      );
     } else {
       configPromise = getPlatformConfig(initialConfig);
     }

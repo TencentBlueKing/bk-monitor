@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, ref, toRefs, watch } from 'vue';
+import { defineComponent, type PropType, reactive, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception } from 'bkui-vue';
@@ -31,7 +31,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 import { type FieldListType, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import { useTraceStore } from '../../../store/modules/trace';
-import FieldList, { IDimissionItem, TraceFieldValue } from './field-list';
+import FieldList, { type IDimissionItem, type TraceFieldValue } from './field-list';
 
 import './field-filtering.scss';
 /**

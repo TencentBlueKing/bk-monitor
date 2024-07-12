@@ -28,15 +28,15 @@ import {
   onActivated,
   onBeforeUnmount,
   onMounted,
-  PropType,
+  type PropType,
   ref,
   shallowRef,
   watch,
-  WatchStopHandle,
+  type WatchStopHandle,
 } from 'vue';
 
 import dayjs from 'dayjs';
-import { echarts, MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './base-echart.scss';
 

@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, PropType, reactive, Ref, TransitionGroup, watch } from 'vue';
+import { computed, defineComponent, inject, type PropType, reactive, type Ref, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
 import { isEn } from 'monitor-pc/i18n/i18n';
 
-import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
+import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
 import { validTimeOverlap } from '../utils';
 import CalendarSelect from './calendar-select';
