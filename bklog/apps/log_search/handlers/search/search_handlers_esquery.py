@@ -2254,6 +2254,12 @@ class UnionSearchHandler(object):
             "size": self.search_dict.get("size"),
             "is_union_search": True,
         }
+        has_timestamp = True
+        export_fields = self.search_dict.get("export_fields")
+        # 只有在做指定字段的导出操作,且dtEventTimeStamp不在指定导出字段时才执行以下逻辑
+        if export_fields and len(export_fields) >= 1 and "dtEventTimeStamp" not in export_fields:
+            self.search_dict["export_fields"].append("dtEventTimeStamp")
+            has_timestamp = False
 
         multi_execute_func = MultiExecuteFunc()
         if is_export:
@@ -2356,7 +2362,13 @@ class UnionSearchHandler(object):
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
             result_origin_log_list = sort_func(data=result_origin_log_list, sort_list=self.sort_list)
-
+        # 如果has_timestamp为False,在结果中删除dtEventTimeStamp字段
+        if not has_timestamp:
+            tmp_list = []
+            for item in result_origin_log_list:
+                item.pop("dtEventTimeStamp", None)
+                tmp_list.append(item)
+            result_origin_log_list = tmp_list
         # 处理分页
         result_log_list = result_log_list[: self.search_dict.get("size")]
         result_origin_log_list = result_origin_log_list[: self.search_dict.get("size")]
