@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, nextTick, onMounted, Ref, ref } from 'vue';
+import { computed, defineComponent, inject, nextTick, onMounted, type Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue';
@@ -31,7 +31,7 @@ import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue'
 import { editIncident } from '../../../../monitor-api/modules/incident';
 import { strategyLabelList } from '../../../../monitor-api/modules/strategies';
 import MemberSelector from '../../alarm-shield/components/member-selector';
-import { IIncident } from '../types';
+import { type IIncident } from '../types';
 
 import './failure-edit-dialog.scss';
 

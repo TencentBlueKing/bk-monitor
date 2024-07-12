@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, KeepAlive, Ref, ref, PropType } from 'vue';
+import { defineComponent, inject, KeepAlive, type Ref, ref, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
-import { ITagInfoType } from '../types';
+import { type ITagInfoType } from '../types';
 
 import './failure-nav.scss';
 

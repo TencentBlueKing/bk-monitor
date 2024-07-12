@@ -25,7 +25,7 @@
  */
 
 import { random } from '../../../../monitor-common/utils/utils.js';
-import { IRank, IEdge, ITopoData } from '../failure-topo/types';
+import { type IRank, type IEdge, type ITopoData } from '../failure-topo/types';
 export const enum NodeStatus {
   Error = 'error',
   Normal = 'normal',

@@ -29,10 +29,10 @@ import {
   inject,
   onBeforeUnmount,
   onMounted,
-  Ref,
+  type Ref,
   ref,
   watch,
-  PropType,
+  type PropType,
   nextTick,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -50,7 +50,7 @@ import QuickShield from '../alarm-detail/quick-shield';
 import { dialogConfig, EVENT_SEVERITY, TREE_SHOW_ICON_LIST } from '../constant';
 import { renderMap } from '../failure-process/process';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
-import { IAlert, IIncident, IIncidentOperation, IAggregationRoot } from '../types';
+import { type IAlert, type IIncident, type IIncidentOperation, type IAggregationRoot } from '../types';
 import { useIncidentInject } from '../utils';
 import TimelineZoom from './timeline-zoom';
 

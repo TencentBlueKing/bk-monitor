@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, PropType, ref, shallowRef } from 'vue';
+import { defineComponent, onMounted, type PropType, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { incidentTopologyMenu } from 'monitor-api/modules/incident';
@@ -32,7 +32,7 @@ import { random } from 'monitor-common/utils/utils';
 import { useIncidentInject } from '../utils';
 import AggregationSelect from './aggregation-select';
 import Timeline from './timeline';
-import { TopoRawData } from './types';
+import { type TopoRawData } from './types';
 
 import './topo-tools.scss';
 

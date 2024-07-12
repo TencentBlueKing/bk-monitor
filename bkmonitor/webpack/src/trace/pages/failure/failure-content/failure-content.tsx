@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, KeepAlive, Ref, ref, PropType, watch } from 'vue';
+import { computed, defineComponent, inject, KeepAlive, type Ref, ref, type PropType, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -34,7 +34,7 @@ import FailureMenu from '../failure-menu/failure-menu';
 import FailureTiming from '../failure-timing/failure-timing';
 import FailureTopo from '../failure-topo/failure-topo';
 import FailureView from '../failure-view/failure-view';
-import { IIncident, IAlert, IFilterSearch, IIncidentOperation, IAlertObj } from '../types';
+import { type IIncident, type IAlert, type IFilterSearch, type IIncidentOperation, type IAlertObj } from '../types';
 import { useIncidentInject } from '../utils';
 
 import './failure-content.scss';

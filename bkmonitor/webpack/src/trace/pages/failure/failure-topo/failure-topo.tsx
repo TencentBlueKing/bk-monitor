@@ -23,10 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, nextTick, onMounted, onUnmounted, Ref, ref, shallowRef, watch } from 'vue';
+import {
+  computed,
+  defineComponent,
+  inject,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  type Ref,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Arrow, Graph, ICombo, registerBehavior, registerCombo, registerEdge, registerNode, Tooltip } from '@antv/g6';
+import {
+  Arrow,
+  Graph,
+  type ICombo,
+  registerBehavior,
+  registerCombo,
+  registerEdge,
+  registerNode,
+  Tooltip,
+} from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message, Popover, Slider } from 'bkui-vue';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
@@ -41,7 +61,7 @@ import FeedbackCauseDialog from './feedback-cause-dialog';
 import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import TopoTools from './topo-tools';
-import { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
+import { type IEdge, type IEntity, type IncidentDetailData, type ITopoData, type ITopoNode } from './types';
 import { getNodeAttrs } from './utils';
 
 import './failure-topo.scss';

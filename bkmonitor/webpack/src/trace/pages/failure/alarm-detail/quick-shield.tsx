@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, PropType, reactive, ref, watch } from 'vue';
+import { defineComponent, nextTick, type PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Dialog, Input, Loading, Message } from 'bkui-vue';
@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 
 import { incidentRecordOperation } from '../../../../monitor-api/modules/incident';
 import { bulkAddAlertShield } from '../../../../monitor-api/modules/shield';
-import { IDetail } from '../types';
+import { type IDetail } from '../types';
 import VerifyInput from './verify-input/verify-input';
 
 import './quick-shield.scss';

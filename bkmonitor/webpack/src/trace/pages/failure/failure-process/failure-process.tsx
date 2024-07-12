@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, nextTick, onMounted, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, nextTick, onMounted, type Ref, ref, watch } from 'vue';
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 
 import { incidentOperationTypes } from '../../../../monitor-api/modules/incident';
-import { IIncident } from '../types';
+import { type IIncident } from '../types';
 import { useIncidentInject } from '../utils';
 import { renderMap } from './process';
 

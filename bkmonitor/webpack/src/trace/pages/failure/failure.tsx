@@ -33,9 +33,10 @@ import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';
 import { replaceStr, typeTextMap } from './failure-process/process';
 import FailureTags from './failure-tags/failure-tags';
-import { IIncident, IFilterSearch } from './types';
+import { type IIncident, type IFilterSearch } from './types';
+import { type ITagInfoType } from './types';
 import { useIncidentProvider } from './utils';
-import { ITagInfoType } from './types';
+
 import './failure.scss';
 
 export default defineComponent({
@@ -179,7 +180,7 @@ export default defineComponent({
       refContent,
       failureNavRef,
       handleChangeSelectNode,
-      topoNodeId
+      topoNodeId,
     };
   },
   render() {
@@ -215,8 +216,8 @@ export default defineComponent({
                 filterSearch={this.filterSearch}
                 incidentDetail={this.incidentDetailData}
                 scrollTop={this.scrollTopNum}
-                onRefresh={this.refresh}
                 onChangeSelectNode={this.handleChangeSelectNode}
+                onRefresh={this.refresh}
               ></FailureContent>
             ),
           }}

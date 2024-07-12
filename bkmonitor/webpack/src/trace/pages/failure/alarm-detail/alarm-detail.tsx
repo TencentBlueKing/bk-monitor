@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, onBeforeMount, onMounted, reactive, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, onBeforeMount, onMounted, reactive, type Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
-import { TableIColumn, TableSettings } from 'bkui-vue/lib/table';
+import { type TableIColumn, type TableSettings } from 'bkui-vue/lib/table';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
@@ -36,7 +36,7 @@ import { random } from 'monitor-common/utils/utils.js';
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
-import { IIncident, IFilterSearch } from '../types';
+import { type IIncident, type IFilterSearch } from '../types';
 import { useIncidentInject } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';

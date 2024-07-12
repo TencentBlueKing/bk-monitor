@@ -29,7 +29,7 @@ import { useI18n } from 'vue-i18n';
 import { Input, Message } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 
-import { ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
+import { type ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
 import { listSearchHistory } from '../../../../monitor-api/modules/alert';
 import {
   createSearchFavorite,

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, Ref, ref } from 'vue';
+import { computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, type Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -33,8 +33,8 @@ import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'b
 import { editIncident, incidentAlertAggregate } from '../../../../monitor-api/modules/incident';
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
-import { IIncident } from '../types';
-import { IAggregationRoot } from '../types';
+import { type IIncident } from '../types';
+import { type IAggregationRoot } from '../types';
 import { useIncidentInject } from '../utils';
 import FailureEditDialog from './failure-edit-dialog';
 

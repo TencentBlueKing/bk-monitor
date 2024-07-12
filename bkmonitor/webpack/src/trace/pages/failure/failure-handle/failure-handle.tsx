@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref } from 'vue';
+import { defineComponent, type PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ITagInfoType, IUserName } from '../types';
+import { type ITagInfoType, type IUserName } from '../types';
 import HandleSearch from './handle-search';
 import HandlerList from './handler-list';
 

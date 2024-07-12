@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
+import { defineComponent, inject, type PropType, type Ref, ref, watch } from 'vue';
 
 import './failure-menu.scss';
 

@@ -31,18 +31,18 @@ import { Button, Checkbox, Input, Radio, Select, Switcher, Table } from 'bkui-vu
 import { debounce, deepClone, transformDataKey } from '../../../../../../../monitor-common/utils/utils';
 import CommonItem from '../components/common-item';
 import {
-  IHeaderInfo,
-  IHttpData,
-  IParamsValueItem,
-  ISelectListItem,
-  ISetingValue,
-  THeaderType,
-  TMethod,
+  type IHeaderInfo,
+  type IHttpData,
+  type IParamsValueItem,
+  type ISelectListItem,
+  type ISetingValue,
+  type THeaderType,
+  type TMethod,
 } from '../components/http-editor/types';
 import { localDataConvertToRequest } from '../components/http-editor/utils';
 import ResizeContainer from '../components/resize-container/resize-container';
 import VerifyItem from '../components/verify-item/verify-item';
-import { IWebhook } from './meal-content-data';
+import { type IWebhook } from './meal-content-data';
 
 import './http-callback.scss';
 
