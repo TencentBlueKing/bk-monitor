@@ -26,8 +26,8 @@
 import { computed, defineComponent, onMounted, provide, ref } from 'vue';
 
 import { ResizeLayout } from 'bkui-vue';
+import { incidentDetail, incidentOperations, incidentOperationTypes } from 'monitor-api/modules/incident';
 
-import { incidentDetail, incidentOperations, incidentOperationTypes } from '../../../monitor-api/modules/incident';
 import FailureContent from './failure-content/failure-content';
 import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';

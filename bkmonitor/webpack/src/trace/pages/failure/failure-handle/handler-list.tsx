@@ -27,8 +27,8 @@ import { computed, defineComponent, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception, Input, Loading, Popover } from 'bkui-vue';
+import { incidentHandlers } from 'monitor-api/modules/incident';
 
-import { incidentHandlers } from '../../../../monitor-api/modules/incident';
 import { useIncidentInject } from '../utils';
 
 import './handler-list.scss';

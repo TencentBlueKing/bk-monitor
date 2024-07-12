@@ -23,21 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, reactive, Ref, ref } from 'vue';
+import { computed, defineComponent, inject, reactive, type Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Message } from 'bkui-vue';
 import BkDropdown, { BkDropdownItem, BkDropdownMenu } from 'bkui-vue/lib/dropdown';
 import BkLink from 'bkui-vue/lib/link';
 import { random } from 'lodash';
+import { feedbackIncidentRoot, incidentRecordOperation } from 'monitor-api/modules/incident';
 
-import { feedbackIncidentRoot, incidentRecordOperation } from '../../../monitor-api/modules/incident';
 import AlarmConfirm from '../../pages/failure/alarm-detail/alarm-confirm';
 import AlarmDispatch from '../../pages/failure/alarm-detail/alarm-dispatch';
 import ManualProcess from '../../pages/failure/alarm-detail/manual-process';
 import QuickShield from '../../pages/failure/alarm-detail/quick-shield';
 import FeedbackCauseDialog from '../../pages/failure/failure-topo/feedback-cause-dialog';
-import { IIncident } from '../../pages/failure/types';
+import { type IIncident } from '../../pages/failure/types';
 import { useIncidentInject } from '../../pages/failure/utils';
 import { useChartInfoInject } from '../hooks/chart';
 export default defineComponent({

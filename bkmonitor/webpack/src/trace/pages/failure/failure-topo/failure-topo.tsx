@@ -50,9 +50,9 @@ import {
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message, Popover, Slider } from 'bkui-vue';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
+import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 
-import { random } from '../../../../monitor-common/utils/utils.js';
 import ResourceGraph from '../resource-graph/resource-graph';
 import { useIncidentInject } from '../utils';
 import ElkjsUtils from './elkjs-utils';

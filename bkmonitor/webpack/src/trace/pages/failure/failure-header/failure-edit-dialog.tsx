@@ -27,9 +27,9 @@ import { computed, defineComponent, inject, nextTick, onMounted, type Ref, ref }
 import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue';
+import { editIncident } from 'monitor-api/modules/incident';
+import { strategyLabelList } from 'monitor-api/modules/strategies';
 
-import { editIncident } from '../../../../monitor-api/modules/incident';
-import { strategyLabelList } from '../../../../monitor-api/modules/strategies';
 import MemberSelector from '../../alarm-shield/components/member-selector';
 import { type IIncident } from '../types';
 

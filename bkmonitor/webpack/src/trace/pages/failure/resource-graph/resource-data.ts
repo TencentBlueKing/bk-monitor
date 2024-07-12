@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { random } from '../../../../monitor-common/utils/utils.js';
+import { random } from 'monitor-common/utils/utils.js';
+
 import { type IRank, type IEdge, type ITopoData } from '../failure-topo/types';
 export const enum NodeStatus {
   Error = 'error',

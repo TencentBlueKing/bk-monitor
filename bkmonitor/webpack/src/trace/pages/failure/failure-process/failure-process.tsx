@@ -28,8 +28,8 @@ import { computed, defineComponent, inject, nextTick, onMounted, type Ref, ref, 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
+import { incidentOperationTypes } from 'monitor-api/modules/incident';
 
-import { incidentOperationTypes } from '../../../../monitor-api/modules/incident';
 import { type IIncident } from '../types';
 import { useIncidentInject } from '../utils';
 import { renderMap } from './process';

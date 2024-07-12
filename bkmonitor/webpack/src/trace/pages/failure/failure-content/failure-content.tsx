@@ -27,7 +27,8 @@ import { computed, defineComponent, inject, KeepAlive, type Ref, ref, type PropT
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { incidentValidateQueryString } from '../../../../monitor-api/modules/incident';
+import { incidentValidateQueryString } from 'monitor-api/modules/incident';
+
 import AlarmDetail from '../alarm-detail/alarm-detail';
 import FilterSearchInput from '../failure-handle/filter-search-input';
 import FailureMenu from '../failure-menu/failure-menu';

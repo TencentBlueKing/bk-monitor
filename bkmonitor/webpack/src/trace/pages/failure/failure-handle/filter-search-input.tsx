@@ -28,16 +28,12 @@ import { useI18n } from 'vue-i18n';
 
 import { Input, Message } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
+import { listSearchHistory } from 'monitor-api/modules/alert';
+import { createSearchFavorite, destroySearchFavorite, partialUpdateSearchFavorite } from 'monitor-api/modules/model';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { getEventPaths } from 'monitor-pc/utils';
 
 import { type ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
-import { listSearchHistory } from '../../../../monitor-api/modules/alert';
-import {
-  createSearchFavorite,
-  destroySearchFavorite,
-  partialUpdateSearchFavorite,
-} from '../../../../monitor-api/modules/model';
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../../monitor-common/utils';
-import { getEventPaths } from '../../../../monitor-pc/utils';
 import debounceDecorator from '../../common/debounce-decorator';
 
 import './filter-search-input.scss';

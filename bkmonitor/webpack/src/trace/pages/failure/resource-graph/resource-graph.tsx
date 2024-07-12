@@ -39,9 +39,9 @@ import {
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading } from 'bkui-vue';
+import { incidentTopologyUpstream } from 'monitor-api/modules/incident';
 import { debounce } from 'throttle-debounce';
 
-import { incidentTopologyUpstream } from '../../../../monitor-api/modules/incident';
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
 import { type ITopoCombo, type ITopoData, type ITopoNode } from '../failure-topo/types';

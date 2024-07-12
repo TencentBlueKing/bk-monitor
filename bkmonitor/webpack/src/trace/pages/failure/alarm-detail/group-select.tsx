@@ -27,9 +27,8 @@ import { computed, defineComponent, type PropType, ref, watch } from 'vue';
 
 import { Exception, Input, Popover } from 'bkui-vue';
 import { Search } from 'bkui-vue/lib/icon';
-
 // import { $bkPopover } from 'bkui-vue/lib/popover';
-import { debounce } from '../../../../monitor-common/utils';
+import { debounce } from 'monitor-common/utils';
 
 import './group-select.scss';
 

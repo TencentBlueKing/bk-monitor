@@ -27,9 +27,9 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Checkbox, Dialog, Message } from 'bkui-vue';
+import { createChatGroup } from 'monitor-api/modules/action';
+import { incidentRecordOperation } from 'monitor-api/modules/incident';
 
-import { createChatGroup } from '../../../../../monitor-api/modules/action';
-import { incidentRecordOperation } from '../../../../../monitor-api/modules/incident';
 import BkUserSelector from '../../../alarm-shield/components/member-selector';
 
 import './chat-group.scss';

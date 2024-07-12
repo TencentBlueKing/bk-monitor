@@ -27,8 +27,8 @@ import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Checkbox, Input, Radio, Select, Switcher, Table } from 'bkui-vue';
+import { debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
-import { debounce, deepClone, transformDataKey } from '../../../../../../../monitor-common/utils/utils';
 import CommonItem from '../components/common-item';
 import {
   type IHeaderInfo,

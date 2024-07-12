@@ -29,8 +29,8 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
+import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
 
-import { editIncident, incidentAlertAggregate } from '../../../../monitor-api/modules/incident';
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
 import { type IIncident } from '../types';

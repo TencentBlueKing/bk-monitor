@@ -23,8 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineStore } from 'pinia';
-
 import {
   getConvergeFunction,
   getDimensions,
@@ -32,10 +30,11 @@ import {
   getPluginTemplates,
   getTemplateDetail,
   getVariables,
-} from '../../../monitor-api/modules/action';
-import { createActionConfig, retrieveActionConfig, updateActionConfig } from '../../../monitor-api/modules/model';
-import { getNoticeWay } from '../../../monitor-api/modules/notice_group';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/action';
+import { createActionConfig, retrieveActionConfig, updateActionConfig } from 'monitor-api/modules/model';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { transformDataKey } from 'monitor-common/utils/utils';
+import { defineStore } from 'pinia';
 
 // const { i18n } = window;
 const i18n = {

@@ -27,8 +27,8 @@
 import { computed, defineComponent, onBeforeMount, ref, type PropType } from 'vue';
 
 import { Checkbox, Form, Input, Radio, Select } from 'bkui-vue';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import SetMealAdd from '../../../../store/modules/set-meal-add';
 import AutoInput from '../auto-input/auto-input';
 

@@ -27,8 +27,8 @@ import { computed, defineComponent, inject, type Ref, ref, watch, type PropType 
 import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { Select, Tag } from 'bkui-vue';
+import { incidentValidateQueryString } from 'monitor-api/modules/incident';
 
-import { incidentValidateQueryString } from '../../../../monitor-api/modules/incident';
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import { type IIncident } from '../types';
 import FilterSearchInput from './filter-search-input';

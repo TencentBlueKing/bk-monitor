@@ -28,9 +28,9 @@ import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Dialog, Input, Loading, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { incidentRecordOperation } from 'monitor-api/modules/incident';
+import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 
-import { incidentRecordOperation } from '../../../../monitor-api/modules/incident';
-import { bulkAddAlertShield } from '../../../../monitor-api/modules/shield';
 import { type IDetail } from '../types';
 import VerifyInput from './verify-input/verify-input';
 

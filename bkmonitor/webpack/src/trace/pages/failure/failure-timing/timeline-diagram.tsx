@@ -40,9 +40,9 @@ import { useI18n } from 'vue-i18n';
 import { Message, Popover } from 'bkui-vue';
 import { timeDay } from 'd3-time';
 import dayjs from 'dayjs';
+import { feedbackIncidentRoot, incidentRecordOperation } from 'monitor-api/modules/incident';
+import { random } from 'monitor-common/utils/utils.js';
 
-import { feedbackIncidentRoot, incidentRecordOperation } from '../../../../monitor-api/modules/incident';
-import { random } from '../../../../monitor-common/utils/utils.js';
 import AlarmConfirm from '../alarm-detail/alarm-confirm';
 import AlarmDispatch from '../alarm-detail/alarm-dispatch';
 import ManualProcess from '../alarm-detail/manual-process';

@@ -27,12 +27,12 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Loading, Select } from 'bkui-vue';
-
 // , Option, Select
-import { batchCreate, getActionParams, getPluginTemplates } from '../../../../monitor-api/modules/action';
-import { incidentRecordOperation } from '../../../../monitor-api/modules/incident';
-import { listActionConfig } from '../../../../monitor-api/modules/model';
-import { random, transformDataKey } from '../../../../monitor-common/utils/utils';
+import { batchCreate, getActionParams, getPluginTemplates } from 'monitor-api/modules/action';
+import { incidentRecordOperation } from 'monitor-api/modules/incident';
+import { listActionConfig } from 'monitor-api/modules/model';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
+
 // import { actionConfigGroupList } from './alarm-handling/alarm-handling';
 import DynamicForm from './dynamic-form/dynamic-form';
 import GroupSelect from './group-select';
