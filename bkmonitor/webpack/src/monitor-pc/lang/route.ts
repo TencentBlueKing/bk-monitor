@@ -119,6 +119,7 @@ export default {
   'route-编辑插件': 'Edit Plugin',
   'route-编辑配置': 'Edit Configuration',
   'route-编辑屏蔽': 'Edit Mute',
+  'route-克隆屏蔽': 'Clone Mute',
   'route-编辑策略配置': 'Edit Alert Rule',
   'route-编辑拨测节点': 'Edit Probe Node',
   'route-策略详情': 'Rule Details',
@@ -206,4 +207,5 @@ export default {
   编辑集群: 'Edit cluster',
   新增集群: 'Add cluster',
   'route-订阅配置': 'Subscription configuration',
+  'route-配置服务': 'Configuration Service',
 };

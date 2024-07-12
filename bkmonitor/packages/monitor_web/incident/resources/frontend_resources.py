@@ -14,6 +14,7 @@ from dataclasses import asdict
 from typing import Any, Dict, List
 
 import arrow
+from django.conf import settings
 from django.utils import timezone
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
@@ -243,7 +244,11 @@ class IncidentOverviewResource(IncidentBaseResource):
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         handler = IncidentQueryHandler(**validated_request_data)
-        return handler.search(show_overview=True, show_aggs=False)
+        results = handler.search(show_overview=True, show_aggs=False)
+        results["enable_aiops_incident"] = bool(
+            set(settings.AIOPS_INCIDENT_BIZ_WHITE_LIST) & set(validated_request_data.get("bk_biz_ids", []))
+        )
+        return results
 
 
 class IncidentTopNResource(BaseTopNResource):

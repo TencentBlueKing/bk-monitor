@@ -323,6 +323,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   activeFilterName = '';
   activeFilterId = '';
   searchType: SearchType = 'alert';
+  filterScrollTop = 0;
 
   // 告警分析
   analyzeData = [];
@@ -2374,6 +2375,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
           class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
+          onScroll={e => (this.filterScrollTop = (e.target as HTMLDivElement).scrollTop)}
         >
           <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
           <div class='filter-search'>
@@ -2398,6 +2400,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             lineText={''}
             theme={'line'}
             toggleSet={this.toggleSet}
+            top={this.filterScrollTop}
             on-move={this.handleDragFilter}
           />
           <div
