@@ -485,7 +485,7 @@
           <template #default="{ row, $index }">
             <div class="process-module">
               <div
-                v-if="row.component.length >= 1"
+                v-if="row.component?.length"
                 class="process-module-wrap"
                 :ref="'table-row-' + $index"
               >

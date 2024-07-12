@@ -185,8 +185,14 @@ class PatternHandler:
         elif self._remark_config == RemarkConfigEnum.NO_REMARK.value:
             result = [pattern for pattern in result if not pattern["remark"]]
 
+        result_list = []
         if self._owner_config == OwnerConfigEnum.NO_OWNER.value:
-            result = [pattern for pattern in result if not pattern["owners"]]
+            for pattern in result:
+                if not pattern["owners"]:
+                    result_list.append(pattern)
+                elif set(self._owners) & set(pattern["owners"]):
+                    result_list.append(pattern)
+            result = result_list
         elif self._owner_config == OwnerConfigEnum.OWNER.value:
             if not self._owners:
                 return result

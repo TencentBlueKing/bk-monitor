@@ -603,12 +603,12 @@ export default class BasicInfo extends tsc<object> {
                 )}
                 <div class='tag-list'>
                   <bk-tag class='relation-info-tag'>
-                    <span class='tag-label'>{this.$t('服务名称 :')}</span>
+                    <span class='tag-label'>{this.$t('服务名称')}:</span>
                     <span>{curCmdbRelationTagList?.template_name || '--'}</span>
                   </bk-tag>
                   <bk-tag class='relation-info-tag'>
                     <div class='category-tag'>
-                      <span class='tag-label'>{this.$t('一级分类 :')}</span>
+                      <span class='tag-label'>{this.$t('一级分类')}:</span>
                       {curCmdbRelationTagList?.first_category?.icon && (
                         <img
                           class='icon'
@@ -621,7 +621,7 @@ export default class BasicInfo extends tsc<object> {
                   </bk-tag>
                   <bk-tag class='relation-info-tag'>
                     <div class='category-tag'>
-                      <span class='tag-label'>{this.$t('二级分类 :')}</span>
+                      <span class='tag-label'>{this.$t('二级分类')}:</span>
                       {curCmdbRelationTagList?.second_category?.icon && (
                         <img
                           class='icon'
@@ -717,7 +717,7 @@ export default class BasicInfo extends tsc<object> {
                               <span>{`${logRelation.log_type_alias} : ${logRelation.related_bk_biz_name}`}</span>
                             </bk-tag>
                             <bk-tag class='relation-info-tag'>
-                              <span>{`${this.$t('索引集 : ')}${logRelation.value_alias}`}</span>
+                              <span>{`${this.$t('索引集')}:${logRelation.value_alias}`}</span>
                             </bk-tag>
                           </section>
                         ) : (

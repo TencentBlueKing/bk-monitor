@@ -246,6 +246,7 @@ class SpaceTableIDRedis:
                     "storage_id": record.get("storage_cluster_id", 0),
                     "db": table_id_db,
                     "measurement": DEFAULT_MEASUREMENT,
+                    "source_type": source_type,
                 }
             )
         return data

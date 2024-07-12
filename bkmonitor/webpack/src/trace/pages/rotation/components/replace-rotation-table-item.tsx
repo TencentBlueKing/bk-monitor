@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { isEn } from 'monitor-pc/i18n/i18n';
 
 import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
@@ -39,7 +40,6 @@ import TimeTagPicker from './time-tag-picker';
 import WeekSelect from './week-select';
 
 import './replace-rotation-table-item.scss';
-
 type CustomTabType = 'classes' | 'duration';
 type WorkTimeType = 'datetime_range' | 'time_range';
 export interface ReplaceRotationDateModel {
@@ -86,6 +86,7 @@ export default defineComponent({
     const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
 
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
+    const labelWidth = computed(() => (isEn ? 110 : 70));
 
     const rotationTypeList: { label: string; value: RotationSelectTypeEnum }[] = [
       { label: t('每天'), value: RotationSelectTypeEnum.Daily },
@@ -280,7 +281,7 @@ export default defineComponent({
       return [
         <FormItem
           label=''
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='tab-list'>
             <div
@@ -299,7 +300,7 @@ export default defineComponent({
         </FormItem>,
         <FormItem
           label={t('单班时间')}
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='classes-list'>
             {val.map((item, ind) => [
@@ -351,7 +352,7 @@ export default defineComponent({
         <FormItem
           class='expiration-date-form-item'
           label={t('有效日期')}
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <Select
             class='date-type-select'
@@ -384,7 +385,7 @@ export default defineComponent({
         </FormItem>,
         <FormItem
           label=''
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='tab-list'>
             <div
@@ -406,7 +407,7 @@ export default defineComponent({
           <FormItem
             class='classes-duration-form-item'
             label={t('单班时长')}
-            labelWidth={70}
+            labelWidth={labelWidth.value}
           >
             <Input
               v-model={localValue.date.periodSettings.duration}
@@ -432,7 +433,7 @@ export default defineComponent({
         ),
         <FormItem
           label={localValue.date.customTab === 'duration' ? t('有效时间') : t('单班时间')}
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='classes-list'>
             {value.map((item, ind) => [
@@ -484,7 +485,7 @@ export default defineComponent({
           return (
             <FormItem
               label={t('单班时间')}
-              labelWidth={70}
+              labelWidth={labelWidth.value}
             >
               <div class='classes-list'>
                 {val.map((item, ind) => [
@@ -656,6 +657,7 @@ export default defineComponent({
 
     return {
       t,
+      labelWidth,
       colorList,
       defaultGroup,
       rotationTypeList,
@@ -682,7 +684,7 @@ export default defineComponent({
         <td class='step-wrapper replace-rotation'>
           <FormItem
             label={this.t('轮值类型')}
-            labelWidth={70}
+            labelWidth={this.labelWidth}
           >
             <Select
               v-model={this.rotationSelectType}
@@ -774,7 +776,7 @@ export default defineComponent({
               >
                 <FormItem
                   label={this.t('轮值人员')}
-                  labelWidth={70}
+                  labelWidth={this.labelWidth}
                 >
                   <MemberSelect
                     v-model={this.localValue.users.value[0].value}
@@ -788,7 +790,7 @@ export default defineComponent({
                 </FormItem>
                 <FormItem
                   label={this.t('单次值班')}
-                  labelWidth={70}
+                  labelWidth={this.labelWidth}
                 >
                   <Input
                     style='width: 200px'

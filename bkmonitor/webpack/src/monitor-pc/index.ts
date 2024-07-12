@@ -79,6 +79,7 @@ if (hasRouteHash) {
   if (process.env.APP !== 'external' && !window.__POWERED_BY_BK_WEWEB__ && pathname !== window.site_url) {
     location.pathname = window.site_url || '/';
   } else {
+    const appLoadingNode: HTMLDivElement = document.body.querySelector('#__app_loading__');
     Api.model
       .enhancedContext({
         space_uid: spaceUid || undefined,
@@ -86,6 +87,7 @@ if (hasRouteHash) {
         context_type: 'basic',
       })
       .then(data => {
+        appLoadingNode && (appLoadingNode.style.display = 'none');
         Object.keys(data).forEach(key => {
           window[key.toLocaleLowerCase()] = data[key];
         });
@@ -145,6 +147,7 @@ if (hasRouteHash) {
       .catch(e => console.error(e))
       .finally(() => {
         immediateRegister();
+        appLoadingNode && appLoadingNode.remove();
       });
   }
 }

@@ -155,4 +155,6 @@ export default {
   '告警已被关闭（{alert_name}）': '',
   '告警已分派（{alert_name}；处理人：{handlers}）': '',
   '故障聚集在{0}，影响{1}': '',
+  字符: 'Character',
+  截断: 'Truncate',
 };

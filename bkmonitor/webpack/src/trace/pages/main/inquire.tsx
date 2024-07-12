@@ -55,8 +55,10 @@ import {
   traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
-import { debounce, deepClone, random } from 'monitor-common/utils/utils';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { handleGotoLink } from 'monitor-pc/common/constant';
 import { type IEventRetrieval, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
+import { debounce } from 'throttle-debounce';
 
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
@@ -284,6 +286,7 @@ export default defineComponent({
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
+      debugger;
       if (val) {
         if (!Object.keys(scopeSelects.value).length) {
           await getQueryOptions();
@@ -516,6 +519,7 @@ export default defineComponent({
     }
     /* 范围查询 */
     async function handleQueryScope(isClickQueryBtn = false, needLoading = true) {
+      debugger;
       if ((!state.autoQuery && !isClickQueryBtn && state.isAlreadyScopeQuery) || !state.app) {
         return;
       }
@@ -544,6 +548,7 @@ export default defineComponent({
 
       setRouterQueryParams();
       collectCheckValue.value = params;
+      debugger;
       // Trace List 查询相关
       if (selectedListType.value === 'trace') {
         const listData = await listTrace(params).catch(() => []);
@@ -695,7 +700,7 @@ export default defineComponent({
         query,
       });
     };
-    const handleQueryScopeDebounce = debounce(handleQueryScope, 300, false);
+    const handleQueryScopeDebounce = debounce(300, handleQueryScope);
     /* 范围查询动态参数更新 */
     function handleScopeQueryChange() {
       traceListPagination.offset = 0;
@@ -1107,8 +1112,8 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <a
             class='link'
-            href='/'
             target='_blank'
+            onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link'></i>

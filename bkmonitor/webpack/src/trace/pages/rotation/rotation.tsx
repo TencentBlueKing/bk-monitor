@@ -548,7 +548,7 @@ export default defineComponent({
           return <span>{row.category === Ecategory.regular ? t('日常值班') : t('交替轮值')}</span>;
         }
         case EColunm.label: {
-          return row.labels.map(label => <Tag>{label}</Tag>);
+          return row.labels.length ? row.labels.map(label => <Tag>{label}</Tag>) : '--';
         }
         case EColunm.relation: {
           return !!row.user_groups_count ? (

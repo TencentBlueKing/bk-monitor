@@ -346,13 +346,14 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
                       size='mini'
                       theme='warning'
                     />
-                    {this.$t('当前数据还未加载完成，如数据长时间未加载出来可')}
-                    <span
-                      class='link'
-                      onClick={() => (this.showGuideDialog = true)}
-                    >
-                      {this.$t('查看操作指引')}
-                    </span>
+                    <i18n path='当前数据还未加载完成，如数据长时间未加载出来可{0}'>
+                      <span
+                        class='link'
+                        onClick={() => (this.showGuideDialog = true)}
+                      >
+                        {this.$t('查看操作指引')}
+                      </span>
+                    </i18n>
                   </div>
                 </CommonAlert>
               </div>
