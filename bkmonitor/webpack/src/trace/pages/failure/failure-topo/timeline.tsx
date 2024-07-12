@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, type PropType, type Ref, ref, watch } from 'vue';
 
 import { DatePicker, Dropdown, Slider } from 'bkui-vue';
 import dayjs from 'dayjs';
 
-import { IncidentDetailData, TopoRawData } from './types';
+import { type IncidentDetailData, type TopoRawData } from './types';
 
 import './timeline.scss';
 import 'bkui-vue/lib/time-picker/time-picker.css';

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeMount, ref, PropType } from 'vue';
+import { computed, defineComponent, onBeforeMount, ref, type PropType } from 'vue';
 
 import { Checkbox, Form, Input, Radio, Select } from 'bkui-vue';
 

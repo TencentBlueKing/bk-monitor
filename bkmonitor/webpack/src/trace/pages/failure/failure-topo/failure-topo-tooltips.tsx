@@ -24,14 +24,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, getCurrentInstance, PropType, ref, watch } from 'vue';
+import { defineComponent, getCurrentInstance, type PropType, ref, watch } from 'vue';
 
 import { OverflowTitle, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import * as echarts from 'echarts';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
-import { IEdge, ITopoNode } from './types';
+import { type IEdge, type ITopoNode } from './types';
 import { getNodeAttrs } from './utils';
 
 import './failure-topo-tooltips.scss';

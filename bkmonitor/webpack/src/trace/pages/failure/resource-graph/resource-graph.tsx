@@ -29,7 +29,7 @@ import { useI18n } from 'vue-i18n';
 import {
   Arrow,
   Graph,
-  ICombo,
+  type ICombo,
   registerBehavior,
   registerCombo,
   registerEdge,
@@ -44,7 +44,7 @@ import { debounce } from 'throttle-debounce';
 import { incidentTopologyUpstream } from '../../../../monitor-api/modules/incident';
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
-import { ITopoCombo, ITopoData, ITopoNode } from '../failure-topo/types';
+import { type ITopoCombo, type ITopoData, type ITopoNode } from '../failure-topo/types';
 import { getNodeAttrs } from '../failure-topo/utils';
 import { useIncidentInject } from '../utils';
 import { createGraphData } from './resource-data';

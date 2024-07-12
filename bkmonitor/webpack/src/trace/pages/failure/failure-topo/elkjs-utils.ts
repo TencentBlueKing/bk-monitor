@@ -25,7 +25,7 @@
  */
 import Elkjs from 'elkjs';
 
-import { Edge, VirtaulNode } from './format-topo-data';
+import { type Edge, type VirtaulNode } from './format-topo-data';
 
 let subCombosMap: Record<string, number> = {};
 const space = 30;

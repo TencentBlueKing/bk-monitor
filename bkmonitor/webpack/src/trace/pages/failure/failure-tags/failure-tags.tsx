@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, nextTick, Ref, ref } from 'vue';
+import { computed, defineComponent, inject, nextTick, type Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tag } from 'bkui-vue';
 
-import { IIncident, ICurrentISnapshot } from '../types';
+import { type IIncident, type ICurrentISnapshot } from '../types';
 
 // import TagShow from './tag-show';
 import './failure-tags.scss';

@@ -30,7 +30,7 @@ import { Checkbox, Loading, PopConfirm, Tree, Exception } from 'bkui-vue';
 import { BkCheckboxGroup } from 'bkui-vue/lib/checkbox';
 
 import { incidentAlertAggregate } from '../../../../monitor-api/modules/incident';
-import { IAggregationRoot, IUserName, ITagInfoType } from '../types';
+import { type IAggregationRoot, type IUserName, type ITagInfoType } from '../types';
 import { useIncidentInject } from '../utils';
 import FilterSearchMain from './filter-search-main';
 
