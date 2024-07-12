@@ -46,7 +46,7 @@ import {
   categoryMap,
   EShieldCycle,
   EShieldType,
-  INoticeDate,
+  type INoticeDate,
   Ipv6FieldMap,
   ShieldDetailTargetFieldMap,
   ShieldDimension2NodeType,

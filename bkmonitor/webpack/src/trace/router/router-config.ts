@@ -46,6 +46,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'alarm-shield',
   },
   {
+    id: 'incident-detail',
+    name: 'route-故障',
+    route: 'incident-detail',
+  },
+  {
     id: 'profiling',
     name: 'Profiling',
     route: 'profiling',

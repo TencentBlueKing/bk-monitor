@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref, watch, reactive } from 'vue';
+import { computed, defineComponent, type PropType, ref, watch, reactive } from 'vue';
 
 import { Pagination, Popover } from 'bkui-vue';
 

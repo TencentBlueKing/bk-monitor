@@ -29,7 +29,7 @@ import {
   inject,
   onBeforeUnmount,
   onMounted,
-  PropType,
+  type PropType,
   reactive,
   ref,
   toRefs,
@@ -37,7 +37,7 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import G6, { Graph, IEdge, INode } from '@antv/g6';
+import G6, { type Graph, type IEdge, type INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -51,7 +51,7 @@ import BlueExpandIcon from '../../static/img/blue-expand.svg';
 import CollapseIcon from '../../static/img/collapse.svg';
 import ExpandIcon from '../../static/img/expand.svg';
 import { useTraceStore } from '../../store/modules/trace';
-import { ITopoNode } from '../../typings';
+import { type ITopoNode } from '../../typings';
 import {
   COMPARE_ADDED_COLOR,
   COMPARE_REMOVED_COLOR,
@@ -60,7 +60,7 @@ import {
   updateTemporaryCompareTrace,
 } from '../../utils/compare';
 import transformTraceTree from '../trace-view/model/transform-trace-data';
-import { Span } from '../trace-view/typings';
+import { type Span } from '../trace-view/typings';
 
 import './relation-topo.scss';
 

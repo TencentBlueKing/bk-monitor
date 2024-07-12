@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, reactive, ref } from 'vue';
+import { computed, defineComponent, type PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Exception, Select } from 'bkui-vue';
@@ -32,8 +32,8 @@ import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
 
-import { IQueryParams } from '../../../typings/trace';
-import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
+import { type IQueryParams } from '../../../typings/trace';
+import { ConditionType, type DataTypeItem, type RetrievalFormData } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';

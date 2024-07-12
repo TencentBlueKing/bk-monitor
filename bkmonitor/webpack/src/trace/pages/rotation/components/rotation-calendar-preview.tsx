@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
+import { defineComponent, onMounted, type PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 
-import { calendarDataConversion, getCalendarNew, ICalendarData, ICalendarDataUser } from './calendar-preview';
+import { calendarDataConversion, getCalendarNew, type ICalendarData, type ICalendarDataUser } from './calendar-preview';
 
 import './rotation-calendar-preview.scss';
 

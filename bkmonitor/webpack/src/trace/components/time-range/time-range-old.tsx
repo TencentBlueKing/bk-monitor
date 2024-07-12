@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
+import { defineComponent, type PropType, ref, toRefs, watch } from 'vue';
 
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -37,7 +37,7 @@ import {
   intTimestampStr,
   shortcuts,
   shortcutsMap,
-  TimeRangeType,
+  type TimeRangeType,
 } from './utils';
 
 import './time-range.scss';

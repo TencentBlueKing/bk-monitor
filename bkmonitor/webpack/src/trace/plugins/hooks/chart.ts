@@ -30,7 +30,7 @@ import { type PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import { TimeRangeType } from '../../components/time-range/utils';
 import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
-import { IViewOptions } from '../typings';
+import { IPanelModel, IViewOptions } from '../typings';
 
 export const TIME_RANGE_KEY = 'timeRange';
 export const TIMEZONE_KEY = 'timezone';
@@ -204,3 +204,6 @@ export const useReadonlyProvider = (v: boolean) => {
   provide(READONLY, v);
 };
 export const useReadonlyInject = () => inject<Ref<boolean>>(READONLY);
+
+export const chartDetailProvideKey = Symbol('chart-detail-provide-key');
+export const useChartInfoInject = () => inject<IPanelModel>(chartDetailProvideKey);

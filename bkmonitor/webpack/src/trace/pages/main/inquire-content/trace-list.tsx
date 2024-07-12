@@ -29,7 +29,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
-  PropType,
+  type PropType,
   provide,
   reactive,
   ref,
@@ -51,11 +51,11 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRanceInject } from '../../../plugins/hooks';
-import { PanelModel } from '../../../plugins/typings';
+import { type PanelModel } from '../../../plugins/typings';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
-import { ListType, useTraceStore } from '../../../store/modules/trace';
-import { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
+import { type ListType, useTraceStore } from '../../../store/modules/trace';
+import { type IAppItem, type ISpanListItem, type ITraceListItem } from '../../../typings';
 import SpanDetails from '../span-details';
 import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';

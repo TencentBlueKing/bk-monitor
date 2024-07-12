@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, type PropType } from 'vue';
 import { ref } from 'vue';
 
-import { Span } from '../../../components/trace-view/typings';
+import { type Span } from '../../../components/trace-view/typings';
 import { useTraceStore } from '../../../store/modules/trace';
 import { ETopoType } from '../../../typings';
 import { type SpanListItem } from './span-list';
