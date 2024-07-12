@@ -11,7 +11,7 @@ WORKDIR /code
 COPY . .
 
 RUN pnpm i
-RUN make build
+RUN pnpm run build
 RUN tar -czvf frontend.tar.gz  monitor fta weixin apm trace external
 
 CMD [ "echo", "前端构建完毕" ]
