@@ -87,7 +87,7 @@ vis-external: ## Visualize Monitor External APP.
 
 ##@ Docker
 
-build-docker: ## Build Docker image and extract frontend.tar.gz.
+docker-build: ## Build Docker image and extract frontend.tar.gz.
 	@target=${1:-./build}; \
 	rm -rf ./build; \
 	docker build -t bkmonitor_web_build .; \
