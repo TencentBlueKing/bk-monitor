@@ -5,6 +5,12 @@
 ##@ Dependencies
 
 deps: ## Install frontend dependencies.
+	@if ! command -v pnpm &> /dev/null; then \
+		echo "pnpm not found, installing..."; \
+		npm i -g pnpm@8; \
+	else \
+		echo "pnpm is already installed"; \
+	fi
 	pnpm i
 
 ##@ Development
@@ -37,7 +43,7 @@ all: build-pc build-apm build-fta build-vue3 build-mobile build-external
 build: ## Build all applications in parallel.
 	$(MAKE) -j 6 all
 
-prod: build clean move ## Build for production, then clean and move files.
+prod: build clean move ## Build for production, then clean and move files to ../static/.
 
 build-s: build-pc build-apm build-fta build-vue3 build-mobile build-external ## Build all applications in serial.
 
@@ -78,6 +84,17 @@ vis-mobile: ## Visualize Monitor Mobile APP.
 
 vis-external: ## Visualize Monitor External APP.
 	npx bkmonitor-cli build -external -a
+
+##@ Docker
+
+build-docker: ## Build Docker image and extract frontend.tar.gz.
+	@target=${1:-./build}; \
+	rm -rf ./build; \
+	docker build -t bkmonitor_web_build .; \
+	docker run -d --name web-temp-container bkmonitor_web_build; \
+	mkdir -p "$$target"; \
+	docker cp web-temp-container:/code/frontend.tar.gz "$$target"; \
+	docker rm web-temp-container
 
 ##@ Utilities
 
