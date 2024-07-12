@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
+import { defineComponent, onMounted, type PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Input, Slider } from 'bkui-vue';
 import { debounce } from 'monitor-common/utils/utils';
 
-import { ISliderItem } from '../../../components/chart-filtering/chart-filtering';
+import { type ISliderItem } from '../../../components/chart-filtering/chart-filtering';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 
 import './duration-filter.scss';

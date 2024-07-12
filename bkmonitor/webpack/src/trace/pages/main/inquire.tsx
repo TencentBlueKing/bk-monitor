@@ -62,8 +62,8 @@ import { debounce } from 'throttle-debounce';
 
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
-import { ISelectMenuOption } from '../../components/select-menu/select-menu';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '../../components/time-range/utils';
+import { type ISelectMenuOption } from '../../components/select-menu/select-menu';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, type TimeRangeType } from '../../components/time-range/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { type Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
@@ -76,18 +76,18 @@ import {
   TIMEZONE_KEY,
   VIEWOPTIONS_KEY,
 } from '../../plugins/hooks';
-import { IViewOptions } from '../../plugins/typings';
+import { type IViewOptions } from '../../plugins/typings';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
-import { IServiceStatisticsType, ListType, useTraceStore } from '../../store/modules/trace';
+import { type IServiceStatisticsType, type ListType, useTraceStore } from '../../store/modules/trace';
 import {
-  IAppItem,
-  IFavoriteItem,
-  IScopeSelect,
-  ISearchSelectItem,
-  ISearchSelectValue,
-  ITraceData,
-  SearchType,
+  type IAppItem,
+  type IFavoriteItem,
+  type IScopeSelect,
+  type ISearchSelectItem,
+  type ISearchSelectValue,
+  type ITraceData,
+  type SearchType,
 } from '../../typings';
 import { monitorDrag } from '../../utils/drag-directive';
 import DurationFilter from './duration-filter/duration-filter';

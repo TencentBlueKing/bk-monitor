@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, type PropType, provide, type Ref, ref, watch } from 'vue';
 
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { setTraceTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
-import { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { type IQueryParams, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
@@ -42,7 +42,7 @@ import {
   VIEWOPTIONS_KEY,
 } from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
-import { SearchType, ToolsFormData } from '../typings';
+import { SearchType, type ToolsFormData } from '../typings';
 
 import './trend-chart.scss';
 import 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';

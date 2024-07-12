@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, type PropType } from 'vue';
 
 import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
@@ -35,13 +35,13 @@ import { useTraceStore } from '../../../store/modules/trace';
 import { useChildrenHiddenInject, useSpanBarCurrentInject } from '../hooks';
 import ArrowRightShapeIcon from '../icons/arrow-right-shape.svg';
 import ErrorIcon from '../icons/error.svg';
-import { Span } from '../typings';
+import { type Span } from '../typings';
 import SpanBar from './span-bar';
 import SpanTreeOffset from './span-tree-offset';
 import Ticks from './ticks';
 import TimelineRow from './timeline-row';
 import TimelineRowCell from './timeline-row-cell';
-import { createViewedBoundsFunc, formatDuration, ViewedBoundsFunctionType } from './utils';
+import { createViewedBoundsFunc, formatDuration, type ViewedBoundsFunctionType } from './utils';
 
 import './span-bar-row.scss';
 

@@ -48,18 +48,18 @@ import {
 
 import { useAppStore } from '../../store/modules/app';
 import {
-  CommomParams,
+  type CommomParams,
   componentProps,
-  IFetchNode,
-  IHost,
-  INode,
-  IQuery,
-  IScopeItme,
-  IStatistics,
-  ITemplateHost,
-  ITemplateItem,
-  ITemplateNode,
-  ITreeItem,
+  type IFetchNode,
+  type IHost,
+  type INode,
+  type IQuery,
+  type IScopeItme,
+  type IStatistics,
+  type ITemplateHost,
+  type ITemplateItem,
+  type ITemplateNode,
+  type ITreeItem,
 } from './typing';
 import create from './vue3.x';
 

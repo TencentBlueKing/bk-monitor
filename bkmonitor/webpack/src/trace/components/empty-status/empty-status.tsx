@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType } from 'vue';
-import { TranslateResult } from 'vue-i18n';
+import { computed, defineComponent, type PropType } from 'vue';
+import { type TranslateResult } from 'vue-i18n';
 
 import { Exception } from 'bkui-vue';
 

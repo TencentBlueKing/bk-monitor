@@ -25,7 +25,7 @@
  */
 import { defineComponent } from 'vue';
 
-import { ILegendItem, LegendActionType } from '../typings';
+import { type ILegendItem, type LegendActionType } from '../typings';
 
 import type { PropType } from 'vue';
 

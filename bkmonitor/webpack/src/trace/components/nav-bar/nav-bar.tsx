@@ -26,7 +26,7 @@
 import { computed, defineComponent, inject } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { ICommonNavBarProps, INavItem } from './type';
+import { type ICommonNavBarProps, type INavItem } from './type';
 
 import './nav-bar.scss';
 

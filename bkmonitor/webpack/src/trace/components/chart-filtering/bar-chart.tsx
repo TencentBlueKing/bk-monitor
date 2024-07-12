@@ -23,7 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onBeforeUnmount, onMounted, PropType, ref, shallowRef, watch, WatchStopHandle } from 'vue';
+import {
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  type PropType,
+  ref,
+  shallowRef,
+  watch,
+  type WatchStopHandle,
+} from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';

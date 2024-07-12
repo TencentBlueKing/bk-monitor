@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, provide, ref, toRef, watch } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, type PropType, provide, ref, toRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { random } from 'monitor-common/utils/utils';
 import { type SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
-import { DashboardColumnType, IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { type DashboardColumnType, type IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import ChartWrapper from './chart-wrapper';

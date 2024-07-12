@@ -34,7 +34,7 @@ import {
   onMounted,
   onUnmounted,
   reactive,
-  Ref,
+  type Ref,
   ref,
   watch,
 } from 'vue';
@@ -48,15 +48,13 @@ import { toBlob, toPng } from 'html-to-image';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import EchartOptions from 'monitor-ui/monitor-echarts/options/echart-options';
-import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
 
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
 import { useChartInfoInject } from '../../hooks/chart';
 import { colorList } from './constant';
-
-import type { EChartOption } from 'echarts';
 
 import './failure-chart.scss';
 
@@ -585,11 +583,11 @@ export default defineComponent({
         }
         legend.value.list = optionData.legendData || [];
         if (chartOption.value.grid) {
-          optionData.options.grid.bottom = (chartOption.value.grid as EChartOption.Grid).bottom;
+          optionData.options.grid.bottom = (chartOption.value.grid as MonitorEchartOptions['grid']).bottom;
         }
         setTimeout(() => {
           if (chart) {
-            let options = deepMerge(optionData.options, defaultOptions.value) as EChartOption;
+            let options = deepMerge(optionData.options, defaultOptions.value) as MonitorEchartOptions;
             const width = chartRef.value?.clientWidth;
             if (['line', 'bar'].includes(props.chartType) && width) {
               options = deepMerge(options, {
@@ -915,7 +913,7 @@ export default defineComponent({
     const handleFullScreen = () => {
       emit('full-screen');
     };
-    const resize = (options: EChartOption = null) => {
+    const resize = (options: MonitorEchartOptions = null) => {
       chartRef.value && delegateMethod('resize', options);
     };
     const dispatchAction = payload => {

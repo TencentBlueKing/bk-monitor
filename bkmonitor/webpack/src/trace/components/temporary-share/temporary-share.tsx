@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, Ref, ref, VNode } from 'vue';
-import { TranslateResult, useI18n } from 'vue-i18n';
+import { computed, defineComponent, type Ref, ref, type VNode } from 'vue';
+import { type TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
@@ -34,7 +34,7 @@ import { copyText } from 'monitor-common/utils/utils';
 
 import { useAppStore } from '../../store/modules/app';
 import TimeRangeComp from '../time-range/time-range';
-import { TimeRange, TimeRangeType } from '../time-range/utils';
+import { TimeRange, type TimeRangeType } from '../time-range/utils';
 
 import './temporary-share.scss';
 

@@ -28,7 +28,7 @@ import { defineComponent, getCurrentInstance, type PropType, ref, watch } from '
 
 import { OverflowTitle, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
-import * as echarts from 'echarts';
+import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
 import { type IEdge, type ITopoNode } from './types';

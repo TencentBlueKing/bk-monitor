@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, provide, ref } from 'vue';
+import { computed, defineComponent, type PropType, provide, ref } from 'vue';
 
 import { bkTooltips } from 'bkui-vue';
 import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { type PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';

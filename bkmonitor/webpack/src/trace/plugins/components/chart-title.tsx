@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, ComputedRef, defineComponent, PropType, ref, watch } from 'vue';
+import { computed, type ComputedRef, defineComponent, type PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
@@ -31,12 +31,12 @@ import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
 import { createMetricTitleTooltips } from '../../utils';
 import {
-  ChartTitleMenuType,
-  IChartTitleMenuEvents,
-  IExtendMetricData,
-  IMenuChildItem,
-  IMenuItem,
-  ITitleAlarm,
+  type ChartTitleMenuType,
+  type IChartTitleMenuEvents,
+  type IExtendMetricData,
+  type IMenuChildItem,
+  type IMenuItem,
+  type ITitleAlarm,
 } from '../typings';
 import AlertActionList from './alert-action-list';
 import TitleMenu from './title-menu';
