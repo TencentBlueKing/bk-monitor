@@ -126,20 +126,9 @@
       }
 
       .set-list {
-        position: relative;
         display: flex;
         flex: 1;
         flex-direction: column;
-
-        &::after {
-          position: absolute;
-          left: 20px;
-          display: inline-block;
-          width: 1px;
-          height: 100%;
-          content: '';
-          background: #dcdee5;
-        }
 
         &-item {
           position: relative;
@@ -151,6 +140,16 @@
 
           @include item-active();
           @include item-count();
+
+          &::after {
+            position: absolute;
+            left: 20px;
+            display: inline-block;
+            width: 1px;
+            height: 100%;
+            content: '';
+            background: #DCDEE5;
+          }
 
           .item-icon {
             margin-right: 8px;

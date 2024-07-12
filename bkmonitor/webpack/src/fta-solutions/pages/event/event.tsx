@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
+import { type TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
@@ -52,7 +52,7 @@ import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import { type EmptyStatusOperationType, type EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
 import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -67,31 +67,31 @@ import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import ChatGroup from '../../components/chat-group/chat-group';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
 import EventStoreModule from '../../store/modules/event';
-import Group, { IGroupData } from '../integrated/group';
+import Group, { type IGroupData } from '../integrated/group';
 import AlertAnalyze from './alert-analyze';
 import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
-import EventDetailSlider, { TType as TSliderType } from './event-detail/event-detail-slider';
+import EventDetailSlider, { type TType as TSliderType } from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
-import EventTable, { IShowDetail } from './event-table';
+import EventTable, { type IShowDetail } from './event-table';
 import FilterInput from './filter-input';
 import IncidentTable from './incident-table';
 import MonitorDrag from './monitor-drag';
 import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
 import {
-  AnlyzeField,
+  type AnlyzeField,
   EBatchAction,
-  eventPanelType,
-  FilterInputStatus,
-  IChatGroupDialogOptions,
-  ICommonItem,
-  ICommonTreeItem,
-  IEventItem,
-  SearchType,
+  type eventPanelType,
+  type FilterInputStatus,
+  type IChatGroupDialogOptions,
+  type ICommonItem,
+  type ICommonTreeItem,
+  type IEventItem,
+  type SearchType,
 } from './typings/event';
 import { getOperatorDisabled, INIT_COMMON_FILTER_DATA } from './utils';
 
@@ -1246,7 +1246,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           faultOverview,
           ...overview.children,
           ...actionOverview.children,
-          ...[enable_aiops_incident && faultOverview.children ? faultOverview.children : []],
+          ...(enable_aiops_incident && faultOverview.children ? faultOverview.children : []),
         ].find(item => item.id === this.activeFilterId)?.name || '';
       if (!this.activeFilterName) {
         this.activeFilterId = overview.id;
