@@ -114,6 +114,9 @@ move: ## Move new build files to static directory.
 	mv -f ./trace ../static/
 	mv -f ./external ../static/
 
+reflesh-git-hooks: ## Reflesh git hooks.
+	npx simple-git-hooks
+
 ##@ Help
 
 help: ## Display this help.
