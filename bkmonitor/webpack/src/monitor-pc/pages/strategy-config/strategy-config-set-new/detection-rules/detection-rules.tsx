@@ -211,7 +211,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
     const { data_source_label: dataSourceLabel, data_type_label: dataTypeLabel, functions } = this.metricData[0] || {};
     return (
       this.metricData.length === 1 &&
-      ['bk_data', 'bk_monitor'].includes(dataSourceLabel) &&
+      ['bk_data'].includes(dataSourceLabel) &&
       dataTypeLabel === 'time_series' &&
       !functions?.length
     );
@@ -284,13 +284,15 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       ) {
         if (!this.isCanSetAiops) {
           item.disabled = true;
-          item.disabledTip = this.$tc('只支持监控平台和计算平台的单指标数据');
+          item.disabledTip = this.$tc('只支持计算平台的单指标数据');
         }
-        item.disabled = !(
-          window.enable_aiops &&
-          IntelligentModelsStore.intelligentModelsMap.get(item.id.toString() as IntelligentModelsType)?.length > 0
-        );
-        item.disabledTip = '';
+        if (!item.disabled) {
+          item.disabled = !(
+            window.enable_aiops &&
+            IntelligentModelsStore.intelligentModelsMap.get(item.id.toString() as IntelligentModelsType)?.length > 0
+          );
+          item.disabledTip = '';
+        }
       }
 
       // 智能算法规则

@@ -465,4 +465,5 @@ export default {
   跳转至场景查看: 'Jump to Scene View',
   发送给自己: 'Send to yourself',
   查看单据详情: 'View document details',
+  查看操作指引: 'View operation instructions',
 };
