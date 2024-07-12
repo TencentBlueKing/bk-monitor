@@ -190,7 +190,7 @@ class PatternHandler:
             for pattern in result:
                 if not pattern["owners"]:
                     result_list.append(pattern)
-                if pattern["owners"] and set(self._owners) & set(pattern["owners"]):
+                elif set(self._owners) & set(pattern["owners"]):
                     result_list.append(pattern)
             result = result_list
         elif self._owner_config == OwnerConfigEnum.OWNER.value:
