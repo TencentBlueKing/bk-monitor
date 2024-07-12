@@ -8,7 +8,7 @@ WORKDIR /code
 
 COPY . .
 
-RUN make deps
+RUN pnpm i
 RUN make build
 RUN tar -czvf frontend.tar.gz  monitor fta weixin apm trace external
 
