@@ -75,7 +75,7 @@
         </div>
       </div>
       <div class="tools-more">
-        <div :style="`margin-right: ${showOriginalLog ? 0 : 26}px`">
+        <div style="margin-right: 12px">
           <span class="switch-label">{{ $t('换行') }}</span>
           <bk-switcher
             v-model="isWrap"
@@ -94,7 +94,6 @@
           >
           </export-log>
           <bk-popover
-            v-if="!showOriginalLog"
             ref="fieldsSettingPopper"
             trigger="click"
             placement="bottom-end"
