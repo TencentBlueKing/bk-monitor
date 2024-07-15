@@ -682,14 +682,17 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
     例如: A and B => A AND B
     """
 
+    RE_STRING = r'(".*?")|(/.*?/)'
     RE = r'\b(and|or|not|to)\b'
 
     def __init__(self, query_string: str = ""):
         super().__init__(query_string)
 
     def match(self) -> bool:
+        # 替换字符串,避免干扰判断
+        check_query_string = re.sub(self.RE_STRING, "x", self.query_string)
         pattern = re.compile(self.RE)
-        split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
+        split_strings = re.split(r'(:\s*\S+\s*)', check_query_string)
         for part in split_strings:
             if ':' not in part and re.search(pattern, part):
                 return True
@@ -701,15 +704,17 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         pattern = re.compile(self.RE)
         pattern1 = re.compile(r'(:\s*\S+\s*)')
         pattern2 = re.compile(r':\s*(and|or|not|to)')
-        split_strings = re.split(r'(".*?")', self.query_string)
+        split_strings = re.split(self.RE_STRING, self.query_string)
+        # 调整列表，删除None值（由正则表达式分割位置的特殊性产生）
+        split_strings = [s for s in split_strings if s is not None]
         for i, part in enumerate(split_strings):
-            if not (part.startswith('"') and part.endswith('"')):
+            if not (part.startswith('"') and part.endswith('"')) and not (part.startswith('/') and part.endswith('/')):
                 match = pattern2.search(part)
                 # 处理log: and的情况,and不应该被转换
                 if match:
                     part_strings = pattern1.split(part)
                     for j, child_part in enumerate(part_strings):
-                        if ':' not in child_part:
+                        if not child_part.startswith(":"):
                             part_strings[j] = pattern.sub(lambda m: m.group().upper(), child_part)
                     split_strings[i] = ''.join(part_strings)
                 else:
@@ -731,9 +736,10 @@ class OperatorEnhanceEnum(ChoicesEnum):
 class OperatorEnhanceLucene(EnhanceLuceneBase):
     """
     兼容用户增强运算符
-    例如: A > 3 => A: { 3 TO * }
+    例如: A > 3 => A: >3
     """
 
+    RE_STRING = r'(".*?")|(/.*?/)'
     # 匹配不是以引号、字母（大小写）、数字或下划线开头和结尾的字符串;确保"lineno=125"这样的字符串不会被匹配或被匹配成ineno=125
     RE = r'(?<!["a-zA-Z0-9_])([a-zA-Z0-9_]+)\s*(>=|<=|>|<|=|!=)\s*([\d.]+)(?!["a-zA-Z0-9_])'
     ENHANCE_OPERATORS = [
@@ -747,14 +753,25 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
         super().__init__(query_string)
 
     def match(self):
-        if re.search(self.RE, self.query_string):
+        # 替换字符串,避免干扰判断
+        check_query_string = re.sub(self.RE_STRING, "x", self.query_string)
+        if re.search(self.RE, check_query_string):
             return True
         return False
 
     def transform(self) -> str:
         if not self.match():
             return self.query_string
-        return re.sub(self.RE, r'\1: \2\3', self.query_string)
+        query_string_list = re.split(self.RE_STRING, self.query_string)
+        # 调整列表，删除None值（由正则表达式分割位置的特殊性产生）
+        query_string_list = [s for s in query_string_list if s is not None]
+        result_string = ""
+        for _query_string in query_string_list:
+            if re.match(self.RE_STRING, _query_string):
+                result_string += _query_string
+            else:
+                result_string += re.sub(self.RE, r'\1: \2\3', _query_string)
+        return result_string
 
 
 class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
@@ -763,10 +780,18 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
     例如: A: AND => A: "AND"
     """
 
+    RE_STRING = r'(".*?")|(/.*?/)'
     RE = r'(?<![a-zA-Z0-9_])(and|or|not|AND|OR|NOT)(?![a-zA-Z0-9_])'
 
     def match(self):
-        matches = list(re.finditer(self.RE, self.query_string))
+        query_string = copy.deepcopy(self.query_string)
+        # 替换字符串,避免干扰判断
+        filter_matches = list(re.finditer(self.RE_STRING, query_string))
+        for match in filter_matches:
+            start, end = match.span()
+            filter_string = query_string[start:end]
+            query_string = query_string.replace(filter_string, len(filter_string) * "x")
+        matches = list(re.finditer(self.RE, query_string))
         if matches:
             for match in matches:
                 start, __ = match.span()
@@ -783,6 +808,22 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
         if not self.match():
             return self.query_string
         query_string = copy.deepcopy(self.query_string)
+        # 替换不希望被正则匹配的数据,并记录下位置信息
+        filter_matches = list(re.finditer(self.RE_STRING, query_string))
+        filter_list = []
+        for match in filter_matches:
+            start, end = match.span()
+            filter_string = query_string[start:end]
+            query_string = query_string.replace(filter_string, len(filter_string) * "x")
+            filter_list.append(
+                {
+                    "start": start,
+                    "end": end,
+                    "filter_string": filter_string,
+                }
+            )
+
+        records = []
         matches = list(re.finditer(self.RE, self.query_string))
         offset = 0
         for match in matches:
@@ -795,9 +836,21 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
                 # 如果找到冒号，检查冒号后面是否有空白字符和逻辑运算符
                 post_colon = query_string[colon_index + 1 : start + offset].strip()
                 if post_colon == "":
-                    # 将逻辑运算符替换为带引号的形式，保留原始大小写
-                    query_string = query_string[: start + offset] + f'"{operator}"' + query_string[end + offset :]
-                    offset += 2
+                    # 记录下需要替换的位置
+                    records.append({"start": start, "end": end, "operator": operator})
+
+        # 还原上面替换的字符串
+        for item in filter_list:
+            left_string = query_string[: item["start"]]
+            right_string = query_string[item["end"] :]
+            query_string = left_string + item["filter_string"] + right_string
+
+        # 将逻辑运算符替换为带引号的形式，保留原始大小写
+        for item in records:
+            query_string = (
+                query_string[: item["start"] + offset] + f'"{item["operator"]}"' + query_string[item["end"] + offset :]
+            )
+            offset += 2
         return query_string
 
 
