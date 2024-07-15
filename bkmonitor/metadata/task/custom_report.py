@@ -262,10 +262,9 @@ def check_custom_event_group_sleep():
         client = es.get_client()
         for index, detail in client.indices.get(f"{es.index_name}*").items():
             aliases = list(detail.get("aliases", {}).keys())
-            for alias in aliases:
-                client.indices.delete_alias(index, alias)
-            logger.info(f"Delete alias for ESStorage {es.table_id} {index} {aliases}")
-
+            params = {"actions": [{"remove": {"index": index, "alias": alias}} for alias in aliases]}
+            client.indices.update_aliases(body=params)
             client.indices.delete(index)
-            logger.info(f"Delete index for ESStorage {es.table_id} {index}")
+            logger.info(f"Delete alias for ESStorage {es.table_id} {index} {aliases}")
+        client.close()
         models.EventGroup.objects.filter(table_id=es.table_id).update(status=EventGroupStatus.SLEEP.value)
