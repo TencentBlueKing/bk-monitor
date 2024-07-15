@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref, watch } from 'vue';
+import { computed, defineComponent, type PropType, ref, watch } from 'vue';
 
 import { Message, Popover, TagInput } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert';
@@ -32,7 +33,7 @@ import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST }
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
-import { IConditionItem, IDimensionItem, IMetricMeta } from '../typing';
+import { type IConditionItem, type IDimensionItem, type IMetricMeta } from '../typing';
 import SelectInput, { ALL } from './select-input';
 
 import './dimension-input.scss';
@@ -410,7 +411,7 @@ const ConditionCondition = defineComponent({
     },
   },
   setup(props) {
-    const popoverRef = ref(null);
+    const popoverRef = ref<InstanceType<typeof Popover>>(null);
     const conditionList = ref(CONDITION);
 
     function handleSelect(item) {

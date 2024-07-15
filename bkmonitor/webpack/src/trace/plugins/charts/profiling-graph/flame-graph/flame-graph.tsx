@@ -27,20 +27,23 @@ import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, 
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
-import { HierarchyNode } from 'd3-hierarchy';
+import { type HierarchyNode } from 'd3-hierarchy';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
-import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import {
-  BaseDataType,
+  parseProfileDataTypeValue,
+  type ProfileDataUnit,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
+  type IAxisRect,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
   RootId,
 } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';

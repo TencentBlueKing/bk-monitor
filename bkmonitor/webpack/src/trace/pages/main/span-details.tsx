@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, provide, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, type PropType, provide, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
@@ -33,9 +33,9 @@ import dayjs from 'dayjs';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
-import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exception-guide';
+import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
-import { Span } from '../../components/trace-view/typings';
+import { type Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
@@ -46,11 +46,11 @@ import { useAppStore } from '../../store/modules/app';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
-  IInfo,
-  IStageTimeItem,
-  IStageTimeItemContent,
-  ITagContent,
-  ITagsItem,
+  type IInfo,
+  type IStageTimeItem,
+  type IStageTimeItemContent,
+  type ITagContent,
+  type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
 

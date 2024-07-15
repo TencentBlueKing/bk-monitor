@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 import { Button, Exception } from 'bkui-vue';
 import { type ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';

@@ -320,6 +320,14 @@ module.exports = [
       ...typescriptEslint.configs.recommended.rules,
       ...tencentEslintLegacyRules,
       ...deprecateRules,
+      '@typescript-eslint/consistent-type-imports': [
+        ERROR,
+        {
+          prefer: 'type-imports',
+          disallowTypeAnnotations: true,
+          fixStyle: 'inline-type-imports',
+        },
+      ],
     },
   },
   ...eslintVuePlugin.configs['flat/vue2-recommended'].filter(config => !config.files?.length),

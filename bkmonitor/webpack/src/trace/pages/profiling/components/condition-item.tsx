@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, PropType, reactive, ref, watch } from 'vue';
+import { defineComponent, onMounted, type PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
 import { debounce } from 'lodash';
 import { queryLabelValues } from 'monitor-api/modules/apm_profile';
 
-import { IConditionItem } from '../typings';
+import { type IConditionItem } from '../typings';
 
 import './condition-item.scss';
 

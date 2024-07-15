@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
+import { defineComponent, nextTick, onMounted, type PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -49,7 +49,7 @@ import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';
-import { FrequencyType, Report } from '../types';
+import { FrequencyType, type Report } from '../types';
 import { getDefaultReportData, switchReportDataForCreate, switchReportDataForUpdate } from '../utils';
 import ExistedReportAlert from './existed-report-alert';
 

@@ -23,8 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, ComputedRef, defineComponent, inject, PropType, reactive, Ref, ref, watch } from 'vue';
-import { TranslateResult, useI18n } from 'vue-i18n';
+import {
+  computed,
+  type ComputedRef,
+  defineComponent,
+  inject,
+  type PropType,
+  reactive,
+  type Ref,
+  ref,
+  watch,
+} from 'vue';
+import { type TranslateResult, useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
 import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
@@ -37,14 +47,14 @@ import api from 'monitor-api/api';
 // import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 // TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
 // 原有类型
-import { Column } from 'bkui-vue/lib/table/props';
+import { type Column } from 'bkui-vue/lib/table/props';
 // import { CommonSimpleChart } from '../../common-simple-chart';
 import { debounce } from 'monitor-common/utils/utils';
 import { type ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 // import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 // import { PanelModel } from '../../typings';
-import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { type IViewOptions, type PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
@@ -60,7 +70,7 @@ import {
   useRefleshIntervalInject,
   useTimeRanceInject,
 } from '../../hooks';
-import { ITableDataItem } from '../../typings/table-chart';
+import { type ITableDataItem } from '../../typings/table-chart';
 
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 

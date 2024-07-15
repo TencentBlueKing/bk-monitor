@@ -1050,10 +1050,10 @@
           return;
         }
         const lastSelect = v[v.length - 1];
-        if (['no_owner', 'all'].includes(lastSelect)) {
+        if (lastSelect === 'all') {
           this.ownerSelect = [lastSelect];
         } else {
-          this.ownerSelect = v.filter(item => !['no_owner', 'all'].includes(item));
+          this.ownerSelect = v.filter(item => !(item === 'all'));
         }
       },
       /**
@@ -1070,15 +1070,14 @@
        * @desc: 责任人提交
        */
       handleUserSubmit(v) {
-        const lastSelect = v[v.length - 1];
-        const ownerData = ['no_owner', 'all'].includes(lastSelect)
+        const ownerData = v.includes('all')
           ? {
-              owner_config: lastSelect,
+              owner_config: 'all',
               owners: [],
             }
           : {
-              owner_config: 'owner',
-              owners: v,
+              owner_config: v.includes('no_owner') ? 'no_owner' : 'owner',
+              owners: v.filter(item => item !== 'no_owner'),
             };
         this.$emit('handle-finger-operate', 'requestData', ownerData, true);
       },

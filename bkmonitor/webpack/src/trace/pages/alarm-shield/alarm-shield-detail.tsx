@@ -35,7 +35,7 @@ import { random } from 'monitor-common/utils';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { useAppStore } from '../../store/modules/app';
-import { IAuthority } from '../../typings/authority';
+import { type IAuthority } from '../../typings/authority';
 import FormItem from './components/form-item';
 import StrategyDetail from './components/strategy-detail';
 import WhereDisplay from './components/where-display';

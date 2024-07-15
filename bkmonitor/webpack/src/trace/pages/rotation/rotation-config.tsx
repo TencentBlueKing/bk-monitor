@@ -40,9 +40,9 @@ import {
   noOrderDutyData,
   setPreviewDataOfServer,
 } from './components/calendar-preview';
-import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
+import FixedRotationTab, { type FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
-import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
+import ReplaceRotationTab, { type ReplaceDataModel } from './components/replace-rotation-tab';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';
 import {

@@ -9,13 +9,22 @@
 @mixin item-active {
   &.item-active {
     @include item-hover();
+
+    .item-count {
+      color: #fff;
+      background: #a3c5fd;
+    }
   }
 }
 
-@mixin item-count($color: #c4c6cc) {
+@mixin item-count($color: #979ba5) {
   .item-count {
+    padding: 2px 5px;
     margin-left: auto;
+    font-size: 12px;
     color: $color;
+    background: #f0f1f5;
+    border-radius: 8px;
   }
 }
 
@@ -81,7 +90,7 @@
       display: flex;
       flex-direction: column;
       width: 100%;
-      min-height: 357px;
+      // min-height: 357px;
       padding: 16px 0;
       font-size: 14px;
       color: #63656e;
@@ -93,11 +102,17 @@
         flex: 0 0 36px;
         align-items: center;
         height: 36px;
-        padding: 0 24px 0 20px;
+        padding: 0 14px;
         margin: 0;
 
         @include item-active();
-        @include item-count(#63656e);
+        @include item-count(#979ba5);
+
+        .bk-icon {
+          margin-right: 6px;
+          font-size: 13px;
+          color: #979ba5;
+        }
 
         &:hover {
           @include item-hover();
@@ -121,10 +136,20 @@
           flex: 0 0 36px;
           align-items: center;
           height: 36px;
-          padding: 0 24px 0 25px;
+          padding: 0 14px 0 32px;
 
           @include item-active();
           @include item-count();
+
+          &::after {
+            position: absolute;
+            left: 20px;
+            display: inline-block;
+            width: 1px;
+            height: 100%;
+            content: '';
+            background: #DCDEE5;
+          }
 
           .item-icon {
             margin-right: 8px;
@@ -138,8 +163,7 @@
 
           .icon-inform-circle {
             position: relative;
-            font-size: 12px;
-            background: #ff9c01;
+            font-size: 14px;
             border-radius: 50%;
 
             &::before {
@@ -247,7 +271,7 @@
       align-items: center;
       height: 42px;
       background-color: white;
-      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
       .set-filter {
         margin: 0 5px 0 20px;
@@ -279,7 +303,7 @@
         height: 200px;
         margin: 16px 24px 0;
         background-color: white;
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
       }
 
       &-filter {
@@ -400,7 +424,7 @@
         margin: 16px 24px;
         background-color: white;
         border-radius: 2px;
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
         .bk-tab {
           margin: 0 24px;

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
@@ -33,7 +33,7 @@ import { Popover, Table } from 'bkui-vue';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-import { TraceListType } from './trace-list';
+import { type TraceListType } from './trace-list';
 
 import './interface-statistics.scss';
 

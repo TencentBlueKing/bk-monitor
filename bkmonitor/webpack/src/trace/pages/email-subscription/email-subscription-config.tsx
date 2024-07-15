@@ -42,7 +42,7 @@ import {
   Table,
   TagInput,
 } from 'bkui-vue';
-import { Column } from 'bkui-vue/lib/table/props';
+import { type Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
 import {
   createOrUpdateReport,
@@ -62,7 +62,7 @@ import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import CreateSubscription from './create-subscription';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { FrequencyType, TestSendingTarget } from './types';
+import { FrequencyType, type TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
 
 import './email-subscription-config.scss';

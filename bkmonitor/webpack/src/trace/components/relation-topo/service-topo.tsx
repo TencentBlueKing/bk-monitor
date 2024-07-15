@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { PropType, defineComponent, nextTick, ref, watch } from 'vue';
+import { type PropType, defineComponent, nextTick, ref, watch } from 'vue';
 
-import { Edge, ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
+import { type Edge, type ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
 import { Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils';
@@ -35,7 +35,7 @@ import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
-import { IServiceSpanListItem } from '../../typings/trace';
+import { type IServiceSpanListItem } from '../../typings/trace';
 import EdgeLabelCustom from './edge-label-custom';
 import ServiceTopoMiniMap from './service-topo-mini-map';
 

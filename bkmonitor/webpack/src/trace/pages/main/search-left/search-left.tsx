@@ -32,7 +32,7 @@ import { type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import { useAuthorityStore } from '../../../store/modules/authority';
-import { IAppItem, ISearchTypeItem, SearchType } from '../../../typings';
+import { type IAppItem, type ISearchTypeItem, type SearchType } from '../../../typings';
 import FieldFiltering from '../event-retrieval/field-filtering';
 
 import type { PropType } from 'vue';

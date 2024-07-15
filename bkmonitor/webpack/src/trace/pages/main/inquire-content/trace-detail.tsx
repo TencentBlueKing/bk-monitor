@@ -45,10 +45,10 @@ import { copyText, typeTools } from 'monitor-common/utils/utils';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
-import StatisticsTable, { IFilterItem } from '../../../components/statistics-table/statistics-table';
+import StatisticsTable, { type IFilterItem } from '../../../components/statistics-table/statistics-table';
 import TraceView from '../../../components/trace-view';
 import SearchBar from '../../../components/trace-view/search-bar';
-import { Span } from '../../../components/trace-view/typings';
+import { type Span } from '../../../components/trace-view/typings';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
@@ -61,7 +61,13 @@ import {
   VIRTUAL_SPAN,
 } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree, ETopoType } from '../../../typings';
+import {
+  type DirectionType,
+  type ISpanClassifyItem,
+  type ITraceData,
+  type ITraceTree,
+  ETopoType,
+} from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
 import NodeTopo from './node-topo';

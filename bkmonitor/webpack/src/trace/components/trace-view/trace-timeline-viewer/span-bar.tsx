@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref } from 'vue';
+import { defineComponent, type PropType, ref } from 'vue';
 
 import _groupBy from 'lodash/groupBy';
 
 // import AccordianLogs from './span-detail/accordian-logs';
 // import { ViewedBoundsFunctionType } from './utils';
-import { Span } from '../typings';
+import { type Span } from '../typings';
 
 import './span-bar.scss';
 

@@ -357,6 +357,7 @@ OTLP_GRPC_HOST = os.getenv("BKAPP_OTLP_GRPC_HOST", "http://localhost:4317")
 OTLP_BK_DATA_ID = int(os.getenv("BKAPP_OTLP_BK_DATA_ID", -1))
 OTLP_BK_DATA_TOKEN = os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", "")
 OTLP_BK_LOG_TOKEN = os.getenv("BKAPP_OTLP_BK_LOG_TOKEN", "")
+
 # ===============================================================================
 # 项目配置
 # ===============================================================================
@@ -1214,6 +1215,12 @@ BK_NOTICE = {
 
 # 平台全局配置
 BK_SHARED_RES_URL = os.environ.get("BKPAAS_SHARED_RES_URL", "")
+
+# UNIFYQUERY 日志数据源标签
+UNIFY_QUERY_DATA_SOURCE = "bklog"
+# UNIFYQUERY APIGW HOST
+UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
+
 
 """
 以下为框架代码 请勿修改

@@ -1,0 +1,25 @@
+.bk-common-tag-show {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  .item-tags {
+    display: inline-block;
+    margin-right: 5px;
+    overflow: hidden;
+    overflow: hidden;
+  }
+
+  .top-bar-tag {
+    display: inline-block;
+    height: 20px;
+    padding: 0 5px;
+    margin-right: 4px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+    background: #fafbfd;
+    border-radius: 2px;
+  }
+}
