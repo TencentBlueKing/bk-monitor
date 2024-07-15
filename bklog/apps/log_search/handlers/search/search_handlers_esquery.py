@@ -2266,14 +2266,12 @@ class UnionSearchHandler(object):
             time_fields_type.add(index_set_obj.time_field_type)
             time_fields_unit.add(index_set_obj.time_field_unit)
 
-        has_diff_fields = False
         diff_fields = set()
         export_fields = self.search_dict.get("export_fields")
-        # 在做指定字段的导出操作并且选择了指定字段时,记录time_fields比export_fields多的字段
-        if export_fields and len(export_fields) >= 1:
+        # 在做导出操作时,记录time_fields比export_fields多的字段
+        if export_fields:
             diff_fields = time_fields - set(export_fields)
             self.search_dict["export_fields"].extend(diff_fields)
-            has_diff_fields = True
 
         multi_execute_func = MultiExecuteFunc()
         if is_export:
@@ -2365,8 +2363,8 @@ class UnionSearchHandler(object):
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
             result_origin_log_list = sort_func(data=result_origin_log_list, sort_list=self.sort_list)
-        # 如果has_diff_fields为True,在结果中删除查询时补充的字段
-        if has_diff_fields:
+        # 在导出结果中删除查询时补充的字段
+        if diff_fields:
             tmp_list = []
             for dic in result_origin_log_list:
                 tmp_list.append({k: v for k, v in dic.items() if k not in diff_fields})
