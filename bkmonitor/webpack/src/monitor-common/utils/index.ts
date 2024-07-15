@@ -197,11 +197,7 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
  * @param size
  */
 export const commonPageSizeSet = (size: number) => {
-  if (size) {
-    localStorage.setItem(COMMON_PAGE_SIZE_KEY, `${size}`);
-  } else {
-    localStorage.setItem(COMMON_PAGE_SIZE_KEY, '10');
-  }
+  localStorage.setItem(COMMON_PAGE_SIZE_KEY, size ? `${size}` : '10');
 };
 
 /**
