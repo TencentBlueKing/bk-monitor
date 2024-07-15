@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -33,9 +32,11 @@ import dayjs from 'dayjs';
 import { random } from '../../../monitor-common/utils/utils';
 import { transformLogUrlQuery } from '../../../monitor-pc/utils';
 import { handleToAlertList } from './event-detail/action-detail';
-import { TType as TSliderType } from './event-detail/event-detail-slider';
+
+import type { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { getStatusInfo } from './event-detail/type';
-import { eventPanelType, IPagination, SearchType } from './typings/event';
+import type { IPagination, SearchType, eventPanelType } from './typings/event';
+import type { TranslateResult } from 'vue-i18n';
 
 import './incident-table.scss';
 
@@ -252,7 +253,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             formatter: (row: IncidentItem) => {
               return (
                 <span>
-                  {this.formatterTime(row.begin_time)} / <br></br>
+                  {this.formatterTime(row.begin_time)} / <br />
                   {this.formatterTime(row.end_time)}
                 </span>
               );
@@ -703,7 +704,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                   <i
                     style={{ color: this.eventStatusMap?.[status]?.color }}
                     class={['icon-monitor item-icon', this.eventStatusMap?.[status]?.icon ?? '']}
-                  ></i>
+                  />
                 ) : (
                   ''
                 )}

@@ -42,7 +42,7 @@ import {
   listSearchFavorite,
   partialUpdateSearchFavorite,
 } from 'monitor-api/modules/model';
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, VuexModule, getModule } from 'vuex-module-decorators';
 
 import { exportIncident } from '../../../monitor-api/modules/incident';
 import store from '@store/store';

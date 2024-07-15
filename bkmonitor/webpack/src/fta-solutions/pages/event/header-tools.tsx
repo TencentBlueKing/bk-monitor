@@ -23,17 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/*
- * @Date: 2021-06-09 17:02:37
- * @LastEditTime: 2021-06-10 17:09:38
- * @Description: 告警中心头部组件
- */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorDateRange from 'monitor-pc/components/monitor-date-range/monitor-date-range.vue';
 import DropDownMenu from 'monitor-pc/components/monitor-dropdown/dropdown-menu.vue';
+
+/*
+ * @Date: 2021-06-09 17:02:37
+ * @LastEditTime: 2021-06-10 17:09:38
+ * @Description: 告警中心头部组件
+ */
+import type { TranslateResult } from 'vue-i18n';
 
 import './header-tools.scss';
 
@@ -204,7 +205,7 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
           text-active={this.refleshInterval !== -1}
           on-change={this.handleRefleshChange}
           on-on-icon-click={() => this.$emit('immediateReflesh')}
-        ></DropDownMenu>
+        />
       </div>
     );
   }

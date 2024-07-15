@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import * as eventCenterAuth from 'monitor-pc/pages/event-center/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const Event = () => import(/* webpackChunkName: "Event" */ '../../pages/event/event');
 const EventDetail = () => import(/* webpackChunkName: "EventDetail" */ '../../pages/event/event-detail/event-detail');

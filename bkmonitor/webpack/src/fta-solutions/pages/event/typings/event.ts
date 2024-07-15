@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 
 export interface ICommonTreeItem {
   id: SearchType | string;

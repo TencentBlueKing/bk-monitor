@@ -11,12 +11,17 @@
         "noExplicitAny": {
           "level": "off"
         },
-        "noAssignInExpressions": "warn"
+        "noAssignInExpressions": "warn",
+        "noArrayIndexKey": "warn"
       },
       "style": {
         "useSelfClosingElements": {
           "fix": "safe",
           "level": "warn"
+        },
+        "noUnusedTemplateLiteral": {
+          "fix": "safe",
+          "level": "error"
         }
       },
       "complexity": {

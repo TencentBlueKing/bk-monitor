@@ -31,7 +31,10 @@ import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/util
 import ResizeContainer from '../../../../../components/resize-container/resize-container';
 import VerifyItem from '../../../../../components/verify-item/verify-item';
 import CommonItem from '../components/common-item';
-import {
+import { localDataConvertToRequest } from '../components/http-editor/utils';
+import { setVariableToString, variableJsonVerify } from './utils';
+
+import type {
   IHeaderInfo,
   IHttpData,
   IParamsValueItem,
@@ -40,9 +43,7 @@ import {
   THeaderType,
   TMethod,
 } from '../components/http-editor/types';
-import { localDataConvertToRequest } from '../components/http-editor/utils';
-import { IWebhook } from './meal-content-data';
-import { setVariableToString, variableJsonVerify } from './utils';
+import type { IWebhook } from './meal-content-data';
 
 import './http-callback.scss';
 
@@ -469,7 +470,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               <i
                 class='icon-monitor icon-mc-close'
                 onClick={() => deleteFn(index, item)}
-              ></i>
+              />
             </div>
           );
         }
@@ -531,7 +532,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               behavior='simplicity'
               disabled={!this.isEdit}
               onInput={this.authParamInput}
-            ></bk-input>
+            />
           </div>
         ) : undefined}
         {type === 'basic_auth' ? (
@@ -544,7 +545,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 behavior='simplicity'
                 disabled={!this.isEdit}
                 onInput={this.authParamInput}
-              ></bk-input>
+              />
             </div>
             <div class='input-item'>
               <div class='auth-params-label'>{this.$t('密码')}</div>
@@ -555,7 +556,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 disabled={!this.isEdit}
                 type='password'
                 onInput={this.authParamInput}
-              ></bk-input>
+              />
             </div>
           </div>
         ) : undefined}
@@ -585,7 +586,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               label={item.label}
               prop={item.prop}
               {...{ scopedSlots }}
-            ></bk-table-column>
+            />
           ))}
         </bk-table>
       </div>
@@ -622,7 +623,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 allowHTML: false,
               }}
               onClick={() => (this.curHeaderData.hide = !isHide)}
-            ></i>
+            />
             {isHide ? (
               <span>{this.$t('已隐藏{count}项', { count: hideCount })}</span>
             ) : (
@@ -638,7 +639,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               label={item.label}
               prop={item.prop}
               {...{ scopedSlots }}
-            ></bk-table-column>
+            />
           ))}
         </bk-table>
       </div>
@@ -703,7 +704,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                   id={option.id}
                   key={option.id}
                   name={option.name}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           ) : undefined}
@@ -723,7 +724,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 onBlur={() => this.handleRawBlur(data.type, data.content)}
                 onFocus={() => (this.rawErrorMsg = '')}
                 onInput={this.bodyParamInput}
-              ></bk-input>
+              />
               {this.rawErrorMsg && <p style='margin: 0; color: #ff5656;'>{this.rawErrorMsg}</p>}
             </ResizeContainer>
           </div>
@@ -740,7 +741,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 label={item.label}
                 prop={item.prop}
                 {...{ scopedSlots }}
-              ></bk-table-column>
+              />
             ))}
           </bk-table>
         ) : undefined}
@@ -864,7 +865,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                     id={option}
                     key={option}
                     name={option}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
               <VerifyItem
@@ -878,21 +879,21 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                   placeholder={this.$tc('输入请求 URL')}
                   onChange={this.urlChange}
                   onFocus={this.urlFocus}
-                ></bk-input>
+                />
               </VerifyItem>
             </div>
           ) : (
             <div class='dispaly-method-url'>
               {this.label ? <span class='label'>{this.label}</span> : undefined}
               <span class='method'>{this.httpData.method}</span>
-              <span class='border'></span>
+              <span class='border' />
               <span class='url'>{this.httpData.url}</span>
             </div>
           )
         }
         {/* http头信息区域 */}
         <div class='http-header-wrap'>
-          <div class='arrow'></div>
+          <div class='arrow' />
           <div class='http-header-main'>
             <div class='tab-select-wrap'>
               {this.localHeaderInfo.map((tab, i) => (
@@ -907,7 +908,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             </div>
             {!!this.curHeaderData.desc && (
               <div class='header-desc'>
-                <i class='icon-monitor icon-bangzhu'></i>
+                <i class='icon-monitor icon-bangzhu' />
                 <span class='desc-text'>{this.curHeaderData.desc}</span>
               </div>
             )}
@@ -946,7 +947,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                       showControls={false}
                       type={'number'}
                       on-change={() => this.emitLocalHeaderInfo()}
-                    ></bk-input>
+                    />
                   </i18n>
                 </CommonItem>
               </div>

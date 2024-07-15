@@ -31,7 +31,7 @@ import { transformDataKey } from 'monitor-common/utils/utils';
 
 import SimpleForm from '../components/simple-form';
 import HttpCallBack from './http-callback';
-import { IPeripheral, IWebhook, transformMealContentParams } from './meal-content-data';
+import { type IPeripheral, type IWebhook, transformMealContentParams } from './meal-content-data';
 
 import './meal-debug-dialog.scss';
 
@@ -258,12 +258,12 @@ export default class MealDebugDialog extends tsc<IProps> {
       running: loading,
       success: (
         <div class='success'>
-          <span class='icon-monitor icon-mc-check-small'></span>
+          <span class='icon-monitor icon-mc-check-small' />
         </div>
       ),
       failure: (
         <div class='failure'>
-          <span class='icon-monitor icon-mc-close'></span>
+          <span class='icon-monitor icon-mc-close' />
         </div>
       ),
     };
@@ -295,7 +295,7 @@ export default class MealDebugDialog extends tsc<IProps> {
             class='info-jtnr-link'
             onClick={() => content?.url && window.open(content.url)}
           >
-            <span class='icon-monitor icon-copy-link'></span>
+            <span class='icon-monitor icon-copy-link' />
             {contentText.link}
           </span>
         ) : undefined}
@@ -347,7 +347,7 @@ export default class MealDebugDialog extends tsc<IProps> {
               title={this.$t('注意，该功能会调实际套餐去执行，请确认测试变量后再进行测试执行。')}
               type='warning'
               closable
-            ></bk-alert>
+            />
           )}
           <div>
             {this.debugData.type === 'webhook' && (
@@ -356,13 +356,13 @@ export default class MealDebugDialog extends tsc<IProps> {
                 isOnlyHttp={true}
                 value={this.debugData.webhook}
                 onChange={data => this.handleDebugWebhookDataChange(data)}
-              ></HttpCallBack>
+              />
             )}
             {this.debugData.type === 'peripheral' && (
               <SimpleForm
                 forms={this.debugPeripheralForm}
                 onChange={data => this.handleDebugPeripheralDataChange(data)}
-              ></SimpleForm>
+              />
             )}
           </div>
           <div slot='footer'>
