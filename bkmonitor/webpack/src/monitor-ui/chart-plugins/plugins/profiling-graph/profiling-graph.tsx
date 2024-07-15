@@ -39,11 +39,11 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
 
 import {
-  BaseDataType,
-  DataTypeItem,
-  IQueryParams,
+  type BaseDataType,
+  type DataTypeItem,
+  type IQueryParams,
   PanelModel,
-  ProfilingTableItem,
+  type ProfilingTableItem,
   TextDirectionType,
   ViewModeType,
 } from '../../typings';
@@ -54,7 +54,7 @@ import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 import TrendChart from './trend-chart/trend-chart';
-import { ProfileDataUnit } from './utils';
+import { type ProfileDataUnit } from './utils';
 
 import './profiling-graph.scss';
 
@@ -172,6 +172,9 @@ class ProfilingChart extends CommonSimpleChart {
           } else {
             this.emptyText = '';
           }
+        })
+        .catch(() => {
+          this.emptyText = '';
         })
         .finally(() => {
           this.isFirstLoad = false;
