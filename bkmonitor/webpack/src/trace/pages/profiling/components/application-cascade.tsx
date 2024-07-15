@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, type PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
 import { useDocumentLink } from '../../../hooks';
-import { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
+import { type ApplicationItem, type ApplicationList, type ServiceItem } from '../typings';
 
 import './application-cascade.scss';
 
@@ -117,6 +117,10 @@ export default defineComponent({
 
     const showPopover = ref(false);
     function handlePopoverShowChange({ isShow }) {
+      if (isShow) {
+        selectValue.appName = props.value[0] || '';
+        selectValue.serviceName = props.value[1] || '';
+      }
       showPopover.value = isShow;
     }
 
@@ -127,7 +131,11 @@ export default defineComponent({
     function handleAppClick(val: ApplicationItem) {
       if (val.app_name === selectValue.appName) return;
       selectValue.appName = val.app_name;
-      selectValue.serviceName = null;
+      if (selectValue.appName === (props.value[0] || '')) {
+        selectValue.serviceName = props.value[1] || '';
+      } else {
+        selectValue.serviceName = null;
+      }
       token.value = '';
     }
     /**

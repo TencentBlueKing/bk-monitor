@@ -392,7 +392,7 @@ class QueryDataSourceViewSet(MetaViewSet):
 
 
 class QueryBizByBkBaseViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.QueryBizByBkBase)]
+    resource_routes = [ResourceRoute("POST", resource.QueryBizByBkBase)]
 
 
 class QueryResultTableStorageDetailViewSet(MetaViewSet):
@@ -425,3 +425,11 @@ class CreateEsRouterViewSet(MetaViewSet):
 
 class UpdateEsRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.UpdateEsRouter)]
+
+
+class AddBkDataTableIdsViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.AddBkDataTableIdsResource)]
+
+
+class CreateOrUpdateEsRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateEsRouter)]

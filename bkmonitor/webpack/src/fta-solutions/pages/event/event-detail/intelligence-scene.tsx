@@ -84,6 +84,26 @@ export default class IntelligenceScene extends tsc<IProps> {
   timeRangeInit() {
     const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
     const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
+    const currentTarget: Record<string, any> = {
+      bk_target_ip: '0.0.0.0',
+      bk_target_cloud_id: '0',
+    };
+    this.params.dimensions.forEach(item => {
+      if (item.key === 'bk_host_id') {
+        currentTarget.bk_host_id = item.value;
+      }
+      if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
+        currentTarget.bk_target_ip = item.value;
+      }
+      if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
+        currentTarget.bk_target_cloud_id = item.value;
+      }
+    });
+    this.viewOptions = {
+      interval,
+      current_target: currentTarget,
+      strategy_id: this.params?.strategy_id,
+    };
     this.timeRange = [startTime, endTime];
   }
 
@@ -97,6 +117,7 @@ export default class IntelligenceScene extends tsc<IProps> {
     const result = data.map(item => {
       return {
         ...item,
+        type: 'performance-chart',
         dashboardId: this.dashboardId,
         targets: item.targets.map(target => ({
           ...target,
@@ -110,6 +131,9 @@ export default class IntelligenceScene extends tsc<IProps> {
         options: {
           time_series: {
             custom_timerange: true,
+            hoverAllTooltips: true,
+            YAxisLabelWidth: 70,
+            needAllAlertMarkArea: true,
           },
         },
       };

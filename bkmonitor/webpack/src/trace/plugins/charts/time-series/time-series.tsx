@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, PropType, Ref, ref, watch } from 'vue';
+import {
+  computed,
+  defineComponent,
+  getCurrentInstance,
+  inject,
+  onBeforeUnmount,
+  type PropType,
+  type Ref,
+  ref,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { bkTooltips } from 'bkui-vue';
@@ -32,8 +42,8 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
-import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
-import { getValueFormat, ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
+import { type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { getValueFormat, type ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
@@ -52,15 +62,15 @@ import {
   useViewOptionsInject,
 } from '../../hooks';
 import {
-  ChartTitleMenuType,
-  DataQuery,
-  IExtendMetricData,
-  ILegendItem,
-  IMenuChildItem,
-  IMenuItem,
-  ITimeSeriesItem,
-  ITitleAlarm,
-  PanelModel,
+  type ChartTitleMenuType,
+  type DataQuery,
+  type IExtendMetricData,
+  type ILegendItem,
+  type IMenuChildItem,
+  type IMenuItem,
+  type ITimeSeriesItem,
+  type ITitleAlarm,
+  type PanelModel,
 } from '../../typings';
 import {
   downCsvFile,
@@ -298,7 +308,12 @@ export default defineComponent({
 
         legendItem.avg = +(+legendItem.total! / (hasValueLength || 1)).toFixed(2);
         legendItem.total = Number(legendItem.total).toFixed(2);
-
+        // 获取y轴上可设置的最小的精确度
+        const precision = handleGetMinPrecision(
+          item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
+          unitFormatter,
+          item.unit
+        );
         if (item.name) {
           Object.keys(legendItem).forEach(key => {
             if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -310,12 +325,6 @@ export default defineComponent({
           });
           legendDatas.push(legendItem);
         }
-        // 获取y轴上可设置的最小的精确度
-        const precision = handleGetMinPrecision(
-          item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-          unitFormatter,
-          item.unit
-        );
         return {
           ...item,
           color,

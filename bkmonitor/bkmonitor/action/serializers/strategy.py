@@ -42,6 +42,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.request import get_request
 from common.log import logger
 from constants.action import NoticeChannel
 from constants.common import (
@@ -188,7 +189,13 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
         if isinstance(duty_instances, (DutyPlan, DutyArrange)):
             duty_instances = [duty_instances]
         all_members = cls.get_all_members(duty_instances)
-        if all_members:
+        if not all_members:
+            return super(DutyBaseInfoSlz, cls).__new__(cls, *args, **kwargs)
+
+        # 新增 notice_user_detail 标记，获取用户中文名
+        request = get_request(peaceful=True)
+        need_username = getattr(request, "notice_user_detail", None)
+        if need_username:
             try:
                 user_list = api.bk_login.get_all_user(
                     page_size=500, fields="username,display_name", exact_lookups=",".join(set(all_members))
@@ -479,7 +486,19 @@ class DutyRuleDetailSlz(DutyRuleSlz):
         super(DutyRuleDetailSlz, self).save(**kwargs)
 
         DutyArrange.bulk_create(duty_arranges, self.instance)
-        if not self.instance.enabled:
+
+        if self.instance.enabled:
+            # 快照和计划管理，以便预览能看到即时变化
+            user_groups = UserGroup.objects.filter(duty_rules__contains=self.instance.id).only(
+                "id", "bk_biz_id", "duty_rules", "duty_notice", "timezone"
+            )
+            for user_group in user_groups:
+                group_duty_manager = GroupDutyRuleManager(user_group, [self.data])
+                try:
+                    group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d %H:%M:%S"))
+                except Exception:  # noqa
+                    continue
+        else:
             # 如果是关闭了当前的规则, 则已有的排班计划都需要关闭掉
             # TODO 和产品确认下，是否要一个调整时间
             DutyRuleSnap.objects.filter(duty_rule_id=self.instance.id).update(enabled=False)
@@ -957,7 +976,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         ).data
 
         group_duty_manager = GroupDutyRuleManager(self.instance, duty_rules)
-        group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
+        group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d %H:%M:%S"))
         # 删除掉已经解除绑定的相关的snap和排班信息
         DutyRuleSnap.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules

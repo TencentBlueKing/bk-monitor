@@ -901,6 +901,10 @@ class CollectorHandler(object):
                     # 当更新itsm流程时 将diff更新前移
                     if not FeatureToggleObject.switch(name=FEATURE_COLLECTOR_ITSM):
                         self.data.target_subscription_diff = self.diff_target_nodes(target_nodes)
+
+                    if "collector_scenario_id" in params:
+                        model_fields["collector_scenario_id"] = params["collector_scenario_id"]
+
                     for key, value in model_fields.items():
                         setattr(self.data, key, value)
                     self.data.save()
@@ -2020,11 +2024,12 @@ class CollectorHandler(object):
         for item in instance_data:
             bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
 
-        plugin_data = NodeApi.plugin_search.bulk_request(
-            params={"conditions": [], "bk_host_id": bk_host_ids},
-            get_data=lambda x: x["list"],
-            get_count=lambda x: x["total"],
+        plugin_data = NodeApi.plugin_search.batch_request(
+            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
+            chunk_values=bk_host_ids,
+            chunk_key="bk_host_id",
         )
+
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
         # 如果采集目标是HOST-INSTANCE

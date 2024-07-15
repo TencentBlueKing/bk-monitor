@@ -246,6 +246,7 @@ class SpaceTableIDRedis:
                     "storage_id": record.get("storage_cluster_id", 0),
                     "db": table_id_db,
                     "measurement": DEFAULT_MEASUREMENT,
+                    "source_type": source_type,
                 }
             )
         return data
@@ -726,9 +727,7 @@ class SpaceTableIDRedis:
         self, table_id_list: Optional[List] = None, data_label_list: Optional[List] = None
     ) -> List:
         """获取可以使用的结果表"""
-        tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True, table_id__in=table_id_list).values(
-            "table_id", "data_label"
-        )
+        tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True).values("table_id", "data_label")
         if table_id_list:
             tids = tids.filter(table_id__in=table_id_list)
         if data_label_list:

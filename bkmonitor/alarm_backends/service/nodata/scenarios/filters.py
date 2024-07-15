@@ -24,7 +24,7 @@ class DimensionRangeFilter(RangeFilter):
         """
         is_match = True
         # 1. 匹配监控条件(即where条件)
-        agg_condition_obj = item.agg_condition_obj
+        agg_condition_obj = item.origin_agg_condition_obj
         if agg_condition_obj:
             is_match = is_match and agg_condition_obj.is_match(dimensions)
 

@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } from 'vue';
+import { computed, defineComponent, onMounted, provide, reactive, type Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -33,7 +33,7 @@ import { Dialog } from 'bkui-vue';
 import { queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 
-import { ISelectMenuOption } from '../../components/select-menu/select-menu';
+import { type ISelectMenuOption } from '../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import ProfilingQueryImage from '../../static/img/profiling-query.png';
 import ProfilingUploadQueryImage from '../../static/img/profiling-upload-query.png';
@@ -46,8 +46,16 @@ import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
-import { DataTypeItem, DetailType, FileDetail, PanelType, SearchState, SearchType, ServicesDetail } from './typings';
-import { MenuEnum, ToolsFormData } from './typings/page-header';
+import {
+  type DataTypeItem,
+  DetailType,
+  type FileDetail,
+  PanelType,
+  type SearchState,
+  SearchType,
+  type ServicesDetail,
+} from './typings';
+import { MenuEnum, type ToolsFormData } from './typings/page-header';
 
 import './profiling.scss';
 
@@ -112,13 +120,10 @@ export default defineComponent({
     const isEmpty = ref(true);
     const dataType = ref('');
     const dataTypeList = ref<DataTypeItem[]>([]);
-
-    /** 查询参数 */
-    const queryParams = ref(getParams());
-
     /* 当前选择的文件 */
     const curFileInfo = ref(null);
-
+    /** 查询参数 */
+    const queryParams = ref(getParams());
     /**
      * 检索面板和收藏面板显示状态切换
      * @param type 面板类型
@@ -289,7 +294,7 @@ export default defineComponent({
       const { server, isComparison, where, comparisonWhere, type, startTime, endTime } = searchState.formData;
       const profilingParams = { ...server, global_query: false };
       const uploadParams = {
-        profile_id: curFileInfo?.value?.profile_id,
+        profile_id: curFileInfo.value?.profile_id,
         global_query: true,
         start: startTime,
         end: endTime,

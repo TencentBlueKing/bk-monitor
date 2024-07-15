@@ -23,11 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, onMounted, PropType, reactive, ref, toRefs, watch } from 'vue';
+import {
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  type PropType,
+  reactive,
+  ref,
+  toRefs,
+  watch,
+} from 'vue';
 
 import { debounce, deepClone } from 'monitor-common/utils/utils';
 
-import { IFavList, IFavoriteItem } from '../../../typings';
+import { type IFavList, type IFavoriteItem } from '../../../typings';
 
 import './favorites-list.scss';
 

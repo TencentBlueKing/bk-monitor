@@ -46,13 +46,13 @@
               :class="{ 'input-verify': rules.port.validate }"
             >
               <bk-popover
-                placement="top"
-                :tippy-options="tippyOptions"
                 class="icon-popover"
+                :tippy-options="tippyOptions"
+                placement="top"
               >
                 <i
-                  v-show="rules.port.validate"
                   class="icon-monitor icon-mind-fill"
+                  v-show="rules.port.validate"
                 />
                 <div slot="content">
                   {{ rules.port.message }}
@@ -64,8 +64,8 @@
                 :validator="{ content: '' }"
               >
                 <bk-input
-                  v-model="info.port"
                   class="item-param-input"
+                  v-model="info.port"
                   @blur="validatePort(info.port, 'port')"
                 />
               </verify-input>
@@ -80,8 +80,8 @@
             <div class="item-param readonly-container">
               <div class="item-param-name">${host}=</div>
               <bk-input
-                v-model="info.url"
                 class="item-param-input"
+                v-model="info.url"
                 readonly
               />
             </div>
@@ -90,8 +90,8 @@
       </div>
       <!-- 填写参数 -->
       <div
-        class="step-test-item param-item"
         style="margin-bottom: 10px"
+        class="step-test-item param-item"
       >
         <div class="item-label item-label-norequired">
           {{ $t('填写参数') }}
@@ -103,18 +103,18 @@
           <template v-for="(item, index) in paramsList">
             <div
               v-if="!item.hasOwnProperty('visible') && !item.disabled"
-              :key="index"
               class="item-param"
               :class="{ 'input-verify': item.isError }"
+              :key="index"
             >
               <bk-popover
-                placement="top"
-                :tippy-options="tippyOptions"
                 class="icon-popover"
+                :tippy-options="tippyOptions"
+                placement="top"
               >
                 <i
-                  v-show="item.isError"
                   class="icon-monitor icon-mind-fill"
+                  v-show="item.isError"
                 />
                 <div slot="content">
                   {{ item.errorMessage }}
@@ -122,8 +122,8 @@
               </bk-popover>
               <div class="item-param-name">
                 <bk-popover
-                  placement="top-start"
                   :tippy-options="tippyOptions"
+                  placement="top-start"
                 >
                   <div :class="{ 'verify-name': item.required }">
                     {{ item.name || item.description }}
@@ -144,8 +144,8 @@
                 >
                   <bk-input
                     v-model="item.default"
-                    :placeholder="$t('输入参数值')"
                     :class="['item-param-input', { 'value-password': item.type === 'password' }]"
+                    :placeholder="$t('输入参数值')"
                     :type="item.type === 'password' ? 'password' : 'text'"
                     @blur="validatePort(item.default, info.plugin_type === 'SNMP' ? 'snmpPort' : 'jmxPort')"
                   />
@@ -154,11 +154,11 @@
                 <bk-input
                   v-else
                   v-model="item.default"
-                  :placeholder="$t('输入参数值')"
                   :class="[
                     'item-param-input',
                     { 'value-password': item.type === 'password' || item.type === 'encrypt' },
                   ]"
+                  :placeholder="$t('输入参数值')"
                   :type="item.type === 'password' || item.type === 'encrypt' ? 'password' : 'text'"
                 />
               </template>
@@ -169,8 +169,8 @@
               >
                 <bk-switcher
                   v-model="item.default"
-                  true-value="true"
                   false-value="false"
+                  true-value="true"
                 />
               </div>
               <!-- 文件 -->
@@ -180,22 +180,22 @@
               >
                 <import-file
                   style="border: 0"
-                  :file-name="item.default"
                   :file-content="item.file_base64"
-                  @error-message="msg => handleImportError(msg, item)"
+                  :file-name="item.default"
                   @change="file => handleFileChange(file, item)"
+                  @error-message="msg => handleImportError(msg, item)"
                 />
               </div>
               <div
                 v-else-if="item.type === 'service' || item.type === 'host'"
                 class="dms-insert-wrap"
               >
-                <tag-switch
-                  v-for="(value, key) in item.default"
-                  :key="key"
-                  :value="item.default[key]"
-                  :tag-label="key"
-                  @input="val => handleTagInput(item, key, val)"
+                <bk-tag-input
+                  :value="Object.entries(item.default).map(item => item.join(':'))"
+                  allow-create
+                  has-delete-icon
+                  @blur="(input, val) => validInsertValue(val, item)"
+                  @change="val => validInsertValue(val, item)"
                 />
               </div>
               <div
@@ -204,17 +204,17 @@
               >
                 <bk-select
                   v-if="item.type === 'list'"
-                  v-model="item.default"
                   class="params-select"
+                  v-model="item.default"
                   :clearable="false"
                   @change="handelParamsSelect(item)"
                 >
                   <bk-option
                     v-for="(option, i) in item.election"
+                    :disabled="option.disabled"
                     :id="option.id"
                     :key="i"
                     :name="option.name"
-                    :disabled="option.disabled"
                   />
                 </bk-select>
                 <bk-input
@@ -245,10 +245,10 @@
         </div>
         <div class="item-content">
           <bk-select
-            v-model="info.cycle"
-            class="cycle-select"
-            :clearable="false"
             width="180"
+            class="cycle-select"
+            v-model="info.cycle"
+            :clearable="false"
           >
             <bk-option
               v-for="item in cycleList"
@@ -269,21 +269,21 @@
         </div>
         <div class="item-content">
           <bk-tag-input
-            v-model="snmpTargets"
             style="width: 940px"
-            :placeholder="$t('输入采集目标主机')"
-            :allow-create="true"
+            v-model="snmpTargets"
             :allow-auto-match="true"
+            :allow-create="true"
             :has-delete-icon="true"
             :paste-fn="handleTargetsPaste"
+            :placeholder="$t('输入采集目标主机')"
             @change="handleSnmpTargetChange"
           />
         </div>
       </div>
       <!-- 选择调试目标 -->
       <div
-        class="step-test-item host-item"
         style="margin-bottom: 10px"
+        class="step-test-item host-item"
       >
         <div class="item-label item-required item-label-host">
           {{ $t('选择调试目标') }}
@@ -291,8 +291,8 @@
         <div class="item-content param-container">
           <div
             v-for="(item, index) in info.host_info"
-            :key="index"
             class="host-container"
+            :key="index"
             @click="debugStatus !== 'debugging' && selectHost(item, index)"
           >
             <span
@@ -322,9 +322,9 @@
       </div>
       <!-- 调试进度 -->
       <div
-        v-show="isShowDebug"
-        class="step-test-item"
         style="height: 342px"
+        class="step-test-item"
+        v-show="isShowDebug"
       >
         <div class="item-label item-label-norequired">
           {{ $t('调试进度') }}
@@ -336,8 +336,8 @@
                 <template v-for="(item, index) in debugHostList">
                   <li
                     v-if="item.ip"
-                    :key="index"
                     :class="['debug-tab', { 'debug-active': item.osType === activeTab }]"
+                    :key="index"
                     @click="changeTab(index)"
                   >
                     <div class="tab-title">
@@ -353,8 +353,8 @@
                       <span class="title-text">{{ item.display_name || item.ip }}</span>
                       <img
                         v-if="item.status === 3"
-                        src="../../../../static/images/svg/spinner.svg"
                         alt=""
+                        src="../../../../static/images/svg/spinner.svg"
                       />
                       <i
                         v-else-if="item.status === 2"
@@ -371,13 +371,13 @@
                     </div>
                     <!-- 调试命令行 -->
                     <div
+                      :style="{ position: 'absolute', left: `-${index * 180 + 1}px` }"
                       v-show="item.osType === activeTab"
                       :class="['debug-preview', { active: item.osType === activeTab }]"
-                      :style="{ position: 'absolute', left: `-${index * 180 + 1}px` }"
                     >
                       <terminal-instance
-                        :consoles="handleConsolesData(item.data)"
                         :animation="false"
+                        :consoles="handleConsolesData(item.data)"
                       />
                     </div>
                   </li>
@@ -407,25 +407,25 @@
         {{ $t('上一步') }}
       </bk-button>
       <bk-button
-        v-show="debugStatus === 'setting' || debugStatus === 'finish'"
         class="reset-btn mc-btn-add"
-        :theme="isFirstDebug ? 'success' : 'default'"
+        v-show="debugStatus === 'setting' || debugStatus === 'finish'"
         :disabled="debugLoading || !canStartDebug"
+        :theme="isFirstDebug ? 'success' : 'default'"
         @click="startDebug"
       >
         {{ isFirstDebug ? $t('开始调试') : $t('重新调试') }}
       </bk-button>
       <bk-button
-        v-show="debugStatus === 'debugging'"
         class="reset-btn btn-debugging mc-btn-add"
+        v-show="debugStatus === 'debugging'"
       >
         {{ $t('button-调试中') }}
       </bk-button>
       <bk-button
-        v-authority="{ active: !authority.MANAGE_AUTH }"
         class="mc-btn-add"
-        theme="primary"
+        v-authority="{ active: !authority.MANAGE_AUTH }"
         :disabled="!canSavePlugin"
+        theme="primary"
         @click="authority.MANAGE_AUTH ? savePlugin() : handleShowAuthorityDetail()"
       >
         {{ $t('保存') }}
@@ -437,19 +437,19 @@
       @confirm="handleSelectHostConfirm"
     />
     <metric-dimension-dialog
-      :show="showMetricDialog"
       :data-time="dataTime"
-      :os-type-list="osTypeList"
-      :metric-json="metricData"
-      :plugin-data="pluginData"
-      :is-token="isToken"
       :is-route-page="false"
+      :is-token="isToken"
+      :metric-json="metricData"
+      :os-type-list="osTypeList"
+      :plugin-data="pluginData"
       :plugin-type="info.plugin_type"
-      @showChange="handleShowMetricDialog"
-      @refreshData="handleRefreshData"
-      @changeVersion="handleChangeVersion"
-      @backPlugin="previous"
+      :show="showMetricDialog"
       @backDebug="handleBackDebug"
+      @backPlugin="previous"
+      @changeVersion="handleChangeVersion"
+      @refreshData="handleRefreshData"
+      @showChange="handleShowMetricDialog"
     />
   </div>
 </template>
@@ -471,7 +471,6 @@ import MetricDimensionDialog from '../../components/metric-dimension-dialog';
 import TerminalInstance from '../terminal-instance/terminal-instance';
 import ImportFile from './components/import-file';
 import SelectHost from './components/select-host';
-import TagSwitch from './tag-switch.vue';
 
 export default {
   name: 'StepSetTest',
@@ -482,7 +481,6 @@ export default {
     // MetricDimension,
     // MonitorDialog,
     ImportFile,
-    TagSwitch,
     MetricDimensionDialog,
   },
   mixins: [formLabelMixin],
@@ -572,7 +570,7 @@ export default {
       snmpTargets: [],
       paramsList: [],
       ipv4Reg:
-        /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/ // eslint-disable-line
+        /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/,
     };
   },
   computed: {
@@ -582,8 +580,17 @@ export default {
       const isPortOk = info.plugin_type === 'Exporter' ? info.port !== '' && !this.rules.port.validate : true; // Exporter 类型需要校验端口
       const isHostOk = info.host_info.some(item => item.ip);
       const isTargetOk = info.plugin_type === 'SNMP' ? this.snmpTargets.length : true;
-      const isOk = this.paramsList.every(item => (item.required ? !!item.default && !item.isError : true));
-      return isOk && isHostOk && isTargetOk && isPortOk;
+      return this.isParamsCompletely && isHostOk && isTargetOk && isPortOk;
+    },
+    /** 所有必填的参数是否填写完成且没有错误 */
+    isParamsCompletely() {
+      return this.paramsList.every(item => {
+        if (!item.required || item.visible === false) return true;
+        if (typeof item.default !== 'object') {
+          return !!item.default && !item.isError;
+        }
+        return !!Object.keys(item.default).length && !item.isError;
+      });
     },
     //  能否弹出指标窗口
     canShowMetricDialog() {
@@ -597,7 +604,8 @@ export default {
     canSavePlugin() {
       // 1. 已经勾选提示
       // 2. 状态是"FATCH_DATA",并且metric_json有数据
-      return this.canShowMetricDialog || this.isShowSkipDebugHint;
+      // 3. 所有必填的参数是否填写完成
+      return (this.canShowMetricDialog || this.isShowSkipDebugHint) && this.isParamsCompletely;
     },
     //  是否显示参数
     isShowParam() {
@@ -702,6 +710,34 @@ export default {
         }
       });
       return result;
+    },
+    validInsertValue(tags, item) {
+      const len = tags.length;
+      const keys = [];
+      if (len === 0) {
+        item.isError = true;
+        item.errorMessage = this.$t('必填项');
+        item.default = {};
+        return;
+      }
+      for (let i = 0; i < len; i++) {
+        tags[i] = tags[i].replace('：', ':');
+        const [key, value] = tags[i].split(':');
+        if (key && value) {
+          keys.push(key);
+        } else {
+          item.errorMessage = this.$t('标签格式应为key:value');
+          item.isError = true;
+          return;
+        }
+      }
+      if (keys.length !== new Set(keys).size) {
+        item.errorMessage = this.$t('标签key值应该保持唯一性');
+        item.isError = true;
+        return;
+      }
+      item.isError = false;
+      item.default = Object.fromEntries(tags.map(item => item.split(':')));
     },
     handleParamsList() {
       // if (this.info.plugin_type === 'SNMP') {
@@ -1294,11 +1330,11 @@ export default {
     savePlugin() {
       /* eslint-disable */
       this.data.from = '';
-      /* eslint-disable */
+       
       const params = {
         from: 'save',
         status: '',
-        message: ''
+        message: '',
       };
       this.$set(this.data, 'saveData', params);
       this.$bus.$emit('next');
@@ -1355,7 +1391,7 @@ export default {
           info_version: params.info_version,
           param: params.param,
           host_info: params.host_info,
-          target_nodes: params.target_nodes
+          target_nodes: params.target_nodes,
         },
         { cancelToken: new CancelToken(cb => (this.cancelFn = cb)) }
       );
@@ -1363,13 +1399,13 @@ export default {
     //  请求插件调试日志的接口
     requestDebugLog(taskId) {
       return fetchDebugLogCollectorPlugin(this.info.plugin_id, {
-        task_id: taskId
+        task_id: taskId,
       });
     },
     //  停止插件调试的接口
     stopDebug(taskId) {
       return stopDebugCollectorPlugin(this.info.plugin_id, {
-        task_id: taskId
+        task_id: taskId,
       }).catch(() => {});
     },
     //  校验规则
@@ -1414,7 +1450,7 @@ export default {
         const text = transformJobUrl(item.text);
         return {
           ...item,
-          text
+          text,
         };
       });
     },
@@ -1426,15 +1462,12 @@ export default {
       } else {
         item.isError = false;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 @import '../../../home/common/mixins';
 
 .step-test {
@@ -1583,7 +1616,7 @@ export default {
           }
 
           &:hover {
-            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, .06);
+            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.06);
           }
 
           :deep(.bk-form-input) {
@@ -1647,8 +1680,45 @@ export default {
 
           .dms-insert-wrap {
             display: flex;
-            margin: 3px 16px 0 16px;
+            margin: 0 5px;
             overflow-x: auto;
+
+            .tag-switch-wrapper:first-child {
+              margin-left: 10px;
+            }
+
+            ::v-deep .bk-tag-selector {
+              width: 100%;
+              height: 26px;
+              min-height: 26px;
+
+              .bk-tag-input {
+                width: 100%;
+                height: 26px;
+                min-height: 26px;
+                color: #000;
+                border: 1px solid #fff;
+
+                .key-node {
+                  margin: 2px 5px 2px 0;
+                }
+
+                .staff-input {
+                  margin: 2px 0;
+                }
+
+                .input {
+                  height: 22px;
+                  padding-left: 3px;
+                  line-height: 26px;
+                  background: #f5f6fa;
+                }
+
+                .placeholder {
+                  line-height: 26px;
+                }
+              }
+            }
           }
         }
 
@@ -1861,15 +1931,15 @@ export default {
                     background: #3a84ff;
 
                     &.bar-1 {
-                      animation: process-bar-1 .7s linear 0s infinite;
+                      animation: process-bar-1 0.7s linear 0s infinite;
                     }
 
                     &.bar-2 {
-                      animation: process-bar-2 .7s linear 0s infinite;
+                      animation: process-bar-2 0.7s linear 0s infinite;
                     }
 
                     &.bar-3 {
-                      animation: process-bar-3 .7s linear 0s infinite;
+                      animation: process-bar-3 0.7s linear 0s infinite;
                     }
                   }
                 }

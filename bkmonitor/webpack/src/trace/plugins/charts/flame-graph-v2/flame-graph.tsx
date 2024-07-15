@@ -27,7 +27,7 @@ import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, 
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
-import { HierarchyNode } from 'd3-hierarchy';
+import { type HierarchyNode } from 'd3-hierarchy';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
@@ -37,15 +37,15 @@ import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
 import FlameFilterList from './flame-filter-list';
 import {
-  BaseDataType,
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  IBaseTraceInfo,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
+  type IAxisRect,
+  type IBaseTraceInfo,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
   RootId,
 } from './types';
 import { FlameChart } from './use-flame';
@@ -106,7 +106,7 @@ export default defineComponent({
     /** 是否显示图例 */
     const showLegend = ref(false);
     let graphInstance: FlameChart<BaseDataType> = null;
-    let svgRect: DOMRect = null;
+    let svgRect: Partial<DOMRect> = {};
     const filterData = shallowRef();
     const filterMaxHeight = ref(0);
     // 放大系数

@@ -57,6 +57,7 @@ class ConsulData:
     """
 
     data_id: str
+    token: str
     bk_biz_id: str
     bk_biz_name: str
     app_id: str
@@ -98,6 +99,7 @@ class ConsulHandler:
 
         return ConsulData(
             data_id=data_id,
+            token=application.get_bk_data_token(),
             bk_biz_id=application.bk_biz_id,
             bk_biz_name=space_mapping[str(application.bk_biz_id)]["space_name"]
             if str(application.bk_biz_id) in space_mapping

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, PropType, ref, watch } from 'vue';
+import { defineComponent, inject, type PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -32,7 +32,7 @@ import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
-import { IAuthority } from '../../typings/authority';
+import { type IAuthority } from '../../typings/authority';
 import {
   getAutoOrderList,
   getPreviewParams,
@@ -42,7 +42,7 @@ import {
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';
-import { randomColor, RuleDetailModel, transformRulesDetail } from './utils';
+import { randomColor, type RuleDetailModel, transformRulesDetail } from './utils';
 
 import './rotation-detail.scss';
 

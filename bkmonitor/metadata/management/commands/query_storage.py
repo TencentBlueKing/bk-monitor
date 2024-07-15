@@ -40,6 +40,7 @@ class Command(BaseCommand):
                     vm_table_id=vm_table_id,
                     metric_name=metric_name,
                     data_label=data_label,
+                    with_gse_router=options.get("with_gse_router", False),
                 ).get_detail()
             )
         )
@@ -51,3 +52,4 @@ class Command(BaseCommand):
         parser.add_argument("--bcs_cluster_id", type=str, help="BCS Cluster ID, 如: BCS-K8S-00000")
         parser.add_argument("--vm_table_id", type=str, default=None, help="接入计算平台 VM 结果表 ID")
         parser.add_argument("--metric_name", type=str, default=None, help="指标名称")
+        parser.add_argument("--with_gse_router", action="store_true", help="是否返回 GSE 路由信息")

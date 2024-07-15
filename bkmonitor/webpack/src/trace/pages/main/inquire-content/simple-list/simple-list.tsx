@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { PropType, defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { type PropType, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 
 import { Loading } from 'bkui-vue';
 

@@ -1,47 +1,52 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import './text-segmentation.scss';
 
 interface IProps {
   field: any;
-  content: String | Number;
-  menuClick: Function;
+  content: number | string;
+  menuClick: any;
 }
 
 @Component
 export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) field: any;
-  @Prop({ type: [String, Number], required: true }) content: string | number;
-  @Prop({ type: Function, required: true }) menuClick: Function;
+  @Prop({ type: [String, Number], required: true }) content: number | string;
+  @Prop({ type: Function, required: true }) menuClick: any;
 
   /** 当前选中分词 */
   curValue = '';
   /** 检索高亮分词字符串 */
   markRegStr = '<mark>(.*?)</mark>';
   /** 默认分词字符串 */
-  // eslint-disable-next-line
+
   segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
   /** 支持分词最大数量 */
   limitCount = 256;
@@ -86,8 +91,8 @@ export default class QueryStatement extends tsc<IProps> {
         {
           text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
           isNotParticiple: this.isText,
-          isMark: new RegExp(this.markRegStr).test(value)
-        }
+          isMark: new RegExp(this.markRegStr).test(value),
+        },
       ];
     }
     return arr;
@@ -119,12 +124,12 @@ export default class QueryStatement extends tsc<IProps> {
 
     // 转换结果为对象数组，包含分隔符标记
     const result = parts
-      .filter(part => part && part.length)
+      .filter(part => part?.length)
       .map((part, index) => {
         return {
           text: part,
           isNotParticiple: index < this.limitCount ? regex.test(part) : true,
-          isMark: /^<mark>.*?<\/mark>$/.test(part)
+          isMark: /^<mark>.*?<\/mark>$/.test(part),
         };
       });
 
@@ -145,7 +150,7 @@ export default class QueryStatement extends tsc<IProps> {
       extCls: 'event-tippy-content',
       onHidden: () => {
         this.unregisterObserver();
-        this.popoverInstance && this.popoverInstance.destroy();
+        this.popoverInstance?.destroy();
         this.popoverInstance = null;
         this.currentEvent.classList.remove('focus-text');
       },
@@ -153,9 +158,9 @@ export default class QueryStatement extends tsc<IProps> {
         setTimeout(this.registerObserver, 20);
         this.currentEvent = e.target;
         this.currentEvent.classList.add('focus-text');
-      }
+      },
     });
-    this.popoverInstance && this.popoverInstance.show(10);
+    this.popoverInstance?.show(10);
   }
   // 注册Intersection监听
   registerObserver() {
@@ -188,7 +193,7 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   handleMenuClick(event: string, isLink = false) {
-    this.menuClick(event, this.curValue, isLink);
+    this.menuClick(event, this.curValue.replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
     this.handleDestroy();
   }
 

@@ -1,24 +1,28 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <div
@@ -33,7 +37,7 @@
     />
     <head-nav
       v-show="!isAsIframe && !pageLoading"
-      @reloadRouter="routerKey += 1"
+      @reload-router="routerKey += 1"
       @welcome="welcomePageData = $event"
     />
     <div :class="['log-search-container', isAsIframe && 'as-iframe', { 'is-show-notice': showAlert }]">
@@ -45,38 +49,38 @@
       <bk-navigation
         v-else-if="menuList && menuList.length"
         class="bk-log-navigation"
-        navigation-type="left-right"
+        :theme-color="navThemeColor"
         head-height="0"
         header-title=""
+        navigation-type="left-right"
         default-open
-        :theme-color="navThemeColor"
         @toggle="handleToggle"
       >
-        <template slot="menu">
+        <template #menu>
           <div class="biz-menu">
             <biz-menu-select :is-expand="isExpand" />
           </div>
           <bk-navigation-menu
-            :item-default-bg-color="navThemeColor"
             :default-active="activeManageNav.id"
+            :item-default-bg-color="navThemeColor"
           >
             <template v-for="groupItem in menuList">
               <bk-navigation-menu-group
                 v-if="groupItem.children.length"
-                :key="groupItem.id"
                 :group-name="isExpand ? groupItem.name : groupItem.keyword"
+                :key="groupItem.id"
               >
                 <template>
                   <a
                     v-for="navItem in getGroupChildren(groupItem.children)"
-                    :key="navItem.id"
                     class="nav-item"
                     :href="getRouteHref(navItem.id)"
+                    :key="navItem.id"
                   >
                     <bk-navigation-menu-item
-                      :id="navItem.id"
                       :data-test-id="`navBox_nav_${navItem.id}`"
                       :icon="getMenuIcon(navItem)"
+                      :id="navItem.id"
                       @click="handleClickNavItem(navItem.id)"
                     >
                       <span>{{ isExpand ? navItem.name : '' }}</span>
@@ -97,16 +101,16 @@
           ></auth-container-page>
           <router-view
             v-else
-            :key="routerKey"
             class="manage-content"
+            :key="routerKey"
           ></router-view>
         </div>
       </bk-navigation>
       <!-- 无侧边栏页面 -->
       <router-view
         v-else-if="!pageLoading && !menuList"
-        :key="routerKey"
         class="manage-content"
+        :key="routerKey"
       ></router-view>
       <novice-guide
         v-if="displayRetrieve"
@@ -119,629 +123,633 @@
       v-model="isShowGlobalDialog"
       :active-menu="globalActiveLabel"
       :menu-list="globalSettingList"
-      @menuChange="handleChangeMenu"
+      @menu-change="handleChangeMenu"
     />
   </div>
 </template>
 
 <script>
-import { mapState, mapGetters } from 'vuex';
-import headNav from '@/components/nav/head-nav';
-import WelcomePage from '@/components/common/welcome-page';
-import AuthContainerPage from '@/components/common/auth-container-page';
-import AuthDialog from '@/components/common/auth-dialog';
-import BizMenuSelect from '@/components/biz-menu';
-import NoviceGuide from '@/components/novice-guide';
-import jsCookie from 'js-cookie';
-import GlobalSettingDialog from '@/components/global-setting';
-import NoticeComponent from '@blueking/notice-component-vue2';
-import '@blueking/notice-component-vue2/dist/style.css';
+  import BizMenuSelect from '@/components/biz-menu';
+  import AuthContainerPage from '@/components/common/auth-container-page';
+  import AuthDialog from '@/components/common/auth-dialog';
+  import WelcomePage from '@/components/common/welcome-page';
+  import GlobalSettingDialog from '@/components/global-setting';
+  import headNav from '@/components/nav/head-nav';
+  import NoviceGuide from '@/components/novice-guide';
+  import platformConfigStore from '@/store/modules/platform-config';
+  import NoticeComponent from '@blueking/notice-component-vue2';
+  import jsCookie from 'js-cookie';
+  import { mapState, mapGetters } from 'vuex';
 
-export default {
-  name: 'App',
-  components: {
-    headNav,
-    AuthContainerPage,
-    AuthDialog,
-    WelcomePage,
-    BizMenuSelect,
-    NoviceGuide,
-    GlobalSettingDialog,
-    NoticeComponent
-  },
-  data() {
-    return {
-      loginData: null,
-      welcomePageData: null,
-      routerKey: 0,
-      navThemeColor: '#2c354d',
-      isExpand: true,
-      curGuideStep: 0,
-      isAsIframe: false,
-      rightClickRouteName: '', // 当前右键选中的路由
-      visible: false, // 是否展示右键菜单
-      top: 0, // 右键菜单定位top
-      left: 0, // 右键菜单定位left
-      /** 全局设置列表 */
-      dialogSettingList: [{ id: 'masking-setting', name: this.$t('全局脱敏') }]
-    };
-  },
-  computed: {
-    ...mapState([
-      'topMenu',
-      'activeTopMenu',
-      'activeManageNav',
-      'userGuideData',
-      'isExternal',
-      'isShowGlobalDialog',
-      'globalSettingList',
-      'globalActiveLabel',
-      'showAlert'
-    ]),
-    ...mapGetters({
-      pageLoading: 'pageLoading',
-      asIframe: 'asIframe',
-      authPageInfo: 'globals/authContainerInfo',
-      maskingToggle: 'maskingToggle'
-    }),
-    navActive() {
-      return '';
-    },
-    menuList() {
-      const list = this.topMenu.find(item => item.id === this.activeTopMenu.id)?.children;
-      if (this.isExternal && this.activeTopMenu.id === 'manage') {
-        // 外部版只保留【日志提取】菜单
-        return list.filter(menu => menu.id === 'manage-extract-strategy');
-      }
-      return list;
-    },
-    displayRetrieve() {
-      return this.$store.state.retrieve.displayRetrieve;
-    },
-    guideStep() {
-      return this.userGuideData?.default || {};
-    }
-  },
-  watch: {
-    asIframe: {
-      immediate: true,
-      handler(val) {
-        this.isAsIframe = val;
-      }
-    },
-    maskingToggle: {
-      deep: true,
-      handler(val) {
-        // 更新全局操作列表
-        const isShowSettingList = val.toggleString !== 'off';
-        this.$store.commit('updateGlobalSettingList', isShowSettingList ? this.dialogSettingList : []);
-      }
-    }
-  },
-  created() {
-    const platform = window.navigator.platform.toLowerCase();
-    if (platform.indexOf('win') === 0) {
-      document.body.style['font-family'] = 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif';
-    } else {
-      document.body.style['font-family'] = 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
-    }
-    this.$store.commit('updateRunVersion', window.RUN_VER || '');
+  import '@blueking/notice-component-vue2/dist/style.css';
 
-    // 是否转换日期类型字段格式
-    const isFormatDate = jsCookie.get('operation');
-    if (isFormatDate === 'false') {
-      this.$store.commit('updateIsFormatDate', false);
-    }
-    const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-    this.$store.commit('updateIsEnLanguage', isEnLanguage);
-    // 初始化脱敏灰度相关的代码
-    this.initMaskingToggle();
-
-    if (!this.isAsIframe) this.getUserGuide();
-
-    this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
-  },
-  methods: {
-    /** 初始化脱敏灰度相关的数据 */
-    initMaskingToggle() {
-      const { log_desensitize: logDesensitize } = window.FEATURE_TOGGLE;
-      let toggleList = window.FEATURE_TOGGLE_WHITE_LIST?.log_desensitize || [];
-      switch (logDesensitize) {
-        case 'on':
-          toggleList = [];
-          break;
-        case 'off': {
-          toggleList = [];
-          // const index = this.dialogSettingList.findIndex(item => item.id === 'masking-setting');
-          // const newSettingList = this.dialogSettingList.slice(index, 1);
-          this.$store.commit('updateGlobalSettingList', []);
-          break;
+  export default {
+    name: 'App',
+    components: {
+      headNav,
+      AuthContainerPage,
+      AuthDialog,
+      WelcomePage,
+      BizMenuSelect,
+      NoviceGuide,
+      GlobalSettingDialog,
+      NoticeComponent,
+    },
+    data() {
+      return {
+        loginData: null,
+        welcomePageData: null,
+        routerKey: 0,
+        navThemeColor: '#2c354d',
+        isExpand: true,
+        curGuideStep: 0,
+        isAsIframe: false,
+        rightClickRouteName: '', // 当前右键选中的路由
+        visible: false, // 是否展示右键菜单
+        top: 0, // 右键菜单定位top
+        left: 0, // 右键菜单定位left
+        /** 全局设置列表 */
+        dialogSettingList: [{ id: 'masking-setting', name: this.$t('全局脱敏') }],
+      };
+    },
+    computed: {
+      ...mapState([
+        'topMenu',
+        'activeTopMenu',
+        'activeManageNav',
+        'userGuideData',
+        'isExternal',
+        'isShowGlobalDialog',
+        'globalSettingList',
+        'globalActiveLabel',
+        'showAlert',
+      ]),
+      ...mapGetters({
+        pageLoading: 'pageLoading',
+        asIframe: 'asIframe',
+        authPageInfo: 'globals/authContainerInfo',
+        maskingToggle: 'maskingToggle',
+      }),
+      navActive() {
+        return '';
+      },
+      menuList() {
+        const list = this.topMenu.find(item => item.id === this.activeTopMenu.id)?.children;
+        if (this.isExternal && this.activeTopMenu.id === 'manage') {
+          // 外部版只保留【日志提取】菜单
+          return list.filter(menu => menu.id === 'manage-extract-strategy');
         }
-        default:
-          break;
-      }
-      this.$store.commit('updateMaskingToggle', {
-        toggleString: logDesensitize,
-        toggleList
-      });
+        return list;
+      },
+      displayRetrieve() {
+        return this.$store.state.retrieve.displayRetrieve;
+      },
+      guideStep() {
+        return this.userGuideData?.default || {};
+      },
     },
-    /** 更新全局弹窗的选项 */
-    handleChangeMenu(item) {
-      this.$store.commit('updateGlobalActiveLabel', item.id);
+    watch: {
+      asIframe: {
+        immediate: true,
+        handler(val) {
+          this.isAsIframe = val;
+        },
+      },
+      maskingToggle: {
+        deep: true,
+        handler(val) {
+          // 更新全局操作列表
+          const isShowSettingList = val.toggleString !== 'off';
+          this.$store.commit('updateGlobalSettingList', isShowSettingList ? this.dialogSettingList : []);
+        },
+      },
     },
-    getMenuIcon(item) {
-      if (item.icon) {
-        return `bk-icon log-icon icon-${item.icon}`;
+    created() {
+      platformConfigStore.fetchConfig();
+      const platform = window.navigator.platform.toLowerCase();
+      if (platform.indexOf('win') === 0) {
+        document.body.style['font-family'] = 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif';
+      } else {
+        document.body.style['font-family'] = 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
       }
+      this.$store.commit('updateRunVersion', window.RUN_VER || '');
 
-      return 'bk-icon icon-home-shape';
-    },
-    handleClickNavItem(id) {
-      this.$router.push({
-        name: id,
-        query: {
-          spaceUid: this.$store.state.spaceUid
-        }
-      });
-      if (id === 'default-dashboard') {
-        this.routerKey = this.routerKey + 1;
+      // 是否转换日期类型字段格式
+      const isFormatDate = jsCookie.get('operation');
+      if (isFormatDate === 'false') {
+        this.$store.commit('updateIsFormatDate', false);
       }
+      const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
+      this.$store.commit('updateIsEnLanguage', isEnLanguage);
+      // 初始化脱敏灰度相关的代码
+      this.initMaskingToggle();
+
+      if (!this.isAsIframe) this.getUserGuide();
+
+      this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
     },
-    handleToggle(val) {
-      this.isExpand = val;
-    },
-    getUserGuide() {
-      this.$http
-        .request('meta/getUserGuide')
-        .then(res => {
-          this.$store.commit('setUserGuideData', res.data);
-        })
-        .catch(e => {
-          console.warn(e);
+    methods: {
+      /** 初始化脱敏灰度相关的数据 */
+      initMaskingToggle() {
+        const { log_desensitize: logDesensitize } = window.FEATURE_TOGGLE;
+        let toggleList = window.FEATURE_TOGGLE_WHITE_LIST?.log_desensitize || [];
+        switch (logDesensitize) {
+          case 'on':
+            toggleList = [];
+            break;
+          case 'off': {
+            toggleList = [];
+            // const index = this.dialogSettingList.findIndex(item => item.id === 'masking-setting');
+            // const newSettingList = this.dialogSettingList.slice(index, 1);
+            this.$store.commit('updateGlobalSettingList', []);
+            break;
+          }
+          default:
+            break;
+        }
+        this.$store.commit('updateMaskingToggle', {
+          toggleString: logDesensitize,
+          toggleList,
         });
-    },
-    getRouteHref(pageName) {
-      const newUrl = this.$router.resolve({
-        name: pageName,
-        query: {
-          spaceUid: this.$store.state.spaceUid
+      },
+      /** 更新全局弹窗的选项 */
+      handleChangeMenu(item) {
+        this.$store.commit('updateGlobalActiveLabel', item.id);
+      },
+      getMenuIcon(item) {
+        if (item.icon) {
+          return `bk-icon log-icon icon-${item.icon}`;
         }
-      });
-      return newUrl.href;
+
+        return 'bk-icon icon-home-shape';
+      },
+      handleClickNavItem(id) {
+        this.$router.push({
+          name: id,
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+        if (id === 'default-dashboard') {
+          this.routerKey = this.routerKey + 1;
+        }
+      },
+      handleToggle(val) {
+        this.isExpand = val;
+      },
+      getUserGuide() {
+        this.$http
+          .request('meta/getUserGuide')
+          .then(res => {
+            this.$store.commit('setUserGuideData', res.data);
+          })
+          .catch(e => {
+            console.warn(e);
+          });
+      },
+      getRouteHref(pageName) {
+        const newUrl = this.$router.resolve({
+          name: pageName,
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+        return newUrl.href;
+      },
+      /** 侧边导航菜单 */
+      getGroupChildren(list) {
+        if (this.isExternal && this.activeTopMenu.id === 'manage') {
+          // 外部版只保留【日志提取任务】
+          return list.filter(menu => menu.id === 'log-extract-task');
+        }
+        return list;
+      },
+      showAlertChange(v) {
+        this.$store.commit('updateNoticeAlert', v);
+      },
     },
-    /** 侧边导航菜单 */
-    getGroupChildren(list) {
-      if (this.isExternal && this.activeTopMenu.id === 'manage') {
-        // 外部版只保留【日志提取任务】
-        return list.filter(menu => menu.id === 'log-extract-task');
-      }
-      return list;
-    },
-    showAlertChange(v) {
-      this.$store.commit('updateNoticeAlert', v);
-    }
-  }
-};
+  };
 </script>
 
 <style lang="scss">
-@import './scss/reset.scss';
-@import './scss/app.scss';
-@import './scss/animation.scss';
-@import './scss/mixins/clearfix.scss';
-@import './scss/mixins/scroller.scss';
+  @import './scss/reset.scss';
+  @import './scss/app.scss';
+  @import './scss/animation.scss';
+  @import './scss/mixins/clearfix.scss';
+  @import './scss/mixins/scroller.scss';
 
-#app {
-  height: 100%;
-  min-width: 1280px;
-  min-height: 730px;
-  background: #f4f7fa;
-}
-
-.clear-min-height {
-  /* stylelint-disable-next-line declaration-no-important */
-  min-height: 0 !important;
-}
-
-.button-text {
-  color: #3a84ff;
-  cursor: pointer;
-
-  &:hover {
-    color: #699df4;
-  }
-
-  &:active {
-    color: #2761dd;
-  }
-
-  &.is-disabled {
-    color: #c4c6cc;
-    cursor: not-allowed;
-  }
-}
-
-.text-overflow-hidden {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.log-search-container {
-  position: relative;
-  width: 100%;
-  height: calc(100% - 50px);
-  overflow-y: hidden;
-
-  &.as-iframe {
+  #app {
+    min-width: 1280px;
     height: 100%;
+    min-height: 730px;
+    background: #f4f7fa;
   }
 
-  &.is-show-notice {
-    height: calc(100% - 90px);
-
-    .sub-nav-container {
-      top: 91px;
-    }
-
-    .masking-dialog {
-      .bk-dialog {
-        /* stylelint-disable-next-line declaration-no-important */
-        top: 92px !important;
-      }
-    }
+  .clear-min-height {
+    /* stylelint-disable-next-line declaration-no-important */
+    min-height: 0 !important;
   }
-}
 
-/*无权限时 v-cursor 样式*/
-.cursor-element {
-  width: 12px;
-  height: 16px;
-  background: url('./images/cursor-lock.svg') no-repeat;
-}
-// 检索里一些公用的样式
-.tab-button {
-  float: left;
-
-  @include clearfix;
-
-  .tab-button-item {
-    padding: 0 15px;
-    margin-left: -1px;
-    font-size: 0;
-    color: #63656e;
+  .button-text {
+    color: #3a84ff;
     cursor: pointer;
-    border: 1px solid #c4c6cc;
-    border-left-color: transparent;
 
-    &:first-child {
-      margin-left: 0;
-      border-left-color: #c4c6cc;
-      border-radius: 2px 0 0 2px;
+    &:hover {
+      color: #699df4;
     }
 
-    &:last-child {
-      border-radius: 0 2px 2px 0;
+    &:active {
+      color: #2761dd;
     }
 
-    &.active {
-      z-index: 10;
-      color: #3a84ff;
-      background: #e1ecff;
-      border: 1px solid #3a84ff;
+    &.is-disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
     }
   }
 
-  .tab-button-text {
-    display: inline-block;
-    width: 100%;
+  .text-overflow-hidden {
     overflow: hidden;
-    font-size: 12px;
-    line-height: 32px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-}
-// hack 组件样式
-.bk-dialog.bk-info-box .bk-dialog-header-inner {
-  /* stylelint-disable-next-line declaration-no-important */
-  white-space: normal !important;
-}
 
-.bk-date-picker-dropdown .bk-picker-confirm-time {
-  color: #3a84ff;
-}
+  .log-search-container {
+    position: relative;
+    width: 100%;
+    height: calc(100% - 50px);
+    overflow-y: hidden;
 
-.tippy-tooltip .tippy-content {
-  padding: 0;
-  word-break: break-all;
-}
+    &.as-iframe {
+      height: 100%;
+    }
 
-.bk-form-control.is-error .bk-form-input {
-  border-color: #ff5656;
-}
-// 导航
-.bk-log-navigation.bk-navigation,
-.hack-king-navigation.bk-navigation {
-  /* stylelint-disable-next-line declaration-no-important */
-  width: 100% !important;
+    &.is-show-notice {
+      height: calc(100% - 90px);
 
-  /* stylelint-disable-next-line declaration-no-important */
-  height: 100% !important;
+      .sub-nav-container {
+        top: 91px;
+      }
 
-  .container-header {
-    /* stylelint-disable-next-line declaration-no-important */
-    display: none !important;
-  }
-
-  .bk-navigation-wrapper {
-    height: 100%;
-
-    .navigation-container {
-      z-index: 100;
-      /* stylelint-disable-next-line declaration-no-important */
-      max-width: calc(100% - 60px) !important;
-
-      .container-content {
-        /* stylelint-disable-next-line declaration-no-important */
-        height: 100% !important;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        max-height: 100% !important;
-        padding: 0;
-
-        .navigation-content {
-          height: 100%;
+      .masking-dialog {
+        .bk-dialog {
+          /* stylelint-disable-next-line declaration-no-important */
+          top: 92px !important;
         }
       }
     }
+  }
 
-    .bk-navigation-menu-group {
-      .group-name-wrap .group-name {
-        margin-right: 0;
+  /*无权限时 v-cursor 样式*/
+  .cursor-element {
+    width: 12px;
+    height: 16px;
+    background: url('./images/cursor-lock.svg') no-repeat;
+  }
+  // 检索里一些公用的样式
+  .tab-button {
+    float: left;
+
+    @include clearfix;
+
+    .tab-button-item {
+      padding: 0 15px;
+      margin-left: -1px;
+      font-size: 0;
+      color: #63656e;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-left-color: transparent;
+
+      &:first-child {
+        margin-left: 0;
+        border-left-color: #c4c6cc;
+        border-radius: 2px 0 0 2px;
+      }
+
+      &:last-child {
+        border-radius: 0 2px 2px 0;
+      }
+
+      &.active {
+        z-index: 10;
+        color: #3a84ff;
+        background: #e1ecff;
+        border: 1px solid #3a84ff;
       }
     }
 
-    .navigation-menu-item-icon.bk-icon {
-      min-width: 28px;
-    }
-
-    .nav-item {
+    .tab-button-text {
       display: inline-block;
       width: 100%;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 32px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  // hack 组件样式
+  .bk-dialog.bk-info-box .bk-dialog-header-inner {
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
+  }
+
+  .bk-date-picker-dropdown .bk-picker-confirm-time {
+    color: #3a84ff;
+  }
+
+  .tippy-tooltip .tippy-content {
+    padding: 0;
+    word-break: break-all;
+  }
+
+  .bk-form-control.is-error .bk-form-input {
+    border-color: #ff5656;
+  }
+  // 导航
+  .bk-log-navigation.bk-navigation,
+  .hack-king-navigation.bk-navigation {
+    /* stylelint-disable-next-line declaration-no-important */
+    width: 100% !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    height: 100% !important;
+
+    .container-header {
+      /* stylelint-disable-next-line declaration-no-important */
+      display: none !important;
+    }
+
+    .bk-navigation-wrapper {
+      height: 100%;
+
+      .navigation-container {
+        z-index: 100;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        max-width: calc(100% - 60px) !important;
+
+        .container-content {
+          /* stylelint-disable-next-line declaration-no-important */
+          height: 100% !important;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          max-height: 100% !important;
+          padding: 0;
+
+          .navigation-content {
+            height: 100%;
+          }
+        }
+      }
+
+      .bk-navigation-menu-group {
+        .group-name-wrap .group-name {
+          margin-right: 0;
+        }
+      }
+
+      .navigation-menu-item-icon.bk-icon {
+        min-width: 28px;
+      }
+
+      .nav-item {
+        display: inline-block;
+        width: 100%;
+      }
+    }
+
+    .nav-slider-list {
+      /* stylelint-disable-next-line declaration-no-important */
+      height: calc(100% - 56px) !important;
     }
   }
 
-  .nav-slider-list {
-    /* stylelint-disable-next-line declaration-no-important */
-    height: calc(100% - 56px) !important;
-  }
-}
-
-.biz-menu {
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-// 表格单元 v-bk-overflow-tips
-.bk-table .bk-table-body-wrapper .table-ceil-container {
-  width: 100%;
-
-  > span {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-// hack vue-json-pretty
-.json-view-wrapper .vjs-value {
-  word-break: break-all;
-}
-// hack be-select将下拉宽度全部交给slot以控制宽度和事件传播
-.custom-no-padding-option.bk-option > .bk-option-content {
-  padding: 0;
-
-  &.is-selected {
-    color: #3a84ff;
-    background-color: #e1ecff;
+  .biz-menu {
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  > .option-slot-container {
-    min-height: 32px;
-    padding: 9px 16px;
-    line-height: 14px;
+  // 表格单元 v-bk-overflow-tips
+  .bk-table .bk-table-body-wrapper .table-ceil-container {
+    width: 100%;
 
-    &.no-authority {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: #c4c6cc;
-      cursor: not-allowed;
+    > span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  // hack vue-json-pretty
+  .json-view-wrapper .vjs-value {
+    word-break: break-all;
+  }
+  // hack be-select将下拉宽度全部交给slot以控制宽度和事件传播
+  .custom-no-padding-option.bk-option > .bk-option-content {
+    padding: 0;
 
-      .text {
-        width: calc(100% - 56px);
+    &.is-selected {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+
+    > .option-slot-container {
+      min-height: 32px;
+      padding: 9px 16px;
+      line-height: 14px;
+
+      &.no-authority {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #c4c6cc;
+        cursor: not-allowed;
+
+        .text {
+          width: calc(100% - 56px);
+        }
+
+        .apply-text {
+          display: none;
+          flex-shrink: 0;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+
+        &:hover .apply-text {
+          display: flex;
+        }
+      }
+    }
+  }
+  // 采集项管理、索引集管理通用样式
+  .access-manage-container {
+    padding: 28px 24px;
+
+    .bk-tab-section {
+      display: none;
+    }
+
+    .go-search {
+      // position: fixed;
+      position: absolute;
+      right: 0;
+      z-index: 999;
+      font-size: 12px;
+
+      .icon-info {
+        font-size: 14px;
+        color: #979ba5;
       }
 
-      .apply-text {
-        flex-shrink: 0;
-        display: none;
+      .search-button {
+        display: inline-block;
         color: #3a84ff;
         cursor: pointer;
       }
 
-      &:hover .apply-text {
-        display: flex;
+      .search-text {
+        height: 32px;
+        padding: 0 9px;
+        line-height: 32px;
+        background: #fff;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919290d;
       }
     }
-  }
-}
-// 采集项管理、索引集管理通用样式
-.access-manage-container {
-  padding: 28px 24px;
 
-  .bk-tab-section {
-    display: none;
-  }
-
-  .go-search {
-    // position: fixed;
-    position: absolute;
-    right: 0;
-    z-index: 999;
-    font-size: 12px;
-
-    .icon-info {
-      font-size: 14px;
-      color: #979ba5;
-    }
-
-    .search-button {
-      display: inline-block;
-      color: #3a84ff;
-      cursor: pointer;
-    }
-
-    .search-text {
-      height: 32px;
-      padding: 0 9px;
-      line-height: 32px;
-      background: #fff;
-      border-radius: 2px;
+    .tab-content {
+      height: calc(100% - 50px);
+      padding: 20px;
+      overflow: auto;
+      background-color: #fff;
+      border-top: none;
       box-shadow: 0 2px 4px 0 #1919290d;
-    }
-  }
 
-  .tab-content {
-    height: calc(100% - 50px);
-    padding: 20px;
-    overflow: auto;
-    background-color: #fff;
-    border-top: none;
-    box-shadow: 0 2px 4px 0 #1919290d;
+      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
 
-    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
-
-    .main-title {
-      display: flex;
-      padding: 0 0 8px 0;
-      margin-bottom: 20px;
-      font-size: 14px;
-      font-weight: 700;
-      line-height: 20px;
-      color: #63656e;
-      border-bottom: 1px solid #dcdee5;
-      align-items: flex-end;
-      justify-content: space-between;
-    }
-
-    .refresh-button {
-      display: flex;
-      margin-left: 8px;
-      font-size: 12px;
-      font-weight: normal;
-      color: #3a84ff;
-      cursor: pointer;
-      align-items: center;
-
-      &:hover {
-        color: #699df4;
+      .main-title {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 0 8px 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 20px;
+        color: #63656e;
+        border-bottom: 1px solid #dcdee5;
       }
 
-      .bk-icon {
-        margin-right: 4px;
-        font-size: 13px;
+      .refresh-button {
+        display: flex;
+        align-items: center;
+        margin-left: 8px;
+        font-size: 12px;
+        font-weight: normal;
+        color: #3a84ff;
+        cursor: pointer;
+
+        &:hover {
+          color: #699df4;
+        }
+
+        .bk-icon {
+          margin-right: 4px;
+          font-size: 13px;
+        }
       }
-    }
 
-    .charts-container {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 20px;
+      .charts-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
 
-      .chart-container {
-        position: relative;
-        width: calc((100% - 16px) / 2);
-        padding: 0 16px;
-        border: 1px solid #f0f1f5;
-        border-radius: 3px;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        .chart-container {
+          position: relative;
+          width: calc((100% - 16px) / 2);
+          padding: 0 16px;
+          border: 1px solid #f0f1f5;
+          border-radius: 3px;
+          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 
-        .chart-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          height: 50px;
-
-          .title {
-            font-size: 12px;
-            font-weight: bold;
-            line-height: 16px;
-            color: #63656e;
-          }
-
-          .date-picker {
+          .chart-header {
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            height: 50px;
+
+            .title {
+              font-size: 12px;
+              font-weight: bold;
+              line-height: 16px;
+              color: #63656e;
+            }
+
+            .date-picker {
+              display: flex;
+              align-items: center;
+            }
           }
-        }
 
-        .chart-canvas-container {
-          position: relative;
-          height: 230px;
+          .chart-canvas-container {
+            position: relative;
+            height: 230px;
 
-          &.big-chart {
-            height: 280px;
+            &.big-chart {
+              height: 280px;
+            }
           }
-        }
 
-        .king-exception {
-          position: absolute;
-          top: 80px;
-          left: 0;
+          .king-exception {
+            position: absolute;
+            top: 80px;
+            left: 0;
+          }
         }
       }
     }
   }
-}
 
-.title-overflow {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.beta-class {
-  padding-top: 3px;
-  margin-left: 2px;
-  color: #ffa228;
-}
-
-.bk-dialog-type-header .header {
-  /* stylelint-disable-next-line declaration-no-important */
-  white-space: normal !important;
-}
-
-.bk-options .bk-option {
-  &:hover {
-    color: #63656e;
-    background-color: #f5f7fa;
+  .title-overflow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-}
 
-:root {
-  --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
-  --table-fount-size: 13px;
-  --table-fount-color: #313238;
-}
+  .beta-class {
+    padding-top: 3px;
+    margin-left: 2px;
+    color: #ffa228;
+  }
 
-// .bk-label {
-//   .bk-label-text {
-//     font-size: 12px;
-//   }
+  .bk-dialog-type-header .header {
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
+  }
 
-//   &::after {
-//     top: 54%;
-//   }
-// }
+  .bk-options .bk-option {
+    &:hover {
+      color: #63656e;
+      background-color: #f5f7fa;
+    }
+  }
+
+  :root {
+    --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+    --table-fount-size: 13px;
+    --table-fount-color: #313238;
+  }
+
+  // .bk-label {
+  //   .bk-label-text {
+  //     font-size: 12px;
+  //   }
+
+  //   &::after {
+  //     top: 54%;
+  //   }
+  // }
 </style>

@@ -38,7 +38,7 @@ __doc__ = """
 """
 
 BK_USERNAME_FIELD = "bk_username"
-APIPermissionDeniedCodeList = ["9900403", 9900403]
+APIPermissionDeniedCodeList = ["9900403", "35999999"]
 
 
 def get_bk_login_ticket(request):
@@ -232,12 +232,19 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
 
         ret_code = result_json.get("code")
         # 权限中心无权限结构特殊处理
-        if ret_code in APIPermissionDeniedCodeList:
+        if ret_code and str(ret_code) in APIPermissionDeniedCodeList:
             self.report_api_failure_metric(error_code=ret_code, exception_type=APIPermissionDeniedError.__name__)
+
+            permission = {}
+            if "permission" in result_json and isinstance(result_json["permission"], dict):
+                permission = result_json["permission"]
+            elif isinstance(result_json.get("data"), dict):
+                permission = result_json["data"].get("permission") or {}
+
             raise APIPermissionDeniedError(
                 context={"system_name": self.module_name, "url": self.action},
                 data={"apply_url": settings.BK_IAM_SAAS_HOST},
-                extra={"permission": result_json.get("permission")},
+                extra={"permission": permission},
             )
 
         if not result_json.get("result", True) and ret_code != 0:

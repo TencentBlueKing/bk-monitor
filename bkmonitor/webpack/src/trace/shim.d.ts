@@ -36,6 +36,7 @@ declare global {
     user_name: string;
     username: string;
     timezone: string;
+    bkchat_manage_url: string;
     uin: string;
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];
@@ -49,6 +50,7 @@ declare global {
     i18n: typeof i18n.global;
     __BK_WEWEB_DATA__?: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
+    rawWindow?: Window;
     mermaidClick?: (id: string) => void;
     apm_ebpf_enabled: boolean;
     dayjs?: Dayjs;

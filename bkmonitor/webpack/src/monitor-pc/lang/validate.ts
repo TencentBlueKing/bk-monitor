@@ -69,6 +69,7 @@ export default {
   '提交文件，文件大小不能超过{num}M！': 'Submit the file, the file size cannot exceed {num}M!',
   '长度限制2-32字符': 'Length limit 2-32 characters',
   '最大时间（ms）': 'Max Time (ms)',
+  长度不能超过32个字符: 'The length cannot exceed 32 characters',
 
   最大副本数不能超过: 'Maximum number of copies cannot exceed', // 查看位置
   最大分片数不能超过: 'Maximum number of shards cannot be exceeded', // 查看位置
@@ -280,4 +281,8 @@ export default {
   '标签长度不能超过 120 字符': 'The label length cannot exceed 120 characters',
   各数据源的可用算法不兼容: 'The available algorithms of each data source are incompatible',
   至少选择2个指标: 'Select at least 2 metrics',
+  策略名已存在: 'Strategy name already exists',
+  配置名称不能为空: 'Configuration name cannot be empty',
+  必填: 'Required',
+  当前未配置URI信息: 'Currently unconfigured URI information',
 };

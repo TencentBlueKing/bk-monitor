@@ -665,3 +665,38 @@ class BatchTaskResultResource(Resource):
         for instance in response_data:
             adapter_nodeman_bk_cloud_id(instance)
         return response_data
+
+
+class IpchooserHostDetailResource(NodeManAPIGWResource):
+    action = "core/api/ipchooser_host/details/"
+    method = "POST"
+
+    @property
+    def bk_username(self):
+        return settings.COMMON_USERNAME
+
+    class RequestSerializer(serializers.Serializer):
+        class HostSerializer(serializers.Serializer):
+            class MetaSerializer(serializers.Serializer):
+                scope_type = serializers.CharField(label="资源范围类型")
+                scope_id = serializers.CharField(label="资源范围ID")
+                bk_biz_id = serializers.IntegerField(label="业务ID")
+
+            host_id = serializers.IntegerField(label="主机ID")
+            meta = MetaSerializer()
+
+        class ScopeListSerializer(serializers.Serializer):
+            scope_type = serializers.CharField(label="资源范围类型")
+            scope_id = serializers.CharField(label="资源范围ID")
+
+        host_list = serializers.ListField(child=HostSerializer(), required=True, label="主机列表")
+        all_scope = serializers.BooleanField(required=False, label="是否获取所有资源范围的拓扑结构", default=False)
+        scope_list = serializers.ListField(child=ScopeListSerializer(), required=False, label="资源范围列表")
+        agent_realtime_state = serializers.BooleanField(label="是否查询Agent实时状态", default=True)
+
+        def validate(self, attrs):
+            all_scope = attrs.get('all_scope', None)
+            scope_list = attrs.get('scope_list', None)
+            if all_scope is None and scope_list is None:
+                raise serializers.ValidationError("all_scope 和 scope_list 至少存在一个")
+            return attrs

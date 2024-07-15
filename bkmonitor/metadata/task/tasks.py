@@ -20,7 +20,6 @@ from django.utils.translation import ugettext as _
 
 from alarm_backends.service.scheduler.app import app
 from metadata import models
-from metadata.models.space.constants import SPACE_REDIS_KEY
 from metadata.task.utils import bulk_handle
 from metadata.utils.redis_tools import RedisTools
 
@@ -214,31 +213,6 @@ def _manage_es_storage(es_storage):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def publish_redis(space_type_id: Optional[str] = None, space_id: Optional[str] = None, table_id: Optional[str] = None):
-    """通知redis数据更新
-
-    TODO: 待移除
-    """
-    from metadata.models.space.space_redis import (
-        push_and_publish_all_space,
-        push_redis_data,
-    )
-    from metadata.utils.redis_tools import RedisTools
-
-    # 如果指定空间，则更新空间信息
-    if space_type_id is not None and space_id is not None:
-        push_redis_data(space_type_id, space_id, table_id=table_id)
-        space_uid = f"{space_type_id}__{space_id}"
-        RedisTools.publish(SPACE_REDIS_KEY, [space_uid])
-
-        logger.info("%s push and publish successfully", space_uid)
-        return
-
-    push_and_publish_all_space()
-    logger.info("push and publish all space successfully")
-
-
-@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def push_and_publish_space_router(
     space_type: Optional[str] = None,
     space_id: Optional[str] = None,
@@ -348,10 +322,10 @@ def push_space_to_redis(space_type: str, space_id: str):
     logger.info("async task start to push space_type: %s, space_id: %s to redis", space_type, space_id)
 
     try:
-        from metadata.models.space.constants import SPACE_REDIS_KEY
+        from metadata.models.space.constants import SPACE_REDIS_PREFIX_KEY
         from metadata.utils.redis_tools import RedisTools
 
-        RedisTools.push_space_to_redis(SPACE_REDIS_KEY, [f"{space_type}__{space_id}"])
+        RedisTools.push_space_to_redis(SPACE_REDIS_PREFIX_KEY, [f"{space_type}__{space_id}"])
     except Exception as e:
         logger.error("async task push space to redis error, %s", e)
         return

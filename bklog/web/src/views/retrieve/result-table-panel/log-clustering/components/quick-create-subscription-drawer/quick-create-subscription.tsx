@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,12 +26,12 @@
  */
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
-import { deepClone } from '../../../../../../components/monitor-echarts/utils';
 
+import { deepClone } from '../../../../../../components/monitor-echarts/utils';
 import CreateSubscriptionForm from './create-subscription-form';
+import { TestSendingTarget } from './types';
 
 import './quick-create-subscription.scss';
-import { TestSendingTarget } from './types';
 
 interface IProps {
   value: boolean;
@@ -38,8 +39,8 @@ interface IProps {
 
 @Component({
   components: {
-    CreateSubscriptionForm
-  }
+    CreateSubscriptionForm,
+  },
 })
 class QuickCreateSubscription extends tsc<IProps> {
   @Model('change', { type: Boolean }) value: IProps['value'];
@@ -52,14 +53,14 @@ class QuickCreateSubscription extends tsc<IProps> {
   handleSave() {
     (this.$refs.refOfCreateSubscriptionForm as any)?.validateAllForms?.().then(response => {
       this.isSaving = true;
-      this.$http
+      (this as any).$http
         .request('newReport/createOrUpdateReport/', {
-          data: response
+          data: response,
         })
         .then(() => {
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('保存成功')
+            message: this.$t('保存成功'),
           });
           this.$emit('change', false);
         })
@@ -81,18 +82,18 @@ class QuickCreateSubscription extends tsc<IProps> {
             {
               id: this.$store.state.userMeta?.username || '',
               type: 'user',
-              is_enabled: true
-            }
+              is_enabled: true,
+            },
           ],
-          channel_name: 'user'
-        }
+          channel_name: 'user',
+        },
       ];
       formData.channels = selfChannels;
     }
     this.isSending = true;
-    await this.$http
+    await (this as any).$http
       .request('newReport/sendReport/', {
-        data: formData
+        data: formData,
       })
       .then(() => {
         this.isShowSendingSuccessDialog = true;
@@ -106,41 +107,41 @@ class QuickCreateSubscription extends tsc<IProps> {
     return (
       <div>
         <bk-sideslider
-          is-show={this.value}
           width='960'
           ext-cls='quick-create-subscription-slider'
-          transfer
-          title={this.$t('新增订阅')}
-          quick-close
           before-close={() => {
             this.$emit('change', false);
           }}
+          is-show={this.value}
+          title={this.$t('新增订阅')}
+          quick-close
+          transfer
         >
           <div slot='content'>
             <div class='quick-create-subscription-slider-container'>
               {/* @ts-ignore */}
               <create-subscription-form
                 ref='refOfCreateSubscriptionForm'
+                index-set-id={this.indexSetId}
                 mode='create'
                 // 这里填 订阅场景、索引集 等已知参数
                 scenario={this.scenario}
-                index-set-id={this.indexSetId}
               ></create-subscription-form>
             </div>
             <div class='footer-bar'>
               <bk-button
-                theme='primary'
-                loading={this.isSaving}
                 style='width: 88px; margin-right: 8px;'
+                loading={this.isSaving}
+                theme='primary'
                 onClick={this.handleSave}
               >
                 {this.$t('保存')}
               </bk-button>
               <bk-button
+                style='width: 88px; margin-right: 8px;'
+                loading={this.isSending}
                 theme='primary'
                 outline
-                loading={this.isSending}
-                style='width: 88px; margin-right: 8px;'
                 onClick={() => this.testSending('self')}
               >
                 {this.$t('测试发送')}
@@ -148,15 +149,15 @@ class QuickCreateSubscription extends tsc<IProps> {
               {/* 20240305 若默认测试发送只给自己，那么没必要再出一次气泡窗选择了 */}
               {false && (
                 <bk-dropdown-menu
-                  trigger='click'
                   placement='top-start'
+                  trigger='click'
                 >
                   <bk-button
+                    style='width: 88px; margin-right: 8px;'
+                    slot='dropdown-trigger'
+                    loading={this.isSending}
                     theme='primary'
                     outline
-                    loading={this.isSending}
-                    slot='dropdown-trigger'
-                    style='width: 88px; margin-right: 8px;'
                   >
                     {this.$t('测试发送')}
                   </bk-button>
@@ -196,18 +197,18 @@ class QuickCreateSubscription extends tsc<IProps> {
         </bk-sideslider>
 
         <bk-dialog
-          v-model={this.isShowSendingSuccessDialog}
-          theme='primary'
-          show-footer={false}
           ext-cls='test-sending-result-dialog'
+          v-model={this.isShowSendingSuccessDialog}
+          show-footer={false}
+          theme='primary'
         >
           <div
-            slot='header'
             class='test-send-success-dialog-header'
+            slot='header'
           >
             <i
-              class='bk-icon icon-check-circle-shape'
               style='color: rgb(45, 202, 86);'
+              class='bk-icon icon-check-circle-shape'
             ></i>
             <span style='margin-left: 10px;'>{this.$t('发送测试邮件成功')}</span>
           </div>

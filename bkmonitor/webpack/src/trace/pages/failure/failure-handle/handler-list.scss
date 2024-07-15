@@ -1,0 +1,143 @@
+.handler-list {
+  width: 44%;
+  height: 100%;
+  border-right: 1px solid #eaebf0;
+
+  .handler-list-head {
+    display: flex;
+    width: 100%;
+    padding: 16px 12px 10px;
+
+    .head-input {
+      width: calc(100% - 40px);
+    }
+
+    .head-btn {
+      display: inline-block;
+      width: 32px;
+      height: 32px;
+      margin-left: 8px;
+      font-size: 18px;
+      line-height: 32px;
+      color: #979ba5;
+      text-align: center;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+    }
+  }
+
+  .handler-list-main {
+    width: 100%;
+    height: calc(100% - 58px);
+
+    .clear-btn {
+      margin: 0px 2px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .list-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 32px;
+      padding: 0 12px;
+      color: #63656e;
+      cursor: pointer;
+
+      &.active {
+        color: #3a84ff;
+        background: #e1ecff;
+
+        .item-total {
+          color: #fff;
+          background: #a3c5fd;
+        }
+      }
+
+      &:hover {
+        background: #f5f7fa;
+      }
+    }
+
+    .item-line {
+      display: block;
+      width: calc(100% - 24px);
+      height: 1px;
+      margin: 8px 0 8px 12px;
+      background: #eaebf0;  
+    }
+
+    .item-head {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 8px;
+      line-height: 20px;
+      color: #fff;
+      text-align: center;
+      background: #c4c6cc;
+      border-radius: 50%;
+    }
+
+    .item-name {
+      display: inline-block;
+      width: 69%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-total {
+      position: absolute;
+      right: 12px;
+      display: inline-block;
+      height: 16px;
+      padding: 0 5px;
+      font-size: 12px;
+      line-height: 16px;
+      color: #979ba5;
+      background: #f0f1f5;
+      border-radius: 8px;
+    }
+
+    .item-icon {
+      position: absolute;
+      right: 12px;
+      font-size: 26px;
+      font-weight: 600;
+      color: #1cab88;
+    }
+  }
+}
+
+.sort-popover {
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 4px 0 !important;
+
+  .sort-item {
+    display: block;
+    width: 100%;
+    height: 32px;
+    padding: 0 12px;
+    line-height: 32px;
+    color: #63656e;
+    cursor: pointer;
+
+    .search-btn-icon {
+      margin-right: 4px;
+    }
+
+    &:hover,
+    &.active {
+      color: #3a84ff;
+      background: #e1ecff;
+
+      .search-btn-icon {
+        color: #3a84ff;
+      }
+    }
+  }
+}

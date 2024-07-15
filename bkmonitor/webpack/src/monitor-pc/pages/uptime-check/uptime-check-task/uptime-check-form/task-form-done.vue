@@ -50,8 +50,8 @@
         >
         <bk-button
           v-if="status === 'error'"
-          theme="primary"
           class="mr10"
+          theme="primary"
           @click="handleEnforceSave"
           >{{ $t('强制保存') }}</bk-button
         >
@@ -75,14 +75,14 @@
     >
       <bk-table :data="tableData">
         <bk-table-column
+          width="198"
           :label="$t('指标')"
           prop="label"
-          width="198"
         />
         <bk-table-column
+          width="311"
           :label="$t('详情')"
           prop="detail"
-          width="311"
         />
         <bk-table-column
           :label="$t('操作')"
@@ -91,9 +91,9 @@
           <template #default="{ row }">
             <bk-button
               class="table-operate-button"
+              :disabled="row.status === 0"
               theme="primary"
               text
-              :disabled="row.status === 0"
               @click="goStrategy(row)"
             >
               {{ $t('前往配置策略') }}
@@ -264,6 +264,8 @@ export default {
 
     &-content {
       max-width: 500px;
+      word-break: break-word;
+      white-space: normal;
 
       @include done-top-item(12px, 12px, #63656e);
     }

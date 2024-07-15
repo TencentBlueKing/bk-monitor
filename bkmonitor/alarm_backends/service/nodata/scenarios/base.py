@@ -86,7 +86,7 @@ class BaseScenario(object):
                         target_instances_exist.add(target_filters)
                 # 历史维度中不存在的目标实例
                 missing_target_instances = [
-                    dict(instance, **{"__NO_DATA_DIMENSION__": True})
+                    dict(instance, **{NO_DATA_TAG_DIMENSION: True})
                     for instance in target_instances_set - target_instances_exist
                 ]
         else:
@@ -166,20 +166,17 @@ class HostScenario(BaseScenario):
             return None
 
         if target_data["field"] == "bk_target_ip":
-            hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
-            HostManager.cache_by_biz(self.strategy.bk_biz_id, hosts)
-            biz_hosts = set(hosts.keys())
+            hosts = set(HostManager.refresh_by_biz(self.strategy.bk_biz_id).keys())
             target_instances = [
                 inst
                 for inst in target_data["value"]
-                if "{}|{}".format(inst["bk_target_ip"], inst["bk_target_cloud_id"]) in biz_hosts
+                if "{}|{}".format(inst["bk_target_ip"], inst["bk_target_cloud_id"]) in hosts
             ]
         # 动态拓扑
         elif target_data["field"] == "host_topo_node":
             target_instances = []
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
             hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
-            HostManager.cache_by_biz(self.strategy.bk_biz_id, hosts)
             for host_info in list(hosts.values()):
                 host_topo = set({node.id for node in chain(*list(host_info.topo_link.values()))})
                 if host_topo & target_topo:

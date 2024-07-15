@@ -164,7 +164,6 @@ export default {
   '{0}台主机Agent异常': '{0} agents abnormal',
   '已勾选{count}个': '{count} checked',
   '监控的数据主体、查询方式': 'Data subject and query method to be monitored',
-  已选择更低级告警级别: 'A lower alarm level is selected',
   '针对 综合拨测、APM、主机、K8s 等场景，提供该场景定制化的异常发现和告警功能':
     'For scenarios such as comprehensive dialing, APM, host, and K8s, it provides customized exception discovery and alarm functions',
   '以 主机 场景为例，将会对指定的主机下的 CPU使用率、网卡入流量、物理内存空闲 等多个关键指标进行智能异常检测，如果检出多个指标异常，将以发生异常的主机为单位生成告警':
@@ -217,4 +216,45 @@ export default {
   '暂无 AI 功能': 'No AI function yet',
   '支持单指标异常检测、时序预测、离群检测等智能检测算法':
     'Supports single-index anomaly detection, time series prediction, outlier detection and other intelligent detection algorithms',
+  '匹配规则支持通过在正则表达式中配置 `peer_service` 和 `span_name` 参数来提取自定义服务名称和 span_name。例如配置正则：':
+    'Matching rules support extracting custom service names and span_names by configuring the `peer_service` and `span_name` parameters in regular expressions. For example, configure regular expressions:',
+  '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
+    'When a span of HTTP type appears and the calling Url (attributes.http.url) is `https://example.com/path/to/docs`, the `example.com` custom service will be matched, and the span_name of this span will be overwritten with `path/to/docs',
+
+  // 故障
+  告警事件链接: 'Alarm event link',
+  告警事件内容: 'Alarm event content',
+  告警分析内容: 'Alarm analysis content',
+  告警详情: 'Alarm details',
+  套餐详情: 'Package details',
+  参数填写: 'Parameter filling',
+  默认: 'Default',
+  字段名: 'Field name',
+  值: 'Value',
+  描述: 'Description',
+  影响空间: 'Affected space',
+  故障根因描述: 'Fault root cause description',
+  原故障根因: 'Original fault root cause',
+  展示设置: 'Set display type',
+  '针对指定时间点和类型的内容进行处理，传递用户组信息作为处理内容，如工单生成等。':
+    '针对指定时间点和类型的内容进行处理，传递用户组信息作为处理内容，如工单生成等。',
+  报警时执行: 'When alarm is triggered',
+  报警恢复时执行: 'When alarm is restored',
+  报警关闭时执行: 'When alarm is closed',
+  报警确认时执行: 'When alarm is acknowledged',
+  故障UUID: 'Fault UUID',
+  故障内部ID: 'Internal Fault ID',
+  故障名称: 'Fault Name',
+  故障原因: 'Fault Reason',
+  业务ID: 'Business ID',
+  故障状态: 'Fault Status',
+  故障级别: 'Fault Level',
+  负责人: 'Person in Charge',
+  处理人: 'Handler',
+  标签: 'Tag',
+  故障检出时间: 'Fault Detection Time',
+  故障更新时间: 'Fault Update Time',
+  故障开始时间: 'Fault Start Time',
+  故障结束时间: 'Fault End Time',
+  故障图谱快照: 'Fault Topology Snapshot',
 };

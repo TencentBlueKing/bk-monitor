@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
+import { defineComponent, type PropType, ref, toRefs, watch } from 'vue';
 
 import IconFont from '../icon-font/icon-font';
-import SelectMenu, { ISelectMenuOption } from '../select-menu/select-menu';
+import SelectMenu, { type ISelectMenuOption } from '../select-menu/select-menu';
 
 import './refresh-rate.scss';
 /**

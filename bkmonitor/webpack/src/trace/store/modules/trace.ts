@@ -42,6 +42,7 @@ import {
 } from '../../pages/main/inquire-content/table-settings';
 import {
   DirectionType,
+  IServiceSpanListItem,
   ISpanDetail,
   ISpanListItem,
   ITraceData,
@@ -96,6 +97,7 @@ export const useTraceStore = defineStore('trace', () => {
     interfaceStatistics: interfaceStatisticsSetting,
     serviceStatistics: serviceStatisticsSetting,
   });
+  const serviceSpanList = shallowRef<IServiceSpanListItem[]>([]);
 
   /** 更新页面 loading */
   function setPageLoaidng(v: boolean) {
@@ -112,6 +114,12 @@ export const useTraceStore = defineStore('trace', () => {
   /** 更新当前展示的 trace 数据 */
   function setTraceData(data: ITraceData) {
     const { trace_tree: tree, ...rest } = data;
+
+    const { nodes, edges } = rest?.streamline_service_topo || { nodes: [], edges: [] };
+    const rootNode = nodes.find(item => item.is_root);
+    const firstEdge = edges.find(item => item.source === rootNode?.key);
+    setServiceSpanList(firstEdge?.spans || []);
+
     if (data.appName) {
       originCrossAppSpanMaps.value[data.appName] = rest.original_data;
     } else {
@@ -168,6 +176,10 @@ export const useTraceStore = defineStore('trace', () => {
 
   function setTraceType(v) {
     traceType.value = v;
+  }
+
+  function setServiceSpanList(spanList: IServiceSpanListItem[]) {
+    serviceSpanList.value = spanList;
   }
 
   /** 更新 trace 过滤列表 */
@@ -321,6 +333,8 @@ export const useTraceStore = defineStore('trace', () => {
     traceTree,
     originTraceTree,
     originCrossAppSpanMaps,
+    serviceSpanList,
+    setServiceSpanList,
     setPageLoaidng,
     setTraceLoaidng,
     setTraceDetail,

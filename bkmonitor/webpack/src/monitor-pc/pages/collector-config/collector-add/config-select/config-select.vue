@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: loading }"
     class="config-select"
+    v-bkloading="{ isLoading: loading }"
   >
     <template v-if="config.set.data.collectType === 'SNMP'">
       <div style="margin-bottom: 10px">
@@ -34,11 +34,11 @@
       </div>
       <bk-tag-input
         v-model="snmpTargets"
-        :placeholder="$t('输入采集目标主机')"
-        :allow-create="true"
         :allow-auto-match="true"
+        :allow-create="true"
         :has-delete-icon="true"
         :paste-fn="handleTargetsPaste"
+        :placeholder="$t('输入采集目标主机')"
         @change="handleSnmpTargetChange"
       />
     </template>
@@ -75,15 +75,15 @@
       <monitor-ip-selector
         v-if="ipSelectorPanels.length && selectContainerHeight > 100"
         :style="{ height: selectContainerHeight + 'px' }"
-        :value="ipCheckValue"
-        :panel-list="ipSelectorPanels"
-        :original-value="originValue"
+        :class="countInstanceType === 'service_instance' ? 'service-instance-selector' : ''"
         :count-instance-type="countInstanceType"
         :node-table-custom-column-list="serviceInstanceColumnList"
+        :original-value="originValue"
+        :panel-list="ipSelectorPanels"
         :service-template-table-custom-column-list="serviceInstanceColumnList"
         :set-template-table-custom-column-list="serviceInstanceColumnList"
         :show-view-diff="$route.name === 'collect-config-edit'"
-        :class="countInstanceType === 'service_instance' ? 'service-instance-selector' : ''"
+        :value="ipCheckValue"
         @change="handleIpChange"
         @targetTypeChange="handleTargetTypeChange"
       />
@@ -99,8 +99,8 @@
         />
         <span class="hint-text"> {{ $t('使用远程运行主机') }} </span>
         <i
-          v-bk-tooltips="remoteHostTooltips"
           class="icon-monitor icon-tips hint-icon"
+          v-bk-tooltips="remoteHostTooltips"
         />
       </div>
       <div
@@ -110,8 +110,8 @@
         {{ $t('采集器主机') }}
       </div>
       <div
-        v-show="info.isUseRemoteHost"
         class="remote-host"
+        v-show="info.isUseRemoteHost"
       >
         <div class="host-input">
           <div
@@ -137,15 +137,15 @@
           class="host-pro"
         >
           <bk-checkbox
-            v-model="info.remoteCollectingHost.isCollectingOnly"
             class="pro-checkbox"
+            v-model="info.remoteCollectingHost.isCollectingOnly"
             :disabled="!canSelectProHost"
           >
             {{ $t('采集专有主机') }}
           </bk-checkbox>
           <i
-            v-bk-tooltips="proHostTooltips"
             class="icon-monitor icon-tips host-hint-icon"
+            v-bk-tooltips="proHostTooltips"
           />
         </div>
       </div>
@@ -159,9 +159,9 @@
       </bk-button>
       <bk-button
         class="btn-delivery"
-        theme="primary"
-        :loading="checkPluginLoading"
         :disabled="!canDelivery"
+        :loading="checkPluginLoading"
+        theme="primary"
         @click="handleDelivery"
       >
         {{ $t('开始下发') }}
@@ -651,7 +651,7 @@ export default {
     handleData(data) {
       const { remoteCollectingHost } = data;
       return {
-        isUseRemoteHost: remoteCollectingHost !== null,
+        isUseRemoteHost: remoteCollectingHost ?? false,
         targetNodeType: data.targetNodeType,
         remoteCollectingHost: remoteCollectingHost
           ? {

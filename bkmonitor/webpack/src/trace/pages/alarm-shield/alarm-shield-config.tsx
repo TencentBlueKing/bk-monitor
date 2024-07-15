@@ -46,7 +46,7 @@ import {
   categoryMap,
   EShieldCycle,
   EShieldType,
-  INoticeDate,
+  type INoticeDate,
   Ipv6FieldMap,
   ShieldDetailTargetFieldMap,
   ShieldDimension2NodeType,
@@ -159,10 +159,10 @@ export default defineComponent({
         isClone.value = route.name === 'alarm-shield-clone';
         let api = null;
         if (isEdit.value) {
-          navList.value[0].name = `${t('编辑屏蔽')} #${route.params.id}`;
+          navList.value[0].name = `${t('route-编辑屏蔽')} #${route.params.id}`;
           api = frontendShieldDetail;
         } else if (isClone.value) {
-          navList.value[0].name = `${t('克隆屏蔽')} #${route.params.id}`;
+          navList.value[0].name = `${t('route-克隆屏蔽')} #${route.params.id}`;
           api = frontendCloneInfo;
         }
         if (api) {

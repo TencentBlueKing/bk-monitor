@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onUnmounted, PropType, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onUnmounted, type PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tag, TimePicker } from 'bkui-vue';

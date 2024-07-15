@@ -50,7 +50,10 @@ export function getTimeSeriesXInterval(maxXInterval: number, width: number) {
       min: 'dataMin',
       splitNumber: 5,
     };
-  const interval = Math.ceil(maxXInterval / Math.min(9, Math.ceil(width / 80)));
+  const hasDayAndHour = maxXInterval > 60 * 60 * 24 * 1000 && maxXInterval < 60 * 60 * 24 * 6000;
+  const labelWidth = hasDayAndHour ? 180 : 80;
+  const preInterval = Math.ceil(maxXInterval / Math.min(9, Math.ceil(width / labelWidth)));
+  const interval = hasDayAndHour ? Math.max(preInterval, 60 * 60 * 24 * 1000) : preInterval;
   return {
     interval,
     minInterval: interval,

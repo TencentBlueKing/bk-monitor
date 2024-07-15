@@ -47,6 +47,7 @@ from constants.data_source import (
     OthersResultTableLabel,
     ResultTableLabelObj,
 )
+from constants.event import ALL_EVENT_PLUGIN_METRIC, EVENT_PLUGIN_METRIC_PREFIX
 from constants.strategy import (
     HOST_SCENARIO,
     SERVICE_SCENARIO,
@@ -1193,11 +1194,12 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
 
         # 增加额外的系统事件指标
         extend_metrics = [
-            {
-                "metric_field": "gse_custom_event",
-                "metric_field_name": _("自定义字符型告警"),
-                "dimensions": DefaultDimensions.host,
-            },
+            # deprecated
+            # {
+            #     "metric_field": "gse_custom_event",
+            #     "metric_field_name": _("自定义字符型告警"),
+            #     "dimensions": DefaultDimensions.host,
+            # },
             {
                 "metric_field": "proc_port",
                 "metric_field_name": _("进程端口"),
@@ -1557,11 +1559,16 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
 
     # 内置k8s指标映射维度，用于重名指标维度合并
     _build_in_metrics = None
+    IGNORE_DIMENSIONS = ["bk_instance", "bk_job"]
 
     @property
     def build_in_metrics(self):
         if self._build_in_metrics is None:
-            self._build_in_metrics = {metric["field_name"]: metric["tag_list"] for metric in get_built_in_k8s_metrics()}
+            self._build_in_metrics = {}
+            for metric in get_built_in_k8s_metrics():
+                self._build_in_metrics[metric["field_name"]] = [
+                    tag for tag in metric["tag_list"] if tag["field_name"] not in self.IGNORE_DIMENSIONS
+                ]
         return self._build_in_metrics
 
     def get_metric_pool(self):
@@ -1818,6 +1825,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         """获取系统内置的告警配置表信息"""
         tables = defaultdict()
         plugins = EventPluginV2.objects.filter(bk_biz_id=bk_biz_id)
+        plugin_names = {plugin.plugin_id: plugin.plugin_display_name for plugin in plugins}
 
         alert_names = set()
 
@@ -1833,6 +1841,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                     "target_type": DataTarget.HOST_TARGET,
                     "result_table_label": OthersResultTableLabel.other_rt,
                     "bk_biz_id": bk_biz_id,
+                    "alert_name_alias": f"[{plugin_names[alert_config.plugin_id]}] {alert_config.name}",
                 }
                 tables[alert_config.name] = table
         return tables
@@ -1841,6 +1850,25 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         tables = default_tables = self.get_config_tables(bk_biz_id=0)
         if self.bk_biz_id:
             tables = self.get_config_tables(bk_biz_id=self.bk_biz_id)
+        else:
+            tables[ALL_EVENT_PLUGIN_METRIC] = {
+                "dimensions": [],
+                "plugin_ids": set(),
+                "target_type": DataTarget.HOST_TARGET,
+                "result_table_label": OthersResultTableLabel.other_rt,
+                "bk_biz_id": 0,
+                "alert_name_alias": "ALL EVENT PLUGIN",
+            }
+            plugins = EventPluginV2.objects.filter(bk_biz_id=0)
+            for plugin in plugins:
+                tables[f"{EVENT_PLUGIN_METRIC_PREFIX}{plugin.plugin_id}"] = {
+                    "dimensions": [],
+                    "plugin_ids": {plugin.plugin_id},
+                    "target_type": DataTarget.HOST_TARGET,
+                    "result_table_label": OthersResultTableLabel.other_rt,
+                    "bk_biz_id": 0,
+                    "alert_name_alias": f"[{plugin.plugin_display_name}] ALL EVENT",
+                }
 
         alerts_info = self.search_alerts()
         alert_tags = alerts_info["alert_tags"]
@@ -1910,6 +1938,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                     "target_type": table["target_type"],
                     "result_table_label": table["result_table_label"],
                     "bk_biz_id": self.bk_biz_id,
+                    "alert_name_alias": table.get("alert_name_alias", alert_name),
                 }
             )
 
@@ -1934,7 +1963,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                 ],
                 "default_condition": [],
                 "metric_field": table["alert_name"],
-                "metric_field_name": table["alert_name"],
+                "metric_field_name": table.get("alert_name_alias", table["alert_name"]),
                 "dimensions": table["dimensions"],
                 "extend_fields": {
                     "plugin_ids": table["plugin_ids"],

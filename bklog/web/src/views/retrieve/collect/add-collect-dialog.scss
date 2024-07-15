@@ -80,8 +80,8 @@
 
   .filed-container {
     display: flex;
-    align-items: center;
     flex-wrap: wrap;
+    align-items: center;
 
     .current-filed {
       margin-left: 24px;
@@ -97,10 +97,10 @@
     }
   
     .operate-button {
+      justify-content: space-between;
       margin-left: 6px;
       font-size: 16px;
       color: #979ba5;
-      justify-content: space-between;
   
       span {
         cursor: pointer;

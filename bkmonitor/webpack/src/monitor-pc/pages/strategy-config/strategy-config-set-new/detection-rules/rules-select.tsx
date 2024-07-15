@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import FuctionalDependency from '@blueking/functional-dependency/vue2';
 
-import { DetectionRuleTypeEnum, IDetectionTypeItem } from '../typings/index';
+import { DetectionRuleTypeEnum, type IDetectionTypeItem } from '../typings/index';
 
 import './rules-select.scss';
 import '@blueking/functional-dependency/vue2/vue2.css';
@@ -124,24 +124,39 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
             <div class='rules-category-list'>
               <p class='category-label'>{this.$t('智能算法')}</p>
               <div class='type-list'>
-                {this.induceTypeList.ai.map(item => (
-                  <div
-                    class={['type-list-item', item.disabled && 'disabled']}
-                    // v-bk-tooltips={{
-                    //   content: item.disabled ? item.disabledTip : item.tip,
-                    //   disabled: !item.disabled,
-                    //   allowHTML: false,
-                    // }}
-                    onClick={() => this.handleTypeChange(item)}
-                  >
-                    <img
-                      class='type-icon'
-                      alt=''
-                      src={item.icon}
-                    />
-                    <span>{item.name}</span>
-                  </div>
-                ))}
+                {this.induceTypeList.ai.map(item =>
+                  item.disabledTip ? (
+                    <div
+                      key={item.id}
+                      class={['type-list-item', item.disabled && 'disabled']}
+                      v-bk-tooltips={{
+                        content: item.disabled ? item.disabledTip : item.tip,
+                        disabled: !item.disabled,
+                        allowHTML: false,
+                      }}
+                    >
+                      <img
+                        class='type-icon'
+                        alt=''
+                        src={item.icon}
+                      />
+                      <span>{item.name}</span>
+                    </div>
+                  ) : (
+                    <div
+                      key={item.id}
+                      class={['type-list-item', item.disabled && 'disabled']}
+                      onClick={() => this.handleTypeChange(item)}
+                    >
+                      <img
+                        class='type-icon'
+                        alt=''
+                        src={item.icon}
+                      />
+                      <span>{item.name}</span>
+                    </div>
+                  )
+                )}
               </div>
             </div>
             <div class='rules-category-list'>
@@ -149,6 +164,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
               <div class='type-list'>
                 {this.induceTypeList.convention.map(item => (
                   <div
+                    key={item.id}
                     class={['type-list-item', item.disabled && 'disabled']}
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,

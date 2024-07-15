@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
-import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
+import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
-import { TimeRangeType } from '../../../components/time-range/utils';
+import { type TimeRangeType } from '../../../components/time-range/utils';
 import { getDefaultTimezone } from '../../../i18n/dayjs';
-import { IFavoriteItem } from '../../../typings';
+import { type IFavoriteItem } from '../../../typings';
 import FavoritesList from '../favorites-list/favorites-list';
 
 import './search-header.scss';

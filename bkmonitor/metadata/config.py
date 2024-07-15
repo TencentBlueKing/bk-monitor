@@ -114,3 +114,8 @@ DEFAULT_USERNAME = "system"
 # 默认kafka sasl配置
 KAFKA_SASL_MECHANISM = "SCRAM-SHA-512"
 KAFKA_SASL_PROTOCOL = "SASL_PLAINTEXT"
+
+# vm 存储类型
+VM_STORAGE_TYPE = "vm"
+# metadata 结果表白名单 key
+METADATA_RESULT_TABLE_WHITE_LIST = "metadata:query_metric:table_id_list"

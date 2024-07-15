@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { computed, defineComponent, type PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Dropdown, Input } from 'bkui-vue';
-import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
+import { type ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
 
-import { DirectionType } from '../../../../typings';
+import { type DirectionType } from '../../../../typings';
 
 import './chart-title.scss';
 

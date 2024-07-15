@@ -38,7 +38,7 @@ import {
   unstarDashboard,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
-import { deepClone, random } from 'monitor-common/utils/utils';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 
 import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
@@ -356,6 +356,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
   }
 
+  @Debounce(300)
   @Emit('selectedDashboard')
   handleSelectedGrafana(item: TreeMenuItem) {
     this.checked = item.uid;

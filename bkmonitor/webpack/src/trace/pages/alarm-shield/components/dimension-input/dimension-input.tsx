@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { computed, defineComponent, type PropType, ref } from 'vue';
 
 import { Message, TagInput } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert';

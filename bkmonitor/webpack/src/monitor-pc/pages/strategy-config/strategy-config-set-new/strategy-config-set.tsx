@@ -521,7 +521,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.strategyView.rightWidth = Math.ceil(width / 3);
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
     // 异步初始化所有ai模型列表 用于判断是否展示功能依赖 以及前置后面选择ai模型的初始化数据
-    IntelligentModelsStore.initAllListIntelligentModels();
+    if (window.enable_aiops) IntelligentModelsStore.initAllListIntelligentModels();
   }
   activated() {
     this.stickyObserver = new IntersectionObserver(
@@ -2451,7 +2451,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
           onMetricChange={this.handleSceneConfigMetricChange}
+          onModelChange={this.handleModelChange}
           onTargetChange={this.handleTargetChange}
+          onTargetTypeChange={this.handleTargetTypeChange}
         ></AiopsMonitorData>
       );
     }
@@ -2554,6 +2556,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               title={this.$t('基本信息')}
             >
               <BaseConfig
+                id={this.id && !this.isClone ? this.id : ''}
                 ref='base-config'
                 scenarioReadonly={
                   this.monitorDataEditMode === 'Source' ? false : !!this.metricData.some(item => !!item.metric_id)

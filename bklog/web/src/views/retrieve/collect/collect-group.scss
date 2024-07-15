@@ -5,14 +5,14 @@
     margin-right: 2px;
     font-size: 12px;
     color: #63656e;
-    transform: scale(.5);
     transition: transform .3s;
+    transform: scale(.5);
   }
 
   .group-cur {
     display: flex;
-    align-items: center;
     flex-wrap: nowrap;
+    align-items: center;
     width: calc(100% - 20px);
     cursor: pointer;
 
@@ -46,8 +46,8 @@
 
     .title-number {
       display: inline-block;
-      height: 16px;
       min-width: 20px;
+      height: 16px;
       line-height: 16px;
       text-align: center;
       background: #fff;
@@ -96,11 +96,11 @@
       .group-item-left {
         position: relative;
         display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
         padding-left: 24px;
         border-bottom: 1px solid transparent;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: nowrap;
 
         .fav-name {
           flex: 1;
@@ -142,9 +142,9 @@
           left: 14px;
           width: 4px;
           height: 4px;
+          content: ' ';
           background: #dcdee5;
           border-radius: 50%;
-          content: ' ';
         }
       }
 

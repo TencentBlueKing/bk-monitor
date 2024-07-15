@@ -197,6 +197,21 @@ export class LineChart
   get nearSeriesNum() {
     return Number(this.panel.options?.time_series?.nearSeriesNum || 0);
   }
+  // 同时hover显示多个tooltip
+  get hoverAllTooltips() {
+    return !!this.panel.options?.time_series?.hoverAllTooltips;
+  }
+
+  // Y轴刻度标签文字占位宽度
+  get YAxisLabelWidth() {
+    return this.panel.options?.time_series?.YAxisLabelWidth || 0;
+  }
+
+  // 是否展示所有告警区域数据
+  get needAllAlertMarkArea() {
+    return !!this.panel.options?.time_series?.needAllAlertMarkArea;
+  }
+
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
   handleFieldDictChange(v: IViewOptions, o: IViewOptions) {
@@ -762,8 +777,8 @@ export class LineChart
         if (duration < 60 * 60 * 24 * 1) {
           return dayjs.tz(v).format('HH:mm');
         }
-        if (duration < 60 * 60 * 24 * 8) {
-          return dayjs.tz(v).format('MM-DD');
+        if (duration < 60 * 60 * 24 * 6) {
+          return dayjs.tz(v).format('MM-DD HH:mm');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
           return dayjs.tz(v).format('MM-DD');
@@ -1292,6 +1307,7 @@ export class LineChart
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}

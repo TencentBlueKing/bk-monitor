@@ -52,7 +52,7 @@ class UseSaaSAuthInfoMixin:
 
 class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     base_url_statement = None
-    base_url = settings.BKDATA_API_BASE_URL or "%s/api/c/compapi/data/" % settings.BK_COMPONENT_API_URL
+    base_url = settings.BKDATA_API_BASE_URL or "%s/api/bk-base/prod/" % settings.BK_COMPONENT_API_URL
 
     # 模块名
     module_name = "bkdata"
@@ -1116,3 +1116,118 @@ class BatchAuthResultTable(BkDataAPIGWResource):
         project_id = serializers.IntegerField(required=True, label="计算平台项目")
         object_ids = serializers.ListField(required=True, child=serializers.CharField(), label="计算平台结果表ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+
+class QueryTsMetrics(BkDataAPIGWResource):
+    action = "/v3/dd/metrics/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+
+
+class QueryTsDimensions(BkDataAPIGWResource):
+    action = "/v3/dd/dimensions/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+
+
+class QueryTsDimensionValue(BkDataAPIGWResource):
+    action = "/v3/dd/values/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        metric = serializers.CharField(required=True, label="指标名称")
+        dimension = serializers.CharField(required=True, label="维度名称")
+
+
+class QueryMetricAndDimension(BkDataAPIGWResource):
+    action = "/v4/dd/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        storage = serializers.CharField(required=True, label="存储类型")
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        values = serializers.ListField(required=True, label="维度列表")
+
+
+####################################
+#          智能监控 故障根因接口         #
+####################################
+class GetIncidentList(DataAccessAPIResource):
+    """
+    获取故障列表信息
+    """
+
+    action = "/v3/aiops/incident/"
+    method = "GET"
+
+
+class GetIncidentDetail(DataAccessAPIResource):
+    """
+    获取故障详情
+    """
+
+    action = "/v3/aiops/incident/{incident_id}/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        incident_id = serializers.CharField(required=True, label="故障ID")
+
+
+class UpdateIncidentDetail(DataAccessAPIResource):
+    """
+    更新故障详情
+    """
+
+    action = "/v3/aiops/incident/{incident_id}/"
+    method = "PUT"
+
+    class RequestSerializer(CommonRequestSerializer):
+        incident_id = serializers.CharField(required=True, label="故障ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        incident_name = serializers.CharField(required=False, label="故障名称")
+        incident_reason = serializers.CharField(required=False, label="故障原因", allow_null=True, allow_blank=True)
+        level = serializers.CharField(required=False, label="故障级别")
+        status = serializers.CharField(required=False, label="故障状态")
+        assignees = serializers.ListField(required=False, label="故障负责人")
+        handlers = serializers.ListField(required=False, label="故障处理人")
+        labels = serializers.ListField(required=False, label="故障标签")
+        feedback = serializers.DictField(required=False, label="故障反馈内容")
+
+    def perform_request(self, params):
+        params["incident_reason"] = params["incident_reason"] or ''
+        return super(UpdateIncidentDetail, self).perform_request(params)
+
+
+class GetIncidentSnapshot(DataAccessAPIResource):
+    """
+    获取故障根因定位快照数据
+    """
+
+    action = "/v3/aiops/incident/snapshots/{snapshot_id}/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        snapshot_id = serializers.CharField(required=True, label="快照ID")
+
+
+class GetIncidentTopoByEntity(DataAccessAPIResource):
+    """
+    获取故障根因定位快照数据
+    """
+
+    action = "/v3/aiops/incident/{incident_id}/topo/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        incident_id = serializers.IntegerField(required=True, label="故障ID")
+        entity_id = serializers.CharField(required=True, label="图谱实体ID")
+        snapshot_id = serializers.CharField(required=True, label="图谱快照ID")

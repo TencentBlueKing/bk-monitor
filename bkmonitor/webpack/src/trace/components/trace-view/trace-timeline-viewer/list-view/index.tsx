@@ -50,12 +50,21 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, CSSProperties, defineComponent, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+  computed,
+  type CSSProperties,
+  defineComponent,
+  getCurrentInstance,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from 'vue';
 
 import { useTraceStore } from '../../../../store/modules/trace';
 import { PEER_SERVICE } from '../../constants/tag-keys';
 import { useChildrenHiddenInject, useFocusMatchesInject, useSpanBarCurrentInject } from '../../hooks';
-import { Span, TNil } from '../../typings';
+import { type Span, type TNil } from '../../typings';
 import SpanBarRow from '../span-bar-row';
 import {
   createViewedBoundsFunc,
@@ -63,7 +72,7 @@ import {
   isErrorSpan,
   isKindClient,
   spanContainsErredSpan,
-  ViewedBoundsFunctionType,
+  type ViewedBoundsFunctionType,
 } from '../utils';
 import { DEFAULT_HEIGHTS, generateRowStates } from '../virtualized-trace-view';
 import Positions from './positions';

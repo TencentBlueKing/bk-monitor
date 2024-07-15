@@ -26,6 +26,7 @@
 import { padIPv6 } from 'monitor-common/utils/ip-utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
+import { allSpaceRegex, emojiRegex } from '../../utils/index';
 import { ICommonTableProps } from '../monitor-k8s/components/common-table';
 import { IData as IGroupData, ITaskItem as IGroupDataTaskItem } from './components/group-card';
 import { IData as ITaskCardData } from './components/task-card';
@@ -61,7 +62,7 @@ export const groupNameValidate = (
     message: '',
   };
   // 字符长度校验
-  if (!targetStr.length) {
+  if (!targetStr.length || allSpaceRegex(targetStr)) {
     validateStatus.validate = true;
     validateStatus.message = window.i18n.tc('输入拨测任务组名称');
   }
@@ -77,6 +78,11 @@ export const groupNameValidate = (
   if (allName.map(item => item.toLowerCase()).indexOf(targetStr.toLowerCase(), 0) > -1) {
     validateStatus.validate = true;
     validateStatus.message = window.i18n.tc('注意: 名字冲突');
+    return validateStatus;
+  }
+  if (emojiRegex(targetStr)) {
+    validateStatus.validate = true;
+    validateStatus.message = window.i18n.tc('不能输入emoji表情');
     return validateStatus;
   }
   return validateStatus;

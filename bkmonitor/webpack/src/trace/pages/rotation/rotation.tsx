@@ -33,7 +33,7 @@ import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modul
 
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
-import { IAuthority } from '../../typings/authority';
+import { type IAuthority } from '../../typings/authority';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
 import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
@@ -548,7 +548,7 @@ export default defineComponent({
           return <span>{row.category === Ecategory.regular ? t('日常值班') : t('交替轮值')}</span>;
         }
         case EColunm.label: {
-          return row.labels.map(label => <Tag>{label}</Tag>);
+          return row.labels.length ? row.labels.map(label => <Tag>{label}</Tag>) : '--';
         }
         case EColunm.relation: {
           return !!row.user_groups_count ? (
