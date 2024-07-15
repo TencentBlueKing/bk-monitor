@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, reactive, ref, watch } from 'vue';
+import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { TagInput } from 'bkui-vue';
@@ -195,7 +195,7 @@ export default defineComponent({
         <div class='user-item-wrap'>
           {(() => {
             if (node.type === 'group') {
-              return <span class='icon-monitor icon-mc-user-group'></span>;
+              return <span class='icon-monitor icon-mc-user-group' />;
             }
             if (
               node.logo &&
@@ -207,10 +207,10 @@ export default defineComponent({
                   class='user-logo'
                   alt=''
                   src={node.logo}
-                ></img>
+                />
               );
             }
-            return <span class='icon-monitor icon-mc-user-one'></span>;
+            return <span class='icon-monitor icon-mc-user-one' />;
           })()}
           <span class='user-name'>{node.type === 'group' ? node.name : `${node.id} (${node.name})`}</span>
         </div>
@@ -223,7 +223,7 @@ export default defineComponent({
         <div class='user-item-tag'>
           {(() => {
             if (obj.type === 'group') {
-              return <span class='icon-monitor icon-mc-user-group'></span>;
+              return <span class='icon-monitor icon-mc-user-group' />;
             }
             if (obj.logo && typeof obj.logo === 'string' && /^(https?|HTTPS?):\/\/[^\s/$.?#].[^\s]*$/.test(obj.logo)) {
               return (
@@ -231,10 +231,10 @@ export default defineComponent({
                   class='user-logo'
                   alt=''
                   src={obj.logo}
-                ></img>
+                />
               );
             }
-            return <span class='icon-monitor icon-mc-user-one'></span>;
+            return <span class='icon-monitor icon-mc-user-one' />;
           })()}
           <span class='user-name'>{obj.type === 'group' ? obj.name : `${obj.id} (${obj.name})`}</span>
         </div>
@@ -279,7 +279,7 @@ export default defineComponent({
         onFocus={this.handleFocus}
         onInput={this.debounceHandleInput}
         onUpdate:modelValue={v => this.handleChange(v)}
-      ></TagInput>
+      />
     );
   },
 });

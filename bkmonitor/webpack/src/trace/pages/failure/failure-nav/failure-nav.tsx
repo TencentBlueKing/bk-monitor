@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, KeepAlive, type Ref, ref, type PropType } from 'vue';
+import { KeepAlive, type PropType, type Ref, defineComponent, inject, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
-import { type ITagInfoType } from '../types';
+
+import type { ITagInfoType } from '../types';
 
 import './failure-nav.scss';
 
@@ -112,7 +113,7 @@ export default defineComponent({
           tabList={this.tabList}
           top={-16}
           onChange={this.handleChange}
-        ></FailureMenu>
+        />
         <div class='failure-nav-main'>
           <KeepAlive>
             <Component

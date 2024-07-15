@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, type PropType, ref, watch } from 'vue';
+import { type PropType, defineComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 
-import { calendarDataConversion, getCalendarNew, type ICalendarData, type ICalendarDataUser } from './calendar-preview';
+import { type ICalendarData, type ICalendarDataUser, calendarDataConversion, getCalendarNew } from './calendar-preview';
 
 import './rotation-calendar-preview.scss';
 
@@ -160,7 +160,7 @@ export default defineComponent({
                           <div
                             style={{ background: data.color }}
                             class='user-header'
-                          ></div>
+                          />
                           <div
                             style={{ color: data.color }}
                             class='user-content'
@@ -177,7 +177,7 @@ export default defineComponent({
                             left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                           }}
                           class='user-item no-user'
-                        ></div>
+                        />
                       ),
                     content: () => (
                       <div class='user-item'>

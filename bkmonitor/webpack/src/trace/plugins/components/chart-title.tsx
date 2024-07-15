@@ -23,23 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, type ComputedRef, defineComponent, type PropType, ref, watch } from 'vue';
+import { type ComputedRef, type PropType, computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
 import { createMetricTitleTooltips } from '../../utils';
-import {
-  type ChartTitleMenuType,
-  type IChartTitleMenuEvents,
-  type IExtendMetricData,
-  type IMenuChildItem,
-  type IMenuItem,
-  type ITitleAlarm,
-} from '../typings';
 import AlertActionList from './alert-action-list';
 import TitleMenu from './title-menu';
+
+import type {
+  ChartTitleMenuType,
+  IChartTitleMenuEvents,
+  IExtendMetricData,
+  IMenuChildItem,
+  IMenuItem,
+  ITitleAlarm,
+} from '../typings';
 
 import './chart-title.scss';
 
@@ -280,12 +281,12 @@ export default defineComponent({
                     <div
                       class='common-chart-tooltips-wrap'
                       v-html={createMetricTitleTooltips(this.metricTitleData)}
-                    ></div>
+                    />
                   ),
                 }}
-              ></Popover>
+              />
             ) : undefined}
-            <span class='title-center'></span>
+            <span class='title-center' />
             {this.showMetricAlarm && this.metricTitleData ? (
               <Popover content={this.$t('添加策略')}>
                 <i
@@ -294,7 +295,7 @@ export default defineComponent({
                   }}
                   class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   onClick={this.handleAllMetricSelect}
-                ></i>
+                />
               </Popover>
             ) : undefined}
             <div style={{ display: 'flex', marginRight: '-18px' }}>
@@ -344,7 +345,7 @@ export default defineComponent({
           onMetricSelect={this.handleMetricSelect}
           onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
-        ></TitleMenu>
+        />
       </div>
     );
   },

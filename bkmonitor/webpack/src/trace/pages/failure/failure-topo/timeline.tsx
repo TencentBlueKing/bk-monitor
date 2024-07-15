@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, type PropType, type Ref, ref, watch } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
 
 import { DatePicker, Dropdown, Slider } from 'bkui-vue';
 import dayjs from 'dayjs';
 
-import { type IncidentDetailData, type TopoRawData } from './types';
+import type { IncidentDetailData, TopoRawData } from './types';
 
 import './timeline.scss';
 import 'bkui-vue/lib/time-picker/time-picker.css';
@@ -189,14 +189,14 @@ export default defineComponent({
         <span
           class={['icon-monitor', this.isPlay ? 'icon-weibiaoti519' : 'icon-mc-arrow-right']}
           onClick={this.handlePlay}
-        ></span>
+        />
         {max === 0 ? (
           <Slider
             class='slider'
             maxValue={1}
             minValue={0}
             modelValue={1}
-          ></Slider>
+          />
         ) : (
           <Slider
             class='slider'
@@ -205,7 +205,7 @@ export default defineComponent({
             minValue={0}
             // onUpdate:modelValue={this.handleTimelineChange}
             onChange={this.handleTimelineChange}
-          ></Slider>
+          />
         )}
 
         <DatePicker
@@ -216,7 +216,7 @@ export default defineComponent({
           disabledDate={this.handleDisabledDate}
           type='datetime'
           onPick-success={this.handlePickSuccess}
-        ></DatePicker>
+        />
 
         <Dropdown
           v-slots={{
@@ -229,7 +229,7 @@ export default defineComponent({
                 }}
                 onClick={() => (this.isShow = !this.isShow && !this.isPlay)}
               >
-                <i class='icon-monitor mr5 icon-zidongshuaxin'></i>
+                <i class='icon-monitor mr5 icon-zidongshuaxin' />
                 <span class='trigger-text text-active'>{this.refleshTime}</span>
               </div>
             ),
@@ -254,7 +254,7 @@ export default defineComponent({
           }}
           isShow={this.isShow}
           trigger='manual'
-        ></Dropdown>
+        />
       </div>
     );
   },

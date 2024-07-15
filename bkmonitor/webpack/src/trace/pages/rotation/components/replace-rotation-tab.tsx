@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, reactive, watch } from 'vue';
+import { type PropType, defineComponent, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button } from 'bkui-vue';
@@ -161,7 +161,7 @@ export default defineComponent({
                 class='delete-btn'
                 onClick={() => this.handleDelItem(index)}
               >
-                <i class='icon-monitor icon-mc-delete-line'></i>
+                <i class='icon-monitor icon-mc-delete-line' />
               </div>
             )}
           </ReplaceRotationTableItem>
@@ -176,7 +176,7 @@ export default defineComponent({
               text
               onClick={this.handleAddItem}
             >
-              <i class='icon-monitor icon-plus-line add-icon'></i>
+              <i class='icon-monitor icon-plus-line add-icon' />
               {this.t('新增值班组')}
             </Button>
           </td>

@@ -28,13 +28,13 @@ import { useI18n } from 'vue-i18n';
 
 import * as authorityMap from 'apm/pages/home/authority-map';
 import { Button, ResizeLayout, Select } from 'bkui-vue';
-import { type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import { useAuthorityStore } from '../../../store/modules/authority';
-import { type IAppItem, type ISearchTypeItem, type SearchType } from '../../../typings';
 import FieldFiltering from '../event-retrieval/field-filtering';
 
+import type { IAppItem, ISearchTypeItem, SearchType } from '../../../typings';
+import type { IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 import type { PropType } from 'vue';
 
 import './search-left.scss';
@@ -113,7 +113,7 @@ export default defineComponent({
                     class='create-app-extension'
                     onClick={() => handleCreateApp()}
                   >
-                    <span class='icon-monitor icon-jia'></span>
+                    <span class='icon-monitor icon-jia' />
                     <span>{t('新建应用')}</span>
                   </div>
                 ),
@@ -199,7 +199,7 @@ export default defineComponent({
             initialDivide={610}
             placement={placement}
             immediate
-          ></ResizeLayout>
+          />
         ) : (
           topContent()
         )}

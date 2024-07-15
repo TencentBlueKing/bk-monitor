@@ -24,15 +24,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, getCurrentInstance, type PropType, ref, watch } from 'vue';
+import { type PropType, defineComponent, getCurrentInstance, ref, watch } from 'vue';
 
 import { OverflowTitle, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
-import { type IEdge, type ITopoNode } from './types';
 import { getNodeAttrs } from './utils';
+
+import type { IEdge, ITopoNode } from './types';
 
 import './failure-topo-tooltips.scss';
 
@@ -309,7 +310,7 @@ export default defineComponent({
                     NODE_TYPE_ICON[node?.entity?.entity_type],
                     node?.entity?.is_anomaly && 'item-anomaly',
                   ]}
-                ></i>
+                />
               </span>
             </span>
             {node?.entity?.entity_type}(
@@ -385,7 +386,7 @@ export default defineComponent({
                 </div>
                 <span class='edge-chart-sub-title'>{edgeEvent.metric_name}</span>
               </div>
-              <div id={`edge-chart-${index}`}></div>
+              <div id={`edge-chart-${index}`} />
             </div>
           )}
           {index === 0 && renderSvg()}
@@ -513,7 +514,7 @@ export default defineComponent({
                               edge_type === 'ebpf_call' && 'call-edge',
                               node.is_anomaly && 'anomaly-edge',
                             ]}
-                          ></span>,
+                          />,
                           <span>
                             {`${node.source_type} ${node.source_name}`}-{`${node.target_type} ${node.target_name}`}
                           </span>,
@@ -533,12 +534,12 @@ export default defineComponent({
                                 isShowRootText && 'item-anomaly',
                                 node?.entity?.is_on_alert && 'item-alert',
                               ]}
-                            ></i>
+                            />
                           </span>,
                           <span>{node?.entity?.entity_name}</span>,
                         ]}
                   </span>
-                  <i class='icon-monitor icon-arrow-right'></i>
+                  <i class='icon-monitor icon-arrow-right' />
                 </li>
               ),
             }}
@@ -547,7 +548,7 @@ export default defineComponent({
             renderType='shown'
             trigger='click'
             onAfterHidden={this.handleAfterHidden}
-          ></Popover>
+          />
         );
       };
       return (
@@ -561,7 +562,7 @@ export default defineComponent({
                 }}
                 keypath='共 {slot0} 条边'
                 tag='span'
-              ></i18n-t>
+              />
             ) : (
               <i18n-t
                 class='tool-tips-list-title'
@@ -576,7 +577,7 @@ export default defineComponent({
                     : '共 {slot0} 个 {type}节点'
                 }
                 tag='span'
-              ></i18n-t>
+              />
             )}
           </span>
           <ul class='tool-tips-list'>{[createNodeItem(node), ...aggregatedList.map(createNodeItem)]}</ul>
@@ -604,7 +605,7 @@ export default defineComponent({
                   NODE_TYPE_ICON[node?.entity?.entity_type],
                   (isShowRootText || node?.entity?.is_anomaly) && 'item-anomaly',
                 ]}
-              ></i>
+              />
             </span>
             <OverflowTitle
               class={['header-name', node?.entity?.entity_type === 'BcsPod' && 'header-pod-name']}
@@ -691,7 +692,7 @@ export default defineComponent({
                         }}
                         keypath='等共 {slot0} 个同类告警'
                         tag='span'
-                      ></i18n-t>
+                      />
                     </span>
                   )}
                 </>

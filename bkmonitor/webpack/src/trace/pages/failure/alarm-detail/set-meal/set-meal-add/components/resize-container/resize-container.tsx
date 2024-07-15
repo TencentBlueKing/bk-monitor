@@ -132,8 +132,8 @@ export default defineComponent({
           onMousemove={this.handleMousemove}
           onMouseup={this.handleMouseup}
         >
-          <i class='resize-icon-inner'></i>
-          <i class='resize-icon-wrap'></i>
+          <i class='resize-icon-inner' />
+          <i class='resize-icon-wrap' />
         </div>
       </div>
     );

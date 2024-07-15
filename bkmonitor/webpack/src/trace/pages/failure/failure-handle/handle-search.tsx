@@ -26,13 +26,14 @@
 import { defineComponent, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Checkbox, Loading, PopConfirm, Tree, Exception } from 'bkui-vue';
+import { Checkbox, Exception, Loading, PopConfirm, Tree } from 'bkui-vue';
 import { BkCheckboxGroup } from 'bkui-vue/lib/checkbox';
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
 
-import { type IAggregationRoot, type IUserName, type ITagInfoType } from '../types';
 import { useIncidentInject } from '../utils';
 import FilterSearchMain from './filter-search-main';
+
+import type { IAggregationRoot, ITagInfoType, IUserName } from '../types';
 
 import './handle-search.scss';
 

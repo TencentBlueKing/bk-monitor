@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Span } from '../typings';
+import type { Span } from '../typings';
 
 type IToggleStatus = 'collpase' | 'expand';
 

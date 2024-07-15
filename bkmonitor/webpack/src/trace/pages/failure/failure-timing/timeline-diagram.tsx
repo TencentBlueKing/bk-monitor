@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
+  type Ref,
   computed,
   defineComponent,
   inject,
+  nextTick,
   onBeforeUnmount,
   onMounted,
-  type Ref,
   ref,
   watch,
-  type PropType,
-  nextTick,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -47,12 +47,13 @@ import AlarmConfirm from '../alarm-detail/alarm-confirm';
 import AlarmDispatch from '../alarm-detail/alarm-dispatch';
 import ManualProcess from '../alarm-detail/manual-process';
 import QuickShield from '../alarm-detail/quick-shield';
-import { dialogConfig, EVENT_SEVERITY, TREE_SHOW_ICON_LIST } from '../constant';
+import { EVENT_SEVERITY, TREE_SHOW_ICON_LIST, dialogConfig } from '../constant';
 import { renderMap } from '../failure-process/process';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
-import { type IAlert, type IIncident, type IIncidentOperation, type IAggregationRoot } from '../types';
 import { useIncidentInject } from '../utils';
 import TimelineZoom from './timeline-zoom';
+
+import type { IAggregationRoot, IAlert, IIncident, IIncidentOperation } from '../types';
 
 import './timeline-diagram.scss';
 
@@ -498,7 +499,7 @@ export default defineComponent({
       const info = Object.values(EVENT_SEVERITY)[severity - 1];
       return (
         <span class='severity-info'>
-          <i class={`icon-monitor icon-${info.icon} ${info.key}`}></i>
+          <i class={`icon-monitor icon-${info.icon} ${info.key}`} />
           {info.label}
         </span>
       );
@@ -553,7 +554,7 @@ export default defineComponent({
           label: t('告警状态'),
           renderFn: status => (
             <span class={`info-status ${status}`}>
-              <i class={`icon-monitor icon-${TREE_SHOW_ICON_LIST.status[status]}`}></i>
+              <i class={`icon-monitor icon-${TREE_SHOW_ICON_LIST.status[status]}`} />
               {statusEnum.value[status]}
             </span>
           ),
@@ -571,7 +572,7 @@ export default defineComponent({
       return (
         <div class='tool-div'>
           <div class='tool-text'>
-            <i class={`icon-monitor item-icon icon-${level_name === 'alert_name' ? 'gaojing1' : 'Pod'}`}></i>
+            <i class={`icon-monitor item-icon icon-${level_name === 'alert_name' ? 'gaojing1' : 'Pod'}`} />
             <label class='tool-name'>{alertNameFn(alert_example, children, ind, alert_ids)}</label>
             {(is_root || is_feedback_root) && (
               <span class={['root', { 'feedback-root': is_feedback_root }]}>{t('根因')}</span>
@@ -582,7 +583,7 @@ export default defineComponent({
                 showToolMenu.value = !showToolMenu.value;
               }}
             >
-              <i class='icon-monitor icon-mc-more'></i>
+              <i class='icon-monitor icon-mc-more' />
             </i>
             {showToolMenu.value && (
               <div class='more-list'>
@@ -609,7 +610,7 @@ export default defineComponent({
                     <i
                       style='margin-right: 4px;'
                       class={['icon-monitor', item.icon]}
-                    ></i>
+                    />
                     {item.name}
                   </div>
                 ))}
@@ -699,7 +700,7 @@ export default defineComponent({
                 : 'icon-mc-fault'
               : 'icon-mc-user-one',
           ]}
-        ></i>
+        />
       );
       return (
         <span
@@ -830,7 +831,7 @@ export default defineComponent({
       const matrix = style.transform || style.webkitTransform || style.mozTransform;
       if (matrix === 'none' || !matrix) return 0;
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
-      return parseFloat(values[4]);
+      return Number.parseFloat(values[4]);
     }
     const onTimeLineMainMouseDown = (event: MouseEvent) => {
       if (percentage.value === 0) {
@@ -989,7 +990,7 @@ export default defineComponent({
                   class='time-view-tick'
                 >
                   <span class='tick-name'>{time}</span>
-                  <span class='tick-line'></span>
+                  <span class='tick-line' />
                 </li>
               );
             })}
@@ -1000,7 +1001,7 @@ export default defineComponent({
                 style={{ width: `${this.tickWidth}px` }}
                 class='time-view-tick'
               >
-                <span class='tick-line'></span>
+                <span class='tick-line' />
               </span>
             ))}
             <div
@@ -1032,7 +1033,7 @@ export default defineComponent({
           visible={this.dialog.rootCauseConfirm.show}
           onRefresh={this.refresh}
           onUpdate:isShow={this.handleFeedbackChange}
-        ></FeedbackCauseDialog>
+        />
         <QuickShield
           bizIds={this.currentBizIds}
           data={this.currentSpan}
@@ -1041,7 +1042,7 @@ export default defineComponent({
           show={this.dialog.quickShield.show}
           onChange={this.quickShieldChange}
           onRefresh={this.refresh}
-        ></QuickShield>
+        />
         <ManualProcess
           alertIds={this.currentIds}
           bizIds={this.currentBizIds}
@@ -1050,21 +1051,21 @@ export default defineComponent({
           onDebugStatus={this.handleDebugStatus}
           onMealInfo={this.handleMealInfo}
           onShowChange={this.manualProcessShowChange}
-        ></ManualProcess>
+        />
         <AlarmDispatch
           alertIds={this.currentIds}
           bizIds={this.currentBizIds}
           data={this.currentSpan}
           show={this.dialog.alarmDispatch.show}
           onShow={this.handleAlarmDispatchShowChange}
-        ></AlarmDispatch>
+        />
         <AlarmConfirm
           bizIds={this.currentBizIds}
           data={this.currentSpan}
           ids={this.currentIds}
           show={this.dialog.alarmConfirm.show}
           onChange={this.alarmConfirmChange}
-        ></AlarmConfirm>
+        />
       </div>
     );
   },

@@ -104,7 +104,7 @@ export default defineComponent({
               <div>
                 <span class='duration'>{item.duration}</span>
                 <span class='time'>{item.startTime}</span>
-                {item.isError && <span class='icon-monitor icon-mind-fill'></span>}
+                {item.isError && <span class='icon-monitor icon-mind-fill' />}
               </div>
             </li>
           ))}
@@ -112,7 +112,7 @@ export default defineComponent({
         <Loading
           class='list-loading'
           loading={this.loading}
-        ></Loading>
+        />
       </div>
     );
   },

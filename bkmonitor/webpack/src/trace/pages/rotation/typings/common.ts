@@ -111,7 +111,9 @@ export function getEffectiveStatus(timeRange: string[], enabled: boolean) {
   if (!enabled) {
     return EStatus.Deactivated;
   }
-  const timeRangeNum = timeRange.map(item => (item === 'null' || !item ? Infinity : new Date(item).getTime()));
+  const timeRangeNum = timeRange.map(item =>
+    item === 'null' || !item ? Number.POSITIVE_INFINITY : new Date(item).getTime()
+  );
   const curTime = new Date().getTime();
   if (curTime < timeRangeNum[0]) {
     return EStatus.WaitEffective;

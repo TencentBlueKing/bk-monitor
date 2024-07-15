@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, type Ref, ref, watch, type PropType } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
 import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { Select, Tag } from 'bkui-vue';
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
-import { type IIncident } from '../types';
 import FilterSearchInput from './filter-search-input';
+
+import type { IIncident } from '../types';
 
 import './filter-search-main.scss';
 

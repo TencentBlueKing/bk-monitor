@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType, ref, toRefs, watch } from 'vue';
+import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
 
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -32,12 +32,12 @@ import dayjs from 'dayjs';
 import IconFont from '../icon-font/icon-font';
 import {
   DEFAULT_TIME_RANGE,
+  type TimeRangeType,
   handleTransformTime,
   handleTransformToTimestamp,
   intTimestampStr,
   shortcuts,
   shortcutsMap,
-  type TimeRangeType,
 } from './utils';
 
 import './time-range.scss';
@@ -219,7 +219,7 @@ export default defineComponent({
                 <IconFont
                   classes={['icon-time-range']}
                   icon='icon-mc-time'
-                ></IconFont>
+                />
                 <span>{this.timeRangeDisplay}</span>
               </span>
             </Popover>
@@ -274,7 +274,7 @@ export default defineComponent({
         appendToBody
         onChange={this.handleDatePickerChagne}
         onOpen-change={this.handleOpenChange}
-      ></DatePicker>
+      />
     );
   },
 });

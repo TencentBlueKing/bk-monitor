@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onUnmounted, type PropType, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tag, TimePicker } from 'bkui-vue';
@@ -254,7 +254,7 @@ export default defineComponent({
                 class='content'
                 onClick={e => this.handleShowTime(e, ['00:00', '23:59'])}
               >
-                <i class='icon-monitor icon-mc-time icon'></i>
+                <i class='icon-monitor icon-mc-time icon' />
                 <div class='time-tag-list'>
                   {this.localValue.map((item, ind) => (
                     <Tag
@@ -285,7 +285,7 @@ export default defineComponent({
                       v-model={this.currentTime.inputValue}
                       onClick={e => e.stopPropagation()}
                       onInput={this.resetInputWidth}
-                    ></input>
+                    />
                   )}
                   <span class={['placeholder', !this.localValue.length && !this.currentTime.showInput && 'show']}>
                     {this.t('如')}：01:00 - 02:00
