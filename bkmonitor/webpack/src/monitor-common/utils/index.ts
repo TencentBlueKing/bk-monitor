@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { ISpaceItem } from '../typings';
-import { LOCAL_BIZ_STORE_KEY } from './constant';
+import { type ISpaceItem } from '../typings';
+import { LOCAL_BIZ_STORE_KEY, COMMON_PAGE_SIZE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
 // merge space list width biz list
@@ -191,6 +191,32 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
   // 返回修改后的颜色，格式与输入颜色相同（"#" 开头或不带 "#"）
   return (color.startsWith('#') ? '#' : '') + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 };
+
+/**
+ * @description 设置通用分页大小
+ * @param size
+ */
+export const commonPageSizeSet = (size: number) => {
+  if (size) {
+    localStorage.setItem(COMMON_PAGE_SIZE_KEY, `${size}`);
+  } else {
+    localStorage.setItem(COMMON_PAGE_SIZE_KEY, '10');
+  }
+};
+
+/**
+ * @description 获取通用分页大小
+ */
+export const commonPageSizeGet = () => {
+  const size = localStorage.getItem(COMMON_PAGE_SIZE_KEY);
+  const sizeNum = Number(size);
+  if (size && !isNaN(sizeNum)) {
+    return sizeNum;
+  }
+  commonPageSizeSet(10);
+  return 10;
+};
+
 export * from './constant';
 export * from './docs-link';
 export * from './utils';
