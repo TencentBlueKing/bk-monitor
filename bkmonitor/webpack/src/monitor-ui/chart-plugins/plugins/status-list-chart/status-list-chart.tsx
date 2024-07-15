@@ -31,9 +31,10 @@ import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import ChartHeader from '../../components/chart-title/chart-title';
-import { IExtendMetricData, IStatusItemData, IStatusListData, PanelModel } from '../../typings';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
+
+import type { IExtendMetricData, IStatusItemData, IStatusListData, PanelModel } from '../../typings';
 
 import './status-list-chart.scss';
 
@@ -125,7 +126,7 @@ class StatusListChart extends CommonSimpleChart {
                   <div
                     style={{ 'background-color': v.color }}
                     class='dot'
-                  ></div>
+                  />
                   <span>{v.value}</span>
                 </div>
               ))}

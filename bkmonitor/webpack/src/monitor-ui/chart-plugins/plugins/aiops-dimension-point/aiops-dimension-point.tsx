@@ -29,8 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
-import { MonitorEchartOptions } from '../../typings';
 import BaseEchart from '../monitor-base-echart';
+
+import type { MonitorEchartOptions } from '../../typings';
 
 import './aiops-dimension-point.scss';
 
@@ -245,8 +246,8 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
     this.tipsDom.style.backgroundColor =
       params.componentType !== 'markLine' && medianPoint ? 'transparent' : 'rgba(0,0,0,0.8)';
     this.tipsDom.style.transform = 'translateY(-40px)';
-    this.tipsDom.classList.add(`aiops-dimension-point-tips`);
-    medianPoint && this.tipsDom.classList.add(`aiops-dimension-point-median`);
+    this.tipsDom.classList.add('aiops-dimension-point-tips');
+    medianPoint && this.tipsDom.classList.add('aiops-dimension-point-median');
     const hideDom = () => {
       this.tipsDom.style.display = 'none';
       this.handleDownplay();
@@ -288,7 +289,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
     if (!currParams?.data?.mapData || currParams.data.mapData.length === 0) {
       return undefined;
     }
-    let html = ``;
+    let html = '';
     currParams.data.mapData.forEach(item => {
       const value = getValueFormat(this.info.unit)(item.metric_value || 0);
       const text = isNaN(Number(item.metric_value)) ? item.metric_value : value.text + value.suffix;

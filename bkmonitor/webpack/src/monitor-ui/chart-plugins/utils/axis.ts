@@ -29,8 +29,8 @@
  * @returns 数据列中最大时间间隔
  */
 export function getSeriesMaxInterval<T extends Array<{ datapoints: [number, number][] }>>(series: T) {
-  let minX = Infinity;
-  let maxX = -Infinity;
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
   series.forEach(s => {
     minX = Math.min(minX, +s.datapoints.at(0)[1]);
     maxX = Math.max(maxX, +s.datapoints.at(-1)[1]);

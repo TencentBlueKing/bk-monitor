@@ -26,15 +26,15 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Editor, Viewer } from '@toast-ui/editor';
+import { Editor, type Viewer } from '@toast-ui/editor';
 
 // import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 // import Prism from 'prismjs';
 // import 'prismjs/components/prism-python.js';
-// import 'prismjs/themes/prism.css';
-import { EditorPlugin } from '@toast-ui/editor/types/editor';
-
 import fixUrlPlugin from './fixUrlPlugin';
+
+// import 'prismjs/themes/prism.css';
+import type { EditorPlugin } from '@toast-ui/editor/types/editor';
 
 import './viewer.scss';
 // import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
@@ -97,7 +97,7 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
       <div
         ref='viewer'
         class={['markdown-viewer', { 'md-veiwer-flowchart-wrap': this.flowchartStyle }]}
-      ></div>
+      />
     );
   }
 }

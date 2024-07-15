@@ -65,7 +65,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
-import { IMoreToolItem, MoreChartToolItem } from '../options/type-interface';
+import type { IMoreToolItem, MoreChartToolItem } from '../options/type-interface';
 
 @Component({
   name: 'ChartTools',
