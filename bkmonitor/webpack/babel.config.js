@@ -32,8 +32,8 @@ module.exports = api => {
         targets: {
           browsers:
             process.env.APP === 'mobile'
-              ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
-              : ['defaults'],
+              ? ['>0.03%', 'last 2 versions', 'IE > 9']
+              : ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead'],
           node: 'current',
         },
         useBuiltIns: 'usage',
