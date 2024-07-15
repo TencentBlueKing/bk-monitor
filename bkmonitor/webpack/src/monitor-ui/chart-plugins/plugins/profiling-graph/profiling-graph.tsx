@@ -174,6 +174,9 @@ class ProfilingChart extends CommonSimpleChart {
             this.emptyText = '';
           }
         })
+        .catch(() => {
+          this.emptyText = '';
+        })
         .finally(() => {
           this.isFirstLoad = false;
         });
