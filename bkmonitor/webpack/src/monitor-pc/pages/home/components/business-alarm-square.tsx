@@ -133,7 +133,7 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
               <Square
                 status={item.status}
                 onStatusChange={() => this.squareClickHandle(index, item)}
-              ></Square>
+              />
             </div>
           ))}
         </div>
@@ -156,7 +156,7 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
             </symbol>
           </svg>
           <svg style={{ display: this.selected !== -1 ? 'block' : 'none', ...this.getSvgStyle }}>
-            <use xlinkHref={`#${this.svgKey}`}></use>
+            <use xlinkHref={`#${this.svgKey}`} />
           </svg>
         </div>
       </div>

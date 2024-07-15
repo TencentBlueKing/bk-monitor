@@ -258,11 +258,11 @@
 </template>
 
 <script lang="ts">
-import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { dimensionUnifyQuery } from 'monitor-api/modules/grafana';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 
 import { strategyMapMixin } from '../../common/mixins';
 import CustomSelect from '../../components/custom-select/custom-select';
@@ -284,8 +284,8 @@ import ConvergenceOptionsItem from './convergence-options-item.vue';
     MonitorDialog,
     CycleInput,
     CustomSelect,
-    PromqlEditor
-  }
+    PromqlEditor,
+  },
 })
 export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMapMixin) {
   @Prop({ required: true, type: Object, default: () => ({}) }) readonly queryConfig: any;
@@ -301,7 +301,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   intervalList = [
     { id: 60, name: '1min' },
     { id: 120, name: '2min' },
-    { id: 300, name: '5min' }
+    { id: 300, name: '5min' },
   ];
   groupList = [];
   groupChecked = [];
@@ -353,7 +353,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
    * @description: 获取指标信息
    */
   async getMetricData() {
-    const promiseList = this.queryConfigdata.query_configs.map((item) => {
+    const promiseList = this.queryConfigdata.query_configs.map(item => {
       const isLogSearch = !!item?.index_set_id;
       const dataSourceType = item?.data_source_label || '';
       return getMetricListV2({
@@ -365,13 +365,14 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
         conditions: isLogSearch
           ? [{ key: 'index_set_id', value: item?.index_set_id }]
           : [
-            { key: 'metric_field', value: [item?.metrics[0].field] },
-            { key: 'result_table_id', value: [item?.table] }
-          ],
+              { key: 'metric_field', value: [item?.metrics[0].field] },
+              { key: 'result_table_id', value: [item?.table] },
+            ],
         search_value: '',
-        tag: ''
-      }).then(data => data?.metric_list?.[0] || {})
-        .catch((err) => {
+        tag: '',
+      })
+        .then(data => data?.metric_list?.[0] || {})
+        .catch(err => {
           console.log(err);
           return null;
         });
@@ -381,13 +382,13 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
     this.metricDataList = res;
     if (this.metricDataList[0]?.dimensions) {
       this.groupList = this.dimensionsFilterList
-        .map((item) => {
+        .map(item => {
           const isDefault = this.groupChecked.some(set => item.id === set);
           return {
             ...item,
             disabled: isDefault,
             order: isDefault ? 0 : 1,
-            checked: isDefault || false
+            checked: isDefault || false,
           };
         })
         .sort((a, b) => a.order - b.order);
@@ -410,7 +411,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
    */
   getWhereData(where = []) {
     const result = [];
-    where.forEach((item) => {
+    where.forEach(item => {
       if (item.condition) {
         result.push(item.condition.toLocaleUpperCase());
       }
@@ -423,7 +424,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   }
 
   handleAddDimension() {
-    this.groupList.forEach((item) => {
+    this.groupList.forEach(item => {
       item.checked = item.disable || this.groupChecked.some(id => id === item.id);
     });
     this.handleBackStep();
@@ -431,7 +432,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
 
   handleDeleteDimension(key) {
     this.groupChecked = this.groupChecked.filter(id => id !== key);
-    this.groupList.forEach((item) => {
+    this.groupList.forEach(item => {
       item.checked = item.disabled || this.groupChecked.some(id => id === item.id);
     });
     const res = {};
@@ -442,23 +443,23 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   async getGroupByList(field) {
     const { query_configs: queryConfig, ...otherParams } = this.queryConfig.data;
     const params = {
-      query_configs: queryConfig.map((item) => {
+      query_configs: queryConfig.map(item => {
         if (!item.index_set_id) delete item.index_set_id;
         return item;
       }),
-      ...otherParams
+      ...otherParams,
     };
     const timerange = this.getTimerange();
     const resList = await dimensionUnifyQuery({
       dimension_field: field,
       ...params,
-      ...timerange
+      ...timerange,
     })
-      .then((varList) => {
+      .then(varList => {
         const result = Array.isArray(varList) ? varList.map(item => ({ name: item.label, id: item.value })) : [];
         return result;
       })
-      .catch((err) => {
+      .catch(err => {
         console.log(err);
         return [];
       });
@@ -472,7 +473,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
     const [startTime, endTime] = handleTransformToTimestamp(tools.timeRange);
     return {
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
   }
 

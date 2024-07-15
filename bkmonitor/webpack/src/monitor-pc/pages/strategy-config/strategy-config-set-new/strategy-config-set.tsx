@@ -57,42 +57,43 @@ import { deepClone, getUrlParam, random, transformDataKey, typeTools } from 'mon
 import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
-import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import IntelligentModelsStore from '../../../store/modules/intelligent-models';
-import { ISpaceItem } from '../../../types';
-import { IOptionsItem } from '../../calendar/types';
-import { IDataRetrieval } from '../../data-retrieval/typings';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
-import { actionConfigGroupList, IAllDefense, IValue as IAlarmItem } from './alarm-handling/alarm-handling';
+import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
 import AlarmHandlingList from './alarm-handling/alarm-handling-list';
-import BaseConfig, { IBaseConfig } from './base-config/base-config';
+import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
-import { ChartType } from './detection-rules/components/intelligent-detect/intelligent-detect';
-import { IModelData } from './detection-rules/components/time-series-forecast/time-series-forecast';
 import DetectionRules from './detection-rules/detection-rules';
-import JudgingCondition, { DEFAULT_TIME_RANGES, IJudgingData } from './judging-condition/judging-condition';
+import JudgingCondition, { DEFAULT_TIME_RANGES, type IJudgingData } from './judging-condition/judging-condition';
 import AiopsMonitorData from './monitor-data/aiops-monitor-data';
-import { IFunctionsValue } from './monitor-data/function-select';
 import MonitorData from './monitor-data/monitor-data';
 import MonitorDataEmpty from './monitor-data/monitor-data-empty';
-import NoticeConfigNew, { INoticeValue } from './notice-config/notice-config';
-import { IActionConfig } from './type';
+import NoticeConfigNew, { type INoticeValue } from './notice-config/notice-config';
 import {
-  dataModeType,
-  EditModeType,
-  IBaseInfoRouteParams,
-  IDetectionConfig,
-  IMetricDetail,
-  IScenarioItem,
-  ISourceData,
+  type EditModeType,
+  type IBaseInfoRouteParams,
+  type IDetectionConfig,
+  type IMetricDetail,
+  type IScenarioItem,
+  type ISourceData,
   MetricDetail,
   MetricType,
-  strategyType,
+  type dataModeType,
+  type strategyType,
 } from './typings';
+
+import type { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
+import type { ISpaceItem } from '../../../types';
+import type { IOptionsItem } from '../../calendar/types';
+import type { IDataRetrieval } from '../../data-retrieval/typings';
+import type { ChartType } from './detection-rules/components/intelligent-detect/intelligent-detect';
+import type { IModelData } from './detection-rules/components/time-series-forecast/time-series-forecast';
+import type { IFunctionsValue } from './monitor-data/function-select';
+import type { IActionConfig } from './type';
 
 import './strategy-config-set.scss';
 
@@ -2454,7 +2455,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           onModelChange={this.handleModelChange}
           onTargetChange={this.handleTargetChange}
           onTargetTypeChange={this.handleTargetTypeChange}
-        ></AiopsMonitorData>
+        />
       );
     }
     return (
@@ -2624,7 +2625,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   onModelChange={this.handleModelChange}
                   onRuleClick={this.handleRuleClick}
                   onUnitChange={this.handleUnitChange}
-                ></DetectionRules>
+                />
               </GroupPanel>
             ) : undefined}
             {
@@ -2653,7 +2654,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   onChange={this.handleJudgingChange}
                   // onTimeChange={(v: string[]) => this.judgeTimeRange = v}
                   onValidatorErr={this.judgingValidatorErr}
-                ></JudgingCondition>
+                />
               </GroupPanel>
             }
             <GroupPanel
@@ -2671,7 +2672,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 value={this.actionsData}
                 onAddMeal={(v: number) => (this.actionIndex = v)}
                 onChange={v => (this.actionsData = v)}
-              ></AlarmHandlingList>
+              />
             </GroupPanel>
             <GroupPanel
               ref='noticeConfigPanel'
@@ -2695,7 +2696,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   userList={this.alarmGroupList}
                   value={this.noticeData}
                   onChange={(data: INoticeValue) => (this.noticeData = data)}
-                ></NoticeConfigNew>
+                />
               )}
             </GroupPanel>
             {!this.isDetailMode && [
@@ -2736,7 +2737,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               <div
                 class={['drag', { active: this.strategyView.isActive }]}
                 on-mousedown={this.handleMouseDown}
-              ></div>
+              />
               <StrategyView
                 activeModelMd={this.activeModelIndex}
                 aiopsChartType={this.localAiopsChartType}
@@ -2767,7 +2768,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           // defaultScenario={this.baseConfig.scenario}
           onSelected={this.handleAddMetric}
           onShowChange={val => (this.metricSelector.show = val)}
-        ></MetricSelector>
+        />
         {/* <StrategyMetricSelector
           type={this.metricSelector.type}
           show={this.metricSelector.show}

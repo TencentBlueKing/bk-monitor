@@ -33,14 +33,15 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import GuidePage from '../../components/guide-page/guide-page';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import CommonStatus, { CommonStatusType } from '../monitor-k8s/components/common-status/common-status';
+import CommonStatus, { type CommonStatusType } from '../monitor-k8s/components/common-status/common-status';
 import CommonTable from '../monitor-k8s/components/common-table';
 import PageTitle from '../monitor-k8s/components/page-title';
-import { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings';
 import * as authMap from './authority-map';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings';
 
 import './custom-scenes.scss';
 
@@ -454,14 +455,14 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 ),
                 status: (row: ITableItem) =>
                   this.statusLoading ? (
-                    <div class='spinner'></div>
+                    <div class='spinner' />
                   ) : (
                     <div class='column-status'>
                       {row.status ? (
                         <CommonStatus
                           text={STATUS_TYPE[row.status]}
                           type={row.status}
-                        ></CommonStatus>
+                        />
                       ) : (
                         '--'
                       )}

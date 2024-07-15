@@ -29,7 +29,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
+import { getLinkMapping, listStickySpaces } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
@@ -38,24 +38,24 @@ import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
 import introduce from '../common/introduce';
+import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
+// #if APP !== 'external'
+import BizSelect from '../components/biz-select/biz-select';
+import NoticeGuide, { type IStepItem } from '../components/novice-guide/notice-guide';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
-import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import { GLOAB_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import monitorLogo from '../static/images/svg/monitor-logo.svg';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
-import { ISpaceItem } from '../types';
+import IntelligentModelsStore from '../store/modules/intelligent-models';
+import platformConfigStore from '../store/modules/platform-config';
+import type { ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
 import DashboardContainer from './grafana/dashboard-container/dashboard-container';
 import { getDashboardCache } from './grafana/utils';
+import HeaderSettingModal from './header-setting-modal';
 import CommonNavBar from './monitor-k8s/components/common-nav-bar';
 import NavTools from './nav-tools';
-import IntelligentModelsStore from '../store/modules/intelligent-models';
-import platformConfigStore from '../store/modules/platform-config';
-import monitorLogo from '../static/images/svg/monitor-logo.svg';
-// #if APP !== 'external'
-import BizSelect from '../components/biz-select/biz-select';
-import NoticeGuide, { IStepItem } from '../components/novice-guide/notice-guide';
-import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
-import HeaderSettingModal from './header-setting-modal';
 
 // #endif
 
@@ -673,7 +673,7 @@ export default class App extends tsc<object> {
           needBack={this.needBack}
           needCopyLink={this.needCopyLink}
           routeList={this.navRouteList}
-        ></CommonNavBar>
+        />
       ),
       <div
         key={this.routeViewKey}
@@ -682,19 +682,19 @@ export default class App extends tsc<object> {
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
       >
         <keep-alive>
-          <router-view class='page-wrapper'></router-view>
+          <router-view class='page-wrapper' />
         </keep-alive>
         <router-view
           key='noCache'
           class='page-wrapper'
           name='noCache'
-        ></router-view>
+        />
         {this.$route.name === 'home' ? (
           <div class='monitor-footer'>
             <div
               class='footer-link'
               domPropsInnerHTML={this.platformData.contact}
-            ></div>
+            />
             <div>{this.platformData.copyright}</div>
           </div>
         ) : undefined}
@@ -931,7 +931,7 @@ export default class App extends tsc<object> {
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&
             this.$route.name &&
             !AI_WHALE_EXCLUED_ROUTES.includes(this.$route.name) &&
-            this.hasBusinessAuth && <AiWhale></AiWhale>
+            this.hasBusinessAuth && <AiWhale />
           // #endif
         }
       </div>

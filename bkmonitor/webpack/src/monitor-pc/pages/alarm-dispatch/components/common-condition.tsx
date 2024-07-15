@@ -29,8 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce, random } from 'monitor-common/utils';
 
 import { getEventPaths } from '../../../utils';
-import { CONDITIONS, ICondtionItem, METHODS } from '../typing';
-import { conditionCompare, conditionsInclues, ISpecialOptions, TGroupKeys, TValueMap } from '../typing/condition';
+import { CONDITIONS, type ICondtionItem, METHODS } from '../typing';
+import {
+  type ISpecialOptions,
+  type TGroupKeys,
+  type TValueMap,
+  conditionCompare,
+  conditionsInclues,
+} from '../typing/condition';
 
 import './common-condition.scss';
 
@@ -1323,7 +1329,7 @@ export default class CommonCondition extends tsc<IProps> {
                       <span
                         class='icon-monitor icon-mc-close'
                         onClick={e => this.handleDelValueTag(e, item, index)}
-                      ></span>
+                      />
                     )}
                   </div>
                 )
@@ -1343,7 +1349,7 @@ export default class CommonCondition extends tsc<IProps> {
                       onBlur={this.handBlur}
                       onInput={this.handleInput}
                       onKeydown={e => this.handleKeydown(e, item, index)}
-                    ></input>
+                    />
                   </div>
                 )
               );
@@ -1356,7 +1362,7 @@ export default class CommonCondition extends tsc<IProps> {
             class={['tag-add', { active: this.showPopOfCondition }]}
             onClick={e => this.handleAddClick(e)}
           >
-            <span class='icon-monitor icon-plus-line'></span>
+            <span class='icon-monitor icon-plus-line' />
           </div>
         )}
         <div style={'display: none;'}>
@@ -1373,7 +1379,7 @@ export default class CommonCondition extends tsc<IProps> {
                   placeholder={window.i18n.t('输入关键字搜索')}
                   value={this.valueSearch}
                   onChange={this.handleSearchChange}
-                ></bk-input>
+                />
               </div>
             )}
             <div class='wrap-list'>
@@ -1409,8 +1415,8 @@ export default class CommonCondition extends tsc<IProps> {
                       ) : (
                         <span class='left'>{item.name}</span>
                       )}
-                      {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small'></span>}
-                      {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right'></span>}
+                      {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small' />}
+                      {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right' />}
                     </div>
                   ))
               ) : (
@@ -1423,7 +1429,7 @@ export default class CommonCondition extends tsc<IProps> {
                 onClick={this.handleDelKey}
                 onMouseenter={this.handleDelKeyMouseenter}
               >
-                <span class='icon-monitor icon-mc-delete-line'></span>
+                <span class='icon-monitor icon-mc-delete-line' />
                 <span class='del-text'>{this.$t('删除')}</span>
               </div>
             )}
@@ -1435,7 +1441,7 @@ export default class CommonCondition extends tsc<IProps> {
             class={settingPopClassName}
           >
             <div class='top'>
-              <span class='icon-monitor icon-remind'></span>
+              <span class='icon-monitor icon-remind' />
               <i18n path='变更当前值将会使 {0}，是否确定变更？'>
                 <span class='blod'>{window.i18n.t('统一设置条件失效')}</span>
               </i18n>

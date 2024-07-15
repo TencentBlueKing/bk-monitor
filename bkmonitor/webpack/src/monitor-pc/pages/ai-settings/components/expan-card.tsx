@@ -51,7 +51,7 @@ export default class ExpanCard extends tsc<IProps> {
           class='card-header'
           onClick={() => (this.localExpand = !this.localExpand)}
         >
-          <span class={['icon-monitor icon-arrow-down', { expand: this.localExpand }]}></span>
+          <span class={['icon-monitor icon-arrow-down', { expand: this.localExpand }]} />
           <span class='card-header-title'>{this.title}</span>
         </div>
         <div class={['card-content', { displaynone: !this.localExpand }]}>{this.$slots.default}</div>

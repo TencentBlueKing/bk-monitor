@@ -143,7 +143,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
               }
               disabled={this.getIsDisabel(item.id)}
               name={item.name}
-            ></bk-option>
+            />
           ))}
           <div
             style='cursor: pointer'

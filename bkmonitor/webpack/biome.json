@@ -29,7 +29,11 @@
           "fix": "safe",
           "level": "error"
         },
-        "noForEach": "warn"
+        "noForEach": "warn",
+        "useArrowFunction": {
+          "fix": "none",
+          "level": "warn"
+        }
       },
       "a11y": {
         "useKeyWithMouseEvents": "off",

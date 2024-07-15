@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { RouteConfig } from 'vue-router';
-
 import * as eventCenterAuth from '../../pages/event-center/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 // import PageLoading from '../../pages/loading/page-loading';
 const EventCenter = () => import(/* webpackChunkName: "Event" */ 'fta-solutions/pages/event/event');
 const EventCenterDetail = () =>

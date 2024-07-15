@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { SyntaxNode } from '@lezer/common';
-import { LRParser } from '@lezer/lr';
+import type { SyntaxNode } from '@lezer/common';
+import type { LRParser } from '@lezer/lr';
 
 export const ErrorId = 0;
 

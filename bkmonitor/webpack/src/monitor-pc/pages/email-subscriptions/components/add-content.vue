@@ -157,11 +157,11 @@
 </template>
 
 <script lang="ts">
-import { Component, Emit, Prop, PropSync, Ref, Vue, Watch } from 'vue-property-decorator';
 import { getDashboardList } from 'monitor-api/modules/grafana';
+import { Component, Emit, Prop, PropSync, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import SpaceSelect from '../../../components/space-select/space-select';
-import { IContentFormData } from '../types';
+import type { IContentFormData } from '../types';
 
 import selectChart from './select-chart.vue';
 /**
@@ -171,8 +171,8 @@ import selectChart from './select-chart.vue';
   name: 'add-content',
   components: {
     selectChart,
-    SpaceSelect
-  }
+    SpaceSelect,
+  },
 })
 export default class AddContent extends Vue {
   // 侧栏展示状态
@@ -182,7 +182,7 @@ export default class AddContent extends Vue {
   // 编辑传入数据
   @Prop({ type: Object }) private readonly data: IContentFormData;
   // view: 视图截取  pull: 整屏截取
-  @Prop({ type: String, default: 'view' })  private readonly contentType: 'view' | 'full';
+  @Prop({ type: String, default: 'view' }) private readonly contentType: 'view' | 'full';
   @Ref('validateForm') private readonly validateFormRef: any;
   // 表单展示数据
 
@@ -193,7 +193,7 @@ export default class AddContent extends Vue {
     graphs: [],
     curBizId: `${window.cc_biz_id}`,
     curGrafana: '',
-    curGrafanaName: ''
+    curGrafanaName: '',
   };
 
   private rules = {
@@ -206,15 +206,11 @@ export default class AddContent extends Vue {
           return !!val.length;
         },
         message: window.i18n.t('必填项'),
-        trigger: 'none'
-      }
+        trigger: 'none',
+      },
     ],
-    curBizId: [
-      { required: true, message: window.i18n.t('必填项'), trigger: 'none' }
-    ],
-    curGrafana: [
-      { required: true, message: window.i18n.t('必填项'), trigger: 'none' }
-    ]
+    curBizId: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
+    curGrafana: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
   };
   private bizIdList = [];
   private allGrafanaListMap = [];
@@ -235,7 +231,7 @@ export default class AddContent extends Vue {
   created() {
     this.bizIdList = this.$store.getters.bizList.map(item => ({
       id: String(item.id),
-      text: item.text
+      text: item.text,
     }));
   }
 
@@ -269,14 +265,14 @@ export default class AddContent extends Vue {
         contentTitle: '',
         contentDetails: '',
         rowPicturesNum: 2,
-        graphs: []
+        graphs: [],
       };
       if (this.contentType === 'full') {
         this.formData = {
           ...this.formData,
           curBizId: `${window.cc_biz_id}`,
           curGrafana: '',
-          curGrafanaName: ''
+          curGrafanaName: '',
         };
       }
     }
@@ -299,19 +295,20 @@ export default class AddContent extends Vue {
     return this.formData;
   }
 
-  private getChartList(isCreate = false)  {
+  private getChartList(isCreate = false) {
     // const noPermission = !this.bizIdList.some(item => `${item.id}` === `${this.curBizId}`)
     if (+this.formData.curBizId === -1) return;
     this.grafanaLoading = true;
     const bizId = this.formData.curBizId || window.cc_biz_id;
-    getDashboardList({ bk_biz_id: bizId }).then((list) => {
-      const graphBiziId: any = {};
-      graphBiziId[bizId] = list;
-      this.allGrafanaListMap = graphBiziId;
-      if (!isCreate) {
-        this.formData.curGrafana = graphBiziId[this.formData.curBizId][0]?.uid || '';
-      }
-    })
+    getDashboardList({ bk_biz_id: bizId })
+      .then(list => {
+        const graphBiziId: any = {};
+        graphBiziId[bizId] = list;
+        this.allGrafanaListMap = graphBiziId;
+        if (!isCreate) {
+          this.formData.curGrafana = graphBiziId[this.formData.curBizId][0]?.uid || '';
+        }
+      })
       .catch(() => [])
       .finally(() => {
         this.grafanaLoading = false;

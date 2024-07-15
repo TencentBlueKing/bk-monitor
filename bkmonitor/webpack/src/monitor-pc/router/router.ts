@@ -29,7 +29,7 @@ import Vue from 'vue';
 
 import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 import { getUrlParam, random } from 'monitor-common/utils/utils';
-import VueRouter, { Route, RouteConfig } from 'vue-router';
+import VueRouter, { type Route, type RouteConfig } from 'vue-router';
 
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
@@ -38,6 +38,7 @@ import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
 
 import dashboardRoutes from './dashboard';
+import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #if APP !== 'external'
 import dataRetrievalRoutes from './data-retrieval';
 import eventRoutes from './event';
@@ -45,9 +46,8 @@ import homeRoutes from './home';
 import intergrateRoutes from './integrated';
 import managerRoutes from './manager';
 import otherRoutes from './others';
-import scensesRoutes from './scenes';
 import platformSetting from './platform-setting';
-import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
+import scensesRoutes from './scenes';
 // #endif
 
 // import spaceData from './space';

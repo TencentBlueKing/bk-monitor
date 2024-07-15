@@ -49,12 +49,9 @@ import {
   queryConfigToPromql,
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
-import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+import { Debounce, copyText, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
 
-// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
-import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
-import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
@@ -68,7 +65,6 @@ import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
-import { PanelToolsType } from '../monitor-k8s/typings';
 import StrategyIpv6 from '../strategy-config/strategy-ipv6/strategy-ipv6';
 import DataRetrievalItem from './data-retrieval-item/data-retrieval-item';
 import DataRetrievalView from './data-retrieval-view/data-retrieval-view';
@@ -77,20 +73,24 @@ import ExpressionItem from './expression-item/expression-item';
 import AddCollectDialog from './favorite-container/add-collect-dialog';
 import FavoriteIndex from './favorite-container/collect-index';
 import HandleBtn from './handle-btn/handle-btn';
-import { IIndexListItem } from './index-list/index-list';
 import {
   DataRetrievalPromqlItem,
   DataRetrievalQueryItem,
-  EventRetrievalViewType,
-  IDataRetrieval,
-  IDataRetrievalItem,
-  IDataRetrievalView,
-  IFavList,
-  IFilterCondition,
-  TEditMode,
+  type EventRetrievalViewType,
+  type IDataRetrieval,
+  type IDataRetrievalItem,
+  type IDataRetrievalView,
+  type IFavList,
+  type IFilterCondition,
+  type TEditMode,
 } from './typings';
 
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+import type { EmptyStatusType } from '../../components/empty-status/types';
+import type { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import type { TimeRangeType } from '../../components/time-range/time-range';
+import type { PanelToolsType } from '../monitor-k8s/typings';
+import type { IIndexListItem } from './index-list/index-list';
 import type { RawLocation, Route } from 'vue-router';
 
 import './data-retrieval.scss';
@@ -2998,7 +2998,7 @@ export default class DataRetrieval extends tsc<object> {
     const titleSlot = (item: IDataRetrieval.ILocalValue, index: number) => (
       <div class='collapse-item-title'>
         <span class='title-left'>
-          <i class={['bk-icon', 'icon-play-shape', { acitve: this.expandedData.includes(item.key) }]}></i>
+          <i class={['bk-icon', 'icon-play-shape', { acitve: this.expandedData.includes(item.key) }]} />
           <span class='title-name'>{item.alias}</span>
           <span class='title-desc'>{item.isMetric ? this.$t('（查询项）') : this.$t('（表达式）')}</span>
         </span>
@@ -3092,7 +3092,7 @@ export default class DataRetrieval extends tsc<object> {
               <span
                 class='edit icon-monitor icon-bianji'
                 onClick={() => this.handleClickEditFav()}
-              ></span>
+              />
             ) : undefined}
           </div>
           <div class='title-operate'>
@@ -3107,7 +3107,7 @@ export default class DataRetrieval extends tsc<object> {
                 }}
                 onClick={this.handleEditModeChange}
               >
-                <span class='icon-monitor icon-switch'></span>
+                <span class='icon-monitor icon-switch' />
                 <span>{this.editMode === 'PromQL' ? 'UI' : 'PromQL'}</span>
               </span>
             )}
@@ -3116,7 +3116,7 @@ export default class DataRetrieval extends tsc<object> {
                 style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
                 class='icon-monitor icon-mc-expand expand-icon'
                 onClick={this.handleExpandAll}
-              ></i>
+              />
             )}
             {/* <bk-popover
               ref="autoQueryPopover"
@@ -3178,7 +3178,7 @@ export default class DataRetrieval extends tsc<object> {
                   content: () => contentSlot(item, index),
                 }}
                 name={item.key}
-              ></bk-collapse-item>
+              />
             </li>
           ))}
         </transition-group>
@@ -3220,7 +3220,7 @@ export default class DataRetrieval extends tsc<object> {
           onClick={() => this.handleMetricSelectShow(true)}
         >
           <span>{this.$t('指标选择')}</span>
-          <span class='icon-monitor icon-arrow-down'></span>
+          <span class='icon-monitor icon-arrow-down' />
         </div>
         <MetricSelector
           isPromql={true}
@@ -3229,7 +3229,7 @@ export default class DataRetrieval extends tsc<object> {
           type={MetricType.TimeSeries}
           onSelected={this.handleSelectMetric}
           onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
-        ></MetricSelector>
+        />
         <bk-collapse
           class='collapse-wrap collapse-wrap-data'
           v-model={this.promqlExpandedData}
@@ -3247,7 +3247,7 @@ export default class DataRetrieval extends tsc<object> {
                       <span class='title-left'>
                         <i
                           class={['bk-icon', 'icon-play-shape', { acitve: this.promqlExpandedData.includes(item.key) }]}
-                        ></i>
+                        />
                         <span class='title-name'>{item.alias}</span>
                         <span class='title-desc'>{this.$t('（查询项）')}</span>
                       </span>
@@ -3305,7 +3305,7 @@ export default class DataRetrieval extends tsc<object> {
                                 content: this.$t('数据步长'),
                                 placements: ['top'],
                               }}
-                            ></span>
+                            />
                           </div>
                         </bk-input>
                       </span>
@@ -3314,7 +3314,7 @@ export default class DataRetrieval extends tsc<object> {
                   ),
                 }}
                 name={item.key}
-              ></bk-collapse-item>
+              />
             </li>
           ))}
         </bk-collapse>
@@ -3346,7 +3346,7 @@ export default class DataRetrieval extends tsc<object> {
         {
           // 日志检索
           this.logShow ? (
-            <LogRetrieval></LogRetrieval>
+            <LogRetrieval />
           ) : (
             <div class='data-retrieval-container'>
               {!this.onlyShowView && (
@@ -3383,7 +3383,7 @@ export default class DataRetrieval extends tsc<object> {
                           }}
                           onClick={() => this.handleClickResultIcon('favorite')}
                         >
-                          <span class='bk-icon icon-star'></span>
+                          <span class='bk-icon icon-star' />
                         </div>
                         <div
                           class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
@@ -3394,7 +3394,7 @@ export default class DataRetrieval extends tsc<object> {
                           }}
                           onClick={() => this.handleClickResultIcon('search')}
                         >
-                          <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
+                          <span class='bk-icon icon-monitor icon-mc-search-favorites' />
                         </div>
                       </div>
                     </div>
@@ -3425,7 +3425,7 @@ export default class DataRetrieval extends tsc<object> {
                     isShowFavorite={this.isShowFavorite}
                     onGetFavoritesList={this.getListByGroupFavorite}
                     onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
-                  ></FavoriteIndex>
+                  />
                 </div>
                 {/* 监控数据检索 */}
                 <div

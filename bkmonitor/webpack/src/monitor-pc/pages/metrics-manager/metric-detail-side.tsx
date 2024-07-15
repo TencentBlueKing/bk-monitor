@@ -30,11 +30,12 @@ import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 
 import { secToString } from '../../components/cycle-input/utils';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
-// import InputConfirm from './input-confirm';
-import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 import HandleExperience from './components/handle-experiences';
 import DimensionTable from './dimension-table';
 import { dataSouceLabes } from './metrics-table';
+
+// import InputConfirm from './input-confirm';
+import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 
 import './metric-detail-side.scss';
 
@@ -125,7 +126,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
             theme='primary'
             value={true}
             disabled
-          ></bk-switcher>
+          />
         ),
       },
     ];
@@ -185,7 +186,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
             onClick={this.handleToDataRetrieval}
           >
             <span>{this.$t('检索')}</span>
-            <span class='icon-monitor icon-fenxiang'></span>
+            <span class='icon-monitor icon-fenxiang' />
           </span>
         </div>
         <div
@@ -216,7 +217,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
                   key={item.id}
                   label={item.name}
                   name={item.id}
-                ></bk-tab-panel>
+                />
               ))}
             </MonitorTab>
           </div>
@@ -224,11 +225,11 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
             <DimensionTable
               detail={this.detail}
               show={this.tabData.active === 'dimension'}
-            ></DimensionTable>
+            />
             <HandleExperience
               metricData={this.detail}
               show={this.tabData.active === 'handleExperience'}
-            ></HandleExperience>
+            />
           </div>
         </div>
       </bk-sideslider>

@@ -87,7 +87,7 @@ export default class KafkaBasicInfo extends tsc<IProps> {
             v-model={this.localFormData.domain}
             onChange={this.handleEmitChange}
             onFocus={() => this.clearError()}
-          ></bk-input>
+          />
         </FormItem>
         <div class='horizontal'>
           <FormItem
@@ -100,7 +100,7 @@ export default class KafkaBasicInfo extends tsc<IProps> {
               v-model={this.localFormData.port}
               onChange={this.handleEmitChange}
               onFocus={() => this.clearError()}
-            ></bk-input>
+            />
           </FormItem>
           <FormItem
             width={270}
@@ -110,7 +110,7 @@ export default class KafkaBasicInfo extends tsc<IProps> {
               v-model={this.localFormData.schema}
               onChange={this.handleEmitChange}
               onFocus={() => this.clearError()}
-            ></bk-input>
+            />
           </FormItem>
         </div>
         <div class='horizontal'>

@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ILinkItem } from '../../monitor-k8s/typings/table';
+import type { ILinkItem } from '../../monitor-k8s/typings/table';
 
 import './more-operate.scss';
 
@@ -79,7 +79,7 @@ export default class MoreOperate extends tsc<IProps, IEvents> {
             class='option-more'
             onClick={this.handleShowPopover}
           >
-            <span class='bk-icon icon-more'></span>
+            <span class='bk-icon icon-more' />
           </div>
         ) : undefined}
         <div style={{ display: 'none' }}>

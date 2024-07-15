@@ -43,14 +43,15 @@ import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { ISpaceItem } from '../../../types';
 import { WATCH_SPACE_STICKY_LIST } from '../../app';
-import FavList, { IFavListItem } from './fav-list';
-import IconBtn, { IIconBtnOptions } from './icon-btn';
-import { IMoreData } from './tree-list';
+import FavList, { type IFavListItem } from './fav-list';
+import IconBtn, { type IIconBtnOptions } from './icon-btn';
 import TreeMenu from './tree-menu';
-import { ITreeMenuItem, TreeMenuItem } from './utils';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { ISpaceItem } from '../../../types';
+import type { IMoreData } from './tree-list';
+import type { ITreeMenuItem, TreeMenuItem } from './utils';
 
 import './dashboard-aside.scss';
 
@@ -76,15 +77,15 @@ interface IFormData {
 }
 
 export enum MoreType {
-  dashboard /** 仪表盘 */,
-  dir /** 目录 */,
-  import /** 导入 */,
-  imports /** 批量导入 */,
-  delete /** 删除 */,
-  fav /** 收藏 */,
-  unfav /** 取消收藏 */,
-  export /** 导出 */,
-  rename /** 重命名 */,
+  dashboard = 0 /** 仪表盘 */,
+  delete = 4 /** 删除 */,
+  dir = 1 /** 目录 */,
+  export = 7 /** 导出 */,
+  fav = 5 /** 收藏 */,
+  import = 2 /** 导入 */,
+  imports = 3 /** 批量导入 */,
+  rename = 8 /** 重命名 */,
+  unfav = 6 /** 取消收藏 */,
 }
 type FormType = MoreType.dashboard | MoreType.dir;
 @Component
@@ -648,7 +649,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 list={this.favList}
                 onSelected={this.handleSelectedFav}
                 onUnstarred={this.handleUnstarred}
-              ></FavList>
+              />
             </div>
           )}
           <div class='grafana-handle'>
@@ -694,7 +695,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   v-model={this.keywork}
                   right-icon='bk-icon icon-search'
                   onInput={this.handleSearchInput}
-                ></bk-input>
+                />
               </div>
             </Collapse>
           </div>
@@ -706,11 +707,11 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                     class={`search-item ${this.checked === item.uid ? 'is-active' : ''}`}
                     onClick={() => this.handleSelectedGrafana(item)}
                   >
-                    <span class='search-icon'></span>
+                    <span class='search-icon' />
                     <span
                       class='search-content'
                       domPropsInnerHTML={this.handleSearchHit(item)}
-                    ></span>
+                    />
                   </div>
                 ))
               ) : (
@@ -729,7 +730,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 onMore={this.handleTreeMore}
                 onRename={this.handleRename}
                 onSelected={this.handleSelectedGrafana}
-              ></TreeMenu>
+              />
             </div>
           )}
           {
@@ -745,7 +746,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   }}
                   onClick={() => this.handleLinkTo(item)}
                 >
-                  <i class={['icon-monitor', item.icon]}></i>
+                  <i class={['icon-monitor', item.icon]} />
                 </span>
               ))}
             </div>
@@ -777,7 +778,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               property='name'
               required
             >
-              <bk-input v-model={this.formData.name}></bk-input>
+              <bk-input v-model={this.formData.name} />
             </bk-form-item>
             {this.isDashboard && (
               <bk-form-item
@@ -790,7 +791,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                     <bk-option
                       id={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </bk-form-item>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,9 +30,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import AlarmGroup from '../../strategy-config/strategy-config-set-new/components/alarm-group';
 import VerifyItem from '../../strategy-config/strategy-config-set-new/components/verify-item';
 import AlarmGroupSelect from '../components/alarm-group-select';
-import { EColumn, ICondtionItem, LEVELLIST } from '../typing';
-import { TGroupKeys, TValueMap } from '../typing/condition';
-import ConditionFindReplace, { IListItem } from './condition-find-replace';
+import { type EColumn, type ICondtionItem, LEVELLIST } from '../typing';
+import ConditionFindReplace, { type IListItem } from './condition-find-replace';
+
+import type { TGroupKeys, TValueMap } from '../typing/condition';
 
 import './alarm-batch-edit.scss';
 
@@ -216,7 +218,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
           this.data[this.filed] = 1;
           return;
         }
-        if (parseFloat(value) === parseInt(value)) {
+        if (Number.parseFloat(value) === Number.parseInt(value)) {
           this.data[this.filed] = Number(value);
         } else {
           (this.$refs.priorityInput as any).curValue = Math.round(Number(value));
@@ -463,7 +465,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                 class='add-wrap'
                 onClick={this.addProcess}
               >
-                <span class='icon-monitor icon-jia'></span>
+                <span class='icon-monitor icon-jia' />
                 <span>{this.$t('创建流程')}</span>
               </div>
               <div
@@ -475,9 +477,9 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                     class='status-loading'
                     alt=''
                     src={require('../../../static/images/svg/spinner.svg')}
-                  ></img>
+                  />
                 ) : (
-                  <span class='icon-monitor icon-mc-retry'></span>
+                  <span class='icon-monitor icon-mc-retry' />
                 )}
               </div>
             </div>
@@ -493,7 +495,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
               groupKeys={this.conditionProps.groupKeys}
               keyList={this.conditionProps.keyList}
               valueMap={this.conditionProps.valueMap}
-            ></ConditionFindReplace>
+            />
           )
         );
 
@@ -511,7 +513,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
               placeholder={this.$t('填写标签，格式key:value')}
               tooltip-key='name'
               onChange={this.handleAdditionalTagsChange}
-            ></bk-tag-input>
+            />
           </VerifyItem>
         );
 

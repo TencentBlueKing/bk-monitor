@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { EStatus } from '../../../../trace/pages/rotation/typings/common';
+import type { EStatus } from '../../../../trace/pages/rotation/typings/common';
 
 export interface IDutyListItem {
   id: number | string;

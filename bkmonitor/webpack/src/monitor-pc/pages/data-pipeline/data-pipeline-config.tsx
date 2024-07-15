@@ -399,7 +399,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                   v-model={this.formData.name}
                   disabled={this.isEdit}
                   onChange={() => this.clearErr(true)}
-                ></bk-input>,
+                />,
                 this.errMsg.name
               )}
               <div class='horizontal'>
@@ -412,7 +412,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       spaceList={this.$store.getters.bizList}
                       value={this.formData.spaces}
                       onChange={v => this.handleSpaceChange(v)}
-                    ></SpaceSelect>
+                    />
                   </div>,
                   this.errMsg.spaces
                 )}
@@ -428,7 +428,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       value={this.formData.etl_configs}
                       onChange={v => this.handleEtlConfigChange(v)}
                       onPack={this.handlePack}
-                    ></CustomSelect>
+                    />
                   </div>,
                   this.errMsg.etl_configs
                 )}
@@ -436,8 +436,8 @@ export default class DataPipelineConfig extends tsc<IProps> {
               {formItem(
                 <span class='require'>{this.$t('Kafka链路')}</span>,
                 <bk-select
-                  v-bkloading={{ isLoading: this.getKafkaLoading }}
                   v-model={this.formData.kafka_cluster_id}
+                  v-bkloading={{ isLoading: this.getKafkaLoading }}
                   onChange={() => this.clearErr()}
                 >
                   {this.kafkaOptions.map(item => (
@@ -445,7 +445,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       id={item.id}
                       key={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>,
                 this.errMsg.kafka_cluster_id
@@ -453,8 +453,8 @@ export default class DataPipelineConfig extends tsc<IProps> {
               {formItem(
                 <span class='require'>{this.$t('Transfer链路')}</span>,
                 <bk-select
-                  v-bkloading={{ isLoading: this.getTransferListLoading }}
                   v-model={this.formData.transfer_cluster_id}
+                  v-bkloading={{ isLoading: this.getTransferListLoading }}
                   onChange={() => this.clearErr()}
                 >
                   {this.transferOptions.map(item => (
@@ -462,7 +462,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       id={item.id}
                       key={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>,
                 this.errMsg.transfer_cluster_id
@@ -477,7 +477,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
               </bk-checkbox>
               {this.hasDefalut && (
                 <div class='default-tip'>
-                  <span class='icon-monitor icon-hint'></span>
+                  <span class='icon-monitor icon-hint' />
                   <i18n path='已有默认链路{0}，如需更改需先去该链路下将其取消'>
                     <span>{this.hasDefalutName}</span>
                   </i18n>
@@ -491,7 +491,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
               )}
             </div>
           </div>
-          <div class='line-between'></div>
+          <div class='line-between' />
           <div class='content-item'>
             <div class='content-item-title'>{this.$t('数据投递')}</div>
             <div class='content-item-form'>
@@ -500,8 +500,8 @@ export default class DataPipelineConfig extends tsc<IProps> {
                   <bk-checkbox v-model={this.influxdbStorageEnable}>{this.$t('投递到Influxdb')}</bk-checkbox>
                 </span>,
                 <bk-select
-                  v-bkloading={{ isLoading: this.getInfluxdLoading }}
                   v-model={this.formData.influxdb_storage_cluster_id}
+                  v-bkloading={{ isLoading: this.getInfluxdLoading }}
                   disabled={!this.influxdbStorageEnable}
                 >
                   {this.influxdbOptions.map(item => (
@@ -509,7 +509,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       id={item.id}
                       key={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>,
                 this.errMsg.influxdb_storage_cluster_id
@@ -519,8 +519,8 @@ export default class DataPipelineConfig extends tsc<IProps> {
                   <bk-checkbox v-model={this.kafkaStorageEnable}>{this.$t('投递到Kafka')}</bk-checkbox>
                 </span>,
                 <bk-select
-                  v-bkloading={{ isLoading: this.getKafkaLoading }}
                   v-model={this.formData.kafka_storage_cluster_id}
+                  v-bkloading={{ isLoading: this.getKafkaLoading }}
                   disabled={!this.kafkaStorageEnable}
                 >
                   {this.kafkaOptions.map(item => (
@@ -528,7 +528,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       id={item.id}
                       key={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>,
                 this.errMsg.kafka_storage_cluster_id
@@ -540,7 +540,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                   maxlength={100}
                   rows={3}
                   type={'textarea'}
-                ></bk-input>,
+                />,
                 this.errMsg.description
               )}
             </div>

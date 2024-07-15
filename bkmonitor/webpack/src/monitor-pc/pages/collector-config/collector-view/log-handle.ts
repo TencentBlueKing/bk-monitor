@@ -25,8 +25,9 @@
  */
 // 日志采集特殊处理
 import { COLLECT_CHART_TYPE } from '../../../constant/constant';
-import { IFilterCondition } from '../../data-retrieval/typings/index';
 import { selectAllItemKey } from './variable-settings.tsx';
+
+import type { IFilterCondition } from '../../data-retrieval/typings/index';
 
 interface hideOptions {
   chartTypeHide?: boolean; // 切换一行多图隐藏
@@ -132,4 +133,4 @@ const compileVariableData = (data, variableData) => {
   return params;
 };
 
-export { hideOptions, logCollectInit, logEventRetrievalParams, tablePanelGroupByChange };
+export { type hideOptions, logCollectInit, logEventRetrievalParams, tablePanelGroupByChange };

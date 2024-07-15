@@ -23,18 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type RouteConfig } from 'vue-router';
-
 import { spaceIntroduce } from 'monitor-api/modules/commons';
 
-import { ISPaceIntroduceData } from '../types';
+import type { ISPaceIntroduceData } from '../types';
+import type { RouteConfig } from 'vue-router';
 
 export enum IntroduceRouteKey {
   'apm-home' = 'apm-home',
   'collect-config' = 'collect-config',
   'custom-scenes' = 'custom-scenes',
-  'k8s' = 'k8s',
-  'performance' = 'performance',
+  k8s = 'k8s',
+  performance = 'performance',
   'plugin-manager' = 'plugin-manager',
   'uptime-check' = 'uptime-check',
 }

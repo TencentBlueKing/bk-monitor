@@ -30,9 +30,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import { shareFavorite } from 'monitor-api/modules/model';
 import { Debounce } from 'monitor-common/utils/utils';
 
-import { ISpaceItem } from '../../../../types';
-import { IFavList } from '../../typings';
-import List, { IListItem } from './checkbox-list';
+import List, { type IListItem } from './checkbox-list';
+
+import type { ISpaceItem } from '../../../../types';
+import type { IFavList } from '../../typings';
 
 import './shared-dialog.scss';
 
@@ -238,7 +239,7 @@ export default class SharedDialog extends tsc<IProps> {
               <List
                 ref='list'
                 list={this.bizListFilter}
-              ></List>
+              />
             </ul>
           </div>
         </div>

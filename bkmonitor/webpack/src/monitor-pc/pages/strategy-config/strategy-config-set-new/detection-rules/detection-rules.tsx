@@ -38,20 +38,21 @@ import RingRatio from '../../../../static/images/svg/ring-ratio.svg';
 import Threshold from '../../../../static/images/svg/threshold.svg';
 import TimeSeriesForecasting from '../../../../static/images/svg/time-series-forecasting.svg';
 import YearRound from '../../../../static/images/svg/year-round.svg';
-import IntelligentModelsStore, { IntelligentModelsType } from '../../../../store/modules/intelligent-models';
+import IntelligentModelsStore, { type IntelligentModelsType } from '../../../../store/modules/intelligent-models';
 import { createOnlyId } from '../../../../utils';
 import {
-  dataModeType,
   DetectionRuleTypeEnum,
-  ICommonItem,
-  IDetectionTypeItem,
-  IDetectionTypeRuleData,
-  MetricDetail,
+  type ICommonItem,
+  type IDetectionTypeItem,
+  type IDetectionTypeRuleData,
+  type MetricDetail,
+  type dataModeType,
 } from '../typings/index';
-import { ChartType } from './components/intelligent-detect/intelligent-detect';
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
-import { IModelData } from './components/time-series-forecast/time-series-forecast';
 import RulesSelect from './rules-select';
+
+import type { ChartType } from './components/intelligent-detect/intelligent-detect';
+import type { IModelData } from './components/time-series-forecast/time-series-forecast';
 
 import './detection-rules.scss';
 
@@ -530,7 +531,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 onChange={this.handleUnitChange}
               >
                 {this.unitDisplay}
-                <span class='icon-monitor icon-mc-triangle-down'></span>
+                <span class='icon-monitor icon-mc-triangle-down' />
               </MonitorSelect>
             </div>
           ) : undefined}
@@ -569,7 +570,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
           readonly={this.readonly}
           typeList={this.detectionTypeListFilter}
           onTypeChange={this.handleAddRuleType}
-        ></RulesSelect>
+        />
 
         {this.hasValid && !this.addType.length && <p class='err-msg'>{this.$t('最少选择一个算法')}</p>}
       </div>

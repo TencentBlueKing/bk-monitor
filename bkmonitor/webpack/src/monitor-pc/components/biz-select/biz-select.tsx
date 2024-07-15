@@ -30,9 +30,10 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
-import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
-import List, { ETagsType, IListItem } from './list';
+import List, { ETagsType, type IListItem } from './list';
+
+import type { ISpaceItem } from '../../types';
 
 import './biz-select.scss';
 /** 业务组件常用的业务缓存key */
@@ -523,7 +524,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 <i
                   style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
                   class='icon-monitor icon-mc-triangle-down'
-                ></i>
+                />
               </div>
             )}
           </div>
@@ -572,13 +573,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
                     onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
                   >
-                    <span class='icon-monitor icon-arrow-left'></span>
+                    <span class='icon-monitor icon-arrow-left' />
                   </div>
                   <div
                     class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
                     onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
                   >
-                    <span class='icon-monitor icon-arrow-right'></span>
+                    <span class='icon-monitor icon-arrow-right' />
                   </div>
                 </div>
               )}
@@ -591,7 +592,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}
-                ></List>
+                />
               </ul>
             </div>
             {(process.env.APP !== 'external' || !!this.demo) && (
@@ -601,7 +602,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class='biz-btn'
                     onClick={this.handleOpenSpaceManager}
                   >
-                    <i class='biz-btn-icon icon-monitor icon-mc-two-column'></i>
+                    <i class='biz-btn-icon icon-monitor icon-mc-two-column' />
                     <span class='biz-btn-text'>{this.$t('空间管理')}</span>
                   </span>
                 )}
@@ -614,7 +615,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class='biz-btn'
                     onClick={this.handleToDemo}
                   >
-                    <i class='biz-btn-icon icon-monitor icon-mc-demo'></i>
+                    <i class='biz-btn-icon icon-monitor icon-mc-demo' />
                     <span class='biz-btn-text'>{this.$t('DEMO')}</span>
                   </span>
                 )}

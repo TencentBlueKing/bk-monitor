@@ -30,7 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import Schema from 'async-validator';
 
 import ErrorMsg from '../../../components/error-msg/error-msg';
-import { AnomalyDetectionBase, SchemeItem } from '../types';
+
+import type { AnomalyDetectionBase, SchemeItem } from '../types';
 
 import './single-indicator.scss';
 
@@ -113,7 +114,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
                 <span>{this.baseConfig.is_enabled ? this.$t('开启') : this.$t('关闭')}</span>
               )}
               <span class='right-tip'>
-                <span class='icon-monitor icon-hint'></span>
+                <span class='icon-monitor icon-hint' />
                 <span class='tip-text'>
                   {this.isSingle
                     ? this.$t('启用后可在监控策略中配置此类告警')
