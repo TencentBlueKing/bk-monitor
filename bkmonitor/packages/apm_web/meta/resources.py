@@ -2200,8 +2200,9 @@ class QueryExceptionDetailEventResource(PageListResource):
                     stacktrace = (
                         event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_STACKTRACE, "").split("\n")
                     )
-                    exception_message = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_MESSAGE, "")
-                    subtitle = f"{exception_type}: {exception_message}"
+                    if not subtitle:
+                        exception_message = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_MESSAGE, "")
+                        subtitle = f"{exception_type}: {exception_message}"
                     if validated_data["exception_type"]:
                         if exception_type == validated_data["exception_type"]:
                             res.append(
