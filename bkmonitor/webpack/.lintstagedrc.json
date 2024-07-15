@@ -1,5 +1,5 @@
 {
-  "*.(ts|tsx|js)": ["npx eslint --cache --fix"],
+  "*.(ts|tsx|js)": ["npx biome check --write", "npx eslint --cache --fix"],
   "src/**/*.(vue|scss|css|sass)": ["npx stylelint --cache --fix"],
   "*.json": ["npx biome check --write"],
   "*.{md,yml}": ["npx prettier --ignore-unknown --write"]
