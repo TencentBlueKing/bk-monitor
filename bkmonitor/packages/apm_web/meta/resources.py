@@ -1939,7 +1939,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                         name=_("调用链"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&listType=span',
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
@@ -1949,7 +1949,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                         name=_("统计"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&listType=interfaceStatistics',
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
