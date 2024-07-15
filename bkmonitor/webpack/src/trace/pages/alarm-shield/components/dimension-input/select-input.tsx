@@ -290,13 +290,23 @@ export default defineComponent({
                   return dimensionList;
                 }, [])
               : [];
-            // 取策略各指标agg_dimension的合集
-            const strategyDimensionSet = new Set();
+            // 取策略各指标agg_dimension的交集
+            const getIntersection = (arrays: string[][]) => {
+              if (arrays.length === 0) {
+                return [];
+              }
+              let intersection = arrays[0];
+              for (let i = 1; i < arrays.length; i++) {
+                intersection = intersection.filter(item => arrays[i].includes(item));
+              }
+              return intersection;
+            };
+            const queryConfigDimensions = [];
             queryConfigs.forEach(q => {
-              q?.agg_dimension?.forEach(d => {
-                strategyDimensionSet.add(d);
-              });
+              const temp = q?.agg_dimension || [];
+              queryConfigDimensions.push(temp);
             });
+            const strategyDimensionSet = new Set(getIntersection(queryConfigDimensions));
             const dimensionListFilter = dimensionList.filter(item => strategyDimensionSet.has(item.id));
             props.dimensionSet(v, dimensionListFilter);
             selectData.options = dimensionListFilter;
