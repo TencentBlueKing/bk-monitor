@@ -89,7 +89,7 @@
             @change="handleChangeExpandView"
           />
         </div>
-        <div :style="`margin-right: ${showOriginalLog ? 0 : 26}px`">
+        <div>
           <span class="switch-label">{{ $t('换行') }}</span>
           <bk-switcher
             v-model="isWrap"
@@ -108,7 +108,6 @@
           >
           </export-log>
           <bk-popover
-            v-if="!showOriginalLog"
             ref="fieldsSettingPopper"
             :distance="15"
             :offset="0"
