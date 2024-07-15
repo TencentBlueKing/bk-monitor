@@ -1,6 +1,6 @@
 {
-  "*.(ts|tsx|js)": ["biome check --write", "eslint --cache --fix"],
-  "src/**/*.(vue|scss|css|sass)": ["stylelint --cache --fix"],
-  "*.json": ["stylelint --cache --fix"],
-  "*.{md,yml}": ["prettier --ignore-unknown --write"]
+  "*.(ts|tsx|js)": ["npx eslint --cache --fix"],
+  "src/**/*.(vue|scss|css|sass)": ["npx stylelint --cache --fix"],
+  "*.json": ["npx biome check --write"],
+  "*.{md,yml}": ["npx prettier --ignore-unknown --write"]
 }

@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
-    "lint": "eslint --fix --ext .js,.ts,tsx  ./",
+    "lint": "eslint --fix ./",
     "fix": "npm run lint"
   },
   "dependencies": {
@@ -51,10 +51,7 @@
     "vue-json-pretty": "2.4.0",
     "vue-router": "^4.4.0"
   },
-  "keywords": [
-    "monitor",
-    "trace"
-  ],
+  "keywords": ["monitor", "trace"],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

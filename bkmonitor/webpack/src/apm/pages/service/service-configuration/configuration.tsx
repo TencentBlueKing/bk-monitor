@@ -26,12 +26,13 @@
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';
 import BasicInfo from './basic-info';
+
+import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './configuration.scss';
 

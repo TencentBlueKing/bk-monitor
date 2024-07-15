@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
-    "lint": "eslint --fix --ext .js,.ts,tsx  ./",
+    "lint": "eslint --fix  ./",
     "fix": "npm run lint"
   },
   "dependencies": {
@@ -14,10 +14,7 @@
     "monitor-common": "workspace:*",
     "qs": "^6.12.2"
   },
-  "keywords": [
-    "monitor",
-    "api"
-  ],
+  "keywords": ["monitor", "api"],
   "author": "bk fe",
   "license": "MIT"
 }

@@ -27,13 +27,14 @@ import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorato
 
 import { checkDuplicateName, getDataEncoding } from 'monitor-api/modules/apm_meta';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
-import { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
 import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 
 import documentLinkMixin from '../../../mixins/documentLinkMixin';
-import { ICreateAppFormData } from '../../home/app-list';
-import { IDescData, ThemeType } from './select-card-item';
+
+import type { ICreateAppFormData } from '../../home/app-list';
+import type { IDescData, ThemeType } from './select-card-item';
+import type { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
 import './select-system.scss';
 
@@ -500,7 +501,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
             <bk-input
               v-model={this.formData.desc}
               type='textarea'
-            ></bk-input>
+            />
           </bk-form-item>
           <bk-form-item
             label='Profiling'
@@ -509,9 +510,9 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
             <bk-switcher
               v-model={this.formData.enableProfiling}
               theme='primary'
-            ></bk-switcher>
+            />
             <span class='form-item-tips'>
-              <i class='icon-monitor icon-tishi'></i>
+              <i class='icon-monitor icon-tishi' />
               <i18n
                 class='flex-center'
                 path='如何开启持续 Profiling ，请查看 {0}'
@@ -521,7 +522,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                   onClick={() => this.handleGotoLink('profiling_docs')}
                 >
                   {this.$t('使用文档')}
-                  <i class='icon-monitor icon-fenxiang'></i>
+                  <i class='icon-monitor icon-fenxiang' />
                 </span>
               </i18n>
             </span>
@@ -534,7 +535,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
               v-model={this.formData.enableTracing}
               theme='primary'
               disabled
-            ></bk-switcher>
+            />
           </bk-form-item>
           <bk-form-item label={this.$t('支持插件')}>
             {this.pluginList.map(item => (
@@ -654,7 +655,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                       id={item.id}
                       key={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </bk-form-item>
@@ -685,7 +686,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
           showDialog={this.selectorDialog.isShow}
           onChange={this.handleSelectorChange}
           onCloseDialog={v => (this.selectorDialog.isShow = v)}
-        ></StrategyIpv6>
+        />
       </div>
     );
   }

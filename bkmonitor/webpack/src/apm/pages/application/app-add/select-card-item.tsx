@@ -79,35 +79,35 @@ export default class SelectCardItem extends tsc<IProps, IEvent> {
       >
         {this.mode === 'normal' ? (
           <div class='select-card-item-main'>
-            {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
+            {this.multiple && this.checked && <span class='lang-checked-icon' />}
             <div class='img-contain'>
               <img
                 alt='img'
                 src={this.img}
-              ></img>
+              />
             </div>
             <div class='item-title'>{this.title}</div>
             {this.theme === 'plugin' && (
               <div class='plugin-desc'>
                 <span class='left-wrap'>
                   <span class='text'>{this.descData.name}</span>
-                  {this.descData.isOfficial && <i class='icon-monitor icon-mc-official'></i>}
+                  {this.descData.isOfficial && <i class='icon-monitor icon-mc-official' />}
                 </span>
                 <span class='right-wrap'>
                   <span class='text'>{this.descData.heat}</span>
-                  <i class='icon-monitor icon-mc-heat'></i>
+                  <i class='icon-monitor icon-mc-heat' />
                 </span>
               </div>
             )}
           </div>
         ) : (
           <div class='select-card-item-main'>
-            {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
+            {this.multiple && this.checked && <span class='lang-checked-icon' />}
             <span class='img-contain'>
               <img
                 alt='img'
                 src={this.img}
-              ></img>
+              />
             </span>
             <span class='item-text'>{this.title}</span>
           </div>

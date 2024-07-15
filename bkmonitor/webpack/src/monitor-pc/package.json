@@ -6,8 +6,8 @@
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
     "lint": "npm run lint:script && npm run lint:vue",
-    "lint:vue": "eslint --fix --ext .vue  ./",
-    "lint:script": "eslint --fix --ext .js,.ts,tsx  ./",
+    "lint:vue": "eslint --fix ./**/*.vue",
+    "lint:script": "eslint --fix ./",
     "fix": "npm run lint"
   },
   "dependencies": {
@@ -51,10 +51,7 @@
     "vuex-module-decorators": "^1.2.0",
     "xlsx": "^0.18.5"
   },
-  "keywords": [
-    "monitor",
-    "pc"
-  ],
+  "keywords": ["monitor", "pc"],
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {
