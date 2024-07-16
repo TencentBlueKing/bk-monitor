@@ -149,10 +149,25 @@ class Command(BaseCommand):
         space_and_biz = self._get_biz_id_by_space(space_type_and_id)
         rt_obj_list, es_obj_list = [], []
         update_space_set, update_rt_set, update_data_label_set = set(), set(), set()
+        need_add_option_objs, need_update_option_objs = [], []
         for tid, info in tid_info.items():
             # 针对所有
             update_rt_set.add(tid)
             update_data_label_set.add(info["data_label"])
+            # 创建或更新 option
+            if info.get("options"):
+                (
+                    _need_add_option_objs,
+                    _need_update_option_objs,
+                    _update_fields,
+                ) = self._compose_create_or_update_option_objs(tid, info["options"])
+                # 更新
+                if _need_add_option_objs:
+                    need_add_option_objs.extend(_need_add_option_objs)
+                # 创建
+                if _need_update_option_objs:
+                    need_update_option_objs.extend(_need_update_option_objs)
+            # 批量创建或者更新option
             # 过滤已经存在或者数据为空的数据
             if tid in exist_tid_list or (
                 not info.get("cluster_id") and info["source_type"] != EsSourceType.BKDATA.value
@@ -185,6 +200,10 @@ class Command(BaseCommand):
             with atomic(config.DATABASE_CONNECTION_NAME):
                 models.ResultTable.objects.bulk_create(rt_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
                 models.ESStorage.objects.bulk_create(es_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
+                models.ResultTableOption.objects.bulk_create(need_add_option_objs, batch_size=BULK_CREATE_BATCH_SIZE)
+                models.ResultTableOption.objects.bulk_update(
+                    need_update_option_objs, _update_fields, batch_size=BULK_UPDATE_BATCH_SIZE
+                )
         except Exception as e:
             self.stderr.write(f"failed to create rt or es storage, err: {e}")
 
@@ -204,3 +223,31 @@ class Command(BaseCommand):
         # 推送详情
         if update_rt_set:
             client.push_table_id_detail(list(update_rt_set), is_publish=True, include_es_table_ids=True)
+
+    def _compose_create_or_update_option_objs(self, table_id: str, options: List[Dict]) -> Tuple[List, List, List]:
+        """创建或者更新结果表 option"""
+        # 转换option数据格式
+        option_map = {}
+        for option in options:
+            option_map[option["name"]] = option
+
+        # 查询结果表下的option
+        exist_objs = models.ResultTableOption.objects.filter(table_id=table_id)
+        need_update_objs, need_add_objs = [], []
+        update_fields = []
+        for obj in exist_objs:
+            op = option_map.get(obj.name)
+            # 如果存在，则比较是否有变更，然后进行更新
+            if op:
+                if op["value"] != obj.value:
+                    obj.value = op["value"]
+                    update_fields.append("value")
+                if op["value_type"] != obj.value_type:
+                    obj.value_type = op["value_type"]
+                    update_fields.append("value_type")
+                if update_fields:
+                    need_update_objs.append(obj)
+            # 否则，创建
+            else:
+                need_add_objs.append(models.ResultTableOption(table_id=table_id, **option))
+        return need_add_objs, need_update_objs, update_fields

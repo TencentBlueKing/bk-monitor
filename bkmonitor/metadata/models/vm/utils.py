@@ -353,7 +353,10 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
 
     from metadata.models import AccessVMRecord, DataSource, Space, SpaceVMInfo
-    from metadata.models.data_link.service import create_vm_data_link
+    from metadata.models.data_link.service import (
+        create_fed_vm_data_link,
+        create_vm_data_link,
+    )
 
     # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
     space_data = {}
@@ -391,6 +394,13 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     try:
         data_name = DataSource.objects.get(bk_data_id=data_id).data_name
         create_vm_data_link(
+            table_id=table_id,
+            data_name=data_name,
+            vm_cluster_name=vm_cluster_name,
+            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+        )
+        # 创建联邦
+        create_fed_vm_data_link(
             table_id=table_id,
             data_name=data_name,
             vm_cluster_name=vm_cluster_name,
