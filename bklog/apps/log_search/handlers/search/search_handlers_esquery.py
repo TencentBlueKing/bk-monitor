@@ -1819,6 +1819,9 @@ class SearchHandler(object):
                     # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
                     if _export_field in log:
                         new_origin_log[_export_field] = log[_export_field]
+                    elif _export_field.replace("__ext.", "") in log.get("__ext", {}):
+                        # 在log中找不到时,去log.__ext下查找
+                        new_origin_log[_export_field] = log["__ext"][_export_field.replace("__ext.", "")]
                     else:
                         new_origin_log[_export_field] = log.get(_export_field, "")
                 origin_log = new_origin_log
