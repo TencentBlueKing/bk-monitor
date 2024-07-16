@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { RouteConfig } from 'vue-router';
-
 import * as reportAuth from '../../pages/new-report/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const Report = () => import(/* webpackChunkName: 'NewReport' */ '../../pages/new-report/new-report');
 const MyReport = () => import(/* webpackChunkName: 'MyReport' */ '../../pages/my-subscription/my-subscription-iframe');

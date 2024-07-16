@@ -129,11 +129,14 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
       <div class='square-svg-component'>
         <div class='square-container'>
           {this.squares.map((item, index) => (
-            <div class={['item', `item-${index}`, { active: index === this.selected }]}>
+            <div
+              key={index}
+              class={['item', `item-${index}`, { active: index === this.selected }]}
+            >
               <Square
                 status={item.status}
                 onStatusChange={() => this.squareClickHandle(index, item)}
-              ></Square>
+              />
             </div>
           ))}
         </div>
@@ -147,7 +150,7 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
               viewBox={this.svgMap?.[this.curSquare.name]?.viewBox}
             >
               <path
-                d={this.svgMap?.[this.curSquare.name].d}
+                d={this.svgMap?.[this.curSquare.name]?.d}
                 fill='none'
                 stroke={this.colorMap[this.curSquare.status]}
                 stroke-dasharray='3'
@@ -156,7 +159,7 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
             </symbol>
           </svg>
           <svg style={{ display: this.selected !== -1 ? 'block' : 'none', ...this.getSvgStyle }}>
-            <use xlinkHref={`#${this.svgKey}`}></use>
+            <use xlinkHref={`#${this.svgKey}`} />
           </svg>
         </div>
       </div>

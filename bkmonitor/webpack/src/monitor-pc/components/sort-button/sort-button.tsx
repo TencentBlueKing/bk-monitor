@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Model, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import './sort-button.scss';
 
@@ -35,9 +35,9 @@ interface IEvents {
   onChange: SortType;
 }
 export enum SortType {
-  'asc' = 'asc' /** 升序 */,
-  'desc' = 'desc' /** 降序 */,
-  'none' = '' /** 无排序 */,
+  asc = 'asc' /** 升序 */,
+  desc = 'desc' /** 降序 */,
+  none = '' /** 无排序 */,
 }
 /**
  * 表格排序按钮

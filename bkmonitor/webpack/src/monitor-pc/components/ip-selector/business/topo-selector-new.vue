@@ -61,27 +61,28 @@
   />
 </template>
 <script lang="ts">
-/* eslint-disable camelcase */
-import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import {
   getHostInstanceByIp,
   getHostInstanceByNode,
   getNodesByTemplate,
   getServiceInstanceByNode,
   getTemplate,
-  getTopoTree } from 'monitor-api/modules/commons';
+  getTopoTree,
+} from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
+/* eslint-disable camelcase */
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { defaultSearch } from '../common/util';
 import AgentStatus from '../components/agent-status.vue';
 import IpSelector from '../index.vue';
-import { IMenu, IPanel, IPreviewData, IpType, ITableCheckData, ITableConfig } from '../types/selector-type';
+import type { IMenu, IPanel, IPreviewData, ITableCheckData, ITableConfig, IpType } from '../types/selector-type';
 
 @Component({
   name: 'topo-selector',
   components: {
-    IpSelector
-  }
+    IpSelector,
+  },
 })
 export default class TopoSelector extends Vue {
   @Prop({ default: 'TOPO' }) private readonly targetNodeType!: IpType;
@@ -127,7 +128,7 @@ export default class TopoSelector extends Vue {
     TOPO: 'dynamic-topo',
     INSTANCE: 'static-topo',
     SERVICE_TEMPLATE: 'service-template',
-    SET_TEMPLATE: 'cluster'
+    SET_TEMPLATE: 'cluster',
   };
   // 默认激活预览面板
   private defaultActiveName = ['TOPO', 'INSTANCE', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'];
@@ -147,7 +148,7 @@ export default class TopoSelector extends Vue {
         tips: this.$t('不能混用'),
         disabled: false,
         type: 'TOPO',
-        hidden: this.hiddenTopo
+        hidden: this.hiddenTopo,
       },
       {
         name: 'static-topo',
@@ -155,7 +156,7 @@ export default class TopoSelector extends Vue {
         hidden: this.isInstance,
         tips: this.$t('不能混用'),
         disabled: false,
-        type: 'INSTANCE'
+        type: 'INSTANCE',
       },
       {
         name: 'service-template',
@@ -163,7 +164,7 @@ export default class TopoSelector extends Vue {
         tips: this.$t('不能混用'),
         disabled: false,
         type: 'TOPO',
-        hidden: this.hiddenTopo || this.hiddenTemplate
+        hidden: this.hiddenTopo || this.hiddenTemplate,
       },
       {
         name: 'cluster',
@@ -171,7 +172,7 @@ export default class TopoSelector extends Vue {
         tips: this.$t('不能混用'),
         disabled: false,
         type: 'TOPO',
-        hidden: this.hiddenTopo || this.hiddenTemplate
+        hidden: this.hiddenTopo || this.hiddenTemplate,
       },
       {
         name: 'custom-input',
@@ -179,13 +180,13 @@ export default class TopoSelector extends Vue {
         hidden: this.isInstance,
         tips: this.$t('不能混用'),
         disabled: false,
-        type: 'INSTANCE'
-      }
+        type: 'INSTANCE',
+      },
     ];
     const dynamicType = ['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'];
     const isDynamic = this.previewData.some(item => dynamicType.includes(item.id) && item.data.length);
     const isStatic = this.previewData.some(item => item.id === 'INSTANCE' && item.data.length);
-    return panels.map((item) => {
+    return panels.map(item => {
       item.disabled = (item.name !== this.active && isDynamic) || (item.type === 'TOPO' && isStatic);
       return item;
     });
@@ -197,12 +198,12 @@ export default class TopoSelector extends Vue {
       {
         id: 'copyIp',
         label: this.$t('复制IP'),
-        hidden: !['static-topo', 'custom-input'].includes(this.active)
+        hidden: !['static-topo', 'custom-input'].includes(this.active),
       },
       {
         id: 'removeAll',
-        label: this.$t('移除所有')
-      }
+        label: this.$t('移除所有'),
+      },
     ];
   }
   @Watch('active')
@@ -212,7 +213,7 @@ export default class TopoSelector extends Vue {
       'static-topo': 'INSTANCE',
       'service-template': 'SERVICE_TEMPLATE',
       cluster: 'SET_TEMPLATE',
-      'custom-input': 'INSTANCE'
+      'custom-input': 'INSTANCE',
     };
     this.currentTargetNodeType = activeToNodeTypeMap[this.active];
     this.staticTableData = [];
@@ -244,20 +245,20 @@ export default class TopoSelector extends Vue {
       TOPO: this.$t('拓扑节点'),
       INSTANCE: 'IP',
       SERVICE_TEMPLATE: this.$t('服务模板'),
-      SET_TEMPLATE: this.$t('集群模板')
+      SET_TEMPLATE: this.$t('集群模板'),
     };
     const nodeTypeNameMap = {
       TOPO: 'node_path',
       INSTANCE: 'ip',
       SERVICE_TEMPLATE: 'bk_inst_name',
-      SET_TEMPLATE: 'bk_inst_name'
+      SET_TEMPLATE: 'bk_inst_name',
     };
     this.previewData = [];
     this.previewData.push({
       id: this.currentTargetNodeType,
       name: nodeTypeTextMap[this.currentTargetNodeType] || '--',
       data: [...this.checkedData],
-      dataNameKey: nodeTypeNameMap[this.currentTargetNodeType]
+      dataNameKey: nodeTypeNameMap[this.currentTargetNodeType],
     });
     this.currentTargetNodeType === 'TOPO' && this.handleSetDefaultCheckedNodes();
   }
@@ -267,125 +268,129 @@ export default class TopoSelector extends Vue {
       {
         prop: 'node_path',
         label: this.$t('节点名称'),
-        minWidth: 100
+        minWidth: 100,
       },
       {
         prop: 'count',
         label: this.$t('服务实例'),
-        hidden: this.targetObjectType === 'HOST'
+        hidden: this.targetObjectType === 'HOST',
       },
       {
         prop: 'status',
         label: this.$t('Agent状态'),
-        render: this.renderAgentCountStatus
+        render: this.renderAgentCountStatus,
       },
       {
         prop: 'labels',
         label: this.$t('分类'),
         render: this.renderLabels,
-        minWidth: 100
-      }
+        minWidth: 100,
+      },
     ];
     this.templateTableConfig = [
       {
         prop: 'node_path',
         label: this.$t('节点名称'),
-        minWidth: 100
+        minWidth: 100,
       },
       {
         prop: 'count',
         label: this.$t('服务实例'),
-        hidden: this.targetObjectType === 'HOST'
+        hidden: this.targetObjectType === 'HOST',
       },
       {
         prop: 'status',
         label: this.$t('Agent状态'),
-        render: this.renderAgentCountStatus
+        render: this.renderAgentCountStatus,
       },
       {
         prop: 'labels',
         label: this.$t('分类'),
         render: this.renderLabels,
-        minWidth: 100
-      }
+        minWidth: 100,
+      },
     ];
     this.staticTableConfig = [
       {
         prop: 'ip',
-        label: 'IP'
+        label: 'IP',
       },
       {
         prop: 'agent_status',
         label: this.$t('Agent状态'),
-        render: this.renderIpAgentStatus
+        render: this.renderIpAgentStatus,
       },
       {
         prop: 'bk_cloud_name',
-        label: this.$t('管控区域')
+        label: this.$t('管控区域'),
       },
       {
         prop: 'bk_os_type',
-        label: this.$t('操作系统')
-      }
+        label: this.$t('操作系统'),
+      },
     ];
   }
   private renderLabels(row: any) {
     const { labels = [] } = row;
-    const children = labels.map((item: any) => this.$createElement(
-      'span',
-      {
-        style: {
-          background: '#f0f1f5',
-          padding: '2px 6px',
-          marginRight: '4px',
-          height: '20px'
-        }
-      },
-      `${item.first}:${item.second}`
-    ));
+    const children = labels.map((item: any) =>
+      this.$createElement(
+        'span',
+        {
+          style: {
+            background: '#f0f1f5',
+            padding: '2px 6px',
+            marginRight: '4px',
+            height: '20px',
+          },
+        },
+        `${item.first}:${item.second}`
+      )
+    );
     return Vue.extend({
-      render: h => h('div', [...children])
+      render: h => h('div', [...children]),
     });
   }
   private renderIpAgentStatus(row: any) {
     const textMap: any = {
       normal: this.$t('正常'),
       abnormal: this.$t('异常'),
-      not_exist: this.$t('未安装')
+      not_exist: this.$t('未安装'),
     };
     const statusMap: any = {
       normal: 'running',
       abnormal: 'terminated',
-      not_exist: 'unknown'
+      not_exist: 'unknown',
     };
     return Vue.extend({
-      render: h => h(AgentStatus, {
-        props: {
-          type: 1,
-          data: [
-            {
-              status: statusMap[row.agent_status],
-              count: row.agent_error_count,
-              display: textMap[row.agent_status]
-            }
-          ]
-        }
-      })
+      render: h =>
+        h(AgentStatus, {
+          props: {
+            type: 1,
+            data: [
+              {
+                status: statusMap[row.agent_status],
+                count: row.agent_error_count,
+                display: textMap[row.agent_status],
+              },
+            ],
+          },
+        }),
     });
   }
   private renderAgentCountStatus(row: any) {
     return Vue.extend({
-      render: h => h(AgentStatus, {
-        props: {
-          type: 3,
-          data: [
-            {
-              count: row.all_host.length,
-              errorCount: row.agent_error_count
-            }
-          ]
-        }
-      })
+      render: h =>
+        h(AgentStatus, {
+          props: {
+            type: 3,
+            data: [
+              {
+                count: row.all_host.length,
+                errorCount: row.agent_error_count,
+              },
+            ],
+          },
+        }),
     });
   }
 
@@ -401,15 +406,15 @@ export default class TopoSelector extends Vue {
       return [
         {
           name: this.$t('根节点'),
-          children: this.topoTree
-        }
+          children: this.topoTree,
+        },
       ];
     }
     if (['service-template', 'cluster'].includes(this.active)) {
       const data = await getTemplate({
         bk_inst_type: this.isInstance ? 'SERVICE' : 'HOST',
         bk_obj_id: this.active === 'cluster' ? 'SET_TEMPLATE' : 'SERVICE_TEMPLATE',
-        with_count: true
+        with_count: true,
       }).catch(() => ({ children: [] }));
       // 兼容回显数据不带name的情况
       this.handleAddNameProperty(data.children);
@@ -427,8 +432,9 @@ export default class TopoSelector extends Vue {
     return nodes.reduce<(string | number)[]>((pre, item) => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { children = [], bk_inst_id = '', bk_obj_id = '', id } = item;
-      const exist = checkedData.some(checkedData => checkedData.bk_inst_id === bk_inst_id
-       && checkedData.bk_obj_id === bk_obj_id);
+      const exist = checkedData.some(
+        checkedData => checkedData.bk_inst_id === bk_inst_id && checkedData.bk_obj_id === bk_obj_id
+      );
       if (exist) {
         // 根节点是业务情况下特殊处理
         // if (bk_obj_id === 'biz' && !this.previewData?.[0]?.data?.[0][this.previewData?.[0]?.dataNameKey]) {
@@ -453,7 +459,7 @@ export default class TopoSelector extends Vue {
   }
   // 移除树上的所有IP节点
   private removeIpNodes(data: any[]) {
-    data.forEach((item) => {
+    data.forEach(item => {
       const { children = [] } = item;
       if (item.bk_obj_id === 'module' && children.length) {
         this.ipNodesMap[`${item.bk_inst_id}_${item.bk_obj_id}`] = [...item.children];
@@ -486,9 +492,9 @@ export default class TopoSelector extends Vue {
     params: any,
     type?: string
   ): Promise<{
-      total: number;
-      data: any[];
-    }> {
+    total: number;
+    data: any[];
+  }> {
     if (this.active === 'dynamic-topo') {
       return await this.getDynamicTopoTableData(params, type);
     }
@@ -503,7 +509,7 @@ export default class TopoSelector extends Vue {
     }
     return {
       total: 0,
-      data: []
+      data: [],
     };
   }
   // 获取动态topo表格数据
@@ -512,15 +518,16 @@ export default class TopoSelector extends Vue {
     if (type === 'selection-change') {
       // 如果点击的是叶子节点，则显示叶子节点本身，否则就显示子节点
       const curSelections = !selections.length && parentNode ? [parentNode.data] : selections;
-      this.topoTableData =        this.targetObjectType === 'SERVICE'
-        ? await getServiceInstanceByNode({ node_list: curSelections }).catch(() => [])
-        : await getHostInstanceByNode({ node_list: curSelections }).catch(() => []);
+      this.topoTableData =
+        this.targetObjectType === 'SERVICE'
+          ? await getServiceInstanceByNode({ node_list: curSelections }).catch(() => [])
+          : await getHostInstanceByNode({ node_list: curSelections }).catch(() => []);
     }
     const data = defaultSearch(this.topoTableData, tableKeyword);
 
     return {
       total: data.length,
-      data
+      data,
     };
   }
   // 获取静态表格数据
@@ -540,13 +547,13 @@ export default class TopoSelector extends Vue {
       }
       const ipNodes = Object.values(nodeMap);
       this.staticTableData = await getHostInstanceByIp({
-        ip_list: ipNodes
+        ip_list: ipNodes,
       }).catch(() => []);
     }
     const data = defaultSearch(this.staticTableData, tableKeyword);
     return {
       total: data.length,
-      data
+      data,
     };
   }
   // 获取模板类表格数据
@@ -556,7 +563,7 @@ export default class TopoSelector extends Vue {
       const data = await getNodesByTemplate({
         bk_inst_type: this.isInstance ? 'SERVICE' : 'HOST',
         bk_obj_id: this.active === 'cluster' ? 'SET_TEMPLATE' : 'SERVICE_TEMPLATE',
-        bk_inst_ids: selections.map((item: any) => item.bk_inst_id)
+        bk_inst_ids: selections.map((item: any) => item.bk_inst_id),
       }).catch(() => []);
       this.active === 'cluster' ? (this.setTemplateData = data) : (this.serviceTemplateData = data);
     }
@@ -567,16 +574,17 @@ export default class TopoSelector extends Vue {
 
     return {
       total: data.length,
-      data
+      data,
     };
   }
   // 兼容服务模板和集群模板接口数据不带name的情况
   private handleAddNameProperty(templateData: any[]) {
     const previewId = this.active === 'cluster' ? 'SET_TEMPLATE' : 'SERVICE_TEMPLATE';
     const { data = [] } = this.previewData.find(item => item.id === previewId) || {};
-    data.forEach((item) => {
-      const template = templateData.find(template => template.bk_inst_id === item.bk_inst_id
-      && template.bk_obj_id === item.bk_obj_id);
+    data.forEach(item => {
+      const template = templateData.find(
+        template => template.bk_inst_id === item.bk_inst_id && template.bk_obj_id === item.bk_obj_id
+      );
       template && this.$set(item, 'bk_inst_name', template.bk_inst_name);
     });
   }
@@ -585,7 +593,7 @@ export default class TopoSelector extends Vue {
     const { ipList = [] } = params;
     let data = await getHostInstanceByIp({
       ip_list: ipList.map((ip: any) => ({ ip })),
-      with_external_ips: this.withExternalIps
+      with_external_ips: this.withExternalIps,
     }).catch(() => []);
     // 采集、策略目标选择器只能选择内网IP
     if (!this.withExternalIps) {
@@ -593,14 +601,14 @@ export default class TopoSelector extends Vue {
     }
     return {
       total: data.length,
-      data
+      data,
     };
   }
 
   // topo树数据
   private async getTopoTree() {
     const params: any = {
-      instance_type: 'host'
+      instance_type: 'host',
     };
     return await getTopoTree(params).catch(() => []);
   }
@@ -632,7 +640,7 @@ export default class TopoSelector extends Vue {
         id: type,
         name: this.active === 'service-template' ? this.$t('服务模板') : this.$t('集群模板'),
         data: [...selections],
-        dataNameKey: 'bk_inst_name'
+        dataNameKey: 'bk_inst_name',
       });
     }
   }
@@ -642,15 +650,17 @@ export default class TopoSelector extends Vue {
     const index = this.previewData.findIndex(item => item.id === 'TOPO');
     if (index > -1) {
       const { data } = this.previewData[index];
-      selections.forEach((select) => {
-        const index = data.findIndex(data => data.bk_inst_id === select.bk_inst_id
-        && data.bk_obj_id === select.bk_obj_id);
+      selections.forEach(select => {
+        const index = data.findIndex(
+          data => data.bk_inst_id === select.bk_inst_id && data.bk_obj_id === select.bk_obj_id
+        );
 
         index === -1 && data.push(select);
       });
-      excludeData.forEach((exclude) => {
-        const index = data.findIndex(data => data.bk_inst_id === exclude.bk_inst_id
-        && data.bk_obj_id === exclude.bk_obj_id);
+      excludeData.forEach(exclude => {
+        const index = data.findIndex(
+          data => data.bk_inst_id === exclude.bk_inst_id && data.bk_obj_id === exclude.bk_obj_id
+        );
 
         index > -1 && data.splice(index, 1);
       });
@@ -660,7 +670,7 @@ export default class TopoSelector extends Vue {
         id: 'TOPO',
         name: this.$t('拓扑节点'),
         data: [...selections],
-        dataNameKey: 'node_path'
+        dataNameKey: 'node_path',
       });
     }
   }
@@ -681,7 +691,7 @@ export default class TopoSelector extends Vue {
         pre[key] = next;
         return pre;
       }, {});
-      selections.forEach((select) => {
+      selections.forEach(select => {
         const key = this.getIpKey(select, hasCloudId);
         !dataMap[key] && data.push(select);
       });
@@ -696,7 +706,7 @@ export default class TopoSelector extends Vue {
         }, [])
         .sort((pre: number, next: number) => next - pre);
 
-      indexes.forEach((index) => {
+      indexes.forEach(index => {
         data.splice(index, 1);
       });
     } else {
@@ -705,7 +715,7 @@ export default class TopoSelector extends Vue {
         id: 'INSTANCE',
         name: 'IP',
         data: [...selections],
-        dataNameKey: 'ip'
+        dataNameKey: 'ip',
       });
     }
     console.timeEnd();
@@ -754,13 +764,14 @@ export default class TopoSelector extends Vue {
       }, []);
     } else {
       // 拿到拓扑下面的主机数量
-      data =        this.targetObjectType === 'SERVICE'
-        ? await getServiceInstanceByNode({ node_list: selections }).catch(() => [])
-        : await getHostInstanceByNode({ node_list: selections }).catch(() => []);
+      data =
+        this.targetObjectType === 'SERVICE'
+          ? await getServiceInstanceByNode({ node_list: selections }).catch(() => [])
+          : await getHostInstanceByNode({ node_list: selections }).catch(() => []);
     }
     const selectionsData: ITableCheckData = {
       selections: data,
-      excludeData: exclude
+      excludeData: exclude,
     };
     this.handleCheckChange(selectionsData);
     this.isLoading = false;
@@ -771,7 +782,7 @@ export default class TopoSelector extends Vue {
   private handleRemoveNode({ child, item }: { child: any; item: IPreviewData }) {
     const group = this.previewData.find(data => data.id === item.id);
     if (group) {
-      const index = group.data.findIndex((data) => {
+      const index = group.data.findIndex(data => {
         if (group.id === 'TOPO') {
           return data.bk_inst_id === child.bk_inst_id && data.bk_obj_id === child.bk_obj_id;
         }
@@ -824,7 +835,7 @@ export default class TopoSelector extends Vue {
       copyText(ipList);
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('成功复制{0}个IP', [ipList.split('\n').length])
+        message: this.$t('成功复制{0}个IP', [ipList.split('\n').length]),
       });
     }
   }
@@ -836,7 +847,7 @@ export default class TopoSelector extends Vue {
     if (previewData.length !== 1 || group.data.length === 0) return { type: this.currentTargetNodeType, data: [] };
     return {
       type: group.id,
-      data: group.data
+      data: group.data,
     };
   }
   // 判断IP是否一样

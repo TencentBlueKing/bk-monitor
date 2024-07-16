@@ -118,7 +118,7 @@ export default defineComponent({
               needOverviewBtn={false}
               panels={item.alerts}
               onSuccessLoad={handleSuccessLoad}
-            ></DashboardPanel>
+            />
           ) : (
             ''
           )}
@@ -156,7 +156,7 @@ export default defineComponent({
           layoutActive={layoutActive.value}
           needLayout={true}
           onLayoutChange={val => (layoutActive.value = val)}
-        ></MetricsCollapse>
+        />
       );
     };
     return {

@@ -35,9 +35,10 @@ import { useLayout, useScreenshot } from '../../hooks/vue-flow-hooks';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
 import { useTraceStore } from '../../store/modules/trace';
-import { type IServiceSpanListItem } from '../../typings/trace';
 import EdgeLabelCustom from './edge-label-custom';
 import ServiceTopoMiniMap from './service-topo-mini-map';
+
+import type { IServiceSpanListItem } from '../../typings/trace';
 
 import './service-topo.scss';
 import '@vue-flow/core/dist/style.css';
@@ -469,7 +470,7 @@ export default defineComponent({
                   stroke-linecap='round'
                   stroke-linejoin='round'
                   stroke-width='1'
-                ></polyline>
+                />
               </marker>
               <marker
                 id='custom-marker-arrowhead--selected'
@@ -488,7 +489,7 @@ export default defineComponent({
                   stroke-linecap='round'
                   stroke-linejoin='round'
                   stroke-width='1'
-                ></polyline>
+                />
               </marker>
             </defs>
           </svg>
@@ -516,7 +517,7 @@ export default defineComponent({
                       'background-image': `url(${data.data.icon})`,
                     }}
                     class='node-interface-icon'
-                  ></div>
+                  />
                   <div
                     class='node-interface-name'
                     title={data.data.display_name}
@@ -536,7 +537,7 @@ export default defineComponent({
                         'background-image': `url(${data.data.icon})`,
                       }}
                       class='node-service-icon'
-                    ></div>
+                    />
                   </div>
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
@@ -552,7 +553,7 @@ export default defineComponent({
                         'background-image': `url(${data.data.icon})`,
                       }}
                       class='node-service-icon'
-                    ></div>
+                    />
                   </div>
                   <div class='node-service-bottom'>{data.data.display_name}</div>
                 </div>
@@ -562,14 +563,14 @@ export default defineComponent({
                   {...edgeProps}
                   isShowDuration={this.isShowDuration}
                   onPanelClick={this.handlePanelClick}
-                ></EdgeLabelCustom>
+                />
               ),
               default: () => [
                 this.showThumbnail && (
                   <ServiceTopoMiniMap
                     width={this.miniMapWrapWidth}
                     height={this.miniMapWrapHeight}
-                  ></ServiceTopoMiniMap>
+                  />
                 ),
               ],
             }))()}

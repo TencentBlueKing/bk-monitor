@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, type Ref, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Collapse, Dialog, Form, Input, Message } from 'bkui-vue';
 import { feedbackIncidentRoot, incidentRecordOperation } from 'monitor-api/modules/incident';
 
-import { type IncidentDetailData } from './types';
+import type { IncidentDetailData } from './types';
 
 import './feedback-cause-dialog.scss';
 

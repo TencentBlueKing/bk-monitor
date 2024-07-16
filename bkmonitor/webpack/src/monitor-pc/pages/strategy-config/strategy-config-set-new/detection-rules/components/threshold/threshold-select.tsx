@@ -258,7 +258,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
           <span
             class='add-btn icon-monitor icon-mc-add'
             onClick={this.handleAdd}
-          ></span>
+          />
         )}
         {this.isChinese ? (
           <span
@@ -281,7 +281,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
               'on-hidden': this.handleMenuHidden,
             },
           }}
-        ></SelectMenu>
+        />
       </div>
     );
   }

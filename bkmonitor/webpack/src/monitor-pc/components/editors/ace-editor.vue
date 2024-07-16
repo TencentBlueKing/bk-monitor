@@ -79,7 +79,7 @@ export default {
     const { ace } = window;
     this.$ace = ace.edit(this.$el);
     const { $ace, lang, theme, readOnly } = this;
-    $ace.$blockScrolling = Infinity;
+    $ace.$blockScrolling = Number.POSITIVE_INFINITY;
     $ace.getSession().setMode(`ace/mode/${lang}`);
     $ace.getSession().setNewLineMode('unix');
     $ace.setTheme(`ace/theme/${theme}`);

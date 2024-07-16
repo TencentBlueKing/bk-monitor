@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { PluginContext } from '@toast-ui/editor/types/editor';
+import type { PluginContext } from '@toast-ui/editor/types/editor';
 
 export default function fixUrlPlugin(context: PluginContext) {
   context.eventEmitter.listen('afterPreviewRender', () => {

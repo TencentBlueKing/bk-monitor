@@ -122,7 +122,7 @@ export default defineComponent({
             <div
               ref='detailRef'
               class='event-detail'
-            ></div>
+            />
           </Loading>
         </Sideslider>
       </div>

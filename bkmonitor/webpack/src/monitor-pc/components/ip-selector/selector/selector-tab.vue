@@ -80,13 +80,13 @@ import { Component, Emit, Model, Prop, Ref, Vue } from 'vue-property-decorator';
 import { resize } from '../common/observer-directive';
 import { Debounce, hasOwnProperty } from '../common/util';
 import Menu from '../components/menu.vue';
-import { IPanel } from '../types/selector-type';
+import type { IPanel } from '../types/selector-type';
 
 @Component({
   name: 'selector-tab',
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class SelectorTab extends Vue {
   @Model('tab-change', { default: '', type: String }) private readonly active!: string;
@@ -97,7 +97,7 @@ export default class SelectorTab extends Vue {
       const item = v.find((item: IPanel) => !hasOwnProperty(item, ['name', 'label']));
       item && console.warn(item, '缺少必要属性');
       return !item;
-    }
+    },
   })
   private readonly panels!: IPanel[];
   @Prop({ default: true, type: Boolean }) private readonly tabVisible!: boolean;
@@ -149,7 +149,7 @@ export default class SelectorTab extends Vue {
         duration: [275, 0],
         interactive: true,
         boundary: 'window',
-        placement: 'bottom'
+        placement: 'bottom',
       });
     }
     this.popoverInstance.show();
@@ -166,17 +166,17 @@ export default class SelectorTab extends Vue {
 
     const { right: wrapperRight } = this.tabwrapper.getBoundingClientRect();
 
-    this.tabItemRef?.forEach((node) => {
+    this.tabItemRef?.forEach(node => {
       const { right: nodeRight, width: nodeWidth } = (node as HTMLElement).getBoundingClientRect();
       const nameData = (node as HTMLElement).dataset.name;
       const index = this.hiddenPanels.findIndex(item => item.name === nameData);
       // 32: 折叠按钮宽度
       if (nodeRight + 32 > wrapperRight) {
-        index === -1
-          && nameData
-          && this.hiddenPanels.push({
+        index === -1 &&
+          nameData &&
+          this.hiddenPanels.push({
             name: nameData,
-            width: nodeWidth
+            width: nodeWidth,
           });
       }
     });
@@ -185,7 +185,7 @@ export default class SelectorTab extends Vue {
       const wrapperWidth = this.tabwrapper.clientWidth;
       let contentWidth = this.tabcontent.clientWidth;
       // 按顺序显示panel
-      this.panels.forEach((item) => {
+      this.panels.forEach(item => {
         const index = this.hiddenPanels.findIndex(data => data.name === item.name);
         if (index > -1 && contentWidth + this.hiddenPanels[index].width < wrapperWidth) {
           contentWidth += this.hiddenPanels[index].width;
@@ -200,58 +200,67 @@ export default class SelectorTab extends Vue {
 .selector-tab {
   display: flex;
   flex-direction: column;
+
   &-header {
     display: flex;
     align-items: center;
+    background: #fafbfd;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    background: #fafbfd;
   }
+
   &-content {
     flex: 1;
     height: 0;
     border: 1px solid #dcdee5;
   }
 }
+
 .selector-tab-horizontal {
   display: flex;
   flex-shrink: 0;
   margin-bottom: -1px;
 }
+
 .tab-item {
-  height: 42px;
   display: flex;
   align-items: center;
+  height: 42px;
+  padding: 0 24px;
   font-size: 14px;
   color: #63656e;
-  padding: 0 24px;
+  cursor: pointer;
   border-right: 1px solid #dcdee5;
   border-bottom: 1px solid #dcdee5;
-  cursor: pointer;
   outline: 0;
+
   &.disabled {
     color: #c4c6cc;
     cursor: not-allowed;
   }
+
   &.visibility {
     visibility: hidden;
   }
 }
+
 .tab-item.active {
   color: #313238;
   background: #fff;
   border-bottom: 0;
 }
+
 .selector-tab-all {
-  font-size: 20px;
-  width: 32px;
-  height: 42px;
-  line-height: 42px;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  width: 32px;
+  height: 42px;
+  font-size: 20px;
+  line-height: 42px;
   cursor: pointer;
+
   i {
     outline: 0;
   }

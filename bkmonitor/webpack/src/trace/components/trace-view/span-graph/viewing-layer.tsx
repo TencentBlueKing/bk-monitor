@@ -24,22 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, type PropType, ref } from 'vue';
+import { type PropType, defineComponent, onBeforeUnmount, ref } from 'vue';
 
 import { Button } from 'bkui-vue';
 
 import { useSpanBarCurrentInject, useViewRangeInject } from '../hooks';
-import {
-  type ISpanBarStore,
-  type IViewRange,
-  type IViewRangeTime,
-  type TNil,
-  type TUpdateViewRangeTimeFunction,
-  type ViewRangeTimeUpdate,
-} from '../typings';
 import DraggableManager, { type DraggableBounds, type DraggingUpdate, EUpdateTypes } from '../utils/draggable-manager';
 import GraphTicks from './graph-ticks';
 import Scrubber from './scrubber';
+
+import type {
+  ISpanBarStore,
+  IViewRange,
+  IViewRangeTime,
+  TNil,
+  TUpdateViewRangeTimeFunction,
+  ViewRangeTimeUpdate,
+} from '../typings';
 
 import './viewing-layer.scss';
 

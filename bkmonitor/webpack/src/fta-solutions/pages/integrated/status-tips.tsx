@@ -93,7 +93,7 @@ export default class StatusTips extends tsc<StatusTipsProps> {
         <div
           style={this.lineStyle}
           class='line'
-        ></div>
+        />
         <div
           style={this.nameStyle}
           class='title'

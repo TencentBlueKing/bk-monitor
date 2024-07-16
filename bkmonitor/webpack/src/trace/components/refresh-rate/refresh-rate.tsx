@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, ref, toRefs, watch } from 'vue';
+import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
 
 import IconFont from '../icon-font/icon-font';
 import SelectMenu, { type ISelectMenuOption } from '../select-menu/select-menu';
@@ -163,7 +163,7 @@ export default defineComponent({
           value={this.localValue}
           onSelect={this.handleSelect}
           onShowChange={val => (this.isShow = val)}
-        ></SelectMenu>
+        />
       </span>
     );
   },

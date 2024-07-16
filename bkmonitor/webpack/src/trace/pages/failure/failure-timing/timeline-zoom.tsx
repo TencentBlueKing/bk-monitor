@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, watch, type PropType } from 'vue';
+import { type PropType, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover, Slider } from 'bkui-vue';
 
-import { type IAlert } from '../types';
+import type { IAlert } from '../types';
 
 import './timeline-zoom.scss';
 
@@ -128,7 +128,7 @@ export default defineComponent({
             return (
               <li>
                 <span>
-                  <i class={`icon-monitor item-icon ${node.icon}`}></i>
+                  <i class={`icon-monitor item-icon ${node.icon}`} />
                 </span>
                 <span>{t(node.text)}</span>
               </li>
@@ -241,7 +241,7 @@ export default defineComponent({
       const matrix = style.transform || style.webkitTransform || style.mozTransform;
       if (matrix === 'none' || !matrix) return 0;
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
-      return parseFloat(values[4]);
+      return Number.parseFloat(values[4]);
     }
     const onSelectionMouseDown = (event: MouseEvent) => {
       isDragging.value = true;
@@ -353,7 +353,7 @@ export default defineComponent({
                   {INFO_TYPE.map(node => (
                     <li>
                       <span class='info-circle'>
-                        <i class={`icon-monitor item-icon ${node.icon}`}></i>
+                        <i class={`icon-monitor item-icon ${node.icon}`} />
                       </span>
                       <span>{this.$t(node.text)}</span>
                     </li>
@@ -371,7 +371,7 @@ export default defineComponent({
                 }}
                 onClick={this.handleShowLegend}
               >
-                <i class='icon-monitor icon-legend'></i>
+                <i class='icon-monitor icon-legend' />
               </div>
             ),
           }}
@@ -384,7 +384,7 @@ export default defineComponent({
           renderType='auto'
           theme='light'
           trigger='manual'
-        ></Popover>
+        />
         <Popover
           ref='minimapRef'
           width={242}
@@ -406,7 +406,7 @@ export default defineComponent({
                   style={{ width: `${this.selectionWidth}px`, transform: `translateX(${this.selectionLeft}px)` }}
                   class='map-selection'
                   onMousedown={this.onSelectionMouseDown}
-                ></div>
+                />
               </div>
             ),
             default: (
@@ -420,7 +420,7 @@ export default defineComponent({
                 }}
                 onClick={this.handleShowMinimap}
               >
-                <i class='icon-monitor icon-minimap'></i>
+                <i class='icon-monitor icon-minimap' />
               </div>
             ),
           }}
@@ -433,14 +433,14 @@ export default defineComponent({
           renderType='auto'
           theme='light'
           trigger='manual'
-        ></Popover>
-        <span class='failure-topo-graph-line'></span>
+        />
+        <span class='failure-topo-graph-line' />
         <div class='failure-topo-graph-zoom-slider'>
           <div
             class='failure-topo-graph-setting'
             onClick={this.handleUpdateZoom.bind(this, -2)}
           >
-            <i class='icon-monitor icon-minus-line'></i>
+            <i class='icon-monitor icon-minus-line' />
           </div>
           <Slider
             class='slider'
@@ -448,21 +448,21 @@ export default defineComponent({
             maxValue={this.$props.maxZoom}
             minValue={this.MIN_ZOOM}
             onChange={this.handleUpdateZoom}
-          ></Slider>
+          />
           <div
             class='failure-topo-graph-setting'
             onClick={this.handleUpdateZoom.bind(this, 2)}
           >
-            <i class='icon-monitor icon-plus-line'></i>
+            <i class='icon-monitor icon-plus-line' />
           </div>
         </div>
-        <span class='failure-topo-graph-line'></span>
+        <span class='failure-topo-graph-line' />
         <div
           class='failure-topo-graph-proportion'
           v-bk-tooltips={{ content: this.$t('重置比例'), boundary: 'parent' }}
           onClick={this.handleResetZoom}
         >
-          <i class='icon-monitor icon-mc-restoration-ratio'></i>
+          <i class='icon-monitor icon-mc-restoration-ratio' />
         </div>
       </div>
     );

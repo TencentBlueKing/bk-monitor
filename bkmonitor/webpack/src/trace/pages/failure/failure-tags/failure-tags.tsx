@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, nextTick, type Ref, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, nextTick, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tag } from 'bkui-vue';
 
-import { type IIncident, type ICurrentISnapshot } from '../types';
+import type { ICurrentISnapshot, IIncident } from '../types';
 
 // import TagShow from './tag-show';
 import './failure-tags.scss';
@@ -173,7 +173,7 @@ export default defineComponent({
           }}
           class='failure-tags-main'
         >
-          {this.playLoading && <div class='failure-tags-loading'></div>}
+          {this.playLoading && <div class='failure-tags-loading' />}
           {this.renderList.map(item => (
             <div class='failure-tags-item'>
               <span class='item-label'>{item.label}：</span>

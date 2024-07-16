@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 
 import axios from 'axios';
 import { Alert, Button, Dialog, Upload } from 'bkui-vue';
-import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
+import { Upload as UploadIcon, TextFill as UploadTextFill } from 'bkui-vue/lib/icon';
 import { upload } from 'monitor-api/modules/apm_profile';
 
 import { FILES_TYPE_NAME } from '../typings/profiling-file';
@@ -321,7 +321,7 @@ export default defineComponent({
                           width={22}
                           height={28}
                           fill={'#A3C5FD'}
-                        ></UploadTextFill>
+                        />
                       </div>
                       <div class='file-status'>
                         <div class='file-name'>
@@ -351,7 +351,7 @@ export default defineComponent({
                               width: `${item.progress * 100}%`,
                             }}
                             class='progress-line'
-                          ></div>
+                          />
                         </div>
                       </div>
                     </div>
@@ -361,7 +361,7 @@ export default defineComponent({
                   <Alert
                     theme='info'
                     title={'上传成功后会自动关闭当前上传窗口，并进行文件解析;'}
-                  ></Alert>
+                  />
                 </div>
               </div>
             </div>

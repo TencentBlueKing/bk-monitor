@@ -26,7 +26,7 @@
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IDragStatus, processColor } from '../uptime-check-data';
+import { type IDragStatus, processColor } from '../uptime-check-data';
 
 import './group-card.scss';
 
@@ -206,7 +206,7 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
               }
             }}
           >
-            <i class='icon-monitor icon-mc-more'></i>
+            <i class='icon-monitor icon-mc-more' />
           </span>
         </div>
         {this.data.top_three_tasks?.length ? (
@@ -227,7 +227,7 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
                   color={processColor(item.available)}
                   percent={+(item.available * 0.01).toFixed(2) || 0}
                   showText={false}
-                ></bk-progress>
+                />
               </div>
             ))}
           </div>

@@ -136,7 +136,7 @@ export default defineComponent({
                   src={loadingImg}
                 />
               ) : (
-                <span class={`icon-monitor icon-${this.autoQuery ? 'weibiaoti519' : 'kaishi11'}`}></span>
+                <span class={`icon-monitor icon-${this.autoQuery ? 'weibiaoti519' : 'kaishi11'}`} />
               )}
             </Button>
           </Popover>
@@ -171,13 +171,13 @@ export default defineComponent({
                         class='fav-btn'
                         onClick={this.handleAddFav}
                       >
-                        <i class='icon-monitor icon-mc-check-small'></i>
+                        <i class='icon-monitor icon-mc-check-small' />
                       </span>
                       <span
                         class='fav-btn'
                         onClick={this.handleCancelFav}
                       >
-                        <i class='icon-monitor icon-mc-close'></i>
+                        <i class='icon-monitor icon-mc-close' />
                       </span>
                     </div>
                   </Loading>
@@ -189,7 +189,7 @@ export default defineComponent({
             trigger='click'
           >
             <Button>
-              <i class='icon-monitor icon-mc-uncollect'></i>
+              <i class='icon-monitor icon-mc-uncollect' />
               {this.t('收藏')}
             </Button>
           </Popover>
@@ -202,7 +202,7 @@ export default defineComponent({
             class='clear-button'
             onClick={this.handleClearAll}
           >
-            <i class='icon-monitor icon-mc-clear-query'></i>
+            <i class='icon-monitor icon-mc-clear-query' />
           </Button>
         </Popover>
       </div>

@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 import { getEventPaths } from 'monitor-pc/utils';
 
 import debounceDecorator from '../../common/debounce-decorator';
 import EventModuleStore from '../../store/modules/event';
-import { FilterInputStatus, ICommonItem, SearchType } from './typings/event';
+
+import type { FilterInputStatus, ICommonItem, SearchType } from './typings/event';
+import type { TranslateResult } from 'vue-i18n';
 
 import './filter-input.scss';
 
@@ -1186,7 +1187,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             onInput={this.handleInput}
             onKeydown={this.handleKeydown}
             onMousedown={this.handleInputFocus}
-          ></input>
+          />
           <span
             ref='preText'
             class='pre-text'
@@ -1205,7 +1206,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           v-en-class='en-lang'
           onMousedown={this.handleSetFavorite}
         >
-          <i class='icon-monitor icon-mc-uncollect favorite-icon'></i>
+          <i class='icon-monitor icon-mc-uncollect favorite-icon' />
           {this.$t('收藏')}
         </span>
         <div style='display: none;'>

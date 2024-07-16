@@ -31,20 +31,26 @@ import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import { IFilterDict, ITableColumn, ITableFilterItem, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 import { transformConditionSearchList, transformConditionValueParams } from 'monitor-pc/pages/monitor-k8s/utils';
 
 import RatioLegend from '../../components/chart-legend/relation-legend';
 import RelationChartTitle from '../../components/relation-chart-title/relation-chart-title';
 import backIcon from '../../icons/back.svg';
 import bannerIcon from '../../icons/banner.svg';
-import { IRelationStatusItem, LegendActionType, PanelModel } from '../../typings';
-import { ITableDataItem } from '../../typings/table-chart';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
+
+import type { IRelationStatusItem, LegendActionType, PanelModel } from '../../typings';
+import type { ITableDataItem } from '../../typings/table-chart';
+import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import type {
+  IFilterDict,
+  ITableColumn,
+  ITableFilterItem,
+  ITablePagination,
+} from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './relation-graph.scss';
 
@@ -624,7 +630,7 @@ export class RelationGraph extends CommonSimpleChart {
           x: -cfg.size / 2 - 12,
           y: -cfg.size / 2 - 12,
           fill: '#FAFBFD',
-          stroke: `#979BA5`, // 描边颜色
+          stroke: '#979BA5', // 描边颜色
           lineWidth: 1, // 描边宽度
           r: 10, // 圆半径
         },
@@ -648,7 +654,7 @@ export class RelationGraph extends CommonSimpleChart {
           x: -cfg.size / 2 - 12,
           y: -cfg.size / 2 - 12 + 25,
           fill: '#EDF4FF',
-          stroke: `#3A84FF`, // 描边颜色
+          stroke: '#3A84FF', // 描边颜色
           lineWidth: 1, // 描边宽度
           r: 10, // 圆半径
         },
@@ -1308,7 +1314,7 @@ export class RelationGraph extends CommonSimpleChart {
                     <span
                       class='icon-monitor icon-plus-line'
                       onClick={() => this.handleGraphZoom(this.zoomValue + 0.1)}
-                    ></span>
+                    />
                     <bk-slider
                       height='82px'
                       class='slider-wrap'
@@ -1319,11 +1325,11 @@ export class RelationGraph extends CommonSimpleChart {
                       step={0.1}
                       vertical={true}
                       onChange={value => this.handleGraphZoom(value)}
-                    ></bk-slider>
+                    />
                     <span
                       class='icon-monitor icon-minus-line'
                       onClick={() => this.handleGraphZoom(this.zoomValue - 0.1)}
-                    ></span>
+                    />
                   </div>
                 )}
                 {!this.isRendered && <div class='empty-chart empty-loading'>Loading...</div>}

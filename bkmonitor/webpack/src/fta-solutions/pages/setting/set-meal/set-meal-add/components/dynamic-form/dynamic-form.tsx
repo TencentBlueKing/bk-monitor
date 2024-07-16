@@ -108,7 +108,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                       id={option.id}
                       key={option.id}
                       name={option.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               ) : undefined}
@@ -121,7 +121,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                     <bk-checkbox
                       key={option.id}
                       value={option.id}
-                    ></bk-checkbox>
+                    />
                   ))}
                 </bk-checkbox-group>
               ) : undefined}
@@ -134,7 +134,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                     <bk-radio
                       key={option.id}
                       value={option.id}
-                    ></bk-radio>
+                    />
                   ))}
                 </bk-radio-group>
               ) : undefined}
@@ -149,7 +149,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                           placeholder={item.formChildProps.placeholder}
                           type={'password'}
                           on-change={this.emitModel}
-                        ></bk-input>
+                        />
                       );
                     }
                     return (
@@ -158,7 +158,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                         placeholder={item.formChildProps.placeholder}
                         tipsList={this.getMessageTemplateList}
                         on-change={this.emitModel}
-                      ></AutoInput>
+                      />
                     );
                   }
                   return undefined;

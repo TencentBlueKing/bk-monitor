@@ -30,13 +30,14 @@ import dayjs from 'dayjs';
 import { eventTopN, searchEvent } from 'monitor-api/modules/alert';
 import { xssFilter } from 'monitor-common/utils/xss';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import { getEventPaths } from 'monitor-pc/utils/index';
 
 import { commonAlertFieldMap } from '../event';
 import FilterInput from '../filter-input';
-import { FilterInputStatus, SearchType } from '../typings/event';
-import { IDetail } from './type';
+
+import type { FilterInputStatus, SearchType } from '../typings/event';
+import type { IDetail } from './type';
+import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './related-events.scss';
 
@@ -658,7 +659,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           width={30}
           scopedSlots={childSlots}
           type='expand'
-        ></bk-table-column>
+        />
         {this.tableColumns.map(column => {
           if (!(column.disabled || column.checked)) return undefined;
           return (
@@ -696,7 +697,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           trigger='click'
         >
           <div class='filter-btn'>
-            <span class='icon-monitor icon-menu-set'></span>
+            <span class='icon-monitor icon-menu-set' />
           </div>
           <div
             class='relatedevents-tool-popover'
@@ -744,7 +745,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           valueMap={this.filterValueMap}
           on-change={this.handleQueryStringChange}
           on-clear={this.handleQueryStringChange}
-        ></FilterInput>
+        />
         <div class='events-table-container'>
           {this.getRelatedeventsSettingComponent()}
           {this.getTableComponent()}

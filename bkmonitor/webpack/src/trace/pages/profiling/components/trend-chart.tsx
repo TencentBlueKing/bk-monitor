@@ -23,26 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, type PropType, provide, type Ref, ref, watch } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, provide, ref, watch } from 'vue';
 
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { setTraceTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
-import { type IQueryParams, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
+  TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  TIMEZONE_KEY,
   VIEWOPTIONS_KEY,
 } from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
 import { SearchType, type ToolsFormData } from '../typings';
+
+import type { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './trend-chart.scss';
 import 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
@@ -114,8 +115,8 @@ export default defineComponent({
           /** 文件信息的时间单位为 μs（微秒），图表插件需要统一单位为 s（秒），故在此做转换 */
           ...(searchType.value === SearchType.Upload
             ? {
-                start_time: parseInt(String(start / Math.pow(10, 6)), 10),
-                end_time: parseInt(String(end / Math.pow(10, 6)), 10),
+                start_time: Number.parseInt(String(start / Math.pow(10, 6)), 10),
+                end_time: Number.parseInt(String(end / Math.pow(10, 6)), 10),
               }
             : {}),
         };
@@ -194,7 +195,7 @@ export default defineComponent({
               <img
                 class='chart-loading-icon'
                 src={loadingIcon}
-              ></img>
+              />
             ) : undefined}
           </div>
         </Collapse.CollapsePanel>

@@ -30,7 +30,7 @@ import dayjs from 'dayjs';
 import { createOrUpdateExternalPermission, getByAction } from 'monitor-api/modules/iam';
 import { deepClone } from 'monitor-common/utils';
 
-import { ACTION_MAP, AngleType, EditModel } from './authorization-list';
+import { ACTION_MAP, type AngleType, type EditModel } from './authorization-list';
 
 import './authorization-dialog.scss';
 
@@ -199,7 +199,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                 <bk-option
                   id={item[0]}
                   name={item[1]}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </bk-form-item>
@@ -223,7 +223,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                   id={item.uid}
                   key={item.uid}
                   name={item.text}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </bk-form-item>
@@ -241,7 +241,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               type='date'
               value={this.formData.expire_time}
               onChange={this.handleDateChange}
-            ></bk-date-picker>
+            />
           </bk-form-item>
         </bk-form>
 

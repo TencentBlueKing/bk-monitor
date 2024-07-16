@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
   defineComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
-  type PropType,
   reactive,
   ref,
   toRefs,
@@ -37,7 +37,7 @@ import {
 
 import { debounce, deepClone } from 'monitor-common/utils/utils';
 
-import { type IFavList, type IFavoriteItem } from '../../../typings';
+import type { IFavList, IFavoriteItem } from '../../../typings';
 
 import './favorites-list.scss';
 
@@ -227,7 +227,7 @@ export default defineComponent({
           ref='favMain'
           class='fav-main'
         >
-          <div class='box-shadow'></div>
+          <div class='box-shadow' />
           <span class='fav-label'>{this.$t('收藏')}</span>
           <div
             ref='scroll'

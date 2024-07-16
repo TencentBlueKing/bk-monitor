@@ -35,20 +35,20 @@ import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
-import CommonTable, { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import CommonTable, { type ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
-import OperateOptions, { IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
+import OperateOptions, { type IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from 'monitor-pc/router/space';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
+import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
 import { SEARCH_KEYS, STATUS_MAP } from './utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './app-list-new.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -712,14 +712,14 @@ export default class AppList extends tsc<object> {
                 onImmediateReflesh={() => this.handleImmediateReflesh()}
                 onRefleshChange={this.handleRefleshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
-              ></DashboardTools>
+              />
               <bk-button
                 size='small'
                 theme='primary'
                 onClick={this.handleAddApp}
               >
                 <span class='app-add-btn'>
-                  <i class='icon-monitor icon-mc-add app-add-icon'></i>
+                  <i class='icon-monitor icon-mc-add app-add-icon' />
                   <span>{this.$t('新建应用')}</span>
                 </span>
               </bk-button>
@@ -750,9 +750,9 @@ export default class AppList extends tsc<object> {
               <div class='app-list-content-top'>
                 <bk-button onClick={this.handleAllExpanChange}>
                   {!this.isExpan ? (
-                    <span class='icon-monitor icon-mc-merge'></span>
+                    <span class='icon-monitor icon-mc-merge' />
                   ) : (
-                    <span class='icon-monitor icon-mc-full-screen'></span>
+                    <span class='icon-monitor icon-mc-full-screen' />
                   )}
                   <span>{this.isExpan ? this.$t('全部收起') : this.$t('全部展开')}</span>
                 </bk-button>
@@ -762,7 +762,7 @@ export default class AppList extends tsc<object> {
                     modelValue={this.searchCondition}
                     placeholder={this.$t('请输入搜索或筛选')}
                     onChange={this.handleSearchCondition}
-                  ></SearchSelect>
+                  />
                 </div>
                 {/* <Input
                   class='app-list-search'
@@ -783,7 +783,7 @@ export default class AppList extends tsc<object> {
                       onClick={() => this.handleExpanChange(item)}
                     >
                       <div class='header-left'>
-                        <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
+                        <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]} />
                         <div
                           style={{
                             background: item.firstCodeColor,
@@ -797,11 +797,7 @@ export default class AppList extends tsc<object> {
                         <div class='item-label'>{this.$t('服务数量')}:</div>
                         <div class='item-content'>
                           <span>
-                            {item.service_count === null ? (
-                              <div class='spinner'></div>
-                            ) : (
-                              item?.service_count?.value || 0
-                            )}
+                            {item.service_count === null ? <div class='spinner' /> : item?.service_count?.value || 0}
                           </span>
                         </div>
                         <div
@@ -870,7 +866,7 @@ export default class AppList extends tsc<object> {
                             class='more-btn'
                             slot='trigger'
                           >
-                            <span class='icon-monitor icon-mc-more'></span>
+                            <span class='icon-monitor icon-mc-more' />
                           </div>
                         </OperateOptions>
                       </div>
@@ -884,13 +880,13 @@ export default class AppList extends tsc<object> {
                             onFilterChange={val => this.handleFilterChange(val, item)}
                             onScrollEnd={() => this.handleScrollEnd(item)}
                             onSortChange={val => this.handleSortChange(val as any, item)}
-                          ></CommonTable>
+                          />
                         ) : (
                           <EmptyStatus
                             textMap={{
                               empty: this.$t('暂无数据'),
                             }}
-                          ></EmptyStatus>
+                          />
                         )}
                       </div>
                     )}
@@ -900,7 +896,7 @@ export default class AppList extends tsc<object> {
               <div class='bottom-loading-status'>
                 {(this.loading || this.pagination.isEnd) && (
                   <div class='loading-box'>
-                    {this.loading && <div class='spinner'></div>}
+                    {this.loading && <div class='spinner' />}
                     {(() => {
                       if (!this.appList.length) {
                         return this.$t('暂无数据');

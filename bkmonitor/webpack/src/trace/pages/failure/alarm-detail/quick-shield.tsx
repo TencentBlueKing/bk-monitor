@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, type PropType, reactive, ref, watch } from 'vue';
+import { type PropType, defineComponent, nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Dialog, Input, Loading, Message } from 'bkui-vue';
@@ -31,8 +31,9 @@ import dayjs from 'dayjs';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 
-import { type IDetail } from '../types';
 import VerifyInput from './verify-input/verify-input';
+
+import type { IDetail } from '../types';
 
 import './quick-shield.scss';
 
@@ -231,7 +232,7 @@ export default defineComponent({
                 <i
                   class='icon-monitor icon-mc-wailian'
                   onClick={() => handleToStrategy(detail.strategy.id as number)}
-                ></i>
+                />
               </div>
             </div>
           )}
@@ -290,7 +291,7 @@ export default defineComponent({
                         options={options.value}
                         placeholder={t('选择日期时间范围')}
                         type={'datetimerange'}
-                      ></DatePicker>
+                      />
                     )}
                   </div>
                 </VerifyInput>
@@ -299,7 +300,7 @@ export default defineComponent({
             <div class='stratrgy-item m0'>
               <div class='item-label'> {t('告警内容')} </div>
               <div class='item-tips'>
-                <i class='icon-monitor icon-hint'></i>{' '}
+                <i class='icon-monitor icon-hint' />{' '}
                 {t('屏蔽的是告警内容的这类事件，不仅仅当前的事件还包括后续屏蔽时间内产生的事件。')}{' '}
               </div>
               {getInfoCompnent()}
@@ -314,7 +315,7 @@ export default defineComponent({
                   placeholder={t('请输入')}
                   rows={3}
                   type='textarea'
-                ></Input>
+                />
               </div>
             </div>
           </div>
@@ -356,7 +357,7 @@ export default defineComponent({
         title={this.$t('快捷屏蔽告警')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
-      ></Dialog>
+      />
     );
   },
 });

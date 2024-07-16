@@ -47,7 +47,6 @@ const transformAppDir = app => {
       return 'apm';
     case 'trace':
       return 'trace';
-    case 'external':
     default:
       return 'monitor-pc';
   }

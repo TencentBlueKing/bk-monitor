@@ -49,7 +49,6 @@ import {
 import { useAppStore } from '../../store/modules/app';
 import {
   type CommomParams,
-  componentProps,
   type IFetchNode,
   type IHost,
   type INode,
@@ -60,6 +59,7 @@ import {
   type ITemplateItem,
   type ITemplateNode,
   type ITreeItem,
+  componentProps,
 } from './typing';
 import create from './vue3.x';
 
@@ -450,7 +450,7 @@ export default defineComponent({
         onCloseDialog={this.onCloseDialog}
         onOutputField-change={this.onOutPutFieldChange}
         onPanelChange={this.onPanelChange}
-      ></BkIpSelector>
+      />
     );
   },
 });

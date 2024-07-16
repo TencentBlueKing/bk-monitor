@@ -29,11 +29,12 @@
  * @Description:
  */
 
-import store from '@store/store';
 import { applicationInfoByAppName, metaConfigInfo } from 'monitor-api/modules/apm_meta';
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
 
-import { IAppSelectOptItem } from '../../pages/home/app-select';
+import store from '@store/store';
+
+import type { IAppSelectOptItem } from '../../pages/home/app-select';
 
 export interface IApplicationState {
   pluginsList: IAppSelectOptItem[];

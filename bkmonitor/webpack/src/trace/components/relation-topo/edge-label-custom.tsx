@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, ref, onMounted } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@vue-flow/core';
 
@@ -203,7 +203,7 @@ export default defineComponent({
                   'show-max': this.curSpan.isMax,
                 }}
               >
-                <i class='icon-monitor icon-mc-time duration-icon'></i>
+                <i class='icon-monitor icon-mc-time duration-icon' />
                 <span class='duration'>{this.curSpan.text}</span>
                 {this.curSpan.isMax && <span class='max-icon'>MAX</span>}
               </div>
@@ -212,7 +212,7 @@ export default defineComponent({
                   <i
                     class='icon-monitor icon-arrow-left page-btn'
                     onClick={() => this.handlePageChange(this.page - 1)}
-                  ></i>
+                  />
                   <span class='page'>
                     <span>{this.page}</span>
                     <span class='split-char'>/</span>
@@ -221,7 +221,7 @@ export default defineComponent({
                   <i
                     class='icon-monitor icon-arrow-right page-btn'
                     onClick={() => this.handlePageChange(this.page + 1)}
-                  ></i>
+                  />
                 </div>
               )}
             </div>

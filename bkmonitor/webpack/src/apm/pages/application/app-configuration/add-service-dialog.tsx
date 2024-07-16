@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { customServiceConfig, customServiceDataSource, customServiceMatchList } from 'monitor-api/modules/apm_meta';
 
-import { ICustomServiceInfo } from './type';
+import type { ICustomServiceInfo } from './type';
 
 interface IProps {
   value?: boolean;
@@ -334,7 +334,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
           class='icon-monitor icon-mc-close'
           slot='tools'
           onClick={() => this.handleCancel()}
-        ></span>
+        />
         <div class='add-dialog-main'>
           <div
             class='uri-source-content'
@@ -348,7 +348,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 slot='headerTool'
                 onClick={() => this.getUriSourceData()}
               >
-                <i class='icon-monitor icon-shuaxin'></i>
+                <i class='icon-monitor icon-shuaxin' />
                 {this.$t('button-刷新')}
               </span>
             </div>
@@ -387,7 +387,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                     id={option.id}
                     key={option.id}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             </bk-form-item>
@@ -560,14 +560,12 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 <div>
                   {this.isDebugging ? (
                     <span class='status-wrap'>
-                      <bk-spin></bk-spin>
+                      <bk-spin />
                       <span style='margin-left:6px;'>{this.$t('调试中')}</span>
                     </span>
                   ) : (
                     <span class='status-wrap'>
-                      <i
-                        class={`icon-monitor ${this.debuggerResult ? 'icon-mc-check-fill' : 'icon-mc-close-fill'}`}
-                      ></i>
+                      <i class={`icon-monitor ${this.debuggerResult ? 'icon-mc-check-fill' : 'icon-mc-close-fill'}`} />
                       <span>{this.debuggerResult ? this.$t('调试成功') : this.$t('调试失败')}</span>
                     </span>
                   )}

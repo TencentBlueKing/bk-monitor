@@ -136,7 +136,7 @@ export default class CalendarAddInput extends tsc<{}, IEvents> {
               class='calendar-input'
               v-model={this.inputText}
               placeholder={this.$t('输入日历名称')}
-            ></bk-input>
+            />
             <bk-button
               class='btn'
               theme='primary'

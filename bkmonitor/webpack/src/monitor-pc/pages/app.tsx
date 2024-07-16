@@ -458,11 +458,15 @@ export default class App extends tsc<object> {
         return;
       }
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
-        hasAuth && (this.routeViewKey = random(10));
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
       });
     } else {
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
-        hasAuth && (this.routeViewKey = random(10));
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
       });
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -667,7 +671,7 @@ export default class App extends tsc<object> {
           needBack={this.needBack}
           needCopyLink={this.needCopyLink}
           routeList={this.navRouteList}
-        ></CommonNavBar>
+        />
       ),
       <div
         key={this.routeViewKey}
@@ -676,19 +680,19 @@ export default class App extends tsc<object> {
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
       >
         <keep-alive>
-          <router-view class='page-wrapper'></router-view>
+          <router-view class='page-wrapper' />
         </keep-alive>
         <router-view
           key='noCache'
           class='page-wrapper'
           name='noCache'
-        ></router-view>
+        />
         {this.$route.name === 'home' ? (
           <div class='monitor-footer'>
             <div
               class='footer-link'
               domPropsInnerHTML={this.platformData.contact}
-            ></div>
+            />
             <div>{this.platformData.copyright}</div>
           </div>
         ) : undefined}
@@ -899,7 +903,9 @@ export default class App extends tsc<object> {
               <HeaderSettingModal
                 show={this.headerSettingShow}
                 onChange={this.handleHeaderSettingShowChange}
-                onStoreRoutesChange={v => (this.userStoreRoutes = v)}
+                onStoreRoutesChange={v => {
+                  this.userStoreRoutes = v;
+                }}
               />
             )
             // #endif
@@ -925,7 +931,7 @@ export default class App extends tsc<object> {
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&
             this.$route.name &&
             !AI_WHALE_EXCLUED_ROUTES.includes(this.$route.name) &&
-            this.hasBusinessAuth && <AiWhale></AiWhale>
+            this.hasBusinessAuth && <AiWhale />
           // #endif
         }
       </div>

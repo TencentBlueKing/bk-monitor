@@ -31,18 +31,19 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { findRight, ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
+import { type ILogUrlParams, findRight, transformLogUrlQuery } from 'monitor-pc/utils';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { ICurPoint, IViewOptions, PanelModel } from '../../typings';
 import { queryConfigTransform } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
+
+import type { ICurPoint, IViewOptions, PanelModel } from '../../typings';
 
 import '../time-series/time-series.scss';
 import './time-series-forecast.scss';
@@ -250,7 +251,7 @@ export default class TimeSeriesForecast extends LineChart {
           })
         );
         /** 处理上下边界 */
-        const boundarySeries = this.handleBoundaryList(seriesResult[0], seriesResult).flat(Infinity);
+        const boundarySeries = this.handleBoundaryList(seriesResult[0], seriesResult).flat(Number.POSITIVE_INFINITY);
         if (!!boundarySeries) {
           const lineSeriesList = seriesList
             .map((item: any) => ({ ...item, z: 6 }))
@@ -545,7 +546,7 @@ export default class TimeSeriesForecast extends LineChart {
       boundaryList.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Infinity
+          Number.POSITIVE_INFINITY
         );
         this.minBase = Math.max(base, this.minBase);
       });

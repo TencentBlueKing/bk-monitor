@@ -65,7 +65,7 @@ export default class NoticeStatusTable extends tsc<IProps> {
             label={window.i18n.t('通知对象')}
             prop={'target'}
             resizable={false}
-          ></bk-table-column>
+          />
           {this.tableColumns.map((item, i) =>
             this.hasColumns.includes(item.prop) ? (
               <bk-table-column
@@ -105,7 +105,7 @@ export default class NoticeStatusTable extends tsc<IProps> {
                 label={item.label}
                 prop={item.prop}
                 resizable={false}
-              ></bk-table-column>
+              />
             ) : undefined
           )}
         </bk-table>

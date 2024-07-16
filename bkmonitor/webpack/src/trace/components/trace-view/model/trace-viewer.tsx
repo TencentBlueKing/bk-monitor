@@ -26,7 +26,7 @@
 
 import _memoize from 'lodash/memoize';
 
-import { type Span } from '../typings';
+import type { Span } from '../typings';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export function _getTraceNameImpl(spans: Span[]) {

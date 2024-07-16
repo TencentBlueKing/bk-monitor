@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getPlatformConfig, setShortcutIcon, setDocumentTitle } from '@blueking/platform-config';
-import { Action, Mutation, getModule, Module, VuexModule } from 'vuex-module-decorators';
+import { getPlatformConfig, setDocumentTitle, setShortcutIcon } from '@blueking/platform-config';
+import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
 
 import store from '../store';
 

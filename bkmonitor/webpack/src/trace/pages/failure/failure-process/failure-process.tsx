@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, nextTick, onMounted, type Ref, ref, watch } from 'vue';
+import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { incidentOperationTypes } from 'monitor-api/modules/incident';
 
-import { type IIncident } from '../types';
 import { useIncidentInject } from '../utils';
 import { renderMap } from './process';
+
+import type { IIncident } from '../types';
 
 import './failure-process.scss';
 
@@ -172,7 +173,7 @@ export default defineComponent({
           <Input
             v-model={this.queryString}
             placeholder={this.$t('搜索 流转记录')}
-          ></Input>
+          />
 
           <Popover
             width='242'
@@ -190,7 +191,7 @@ export default defineComponent({
                   v-bk-tooltips={{ content: this.$t('设置展示类型') }}
                   onClick={this.handleSetting}
                 >
-                  <CogShape></CogShape>
+                  <CogShape />
                 </span>
               ),
               content: (
@@ -219,10 +220,10 @@ export default defineComponent({
                                   'icon-monitor',
                                   data.id.startsWith('alert') ? 'icon-gaojing1' : 'icon-mc-fault',
                                 ]}
-                              ></i>
+                              />
                             )}
                             {data.name}
-                            {data.isAddLine ? <span class='node-line'></span> : ''}
+                            {data.isAddLine ? <span class='node-line' /> : ''}
                           </span>
                         );
                       },
@@ -247,7 +248,7 @@ export default defineComponent({
                     onClick={e => this.handleOperationId(e, operation)}
                   >
                     <div class='failure-process-item-avatar'>
-                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line'></span>}
+                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line' />}
                       <i
                         class={[
                           'icon-monitor item-icon',
@@ -257,7 +258,7 @@ export default defineComponent({
                               : 'icon-mc-fault'
                             : 'icon-mc-user-one',
                         ]}
-                      ></i>
+                      />
                     </div>
                     <div class='failure-process-item-content'>
                       <p>

@@ -211,13 +211,13 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
               class='left-btn'
               onClick={() => this.handleLeftOrRightChange('left')}
             >
-              <span class='icon-monitor icon-arrow-left'></span>
+              <span class='icon-monitor icon-arrow-left' />
             </div>
             <div
               class='right-btn'
               onClick={() => this.handleLeftOrRightChange('right')}
             >
-              <span class='icon-monitor icon-arrow-right'></span>
+              <span class='icon-monitor icon-arrow-right' />
             </div>
           </div>
           <div class='right'>
@@ -243,7 +243,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
                           extCls: 'duty-preview-component-leisure-tip',
                           allowHTML: false,
                         }}
-                      ></div>
+                      />
                     ))}
                   </div>
                 ))}

@@ -26,7 +26,7 @@
 
 import { typeTools } from 'monitor-common/utils/utils';
 
-import { type ISpanClassifyItem, type ITraceData, type ITraceTree } from '../../../typings';
+import type { ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings';
 /**
  * @desc 插入跨应用 span 合并 trace_tree
  * @param { ITraceTree } originTree

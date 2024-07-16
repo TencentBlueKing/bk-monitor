@@ -23,12 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type PropType, provide, ref } from 'vue';
+import { type PropType, computed, defineComponent, provide, ref } from 'vue';
 
 import { bkTooltips } from 'bkui-vue';
-import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import { type PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
@@ -38,6 +36,8 @@ import TimeSeries from '../charts/time-series/time-series';
 import { chartDetailProvideKey, useReadonlyInject } from '../hooks';
 
 import type * as PanelModelTraceVersion from '../typings';
+import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-wrapper.scss';
 
@@ -203,7 +203,7 @@ export default defineComponent({
             v-watermark={{
               text: window.user_name || window.username,
             }}
-          ></div>
+          />
         )}
         {this.handlePanel2Chart()}
         {this.loading ? (
@@ -211,7 +211,7 @@ export default defineComponent({
             class='loading-icon'
             alt=''
             src={loadingIcon}
-          ></img>
+          />
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
           <span
@@ -225,7 +225,7 @@ export default defineComponent({
             v-watermark={{
               text: window.user_name || window.username,
             }}
-          ></div>
+          />
         )}
         {!!this.errorMsg && (
           <span
@@ -235,7 +235,7 @@ export default defineComponent({
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start',
             }}
-          ></span>
+          />
         )}
       </div>
     );

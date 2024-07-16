@@ -29,9 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 
 import ExpiredSelect from '../../../components/expired-select/expired-select';
-import { ICreateAppFormData } from '../../home/app-list';
-import { IPluginItem, ISetupData } from './app-add';
 import ClusterTable from './cluster-table';
+
+import type { ICreateAppFormData } from '../../home/app-list';
+import type { IPluginItem, ISetupData } from './app-add';
 
 import './setting-params.scss';
 
@@ -171,16 +172,16 @@ export default class SettingParams extends tsc<IProps, IEvents> {
             <ClusterTable
               style={{ marginRight: this.marginRightWidth }}
               class={{ 'is-animation': this.sliderAnimation }}
-              v-bkloading={{ isLoading: this.tableLoading }}
               v-model={this.formData.es_storage_cluster}
+              v-bkloading={{ isLoading: this.tableLoading }}
               tableList={this.sharedList}
               onChange={this.handleClusterChange}
             />
             <ClusterTable
               style={{ margin: `20px ${this.marginRightWidth} 0 0` }}
               class={{ 'is-animation': this.sliderAnimation }}
-              v-bkloading={{ isLoading: this.tableLoading }}
               v-model={this.formData.es_storage_cluster}
+              v-bkloading={{ isLoading: this.tableLoading }}
               tableList={this.exclusiveList}
               tableType='exclusive'
               onChange={this.handleClusterChange}
@@ -197,7 +198,7 @@ export default class SettingParams extends tsc<IProps, IEvents> {
             <ExpiredSelect
               v-model={this.formData.es_retention}
               max={this.retentionDaysMax}
-            ></ExpiredSelect>
+            />
           </bk-form-item>
           <bk-form-item label={this.$t('副本数')}>
             <bk-input
@@ -206,7 +207,7 @@ export default class SettingParams extends tsc<IProps, IEvents> {
               max={this.numberOfReplicasMax}
               min={0}
               type='number'
-            ></bk-input>
+            />
           </bk-form-item>
           <bk-form-item label={this.$t('分片数')}>
             <bk-input
@@ -215,7 +216,7 @@ export default class SettingParams extends tsc<IProps, IEvents> {
               max={this.esShardsMax}
               min={1}
               type='number'
-            ></bk-input>
+            />
           </bk-form-item>
           <bk-form-item label={this.$t('索引切分大小')}>
             <bk-input
