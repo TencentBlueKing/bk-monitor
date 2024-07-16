@@ -69,13 +69,17 @@ export default class FieldItem extends tsc<object> {
   // 显示融合字段统计比例图表
   get showFieldsChart() {
     if (this.fieldItem.field_type === 'text') return false;
-    return this.isFrontStatistics ? !!this.gatherFieldsCount : true;
+    return this.isFrontStatistics ? !!this.gatherFieldsCount : this.isShowFieldsAnalysis;
   }
   get isShowFieldsCount() {
     return !['object', 'nested', 'text'].includes(this.fieldItem.field_type) && this.isFrontStatistics;
   }
   get isShowFieldsAnalysis() {
-    return ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type);
+    return (
+      ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type) &&
+      this.fieldItem.es_doc_values &&
+      !/^__dist_/.test(this.fieldItem.field_name)
+    );
   }
   get reQueryAggChart() {
     return `${this.retrieveSearchNumber} ${this.datePickerValue.join(',')}`;
