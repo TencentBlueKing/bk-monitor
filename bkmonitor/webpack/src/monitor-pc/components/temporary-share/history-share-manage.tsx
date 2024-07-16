@@ -197,7 +197,7 @@ export default class HistoryShareManage extends tsc<IProps> {
     const { query, path } = this.$route;
     /* 页面路径 */
     const pathFn = str => {
-      if (!!str) {
+      if (str) {
         return `  /  ${str}`;
       }
       return '';
@@ -237,15 +237,15 @@ export default class HistoryShareManage extends tsc<IProps> {
       )}`;
     }
     const filterParams = {};
-    Object.keys(query).forEach(key => {
+    for (const key of Object.keys(query)) {
       if (/^filter-.+$/.test(key)) {
         filterParams[key.replace('filter-', '')] = query[key];
       }
-    });
+    }
     const data = await getShareTokenList({
       type: this.$route.name === 'event-center' ? 'event' : query.sceneId,
       filter_params: filterParams,
-      scene_params: !!query?.dashboardId
+      scene_params: query?.dashboardId
         ? { sceneType: query.sceneType, sceneId: query.sceneId, dashboardId: query.dashboardId }
         : undefined,
     }).catch(() => []);
@@ -254,7 +254,7 @@ export default class HistoryShareManage extends tsc<IProps> {
       link: `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}/#/share/${item.token || ''}`,
       accessCount: item.access_info?.total || 0,
       isCheck: false,
-      expireTimeStr: !!item.params_info?.[0]?.expire_period
+      expireTimeStr: item.params_info?.[0]?.expire_period
         ? periodStrFormat(item.params_info?.[0]?.expire_period)
         : formNowStrFormat(dayjs.tz(item.create_time).from(dayjs.tz(Number(item.expire_time) * 1000), true)),
     }));
@@ -335,14 +335,14 @@ export default class HistoryShareManage extends tsc<IProps> {
     this.popInstance?.show?.();
   }
   /* 清除弹层 */
-  handlePopoerHidden() {
+  handlePopoverHidden() {
     this.popInstance?.hide?.(0);
     this.popInstance?.destroy?.();
     this.popInstance = null;
   }
   /* 访问详情 */
   handleAccessDetail(event, row: ITableItem) {
-    this.handlePopoerHidden();
+    this.handlePopoverHidden();
     row.isShowAccess = true;
     this.accessDetail = row.access_info.data.map(item => ({
       user: item.visitor,
@@ -353,10 +353,10 @@ export default class HistoryShareManage extends tsc<IProps> {
 
   /* 变量详情 */
   handleDetail(event, row: ITableItem) {
-    this.handlePopoerHidden();
+    this.handlePopoverHidden();
     const timeRangeItem = row.params_info.find(item => item.name === 'time_range');
     if (timeRangeItem) {
-      const range = !!timeRangeItem?.default_time_range?.length
+      const range = timeRangeItem?.default_time_range?.length
         ? timeRangeItem.default_time_range
         : [timeRangeItem.start_time * 1000, timeRangeItem.end_time * 1000];
       const timeRangeStr =
