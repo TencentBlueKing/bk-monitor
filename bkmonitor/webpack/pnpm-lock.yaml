@@ -126,8 +126,8 @@ importers:
         specifier: ^1.0.5
         version: 1.0.5
       '@blueking/search-select-v3':
-        specifier: 0.0.1-beta.8
-        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        specifier: 0.0.1-beta.9
+        version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -199,8 +199,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/functional-dependency':
-        specifier: 0.0.1-beta.10
-        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        specifier: 0.0.1-beta.14
+        version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.5
         version: 1.0.5
@@ -342,14 +342,14 @@ importers:
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
       '@blueking/date-picker':
-        specifier: 2.0.0-beta.21
-        version: 2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16)
+        specifier: 2.0.0-beta.23
+        version: 2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/functional-dependency':
-        specifier: 0.0.1-beta.10
-        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        specifier: 0.0.1-beta.14
+        version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/ip-selector':
         specifier: 0.2.0-beta.1
         version: 0.2.0-beta.1
@@ -363,8 +363,8 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
       '@blueking/search-select-v3':
-        specifier: 0.0.1-beta.8
-        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        specifier: 0.0.1-beta.9
+        version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/user-selector':
         specifier: ^1.0.14
         version: 1.0.14
@@ -475,8 +475,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/search-select-v3':
-        specifier: 0.0.1-beta.8
-        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        specifier: 0.0.1-beta.9
+        version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@toast-ui/editor':
         specifier: ^3.2.2
         version: 3.2.2
@@ -575,8 +575,8 @@ importers:
         specifier: ^4.8.24
         version: 4.8.24
       '@blueking/date-picker':
-        specifier: 2.0.0-beta.21
-        version: 2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31)
+        specifier: 2.0.0-beta.23
+        version: 2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -2529,9 +2529,8 @@ packages:
       '@vue/runtime-dom': 3.4.31
     dev: false
 
-  /@blueking/date-picker@2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16):
-    resolution: {integrity: sha512-QdH/D6wIfz37SB16Fho2Snxl+LGblYZRPNh9Amughfdxi/WPMvSsujd+oy4ADDEOK/sFe6nFQKwZHQXtidRw3g==}
-    engines: {node: '>=18.16.0'}
+  /@blueking/date-picker@2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16):
+    resolution: {integrity: sha512-biJPGOpuCA06x4lms2RnK8rOvv8YQxDGLhae9Kapb2vT9Du39gu5JHXtk9rbrMuFdlq6tYKJztjCNxYzaS+6WA==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^1.0.3-beta.38
@@ -2544,9 +2543,8 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/date-picker@2.0.0-beta.21(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31):
-    resolution: {integrity: sha512-QdH/D6wIfz37SB16Fho2Snxl+LGblYZRPNh9Amughfdxi/WPMvSsujd+oy4ADDEOK/sFe6nFQKwZHQXtidRw3g==}
-    engines: {node: '>=18.16.0'}
+  /@blueking/date-picker@2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31):
+    resolution: {integrity: sha512-biJPGOpuCA06x4lms2RnK8rOvv8YQxDGLhae9Kapb2vT9Du39gu5JHXtk9rbrMuFdlq6tYKJztjCNxYzaS+6WA==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^1.0.3-beta.38
@@ -2563,9 +2561,8 @@ packages:
     resolution: {integrity: sha512-gHy4ulTJzy1IG/2o+X13hkC/pN9hbD3WTJz2h9ILSMZy7jHdpQt2Utj0Ppn8MSS/go9QKm0fbHFvNUaLt1/tVw==}
     dev: false
 
-  /@blueking/functional-dependency@0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
-    resolution: {integrity: sha512-bQXGIJP5tI+IHtS7moLyqUqX4dDASCCShc2tniMdWakFJCXH7WZasHPJGmzieNhGIzIRFk4lwlVPY6kk5TEzJQ==}
-    engines: {node: '>=18.16.0'}
+  /@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
+    resolution: {integrity: sha512-PTGEzuEKxuSd28u4nuKfmA/jRz2i+DHs+QdNr4bfB7p8K12R3tTMyLYkNgv78nt7+Q6sOnDLAXY2/7UD3P4fvQ==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^1.0.3-beta.38
@@ -2599,9 +2596,8 @@ packages:
       xss: 1.0.15
     dev: false
 
-  /@blueking/search-select-v3@0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
-    resolution: {integrity: sha512-0Wg/GbGM9ryQ/R3SdiYa8hwlYWK8CMw8XcAgInEQRHZ+W6BrFzitk28PYPUGsJh0zDVwiOpRHQF1AhiJtp4baQ==}
-    engines: {node: '>=18.16.0'}
+  /@blueking/search-select-v3@0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
+    resolution: {integrity: sha512-fNemCIegplYBPsuPwAhmsqJCfOq4o+VVcyhUzP3VGpLXqxT1Kq/z7ESIzhmGK37I46BN4+vukmj04sm2zaJ5cQ==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^1.0.3-beta.38
