@@ -407,6 +407,7 @@ export default class AiWhale extends tsc<object> {
       <div class='help-list'>
         {this.whaleHelperList.map(item => (
           <div
+            key={item.name}
             class='help-item'
             onClick={() => this.handleToHelpItem(item)}
           >
@@ -524,12 +525,14 @@ export default class AiWhale extends tsc<object> {
                                     )}
                                     scopedSlots={{
                                       default: props => (
-                                        <a
+                                        <span
                                           class='link'
-                                          onClick={() => this.handleToPerformance(props.row.ip, props.row?.bk_cloud_id)}
+                                          onClick={() => {
+                                            this.handleToPerformance(props.row.ip, props.row?.bk_cloud_id);
+                                          }}
                                         >
                                           {props.row.ip}
-                                        </a>
+                                        </span>
                                       ),
                                     }}
                                   />
@@ -612,10 +615,10 @@ export default class AiWhale extends tsc<object> {
                                   >
                                     <i18n path='主机智能异常检测发现最近{0}{1}台主机异常'>
                                       <span>
-                                        <span class='grey-bold'>{this.fetchRange.match(/[1236]+/g)[0]}</span>
-                                        {this.fetchRange.match(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
+                                        <span class='grey-bold'>{this.fetchRange?.match(/[1236]+/g)?.[0] || ''}</span>
+                                        {this.fetchRange.match?.(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
                                       </span>
-                                      {countSpan(this.data.intelligent_detect?.host?.abnormal_count)}
+                                      {countSpan(this.data.intelligent_detect?.host?.abnormal_count) || 0}
                                     </i18n>
                                     {!!this.data.intelligent_detect?.host?.abnormal_count && (
                                       <span class='icon-monitor icon-double-down' />
