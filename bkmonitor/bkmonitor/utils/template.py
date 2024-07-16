@@ -403,7 +403,7 @@ def escape_markdown(value):
             return value
 
         # 如果字符串不是以**开头和结尾，则不需要转义
-        if not re.match(r"^\*\*.*\*\*", value):
+        if re.match(r"^\*\*.*\*\*", value):
             return value
 
         for char in ESCAPE_MARKDOWN_CHARS:
