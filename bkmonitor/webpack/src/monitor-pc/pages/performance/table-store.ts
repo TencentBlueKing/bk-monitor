@@ -36,14 +36,7 @@ import { commonPageSizeGet } from 'monitor-common/utils';
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { typeTools } from 'monitor-common/utils/utils.js';
 
-import {
-  type CheckType,
-  type IConditionValue,
-  type IFieldConfig,
-  type IOption,
-  type ITableOptions,
-  type ITableRow,
-} from './performance-type';
+import type { CheckType, IConditionValue, IFieldConfig, IOption, ITableOptions, ITableRow } from './performance-type';
 
 const IP_LIST_MATCH = new RegExp(/((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)/, 'g');
 const IPV6_LIST_MATCH = new RegExp(/([\da-fA-F]{4}:){7}[\da-fA-F]{4}/, 'g');
@@ -62,7 +55,7 @@ export default class TableStore {
   };
   cacheModuleMap = new Map();
   checkType: CheckType = 'current';
-  //  selections: ITableRow[] = []
+  // selections: ITableRow[] = []
   conditionsList: IOption[] = [
     {
       name: '>',
@@ -396,7 +389,6 @@ export default class TableStore {
   topoNameMap = {};
   total = 0;
   unresolveData = [];
-
   constructor(data: Array<any>, options: ITableOptions, bizList: any[]) {
     this.bizList = bizList;
     this.updateData(data, options);

@@ -1,6 +1,6 @@
-const { resolve } = require('path');
-const { readFile, access, writeFile } = require('fs/promises');
-const { constants } = require('fs');
+const { resolve } = require('node:path');
+const { readFile, access, writeFile } = require('node:fs/promises');
+const { constants } = require('node:fs');
 
 class ChangeCode {
   /**

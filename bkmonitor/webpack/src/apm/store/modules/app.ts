@@ -29,11 +29,12 @@
  * @Description:
  */
 
-import store from '@store/store';
-import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
-import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY, docCookies } from 'monitor-common/utils';
+import { Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
 
-import { ISpaceItem } from '../../typings';
+import store from '@store/store';
+
+import type { ISpaceItem } from '../../typings';
 
 export interface IAppState {
   navId: string;

@@ -29,12 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { IBookMark, ISettingTpl, SettingsDashboardType, SettingsWrapType } from '../typings';
-import { SettingsTabType, SettingsVarType, SettingType } from '../typings/settings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
 import SettingsDashboard from './settings-dashboard/settings-dashboard';
 import SettingsTab from './settings-tab/settings-tab';
 import SettingsVar from './settings-var/settings-var';
+
+import type { IBookMark, ISettingTpl, SettingsDashboardType, SettingsWrapType } from '../typings';
+import type { SettingType, SettingsTabType, SettingsVarType } from '../typings/settings';
 
 import './settings.scss';
 

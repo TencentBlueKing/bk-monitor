@@ -45,8 +45,6 @@ import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { type EmptyStatusOperationType, type EmptyStatusType } from '../../../components/empty-status/types';
-import { type INodeType, type TargetObjectType } from '../../../components/monitor-ip-selector/typing';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
 import { downFile } from '../../../utils';
@@ -56,12 +54,15 @@ import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-ala
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
-import { type IGroupData } from '../strategy-config-list/group';
 import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
-import { type IHeader, type ILabel, type IPopover, type IStrategyConfigProps } from './type';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
+import type { IGroupData } from '../strategy-config-list/group';
+import type { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 
 import './strategy-config.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -1710,7 +1711,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         onClick={e => this.handleShowTableFilter(e, type, title)}
       >
         {titleStr}
-        <i class='icon-monitor icon-filter-fill'></i>
+        <i class='icon-monitor icon-filter-fill' />
       </span>
     );
   }
@@ -1871,7 +1872,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                     content: `${props.row.invalidType}`,
                     allowHTML: false,
                   }}
-                ></i>
+                />
               ) : undefined,
               props.row.abnormalAlertCount > 0 && !props.row.isInvalid ? (
                 <span
@@ -1884,7 +1885,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   }}
                   onClick={modifiers.stop(() => this.handleToEventCenter(props.row))}
                 >
-                  <i class='icon-monitor icon-mc-chart-alert'></i>
+                  <i class='icon-monitor icon-mc-chart-alert' />
                   <span class='alert-count'>{props.row.abnormalAlertCount}</span>
                 </span>
               ) : undefined,
@@ -1899,7 +1900,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   }}
                   onClick={modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
                 >
-                  <i class='icon-monitor icon-menu-shield'></i>
+                  <i class='icon-monitor icon-menu-shield' />
                   <span class='alert-count'>{props.row.shieldAlertCount}</span>
                 </span>
               ) : undefined,
@@ -1913,11 +1914,11 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   }}
                   onClick={() => this.handleToAlarmShield(props.row.shieldInfo.shield_ids)}
                 >
-                  <i class='icon-monitor icon-menu-shield'></i>
+                  <i class='icon-monitor icon-menu-shield' />
                   <SvgIcon
                     class='wu-xian-text'
                     iconName={'wuqiong'}
-                  ></SvgIcon>
+                  />
                 </span>
               ) : undefined,
             ]}
@@ -1952,7 +1953,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 </span>
               ) : undefined}
             </span>,
-            index === 0 ? <br key={`br-${index}`}></br> : undefined,
+            index === 0 ? <br key={`br-${index}`} /> : undefined,
           ])}
         </span>
       ),
@@ -2107,7 +2108,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           pre-check={() => this.handlePreSwitchChange(props.row, type)}
           size='small'
           theme='primary'
-        ></bk-switcher>
+        />
         {!this.authority.MANAGE_AUTH ? (
           <div
             class='switch-wrap-modal'
@@ -2117,7 +2118,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
               e.preventDefault();
               !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH);
             }}
-          ></div>
+          />
         ) : undefined}
       </div>
     );
@@ -2221,7 +2222,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             <i
               class='bk-icon icon-more'
               data-popover='true'
-            ></i>
+            />
           </span>
         </div>
       ),
@@ -2280,7 +2281,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           width='50'
           align='center'
           type='selection'
-        ></bk-table-column>
+        />
         {id.checked && (
           <bk-table-column
             key='id'
@@ -2288,7 +2289,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             label='ID'
             prop='id'
             scopedSlots={idSlot}
-          ></bk-table-column>
+          />
         )}
         {strategyName.checked && (
           <bk-table-column
@@ -2296,7 +2297,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             label={this.$t('策略名')}
             min-width='200'
             scopedSlots={strategyNameSlot}
-          ></bk-table-column>
+          />
         )}
         {itemDescription.checked && (
           <bk-table-column
@@ -2304,7 +2305,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             label={this.$t('监控项')}
             min-width='200'
             scopedSlots={itemDescriptionSlot}
-          ></bk-table-column>
+          />
         )}
         {dataOrigin.checked && (
           <bk-table-column
@@ -2312,7 +2313,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='110'
             label={this.$t('数据来源')}
             scopedSlots={dataOriginSlot}
-          ></bk-table-column>
+          />
         )}
         {target.checked && (
           <bk-table-column
@@ -2320,21 +2321,21 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('监控目标')}
             scopedSlots={targetSlot}
-          ></bk-table-column>
+          />
         )}
         {labels.checked && (
           <bk-table-column
             key='labels'
             label={this.$t('标签')}
             scopedSlots={labelsSlot}
-          ></bk-table-column>
+          />
         )}
         {noticeGroupList.checked && (
           <bk-table-column
             key='noticeGroupList'
             label={this.$t('告警组')}
             scopedSlots={noticeGroupListSlot}
-          ></bk-table-column>
+          />
         )}
         {updator.checked && (
           <bk-table-column
@@ -2342,7 +2343,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('更新记录')}
             scopedSlots={updatorSlot}
-          ></bk-table-column>
+          />
         )}
         {enabled.checked && (
           <bk-table-column
@@ -2350,7 +2351,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='100'
             label={this.$t('启/停')}
             scopedSlots={enabledSlot}
-          ></bk-table-column>
+          />
         )}
         {dataTypeLabelName.checked && (
           <bk-table-column
@@ -2358,7 +2359,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='80'
             label={this.$t('策略类型')}
             scopedSlots={{ default: props => props.row.dataTypeLabelName }}
-          ></bk-table-column>
+          />
         )}
         {intervalNotifyMode.checked && (
           <bk-table-column
@@ -2366,7 +2367,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('通知间隔类型')}
             scopedSlots={{ default: props => props.row.intervalNotifyMode }}
-          ></bk-table-column>
+          />
         )}
         {dataMode.checked && (
           <bk-table-column
@@ -2374,7 +2375,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('查询类型')}
             scopedSlots={{ default: props => props.row.dataMode }}
-          ></bk-table-column>
+          />
         )}
         {notifyInterval.checked && (
           <bk-table-column
@@ -2382,7 +2383,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('通知间隔')}
             scopedSlots={{ default: props => `${props.row.notifyInterval}${this.$t('分钟')}` }}
-          ></bk-table-column>
+          />
         )}
         {trigger.checked && (
           <bk-table-column
@@ -2390,7 +2391,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('触发条件')}
             scopedSlots={triggerSlot}
-          ></bk-table-column>
+          />
         )}
         {recovery.checked && (
           <bk-table-column
@@ -2398,7 +2399,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('恢复条件')}
             scopedSlots={recoverySlot}
-          ></bk-table-column>
+          />
         )}
         {needPoll.checked && (
           <bk-table-column
@@ -2406,7 +2407,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='80'
             label={this.$t('告警风暴')}
             scopedSlots={needPollSlot}
-          ></bk-table-column>
+          />
         )}
         {noDataEnabled.checked && (
           <bk-table-column
@@ -2414,7 +2415,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='80'
             label={this.$t('无数据')}
             scopedSlots={noDataEnabledSlot}
-          ></bk-table-column>
+          />
         )}
         {signals.checked && (
           <bk-table-column
@@ -2422,7 +2423,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('通知场景')}
             scopedSlots={signalsSlot}
-          ></bk-table-column>
+          />
         )}
         {levels.checked && (
           <bk-table-column
@@ -2430,7 +2431,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('级别')}
             scopedSlots={levelsSlot}
-          ></bk-table-column>
+          />
         )}
         {detectionTypes.checked && (
           <bk-table-column
@@ -2438,7 +2439,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('检测规则类型')}
             scopedSlots={detectionTypesSlot}
-          ></bk-table-column>
+          />
         )}
         {mealNames.checked && (
           <bk-table-column
@@ -2446,7 +2447,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('处理套餐')}
             scopedSlots={mealNamesSlot}
-          ></bk-table-column>
+          />
         )}
         {configSource.checked && (
           <bk-table-column
@@ -2454,7 +2455,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='100'
             label={this.$t('配置来源')}
             scopedSlots={configSourceSlot}
-          ></bk-table-column>
+          />
         )}
         {app.checked && (
           <bk-table-column
@@ -2462,7 +2463,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='100'
             label={this.$t('配置分组')}
             scopedSlots={appSlot}
-          ></bk-table-column>
+          />
         )}
         {operator.checked && (
           <bk-table-column
@@ -2470,7 +2471,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width={this.$store.getters.lang === 'en' ? 220 : 150}
             label={this.$t('操作')}
             scopedSlots={operatorSlot}
-          ></bk-table-column>
+          />
         )}
       </bk-table>
     );
@@ -2554,12 +2555,12 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         onConfirm={this.handleMuchEdit}
         onGetGroupList={this.getGroupList}
         onHideDialog={this.handleDialogChange}
-      ></StrategyConfigDialog>,
+      />,
       <AlarmShieldStrategy
         is-show-strategy={this.isShowStrategy}
         {...{ on: { 'update:isShowStrategy': val => (this.isShowStrategy = val) } }}
         strategy-id={this.strategyId}
-      ></AlarmShieldStrategy>,
+      />,
       <TableFilter
         filter-type={this.filterType}
         menu-list={this.dataSourceList}
@@ -2571,7 +2572,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         on-hide={this.handleChangeValue}
         on-reset={() => this.handleResetSourceFilter(true)}
         on-selected={this.handleSelectedDataSource}
-      ></TableFilter>,
+      />,
       // this.targetSet.show ? (
       //   <StrategySetTarget
       //     dialog-show={this.targetSet.show}
@@ -2624,12 +2625,12 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
               checkedData={this.header.keywordObj}
               data={this.filterPanelData}
               on-change={this.handleSearchSelectChange}
-            ></FilterPanel>
+            />
             <div
               class={['content-left-drag', { displaynone: !this.showFilterPanel }]}
               onMousedown={this.handleMouseDown}
               onMousemove={this.handleMouseMove}
-            ></div>
+            />
           </div>
           <div
             id='content-for-watch-resize'
@@ -2647,7 +2648,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   class='folding'
                   onClick={this.handleShowFilterPanel}
                 >
-                  <i class='icon-monitor icon-double-up'></i>
+                  <i class='icon-monitor icon-double-up' />
                 </span>
               </bk-badge>
               <bk-button
@@ -2660,7 +2661,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                     : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
               <bk-dropdown-menu
@@ -2675,7 +2676,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   slot='dropdown-trigger'
                 >
                   <span class='btn-name'> {this.$t('批量操作')} </span>
-                  <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
+                  <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
                 </div>
                 <ul
                   class='header-select-list'
@@ -2719,7 +2720,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 uniqueSelect={true}
                 clearable
                 onChange={this.handleSearchChange}
-              ></SearchSelect>
+              />
             </div>
             <div class='strategy-config-wrap'>
               <div class='config-wrap-setting'>
@@ -2732,7 +2733,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   trigger='click'
                 >
                   <div class='setting-btn'>
-                    <i class='icon-monitor icon-menu-set'></i>
+                    <i class='icon-monitor icon-menu-set' />
                   </div>
                   <div
                     class='tool-popover'
@@ -2782,7 +2783,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   show-total-count
                   on-change={this.handlePageChange}
                   on-limit-change={this.handleLimitChange}
-                ></bk-pagination>
+                />
               ) : undefined}
             </div>
           </div>

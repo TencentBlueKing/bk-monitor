@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone, isPostiveInt } from 'monitor-common/utils';
 
-import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
+import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
 
 import './ring-ratio.scss';
 
@@ -297,7 +297,7 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                   disabled={level.disabled}
                   name={level.name}
                 >
-                  <i class={`icon-monitor ${level.icon}`}></i>
+                  <i class={`icon-monitor ${level.icon}`} />
                   <span class='name'>{level.name}</span>
                 </bk-option>
               ))}
@@ -414,11 +414,11 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                           <bk-option
                             id='avg'
                             name={this.$t('均值')}
-                          ></bk-option>
+                          />
                           <bk-option
                             id='last'
                             name={this.$t('瞬间值')}
-                          ></bk-option>
+                          />
                         </bk-select>
                         <bk-input
                           style='margin: 0 10px;'

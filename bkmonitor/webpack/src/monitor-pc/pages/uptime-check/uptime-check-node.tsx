@@ -30,7 +30,6 @@ import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules
 import { commonPageSizeSet } from 'monitor-common/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { type EmptyStatusOperationType, type EmptyStatusType } from '../../components/empty-status/types';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
 import HeaderTools, { type IClickType } from './components/header-tools';
@@ -44,6 +43,8 @@ import {
   paginationUtil,
   searchNodesData,
 } from './uptime-check-data';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 
 import './uptime-check-node.scss';
 
@@ -278,7 +279,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
             search={this.searchValue}
             onCreate={this.handleHeaderCreate}
             onSearch={(v: string) => this.handleSearch(v)}
-          ></HeaderTools>
+          />
           <CommonTable
             style={{ marginTop: '16px' }}
             {...{ props: this.nodesTableData }}
@@ -314,7 +315,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                     ],
                   }}
                   onOptionClick={(v: 'delete' | 'edit') => this.handleNodeOperate(v, row)}
-                ></OperateOptions>
+                />
               ),
               statusText: (row: INodeData) => (
                 <span

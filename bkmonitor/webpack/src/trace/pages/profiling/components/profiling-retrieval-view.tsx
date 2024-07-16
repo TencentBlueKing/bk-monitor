@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { Button } from 'bkui-vue';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
-import { type IQueryParams } from '../../../typings/trace';
-import { type DataTypeItem } from '../typings/profiling-retrieval';
 import TrendChart from './trend-chart';
+
+import type { IQueryParams } from '../../../typings/trace';
+import type { DataTypeItem } from '../typings/profiling-retrieval';
 
 import './profiling-retrieval-view.scss';
 

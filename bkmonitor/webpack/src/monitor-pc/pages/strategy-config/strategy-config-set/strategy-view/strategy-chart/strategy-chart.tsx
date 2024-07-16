@@ -35,11 +35,17 @@ import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
 import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
-import { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
-import { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';
-import { EditModeType, IDetectionConfig, ISourceData, MetricDetail } from '../../../strategy-config-set-new/typings';
 import { transformSensitivityValue } from '../../../util';
 import { EShortcutsType } from '../typing';
+
+import type { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
+import type { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';
+import type {
+  EditModeType,
+  IDetectionConfig,
+  ISourceData,
+  MetricDetail,
+} from '../../../strategy-config-set-new/typings';
 
 import './strategy-chart.scss';
 
@@ -533,7 +539,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
             needHoverStryle={false}
             panel={this.panel}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
-          ></ChartWrapper>
+          />
         )}
       </div>
     );

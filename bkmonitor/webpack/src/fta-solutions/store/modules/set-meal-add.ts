@@ -24,19 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import store from '@store/store';
 import {
   getConvergeFunction,
   getDimensions,
-  getPlugins,
   getPluginTemplates,
+  getPlugins,
   getTemplateDetail,
   getVariables,
 } from 'monitor-api/modules/action';
 import { createActionConfig, retrieveActionConfig, updateActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { transformDataKey } from 'monitor-common/utils/utils';
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+
+import store from '@store/store';
 
 const { i18n } = window;
 export interface ISetMealAddState {

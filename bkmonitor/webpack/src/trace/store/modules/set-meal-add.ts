@@ -26,8 +26,8 @@
 import {
   getConvergeFunction,
   getDimensions,
-  getPlugins,
   getPluginTemplates,
+  getPlugins,
   getTemplateDetail,
   getVariables,
 } from 'monitor-api/modules/action';

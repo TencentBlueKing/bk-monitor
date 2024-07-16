@@ -177,7 +177,7 @@ export default defineComponent({
         title={this.$t('一键拉群')}
         on-value-change={this.handleShowChange}
         onClosed={this.handleShowChange}
-      ></Dialog>
+      />
     );
   },
 });

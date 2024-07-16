@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -34,11 +33,13 @@ import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { type EmptyStatusOperationType, type EmptyStatusType } from '../../../components/empty-status/types';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
 import AlarmGroupDetail from '../alarm-group-detail/alarm-group-detail';
 import * as authorityMap from '../authority-map';
 import TableStore from '../store';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { VNode } from 'vue';
 
 import './alarm-group.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -573,7 +574,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
               <SearchSelect
@@ -596,7 +597,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 placeholder={this.$t('ID / 告警组名称')}
                 uniqueSelect={true}
                 onChange={this.handleSearchCondition}
-              ></SearchSelect>
+              />
               {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}
@@ -641,7 +642,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   selected={this.selectedFields}
                   size={this.tableSize}
                   on-setting-change={this.handleSettingChange}
-                ></bk-table-setting-content>
+                />
               </bk-table-column>
             </bk-table>
             <div class='alarm-group-pagination'>
@@ -657,7 +658,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   show-total-count
                   on-change={this.handlePageChange}
                   on-limit-change={this.handleLimitChange}
-                ></bk-pagination>
+                />
               ) : undefined}
             </div>
           </div>
@@ -665,7 +666,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
         <AlarmGroupDetail
           id={this.detail.id}
           v-model={this.detail.show}
-        ></AlarmGroupDetail>
+        />
       </div>
     );
   }

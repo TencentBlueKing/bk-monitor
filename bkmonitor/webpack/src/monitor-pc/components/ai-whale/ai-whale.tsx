@@ -407,10 +407,11 @@ export default class AiWhale extends tsc<object> {
       <div class='help-list'>
         {this.whaleHelperList.map(item => (
           <div
+            key={item.name}
             class='help-item'
             onClick={() => this.handleToHelpItem(item)}
           >
-            {item.icon_name ? <span class={['icon-monitor', `${item.icon_name}`]}></span> : undefined}
+            {item.icon_name ? <span class={['icon-monitor', `${item.icon_name}`]} /> : undefined}
             <span>{item.name}</span>
           </div>
         ))}
@@ -427,7 +428,7 @@ export default class AiWhale extends tsc<object> {
             <span>{this.space.name}</span>
             <span class='blue-bold'>{this.data.alert.abnormal_count}</span>
           </i18n>
-          {!!this.data.alert.abnormal_count && <span class='icon-monitor icon-fenxiang'></span>}
+          {!!this.data.alert.abnormal_count && <span class='icon-monitor icon-fenxiang' />}
         </span>
       </div>
     );
@@ -444,7 +445,7 @@ export default class AiWhale extends tsc<object> {
             onClick={this.handleClick}
             onMousedown={event => this.handleMousedown(event)}
             onMouseenter={event => this.handlePopoverShow(event)}
-          ></div>
+          />
         )}
         <div style={{ display: 'none' }}>
           {!!this.data && (
@@ -519,25 +520,27 @@ export default class AiWhale extends tsc<object> {
                                         <span
                                           class='icon-monitor icon-mc-copy'
                                           onClick={this.handleClickCopyIp}
-                                        ></span>
+                                        />
                                       </span>
                                     )}
                                     scopedSlots={{
                                       default: props => (
-                                        <a
+                                        <span
                                           class='link'
-                                          onClick={() => this.handleToPerformance(props.row.ip, props.row?.bk_cloud_id)}
+                                          onClick={() => {
+                                            this.handleToPerformance(props.row.ip, props.row?.bk_cloud_id);
+                                          }}
                                         >
                                           {props.row.ip}
-                                        </a>
+                                        </span>
                                       ),
                                     }}
-                                  ></bk-table-column>
+                                  />
                                   <bk-table-column
                                     label={this.$t('异常指标数')}
                                     prop='exception_metric_count'
                                     resizable={false}
-                                  ></bk-table-column>
+                                  />
                                   {/* <bk-table-column label={this.$t('其他指标')} prop="other_metric_count"></bk-table-column> */}
                                 </bk-table>
                                 <div class='bottom-options'>
@@ -545,14 +548,14 @@ export default class AiWhale extends tsc<object> {
                                     class='option'
                                     onClick={() => this.handleHostPreview(false)}
                                   >
-                                    <span class='icon-monitor icon-back-left'></span>
+                                    <span class='icon-monitor icon-back-left' />
                                     <span>{this.$t('返回概览')}</span>
                                   </div>
                                   <div
                                     class='option'
                                     onClick={this.handleToAiSettings}
                                   >
-                                    <span class='icon-monitor icon-menu-setting'></span>
+                                    <span class='icon-monitor icon-menu-setting' />
                                     <span>{this.$t('AI设置')}</span>
                                   </div>
                                   {/* <div class="option" onClick={this.handleToStrategyConfig}>
@@ -596,7 +599,7 @@ export default class AiWhale extends tsc<object> {
                                       {countSpan(this.data.alert.latest_person_abnormal_count)}
                                     </i18n>
                                     {!!this.data.alert.latest_person_abnormal_count && (
-                                      <span class='icon-monitor icon-fenxiang'></span>
+                                      <span class='icon-monitor icon-fenxiang' />
                                     )}
                                   </span>
                                 </div>
@@ -612,13 +615,13 @@ export default class AiWhale extends tsc<object> {
                                   >
                                     <i18n path='主机智能异常检测发现最近{0}{1}台主机异常'>
                                       <span>
-                                        <span class='grey-bold'>{this.fetchRange.match(/[1236]+/g)[0]}</span>
-                                        {this.fetchRange.match(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
+                                        <span class='grey-bold'>{this.fetchRange?.match(/[1236]+/g)?.[0] || ''}</span>
+                                        {this.fetchRange.match?.(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
                                       </span>
-                                      {countSpan(this.data.intelligent_detect?.host?.abnormal_count)}
+                                      {countSpan(this.data.intelligent_detect?.host?.abnormal_count) || 0}
                                     </i18n>
                                     {!!this.data.intelligent_detect?.host?.abnormal_count && (
-                                      <span class='icon-monitor icon-double-down'></span>
+                                      <span class='icon-monitor icon-double-down' />
                                     )}
                                   </span>
                                 </div>

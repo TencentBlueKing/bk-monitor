@@ -35,10 +35,11 @@ import { random } from 'monitor-common/utils';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { useAppStore } from '../../store/modules/app';
-import { type IAuthority } from '../../typings/authority';
 import FormItem from './components/form-item';
 import StrategyDetail from './components/strategy-detail';
 import WhereDisplay from './components/where-display';
+
+import type { IAuthority } from '../../typings/authority';
 
 import './alarm-shield-detail.scss';
 
@@ -358,7 +359,7 @@ export default defineComponent({
                 >
                   {this.t('编辑')}
                 </Button>
-                <HistoryDialog list={this.historyList}></HistoryDialog>
+                <HistoryDialog list={this.historyList} />
               </span>
             </div>
           ),
@@ -397,7 +398,7 @@ export default defineComponent({
                                   border={['outer']}
                                   data={this.scopeData.tableData}
                                   maxHeight={450}
-                                ></Table>
+                                />
                               </div>
                             ) : (
                               <span>{this.scopeData.biz}</span>
@@ -421,7 +422,7 @@ export default defineComponent({
                                 <span
                                   class='icon-monitor icon-fenxiang'
                                   onClick={() => this.handleToStrategy(item.id)}
-                                ></span>
+                                />
                                 {index + 1 !== this.strategyData.strategys.length && <span>&nbsp;,</span>}
                               </span>
                             ))}
@@ -433,7 +434,7 @@ export default defineComponent({
                               class='mt-9'
                               simple={true}
                               strategyData={this.strategyData.strategyData}
-                            ></StrategyDetail>
+                            />
                           </FormItem>
                         )}
                         {!!this.strategyData.dimensionCondition.conditionList.length && (
@@ -444,7 +445,7 @@ export default defineComponent({
                                 allNames={this.strategyData.dimensionCondition.allNames}
                                 readonly={true}
                                 value={this.strategyData.dimensionCondition.conditionList}
-                              ></WhereDisplay>
+                              />
                             </span>
                           </FormItem>
                         )}
@@ -463,7 +464,7 @@ export default defineComponent({
                                   border={['outer']}
                                   data={this.strategyData.scope.tableData}
                                   maxHeight={450}
-                                ></Table>
+                                />
                               </div>
                             </div>
                           ) : (
@@ -482,7 +483,7 @@ export default defineComponent({
                             allNames={this.dimensionData.allNames}
                             readonly={true}
                             value={this.dimensionData.conditionList}
-                          ></WhereDisplay>
+                          />
                         </span>
                       </FormItem>
                     );
@@ -501,7 +502,7 @@ export default defineComponent({
                                 <span
                                   class='icon-monitor icon-fenxiang'
                                   onClick={() => this.handleToStrategy(item.id)}
-                                ></span>
+                                />
                                 {index + 1 !== this.eventData.strategys.length && <span>&nbsp;,</span>}
                               </span>
                             ))}
@@ -588,14 +589,14 @@ export default defineComponent({
                                   <img
                                     alt=''
                                     src={item.logo}
-                                  ></img>
+                                  />
                                 );
                               }
                               if (!item.logo && item.type === 'group') {
-                                return <span class='icon-monitor icon-mc-user-group no-img'></span>;
+                                return <span class='icon-monitor icon-mc-user-group no-img' />;
                               }
                               if (!item.logo && item.type === 'user') {
-                                return <span class='icon-monitor icon-mc-user-one no-img'></span>;
+                                return <span class='icon-monitor icon-mc-user-one no-img' />;
                               }
                             })()}
                             <span>{item.display_name}</span>

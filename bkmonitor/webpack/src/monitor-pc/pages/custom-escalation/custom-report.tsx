@@ -39,13 +39,14 @@ import { deepClone } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { type EmptyStatusOperationType, type EmptyStatusType } from '../../components/empty-status/types';
 import PageTips from '../../components/pageTips/pageTips.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import CommonTable, { type ICommonTableProps } from '../monitor-k8s/components/common-table';
-import { type ITableColumn } from '../monitor-k8s/typings';
 import OperateOptions from '../uptime-check/components/operate-options';
 import * as customAuth from './authority-map';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { ITableColumn } from '../monitor-k8s/typings';
 
 import './custom-report.scss';
 
@@ -516,7 +517,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             doc-link={'fromCustomRreporting'}
             link-text={this.$t('采集器安装前往节点管理')}
             link-url={`${this.$store.getters.bkNodemanHost}#/plugin-manager/list`}
-          ></PageTips>
+          />
           <div class='custom-report-page-content'>
             <div class='content-left-operator'>
               <bk-button
@@ -529,7 +530,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                     : this.handleShowAuthorityDetail(this.manageAuthDetail)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
               <div class='bk-button-group'>
@@ -549,7 +550,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 placeholder={this.$tc('搜索 ID / 名称')}
                 rightIcon='bk-icon icon-search'
                 on-change={this.handleSearch}
-              ></bk-input>
+              />
             </div>
             <CommonTable
               class='content-left-table'
@@ -611,7 +612,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       ],
                     }}
                     onOptionClick={(v: 'delete' | 'view') => this.handleOperate(v, row)}
-                  ></OperateOptions>
+                  />
                 ),
               }}
               onLimitChange={this.handlePageLimitChange}

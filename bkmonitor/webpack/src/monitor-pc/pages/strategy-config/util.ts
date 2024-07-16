@@ -75,7 +75,7 @@ export const transformSensitivityValue = (val: number): number =>
 export const compareObjectsInArray = arr => {
   return arr.every((obj, index, array) => {
     return Object.keys(obj).every(key =>
-      array.every((otherObj, otherIndex) => index === otherIndex || obj[key] === otherObj[key]),
+      array.every((otherObj, otherIndex) => index === otherIndex || obj[key] === otherObj[key])
     );
   });
 };

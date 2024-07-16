@@ -169,7 +169,7 @@ export default defineComponent({
                     ),
                   }}
                   theme='info'
-                ></Alert>
+                />
                 {this.infoContent.length
                   ? [
                       <div class='info-content-title'>{this.$t('关联的处理套餐')}</div>,
@@ -195,7 +195,7 @@ export default defineComponent({
                   placeholder={this.$t('填写告警确认备注信息')}
                   rows={5}
                   type='textarea'
-                ></Input>
+                />
               </div>
             </Loading>
           ),
@@ -216,7 +216,7 @@ export default defineComponent({
         title={this.$t('告警确认')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
-      ></Dialog>
+      />
     );
   },
 });

@@ -52,7 +52,7 @@ export default class AlarmGroupDetailFta extends tsc<IAlarmGroupDeatail> {
       <AlarmGroupDetail
         id={this.id}
         onShowChange={this.handleDetailClose}
-      ></AlarmGroupDetail>
+      />
     );
   }
 }

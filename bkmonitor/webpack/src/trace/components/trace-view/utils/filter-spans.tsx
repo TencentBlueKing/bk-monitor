@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type KeyValuePair, type Span, type TNil } from '../typings';
+import type { KeyValuePair, Span, TNil } from '../typings';
 
 export default function filterSpans(textFilter: string, spans: Span[] | TNil) {
   if (!spans) {

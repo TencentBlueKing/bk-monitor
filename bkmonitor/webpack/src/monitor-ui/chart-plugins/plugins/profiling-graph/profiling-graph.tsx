@@ -54,7 +54,8 @@ import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 import TrendChart from './trend-chart/trend-chart';
-import { type ProfileDataUnit } from './utils';
+
+import type { ProfileDataUnit } from './utils';
 
 import './profiling-graph.scss';
 
@@ -414,7 +415,7 @@ class ProfilingChart extends CommonSimpleChart {
                   </div>
                 </div>
                 <div class='link-tips'>
-                  <i class='icon-monitor icon-tishi'></i>
+                  <i class='icon-monitor icon-tishi' />
                   <i18n
                     class='flex-center'
                     path='更多功能，请前往 {0}'
@@ -428,7 +429,7 @@ class ProfilingChart extends CommonSimpleChart {
                   </i18n>
                 </div>
               </div>
-              <TrendChart queryParams={this.queryParams}></TrendChart>
+              <TrendChart queryParams={this.queryParams} />
               <div
                 class='profiling-graph'
                 v-bkloading={{ isLoading: this.isGraphLoading }}

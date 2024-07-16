@@ -340,7 +340,7 @@ const memberSelectorMixin = {
                   ? 'icon-monitor icon-mc-user-group only-img'
                   : 'icon-monitor icon-mc-user-one only-img'
               }
-            ></i>
+            />
           )}
           {/* { type === 'list'
                       ? <span class={textClass}>{node.display_name} ({node.id})</span>

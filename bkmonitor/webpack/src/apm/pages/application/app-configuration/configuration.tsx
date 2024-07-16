@@ -27,7 +27,6 @@ import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
 
 import { applicationInfo, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
@@ -38,7 +37,9 @@ import ConfigurationView from './configuration-view';
 import CustomService from './custom-service';
 import DataStatus from './data-status';
 import StorageState from './storage-state';
-import { IAppInfo, IClusterItem, IMenuItem } from './type';
+
+import type { IAppInfo, IClusterItem, IMenuItem } from './type';
+import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './configuration.scss';
 
@@ -343,7 +344,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
           positionText={this.positonText}
           routeList={this.routeList}
           needCopyLink
-        ></CommonNavBar>
+        />
         <div
           ref='contentRef'
           class='application-configuration-page'
@@ -375,7 +376,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
                   onClick={this.handleTrigger}
                 >
                   {!this.configurationView.show && <span class='trigger-text'>{this.$t('button-说明')}</span>}
-                  <i class='icon-monitor icon-arrow-left'></i>
+                  <i class='icon-monitor icon-arrow-left' />
                 </span>
               </div>
               <ConfigurationView

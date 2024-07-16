@@ -42,7 +42,6 @@ import {
   Table,
   TagInput,
 } from 'bkui-vue';
-import { type Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
 import {
   createOrUpdateReport,
@@ -53,7 +52,7 @@ import {
   getSendRecords,
   sendReport,
 } from 'monitor-api/modules/new_report';
-import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
 
 import NavBar from '../../components/nav-bar/nav-bar';
@@ -64,6 +63,8 @@ import CreateSubscription from './create-subscription';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
 import { FrequencyType, type TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
+
+import type { Column } from 'bkui-vue/lib/table/props';
 
 import './email-subscription-config.scss';
 
@@ -269,7 +270,7 @@ export default defineComponent({
                   <i
                     style='margin-right: 10px;'
                     class={['icon-circle', data.send_status]}
-                  ></i>
+                  />
                   {t(SendStatus[data.send_status])}
                 </div>
               );
@@ -323,7 +324,7 @@ export default defineComponent({
                     size='small'
                     theme='primary'
                     onChange={() => handleSetEnable(index)}
-                  ></Switcher>
+                  />
                 </div>
               );
             },
@@ -561,7 +562,7 @@ export default defineComponent({
                   <i
                     style='margin-right: 10px;'
                     class={['icon-circle', data.status]}
-                  ></i>
+                  />
                   {ApplyStatus[data.status]}
                 </div>
               );
@@ -763,7 +764,7 @@ export default defineComponent({
                               search-key={['id']}
                               trigger='focus'
                               has-delete-icon
-                            ></TagInput>
+                            />
                           </div>
 
                           <div class='footer-operation'>
@@ -1244,7 +1245,7 @@ export default defineComponent({
                 this.isShowCreateSubscription = true;
               }}
             >
-              <i class='icon-monitor icon-mc-add'></i>
+              <i class='icon-monitor icon-mc-add' />
               <span>{this.t('新建')}</span>
             </Button>
             <Radio.Group
@@ -1317,7 +1318,7 @@ export default defineComponent({
               v-slots={{
                 suffix: () => (
                   <div class='suffix-icon'>
-                    <i class='icon-monitor icon-mc-search'></i>
+                    <i class='icon-monitor icon-mc-search' />
                   </div>
                 ),
               }}
@@ -1337,7 +1338,7 @@ export default defineComponent({
           <NavBar
             class='report-nav'
             routeList={this.navList}
-          ></NavBar>
+          />
         )}
         <div class={['email-subscription-config-container', { 'as-iframe': !this.isShowHeaderNav }]}>
           {/* 头部搜索 部分 */}
@@ -1402,7 +1403,7 @@ export default defineComponent({
               onSettingChange={({ checked }) => {
                 window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
               }}
-            ></Table>
+            />
 
             <Table
               style='margin-top: 16px;background-color: white;'
@@ -1424,7 +1425,7 @@ export default defineComponent({
               onSettingChange={({ checked }) => {
                 window.localStorage.setItem(keyOfTableForSelfSettingInLocalStorage, JSON.stringify(checked));
               }}
-            ></Table>
+            />
           </Loading>
           <Dialog
             width='960'
@@ -1509,7 +1510,7 @@ export default defineComponent({
                 this.fetchSubscriptionList();
                 this.isShowCreateSubscription = false;
               }}
-            ></CreateSubscription>
+            />
           </Sideslider>
 
           <Sideslider
@@ -1598,7 +1599,7 @@ export default defineComponent({
                           placement='bottom-end'
                         >
                           <Button style='margin-right: 24px;'>
-                            <i class='icon-monitor icon-lishi'></i>
+                            <i class='icon-monitor icon-lishi' />
                           </Button>
                         </Popover>
                       </div>
@@ -1612,7 +1613,7 @@ export default defineComponent({
                     <SubscriptionDetail
                       style='padding: 20px 40px;'
                       detailInfo={this.subscriptionDetail}
-                    ></SubscriptionDetail>
+                    />
                   </div>
                 );
               },
@@ -1621,7 +1622,7 @@ export default defineComponent({
             onHidden={() => {
               this.isSelfMode = false;
             }}
-          ></Sideslider>
+          />
 
           <Sideslider
             width={960}
@@ -1650,7 +1651,7 @@ export default defineComponent({
                       detailInfo={this.subscriptionDetail}
                       mode='edit'
                       onSelectExistedReport={this.handleReportDetailChange}
-                    ></CreateSubscriptionForm>
+                    />
                   )}
                 </div>
 
@@ -1721,7 +1722,7 @@ export default defineComponent({
             </Loading>
           </Sideslider>
 
-          <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
+          <TestSendSuccessDialog v-model={this.isShowTestSendResult} />
         </div>
       </div>
     );

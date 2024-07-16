@@ -143,7 +143,7 @@ export default defineComponent({
             {item.name}
           </span>
           {item.alert_count === 0 ? (
-            <i class='icon-monitor icon-mc-check-small item-icon'></i>
+            <i class='icon-monitor icon-mc-check-small item-icon' />
           ) : (
             <label class='item-total'>{item.alert_count}</label>
           )}
@@ -190,7 +190,7 @@ export default defineComponent({
                     class={`sort-item ${this.orderByType === item.key ? 'active' : ''}`}
                     onClick={() => this.filterListHandle(item.key)}
                   >
-                    <i class={`icon-monitor icon-${item.icon} search-btn-icon`}></i>
+                    <i class={`icon-monitor icon-${item.icon} search-btn-icon`} />
                     {item.name}
                   </span>
                 )),
@@ -213,7 +213,7 @@ export default defineComponent({
         <Loading loading={this.listLoading}>
           <div class='handler-list-main'>
             {this.listFn([all, mine])}
-            <span class='item-line'></span>
+            <span class='item-line' />
             {this.listFn(this.searchResult, true)}
           </div>
         </Loading>

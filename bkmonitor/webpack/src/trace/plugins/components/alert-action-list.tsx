@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, reactive, type Ref, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Message } from 'bkui-vue';
@@ -37,9 +37,10 @@ import AlarmDispatch from '../../pages/failure/alarm-detail/alarm-dispatch';
 import ManualProcess from '../../pages/failure/alarm-detail/manual-process';
 import QuickShield from '../../pages/failure/alarm-detail/quick-shield';
 import FeedbackCauseDialog from '../../pages/failure/failure-topo/feedback-cause-dialog';
-import { type IIncident } from '../../pages/failure/types';
 import { useIncidentInject } from '../../pages/failure/utils';
 import { useChartInfoInject } from '../hooks/chart';
+
+import type { IIncident } from '../../pages/failure/types';
 export default defineComponent({
   name: 'AlertActionList',
   emits: ['listHidden', 'listShown', 'successLoad'],
@@ -360,7 +361,7 @@ export default defineComponent({
                     <i
                       style='margin-right: 4px;'
                       class={['icon-monitor', item.icon]}
-                    ></i>
+                    />
                     {item.name}
                   </BkDropdownItem>
                 ))}
@@ -383,12 +384,12 @@ export default defineComponent({
                 <i
                   style={[textStyle, `font-size: ${iconFontSize};`]}
                   class={['icon-monitor', 'icon-arrow-up']}
-                ></i>
+                />
               ) : (
                 <i
                   style={[textStyle, `font-size: ${iconFontSize};`]}
                   class={['icon-monitor', 'icon-arrow-down']}
-                ></i>
+                />
               )}
             </BkLink>
           )}
@@ -398,7 +399,7 @@ export default defineComponent({
           visible={dialog.rootCauseConfirm.show}
           onEditSuccess={handleGetTable}
           onUpdate:isShow={handleFeedbackChange}
-        ></FeedbackCauseDialog>
+        />
         <QuickShield
           bizIds={currentBizIds.value}
           data={currentData.value}
@@ -407,7 +408,7 @@ export default defineComponent({
           show={dialog.quickShield.show}
           onChange={quickShieldChange}
           onSucces={quickShieldSucces}
-        ></QuickShield>
+        />
         <ManualProcess
           alertIds={currentIds.value}
           bizIds={currentBizIds.value}
@@ -416,7 +417,7 @@ export default defineComponent({
           onDebugStatus={handleDebugStatus}
           onMealInfo={handleMealInfo}
           onShowChange={manualProcessShowChange}
-        ></ManualProcess>
+        />
         <AlarmDispatch
           alertIds={currentIds.value}
           bizIds={currentBizIds.value}
@@ -424,7 +425,7 @@ export default defineComponent({
           show={dialog.alarmDispatch.show}
           onShow={handleAlarmDispatchShowChange}
           onSuccess={handleAlarmDispatchSuccess}
-        ></AlarmDispatch>
+        />
         <AlarmConfirm
           bizIds={currentBizIds.value}
           data={currentData.value}
@@ -432,7 +433,7 @@ export default defineComponent({
           show={dialog.alarmConfirm.show}
           onChange={alarmConfirmChange}
           onConfirm={handleConfirmAfter}
-        ></AlarmConfirm>
+        />
       </div>
     );
   },

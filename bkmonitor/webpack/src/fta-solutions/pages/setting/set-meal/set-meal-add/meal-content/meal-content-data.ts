@@ -26,7 +26,7 @@
 
 import { random } from 'monitor-common/utils/utils';
 
-import { INoticeWayValue, robot } from '../components/notice-mode';
+import { type INoticeWayValue, robot } from '../components/notice-mode';
 
 export const mealType = {
   notice: 'notice',

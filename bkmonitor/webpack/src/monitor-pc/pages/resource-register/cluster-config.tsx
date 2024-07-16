@@ -38,7 +38,7 @@ import UserSelector from './cluster-config/components/user-selector';
 import EsBasicInfo from './cluster-config/es-basic-info';
 import InfluxdbBasicInfo from './cluster-config/influxdb-basic-info';
 import KafkaBasicInfo from './cluster-config/kafka-basic-info';
-import { EClusterType, EScopes, ITableRowConfig } from './type';
+import { EClusterType, EScopes, type ITableRowConfig } from './type';
 
 import './cluster-config.scss';
 
@@ -530,7 +530,7 @@ export default class ClusterConfig extends tsc<object> {
                 v-model={this.formData.clusterName}
                 onChange={() => (this.formErrMsg.clusterName = '')}
                 onFocus={() => this.clearError()}
-              ></bk-input>
+              />
             </FormItem>
             <FormItem
               errMsg={this.formErrMsg.label}
@@ -630,7 +630,7 @@ export default class ClusterConfig extends tsc<object> {
                 kye={this.userSelectorKey}
                 value={this.formData.operator}
                 onChange={v => this.handleUserSelectChange(v)}
-              ></UserSelector>
+              />
             </FormItem>
             <FormItem title={this.$tc('描述')}>
               <bk-input
@@ -638,7 +638,7 @@ export default class ClusterConfig extends tsc<object> {
                 maxlength={100}
                 type='textarea'
                 show-word-limit
-              ></bk-input>
+              />
             </FormItem>
           </MoreConfig>
         </div>

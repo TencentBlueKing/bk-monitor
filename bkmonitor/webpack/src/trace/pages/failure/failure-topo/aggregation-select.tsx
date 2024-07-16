@@ -71,7 +71,7 @@ export default defineComponent({
           v-slots={{
             default: () => (
               <div class='aggregation-select-trigger'>
-                <i class='icon-monitor icon-menu-set trigger-icon'></i>
+                <i class='icon-monitor icon-menu-set trigger-icon' />
                 {this.$t('聚合规则')}
               </div>
             ),
@@ -104,7 +104,7 @@ export default defineComponent({
                     }}
                     behavior='simplicity'
                     placeholder={this.$t('请输入关键字')}
-                  ></Input>
+                  />
                 </div>
                 <Tree
                   checked={this.checkedIds}
@@ -118,14 +118,14 @@ export default defineComponent({
                   showCheckbox={true}
                   showNodeTypeIcon={false}
                   onNodeChecked={this.handleNodeCheck}
-                ></Tree>
+                />
               </div>
             ),
           }}
           arrow={false}
           renderType='shown'
           trigger='click'
-        ></Popover>
+        />
       </div>
     );
   },

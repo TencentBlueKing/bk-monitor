@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-module.exports = function (api) {
-  api && api.cache.never();
+module.exports = api => {
+  api?.cache.never();
   const presets = [
     [
       '@babel/preset-env',
@@ -32,8 +32,8 @@ module.exports = function (api) {
         targets: {
           browsers:
             process.env.APP === 'mobile'
-              ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
-              : ['defaults'],
+              ? ['>0.03%', 'last 2 versions', 'IE > 9']
+              : ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead'],
           node: 'current',
         },
         useBuiltIns: 'usage',

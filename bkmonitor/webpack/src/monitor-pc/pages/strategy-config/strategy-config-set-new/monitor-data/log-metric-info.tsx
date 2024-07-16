@@ -64,7 +64,7 @@ export default class MyComponent extends tsc<object> {
         <span
           class='icon-monitor icon-tips'
           onMouseenter={this.handleMouseEnter}
-        ></span>
+        />
         <div style='display: none;'>
           <div
             ref='helpContent'
@@ -76,10 +76,11 @@ export default class MyComponent extends tsc<object> {
                 <a
                   class='tips-link'
                   href={this.docCenterUrl}
+                  rel='noreferrer'
                   target='_blank'
                 >
                   {this.$t('查看语法')}
-                  <span class='icon-monitor icon-fenxiang'></span>
+                  <span class='icon-monitor icon-fenxiang' />
                 </a>
               )}
             </div>

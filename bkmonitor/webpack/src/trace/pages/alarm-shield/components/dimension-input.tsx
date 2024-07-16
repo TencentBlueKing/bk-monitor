@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type PropType, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 
 import { Message, Popover, TagInput } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert';
@@ -33,8 +33,9 @@ import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST }
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
-import { type IConditionItem, type IDimensionItem, type IMetricMeta } from '../typing';
 import SelectInput, { ALL } from './select-input';
+
+import type { IConditionItem, IDimensionItem, IMetricMeta } from '../typing';
 
 import './dimension-input.scss';
 
@@ -344,7 +345,7 @@ export default defineComponent({
                 class='mb-8'
                 item={item}
                 onChange={v => this.handleConditionConditionChange(item, v)}
-              ></ConditionCondition>
+              />
             ) : undefined,
             <SelectInput
               class='mb-8'
@@ -362,7 +363,7 @@ export default defineComponent({
                 this.handleSelectDimension(item, dimensionItem, meta, strategy)
               }
               onStrategyListInit={list => this.handleStrategyListInit(list)}
-            ></SelectInput>,
+            />,
             item.dimensionName
               ? [
                   <ConditionMethod
@@ -370,7 +371,7 @@ export default defineComponent({
                     dimensionList={this.dimensionsList}
                     value={item.method}
                     onChange={v => this.handleMehodChange(item, v)}
-                  ></ConditionMethod>,
+                  />,
                   <TagInput
                     class='condition-item condition-item-value mb-8'
                     allowAutoMatch={true}
@@ -380,7 +381,7 @@ export default defineComponent({
                     pasteFn={v => this.handlePaste(v, item)}
                     trigger={'focus'}
                     onUpdate:modelValue={v => this.handleDimensionValueChange(item, v)}
-                  ></TagInput>,
+                  />,
                 ]
               : undefined,
           ];
@@ -390,7 +391,7 @@ export default defineComponent({
             class='condition-item condition-add mb-8'
             onClick={this.handleAddCondition}
           >
-            <span class='icon-monitor icon-mc-add'></span>
+            <span class='icon-monitor icon-mc-add' />
           </span>
         )}
       </div>
@@ -434,7 +435,7 @@ const ConditionCondition = defineComponent({
               class='condition-item condition-item-condition mb-8'
               value={props.item.condition.toLocaleUpperCase()}
               readonly
-            ></input>
+            />
           ),
           content: () => (
             <div>

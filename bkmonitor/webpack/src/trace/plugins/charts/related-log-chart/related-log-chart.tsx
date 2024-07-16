@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import {
-  computed,
   type ComputedRef,
+  type PropType,
+  type Ref,
+  computed,
   defineComponent,
   inject,
-  type PropType,
   reactive,
-  type Ref,
   ref,
   watch,
 } from 'vue';
@@ -38,23 +38,18 @@ import { type TranslateResult, useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
 import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
+// TODO：需要重新实现
+// import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+// TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 // 原先绑定 Vue 原型的 $api
 import api from 'monitor-api/api';
-// TODO：需要重新实现
-// import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-// TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
-// 原有类型
-import { type Column } from 'bkui-vue/lib/table/props';
 // import { CommonSimpleChart } from '../../common-simple-chart';
 import { debounce } from 'monitor-common/utils/utils';
-import { type ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 // import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
-// import { PanelModel } from '../../typings';
-import { type IViewOptions, type PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
@@ -70,8 +65,13 @@ import {
   useRefleshIntervalInject,
   useTimeRanceInject,
 } from '../../hooks';
-import { type ITableDataItem } from '../../typings/table-chart';
 
+import type { ITableDataItem } from '../../typings/table-chart';
+// 原有类型
+import type { Column } from 'bkui-vue/lib/table/props';
+import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
+// import { PanelModel } from '../../typings';
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './related-log-chart.scss';
@@ -639,14 +639,14 @@ export default defineComponent({
                           onClick={() => this.goLink()}
                         >
                           {this.$t('route-日志检索')}
-                          <i class='icon-monitor icon-fenxiang'></i>
+                          <i class='icon-monitor icon-fenxiang' />
                         </span>
                       ) : (
                         <span
                           class='link'
                           onClick={() => this.goLink()}
                         >
-                          <i class='icon-monitor icon-mc-target-link'></i>
+                          <i class='icon-monitor icon-mc-target-link' />
                           <span>{this.thirdPartyLog}</span>
                         </span>
                       )}
@@ -654,7 +654,7 @@ export default defineComponent({
                   ),
                 }}
                 show-icon={false}
-              ></Alert>
+              />
             </div>
             {this.isBkLog && (
               <div class='related-log-chart-main'>
@@ -733,7 +733,7 @@ export default defineComponent({
                         id={option.index_set_id}
                         key={option.index_set_id}
                         name={option.index_set_name}
-                      ></Select.Option>
+                      />
                     ))}
                   </Select>
                   <Input
@@ -758,7 +758,7 @@ export default defineComponent({
                       expandRow: row => {
                         return (
                           <div>
-                            <JsonPretty data={row.source}></JsonPretty>
+                            <JsonPretty data={row.source} />
                           </div>
                         );
                       },
@@ -767,7 +767,7 @@ export default defineComponent({
                     data={this.tableData}
                     scroll-loading={this.isScrollLoading}
                     onScrollBottom={this.handlePageChange}
-                  ></Table>
+                  />
                 </div>
               </div>
             )}

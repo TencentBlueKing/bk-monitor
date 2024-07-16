@@ -53,7 +53,7 @@ export default class ConfigurationView extends tsc<IConfigurationViewProps, ICon
           <i
             class='bk-icon icon-minus detail-shrink'
             onClick={this.handleClickShrink}
-          ></i>
+          />
         </div>
         <div class='view-content'>
           <Viewer value={this.data} />

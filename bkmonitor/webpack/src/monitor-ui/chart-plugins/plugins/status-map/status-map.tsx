@@ -34,11 +34,12 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import Mpalegend from '../../components/chart-legend/map-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { CHINA_MAP_OPTIONS } from '../../constants';
-import { ICommonCharts, IExtendDataItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import MonitorBaseEchart from '../base-echart';
 import { CommonSimpleChart } from '../common-simple-chart';
+
+import type { ICommonCharts, IExtendDataItem, MonitorEchartOptions, PanelModel } from '../../typings';
 
 import './status-map.scss';
 

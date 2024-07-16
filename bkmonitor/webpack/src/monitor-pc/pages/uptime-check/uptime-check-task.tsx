@@ -40,7 +40,6 @@ import { commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { type EmptyStatusOperationType, type EmptyStatusType } from '../../components/empty-status/types';
 import { UPTIME_CHECK_LIST } from '../monitor-k8s//typings/tools';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
@@ -50,17 +49,16 @@ import HeaderTools, { type IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
 import TaskCard, { type IData as ItaskItem, type IOptionTypes as ITaskCardOperate } from './components/task-card';
 import UploadContent from './components/upload-content';
-import { type IActive as IUptimeCheckType } from './uptime-check';
 import {
+  type IDragStatus,
+  type IGroupDataTask,
+  type ITaskData,
+  type ITaskTableData,
   getGroupToTaskData,
   groupDataTaskInit,
   groupDialogDataInit,
   groupNameValidate,
-  type IDragStatus,
-  type IGroupDataTask,
   isTaskDisable,
-  type ITaskData,
-  type ITaskTableData,
   paginationUtil,
   searchGroupData,
   searchTaskData,
@@ -76,6 +74,9 @@ import {
 } from './uptime-check-data';
 import UptimeCheckEmpty from './uptime-check-task/uptime-check-empty/uptime-check-empty.vue';
 import UptimeCheckImport from './uptime-check-task/uptime-check-import/uptime-check-import.vue';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { IActive as IUptimeCheckType } from './uptime-check';
 
 import './uptime-check-task.scss';
 
@@ -650,7 +651,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             on-create={() => this.handleEmptyCreate('create')}
             on-create-node={() => this.handleEmptyCreate('createNode')}
             on-import={() => this.handleEmptyCreate('import')}
-          ></UptimeCheckEmpty>
+          />
         ) : this.isCard ? (
           this.getCardData()
         ) : (
@@ -661,7 +662,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           options={{ isShow: this.isShowImport }}
           on-close={() => (this.isShowImport = false)}
           on-complete={this.handleRefreshData}
-        ></UptimeCheckImport>
+        />
       </div>
     );
   }
@@ -675,7 +676,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           search={this.searchValue}
           onCreate={this.handleHeaderCreate}
           onSearch={(v: string) => this.handleSearch(v)}
-        ></HeaderTools>
+        />
         <CommonTable
           style={{ marginTop: '16px' }}
           {...{ props: taskCommonTableProps }}
@@ -707,7 +708,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                   ],
                 }}
                 onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
-              ></OperateOptions>
+              />
             ),
             name: (row: ItaskItem) => (
               <span
@@ -725,7 +726,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                 theme={'primary'}
                 value={taskSwitch(row.status)}
                 on-change={this.handleTaskSwitchChange}
-              ></bk-switcher>
+              />
             ),
             statusText: (row: ItaskItem) => (
               <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
@@ -737,7 +738,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                   color={tableAvailableProcessColor(row.available, row.status)}
                   percent={Number((row.available * 0.01).toFixed(2)) || 0}
                   showText={false}
-                ></bk-progress>
+                />
               </div>
             ),
           }}
@@ -764,7 +765,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           search={this.searchValue}
           onCreate={this.handleHeaderCreate}
           onSearch={(v: string) => this.handleSearch(v)}
-        ></HeaderTools>
+        />
         {this.groupDataTask.show ? (
           <CardsContainer style={{ marginTop: '20px' }}>
             <span
@@ -785,7 +786,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                 data={item}
                 onCardClick={(id: number) => this.handleTaskCardClick(id)}
                 onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-              ></TaskCard>
+              />
             ))}
           </CardsContainer>
         ) : (
@@ -803,7 +804,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                     onCardClick={(id: number) => this.handleGroupCardClick(id)}
                     onDropItem={v => this.handleDropItem(v)}
                     onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
-                  ></GroupCard>
+                  />
                 ))}
               </CardsContainer>
             ) : undefined,
@@ -818,7 +819,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                     onCardClick={(id: number) => this.handleTaskCardClick(id)}
                     onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}
                     onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                  ></TaskCard>
+                  />
                 ))}
               </CardsContainer>
             ) : undefined,
@@ -859,7 +860,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                 on-blur={this.handleGroupDialogBlur}
                 on-change={this.handleGroupDialogBlur}
                 on-focus={this.handleGroupDialogFocus}
-              ></bk-input>
+              />
               {this.groupDialogData.errMsg.name ? (
                 <span class='errmsg'>{this.groupDialogData.errMsg.name}</span>
               ) : undefined}
@@ -876,7 +877,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                     id={item.id}
                     key={item.id}
                     name={item.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             </bk-form-item>
@@ -885,7 +886,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             <UploadContent
               imgSrc={this.groupDialogData.data.img}
               onChangeImg={(img: string) => (this.groupDialogData.data.img = img)}
-            ></UploadContent>
+            />
           </div>
         </div>
         <div slot='footer'>

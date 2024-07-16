@@ -32,8 +32,9 @@ import { getVariableValue } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { Debounce } from '../../../components/ip-selector/common/util';
-import { metric, orderList, variable } from './type';
 import { getCollectVariable, setCollectVariable } from './variable-set';
+
+import type { metric, orderList, variable } from './type';
 
 import './variable-settings.scss';
 
@@ -471,14 +472,14 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                       on-blur={this.handleTagsBlur}
                       on-change={tags => this.handleTagChange(tags, index)}
                       on-removeAll={() => this.handleClear(index)}
-                    ></bk-tag-input>
+                    />
                   </div>
                 </div>
               ) : undefined
             ),
             !this.variableList.filter(item => item.dimension !== '').length ? (
               <div class='none-tip'>
-                <span class='icon-monitor icon-hint'></span>{' '}
+                <span class='icon-monitor icon-hint' />{' '}
                 <span class='none-tip-text'>{this.$t('当前数据无维度，所以没有变量选择')}。</span>
               </div>
             ) : undefined,
@@ -486,7 +487,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
               class='variable-edit-icon'
               onClick={this.variableEditChange}
             >
-              <span class='icon-monitor icon-bianji'></span>
+              <span class='icon-monitor icon-bianji' />
             </div>,
           ]
         ) : (
@@ -520,7 +521,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                             key={dimension.englishName}
                             disabled={this.checkedDimensions.includes(dimension.englishName)}
                             name={dimension.aliaName || dimension.englishName}
-                          ></bk-option>
+                          />
                         ))}
                       </bk-select>
                     </div>
@@ -528,14 +529,14 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                   <td>
                     <div class='display-name'>
                       <bk-input
+                        v-model={item.aliaName}
                         v-bk-tooltips={{
                           placements: ['top'],
                           content: `${this.$t('到指标维度设置')}`,
                         }}
-                        v-model={item.aliaName}
                         disabled
                         on-focus={() => (this.verify = false)}
-                      ></bk-input>
+                      />
                     </div>
                   </td>
                   <td>
@@ -555,11 +556,11 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                           disabled: !(this.checkedDimensions.length === this.metricDimension.dimensionList.length),
                         }}
                         on-click={() => this.addVariable(index)}
-                      ></span>
+                      />
                       <span
                         class='icon-monitor icon-jian'
                         on-click={() => this.delVariable(index)}
-                      ></span>
+                      />
                     </div>
                   </td>
                 </tr>
@@ -590,7 +591,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
         v-bkloading={{ isLoading: this.isLoading }}
       >
         <div class='none-tip'>
-          <span class='icon-monitor icon-hint'></span>{' '}
+          <span class='icon-monitor icon-hint' />{' '}
           <span class='none-tip-text'>{this.$t('当前数据无维度，所以没有变量选择')}。</span>
         </div>
       </div>

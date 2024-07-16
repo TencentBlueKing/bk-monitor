@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, type Ref, type PropType } from 'vue';
+import { type PropType, type Ref, defineComponent, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Alert, Loading } from 'bkui-vue';
 
-import { type IAlert, type IIncidentOperation, type IAlertObj } from '../types';
 import TimelineDiagram from './timeline-diagram';
+
+import type { IAlert, IAlertObj, IIncidentOperation } from '../types';
 
 import './failure-timing.scss';
 

@@ -40,10 +40,11 @@ import { Debounce } from 'monitor-common/utils';
 
 import BizSelect from '../../components/biz-select/biz-select';
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import { ISpaceItem } from '../../types';
 import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
 import AuthorizationDialog from './authorization-dialog';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { ISpaceItem } from '../../types';
 
 import './authorization-list.scss';
 
@@ -643,7 +644,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
         <div
           style={{ background: color1 }}
           class='point'
-        ></div>
+        />
       </div>
     );
   }
@@ -747,7 +748,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                     <bk-option
                       id={item}
                       name={item}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
                 <bk-button
@@ -783,7 +784,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
               </div>
             )}
             <p class='hint'>
-              <i class='icon-monitor icon-tixing'></i>
+              <i class='icon-monitor icon-tixing' />
               <span>
                 {this.$t('授权人的空间权限会影响被授权人，被授权人的权限范围<=授权人的权限范围，请谨慎变更。')}
               </span>
@@ -853,7 +854,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                   right-icon='bk-icon icon-search'
                   value={this.searchValue}
                   onInput={this.handleSearchBlur}
-                ></bk-input>
+                />
               </div>
             </div>
 
@@ -919,14 +920,14 @@ export default class AuthorizationList extends tsc<{}, {}> {
                     selected={this.currentColumns}
                     value-key='prop'
                     on-setting-change={this.handleSettingChange}
-                  ></bk-table-setting-content>
+                  />
                 </bk-table-column>
 
                 <EmptyStatus
                   slot='empty'
                   type={this.emptyStatusType}
                   onOperation={this.emptyOperation}
-                ></EmptyStatus>
+                />
               </bk-table>
             </div>
           </div>

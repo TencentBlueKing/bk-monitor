@@ -479,12 +479,12 @@ export default defineComponent({
                       placeholder={this.$tc('选择套餐')}
                       value={this.mealId}
                       onChange={this.handleSelected}
-                    ></GroupSelect>
+                    />
                     {}
                     <i
                       class='icon-monitor icon-shuaxin'
                       onClick={this.handleRefreshTemplate}
-                    ></i>
+                    />
                   </div>
                 </div>
                 {this.curMeal?.plugin_type !== 'webhook' && (
@@ -501,14 +501,14 @@ export default defineComponent({
                                 id={Number(item.id)}
                                 key={item.id}
                                 name={item.name}
-                              ></Select.Option>
+                              />
                             );
                           });
                         },
                       }}
                       behavior='simplicity'
                       disabled={true}
-                    ></Select>
+                    />
                   </div>
                 )}
                 <div class='meal-content'>
@@ -520,7 +520,7 @@ export default defineComponent({
                       isOnlyHttp={true}
                       value={this.webhookData}
                       onChange={this.handleWebhookData}
-                    ></HttpCallBack>
+                    />
                   ) : (
                     <Container
                       v-slots={{
@@ -533,14 +533,14 @@ export default defineComponent({
                               formRules={this.formData.formRules}
                               labelWidth={500}
                               noAutoInput={true}
-                            ></DynamicForm>
+                            />
                           ) : (
                             [<span class='nodata'>{this.$t('当前无需填写参数')}</span>, <br />]
                           );
                         },
                       }}
                       title={this.formData.name}
-                    ></Container>
+                    />
                   )}
                 </div>
                 {!this.mealList.length ? (
@@ -582,7 +582,7 @@ export default defineComponent({
         title={this.$t('手动处理')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
-      ></Dialog>
+      />
     );
   },
 });

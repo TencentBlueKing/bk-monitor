@@ -30,10 +30,11 @@ import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
 import { deepClone } from 'monitor-common/utils';
 
 import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
-import { CoutIntanceName, IIpV6Value, INodeType } from '../../../components/monitor-ip-selector/typing';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../components/monitor-ip-selector/utils';
-import { HostValueItem, targetFieldMap } from '../types';
+import { type HostValueItem, targetFieldMap } from '../types';
 import { handleSetTargetDesc } from './common';
+
+import type { CoutIntanceName, IIpV6Value, INodeType } from '../../../components/monitor-ip-selector/typing';
 
 import './ip-selector.scss';
 
@@ -169,7 +170,7 @@ export default class IpSelector extends tsc<IProps> {
       <div class='ai-settings-ip-selector'>
         {this.targetList.length > 0 ? (
           <span class='target-overview'>
-            <i class='icon-monitor icon-mc-tv notification-tv'></i>
+            <i class='icon-monitor icon-mc-tv notification-tv' />
             {this.renderHostInfo(this.desc.messageCount, this.desc.message) || '--'}
             {this.desc.subMessageCount > 0 ? (
               <span>({this.renderHostInfo(this.desc.subMessageCount, this.desc.subMessage)})</span>
@@ -184,12 +185,12 @@ export default class IpSelector extends tsc<IProps> {
             class='add-tag'
             onClick={this.handleShowSelect}
           >
-            <span class='icon-monitor icon-mc-plus-fill'></span>
+            <span class='icon-monitor icon-mc-plus-fill' />
             <span class='add-tag-text'>{this.$t('关闭对象')}</span>
           </span>
         )}
 
-        {this.loading && <div class='skeleton-element'></div>}
+        {this.loading && <div class='skeleton-element' />}
         <MonitorIpSelector
           countInstanceType={this.countInstanceType}
           mode={'dialog'}
@@ -200,7 +201,7 @@ export default class IpSelector extends tsc<IProps> {
           onChange={this.handleIpChange}
           onCloseDialog={this.closeDialog}
           onTargetTypeChange={v => (this.ipNodeType = v)}
-        ></MonitorIpSelector>
+        />
       </div>
     );
   }

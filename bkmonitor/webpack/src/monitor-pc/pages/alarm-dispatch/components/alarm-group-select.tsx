@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -131,7 +132,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
                   <span
                     class='icon-monitor icon-mc-close'
                     onClick={e => this.handleDelTag(e, index)}
-                  ></span>
+                  />
                 </div>
               ))
             ) : (
@@ -146,7 +147,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
               class='add-wrap'
               onClick={this.handleAddAlarmGroup}
             >
-              <span class='icon-monitor icon-jia'></span>
+              <span class='icon-monitor icon-jia' />
               <span>{this.$t('新增告警组')}</span>
             </div>
             <div
@@ -158,9 +159,9 @@ export default class AlarmGroupSelect extends tsc<IProps> {
                   class='status-loading'
                   alt=''
                   src={require('../../../static/images/svg/spinner.svg')}
-                ></img>
+                />
               ) : (
-                <span class='icon-monitor icon-mc-retry'></span>
+                <span class='icon-monitor icon-mc-retry' />
               )}
             </div>
           </div>
@@ -169,7 +170,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
               id={item.id}
               key={item.id}
               name={item.name}
-            ></bk-option>
+            />
           ))}
         </bk-select>
       </div>

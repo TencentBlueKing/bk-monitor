@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './group-panel.scss';
 
@@ -87,7 +88,7 @@ export default class GroupPanel extends tsc<IGroupPanelProps, { onExpand: { expa
           >
             {this.showExpand ? (
               <span class='collapse-expand'>
-                <i class={['bk-icon icon-play-shape', { 'icon-rotate': this.localExpand }]}></i>
+                <i class={['bk-icon icon-play-shape', { 'icon-rotate': this.localExpand }]} />
               </span>
             ) : undefined}
             <span class='title'>{this.title}</span>
@@ -101,7 +102,7 @@ export default class GroupPanel extends tsc<IGroupPanelProps, { onExpand: { expa
           class='group-panel-content'
         >
           {this.$slots?.default}
-          {this.readonly && <div class='content-readonly'></div>}
+          {this.readonly && <div class='content-readonly' />}
         </div>
       </div>
     );

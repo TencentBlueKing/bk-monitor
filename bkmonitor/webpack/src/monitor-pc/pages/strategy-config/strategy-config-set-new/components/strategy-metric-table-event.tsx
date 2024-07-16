@@ -33,7 +33,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { throttle } from 'throttle-debounce';
 
-import { TMode } from './strategy-metric-wrap';
+import type { TMode } from './strategy-metric-wrap';
 
 import './strategy-metric-table-event.scss';
 
@@ -140,7 +140,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
           disabled={this.readonly}
           value={this.checked.includes(row.metric_id)}
           onChange={v => this.hendleRadioChnage(v, row)}
-        ></bk-radio>
+        />
       ),
     };
     const scopedSlotsLog = {
@@ -158,7 +158,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
           <bk-table-column
             width={48}
             scopedSlots={scopedSlots}
-          ></bk-table-column>
+          />
           {this?.getCurTabTableColumn?.map(item => {
             // 日志平台数据源
             if (this.mode === 'log' && this.type === 'bk_log_search' && item.key === 'scenario_name') {
@@ -168,7 +168,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
                   label={item.label}
                   prop={item.prop}
                   scopedSlots={scopedSlotsLog}
-                ></bk-table-column>
+                />
               );
             }
             return (
@@ -176,7 +176,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
                 width={item.width}
                 label={item.label}
                 prop={item.prop}
-              ></bk-table-column>
+              />
             );
           })}
         </bk-table>

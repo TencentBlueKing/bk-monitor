@@ -25,8 +25,7 @@
  */
 import { defineComponent } from 'vue';
 
-import { type ILegendItem, type LegendActionType } from '../typings';
-
+import type { ILegendItem, LegendActionType } from '../typings';
 import type { PropType } from 'vue';
 
 import './common-legend.scss';
@@ -76,7 +75,7 @@ export default defineComponent({
               <span
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
                 class='legend-icon'
-              ></span>
+              />
               <div
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
                 class='legend-name'

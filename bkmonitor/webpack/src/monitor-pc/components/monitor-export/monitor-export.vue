@@ -32,7 +32,7 @@
   </span>
 </template>
 <script lang="ts">
-import { CreateElement } from 'vue';
+import type { CreateElement } from 'vue';
 import { Component, Emit, Vue } from 'vue-property-decorator';
 
 @Component({ name: 'MonitorExport' })

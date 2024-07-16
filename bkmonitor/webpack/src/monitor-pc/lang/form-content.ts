@@ -119,21 +119,12 @@ export default {
   已存储: 'Stored',
   存储失败: 'Storage Failed',
   解析成功: 'Parsed Successfully',
-  用户名: 'Username',
-  密码: 'Password',
   包名称: 'Package name',
-  标签: 'Tag',
-  策略名: 'Policy name',
-  指标ID: 'Index ID',
   业务名称: 'Business name',
   业务ID: 'Business ID',
   消息内容: 'Message content',
-  目标: 'Target',
-  目标云区域ID: 'Target cloud region ID',
   根因: 'Root cause',
-  告警分派: 'Alarm dispatch',
   敏感信息: 'Sensitive data',
-  错误信息: 'Error message',
   // 故障
   '生成故障，包含{alert_count}个告警，故障负责人：{assignees}':
     'Generated fault, contains {alert_count} alarms, fault person in charge: {assignees}',
@@ -145,15 +136,12 @@ export default {
   '{operator}故障属性{incident_key_alias}: 从{from_value}被修改为{to_value}':
     '{operator} fault attribute {incident_key_alias}: changed from {from_value} to {to_value}',
   '检测到新告警（{alert_name}）': 'New alarm detected ({alert_name})',
-  '告警已恢复（{alert_name}）': 'Alarm recovered ({alert_name})',
-  '告警已失效（{alert_name}）': 'Alarm invalidated ({alert_name})',
   '告警通知已发送（{alert_name}；接收人：{receivers}）':
     'The notification has been sent (alert name: {alert_name}; receivers: {receivers})',
   '告警已收敛（{alert_name}，共包含{converged_count}个关联的告警事件）':
     'Alarm converged ({alert_name}), contains {converged_count} related alarm events',
   '反馈根因：{feedback_incident_root}': 'Feedback root cause: {feedback_incident_root}',
   故障已关闭: 'Fault closed',
-  '一键拉群（{group_name}）': 'One-click group invitation ({group_name})',
   '告警已确认（{alert_name}）': 'Alarm acknowledged ({alert_name})',
   '告警已屏蔽（{alert_name}）': 'Alarm muted ({alert_name})',
   '告警已被手动处理（{alert_name}）': 'Alarm manually handled ({alert_name})',
