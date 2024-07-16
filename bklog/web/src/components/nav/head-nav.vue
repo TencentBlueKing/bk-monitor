@@ -207,22 +207,24 @@
           slot="dropdown-content"
           class="bk-dropdown-list"
         >
-          <li>
-            <a
-              href="javascript:;"
-              @click="handleGoToMyApplication"
-            >
-              {{ $t('我申请的') }}
-            </a>
-          </li>
-          <li>
-            <a
-              href="javascript:;"
-              @click="handleGoToMyReport"
-            >
-              {{ $t('我的订阅') }}
-            </a>
-          </li>
+          <template v-if="isAiopsToggle">
+            <li>
+              <a
+                href="javascript:;"
+                @click="handleGoToMyApplication"
+              >
+                {{ $t('我申请的') }}
+              </a>
+            </li>
+            <li>
+              <a
+                href="javascript:;"
+                @click="handleGoToMyReport"
+              >
+                {{ $t('我的订阅') }}
+              </a>
+            </li>
+          </template>
           <li>
             <a
               href="javascript:;"
@@ -297,6 +299,20 @@ export default {
       isShowGlobalDialog: state => state.isShowGlobalDialog,
       globalSettingList: state => state.globalSettingList
     }),
+    isAiopsToggle() {
+      // 日志聚类总开关
+      const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
+      const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
+
+      switch (bkdataAiopsToggle) {
+        case 'on':
+          return true;
+        case 'off':
+          return false;
+        default:
+          return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
+      }
+    },
     ...mapGetters('globals', ['globalsData']),
     platformData() {
       const { appLogo, i18n } = platformConfigStore.publicConfig;
