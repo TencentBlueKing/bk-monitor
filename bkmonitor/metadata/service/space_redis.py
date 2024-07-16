@@ -114,7 +114,10 @@ def push_and_publish_es_table_id(
     if options:
         _options = {}
         for option in options:
-            _options[option["name"]] = json.loads(option["value"])
+            try:
+                _options[option["name"]] = json.loads(option["value"])
+            except Exception:
+                _options[option["name"]] = {}
         values["options"] = _options
 
     RedisTools.hmset_to_redis(
