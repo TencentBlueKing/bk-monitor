@@ -205,8 +205,8 @@ interface ITipsItem {
 @Component({
   name: 'auto-complete-input',
   components: {
-    ImportFile
-  }
+    ImportFile,
+  },
 })
 export default class StrategySetTarget extends Vue {
   // bkPopover实例对象
@@ -241,30 +241,30 @@ export default class StrategySetTarget extends Vue {
   // 当前authPriv
   @Prop({
     type: String,
-    default: 'noAuthNoPriv'
+    default: 'noAuthNoPriv',
   })
-    curAuthPriv: string;
+  curAuthPriv: string;
 
   // 传入的value
   @Prop({
     type: [String, Boolean, Array, Number, Object],
-    default: ''
+    default: '',
   })
-    value: string;
+  value: string;
 
   @Prop({
     type: [Object, String],
-    default: ''
+    default: '',
   })
-    config: {};
+  config: {};
 
   // 补全输入数据
   @Prop({
     default() {
       return [];
-    }
+    },
   })
-    tipsData: ITipsItem[];
+  tipsData: ITipsItem[];
 
   @Watch('curAuthPriv')
   handleCurAuthPriv(v) {
@@ -272,7 +272,7 @@ export default class StrategySetTarget extends Vue {
   }
 
   @Watch('config', {
-    immediate: true
+    immediate: true,
   })
   onConfigChange(v) {
     if (v.default !== undefined) {
@@ -384,7 +384,7 @@ export default class StrategySetTarget extends Vue {
       this.params = fileName;
       const reader = new FileReader();
       reader.readAsText(file, 'gbk');
-      reader.onload = (ev) => {
+      reader.onload = ev => {
         // 读取完毕后输出结果
         try {
           const { result } = ev.target;
@@ -393,7 +393,7 @@ export default class StrategySetTarget extends Vue {
         } catch (e) {
           this.$bkMessage({
             theme: 'error',
-            message: e || this.$t('解析文件失败')
+            message: e || this.$t('解析文件失败'),
           });
           this.loading = false;
         } finally {
@@ -461,12 +461,12 @@ export default class StrategySetTarget extends Vue {
         theme: 'light auto-complete',
         maxWidth: 520,
         duration: [200, 0],
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     } else {
       // 更新提示的位置
       this.popoverInstance.set({
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     }
     // 显示

@@ -30,12 +30,12 @@ import {
   Arrow,
   Graph,
   type ICombo,
+  Tooltip,
   registerBehavior,
   registerCombo,
   registerEdge,
   registerLayout,
   registerNode,
-  Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading } from 'bkui-vue';
@@ -44,10 +44,11 @@ import { debounce } from 'throttle-debounce';
 
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
-import { type ITopoCombo, type ITopoData, type ITopoNode } from '../failure-topo/types';
 import { getNodeAttrs } from '../failure-topo/utils';
 import { useIncidentInject } from '../utils';
 import { createGraphData } from './resource-data';
+
+import type { ITopoCombo, ITopoData, ITopoNode } from '../failure-topo/types';
 
 import './resource-graph.scss';
 

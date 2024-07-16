@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './common-form-item.scss';
 
@@ -65,7 +66,7 @@ export default class CommonFormItem extends tsc<ICommonFormItemProp> {
               <i
                 class='icon-monitor icon-tips form-item-desc'
                 v-bk-tooltips={this.tooltips}
-              ></i>
+              />
             </span>
           ) : undefined}
         </div>

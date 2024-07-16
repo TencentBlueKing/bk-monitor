@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
+  type Ref,
   computed,
   defineComponent,
   getCurrentInstance,
   inject,
   onBeforeUnmount,
-  type PropType,
-  type Ref,
   ref,
   watch,
 } from 'vue';
@@ -42,12 +42,11 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
-import { type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
-import { getValueFormat, type ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
+import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { isShadowEqual, reviewInterval, VariablesService } from '../../../utils';
+import { VariablesService, isShadowEqual, reviewInterval } from '../../../utils';
 import BaseEchart from '../../base-echart';
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
@@ -62,17 +61,6 @@ import {
   useViewOptionsInject,
 } from '../../hooks';
 import {
-  type ChartTitleMenuType,
-  type DataQuery,
-  type IExtendMetricData,
-  type ILegendItem,
-  type IMenuChildItem,
-  type IMenuItem,
-  type ITimeSeriesItem,
-  type ITitleAlarm,
-  type PanelModel,
-} from '../../typings';
-import {
   downCsvFile,
   handleAddStrategy,
   handleExplore,
@@ -81,6 +69,19 @@ import {
   transformSrcData,
   transformTableDataToCsvStr,
 } from '../../utls/menu';
+
+import type {
+  ChartTitleMenuType,
+  DataQuery,
+  IExtendMetricData,
+  ILegendItem,
+  IMenuChildItem,
+  IMenuItem,
+  ITimeSeriesItem,
+  ITitleAlarm,
+  PanelModel,
+} from '../../typings';
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './time-series.scss';
 
@@ -881,7 +882,7 @@ export default defineComponent({
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start',
             }}
-          ></span>
+          />
         )}
       </div>
     );

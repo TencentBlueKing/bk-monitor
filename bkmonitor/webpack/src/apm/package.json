@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
-    "lint": "eslint --fix --ext .js,.ts,tsx  ./",
+    "lint": "eslint --fix  ./",
     "fix": "npm run lint"
   },
   "dependencies": {
@@ -33,10 +33,7 @@
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0"
   },
-  "keywords": [
-    "monitor",
-    "apm"
-  ],
+  "keywords": ["monitor", "apm"],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

@@ -79,7 +79,7 @@ const handleUpdate = ({ extra_info, operator }) => {
         style={{ background: info.color }}
         class='status-tag'
       >
-        <i class={`icon-monitor icon-${info.key} sign-icon`}></i>
+        <i class={`icon-monitor icon-${info.key} sign-icon`} />
         {info.label}
       </span>
     );
@@ -101,7 +101,7 @@ const handleUpdate = ({ extra_info, operator }) => {
         to_value: () => toValue,
       }}
       keypath={typeTextMap.incident_update}
-    ></i18n-t>
+    />
   );
 };
 /** 各类型文案渲染函数 */
@@ -121,7 +121,7 @@ export const renderMap = reactive({
           assignees: () => <span class='tag-wrap'>{renderHandlers(extra_info.assignees)}</span>,
         }}
         keypath={typeTextMap.incident_create}
-      ></i18n-t>
+      />
     );
   },
   incident_observe: ({ extra_info }) => {
@@ -131,7 +131,7 @@ export const renderMap = reactive({
           last_minutes: <span class='count'>{extra_info?.last_minutes || 0}</span>,
         }}
         keypath={typeTextMap.incident_observe}
-      ></i18n-t>
+      />
     );
   },
   incident_recover: () => {
@@ -144,7 +144,7 @@ export const renderMap = reactive({
           receivers: () => <span class='tag-wrap'>{renderHandlers(extra_info.receivers)}</span>,
         }}
         keypath={typeTextMap.incident_notice}
-      ></i18n-t>
+      />
     );
   },
   incident_merge: ({ extra_info }) => {
@@ -154,7 +154,7 @@ export const renderMap = reactive({
           merged_incident_name: <span>{extra_info?.merged_incident_name || ''}</span>,
         }}
         keypath={typeTextMap.incident_merge}
-      ></i18n-t>
+      />
     );
   },
   incident_update: handleUpdate,
@@ -172,7 +172,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_trigger}
-      ></i18n-t>
+      />
     );
   },
   alert_recover: ({ extra_info }) => {
@@ -189,7 +189,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_recover}
-      ></i18n-t>
+      />
     );
   },
   alert_invalid: ({ extra_info }) => {
@@ -206,7 +206,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_invalid}
-      ></i18n-t>
+      />
     );
   },
   alert_notice: ({ extra_info }) => {
@@ -225,7 +225,7 @@ export const renderMap = reactive({
           receivers: () => <span class='tag-wrap'>{renderHandlers(receivers)}</span>,
         }}
         keypath={typeTextMap.alert_notice}
-      ></i18n-t>
+      />
     );
   },
   alert_convergence: ({ extra_info }) => {
@@ -244,7 +244,7 @@ export const renderMap = reactive({
           converged_count: () => <span class='count'>{converged_count}</span>,
         }}
         keypath={typeTextMap.alert_convergence}
-      ></i18n-t>
+      />
     );
   },
   // <-- 以下为人工事件  -->
@@ -266,7 +266,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.feedback}
-      ></i18n-t>
+      />
     );
   },
   incident_close: () => {
@@ -279,7 +279,7 @@ export const renderMap = reactive({
           group_name: () => <span>{extra_info.group_name || '--'}</span>,
         }}
         keypath={typeTextMap.group_gather}
-      ></i18n-t>
+      />
     );
   },
   alert_confirm: ({ extra_info }) => {
@@ -296,7 +296,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_confirm}
-      ></i18n-t>
+      />
     );
   },
   alert_shield: ({ extra_info }) => {
@@ -313,7 +313,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_shield}
-      ></i18n-t>
+      />
     );
   },
   alert_handle: ({ extra_info }) => {
@@ -330,7 +330,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_handle}
-      ></i18n-t>
+      />
     );
   },
   // 告警关闭
@@ -348,7 +348,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_close}
-      ></i18n-t>
+      />
     );
   },
   alert_dispatch: ({ extra_info }) => {
@@ -367,7 +367,7 @@ export const renderMap = reactive({
           handlers: () => <span class='tag-wrap'>{renderHandlers(handlers)}</span>,
         }}
         keypath={typeTextMap.alert_dispatch}
-      ></i18n-t>
+      />
     );
   },
 });

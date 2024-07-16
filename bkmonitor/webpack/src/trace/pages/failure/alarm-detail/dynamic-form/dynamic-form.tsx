@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeMount, ref, type PropType } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeMount, ref } from 'vue';
 
 import { Checkbox, Form, Input, Radio, Select } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils/utils';
@@ -145,7 +145,7 @@ export default defineComponent({
                           id={option.id}
                           key={option.id}
                           name={option.name}
-                        ></Select.Option>
+                        />
                       ))}
                     </Select>
                   ) : undefined}
@@ -158,7 +158,7 @@ export default defineComponent({
                         <Checkbox
                           key={option.id}
                           label={option.id}
-                        ></Checkbox>
+                        />
                       ))}
                     </Checkbox.Group>
                   ) : undefined}
@@ -171,7 +171,7 @@ export default defineComponent({
                         <Radio
                           key={option.id}
                           label={option.id}
-                        ></Radio>
+                        />
                       ))}
                     </Radio.Group>
                   ) : undefined}
@@ -186,7 +186,7 @@ export default defineComponent({
                               placeholder={item.formChildProps.placeholder || this.$t('请输入')}
                               type={'password'}
                               onChange={this.emitModel}
-                            ></Input>
+                            />
                           );
                         }
                         return (
@@ -195,7 +195,7 @@ export default defineComponent({
                             placeholder={item.formChildProps.placeholder || this.$t('请输入')}
                             tipsList={this.getMessageTemplateList}
                             on-change={this.emitModel}
-                          ></AutoInput>
+                          />
                         );
                       }
                       return undefined;
@@ -214,7 +214,7 @@ export default defineComponent({
               ));
             },
           }}
-        ></Form>
+        />
       </div>
     );
   },

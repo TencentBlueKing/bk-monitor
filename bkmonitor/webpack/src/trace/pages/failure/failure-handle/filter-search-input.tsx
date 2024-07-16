@@ -30,11 +30,12 @@ import { Input, Message } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import { listSearchHistory } from 'monitor-api/modules/alert';
 import { createSearchFavorite, destroySearchFavorite, partialUpdateSearchFavorite } from 'monitor-api/modules/model';
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 import { getEventPaths } from 'monitor-pc/utils';
 
-import { type ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
 import debounceDecorator from '../../common/debounce-decorator';
+
+import type { ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
 
 import './filter-search-input.scss';
 
@@ -1133,7 +1134,7 @@ export default defineComponent({
                   class={['filter-favorites', { 'is-disable': this.favoriteDisable }]}
                   onMousedown={this.handleSetFavorite}
                 >
-                  <i class='icon-monitor icon-mc-uncollect favorite-icon'></i>
+                  <i class='icon-monitor icon-mc-uncollect favorite-icon' />
                   {this.t('收藏')}
                 </span>
               ),

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { IMetricDetail } from './typings';
+import type { IMetricDetail } from './typings';
 
 // 函数组件value
 export interface IFuncValueItem {

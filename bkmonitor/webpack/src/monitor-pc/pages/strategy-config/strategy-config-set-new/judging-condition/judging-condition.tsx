@@ -31,9 +31,8 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import { handleGotoLink } from '../../../../common/constant';
 import TimePickerMultiple, {
-  IProps as ITimeRangeMultipleProps,
+  type IProps as ITimeRangeMultipleProps,
 } from '../../../../components/time-picker-multiple/time-picker-multiple';
-import { IOptionsItem } from '../../../calendar/types';
 import { HANDLE_SHOW_SETTING } from '../../../nav-tools';
 import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
@@ -41,7 +40,9 @@ import StrategyVariateList from '../../strategy-config-set/strategy-variate-list
 import CommonItem from '../components/common-form-item';
 import VerifyItem from '../components/verify-item';
 import { levelList } from '../type';
-import { EditModeType, ICommonItem, MetricDetail } from '../typings/index';
+
+import type { IOptionsItem } from '../../../calendar/types';
+import type { EditModeType, ICommonItem, MetricDetail } from '../typings/index';
 
 import './judging-condition.scss';
 
@@ -359,7 +360,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               disabled={true}
               size='small'
               theme='primary'
-            ></bk-switcher>
+            />
             <i18n
               class='i18n-path'
               path='当数据连续丢失{0}个周期时，触发告警通知'
@@ -396,14 +397,14 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
             disabled={this.isDetailMode}
             type='timerange'
             on-change={() => this.handleTimeChange()}
-          ></bk-time-picker>
+          />
         </CommonItem>
         <StrategyTemplatePreview
           dialogShow={noticeTemplate.previewTemplate}
           scenario={this.scenario}
           template={noticeTemplate.anomalyTemplate}
           {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
-        ></StrategyTemplatePreview>
+        />
       </div>
     );
   }
@@ -433,7 +434,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 size='small'
                 type='number'
                 on-change={this.emitValueChange}
-              ></bk-input>
+              />
               {this.$t('累计')}
               <bk-input
                 class='small-input'
@@ -442,7 +443,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 size='small'
                 type='number'
                 on-change={this.emitValueChange}
-              ></bk-input>
+              />
             </i18n>
           </VerifyItem>
         </CommonItem>
@@ -463,7 +464,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 size='small'
                 type='number'
                 on-change={this.emitValueChange}
-              ></bk-input>
+              />
             </i18n>
           </VerifyItem>
         </CommonItem>
@@ -493,7 +494,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   size='small'
                   theme='primary'
                   onChange={this.emitNoDataChange}
-                ></bk-switcher>
+                />
                 <bk-input
                   class='small-input'
                   v-model={this.localData.noDataConfig.continuous}
@@ -509,7 +510,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   size='small'
                   type='number'
                   on-change={this.emitValueChange}
-                ></bk-input>
+                />
                 {(() => {
                   if (this.editMode === 'Source') {
                     return (
@@ -527,7 +528,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                         list={this.dimensionsOfSeries}
                         placeholder={this.$t('输入')}
                         trigger={'focus'}
-                      ></bk-tag-input>
+                      />
                     );
                   }
                   return Array.isArray(this.localData.noDataConfig.dimensions) ? (
@@ -569,7 +570,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                             allowHTML: false,
                           }}
                           name={option.name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                   ) : undefined;
@@ -594,7 +595,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                       id={option.id}
                       key={option.id}
                       name={option.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </i18n>
@@ -628,12 +629,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
           scenario={this.scenario}
           template={noticeTemplate.anomalyTemplate}
-        ></StrategyTemplatePreview>
+        />
         <StrategyVariateList
           dialogShow={noticeTemplate.variateListShow}
           {...{ on: { 'update:dialogShow': val => (noticeTemplate.variateListShow = val) } }}
           variate-list={noticeTemplate.variateList}
-        ></StrategyVariateList>
+        />
       </div>
     );
   }
@@ -658,7 +659,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
             id={item.id}
             key={item.id + item.name}
             name={item.name}
-          ></bk-option>
+          />
         ))}
         <div
           class='calendar-extension'

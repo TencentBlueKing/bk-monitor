@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, KeepAlive, type Ref, ref, type PropType, watch } from 'vue';
+import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -35,8 +35,9 @@ import FailureMenu from '../failure-menu/failure-menu';
 import FailureTiming from '../failure-timing/failure-timing';
 import FailureTopo from '../failure-topo/failure-topo';
 import FailureView from '../failure-view/failure-view';
-import { type IIncident, type IAlert, type IFilterSearch, type IIncidentOperation, type IAlertObj } from '../types';
 import { useIncidentInject } from '../utils';
+
+import type { IAlert, IAlertObj, IFilterSearch, IIncident, IIncidentOperation } from '../types';
 
 import './failure-content.scss';
 
@@ -189,7 +190,7 @@ export default defineComponent({
           active={this.active}
           tabList={this.tabList}
           onChange={this.handleChangeActive}
-        ></FailureMenu>
+        />
         <KeepAlive>
           {this.active === 'FailureTopo' && (
             <FailureTopo
@@ -197,7 +198,7 @@ export default defineComponent({
               onChangeSelectNode={this.handleChangeSelectNode}
               onPlaying={this.playingHandle}
               onToDetailTab={this.goAlertDetail}
-            ></FailureTopo>
+            />
           )}
           {this.active === 'FailureTiming' && (
             <FailureTiming
@@ -219,7 +220,7 @@ export default defineComponent({
                         this.activeTab = item.name;
                       }}
                     >
-                      <i class={`icon-monitor ${item.icon} item-icon`}></i>
+                      <i class={`icon-monitor ${item.icon} item-icon`} />
                       {item.label}
                     </span>
                   ))}
@@ -246,7 +247,7 @@ export default defineComponent({
                     filterSearch={this.$props.filterSearch}
                     searchValidate={this.searchValidate}
                     onRefresh={this.refresh}
-                  ></AlarmDetail>
+                  />
                 )}
               </div>
             </div>

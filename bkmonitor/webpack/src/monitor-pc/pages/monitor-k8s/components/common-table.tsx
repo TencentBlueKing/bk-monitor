@@ -33,7 +33,12 @@ import { random } from 'monitor-common/utils/utils';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
-import {
+import CommonStatus from './common-status/common-status';
+import CommonTagList from './common-tag-list/common-tag-list';
+import MoreOperate from './more-operate/more-operate';
+import TextOverflowCopy from './text-overflow-copy/text-overflow-copy';
+
+import type {
   ColumnSort,
   IFilterDict,
   IFilterItem,
@@ -44,10 +49,6 @@ import {
   TableRow,
   TableSizeType,
 } from '../typings';
-import CommonStatus from './common-status/common-status';
-import CommonTagList from './common-tag-list/common-tag-list';
-import MoreOperate from './more-operate/more-operate';
-import TextOverflowCopy from './text-overflow-copy/text-overflow-copy';
 
 import './common-table.scss';
 
@@ -230,7 +231,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (typeof val !== 'number' && !val) return '--';
     return (
       <span class='string-col'>
-        <TextOverflowCopy val={val}></TextOverflowCopy>
+        <TextOverflowCopy val={val} />
       </span>
     );
   }
@@ -286,7 +287,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   // tag类型格式化
   tagFormatter(val: ITableItem<'tag'>) {
-    return <CommonTagList value={val}></CommonTagList>;
+    return <CommonTagList value={val} />;
   }
   // key-value类型格式化
   kvFormatter(val: ITableItem<'kv'>) {
@@ -428,7 +429,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       <div class='relation-col'>
         {val.map((item, index) => (
           <span class='relation-col-item'>
-            {index !== 0 && <span class='icon-monitor icon-back-right'></span>}
+            {index !== 0 && <span class='icon-monitor icon-back-right' />}
             <span class='label'>{item.label}</span>
             <span class='name'>{item.name}</span>
           </span>
@@ -492,7 +493,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
           showText={false}
           size='small'
-        ></bk-progress>
+        />
       </div>
     ) : (
       '--'
@@ -510,12 +511,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           <span
             class='icon-monitor icon-mc-collect'
             onClick={() => !this.readonly && this.handleCollect(val)}
-          ></span>
+          />
         ) : (
           <span
             class='icon-monitor icon-mc-uncollect'
             onClick={() => !this.readonly && this.handleCollect(val)}
-          ></span>
+          />
         )}
       </div>
     );
@@ -527,7 +528,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         <MoreOperate
           options={val}
           onOptionClick={this.handleLinkClick}
-        ></MoreOperate>
+        />
       </div>
     ) : (
       '--'
@@ -644,7 +645,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class={['column-header-wrap', { 'has-pre-icon': !!headerPreIcon }]}>
         <div class='column-header-title'>
-          {!!headerPreIcon && <i class={['icon-monitor', 'header-pre-icon', headerPreIcon]}></i>}
+          {!!headerPreIcon && <i class={['icon-monitor', 'header-pre-icon', headerPreIcon]} />}
           <div
             class='column-header-text'
             v-bk-overflow-tips
@@ -682,7 +683,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           class='json-viewer-wrap'
           preview-mode={true}
           value={!!this.jsonViewerDataKey ? data.row[this.jsonViewerDataKey] : data.row}
-        ></JsonViewer>
+        />
       );
     };
   }
@@ -798,7 +799,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               slot='prepend'
             >
               {this.$slots.prepend || [
-                <i class='icon-monitor icon-hint prepend-icon'></i>,
+                <i class='icon-monitor icon-hint prepend-icon' />,
                 <i18n
                   path='已选择{count}条'
                   tag='span'
@@ -810,7 +811,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                     {this.selectedCount}
                   </span>
                 </i18n>,
-                <slot name='select-content'></slot>,
+                <slot name='select-content' />,
                 <bk-button
                   class='table-prepend-clear'
                   slot='count'
@@ -827,7 +828,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             <bk-table-column
               scopedSlots={{ default: this.renderRowExpand() }}
               type='expand'
-            ></bk-table-column>
+            />
           )}
           {this.transformColumns()}
           {this.hasColnumSetting ? (

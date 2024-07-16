@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type PropType } from 'vue';
-import { type TranslateResult } from 'vue-i18n';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import { Exception } from 'bkui-vue';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './empty-status.scss';
 

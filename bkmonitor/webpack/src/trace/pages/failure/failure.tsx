@@ -26,16 +26,17 @@
 import { computed, defineComponent, onMounted, provide, ref } from 'vue';
 
 import { ResizeLayout } from 'bkui-vue';
-import { incidentDetail, incidentOperations, incidentOperationTypes } from 'monitor-api/modules/incident';
+import { incidentDetail, incidentOperationTypes, incidentOperations } from 'monitor-api/modules/incident';
 
 import FailureContent from './failure-content/failure-content';
 import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';
 import { replaceStr, typeTextMap } from './failure-process/process';
 import FailureTags from './failure-tags/failure-tags';
-import { type IIncident, type IFilterSearch } from './types';
-import { type ITagInfoType } from './types';
 import { useIncidentProvider } from './utils';
+
+import type { IFilterSearch, IIncident } from './types';
+import type { ITagInfoType } from './types';
 
 import './failure.scss';
 
@@ -206,7 +207,7 @@ export default defineComponent({
                 onNodeClick={this.nodeClick}
                 onNodeExpand={this.nodeExpand}
                 onTreeScroll={this.treeScroll}
-              ></FailureNav>
+              />
             ),
             main: () => (
               <FailureContent
@@ -218,7 +219,7 @@ export default defineComponent({
                 scrollTop={this.scrollTopNum}
                 onChangeSelectNode={this.handleChangeSelectNode}
                 onRefresh={this.refresh}
-              ></FailureContent>
+              />
             ),
           }}
           auto-minimize={400}
@@ -226,7 +227,7 @@ export default defineComponent({
           initial-divide={500}
           max={850}
           collapsible
-        ></ResizeLayout>
+        />
       </div>
     );
   },

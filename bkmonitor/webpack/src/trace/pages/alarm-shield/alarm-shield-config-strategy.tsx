@@ -396,7 +396,7 @@ export default defineComponent({
               <StrategyDetail
                 class='mt10'
                 strategyData={this.strategyData}
-              ></StrategyDetail>
+              />
             )}
           </FormItem>
           {!!this.isShowDetail && (
@@ -420,7 +420,7 @@ export default defineComponent({
                                   allNames={this.dimensionCondition.allNames}
                                   readonly={true}
                                   value={this.dimensionCondition.conditionList}
-                                ></WhereDisplay>
+                                />
                               );
                             }
                             return '--';
@@ -430,7 +430,7 @@ export default defineComponent({
                     border={['outer']}
                     data={[{}]}
                     maxHeight={450}
-                  ></Table>
+                  />
                 </div>
               ) : (
                 <DimensionConditionInput
@@ -439,7 +439,7 @@ export default defineComponent({
                   dimensionsList={this.dimensionCondition.dimensionList}
                   metricMeta={this.dimensionCondition.metricMeta}
                   onChange={v => this.handleDimensionConditionChange(v)}
-                ></DimensionConditionInput>
+                />
               )}
             </FormItem>
           )}
@@ -451,7 +451,7 @@ export default defineComponent({
               show={true}
               value={this.localValue.scopeData}
               onChange={v => this.handleScopeChange(v)}
-            ></AlarmShieldConfigScope>
+            />
           )}
           <FormItem
             class='mt24'

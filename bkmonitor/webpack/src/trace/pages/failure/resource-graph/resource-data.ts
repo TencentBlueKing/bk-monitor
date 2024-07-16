@@ -26,18 +26,18 @@
 
 import { random } from 'monitor-common/utils/utils.js';
 
-import { type IRank, type IEdge, type ITopoData } from '../failure-topo/types';
-export const enum NodeStatus {
+import type { IEdge, IRank, ITopoData } from '../failure-topo/types';
+export enum NodeStatus {
   Error = 'error',
   Normal = 'normal',
   Root = 'root',
 }
 
-export const enum EdgeStatus {
+export enum EdgeStatus {
   Include = 'include',
   Invoke = 'invoke',
 }
-export const enum ComboStatus {
+export enum ComboStatus {
   DataCenter = '数据中心',
   Host = '主机',
   Instance = '服务',

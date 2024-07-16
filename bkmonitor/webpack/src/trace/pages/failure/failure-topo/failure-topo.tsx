@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import {
+  type Ref,
   computed,
   defineComponent,
   inject,
   nextTick,
   onMounted,
   onUnmounted,
-  type Ref,
   ref,
   shallowRef,
   watch,
@@ -41,11 +41,11 @@ import {
   Arrow,
   Graph,
   type ICombo,
+  Tooltip,
   registerBehavior,
   registerCombo,
   registerEdge,
   registerNode,
-  Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message, Popover, Slider } from 'bkui-vue';
@@ -61,8 +61,9 @@ import FeedbackCauseDialog from './feedback-cause-dialog';
 import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import TopoTools from './topo-tools';
-import { type IEdge, type IEntity, type IncidentDetailData, type ITopoData, type ITopoNode } from './types';
 import { getNodeAttrs } from './utils';
+
+import type { IEdge, IEntity, ITopoData, ITopoNode, IncidentDetailData } from './types';
 
 import './failure-topo.scss';
 
@@ -1779,7 +1780,7 @@ export default defineComponent({
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
                                     {['notRestored', 'error'].includes(node.status) && (
-                                      <i class='icon-monitor icon-mc-pod'></i>
+                                      <i class='icon-monitor icon-mc-pod' />
                                     )}
                                     {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
                                   </span>
@@ -1792,15 +1793,15 @@ export default defineComponent({
                         <ul class='node-line-type'>
                           <li class='node-line-title'>{this.$t('边图例')}</li>
                           <li>
-                            <span class='line'></span>
+                            <span class='line' />
                             <span>{this.$t('从属关系')}</span>
                           </li>
                           <li>
-                            <span class='line arrow'></span>
+                            <span class='line arrow' />
                             <span>{this.$t('调用关系')}</span>
                           </li>
                           <li>
-                            <span class='line dash'></span>
+                            <span class='line dash' />
                             <span>{this.$t('故障传播')}</span>
                           </li>
                         </ul>
@@ -1816,7 +1817,7 @@ export default defineComponent({
                         }}
                         onClick={this.handleShowLegend}
                       >
-                        <i class='icon-monitor icon-legend'></i>
+                        <i class='icon-monitor icon-legend' />
                       </div>
                     ),
                   }}
@@ -1831,14 +1832,14 @@ export default defineComponent({
                   theme='dark common-table'
                   trigger='manual'
                   zIndex={100}
-                ></Popover>
-                <span class='failure-topo-graph-line'></span>
+                />
+                <span class='failure-topo-graph-line' />
                 <div class='failure-topo-graph-zoom-slider'>
                   <div
                     class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
                     onClick={this.handleUpdateZoom.bind(this, -2)}
                   >
-                    <i class='icon-monitor icon-minus-line'></i>
+                    <i class='icon-monitor icon-minus-line' />
                   </div>
                   <Slider
                     class='slider'
@@ -1848,21 +1849,21 @@ export default defineComponent({
                     minValue={8}
                     onChange={this.handleZoomChange}
                     onUpdate:modelValue={this.handleZoomChange}
-                  ></Slider>
+                  />
                   <div
                     class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
                     onClick={this.handleUpdateZoom.bind(this, 2)}
                   >
-                    <i class='icon-monitor icon-plus-line'></i>
+                    <i class='icon-monitor icon-plus-line' />
                   </div>
                 </div>
-                <span class='failure-topo-graph-line'></span>
+                <span class='failure-topo-graph-line' />
                 <div
                   class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
                   v-bk-tooltips={{ content: this.$t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
                   onClick={this.handleResetZoom}
                 >
-                  <i class='icon-monitor icon-mc-restoration-ratio'></i>
+                  <i class='icon-monitor icon-mc-restoration-ratio' />
                 </div>
               </div>
               {!this.isPlay && (
@@ -1890,7 +1891,7 @@ export default defineComponent({
           visible={this.feedbackCauseShow}
           onEditSuccess={this.handleFeedBackChange}
           onUpdate:isShow={(val: boolean) => (this.feedbackCauseShow = val)}
-        ></FeedbackCauseDialog>
+        />
         <div style='display: none'>
           <FailureTopoTooltips
             ref='tooltipsRef'

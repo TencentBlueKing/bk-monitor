@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import applicationRoutes from './application';
 import homeRoutes from './home';
 import serviceRoutes from './service';
+
+import type { RouteConfig } from 'vue-router';
 
 export default [...homeRoutes, ...applicationRoutes, ...serviceRoutes] as RouteConfig[];

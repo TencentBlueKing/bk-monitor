@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, type PropType, ref, shallowRef } from 'vue';
+import { type PropType, defineComponent, onMounted, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { incidentTopologyMenu } from 'monitor-api/modules/incident';
@@ -32,7 +32,8 @@ import { random } from 'monitor-common/utils/utils';
 import { useIncidentInject } from '../utils';
 import AggregationSelect from './aggregation-select';
 import Timeline from './timeline';
-import { type TopoRawData } from './types';
+
+import type { TopoRawData } from './types';
 
 import './topo-tools.scss';
 
@@ -135,7 +136,7 @@ export default defineComponent({
           key: item.entity_type,
           children: item.aggregate_bys?.map(child => {
             const name = child.aggregate_key
-              ? `${t(`按 {0} 聚合`, [child.aggregate_key])} (${child.count})`
+              ? `${t('按 {0} 聚合', [child.aggregate_key])} (${child.count})`
               : `${`${t('聚合异常')}${item.entity_type}`}  (${child.count})`;
             return {
               ...child,
@@ -266,14 +267,14 @@ export default defineComponent({
           onChangeRefleshTime={this.handleChangeRefleshTime}
           onPlay={this.handlePlay}
           onTimelineChange={this.handleTimelineChange}
-        ></Timeline>
+        />
         <div
           class='topo-tools-list'
           v-bk-tooltips={{ content: this.$t('全屏'), disabled: this.isFullscreen }}
           onClick={this.handleFullscreen}
         >
           <span class='fullscreen'>
-            <i class={['icon-monitor', !this.isFullscreen ? 'icon-zhankai1' : 'icon-shouqi1']}></i>
+            <i class={['icon-monitor', !this.isFullscreen ? 'icon-zhankai1' : 'icon-shouqi1']} />
           </span>
         </div>
       </div>

@@ -30,7 +30,8 @@ import { getVariableValue } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
-import { IFilterCondition, IOption } from '../typings';
+
+import type { IFilterCondition, IOption } from '../typings';
 
 import './filter-condition.scss';
 
@@ -311,7 +312,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
               <i
                 class='icon-monitor icon-mc-close'
                 onClick={evt => this.handleDeleteCondition(evt, index)}
-              ></i>
+              />
             </li>
           ))}
         </ul>

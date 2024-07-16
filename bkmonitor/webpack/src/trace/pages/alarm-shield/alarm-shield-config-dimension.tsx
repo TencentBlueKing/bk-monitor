@@ -314,7 +314,7 @@ export default defineComponent({
                                 allNames={dimensionCondition.allNames}
                                 readonly={true}
                                 value={dimensionCondition.conditionList}
-                              ></WhereDisplay>
+                              />
                             );
                           }
                           return '--';
@@ -324,7 +324,7 @@ export default defineComponent({
                   border={['outer']}
                   data={[{}]}
                   maxHeight={450}
-                ></Table>
+                />
               </div>
             ) : (
               <div class='dimension-select-content'>
@@ -336,7 +336,7 @@ export default defineComponent({
                   isDimensionGroup={true}
                   metricMeta={dimensionCondition.metricMeta}
                   onChange={v => handleDimensionConditionChange(v)}
-                ></DimensionConditionInput>
+                />
                 {/* <Select
                   class='mb-8'
                   modelValue={strategyId.value}

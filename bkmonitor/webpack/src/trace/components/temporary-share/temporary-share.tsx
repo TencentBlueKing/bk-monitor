@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type Ref, ref, type VNode } from 'vue';
+import { type Ref, type VNode, computed, defineComponent, ref } from 'vue';
 import { type TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
-import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
+import { Button, Dialog, InfoBox, Message, Switcher, bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
 import { copyText } from 'monitor-common/utils/utils';
@@ -203,7 +203,7 @@ export default defineComponent({
             theme='primary'
             value={isLockSearch.value}
             onChange={handleLockSearchChange}
-          ></Switcher>
+          />
         </div>
       );
     }
@@ -260,7 +260,7 @@ export default defineComponent({
           class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
           v-bk-tooltips={tipsOpts}
           onClick={this.handleShowDialog}
-        ></span>
+        />
         {!this.onlyCopy && (
           <Dialog
             width={700}

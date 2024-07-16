@@ -36,12 +36,13 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
 import { padTextToWidth, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
+
+import type { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
 
 @Component
 export default class PerformanceChart extends TimeSeries {

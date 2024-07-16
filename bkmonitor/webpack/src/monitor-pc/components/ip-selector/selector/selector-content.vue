@@ -40,7 +40,7 @@
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
-import { ILayoutComponents, IPanel } from '../types/selector-type';
+import type { ILayoutComponents, IPanel } from '../types/selector-type';
 
 const abstractProp = ['getSearchTableData', 'getDefaultData', 'getDefaultSelections'];
 const layout = require.context('../layout', true, /\.(vue|ts)$/);
@@ -48,9 +48,9 @@ const optionsSet = new Set();
 const components = layout.keys().reduce<ILayoutComponents>((pre, next) => {
   const com = layout(next);
   const { name, props } = com.default.options;
-  process.env.NODE_ENV === 'development'
-    && props
-    && Object.keys(props).forEach((key) => {
+  process.env.NODE_ENV === 'development' &&
+    props &&
+    Object.keys(props).forEach(key => {
       if (optionsSet.has(key)) {
         !abstractProp.includes(key);
       } else {

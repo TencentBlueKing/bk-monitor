@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { IFavList } from '../typings';
+import type { IFavList } from '../typings';
 
 import './favorites-list.scss';
 
@@ -142,7 +142,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
           ref='favMain'
           class='fav-main'
         >
-          <div class='box-shadow'></div>
+          <div class='box-shadow' />
           <span class='fav-label'>{this.$t('收藏')}</span>
           <div
             ref='scroll'
@@ -159,7 +159,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
                   <i
                     class='icon-monitor icon-mc-close'
                     onClick={e => this.handleDeleteItem(item.id, e)}
-                  ></i>
+                  />
                 </li>
               ))}
             </ul>
@@ -168,7 +168,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
             <i
               class={['icon-monitor', 'icon-arrow-down', { 'is-expand': this.isExpand }]}
               onClick={() => this.handleExpandMore()}
-            ></i>
+            />
           </span>
         </div>
       </div>

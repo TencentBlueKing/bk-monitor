@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, type PropType, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { bkTooltips, Input, Loading, Popover, Radio } from 'bkui-vue';
+import { Input, Loading, Popover, Radio, bkTooltips } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
-
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import { type IDimensionItem } from '../../typing';
+
+import type { IDimensionItem } from '../../typing';
 
 import './select-input.scss';
 
@@ -456,7 +456,7 @@ export default defineComponent({
                   placeholder={this.t('请选择维度')}
                   onInput={this.handleInput}
                   onUpdate:modelValue={v => (this.localValue = v)}
-                ></Input>
+                />
               ),
               content: () =>
                 this.isDimensionGroup ? (
@@ -477,7 +477,7 @@ export default defineComponent({
                               {{
                                 prefix: () => (
                                   <span class='search-icon'>
-                                    <span class='icon-monitor icon-mc-search'></span>
+                                    <span class='icon-monitor icon-mc-search' />
                                   </span>
                                 ),
                               }}
@@ -489,7 +489,7 @@ export default defineComponent({
                             <span
                               class='icon-monitor icon-mc-search'
                               onClick={this.handleShowStrategySearch}
-                            ></span>
+                            />
                           </div>
                         )}
                       </div>
@@ -534,7 +534,7 @@ export default defineComponent({
                           {{
                             prefix: () => (
                               <span class='search-icon'>
-                                <span class='icon-monitor icon-mc-search'></span>
+                                <span class='icon-monitor icon-mc-search' />
                               </span>
                             ),
                           }}
@@ -574,7 +574,7 @@ export default defineComponent({
                         class='del-wrap'
                         onClick={() => this.handleDelete()}
                       >
-                        <span class='icon-monitor icon-mc-delete-line'></span>
+                        <span class='icon-monitor icon-mc-delete-line' />
                         <span>{this.$t('删除')}</span>
                       </div>
                     </div>
@@ -602,7 +602,7 @@ export default defineComponent({
                       class='extension'
                       onClick={() => this.handleDelete()}
                     >
-                      <i class='icon-monitor icon-chahao mr-8'></i>
+                      <i class='icon-monitor icon-chahao mr-8' />
                       <span>{this.t('删除')}</span>
                     </div>
                   </div>

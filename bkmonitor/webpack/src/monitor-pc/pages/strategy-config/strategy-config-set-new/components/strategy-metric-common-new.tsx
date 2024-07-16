@@ -36,15 +36,16 @@ import { debounce, throttle } from 'throttle-debounce';
 
 import { handleGotoLink } from '../../../../common/constant';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
-import {
+import HorizontalScrollContainer from './horizontal-scroll-container';
+
+import type {
   IDataSource,
   IDataSourceItem,
   ISearchObj,
   ISearchOption,
   IStaticParams,
 } from '../../../../types/strategy-config/strategy-metric';
-import { IScenarioItem, MetricDetail } from '../typings/index';
-import HorizontalScrollContainer from './horizontal-scroll-container';
+import type { IScenarioItem, MetricDetail } from '../typings/index';
 
 import './strategy-metric-common.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -784,7 +785,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         >
           <span class='card-text card-desc'>{alias}</span>
           <span class='card-text card-id'>{id}</span>
-          <i class='bk-icon icon-check-1'></i>
+          <i class='bk-icon icon-check-1' />
         </div>
       );
     } else {
@@ -796,7 +797,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
           on-mouseleave={this.handleNameLeave}
         >
           <span class='card-text-one card-desc'>{id}</span>
-          <i class='bk-icon icon-check-1'></i>
+          <i class='bk-icon icon-check-1' />
         </div>
       );
     }
@@ -860,7 +861,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
               class='metric-refresh'
               icon='icon-refresh'
               on-click={() => this.refreshMonitorSource()}
-            ></bk-button>
+            />
           </div>
           <HorizontalScrollContainer
             key={String(this.tag.list?.length || 0)}
@@ -935,7 +936,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
                     class='exception-wrap-item right-empty'
                     scene='part'
                     type='empty'
-                  ></bk-exception>
+                  />
                 </div>
               )}
               {this.getNoMetricComponent()}

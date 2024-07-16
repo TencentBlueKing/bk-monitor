@@ -149,14 +149,14 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
             class={['icon-monitor', `icon-${item.icon}`]}
             v-bk-tooltips={{ content: item.name, allowHTML: false }}
             onClick={() => this.handleSelect(item.id)}
-          ></i>
+          />
         ))}
         {!!this.moreChecked.length ? (
           <i
             ref='moreRef'
             class='icon-monitor icon-mc-more'
             onClick={this.handleShowMenu}
-          ></i>
+          />
         ) : undefined}
         <div style='display: none;'>
           <ul
@@ -168,9 +168,9 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
                 class='chart-tools-menu-item'
                 onClick={() => this.handleSelect(item.id)}
               >
-                <i class={['icon-monitor', `icon-${item.icon}`, 'item-icon']}></i>
+                <i class={['icon-monitor', `icon-${item.icon}`, 'item-icon']} />
                 <span>{item.name}</span>
-                {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon'></i> : undefined}
+                {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
               </li>
             ))}
           </ul>

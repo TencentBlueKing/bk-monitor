@@ -25,8 +25,7 @@
  */
 import { typeTools } from 'monitor-common/utils/utils';
 
-import { TimeSeriesType } from './time-series';
-
+import type { TimeSeriesType } from './time-series';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 // 图例呈现模式
 export type LegendDisplayMode = 'hidden' | 'list' | 'table';

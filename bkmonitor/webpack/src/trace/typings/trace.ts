@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Process, Span } from '../components/trace-view/typings';
+import type { Process, Span } from '../components/trace-view/typings';
 
 export interface IDetailInfo {
   [key: string]: any;

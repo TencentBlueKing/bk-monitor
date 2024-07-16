@@ -35,11 +35,12 @@ import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST_OUTLIER, MONITOR_LINE_OPTIONS } from '../../constants';
-import { ILegendItem, ITimeSeriesItem, LegendActionType } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
+
+import type { ILegendItem, ITimeSeriesItem, LegendActionType } from '../../typings';
 
 import './time-series-outlier.scss';
 
@@ -485,7 +486,7 @@ export default class TimeSeriesOutlier extends LineChart {
         boundaryList.forEach((item: any) => {
           const base = -item.lowBoundary.reduce(
             (min: number, val: any) => (val[0] !== null ? Math.floor(Math.min(min, val[0])) : min),
-            Infinity
+            Number.POSITIVE_INFINITY
           );
           this.minBase = Math.max(base, this.minBase);
         });

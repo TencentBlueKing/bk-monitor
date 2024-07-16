@@ -23,12 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, onBeforeMount, onMounted, reactive, type Ref, ref, watch } from 'vue';
+import { type Ref, computed, defineComponent, inject, onBeforeMount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
-import { type TableIColumn, type TableSettings } from 'bkui-vue/lib/table';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
@@ -36,7 +35,6 @@ import { random } from 'monitor-common/utils/utils.js';
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
-import { type IIncident, type IFilterSearch } from '../types';
 import { useIncidentInject } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
@@ -44,6 +42,9 @@ import ChatGroup from './chat-group/chat-group';
 import Collapse from './collapse';
 import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
+
+import type { IFilterSearch, IIncident } from '../types';
+import type { TableIColumn, TableSettings } from 'bkui-vue/lib/table';
 
 import './alarm-detail.scss';
 
@@ -395,7 +396,7 @@ export default defineComponent({
                 maxWidth={400}
                 placement='top'
                 theme='light common-table'
-              ></Popover>
+              />
             </div>
           );
         },
@@ -409,7 +410,7 @@ export default defineComponent({
           const { status } = data;
           return (
             <div class='status-column'>
-              <StatusTag status={status}></StatusTag>
+              <StatusTag status={status} />
             </div>
           );
         },
@@ -430,7 +431,7 @@ export default defineComponent({
         render: ({ data }) => {
           return (
             <span class='time-column'>
-              {formatterTime(data.begin_time)} / <br></br>
+              {formatterTime(data.begin_time)} / <br />
               {formatterTime(data.end_time)}
             </span>
           );
@@ -449,7 +450,7 @@ export default defineComponent({
                   display: hoverRowIndex.value === $index || popoperOperateIndex.value === $index ? 'flex' : 'none',
                 }}
                 class='operate-panel-border'
-              ></div>
+              />
               <div
                 style={{
                   display: hoverRowIndex.value === $index || popoperOperateIndex.value === $index ? 'flex' : 'none',
@@ -471,20 +472,20 @@ export default defineComponent({
                       'icon-monitor',
                       !data.is_feedback_root ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
                     ]}
-                  ></i>
+                  />
                 </span>
                 <span
                   class='operate-panel-item'
                   v-bk-tooltips={{ content: t('告警分派'), delay: 200, appendTo: 'parent' }}
                   onClick={() => handleAlarmDispatch(data)}
                 >
-                  <i class='icon-monitor icon-fenpai'></i>
+                  <i class='icon-monitor icon-fenpai' />
                 </span>
                 <span
                   class={['operate-more', { active: popoperOperateIndex.value === $index }]}
                   onClick={e => handleShowMoreOperate(e, $index, data)}
                 >
-                  <span class='icon-monitor icon-mc-more'></span>
+                  <span class='icon-monitor icon-mc-more' />
                 </span>
               </div>
             </div>
@@ -517,7 +518,7 @@ export default defineComponent({
               class={['more-item', { 'is-disable': false }]}
               onClick={() => handleChatGroup(opetateRow.value)}
             >
-              <span class='icon-monitor icon-we-com'></span>
+              <span class='icon-monitor icon-we-com' />
               <span>{window.i18n.t('一键拉群')}</span>
             </div>
             <div
@@ -533,14 +534,14 @@ export default defineComponent({
                 !isAck && !['RECOVERED', 'CLOSED'].includes(status) && handleAlertConfirm(opetateRow.value)
               }
             >
-              <span class='icon-monitor icon-duihao'></span>
+              <span class='icon-monitor icon-duihao' />
               <span>{window.i18n.t('告警确认')}</span>
             </div>
             <div
               class={['more-item', { 'is-disable': false }]}
               onClick={() => handleManualProcess(opetateRow.value)}
             >
-              <span class='icon-monitor icon-chuli'></span>
+              <span class='icon-monitor icon-chuli' />
               <span>{window.i18n.t('手动处理')}</span>
             </div>
             <div
@@ -555,7 +556,7 @@ export default defineComponent({
               }}
               onClick={() => !opetateRow.value?.is_shielded && handleQuickShield(opetateRow.value)}
             >
-              <span class='icon-monitor icon-mc-notice-shield'></span>
+              <span class='icon-monitor icon-mc-notice-shield' />
               <span>{window.i18n.t('快捷屏蔽')}</span>
             </div>
           </div>
@@ -763,7 +764,7 @@ export default defineComponent({
               onEditSuccess={this.handleGetTable}
               onRefresh={this.refresh}
               onUpdate:isShow={this.handleFeedbackChange}
-            ></FeedbackCauseDialog>
+            />
             <ChatGroup
               alarmEventName={this.chatGroupDialog.alertName}
               alertIds={this.chatGroupDialog.alertIds}
@@ -782,7 +783,7 @@ export default defineComponent({
               onChange={this.quickShieldChange}
               onRefresh={this.refresh}
               onSuccess={this.quickShieldSucces}
-            ></QuickShield>
+            />
             <ManualProcess
               alertIds={this.currentIds}
               bizIds={this.currentBizIds}
@@ -792,7 +793,7 @@ export default defineComponent({
               onMealInfo={this.handleMealInfo}
               onRefresh={this.refresh}
               onShowChange={this.manualProcessShowChange}
-            ></ManualProcess>
+            />
             <AlarmDispatch
               alertIds={this.currentIds}
               bizIds={this.currentBizIds}
@@ -801,7 +802,7 @@ export default defineComponent({
               onRefresh={this.refresh}
               onShow={this.handleAlarmDispatchShowChange}
               onSuccess={this.handleAlarmDispatchSuccess}
-            ></AlarmDispatch>
+            />
             <AlarmConfirm
               bizIds={this.currentBizIds}
               data={this.currentData}
@@ -810,7 +811,7 @@ export default defineComponent({
               onChange={this.alarmConfirmChange}
               onConfirm={this.handleConfirmAfter}
               onRefresh={this.refresh}
-            ></AlarmConfirm>
+            />
             {this.getMoreOperate()}
             {this.alertData.map(item => {
               return item.alerts.length > 0 ? (
@@ -834,7 +835,7 @@ export default defineComponent({
                       onRowMouseLeave={() => (this.hoverRowIndex = -1)}
                       onSettingChange={this.handleSettingChange}
                       // onScrollBottom={this.handleLoadData}
-                    ></Table>
+                    />
                   </div>
                 </Collapse>
               ) : (

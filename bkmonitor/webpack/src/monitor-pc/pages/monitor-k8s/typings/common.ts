@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { IFilterDict } from './table';
+import type { IFilterDict } from './table';
 
 /**
  * k8s列表图表的查询参数

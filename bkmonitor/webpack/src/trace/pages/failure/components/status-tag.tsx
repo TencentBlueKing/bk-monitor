@@ -80,7 +80,7 @@ export default defineComponent({
             <i
               style={{ color: this.eventStatusMap?.[status]?.color }}
               class={['icon-monitor item-icon', this.eventStatusMap?.[status]?.icon ?? '']}
-            ></i>
+            />
           ) : (
             ''
           )}

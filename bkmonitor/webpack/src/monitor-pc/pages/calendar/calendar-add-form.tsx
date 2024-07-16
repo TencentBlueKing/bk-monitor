@@ -30,19 +30,19 @@ import dayjs from 'dayjs';
 import { editItem, saveItem } from 'monitor-api/modules/calendar';
 
 import CalendarAddInput from './calendar-add-input';
-import CalendarInfo, { IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
+import CalendarInfo, { type IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import DaysSelect from './components/days-select/days-select';
 import {
   EDelAndEditType,
   ERepeatKey,
   ERepeatTypeId,
-  getTimezoneOffset,
-  ICalendarTableItem,
-  IOptionsItem,
-  IRepeatConfig,
-  repeatParamsMap,
+  type ICalendarTableItem,
+  type IOptionsItem,
+  type IRepeatConfig,
   WORKING_DATE_LIST,
   Z_INDEX,
+  getTimezoneOffset,
+  repeatParamsMap,
 } from './types';
 
 import './calendar-add-form.scss';
@@ -535,7 +535,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
             <bk-input
               v-model={this.addFormData.title}
               placeholder={this.$t('输入不工作时间事项')}
-            ></bk-input>
+            />
             <div class='form-item-des'>{this.$t('此事项为不工作时间事项')}</div>
           </bk-form-item>
           <bk-form-item
@@ -554,7 +554,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                   id={opt.id}
                   key={opt.id}
                   name={opt.name}
-                ></bk-option>
+                />
               ))}
               <div
                 class='calendar-custom-add-btn-wrap'
@@ -565,7 +565,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                   onConfirm={this.handleUpdateCalendarList}
                 >
                   <span class='calendar-custom-add-btn'>
-                    <i class='icon-monitor icon-jia'></i>
+                    <i class='icon-monitor icon-jia' />
                     <span class='custom-add-btn-text'>{this.$t('新建日历')}</span>
                   </span>
                 </CalendarAddInput>
@@ -589,12 +589,12 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                 format='yyyy-MM-dd'
                 value={this.addFormData.startDate}
                 onChange={val => (this.addFormData.startDate = val)}
-              ></bk-date-picker>
+              />
               <bk-time-picker
                 class='time-picker'
                 v-model={this.addFormData.startTime}
                 clearable={false}
-              ></bk-time-picker>
+              />
               <bk-checkbox
                 class='all-day'
                 v-model={this.addFormData.isAllDay}
@@ -612,12 +612,12 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                 format='yyyy-MM-dd'
                 value={this.addFormData.endDate}
                 onChange={val => (this.addFormData.endDate = val)}
-              ></bk-date-picker>
+              />
               <bk-time-picker
                 class='time-picker'
                 v-model={this.addFormData.endTime}
                 clearable={false}
-              ></bk-time-picker>
+              />
             </div>
           </bk-form-item>
           <bk-form-item label={this.$t('重复')}>
@@ -635,7 +635,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                   key={opt.id}
                   disabled={opt.disabled}
                   name={opt.name}
-                ></bk-option>
+                />
               ))}
               <div
                 class='repeat-extension'
@@ -675,7 +675,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                       id={opt.id}
                       key={opt.id}
                       name={opt.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
                 <i18n
@@ -687,7 +687,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                     v-model={this.repeatFormData.repeatNum}
                     min={1}
                     type='number'
-                  ></bk-input>
+                  />
                 </i18n>
               </div>
             </bk-form-item>
@@ -698,7 +698,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                 <DaysSelect
                   v-model={this.repeatFormData.repeatDays}
                   mode={this.repeatFormData.repeatType}
-                ></DaysSelect>
+                />
               </bk-form-item>
             )}
             <bk-form-item label={this.$t('结束日期')}>
@@ -735,7 +735,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
             zIndex={this.infoConfig.zIndex}
             onCancel={this.handleInfoCancel}
             onConfirm={this.handleInfoConfirm}
-          ></CalendarInfo>
+          />
         </bk-dialog>
       </bk-dialog>
     );

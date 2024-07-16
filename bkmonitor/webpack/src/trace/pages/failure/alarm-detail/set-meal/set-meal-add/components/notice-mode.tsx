@@ -252,7 +252,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                           <img
                             class='title-icon'
                             src={`data:image/png;base64,${item.icon}`}
-                          ></img>
+                          />
                         ) : undefined}
                         {item.label}
                         {item.tip ? (
@@ -264,7 +264,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               placements: ['top'],
                               width: item.width,
                             }}
-                          ></i>
+                          />
                         ) : undefined}
                       </div>
                     </th>
@@ -279,7 +279,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                       key={item.title}
                       class='cell'
                     >
-                      {this.showlevelMark && <span class={`level-mark level-mark-${item.level}`}></span>}
+                      {this.showlevelMark && <span class={`level-mark level-mark-${item.level}`} />}
                       <span class={[this.showlevelMark ? `level-title-${item.level}` : undefined]}>{item.title}</span>
                     </div>
                   </td>
@@ -295,7 +295,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                         class={['cell', { 'wxwork-bot': notice.name === robot.wxworkBot }]}
                       >
                         {this.readonly ? (
-                          <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]}></i>
+                          <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]} />
                         ) : ['bkchat', 'wxwork-bot'].includes(notice.name) ? undefined : (
                           <Checkbox
                             v-model={notice.checked}
@@ -308,7 +308,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                             size={'small'}
                             theme='primary'
                             on-change={() => this.handleParams()}
-                          ></Checkbox>
+                          />
                         )}
                         {notice.name === robot.wxworkBot && (
                           <div class='work-group'>
@@ -323,7 +323,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                   notice.checked = !!v;
                                   this.handleParams();
                                 }}
-                              ></Input>
+                              />
                             )}
                           </div>
                         )}
@@ -358,7 +358,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                 <i
                                   style={{ marginRight: '5px' }}
                                   class='bk-icon icon-plus-circle'
-                                ></i>
+                                />
                                 {this.$tc('新增群组')}
                               </div>
                             </Select>

@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ILegendItem, LegendActionType } from '../../typings';
+import type { ILegendItem, LegendActionType } from '../../typings';
 
 import './common-legend.scss';
 
@@ -87,7 +87,7 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
               <span
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
                 class='legend-icon'
-              ></span>
+              />
               <div
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
                 class='legend-name'

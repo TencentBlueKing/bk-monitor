@@ -29,13 +29,14 @@ import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { deepClone, isObject } from 'monitor-common/utils/utils';
-import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
+import { type ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
 
-import { IExtendMetricData, IViewOptions, PanelModel } from '../typings';
 import { downFile, filterDictConvertedToWhere, queryConfigTransform, reviewInterval } from '../utils';
 import { VariablesService } from '../utils/variable';
+
+import type { IExtendMetricData, IViewOptions, PanelModel } from '../typings';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 function removeUndefined(obj) {
   Object.keys(obj).forEach(key => {

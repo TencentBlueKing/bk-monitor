@@ -84,7 +84,7 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
                 behavior='simplicity'
                 value={item.value}
                 onChange={(v: string) => this.handleInputChange(v, index)}
-              ></bk-input>
+              />
             </div>,
           ])
         ) : (

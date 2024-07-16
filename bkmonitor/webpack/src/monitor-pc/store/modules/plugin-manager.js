@@ -41,7 +41,7 @@ const state = {
   labels: [],
   reservedWords: [],
   // 单个插件文件缓存
-  pluginConfigCache: null
+  pluginConfigCache: null,
 };
 
 const mutations = {
@@ -62,7 +62,7 @@ const mutations = {
   },
   [SET_PLUGIN_CONFIG](state, file) {
     state.pluginConfigCache = file;
-  }
+  },
 };
 const actions = {
   async getOsList({ commit, state }) {
@@ -91,7 +91,7 @@ const actions = {
     } catch (error) {
       return Promise.reject(error);
     }
-  }
+  },
 };
 const getters = {
   pluginData(state) {
@@ -108,12 +108,12 @@ const getters = {
   },
   pluginConfigCache(state) {
     return state.pluginConfigCache;
-  }
+  },
 };
 export default {
   namespaced: true,
   state,
   mutations,
   actions,
-  getters
+  getters,
 };

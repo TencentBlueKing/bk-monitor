@@ -36,8 +36,8 @@ import AlarmTools from '../monitor-k8s/components/alarm-tools';
 import HeaderTool from '../monitor-k8s/components/dashboard-tools';
 import PageTitle from '../monitor-k8s/components/page-title';
 import SplitPanel from '../monitor-k8s/components/split-panel';
-import { DashboardMode, IMenuItem, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../monitor-k8s/typings';
-import { ITabItem, IUptimeCheckType, UPTIME_CHECK_LIST } from '../monitor-k8s/typings/tools';
+import { type DashboardMode, type IMenuItem, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../monitor-k8s/typings';
+import { type ITabItem, type IUptimeCheckType, UPTIME_CHECK_LIST } from '../monitor-k8s/typings/tools';
 import * as uptimeAuth from './authority-map';
 import UptimeCheckNode from './uptime-check-node';
 import UptimeCheckTask from './uptime-check-task';
@@ -241,7 +241,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
             refreshKey={`${this.refreshKeys[UPTIME_CHECK_LIST[1].id]}__${this.$store.getters.bizId}`}
             onLoading={(v: boolean) => (this.loading = v)}
             onNameChange={this.handleNodeNameChange}
-          ></UptimeCheckNode>
+          />
         );
       default:
         return (
@@ -254,7 +254,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
             onLoading={(v: boolean) => (this.loading = v)}
             onNodeNameChange={this.handleNodeNameChange}
             onRefresh={this.handleRefreshData}
-          ></UptimeCheckTask>
+          />
         );
     }
   }
@@ -315,7 +315,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
                 splitMaxWidth={Math.max(this.splitPanelWidth + 300, SPLIT_MAX_WIDTH)}
                 toggleSet={this.toggleSet}
                 onDragMove={this.handleDragMove}
-              ></SplitPanel>
+              />
             )}
           </div>
         </div>

@@ -90,12 +90,12 @@ export default class PlatformSetting extends tsc<object> {
           <div class='setting-content-right'>
             {(() => {
               if (this.curNav === ENavId.dataPipeline) {
-                return <DataPipeline></DataPipeline>;
+                return <DataPipeline />;
               }
               if (this.curNav === ENavId.resourceRegister) {
-                return <ResourceRegister></ResourceRegister>;
+                return <ResourceRegister />;
               }
-              return <NoPermission actionIds={authorityMap.MANAGE_GLOBAL_SETTING}></NoPermission>;
+              return <NoPermission actionIds={authorityMap.MANAGE_GLOBAL_SETTING} />;
             })()}
           </div>
         </div>

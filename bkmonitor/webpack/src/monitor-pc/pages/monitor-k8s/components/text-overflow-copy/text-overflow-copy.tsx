@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
 
-import { ITableItem } from '../../typings';
+import type { ITableItem } from '../../typings';
 
 import './text-overflow-copy.scss';
 
@@ -92,7 +92,7 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
           <span
             class='icon-monitor icon-mc-copy'
             onClick={this.handleCopy}
-          ></span>
+          />
         )}
       </div>
     );

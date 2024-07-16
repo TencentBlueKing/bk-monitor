@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { IWhere } from './book-mark';
+import type { IWhere } from './book-mark';
 /** 变量过滤选择的变量值 */
 export interface IFilterVarList {
   key: string;

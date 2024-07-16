@@ -61,19 +61,19 @@
   </div>
 </template>
 <script lang="ts">
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 
 import pageTips from '../../components/pageTips/pageTips.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 
+import * as uptimeAuth from './authority-map';
 import UptimeCheckNode from './uptime-check-nodes/uptime-check-nodes.vue';
 import UptimeCheckTask from './uptime-check-task/uptime-check-task.vue';
-import * as uptimeAuth from './authority-map';
 
 enum UptimeCheckType {
   task = 'uptime-check-task',
-  node = 'uptime-check-node'
+  node = 'uptime-check-node',
 }
 interface ITabItem {
   id: UptimeCheckType;
@@ -85,8 +85,8 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
   components: {
     UptimeCheckTask,
     UptimeCheckNode,
-    pageTips
-  }
+    pageTips,
+  },
 })
 export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
   @Prop() id;
@@ -97,7 +97,7 @@ export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)
   private fromRoueName = '';
   private nodeName = '';
   beforeRouteEnter(to, from, next) {
-    next((vm) => {
+    next(vm => {
       vm.active = vm.id && UptimeCheckType.node === vm.id ? UptimeCheckType.node : UptimeCheckType.task;
       vm.fromRoueName = from.name || '';
     });
@@ -110,12 +110,12 @@ export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)
     this.tabList = [
       {
         name: this.$t('拨测任务'),
-        id: UptimeCheckType.task
+        id: UptimeCheckType.task,
       },
       {
         name: this.$t('拨测节点'),
-        id: UptimeCheckType.node
-      }
+        id: UptimeCheckType.node,
+      },
     ];
   }
   handleSetNodeName(name) {

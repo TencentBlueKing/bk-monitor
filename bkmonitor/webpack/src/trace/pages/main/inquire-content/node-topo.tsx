@@ -154,7 +154,7 @@ export default defineComponent({
             onShowSpanDetail={(...arg) => this.$emit('showSpanDetail', ...arg)}
             onSpanListChange={(...arg) => this.$emit('spanListChange', ...arg)}
             onUpdate:loading={(...arg) => this.$emit('update:loading', ...arg)}
-          ></RelationTopo>
+          />
         )}
         {this.type === EType.service && (
           <ServiceTopo
@@ -162,7 +162,7 @@ export default defineComponent({
             isShowDuration={this.isShowDuration}
             serviceTopoData={this.serviceTopoData}
             onClickItem={keys => this.handleClickItem(keys)}
-          ></ServiceTopo>
+          />
         )}
       </div>
     );
