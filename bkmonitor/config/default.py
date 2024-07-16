@@ -1373,3 +1373,6 @@ ENABLE_CUSTOM_EVENT_SLEEP = False
 
 # 平台全局配置
 BK_SHARED_RES_URL = os.environ.get("BK_SHARED_RES_URL", os.environ.get("BKPAAS_SHARED_RES_URL", ""))
+
+# 跳过写入influxdb的结果表
+SKIP_INFLUXDB_TABLE_ID_LIST = []
