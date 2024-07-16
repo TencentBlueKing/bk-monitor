@@ -1355,7 +1355,7 @@ class BaseIndexSetHandler(object):
                     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
                     "space_id": index_set.space_uid.split("__")[-1],
                     "space_type": index_set.space_uid.split("__")[0],
-                    "options": {
+                    "options": [{
                         "name": "time_field",
                         "value_type": "dict",
                         "value": json.dumps({
@@ -1363,7 +1363,7 @@ class BaseIndexSetHandler(object):
                             "type": index_set.time_field_type,
                             "unit": index_set.time_field_unit,
                         })
-                    }
+                    }]
                 }
             )
         except Exception as e:

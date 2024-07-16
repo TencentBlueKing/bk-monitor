@@ -324,7 +324,7 @@ class IndexSetViewSet(ModelViewSet):
                         index_set_id, index_set["collector_config_id"], index_set["indexes"]
                     ),
                     "space_uid": index_set["space_uid"],
-                    "options": {
+                    "options": [{
                         "name": "time_field",
                         "value_type": "dict",
                         "value": json.dumps({
@@ -332,7 +332,7 @@ class IndexSetViewSet(ModelViewSet):
                             "type": index_set["time_field_type"],
                             "unit": index_set["time_field_unit"],
                         })
-                    }
+                    }]
                 }
             )
         return Response({"total": total, "list": router_list})
