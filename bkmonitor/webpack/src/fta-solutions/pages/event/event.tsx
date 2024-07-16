@@ -48,7 +48,7 @@ import {
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { commonPageSizeSet, commonPageSizeGet, docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
@@ -522,7 +522,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     if (!localStorage.getItem(incidentAnalyzeStorageKey)) {
       localStorage.setItem(incidentAnalyzeStorageKey, JSON.stringify(this.incidentFieldList));
     }
-
+    this.pagination.limit = commonPageSizeGet();
     // 监控环境下侧栏宽度变小
     this.setFilterDefaultWidth();
     this.incidentFieldList = this.handleGetAnalyzeField(incidentAnalyzeStorageKey, this.incidentFieldList);
@@ -1668,6 +1668,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handleTableLimitChange(limit: number) {
     this.pagination.current = 1;
     this.pagination.limit = limit;
+    commonPageSizeSet(limit);
     await this.handleGetTableData(false, true, false);
   }
 
