@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
+
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -296,9 +298,7 @@ class IndexSetViewSet(ModelViewSet):
         total = qs.count()
         qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
         index_set_ids = list(qs.values_list("index_set_id", flat=True))
-        index_set_list = list(
-            qs.values("scenario_id", "space_uid", "storage_cluster_id", "index_set_id", "collector_config_id")
-        )
+        index_set_list = list(qs.values())
         index_set_dict = {
             index_set["index_set_id"]: index_set for index_set in index_set_list if index_set.get("index_set_id")
         }
@@ -324,6 +324,15 @@ class IndexSetViewSet(ModelViewSet):
                         index_set_id, index_set["collector_config_id"], index_set["indexes"]
                     ),
                     "space_uid": index_set["space_uid"],
+                    "options": {
+                        "name": "time_field",
+                        "type": "dict",
+                        "value": json.dumps({
+                            "field_name": index_set["time_field"],
+                            "field_type": index_set["time_field_type"],
+                            "field_unit": index_set["time_field_unit"],
+                        })
+                    }
                 }
             )
         return Response({"total": total, "list": router_list})

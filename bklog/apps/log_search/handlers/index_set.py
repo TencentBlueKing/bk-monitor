@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
 import re
 from collections import defaultdict
 from typing import Optional
@@ -1353,7 +1354,16 @@ class BaseIndexSetHandler(object):
                     "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
                     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
                     "space_id": index_set.space_uid.split("__")[-1],
-                    "space_type": index_set.space_uid.split("__")[0]
+                    "space_type": index_set.space_uid.split("__")[0],
+                    "options": {
+                        "name": "time_field",
+                        "type": "dict",
+                        "value": json.dumps({
+                            "field_name": index_set.time_field,
+                            "field_type": index_set.time_field_type,
+                            "field_unit": index_set.time_field_unit,
+                        })
+                    }
                 }
             )
         except Exception as e:

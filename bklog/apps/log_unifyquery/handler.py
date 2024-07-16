@@ -14,6 +14,7 @@ from typing import Any, Dict
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
+from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_esquery.exceptions import BaseSearchIndexSetException
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -44,6 +45,7 @@ class UnifyQueryHandler(object):
         self.query_string = self.search_params.get("keyword", "")
         self.origin_query_string: str = self.search_params.get("keyword")
         self._enhance()
+        self.query_string = QueryStringBuilder(self.query_string).query_string
 
         # 聚合查询：字段名称
         self.agg_field = self.search_params.get("agg_field", "")
