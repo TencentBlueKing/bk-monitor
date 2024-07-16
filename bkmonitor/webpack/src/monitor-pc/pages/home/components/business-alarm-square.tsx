@@ -147,7 +147,7 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
               viewBox={this.svgMap?.[this.curSquare.name]?.viewBox}
             >
               <path
-                d={this.svgMap[this.curSquare.name].d}
+                d={this.svgMap?.[this.curSquare.name].d}
                 fill='none'
                 stroke={this.colorMap[this.curSquare.status]}
                 stroke-dasharray='3'

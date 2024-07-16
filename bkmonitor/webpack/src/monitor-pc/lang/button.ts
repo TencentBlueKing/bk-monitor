@@ -467,14 +467,8 @@ export default {
   查看单据详情: 'View document details',
 
   // 故障根因
-  一键拉群: 'One-click group invitation',
-  删除成功: 'Deleted successfully',
-  删除失败: 'Delete failed',
   请调整筛选条件: 'Please adjust filter criteria',
   设置聚合维度: 'Set aggregate dimension',
-  确定: 'Confirm',
-  全屏: 'Fullscreen',
-  加载更多: 'Load more',
   标记已解决: 'Marked as resolved',
   查看操作指引: 'View operation instructions',
 };
