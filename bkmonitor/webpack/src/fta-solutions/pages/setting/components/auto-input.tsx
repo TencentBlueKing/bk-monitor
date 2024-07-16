@@ -183,7 +183,7 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
           behavior={'simplicity'}
           type='text'
           on-input={this.handleInput}
-        ></bk-input>
+        />
         <div style={{ display: 'none' }}>
           <ul
             ref='list'

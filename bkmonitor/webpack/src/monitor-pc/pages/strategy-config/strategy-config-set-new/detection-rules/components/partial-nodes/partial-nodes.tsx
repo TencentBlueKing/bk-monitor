@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
+import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
 
 import './partial-nodes.scss';
 
@@ -181,7 +181,7 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
                   disabled={level.disabled}
                   name={level.name}
                 >
-                  <i class={`icon-monitor ${level.icon}`}></i>
+                  <i class={`icon-monitor ${level.icon}`} />
                   <span class='name'>{level.name}</span>
                 </bk-option>
               ))}

@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { random } from 'monitor-common/utils/utils';
 
 import loadingIcon from '../../../icons/spinner.svg';
-import { IQueryParams, PanelModel } from '../../../typings';
+import { type IQueryParams, PanelModel } from '../../../typings';
 import TimeSeries from '../../time-series/time-series';
 import TraceChart from '../trace-chart/trace-chart';
 
@@ -152,7 +152,7 @@ export default class TrendChart extends tsc<ITrendChartProps> {
                 <img
                   class='chart-loading-icon'
                   src={loadingIcon}
-                ></img>
+                />
               ) : undefined}
             </div>
           </bk-collapse-item>

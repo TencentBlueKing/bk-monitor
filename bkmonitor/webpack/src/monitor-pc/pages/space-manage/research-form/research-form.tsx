@@ -33,8 +33,8 @@ import OrganizationSelector from './organization-selector';
 import './research-form.scss';
 
 enum ResearchStatus {
-  edit /** 编辑 */,
-  add /** 新建 */,
+  add = 1 /** 新建 */,
+  edit = 0 /** 编辑 */,
 }
 interface IFormValue {
   project?: string; // 蓝盾项目
@@ -272,7 +272,7 @@ export default class ResearchForm extends tsc<IProps> {
             <bk-radio value={ResearchStatus.add}>{this.$tc('新建项目')}</bk-radio>
           </bk-radio-group>
           <span class='research-tips'>
-            <i class='icon-monitor icon-hint'></i>
+            <i class='icon-monitor icon-hint' />
             {this.$tc('新建项目将会同步创建蓝盾项目')}
           </span>
           {/* <a class="research-link" href={'/'}>
@@ -293,7 +293,7 @@ export default class ResearchForm extends tsc<IProps> {
                   <bk-option
                     id={opt.englishName}
                     name={opt.projectName}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
               {this.editValue.project && (
@@ -320,7 +320,7 @@ export default class ResearchForm extends tsc<IProps> {
                 placeholder={this.$tc('输入')}
                 rows={3}
                 type='textarea'
-              ></bk-input>
+              />
             </div>
           ) : (
             <div class='research-form-add'>
@@ -340,7 +340,7 @@ export default class ResearchForm extends tsc<IProps> {
                   property={'spaceName'}
                   required={true}
                 >
-                  <bk-input v-model_trim={this.addValue.spaceName}></bk-input>
+                  <bk-input v-model_trim={this.addValue.spaceName} />
                 </bk-form-item>
                 <bk-form-item
                   error-display-type={'normal'}
@@ -348,7 +348,7 @@ export default class ResearchForm extends tsc<IProps> {
                   property={'spaceId'}
                   required={true}
                 >
-                  <bk-input v-model={this.addValue.spaceId}></bk-input>
+                  <bk-input v-model={this.addValue.spaceId} />
                 </bk-form-item>
                 <bk-form-item
                   error-display-type={'normal'}
@@ -362,13 +362,13 @@ export default class ResearchForm extends tsc<IProps> {
                     maxlength={100}
                     rows={3}
                     type='textarea'
-                  ></bk-input>
+                  />
                 </bk-form-item>
                 <bk-form-item
                   label={this.$tc('所属组织')}
                   required={true}
                 >
-                  <OrganizationSelector onChange={this.handleOrganization}></OrganizationSelector>
+                  <OrganizationSelector onChange={this.handleOrganization} />
                 </bk-form-item>
                 <bk-form-item
                   error-display-type={'normal'}
@@ -385,7 +385,7 @@ export default class ResearchForm extends tsc<IProps> {
                         <bk-option
                           id={item.id}
                           name={item.name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                   </div>

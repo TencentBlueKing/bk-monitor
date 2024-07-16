@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { RightShape } from 'bkui-vue/lib/icon';
 
-import { PanelModel } from '../../typings';
+import type { PanelModel } from '../../typings';
 
 import './chart-row.scss';
 

@@ -26,8 +26,15 @@
 import { ofType } from 'vue-tsx-support';
 
 import MonitorCharts from './monitor-echarts-new.vue';
-import { ChartType, IStatusChartOption, IStatusSeries, ITextChartOption, ITextSeries } from './options/type-interface';
-import { type MonitorEchartOptions, type MonitorEchartSeries } from './types/monitor-echarts';
+
+import type {
+  ChartType,
+  IStatusChartOption,
+  IStatusSeries,
+  ITextChartOption,
+  ITextSeries,
+} from './options/type-interface';
+import type { MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 
 interface IAlarmStatus {
   status: number;

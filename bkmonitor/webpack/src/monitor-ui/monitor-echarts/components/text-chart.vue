@@ -44,7 +44,7 @@
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
-import { ITextSeries } from '../options/type-interface';
+import type { ITextSeries } from '../options/type-interface';
 
 @Component({
   name: 'TextChart',

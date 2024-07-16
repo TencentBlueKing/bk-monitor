@@ -901,8 +901,6 @@
 </template>
 
 <script lang="ts">
-import { CreateElement } from 'vue';
-import { Component, Mixins, Ref } from 'vue-property-decorator';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import {
@@ -910,8 +908,10 @@ import {
   customTsGroupingRuleList,
   modifyCustomTsGroupingRuleList,
   validateCustomEventGroupLabel,
-  validateCustomTsGroupLabel
+  validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
+import type { CreateElement } from 'vue';
+import { Component, Mixins, Ref } from 'vue-property-decorator';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
 import MonitorExport from '../../components/monitor-export/monitor-export.vue';
@@ -919,13 +919,13 @@ import MonitorImport from '../../components/monitor-import/monitor-import.vue';
 import TableFiter from '../../components/table-filter/table-filter-new.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
-import {
+import type {
   IDetailData,
   IEditParams,
   IParams,
   IRefreshList,
   IShortcuts,
-  ISideslider
+  ISideslider,
 } from '../../types/custom-escalation/custom-escalation-detail';
 import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
 import ColumnCheck from '../performance/column-check/column-check.vue';
@@ -955,8 +955,8 @@ interface IGroupListItem {
     CommonNavBar,
     GroupManageDialog,
     GroupSelectMultiple,
-    SearchSelect
-  }
+    SearchSelect,
+  },
 })
 export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(customAuth)) {
   @Ref('nameInput') readonly nameInput!: HTMLInputElement;
@@ -991,14 +991,14 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     data_label: '',
     is_platform: false,
     protocol: '',
-    last_time: ''
+    last_time: '',
   };
 
   //  侧滑栏内容数据 事件数据
   sideslider: ISideslider = {
     isShow: false,
     title: '',
-    data: {} //  原始数据
+    data: {}, //  原始数据
   };
 
   //  事件列表数据 事件数据
@@ -1011,20 +1011,20 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   unit = {
     value: true,
     index: -1,
-    toggle: false
+    toggle: false,
   };
 
   //  时间选择器选择项
   shortcuts: IShortcuts = {
     list: [],
-    value: 1
+    value: 1,
   };
   refreshList: IRefreshList;
   pagination = {
     page: 1,
     pageSize: 20,
     total: 100,
-    pageList: [10, 20, 50, 100]
+    pageList: [10, 20, 50, 100],
   };
   tableId = '';
   metricValue = {};
@@ -1035,8 +1035,8 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   groupSelectList: any = [
     {
       id: '',
-      name: '未分组'
-    }
+      name: '未分组',
+    },
   ];
 
   allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
@@ -1044,13 +1044,13 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   groupFilterList: string[] = [];
   metricFilterList: string[] = [];
   groupManage = {
-    show: false
+    show: false,
   };
   metricSearchValue = [];
   /* 筛选条件(简化) */
   metricSearchObj = {
     type: [],
-    name: []
+    name: [],
   };
   metricSearchData = [
     {
@@ -1059,15 +1059,15 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       multiple: false,
       children: [
         { id: 'auto', name: window.i18n.t('自动') },
-        { id: 'manual', name: window.i18n.t('手动') }
-      ]
+        { id: 'manual', name: window.i18n.t('手动') },
+      ],
     },
     {
       name: window.i18n.t('组名'),
       id: 'name',
       multiple: false,
-      children: []
-    }
+      children: [],
+    },
   ];
 
   /* 分组管理列表 */
@@ -1104,9 +1104,9 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     return this.metricData.map(item => item.description);
   }
   get metricTable() {
-    const labelsMatchTypes = (labels) => {
+    const labelsMatchTypes = labels => {
       let temp = [];
-      labels.forEach((item) => {
+      labels.forEach(item => {
         temp = temp.concat(item.match_type);
       });
       temp = [...new Set(temp)];
@@ -1117,18 +1117,26 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     const typeLeng = this.metricSearchObj.type.length;
     const nameLeng = this.metricSearchObj.name.length;
     const fiterList = this.metricData
-      .filter(item => (leng1
-        ? this.groupFilterList.some(g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)) && item.monitor_type === 'metric'
-        : true))
+      .filter(item =>
+        leng1
+          ? this.groupFilterList.some(
+              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+            ) && item.monitor_type === 'metric'
+          : true
+      )
       .filter(item => (leng2 ? this.metricFilterList.includes(item.monitor_type) : true))
-      .filter(item => (typeLeng
-        ? item.monitor_type === 'metric'
-            && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
-        : true))
-      .filter(item => (nameLeng
-        ? item.monitor_type === 'metric'
-            && this.metricSearchObj.name.some(n => item.labels.map(l => l.name).includes(n))
-        : true));
+      .filter(item =>
+        typeLeng
+          ? item.monitor_type === 'metric' &&
+            this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
+          : true
+      )
+      .filter(item =>
+        nameLeng
+          ? item.monitor_type === 'metric' &&
+            this.metricSearchObj.name.some(n => item.labels.map(l => l.name).includes(n))
+          : true
+      );
     this.changePageCount(fiterList.length);
     // this.handleGroupList(fiterList);
     return fiterList.slice(
@@ -1177,37 +1185,37 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     this.shortcuts.list = [
       {
         value: 1,
-        name: this.$tc('近 1 小时')
+        name: this.$tc('近 1 小时'),
       },
       {
         value: 12,
-        name: this.$tc('近 12 小时')
+        name: this.$tc('近 12 小时'),
       },
       {
         value: 24,
-        name: this.$tc('近 1 天')
+        name: this.$tc('近 1 天'),
       },
       {
         value: 168,
-        name: this.$tc('近 7 天')
-      }
+        name: this.$tc('近 7 天'),
+      },
     ];
     this.refreshList = {
       list: [
         {
           value: 0,
-          name: this.$tc('不刷新')
+          name: this.$tc('不刷新'),
         },
         {
           value: 60,
-          name: this.$tc('每分钟')
+          name: this.$tc('每分钟'),
         },
         {
           value: 300,
-          name: this.$tc('每五分钟')
-        }
+          name: this.$tc('每五分钟'),
+        },
       ],
-      value: 0
+      value: 0,
     };
   }
 
@@ -1221,17 +1229,17 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       props: {
         title: this.$t('分组'),
         value: this.groupFilterList,
-        list: [{ id: NULL_LABEL, name: this.$t('未分组') }, ...this.groupSelectList]
+        list: [{ id: NULL_LABEL, name: this.$t('未分组') }, ...this.groupSelectList],
       },
       on: {
-        change: (v) => {
+        change: v => {
           setTimeout(() => {
             this.pagination.page = 1;
             this.groupFilterList = v;
             this.updateAllSelection();
           }, 300);
-        }
-      }
+        },
+      },
     });
   }
 
@@ -1242,18 +1250,18 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
         value: this.metricFilterList,
         list: [
           { id: 'metric', name: this.$t('指标') },
-          { id: 'dimension', name: this.$t('维度') }
-        ]
+          { id: 'dimension', name: this.$t('维度') },
+        ],
       },
       on: {
-        change: (v) => {
+        change: v => {
           setTimeout(() => {
             this.pagination.page = 1;
             this.metricFilterList = v;
             this.updateAllSelection();
           }, 300);
-        }
-      }
+        },
+      },
     });
   }
 
@@ -1262,11 +1270,11 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       props: {
         list: [],
         value: this.allCheckValue,
-        defaultType: 'current'
+        defaultType: 'current',
       },
       on: {
-        change: this.handleCheckChange
-      }
+        change: this.handleCheckChange,
+      },
     });
   }
 
@@ -1339,8 +1347,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   //  从新建和列表页进来会去获取最近 1小时 拉取的事件
   getTimeParams() {
     const dateNow = dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
-    const lastDate = dayjs.tz(dateNow).add(-this.shortcuts.value, 'h')
-      .format('YYYY-MM-DD HH:mm:ss');
+    const lastDate = dayjs.tz(dateNow).add(-this.shortcuts.value, 'h').format('YYYY-MM-DD HH:mm:ss');
     return `${lastDate} -- ${dateNow}`;
   }
 
@@ -1356,13 +1363,15 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       const params: IParams = {
         // 自定义事件初次进入会请求最近1小时的数据
         time_range: this.getTimeParams(),
-        bk_event_group_id: this.$route.params.id
+        bk_event_group_id: this.$route.params.id,
       };
       promiseItem.push(this.$store.dispatch('custom-escalation/getCustomEventDetail', params));
     } else {
-      promiseItem.push(this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
-        time_series_group_id: this.$route.params.id
-      }));
+      promiseItem.push(
+        this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
+          time_series_group_id: this.$route.params.id,
+        })
+      );
       promiseItem.push(this.$store.dispatch('strategy-config/getUnitList'));
     }
     try {
@@ -1377,7 +1386,8 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
         title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
           this.detailData.time_series_group_id
         } ${this.detailData.name}`;
-        this.metricList =          this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
+        this.metricList =
+          this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
@@ -1397,12 +1407,12 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   /* 获取分组管理数据 */
   async getGroupList() {
     const data = await customTsGroupingRuleList({
-      time_series_group_id: this.detailData.time_series_group_id
+      time_series_group_id: this.detailData.time_series_group_id,
     }).catch(() => []);
     this.groupList = data.map(item => ({
       name: item.name,
       matchRules: item.auto_rules,
-      manualList: item.manual_list
+      manualList: item.manual_list,
     }));
     this.groupsDataTidy();
   }
@@ -1412,32 +1422,32 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     const metricNames = this.metricList.map(item => item.name);
     const allMatchRulesSet = new Set();
     const metricGroupsMap = new Map();
-    this.groupList.forEach((item) => {
-      item.matchRules.forEach((rule) => {
+    this.groupList.forEach(item => {
+      item.matchRules.forEach(rule => {
         allMatchRulesSet.add(rule);
       });
     });
     const allMatchRules = Array.from(allMatchRulesSet);
     /* 整理每个匹配规则配的指标数据 */
-    allMatchRules.forEach((rule) => {
+    allMatchRules.forEach(rule => {
       this.matchRulesMap.set(
         rule,
         metricNames.filter(name => matchRuleFn(name, rule))
       );
     });
     /* 整理每个组包含的指标 */
-    this.groupList.forEach((item) => {
+    this.groupList.forEach(item => {
       const tempSet = new Set();
-      item.matchRules.forEach((rule) => {
+      item.matchRules.forEach(rule => {
         const metrics = this.matchRulesMap.get(rule) || [];
-        metrics.forEach((m) => {
+        metrics.forEach(m => {
           tempSet.add(m);
         });
       });
       const matchRulesOfMetrics = Array.from(tempSet) as string[];
       this.groupsMap.set(item.name, {
         ...item,
-        matchRulesOfMetrics
+        matchRulesOfMetrics,
       });
       /* 写入每个指标包含的组 */
       const setMetricGroup = (m, type) => {
@@ -1446,36 +1456,36 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           const { groups, matchType } = metricItem;
           const targetGroups = [...new Set(groups.concat([item.name]))];
           const targetMatchType = JSON.parse(JSON.stringify(matchType));
-          targetGroups.forEach((t) => {
+          targetGroups.forEach(t => {
             if (t === item.name) {
               targetMatchType[t as string] = [...new Set((matchType[t as string] || []).concat([type]))];
             }
           });
           metricGroupsMap.set(m, {
             groups: targetGroups,
-            matchType: targetMatchType
+            matchType: targetMatchType,
           });
         } else {
           const matchTypeObj = {
-            [item.name]: [type]
+            [item.name]: [type],
           };
           metricGroupsMap.set(m, {
             groups: [item.name],
-            matchType: matchTypeObj
+            matchType: matchTypeObj,
           });
         }
       };
-      matchRulesOfMetrics.forEach((m) => {
+      matchRulesOfMetrics.forEach(m => {
         setMetricGroup(m, 'auto');
       });
-      item.manualList.forEach((m) => {
+      item.manualList.forEach(m => {
         setMetricGroup(m, 'manual');
       });
     });
     this.metricGroupsMap = metricGroupsMap;
     this.groupSelectList = this.groupList.map(item => ({
       id: item.name,
-      name: item.name
+      name: item.name,
     }));
   }
 
@@ -1488,7 +1498,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     ];
     routeList.push({
       name,
-      id: ''
+      id: '',
     });
     this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
   }
@@ -1503,8 +1513,9 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           ...item,
           selection: false,
           descReValue: false,
-          labels: []
-        }));
+          labels: [],
+        })
+      );
       this.setMetricDataLabels();
       this.pagination.total = this.metricData.length;
       if (!this.metricData.length) {
@@ -1516,14 +1527,15 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
     this.copyIsPlatform = this.detailData.is_platform ?? false;
-    const str =      this.type === 'customEvent'
-      ? `# ${this.$t('事件标识名，最大长度128')}
+    const str =
+      this.type === 'customEvent'
+        ? `# ${this.$t('事件标识名，最大长度128')}
                 "event_name": "input_your_event_name",
                 "event": {
                     # ${this.$t('事件内容，必需项')}
                     "content": "user xxx login failed"
                 },`
-      : `# ${this.$t('指标，必需项')}
+        : `# ${this.$t('指标，必需项')}
         "metrics": {
             "cpu_load": 10
         },`;
@@ -1612,12 +1624,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
     const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
       result_table_id: tableId,
-      fields_list: fieldList
+      fields_list: fieldList,
     });
     this.allDataPreview = data?.fields_value || {};
-    this.detailData.last_time =      typeof data?.last_time === 'number'
-      ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
-      : data?.last_time;
+    this.detailData.last_time =
+      typeof data?.last_time === 'number'
+        ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+        : data?.last_time;
   }
 
   //  点击icon展示name编辑
@@ -1655,15 +1668,16 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.$bkMessage({ theme: 'error', message: this.$tc('输入非中文符号') });
       return;
     }
-    const ExistPass =      this.type === 'customEvent'
-      ? await validateCustomEventGroupLabel({
-        data_label: this.copyDataLabel,
-        bk_event_group_id: this.detailData.bk_event_group_id
-      }).catch(() => false)
-      : await validateCustomTsGroupLabel({
-        data_label: this.copyDataLabel,
-        time_series_group_id: this.detailData.time_series_group_id
-      }).catch(() => false);
+    const ExistPass =
+      this.type === 'customEvent'
+        ? await validateCustomEventGroupLabel({
+            data_label: this.copyDataLabel,
+            bk_event_group_id: this.detailData.bk_event_group_id,
+          }).catch(() => false)
+        : await validateCustomTsGroupLabel({
+            data_label: this.copyDataLabel,
+            time_series_group_id: this.detailData.time_series_group_id,
+          }).catch(() => false);
     if (!ExistPass) {
       return;
     }
@@ -1685,19 +1699,20 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
     //  名字是否重复校验
     let isOkName = true;
-    const res =      this.type === 'customEvent'
-      ? await this.$store
-        .dispatch('custom-escalation/validateCustomEventName', {
-          params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id }
-        })
-        .then(res => res.result ?? true)
-        .catch(() => false)
-      : await this.$store
-        .dispatch('custom-escalation/validateCustomTimetName', {
-          params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id }
-        })
-        .then(res => res.result ?? true)
-        .catch(() => false);
+    const res =
+      this.type === 'customEvent'
+        ? await this.$store
+            .dispatch('custom-escalation/validateCustomEventName', {
+              params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
+            })
+            .then(res => res.result ?? true)
+            .catch(() => false)
+        : await this.$store
+            .dispatch('custom-escalation/validateCustomTimetName', {
+              params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
+            })
+            .then(res => res.result ?? true)
+            .catch(() => false);
     if (!res) {
       isOkName = false;
     }
@@ -1713,7 +1728,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         bk_event_group_id: this.detailData.bk_event_group_id,
         name: this.copyName,
         scenario: this.detailData.scenario,
-        is_enable: true
+        is_enable: true,
       };
       this.loading = true;
       await this.$store.dispatch('custom-escalation/editCustomEvent', params);
@@ -1731,7 +1746,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       data_label: this.detailData.data_label ?? '',
       is_platform: this.detailData.is_platform ?? false,
       scenario: this.detailData.scenario,
-      is_enable: true
+      is_enable: true,
     };
     Object.assign(params, data);
     this.loading = true;
@@ -1754,13 +1769,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       method: 'COUNT',
       metric_field: row.custom_event_name,
       result_table_id: this.detailData.table_id,
-      result_table_label: this.detailData.scenario
+      result_table_label: this.detailData.scenario,
     };
     this.$router.push({
       name: 'strategy-config-add',
       params: {
-        data
-      }
+        data,
+      },
     });
   }
   // 跳转关联策略
@@ -1769,8 +1784,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.$router.push({
       name: 'strategy-config',
       params: {
-        bkStrategyId: row.related_strategies.map(id => id)
-      }
+        bkStrategyId: row.related_strategies.map(id => id),
+      },
     });
   }
 
@@ -1792,7 +1807,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       // 自定义事件初次进入会请求最近半小时的数据
       time_range: this.getTimeParams(),
       bk_event_group_id: this.$route.params.id,
-      need_refresh: isRefreshNow ? true : undefined
+      need_refresh: isRefreshNow ? true : undefined,
     };
     const detailData = await this.$store.dispatch('custom-escalation/getCustomEventDetail', params);
     this.eventData = detailData.event_info_list;
@@ -1804,7 +1819,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const timeRange = this.getTimeParams();
     const params: IParams = {
       bk_event_group_id: this.$route.params.id,
-      time_range: timeRange
+      time_range: timeRange,
     };
     try {
       this.detailData = await this.$store.dispatch('custom-escalation/getCustomEventDetail', params);
@@ -1817,12 +1832,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
 
   //  复制数据上报样例
   handleCopyData() {
-    const str =      this.type === 'customEvent'
-      ? `"event_name": "input_your_event_name",
+    const str =
+      this.type === 'customEvent'
+        ? `"event_name": "input_your_event_name",
         "event": {
             "content": "user xxx login failed"
         },`
-      : `"metrics": {
+        : `"metrics": {
             "cpu_load": 10
         },`;
     const example = `{
@@ -1843,7 +1859,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     document.execCommand('copy');
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('样例复制成功')
+      message: this.$t('样例复制成功'),
     });
   }
 
@@ -1854,7 +1870,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     document.execCommand('copy');
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('样例复制成功')
+      message: this.$t('样例复制成功'),
     });
   }
   //  自定义指标保存
@@ -1862,7 +1878,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     if (!this.copyDataLabel) {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('填写英文名')
+        message: this.$t('填写英文名'),
       });
       return;
     }
@@ -1881,12 +1897,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           fields: this.metricData.map(item => ({
             ...item,
             label: item?.labels?.map(l => l.name) || [],
-            labels: undefined
+            labels: undefined,
           })),
           table_name: 'base',
-          table_desc: '默认分类'
-        }
-      ]
+          table_desc: '默认分类',
+        },
+      ],
     };
     await this.handleSaveGroupManage();
     const data = await this.$store.dispatch('custom-escalation/editCustomTime', params);
@@ -1930,7 +1946,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   //  找到单位值对应的name
   handleFindUnitName(id) {
     let name = 'none';
-    this.unitList.forEach((group) => {
+    this.unitList.forEach(group => {
       const res = group.formats.find(item => item.id === id);
       if (res) {
         name = res.name;
@@ -1946,14 +1962,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     //     `${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
     //   );
     const allUnit = [];
-    this.unitList.forEach((group) => {
-      group.formats.forEach((item) => {
+    this.unitList.forEach(group => {
+      group.formats.forEach(item => {
         allUnit.push(item.id);
       });
     });
     let i = 0;
     let unitStr = ';';
-    allUnit.forEach((item) => {
+    allUnit.forEach(item => {
       i += 1;
       unitStr += `${item}、`;
       if (i > 4) {
@@ -1968,14 +1984,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       '',
       '',
       '',
-      ''
+      '',
     ].join(',');
     const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<string[]>): string => {
       const csvList = [];
       csvList.push(descStr);
       csvList.push(['', '', '', '', '', '']);
       csvList.push(tableThArr.join(','));
-      tableTdArr.forEach((row) => {
+      tableTdArr.forEach(row => {
         const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item, '');
         csvList.push(rowString);
       });
@@ -1988,17 +2004,17 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.$t('英文名'),
       this.$t('别名'),
       this.$t('类型'),
-      this.$t('单位')
+      this.$t('单位'),
     ];
     const tdArr = [];
-    this.metricData.forEach((item) => {
+    this.metricData.forEach(item => {
       const row = [
         item.monitor_type,
         item.labels.map(l => l.name).join(';') || '-',
         item.name,
         item.description || '-',
         item.type || '-',
-        item.unit || '-'
+        item.unit || '-',
       ];
       tdArr.push(row);
     });
@@ -2008,30 +2024,30 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   /* 导入数据时不在分组管理的分组需要自动新建此分组 */
   concatLabels(metricName: string, oldLabels: { name: string; match_type: string[] }[], target: string[]) {
     /* 添加分组 */
-    const addGroup = (name) => {
+    const addGroup = name => {
       this.groupList.push({
         manualList: [metricName],
         matchRules: [],
-        name
+        name,
       });
       this.groupsMap.set(name, {
         manualList: [metricName],
         matchRules: [],
         matchRulesOfMetrics: [],
-        name
+        name,
       });
       const params = {
         time_series_group_id: this.detailData.time_series_group_id,
         name,
         manual_list: [metricName],
-        auto_rules: []
+        auto_rules: [],
       };
       createOrUpdateGroupingRule(params);
     };
     const labels = [];
     labels.push(...oldLabels);
     const tempLabels = labels.map(item => item.name);
-    target.forEach((item) => {
+    target.forEach(item => {
       if (!/^[\u4E00-\u9FA5A-Za-z0-9_-]+$/g.test(item)) return;
       if (tempLabels.includes(item)) {
         const setLabel = labels.find(l => l.name === item);
@@ -2039,7 +2055,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       } else {
         labels.push({
           name: item,
-          match_type: ['manual']
+          match_type: ['manual'],
         });
       }
       if (!this.groupsMap.has(item)) {
@@ -2048,7 +2064,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     });
     const autoLabels = labels.filter(item => item.match_type.includes('auto')).map(item => item.name);
     const targetLabels = [];
-    labels.forEach((item) => {
+    labels.forEach(item => {
       if (autoLabels.includes(item.name) || target.includes(item.name)) {
         targetLabels.push(item);
       }
@@ -2058,13 +2074,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   /* 导入数据 */
   handleImportMetric(data: string) {
     const allUnit = [];
-    this.unitList.forEach((group) => {
-      group.formats.forEach((item) => {
+    this.unitList.forEach(group => {
+      group.formats.forEach(item => {
         allUnit.push(item.id);
       });
     });
     const arr = csvToArr(data);
-    arr.slice(3).forEach((row) => {
+    arr.slice(3).forEach(row => {
       const name = row[2];
       const unitNeedUpdate = row[5] !== '-';
       const unit = row[5] || '';
@@ -2097,12 +2113,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   handleSelectGroup(value, index) {
     const metricName = this.metricTable[index].name;
     const labels = [];
-    this.groupList.forEach((item) => {
+    this.groupList.forEach(item => {
       const groupItem = this.groupsMap.get(item.name);
       const { matchRulesOfMetrics, manualList } = groupItem;
       const tempObj = {
         name: item.name,
-        match_type: []
+        match_type: [],
       };
       if (matchRulesOfMetrics.includes(metricName)) {
         tempObj.match_type.push('auto');
@@ -2111,12 +2127,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         tempObj.match_type.push('manual');
         this.groupsMap.set(item.name, {
           ...groupItem,
-          manualList: [...new Set(manualList.concat([metricName]))]
+          manualList: [...new Set(manualList.concat([metricName]))],
         });
       } else {
         this.groupsMap.set(item.name, {
           ...groupItem,
-          manualList: manualList.filter(m => m !== metricName)
+          manualList: manualList.filter(m => m !== metricName),
         });
       }
       if (tempObj.match_type.length) labels.push(tempObj);
@@ -2129,13 +2145,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   handleGroupListChange(groupList) {
     this.groupList = groupList;
     this.groupsDataTidy();
-    this.metricData.forEach((item) => {
+    this.metricData.forEach(item => {
       if (item.monitor_type === 'metric') {
         const groupItem = this.metricGroupsMap.get(item.name);
         if (groupItem) {
           item.labels = groupItem.groups.map(g => ({
             name: g,
-            match_type: groupItem.matchType[g]
+            match_type: groupItem.matchType[g],
           }));
         } else {
           item.labels = [];
@@ -2147,7 +2163,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   updateGroupList() {
     this.groupList = this.groupList.map(item => ({
       ...item,
-      manualList: this.groupsMap.get(item.name)?.manualList || []
+      manualList: this.groupsMap.get(item.name)?.manualList || [],
     }));
   }
   /* 保存分组管理 */
@@ -2157,8 +2173,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       group_list: this.groupList.map(item => ({
         name: item.name,
         manual_list: item.manualList,
-        auto_rules: item.matchRules
-      }))
+        auto_rules: item.matchRules,
+      })),
     };
     await modifyCustomTsGroupingRuleList(params).catch(() => false);
   }
@@ -2183,7 +2199,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       arrow: true,
       content: `<div>${this.$t('手动分配指标数')}：${manualCount}</div><div>${this.$t('匹配规则')}：${
         matchRules.length ? matchRules.join(',') : '--'
-      }</div>`
+      }</div>`,
     });
     this.groupTagInstance.show();
   }
@@ -2211,9 +2227,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.metricSearchValue = v;
     const search = {
       type: [],
-      name: []
+      name: [],
     };
-    this.metricSearchValue.forEach((item) => {
+    this.metricSearchValue.forEach(item => {
       if (item.id === 'type') {
         search.type = [...new Set(search.type.concat(item.values.map(v => v.id)))];
       }
@@ -2225,13 +2241,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
   /* 通过分组管理计算每个指标包含的组 */
   setMetricDataLabels() {
-    this.metricData.forEach((item) => {
+    this.metricData.forEach(item => {
       if (item.monitor_type === 'metric') {
         const groupItem = this.metricGroupsMap.get(item.name);
         if (groupItem) {
           item.labels = groupItem.groups.map(g => ({
             name: g,
-            match_type: groupItem.matchType[g]
+            match_type: groupItem.matchType[g],
           }));
         } else {
           item.labels = [];
@@ -2246,16 +2262,16 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         this.$router.push({
           name: 'custom-escalation-event-view',
           params: { id: String(this.detailData.bk_event_group_id) },
-          query: { name: this.detailData.name }
+          query: { name: this.detailData.name },
         });
       },
       customTimeSeries: () => {
         this.$router.push({
           name: 'custom-escalation-view',
           params: { id: String(this.detailData.time_series_group_id) },
-          query: { name: this.detailData.name }
+          query: { name: this.detailData.name },
         });
-      }
+      },
     };
     toView[this.type]();
   }

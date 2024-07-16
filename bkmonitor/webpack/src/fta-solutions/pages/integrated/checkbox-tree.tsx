@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IGroupData } from './group';
+import type { IGroupData } from './group';
 
 import './checkbox-tree.scss';
 

@@ -26,7 +26,7 @@
 import _find from 'lodash/find';
 import _get from 'lodash/get';
 
-import { Span, TNil } from '../typings';
+import type { Span, TNil } from '../typings';
 
 function getFirstAncestor(span: Span): Span | TNil {
   return _get(

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import {
@@ -378,7 +378,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
         }}
         onClick={this.handleAddTimeRange}
       >
-        <i class='icon-monitor icon-mc-time'></i>
+        <i class='icon-monitor icon-mc-time' />
         {
           <ul
             ref='timeRangeListRef'
@@ -426,13 +426,13 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
                 <input
                   ref='inputRef'
                   class='trigger-input'
-                  slot='trigger'
                   v-model={this.triggerInputText}
+                  slot='trigger'
                   onBlur={this.handleTimeRangeInputBlur}
                   onFocus={() => (this.isFocus = true)}
                   onInput={this.handleTimeRangeInput}
                   onKeydown={modifiers.del(this.handleDelItem)}
-                ></input>
+                />
                 {this.needHandle && (
                   <div
                     class='timerange-footer'
@@ -462,7 +462,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
           <i
             class='icon-monitor icon-mc-close-fill'
             onMousedown={modifiers.stop(this.handleClearAll)}
-          ></i>
+          />
         )}
       </div>
     );

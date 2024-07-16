@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onBeforeUnmount, onMounted, Ref } from 'vue';
+import { type Ref, onBeforeUnmount, onMounted } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 

@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './operate-options.scss';
 
@@ -119,7 +120,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           <div onClick={this.handleShowPopover}>
             {this.$slots?.trigger || (
               <div class='option-more'>
-                <span class='bk-icon icon-more'></span>
+                <span class='bk-icon icon-more' />
               </div>
             )}
           </div>

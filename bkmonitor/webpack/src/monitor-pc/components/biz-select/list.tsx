@@ -27,7 +27,8 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
-import { ThemeType } from './biz-select';
+
+import type { ThemeType } from './biz-select';
 
 import './list.scss';
 

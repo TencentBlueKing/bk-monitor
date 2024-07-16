@@ -40,16 +40,16 @@ import { downCsvFile } from '../view-detail/utils';
 import AlarmBatchEdit from './components/alarm-batch-edit';
 import AlarmGroupSelect from './components/alarm-group-select';
 import CommonCondition from './components/common-condition-new';
-import DebuggingResult, { IRuleGroupsDataItem } from './components/debugging-result';
-import { ActionType, deepCompare, EColumn, ICondtionItem, LEVELLIST, RuleData } from './typing';
+import DebuggingResult, { type IRuleGroupsDataItem } from './components/debugging-result';
+import { type ActionType, EColumn, type ICondtionItem, LEVELLIST, RuleData, deepCompare } from './typing';
 import {
-  allKVOptions,
   GROUP_KEYS,
-  ISpecialOptions,
+  type ISpecialOptions,
+  type TGroupKeys,
+  type TValueMap,
+  allKVOptions,
   setDimensionsOfStrategy,
   statisticsSameConditions,
-  TGroupKeys,
-  TValueMap,
 } from './typing/condition';
 
 import './alarm-dispatch-config.scss';
@@ -382,7 +382,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
           v-model={this.isCheckAll}
           indeterminate={this.indeterminate}
           onChange={this.handleCheckAllChange}
-        ></bk-checkbox>
+        />
       </div>
     );
     const alarmGroupDom = () => <div class='table-column-item'>{this.$t('告警组')}</div>;
@@ -412,7 +412,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
     const levelDom = () => <div class='table-column-item'>{this.$t('等级调整')}</div>;
     const tagDom = () => <div class='table-column-item'>{this.$t('追加标签')}</div>;
     const enableDom = () => <div class='table-column-item'>{this.$t('状态')}</div>;
-    const operateDom = () => <div class='table-column-item'></div>;
+    const operateDom = () => <div class='table-column-item' />;
     const noticeProgress = () => <div class='table-column-item'>{this.$t('通知 & 流程')}</div>;
     const levelTag = () => <div class='table-column-item'>{this.$t('等级 & 标签')}</div>;
 
@@ -1267,7 +1267,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                           this.handleBatchEdit(e, 'name');
                           this.dataSource = this.ruleGroupData.name;
                         }}
-                      ></span>
+                      />
                     </div>
                     <div class='priority-wrap'>
                       <span class='title'>{this.$t('优先级')}:</span>
@@ -1278,7 +1278,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                           this.handleBatchEdit(e, 'priority');
                           this.dataSource = this.ruleGroupData.priority;
                         }}
-                      ></span>
+                      />
                     </div>
                     <div class='file-wrap'>
                       <MonitorImport
@@ -1325,7 +1325,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                             'border-color': item.arrow,
                           }}
                           class='process-arrow'
-                        ></div>
+                        />
                       )}
                       {item.index && <div class='index'>{item.index}</div>}
                       {item.text && (
@@ -1348,7 +1348,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                           onClick={() => {
                             this.handleColumnsMerge(item.merge as MergeColumn, index);
                           }}
-                        ></div>
+                        />
                       )}
                     </div>
                   </td>
@@ -1379,7 +1379,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                             onClick={e => {
                               this.handleBatchEdit(e, item.id);
                             }}
-                          ></span>
+                          />
                         )}
                         {/* 批量删除、批量撤回 */}
                         {item.id === 'operate' && (
@@ -1400,7 +1400,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                                 class='icon-monitor icon-jian'
                                 v-bk-tooltips={{ content: this.$t('批量删除'), disabled: this.batchTipsDisabled }}
                                 onClick={() => (this.batchTipsDisabled = true)}
-                              ></span>
+                              />
                             </bk-popconfirm>
                             <bk-popconfirm
                               tippy-options={{
@@ -1418,10 +1418,10 @@ export default class AlarmDispatchConfig extends tsc<object> {
                                 class='icon-monitor icon-chehui1'
                                 v-bk-tooltips={{ content: this.$t('批量撤回'), disabled: this.batchTipsDisabled }}
                                 onClick={() => (this.batchTipsDisabled = true)}
-                              ></span>
+                              />
                             </bk-popconfirm>
-                            <span class='icon-monitor icon-jian icon-hidden'></span>
-                            <span class='icon-monitor icon-jian icon-hidden'></span>
+                            <span class='icon-monitor icon-jian icon-hidden' />
+                            <span class='icon-monitor icon-jian icon-hidden' />
                           </div>
                         )}
                       </div>
@@ -1458,7 +1458,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
               ))}
             </table>
 
-            <div class='opreate-warp'></div>
+            <div class='opreate-warp' />
           </div>
           <div class='config-footer'>
             <span
@@ -1546,7 +1546,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                     placements: ['top'],
                     delay: [100, 0],
                   }}
-                ></span>
+                />
               </div>
               <div class='ml16 mr16'>
                 <CommonCondition
@@ -1561,7 +1561,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                   value={this.unifiedSettings.targetConditions}
                   valueMap={this.kvOptionsData.valueMap}
                   onChange={this.handleUnifiedSettingsConditionsChange}
-                ></CommonCondition>
+                />
               </div>
               <div class='bottom-opreate'>
                 <bk-button
@@ -1595,7 +1595,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
             <bk-checkbox
               v-model={row.isCheck}
               onChange={this.handleCheckChange}
-            ></bk-checkbox>
+            />
           </div>
         );
 
@@ -1617,7 +1617,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
             onRepeat={v => row.setConditionsRepeat(v)}
             onSettingsChange={this.handleSettingsClear}
             onValidate={v => row.setVerificatory('conditions', v)}
-          ></CommonCondition>
+          />
         );
       // 告警组
       case EColumn.userGroups:
@@ -1641,7 +1641,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
               }}
               onRefresh={this.handleRefreshAlarmGroup}
               onTagclick={this.handleSelcetAlarmGroup}
-            ></AlarmGroupSelect>
+            />
             <i
               class='icon-monitor icon-mind-fill'
               v-bk-tooltips={{
@@ -1649,7 +1649,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                 placements: ['top'],
                 allowHTML: false,
               }}
-            ></i>
+            />
           </div>
         );
 
@@ -1687,7 +1687,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                   class='add-wrap'
                   onClick={this.handleAddProcess}
                 >
-                  <span class='icon-monitor icon-jia'></span>
+                  <span class='icon-monitor icon-jia' />
                   <span>{this.$t('创建流程')}</span>
                 </div>
                 <div
@@ -1700,9 +1700,9 @@ export default class AlarmDispatchConfig extends tsc<object> {
                       alt=''
                       // eslint-disable-next-line @typescript-eslint/no-require-imports
                       src={require('../../static/images/svg/spinner.svg')}
-                    ></img>
+                    />
                   ) : (
-                    <span class='icon-monitor icon-mc-retry'></span>
+                    <span class='icon-monitor icon-mc-retry' />
                   )}
                 </div>
               </div>
@@ -1800,7 +1800,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                 this.handleAdditionalTagsChange(value, row, index);
                 this.handleDiffRuleItemChange(row, id, index);
               }}
-            ></bk-tag-input>
+            />
             {row.validateTips[id] && (
               <i
                 class='icon-monitor icon-mind-fill'
@@ -1808,7 +1808,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                   content: row.validateTips[id],
                   allowHTML: false,
                 }}
-              ></i>
+              />
             )}
           </div>
         );
@@ -1821,12 +1821,12 @@ export default class AlarmDispatchConfig extends tsc<object> {
               class='icon-monitor icon-mc-copy'
               v-bk-tooltips={{ content: this.$t('复制'), disabled: row.tooltipsDisabled }}
               onClick={() => this.handleOperateAction('copy', index)}
-            ></span>
+            />
             <span
               class='icon-monitor icon-jia'
               v-bk-tooltips={{ content: this.$t('增加'), disabled: row.tooltipsDisabled }}
               onClick={() => this.handleOperateAction('add', index)}
-            ></span>
+            />
             <bk-popconfirm
               tippy-options={{
                 onHide: () => {
@@ -1889,7 +1889,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
         );
 
       default:
-        return <div class='table-data-row-item'></div>;
+        return <div class='table-data-row-item' />;
     }
   }
 }

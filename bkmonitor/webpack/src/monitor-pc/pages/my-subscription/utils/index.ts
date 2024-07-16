@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import i18n from '../../../i18n/i18n';
-import { FrequencyType, Report, ReportSendRecord } from '../types';
+import { FrequencyType, type Report, type ReportSendRecord } from '../types';
 
 export function getSendFrequencyText(data: Report) {
   const weekMap = [

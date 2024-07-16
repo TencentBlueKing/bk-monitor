@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import { random } from 'monitor-common/utils/utils';
 
-import FunctionMenu, { IFunctionItem, IFunctionParam } from './function-menu';
+import FunctionMenu, { type IFunctionItem, type IFunctionParam } from './function-menu';
 
 import './function-select.scss';
 
@@ -267,7 +267,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
                 class='select-btn del-btn'
                 on-click={this.handleDeleteSelect}
               >
-                <i class='icon-monitor icon-mc-alarm-closed btn-icon'></i>
+                <i class='icon-monitor icon-mc-alarm-closed btn-icon' />
                 {this.$t('删除')}
               </div>
             )}

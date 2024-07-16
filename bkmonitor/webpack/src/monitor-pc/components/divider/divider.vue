@@ -43,7 +43,7 @@ export default class Divider extends Vue {
       height: 0,
       margin: this.margin,
       display: 'block',
-      borderBottom: `${this.width}px solid ${this.color}`
+      borderBottom: `${this.width}px solid ${this.color}`,
     };
   }
 }

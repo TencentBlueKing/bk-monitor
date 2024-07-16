@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { deepClone, isPostiveInt } from 'monitor-common/utils';
 
 import { SIMPLE_METHOD_LIST } from '../../../../../../constant/constant';
-import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
+import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
 
 import './year-round.scss';
 
@@ -327,7 +327,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                   disabled={level.disabled}
                   name={level.name}
                 >
-                  <i class={`icon-monitor ${level.icon}`}></i>
+                  <i class={`icon-monitor ${level.icon}`} />
                   <span class='name'>{level.name}</span>
                 </bk-option>
               ))}
@@ -450,11 +450,11 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                           <bk-option
                             id='avg'
                             name={this.$t('均值')}
-                          ></bk-option>
+                          />
                           <bk-option
                             id='last'
                             name={this.$t('瞬间值')}
-                          ></bk-option>
+                          />
                         </bk-select>
                         <bk-input
                           style='margin: 0 10px;'
@@ -512,7 +512,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                           id={opt.id}
                           key={opt.id}
                           name={opt.name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                     <bk-input
@@ -575,7 +575,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                           id={opt.id}
                           key={opt.id}
                           name={opt.name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                     <bk-input

@@ -132,17 +132,17 @@
 </template>
 
 <script lang="ts">
-import { Component, Inject, Prop, PropSync, Ref, Vue } from 'vue-property-decorator';
 import { switchFunction } from 'monitor-api/modules/function_switch.js';
+import { Component, Inject, Prop, PropSync, Ref, Vue } from 'vue-property-decorator';
 
-import MonitorVue from '../../types/index';
+import type MonitorVue from '../../types/index';
 
 import HostEditable from './host-editable.vue';
 import Switcher from './switcher.vue';
 
 @Component({
   name: 'function-item',
-  components: { Switcher, HostEditable }
+  components: { Switcher, HostEditable },
 })
 export default class FunctionItem extends Vue<MonitorVue> {
   @Prop({ default: () => {}, required: true }) readonly data: any;
@@ -184,7 +184,7 @@ export default class FunctionItem extends Vue<MonitorVue> {
     if (this.authority.MANAGE_AUTH) {
       const params = {
         id: this.data.id,
-        is_enable: v
+        is_enable: v,
       };
       this.loading = true;
       switchFunction(params)
@@ -296,10 +296,10 @@ export default class FunctionItem extends Vue<MonitorVue> {
     padding: 0 24px;
 
     .content-main {
-      will-change: height;
       height: 0;
       overflow: hidden;
       transition: all .3s cubic-bezier(.4, 0, .2, 1);
+      will-change: height;
     }
 
     .des {

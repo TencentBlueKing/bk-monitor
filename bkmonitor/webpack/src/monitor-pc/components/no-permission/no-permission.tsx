@@ -72,7 +72,7 @@ export default class NoPermission extends tsc<AuthorityIDProps> {
   render() {
     return (
       <div class='no-permission-component'>
-        <div class='lock-icon'></div>
+        <div class='lock-icon' />
         <div class='title'>{this.$t('无权限访问')}</div>
         <div class='msg'>{this.$t('您没有该资源的权限，请先申请!')}</div>
         <bk-button

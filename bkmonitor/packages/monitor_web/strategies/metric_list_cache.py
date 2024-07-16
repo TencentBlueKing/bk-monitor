@@ -1938,6 +1938,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                     "target_type": table["target_type"],
                     "result_table_label": table["result_table_label"],
                     "bk_biz_id": self.bk_biz_id,
+                    "alert_name_alias": table.get("alert_name_alias", alert_name),
                 }
             )
 

@@ -28,7 +28,7 @@ import _sortBy from 'lodash/sortBy';
 
 // import AccordianKeyValues from './AccordianKeyValues';
 // import { formatDuration } from '../utils';
-import { KeyValuePair, Link, Log, TNil } from '../../typings';
+import type { KeyValuePair, Link, Log, TNil } from '../../typings';
 
 import './accordian-logs.css';
 

@@ -29,10 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { listIndexByHost } from 'monitor-api/modules/alert_events';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import TipMsg from '../../setting/components/tip-msg';
-import { IDetail } from './type';
+
+import type { IDetail } from './type';
+import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './log-info.scss';
 
@@ -156,7 +157,7 @@ export default class LogInfo extends tsc<IProps> {
   getStatusLabel(status: TStatus, text: string) {
     return (
       <span class='run-status'>
-        <span class={['status', status]}></span>
+        <span class={['status', status]} />
         <span class='status-msg'>{text || ''}</span>
       </span>
     );
@@ -174,7 +175,7 @@ export default class LogInfo extends tsc<IProps> {
         v-bkloading={{ isLoading: this.loading }}
       >
         {this.allData.length ? (
-          <TipMsg msg={this.$t('通过目标{0}，找到日志检索集可以进行检索', [this.ip]) as string}></TipMsg>
+          <TipMsg msg={this.$t('通过目标{0}，找到日志检索集可以进行检索', [this.ip]) as string} />
         ) : undefined}
         {this.allData.length ? (
           <CommonTable
@@ -200,7 +201,7 @@ export default class LogInfo extends tsc<IProps> {
             pagination={this.pagination}
             onLimitChange={this.handleLimitChange}
             onPageChange={this.handlePageChange}
-          ></CommonTable>
+          />
         ) : (
           <div class='no-data'>
             <bk-exception type='building'>

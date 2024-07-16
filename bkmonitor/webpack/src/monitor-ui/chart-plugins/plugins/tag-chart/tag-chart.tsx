@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { PanelModel } from '../../typings';
+import type { PanelModel } from '../../typings';
 
 import './tag-chart.scss';
 

@@ -29,20 +29,21 @@ import { Component as tsc } from 'vue-tsx-support';
 import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules/model';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
-import HeaderTools, { IClickType } from './components/header-tools';
+import HeaderTools, { type IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
 import {
-  INodeData,
-  INodesTableData,
+  type INodeData,
+  type INodesTableData,
   nodeStatusMap,
   nodesToTableData,
   nodesToTableDataInit,
   paginationUtil,
   searchNodesData,
 } from './uptime-check-data';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 
 import './uptime-check-node.scss';
 
@@ -276,7 +277,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
             search={this.searchValue}
             onCreate={this.handleHeaderCreate}
             onSearch={(v: string) => this.handleSearch(v)}
-          ></HeaderTools>
+          />
           <CommonTable
             style={{ marginTop: '16px' }}
             {...{ props: this.nodesTableData }}
@@ -312,7 +313,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                     ],
                   }}
                   onOptionClick={(v: 'delete' | 'edit') => this.handleNodeOperate(v, row)}
-                ></OperateOptions>
+                />
               ),
               statusText: (row: INodeData) => (
                 <span

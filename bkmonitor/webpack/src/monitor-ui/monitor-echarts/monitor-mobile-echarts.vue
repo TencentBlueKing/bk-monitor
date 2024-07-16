@@ -98,7 +98,7 @@
 <script lang="ts">
 import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
+import { type ResizeCallback, addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import { debounce } from 'throttle-debounce';
@@ -106,8 +106,8 @@ import { debounce } from 'throttle-debounce';
 import ChartLegend from './components/chart-legend.vue';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
-import { ILegendItem } from './options/type-interface';
-import { echarts, MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
+import type { ILegendItem } from './options/type-interface';
+import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 
 interface ICurValue {
@@ -179,7 +179,7 @@ export default class MonitorMobileEcharts extends Vue {
       return window.graph_watermark ? `url('${watermarkMaker(window.user_name || window.username)}')` : '';
     },
   })
-  backgroundUrl: String;
+  backgroundUrl: string;
 
   // 获取图标数据
   @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;

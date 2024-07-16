@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type VueConstructor } from 'vue';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
-import { DirectiveBinding } from 'vue/types/options';
+import type { VueConstructor } from 'vue';
+import type { DirectiveBinding } from 'vue/types/options';
 
 export default class EnStyleDirective {
   public static install(Vue: VueConstructor) {

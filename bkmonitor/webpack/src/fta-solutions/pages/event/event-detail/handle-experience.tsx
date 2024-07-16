@@ -80,7 +80,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         v-bkloading={{ isLoading: this.isLoading }}
       >
         <div class='handleexperience-tip'>
-          <span class='icon-monitor icon-hint'></span>
+          <span class='icon-monitor icon-hint' />
           <span class='tip-text'>
             {this.$t('处理经验是与指标绑定出现的，如果同一个指标有多种情况，可以追加多种处理经验方便经验的共享。')}
           </span>
@@ -89,7 +89,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
           height='400px'
           class='detail-content-editor'
           v-model={this.text}
-        ></Editor>
+        />
         <bk-button
           ext-cls={'handleexperience-btn'}
           theme='primary'

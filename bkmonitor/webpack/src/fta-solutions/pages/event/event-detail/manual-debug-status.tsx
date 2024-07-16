@@ -132,12 +132,12 @@ export default class ManualDebugStatus extends tsc<IProps> {
       running: loading,
       success: (
         <div class='success'>
-          <span class='icon-monitor icon-mc-check-small'></span>
+          <span class='icon-monitor icon-mc-check-small' />
         </div>
       ),
       failure: (
         <div class='failure'>
-          <span class='icon-monitor icon-mc-close'></span>
+          <span class='icon-monitor icon-mc-close' />
         </div>
       ),
     };
@@ -167,7 +167,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
             class='info-jtnr-link'
             onClick={() => content?.url && window.open(content.url)}
           >
-            <span class='icon-monitor icon-copy-link'></span>
+            <span class='icon-monitor icon-copy-link' />
             {contentText.link}
           </span>
         ) : undefined}
@@ -212,7 +212,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
           {!['success', 'failure'].includes(this.debugStatusData?.status) && [
             <div class='status-tip'>
-              <span class='icon-monitor icon-hint'></span>
+              <span class='icon-monitor icon-hint' />
               <i18n
                 class='text'
                 path='退出当前窗口可前往{0}查看结果'
@@ -220,6 +220,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
                 <a
                   class='link'
                   href={this.actionUrl}
+                  rel='noreferrer'
                   target='_blank'
                 >
                   {this.$t('处理记录')}

@@ -48,8 +48,6 @@ import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 // defaultCycleOptionMillisec,
 // defaultCycleOptionMin,
 // defaultCycleOptionSec
-// } from 'monitor-pc/components/cycle-input/utils';
-import { IIpV6Value, INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
 import { CONDITION } from 'monitor-pc/constant/constant';
 import SimpleSelectInput from 'monitor-pc/pages/alarm-shield/components/simple-select-input';
@@ -59,7 +57,10 @@ import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strateg
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
-import { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption, ISamplingRule } from './type';
+
+import type { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption, ISamplingRule } from './type';
+// } from 'monitor-pc/components/cycle-input/utils';
+import type { IIpV6Value, INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
 const TIME_CONDITION_METHOD_LIST = [
   { id: 'gt', name: '>' },
@@ -1036,8 +1037,8 @@ export default class BasicInfo extends tsc<IProps> {
                     >
                       <bk-form-item label={`Tracing ${this.$t('启/停')}`}>
                         <bk-switcher
-                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           v-model={this.appInfo.is_enabled}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled, 'tracing')}
                           size='small'
                           theme='primary'
@@ -1048,8 +1049,8 @@ export default class BasicInfo extends tsc<IProps> {
                         label={`Profiling ${this.$t('启/停')}`}
                       >
                         <bk-switcher
-                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           v-model={this.appInfo.is_enabled_profiling}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, 'profiling')}
                           size='small'
                           theme='primary'
@@ -1250,7 +1251,7 @@ export default class BasicInfo extends tsc<IProps> {
                               id={item.id}
                               key={item.id}
                               name={item.name}
-                            ></bk-option>
+                            />
                           ))}
                         </bk-select>
                       </bk-form-item>
@@ -1290,7 +1291,7 @@ export default class BasicInfo extends tsc<IProps> {
                       />
                     </div>,
                   ]}
-              <div class='item-row'></div>
+              <div class='item-row' />
             </div>
           </PanelItem>
         )}
@@ -1404,7 +1405,7 @@ export default class BasicInfo extends tsc<IProps> {
                         id={option.id}
                         key={option.id}
                         name={option.name}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                   <i class='icon-monitor icon-hint sampling-hint'>
@@ -1480,7 +1481,7 @@ export default class BasicInfo extends tsc<IProps> {
                                 slot='extension'
                                 on-click={() => this.handleDeleteKey(gIndex, index)}
                               >
-                                <i class='icon-monitor icon-chahao'></i>
+                                <i class='icon-monitor icon-chahao' />
                                 <span>{this.$t('删除')}</span>
                               </div>
                             </SimpleSelectInput>,
@@ -1526,7 +1527,7 @@ export default class BasicInfo extends tsc<IProps> {
                                       has-delete-icon
                                       // paste-fn={v => this.handlePaste(v, item)}
                                       on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
-                                    ></bk-tag-input>
+                                    />
                                   ),
                                 ]
                               : undefined,
@@ -1536,7 +1537,7 @@ export default class BasicInfo extends tsc<IProps> {
                             class='condition-add'
                             on-click={() => this.handleAddCondition(gIndex)}
                           >
-                            <i class='bk-icon icon-plus'></i>
+                            <i class='bk-icon icon-plus' />
                           </span>
                         </div>
                       ))}
@@ -1654,7 +1655,7 @@ export default class BasicInfo extends tsc<IProps> {
                         onDragstart={evt => this.handleDragStart(evt, index)}
                         onDrop={this.handleDrop}
                       >
-                        {this.isEditing && <span class='icon-monitor icon-mc-tuozhuai'></span>}
+                        {this.isEditing && <span class='icon-monitor icon-mc-tuozhuai' />}
                         {instance.name}
                         <span
                           class='icon-monitor icon-mc-close'
@@ -1687,7 +1688,7 @@ export default class BasicInfo extends tsc<IProps> {
                           : (this.showInstanceSelector = true)
                       }
                     >
-                      <span class='icon-monitor icon-plus-line'></span>
+                      <span class='icon-monitor icon-plus-line' />
                     </div>
                     {this.showInstanceSelector && (
                       <bk-select
@@ -1839,7 +1840,7 @@ export default class BasicInfo extends tsc<IProps> {
                                     onChange={() =>
                                       (this.DBTypeRules[index].threshold[0].required = card.enabled_slow_sql)
                                     }
-                                  ></bk-switcher>
+                                  />
                                   <span
                                     style='margin-left: 16px;'
                                     class='text'
@@ -1859,7 +1860,7 @@ export default class BasicInfo extends tsc<IProps> {
 
                                       if (!card.threshold) card.threshold = 0;
                                     }}
-                                  ></bk-input>
+                                  />
                                   <span class='text'>ms</span>
                                 </div>
                               </bk-form-item>
@@ -1878,7 +1879,7 @@ export default class BasicInfo extends tsc<IProps> {
                                     behavior='simplicity'
                                     min={0}
                                     type='number'
-                                  ></bk-input>
+                                  />
                                   <span class='text'>{this.$t('字符')}</span>
                                 </div>
                               </bk-form-item>
@@ -1976,7 +1977,7 @@ export default class BasicInfo extends tsc<IProps> {
             v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
             onClick={() => (this.record.show = true)}
           >
-            <i class='icon-monitor icon-lishijilu'></i>
+            <i class='icon-monitor icon-lishijilu' />
           </div>
         </div>
         {this.isEditing ? (
@@ -1992,7 +1993,7 @@ export default class BasicInfo extends tsc<IProps> {
             <bk-button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</bk-button>
           </div>
         ) : (
-          <div></div>
+          <div />
         )}
         {/* 操作记录弹窗 */}
         <ChangeRcord
@@ -2009,7 +2010,7 @@ export default class BasicInfo extends tsc<IProps> {
             showDialog={this.selectorDialog.isShow}
             onChange={this.handleSelectorChange}
             onCloseDialog={v => (this.selectorDialog.isShow = v)}
-          ></StrategyIpv6>
+          />
         )}
 
         <SelectMenu
@@ -2019,7 +2020,7 @@ export default class BasicInfo extends tsc<IProps> {
           target={this.curSelectTarget}
           on-on-hidden={() => this.handleMenuHidden()}
           on-on-select={item => this.handelMenuSelect(item)}
-        ></SelectMenu>
+        />
       </div>
     );
   }
