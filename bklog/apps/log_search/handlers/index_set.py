@@ -1357,11 +1357,11 @@ class BaseIndexSetHandler(object):
                     "space_type": index_set.space_uid.split("__")[0],
                     "options": {
                         "name": "time_field",
-                        "type": "dict",
+                        "value_type": "dict",
                         "value": json.dumps({
-                            "field_name": index_set.time_field,
-                            "field_type": index_set.time_field_type,
-                            "field_unit": index_set.time_field_unit,
+                            "name": index_set.time_field,
+                            "type": index_set.time_field_type,
+                            "unit": index_set.time_field_unit,
                         })
                     }
                 }
