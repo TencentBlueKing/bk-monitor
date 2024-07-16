@@ -29,6 +29,7 @@ import * as tsx from 'vue-tsx-support';
 import axios from 'axios';
 import { getLabel } from 'monitor-api/modules/commons';
 import { getObservationSceneList, getObservationSceneStatusList } from 'monitor-api/modules/scene_view';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import introduce from '../../common/introduce';
@@ -109,7 +110,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     pagination: {
       count: 0,
       current: 1,
-      limit: 10,
+      limit: commonPageSizeGet(),
     },
   };
   /* 所有数据，此数据不会变化 */
@@ -247,6 +248,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
   handleLimitChange(limit: number) {
     this.tableData.pagination.current = 1;
     this.tableData.pagination.limit = limit;
+    commonPageSizeSet(limit);
     this.handleChangeTableData();
   }
 

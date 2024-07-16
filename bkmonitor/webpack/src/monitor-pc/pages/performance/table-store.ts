@@ -1,3 +1,4 @@
+import { commonPageSizeGet } from 'monitor-common/utils';
 /* eslint-disable @typescript-eslint/prefer-for-of */
 
 /*
@@ -377,11 +378,11 @@ export default class TableStore {
   keyWord = '';
   loading = false;
   menmoryData = [];
-  order = 'descending';
 
+  order = 'descending';
   page = 1;
   pageList: Array<number> = [10, 20, 50, 100];
-  pageSize: number = +localStorage.getItem('__common_page_size__') || 10;
+  pageSize: number = commonPageSizeGet();
   panelKey = '';
   sortKey = 'totalAlarmCount';
   stickyValue = {};
@@ -828,7 +829,7 @@ export default class TableStore {
   // 重新排序缓存数据
   reOrderData() {
     this.filterData = Object.freeze(this.sortDataByKey([...this.filterData]));
-    return JSON.parse(JSON.stringify(this.pagination(this.filterData)));
+    return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
   }
 
   setState(rowId: string, key: string, value: any) {

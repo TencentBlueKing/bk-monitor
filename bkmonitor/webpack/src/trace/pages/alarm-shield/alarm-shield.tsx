@@ -29,6 +29,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
 import EmptyStatus, { type EmptyStatusType } from '../../components/empty-status/empty-status';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
@@ -232,6 +233,8 @@ export default defineComponent({
 
     init();
     async function init() {
+      const pageSize = commonPageSizeGet();
+      tableData.pagination.limit = pageSize;
       tableData.loading = true;
       authority.auth = await getAuthorityMap(authMap);
       createdConditionList();
@@ -531,6 +534,7 @@ export default defineComponent({
     function handleLimitChange(limit: number) {
       tableData.pagination.current = 1;
       tableData.pagination.limit = limit;
+      commonPageSizeSet(limit);
       handleGetShiledList();
     }
 

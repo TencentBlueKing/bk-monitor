@@ -30,6 +30,7 @@ import { useRouter } from 'vue-router';
 
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
@@ -223,6 +224,8 @@ export default defineComponent({
     init();
     async function init() {
       loading.value = true;
+      const pageSize = commonPageSizeGet();
+      tableData.pagination.limit = pageSize;
       authority.auth = await getAuthorityMap(authMap);
       const list = await listDutyRule().catch(() => []);
       const labelsSet = new Set();
@@ -463,6 +466,7 @@ export default defineComponent({
     function handleLimitChange(limit: number) {
       tableData.pagination.current = 1;
       tableData.pagination.limit = limit;
+      commonPageSizeSet(limit);
       setFilterList();
     }
 

@@ -47,7 +47,7 @@ import {
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { commonPageSizeSet, commonPageSizeGet, LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
@@ -523,7 +523,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     if (!localStorage.getItem(incidentAnalyzeStorageKey)) {
       localStorage.setItem(incidentAnalyzeStorageKey, JSON.stringify(this.incidentFieldList));
     }
-
+    this.pagination.limit = commonPageSizeGet();
     // 监控环境下侧栏宽度变小
     this.setFilterDefaultWidth();
     this.incidentFieldList = this.handleGetAnalyzeField(incidentAnalyzeStorageKey, this.incidentFieldList);
@@ -1669,6 +1669,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handleTableLimitChange(limit: number) {
     this.pagination.current = 1;
     this.pagination.limit = limit;
+    commonPageSizeSet(limit);
     await this.handleGetTableData(false, true, false);
   }
 

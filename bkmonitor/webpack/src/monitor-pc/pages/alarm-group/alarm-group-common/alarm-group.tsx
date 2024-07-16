@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -398,6 +399,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       this.tableInstance.total = data.length;
     }
     this.tableInstance.page = 1;
+    this.tableInstance.pageSize = commonPageSizeGet();
     if (!!this.$route.query?.dutyRule) {
       const dutyId = this.$route.query.dutyRule;
       const searchCondition = [
@@ -461,6 +463,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleLimitChange(limit: number) {
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = limit;
+    commonPageSizeSet(limit);
     this.tableData = this.tableInstance.getTableData();
   }
 

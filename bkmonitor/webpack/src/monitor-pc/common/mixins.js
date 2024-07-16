@@ -527,17 +527,6 @@ const resizeMixin = {
     },
   },
 };
-// 根据每个列表页面设置统一的pageSize 并保存
-const commonPageSizeMixin = {
-  methods: {
-    handleSetCommonPageSize(pageSize = 10) {
-      localStorage.setItem('__common_page_size__', pageSize);
-    },
-    handleGetCommonPageSize() {
-      return +localStorage.getItem('__common_page_size__') || 10;
-    },
-  },
-};
 
 // 设置全局通用的Loading
 const mainLoadingMixin = {
@@ -556,7 +545,6 @@ const mainLoadingMixin = {
 export {
   alarmShieldMixin,
   collapseMixin,
-  commonPageSizeMixin,
   gotoPageMixin,
   importConfigMixin,
   mainLoadingMixin,

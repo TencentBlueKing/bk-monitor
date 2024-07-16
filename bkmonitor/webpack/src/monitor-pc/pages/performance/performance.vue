@@ -72,11 +72,11 @@
 </template>
 
 <script lang="ts">
+import { Component, InjectReactive, Prop, Provide, Ref, Watch, Vue } from 'vue-property-decorator';
 import { typeTools } from 'monitor-common/utils/utils';
-import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
+import { commonPageSizeSet } from 'monitor-common/utils';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';
 import PerformanceModule from '../../store/modules/performance';
 
 import OverviewPanel from './components/overview-panel.vue';
@@ -95,7 +95,7 @@ Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
     PerformanceTable,
   },
 })
-export default class Performance extends Mixins(commonPageSizeMixin) {
+export default class Performance extends Vue {
   @Prop({ default: () => [], type: Array }) readonly search: ISearchItem[];
   @Ref('table') readonly tableRef: PerformanceTable;
   @Ref('tool') readonly toolRef: PerformanceTool;
@@ -401,7 +401,7 @@ export default class Performance extends Mixins(commonPageSizeMixin) {
   handleLimitChange(limit: number) {
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = limit;
-    this.handleSetCommonPageSize(String(limit));
+    commonPageSizeSet(limit)
     this.handleResetCheck();
     this.reLimitData();
   }

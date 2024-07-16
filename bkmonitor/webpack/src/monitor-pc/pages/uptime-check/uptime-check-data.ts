@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { commonPageSizeGet } from 'monitor-common/utils';
 import { padIPv6 } from 'monitor-common/utils/ip-utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -263,7 +264,7 @@ export const taskTableDataInit = (
   pagination = {
     count: tasks.length,
     current: 1,
-    limit: 10,
+    limit: commonPageSizeGet(),
   }
 ): ITaskTableData => ({
   ...taskCommonTableProps,
@@ -349,7 +350,7 @@ export const nodesToTableDataInit = (
   pagination = {
     count: nodes.length,
     current: 1,
-    limit: 10,
+    limit: commonPageSizeGet(),
   }
 ): INodesTableData => ({
   ...nodesCommonTableProps,

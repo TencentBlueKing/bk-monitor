@@ -28,6 +28,7 @@ import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { isZh } from 'monitor-pc/common/constant';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
@@ -97,6 +98,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   }
 
   activated() {
+    this.pagination.limit = commonPageSizeGet();
     this.getListActionConfig();
     if (this.id) {
       // 打开详情
@@ -134,6 +136,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   handlePageLimitChange(limit: number) {
     this.pagination.current = 1;
     this.pagination.limit = limit;
+    commonPageSizeSet(limit);
   }
   @debounce(300)
   handleSearch(v: string) {

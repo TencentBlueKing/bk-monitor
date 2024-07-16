@@ -36,6 +36,7 @@ import {
   listUptimeCheckTask,
   updateUptimeCheckGroup,
 } from 'monitor-api/modules/model';
+import { commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
@@ -564,6 +565,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       current: 1,
       limit: v,
     };
+    commonPageSizeSet(v);
     this.taskTableData.pagination = pagination;
     this.taskTableData.data = taskDataToTableData(
       paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchTaskData)
