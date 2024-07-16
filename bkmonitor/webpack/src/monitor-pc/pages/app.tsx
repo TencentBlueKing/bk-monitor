@@ -40,9 +40,9 @@ import AuthorityModal from 'monitor-ui/authority-modal';
 import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
-import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import { GLOAB_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
-import { ISpaceItem } from '../types';
+import type { ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
 import DashboardContainer from './grafana/dashboard-container/dashboard-container';
 import { getDashboardCache } from './grafana/utils';
@@ -53,10 +53,9 @@ import platformConfigStore from '../store/modules/platform-config';
 import monitorLogo from '../static/images/svg/monitor-logo.svg';
 // #if APP !== 'external'
 import BizSelect from '../components/biz-select/biz-select';
-import NoticeGuide, { IStepItem } from '../components/novice-guide/notice-guide';
+import NoticeGuide, { type IStepItem } from '../components/novice-guide/notice-guide';
 import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
 import HeaderSettingModal from './header-setting-modal';
-
 // #endif
 
 import './app.scss';
@@ -93,9 +92,8 @@ if (currentLang === 'en') {
   },
 })
 export default class App extends tsc<object> {
-  @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
-  @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
+  @Ref('headerDropdownMenu') headerDropdownMenuRef: { hide: () => void };
   routeList = getRouteConfig();
   showBizList = false;
   keyword = '';
@@ -507,12 +505,6 @@ export default class App extends tsc<object> {
     await Promise.all(promiseList);
     return true;
   }
-  handleClickBizSelect() {
-    this.showBizList = !this.showBizList;
-    setTimeout(() => {
-      this.menuSearchInputRef.focus();
-    }, 100);
-  }
   @debounce(300)
   handleBizSearch(v: string) {
     this.keyword = v;
@@ -537,7 +529,7 @@ export default class App extends tsc<object> {
    */
   handleClickHeaderMenu(e: MouseEvent, name: string, id?: string) {
     this.handleHeaderSettingShowChange(false);
-    this.headerDrowdownMenuRef?.hide?.();
+    this.headerDropdownMenuRef?.hide?.();
     if (e.ctrlKey || e.metaKey) {
       return;
     }
@@ -545,7 +537,9 @@ export default class App extends tsc<object> {
     this.globalSettingShow = false;
     e.preventDefault();
     if (!this.headerNavChange) return;
-    id && (this.headerNav = id);
+    if (id) {
+      this.headerNav = id;
+    }
     const { route } = this.$router.resolve({ name }, this.$route, false);
     let storeVal: any = this.getUserStoreMenu();
     if (storeVal) {
@@ -755,7 +749,7 @@ export default class App extends tsc<object> {
                 )}
                 {this.hideNavCount > 0 && (
                   <bk-dropdown-menu
-                    ref='headerDrowdownMenu'
+                    ref='headerDropdownMenu'
                     style='height: inherit'
                     class='header-more-dropdown'
                     position-fixed

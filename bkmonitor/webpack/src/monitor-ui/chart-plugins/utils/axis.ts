@@ -32,8 +32,8 @@ export function getSeriesMaxInterval<T extends Array<{ datapoints: [number, numb
   let minX = Infinity;
   let maxX = -Infinity;
   series.forEach(s => {
-    minX = Math.min(minX, +s.datapoints.at(0)[1]);
-    maxX = Math.max(maxX, +s.datapoints.at(-1)[1]);
+    minX = Math.min(minX, +s.datapoints.at(0)?.[1]);
+    maxX = Math.max(maxX, +s.datapoints.at(-1)?.[1]);
   });
   return maxX - minX;
 }
