@@ -33,6 +33,7 @@ const EventCenterDetail = () =>
   import(/* webpackChunkName: "EventDetail" */ 'fta-solutions/pages/event/event-detail/event-detail');
 const ActionDetail = () =>
   import(/* webpackChunkName: "EventDetail" */ 'fta-solutions/pages/event/event-detail/action-detail');
+const IncidentDetail = () => import(/* webpackChunkName: "IncidentDetail" */ '../../pages/incident/incident-detail');
 // const createAsyncComponent = () => ({
 //   component: import(/* webpackChunkName: "Event" */ 'fta-solutions/pages/event/event'),
 //   // 异步组件加载时使用的组件
@@ -183,5 +184,31 @@ export default [
           }
         : {}
     ),
+  },
+  {
+    path: '/trace/incident/detail/:id?',
+    name: 'incident-detail',
+    props: {
+      noCache: true,
+    },
+    beforeEnter(to, from, next) {
+      !!to.params.id ? next() : next(false);
+    },
+    components: {
+      noCache: IncidentDetail,
+    },
+    meta: {
+      title: '故障详情',
+      navId: 'event-center',
+      needBack: true,
+      noNavBar: true,
+      navClass: 'event-center-nav',
+      authority: {
+        map: eventCenterAuth,
+      },
+      route: {
+        parent: 'event',
+      },
+    },
   },
 ] as RouteConfig[];
