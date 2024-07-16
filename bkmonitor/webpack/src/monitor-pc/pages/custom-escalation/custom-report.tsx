@@ -33,16 +33,17 @@ import {
   queryCustomEventGroup,
 } from 'monitor-api/modules/custom_report';
 import { checkAllowedByActionIds, getAuthorityDetail } from 'monitor-api/modules/iam';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils/utils';
 // import LeftPanel from './left-panel.vue';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import { type EmptyStatusOperationType, type EmptyStatusType } from '../../components/empty-status/types';
 import PageTips from '../../components/pageTips/pageTips.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import CommonTable, { ICommonTableProps } from '../monitor-k8s/components/common-table';
-import { ITableColumn } from '../monitor-k8s/typings';
+import CommonTable, { type ICommonTableProps } from '../monitor-k8s/components/common-table';
+import { type ITableColumn } from '../monitor-k8s/typings';
 import OperateOptions from '../uptime-check/components/operate-options';
 import * as customAuth from './authority-map';
 
@@ -268,7 +269,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       pagination: {
         count: 0,
         current: 1,
-        limit: 10,
+        limit: commonPageSizeGet(),
         showTotalCount: true,
       },
       loading: false,
@@ -327,7 +328,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
 
   //  还原分页参数和清空搜索框
   clearConditions() {
-    const defaultPageSize = this.handleGetCommonPageSize();
+    const defaultPageSize = commonPageSizeGet();
     this.tableData.pagination = {
       current: 1,
       count: 0,
@@ -337,12 +338,6 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     this.search = '';
   }
 
-  handleSetCommonPageSize(pageSize = 10) {
-    localStorage.setItem('__common_page_size__', `${pageSize}`);
-  }
-  handleGetCommonPageSize() {
-    return +localStorage.getItem('__common_page_size__') || 10;
-  }
   /**
    * @description: 跳转详情
    * @param {IEventItem} row
@@ -473,7 +468,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     if (size !== this.tableData.pagination.limit) {
       this.tableData.pagination.limit = size;
       this.tableData.pagination.current = 1;
-      this.handleSetCommonPageSize(size);
+      commonPageSizeSet(size);
       this.init();
     }
   }

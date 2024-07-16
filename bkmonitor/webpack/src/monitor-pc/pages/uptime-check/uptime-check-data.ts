@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { commonPageSizeGet } from 'monitor-common/utils';
 import { padIPv6 } from 'monitor-common/utils/ip-utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { allSpaceRegex, emojiRegex } from '../../utils/index';
-import { ICommonTableProps } from '../monitor-k8s/components/common-table';
-import { IData as IGroupData, ITaskItem as IGroupDataTaskItem } from './components/group-card';
-import { IData as ITaskCardData } from './components/task-card';
+import { type ICommonTableProps } from '../monitor-k8s/components/common-table';
+import { type IData as IGroupData, type ITaskItem as IGroupDataTaskItem } from './components/group-card';
+import { type IData as ITaskCardData } from './components/task-card';
 
 export interface ITaskData {
   group_data: IGroupData[]; // 任务组数据
@@ -262,7 +263,7 @@ export const taskTableDataInit = (
   pagination = {
     count: tasks.length,
     current: 1,
-    limit: 10,
+    limit: commonPageSizeGet(),
   }
 ): ITaskTableData => ({
   ...taskCommonTableProps,
@@ -348,7 +349,7 @@ export const nodesToTableDataInit = (
   pagination = {
     count: nodes.length,
     current: 1,
-    limit: 10,
+    limit: commonPageSizeGet(),
   }
 ): INodesTableData => ({
   ...nodesCommonTableProps,

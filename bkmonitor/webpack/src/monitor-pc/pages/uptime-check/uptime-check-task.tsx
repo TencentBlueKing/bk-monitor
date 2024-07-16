@@ -36,30 +36,31 @@ import {
   listUptimeCheckTask,
   updateUptimeCheckGroup,
 } from 'monitor-api/modules/model';
+import { commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import { type EmptyStatusOperationType, type EmptyStatusType } from '../../components/empty-status/types';
 import { UPTIME_CHECK_LIST } from '../monitor-k8s//typings/tools';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
 import CardsContainer from './components/cards-container';
-import GroupCard, { IOptionType as IGroupCardOperate } from './components/group-card';
-import HeaderTools, { IClickType } from './components/header-tools';
+import GroupCard, { type IOptionType as IGroupCardOperate } from './components/group-card';
+import HeaderTools, { type IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
-import TaskCard, { IData as ItaskItem, IOptionTypes as ITaskCardOperate } from './components/task-card';
+import TaskCard, { type IData as ItaskItem, type IOptionTypes as ITaskCardOperate } from './components/task-card';
 import UploadContent from './components/upload-content';
-import { IActive as IUptimeCheckType } from './uptime-check';
+import { type IActive as IUptimeCheckType } from './uptime-check';
 import {
   getGroupToTaskData,
   groupDataTaskInit,
   groupDialogDataInit,
   groupNameValidate,
-  IDragStatus,
-  IGroupDataTask,
+  type IDragStatus,
+  type IGroupDataTask,
   isTaskDisable,
-  ITaskData,
-  ITaskTableData,
+  type ITaskData,
+  type ITaskTableData,
   paginationUtil,
   searchGroupData,
   searchTaskData,
@@ -563,6 +564,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       current: 1,
       limit: v,
     };
+    commonPageSizeSet(v);
     this.taskTableData.pagination = pagination;
     this.taskTableData.data = taskDataToTableData(
       paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchTaskData)

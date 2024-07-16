@@ -29,17 +29,18 @@ import * as tsx from 'vue-tsx-support';
 import axios from 'axios';
 import { getLabel } from 'monitor-api/modules/commons';
 import { getObservationSceneList, getObservationSceneStatusList } from 'monitor-api/modules/scene_view';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import { type EmptyStatusOperationType, type EmptyStatusType } from '../../components/empty-status/types';
 import GuidePage from '../../components/guide-page/guide-page';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import CommonStatus, { CommonStatusType } from '../monitor-k8s/components/common-status/common-status';
+import CommonStatus, { type CommonStatusType } from '../monitor-k8s/components/common-status/common-status';
 import CommonTable from '../monitor-k8s/components/common-table';
 import PageTitle from '../monitor-k8s/components/page-title';
-import { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings';
+import { type ITableColumn, type ITablePagination, type TableRow } from '../monitor-k8s/typings';
 import * as authMap from './authority-map';
 
 import './custom-scenes.scss';
@@ -108,7 +109,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     pagination: {
       count: 0,
       current: 1,
-      limit: 10,
+      limit: commonPageSizeGet(),
     },
   };
   /* 所有数据，此数据不会变化 */
@@ -246,6 +247,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
   handleLimitChange(limit: number) {
     this.tableData.pagination.current = 1;
     this.tableData.pagination.limit = limit;
+    commonPageSizeSet(limit);
     this.handleChangeTableData();
   }
 
