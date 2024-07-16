@@ -69,7 +69,7 @@ interface IEvents {
   onSelectedFav: IFavListItem;
   onSelectedDashboard: TreeMenuItem;
   onBizChange: number;
-  onOpenSpaceManager?: void;
+  onOpenSpaceManager?: () => void;
 }
 interface IFormData {
   name: string;
@@ -193,7 +193,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       const res = item.children.filter(
         child => child.title.toLocaleLowerCase().indexOf(this.keywork.toLocaleLowerCase()) > -1
       );
-      total = [...total, ...res];
+      total.push(...res);
       return total;
     }, []);
     return deepClone(res);
@@ -402,7 +402,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleDelete(item: IMoreData['item']) {
     if (item.isGroup) {
       /** 删除目录 */
-      if (!!item.children.length) {
+      if (item.children.length) {
         this.$bkMessage({ message: this.$t('先删除该目录下的所有仪表盘'), theme: 'error' });
       } else if (!item.children.length) {
         this.$bkInfo({
@@ -699,11 +699,12 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               </div>
             </Collapse>
           </div>
-          {!!this.keywork ? (
+          {this.keywork ? (
             <div class='search-list'>
               {this.searchResList.length ? (
                 this.searchResList.map(item => (
                   <div
+                    key={item.uid}
                     class={`search-item ${this.checked === item.uid ? 'is-active' : ''}`}
                     onClick={() => this.handleSelectedGrafana(item)}
                   >
@@ -736,8 +737,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           {
             // #if APP !== 'external'
             <div class='garfana-link'>
-              {this.linkList.map(item => (
+              {this.linkList.map((item, index) => (
                 <span
+                  key={index}
                   class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   v-bk-tooltips={{
                     content: item.tips,
@@ -790,6 +792,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   {this.dirList.map(item => (
                     <bk-option
                       id={item.id}
+                      key={item.id}
                       name={item.name}
                     />
                   ))}

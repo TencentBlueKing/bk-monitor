@@ -38,7 +38,6 @@ import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
 
 import dashboardRoutes from './dashboard';
-import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #if APP !== 'external'
 import dataRetrievalRoutes from './data-retrieval';
 import eventRoutes from './event';
@@ -46,8 +45,9 @@ import homeRoutes from './home';
 import intergrateRoutes from './integrated';
 import managerRoutes from './manager';
 import otherRoutes from './others';
-import platformSetting from './platform-setting';
 import scensesRoutes from './scenes';
+import platformSetting from './platform-setting';
+import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #endif
 
 // import spaceData from './space';

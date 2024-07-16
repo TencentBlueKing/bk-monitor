@@ -29,7 +29,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { getLinkMapping, listStickySpaces } from 'monitor-api/modules/commons';
+import { listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
@@ -38,25 +38,24 @@ import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
 import introduce from '../common/introduce';
-import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
-// #if APP !== 'external'
-import BizSelect from '../components/biz-select/biz-select';
-import NoticeGuide, { type IStepItem } from '../components/novice-guide/notice-guide';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
-import monitorLogo from '../static/images/svg/monitor-logo.svg';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
-import IntelligentModelsStore from '../store/modules/intelligent-models';
-import platformConfigStore from '../store/modules/platform-config';
 import type { ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
 import DashboardContainer from './grafana/dashboard-container/dashboard-container';
 import { getDashboardCache } from './grafana/utils';
-import HeaderSettingModal from './header-setting-modal';
 import CommonNavBar from './monitor-k8s/components/common-nav-bar';
 import NavTools from './nav-tools';
-
+import IntelligentModelsStore from '../store/modules/intelligent-models';
+import platformConfigStore from '../store/modules/platform-config';
+import monitorLogo from '../static/images/svg/monitor-logo.svg';
+// #if APP !== 'external'
+import BizSelect from '../components/biz-select/biz-select';
+import NoticeGuide, { type IStepItem } from '../components/novice-guide/notice-guide';
+import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
+import HeaderSettingModal from './header-setting-modal';
 // #endif
 
 import './app.scss';
@@ -93,9 +92,8 @@ if (currentLang === 'en') {
   },
 })
 export default class App extends tsc<object> {
-  @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
-  @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
+  @Ref('headerDropdownMenu') headerDropdownMenuRef: { hide: () => void };
   routeList = getRouteConfig();
   showBizList = false;
   keyword = '';
@@ -460,11 +458,15 @@ export default class App extends tsc<object> {
         return;
       }
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
-        hasAuth && (this.routeViewKey = random(10));
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
       });
     } else {
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
-        hasAuth && (this.routeViewKey = random(10));
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
       });
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -507,12 +509,6 @@ export default class App extends tsc<object> {
     await Promise.all(promiseList);
     return true;
   }
-  handleClickBizSelect() {
-    this.showBizList = !this.showBizList;
-    setTimeout(() => {
-      this.menuSearchInputRef.focus();
-    }, 100);
-  }
   @debounce(300)
   handleBizSearch(v: string) {
     this.keyword = v;
@@ -537,7 +533,7 @@ export default class App extends tsc<object> {
    */
   handleClickHeaderMenu(e: MouseEvent, name: string, id?: string) {
     this.handleHeaderSettingShowChange(false);
-    this.headerDrowdownMenuRef?.hide?.();
+    this.headerDropdownMenuRef?.hide?.();
     if (e.ctrlKey || e.metaKey) {
       return;
     }
@@ -545,7 +541,9 @@ export default class App extends tsc<object> {
     this.globalSettingShow = false;
     e.preventDefault();
     if (!this.headerNavChange) return;
-    id && (this.headerNav = id);
+    if (id) {
+      this.headerNav = id;
+    }
     const { route } = this.$router.resolve({ name }, this.$route, false);
     let storeVal: any = this.getUserStoreMenu();
     if (storeVal) {
@@ -755,7 +753,7 @@ export default class App extends tsc<object> {
                 )}
                 {this.hideNavCount > 0 && (
                   <bk-dropdown-menu
-                    ref='headerDrowdownMenu'
+                    ref='headerDropdownMenu'
                     style='height: inherit'
                     class='header-more-dropdown'
                     position-fixed
@@ -905,7 +903,9 @@ export default class App extends tsc<object> {
               <HeaderSettingModal
                 show={this.headerSettingShow}
                 onChange={this.handleHeaderSettingShowChange}
-                onStoreRoutesChange={v => (this.userStoreRoutes = v)}
+                onStoreRoutesChange={v => {
+                  this.userStoreRoutes = v;
+                }}
               />
             )
             // #endif

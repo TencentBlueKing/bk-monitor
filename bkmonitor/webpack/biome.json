@@ -3,6 +3,10 @@
   "organizeImports": {
     "enabled": false
   },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git"
+  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -29,7 +33,9 @@
           "fix": "safe",
           "level": "error"
         },
-        "noForEach": "warn",
+        "noForEach": {
+          "level": "warn"
+        },
         "useArrowFunction": {
           "fix": "none",
           "level": "warn"
@@ -37,7 +43,8 @@
       },
       "a11y": {
         "useKeyWithMouseEvents": "off",
-        "useKeyWithClickEvents": "off"
+        "useKeyWithClickEvents": "off",
+        "noSvgWithoutTitle": "off"
       }
     }
   },
