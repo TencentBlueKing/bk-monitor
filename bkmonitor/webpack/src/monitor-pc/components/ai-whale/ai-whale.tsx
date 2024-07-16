@@ -137,7 +137,7 @@ export default class AiWhale extends tsc<object> {
   /* AI Blueking */
   messages = [
     {
-      content: '你好我是AI小鲸',
+      content: '你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。',
       type: 'ai',
     },
   ];
