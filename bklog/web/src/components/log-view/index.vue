@@ -136,13 +136,16 @@
       isIncludeFilter() {
         return this.filterType === 'include';
       },
+      getLineColor() {
+        return this.showType === 'log' ? 'background: #FFB946; color: #FFF;' : 'background: #E68D00; color: #1A1A1A';
+      },
       getViewLightList() {
         const list = [];
         if (!!this.filterKey) {
           list.push({ str: this.filterKey, style: 'background: yellow; color: #313238;', isUnique: true });
         }
         list.push(
-          ...this.heightList.map(item => ({ str: item, style: 'background: #FFB946; color: #FFF;', isUnique: false })),
+          ...this.heightList.map(item => ({ str: item, style: this.getLineColor, isUnique: false })),
         );
         return list;
       },
@@ -297,7 +300,7 @@
 
   .log-view {
     min-height: 100%;
-    color: #979ba5;
+    color: #C1C4CA;
     background: #131313;
 
     #log-content {
@@ -317,19 +320,19 @@
         border-top: 1px solid transparent;
 
         &.log-init {
-          background: #5f3a3a;
+          background: #1F2735;
         }
 
         &.new-log-line {
-          background: #5f3a3a;
+          background: #1F2735;
         }
 
         &:hover {
-          background-color: #383838;
+          background: #212121;
         }
 
         &.filter-line {
-          background-color: #392715;
+          background: #392715;
         }
       }
 
@@ -339,7 +342,7 @@
         padding-right: 12px;
         margin-left: -37px;
         line-height: 24px;
-        color: #5f697d;
+        color: #979BA5;
         text-align: right;
         user-select: none;
       }
@@ -361,19 +364,19 @@
           border-top: 1px solid #dcdee5;
 
           &.log-init {
-            background: #6cf;
+            background: #F0F5FF;
           }
 
           &.new-log-line {
-            background: #6cf;
+            background: #F0F5FF;
           }
 
           &:hover {
-            background-color: #6cc;
+            background: #F5F7FA;
           }
 
           &.filter-line {
-            background-color: #fff3e1;
+            background: #FFF3E1;
           }
         }
 
