@@ -65,6 +65,14 @@ build-mobile: ## Build Monitor Mobile APP.
 build-external: ## Build Monitor External APP.
 	npx bkmonitor-cli build -external
 
+##@ Linter
+
+check-pc: ## Biome check monitor-pc code.
+	npx biome check --write ./src/monitor-pc
+
+eslint-pc: ## Eslint check monitor-pc code.
+	npx eslint --fix ./src/monitor-pc
+
 ##@ Visualization
 
 vis-pc: ## Visualize Monitor.
