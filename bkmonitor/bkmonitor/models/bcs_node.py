@@ -190,6 +190,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
                     "checked": True,
                     "sortable": True,
                     "sortable_type": "progress",
+                    "header_pre_icon": "icon-avg",
                 },
                 {
                     "id": "system_mem_pct_used",
@@ -199,6 +200,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
                     "checked": True,
                     "sortable": True,
                     "sortable_type": "progress",
+                    "header_pre_icon": "icon-avg",
                 },
                 {
                     "id": "system_io_util",
@@ -217,6 +219,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
                     "checked": True,
                     "sortable": True,
                     "sortable_type": "progress",
+                    "header_pre_icon": "icon-avg",
                 },
                 {
                     "id": "system_load_load15",
