@@ -27,6 +27,7 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import AiBlueking from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
@@ -34,6 +35,7 @@ import { throttle } from 'throttle-debounce';
 import { getEventPaths } from '../../utils';
 
 import './ai-whale.scss';
+import '@blueking/ai-blueking/dist/vue2/style.css';
 
 /* 最近n天 枚举 1h, 3h, 6h, 12h,1d */
 const fetchRangeOfStr = {
@@ -52,9 +54,9 @@ const levelOfColor = {
 };
 
 /* 以下路由不显示此组件 */
-// export const AI_WHALE_EXCLUED_ROUTES =
+// export const AI_WHALE_EXCLUDE_ROUTES =
 //   ['event-center', 'event-action', 'event-center-detail', 'event-center-action-detail'];
-export const AI_WHALE_EXCLUED_ROUTES = ['no-business', 'error-exception', 'share']; // 告警页也可显示ai小鲸
+export const AI_WHALE_EXCLUDE_ROUTES = ['no-business', 'error-exception', 'share']; // 告警页也可显示ai小鲸
 
 interface IHostPreviewListItem {
   ip: string;
@@ -68,7 +70,7 @@ interface IWhaleHelperListItem {
   name: string;
 }
 
-type Ttype = 'blue' | 'red' | 'yellow';
+type ThemeType = 'blue' | 'red' | 'yellow';
 
 interface IData {
   alert: {
@@ -94,7 +96,7 @@ interface IData {
   robot_level?: number;
 }
 
-const robotWdith = 64;
+const robotWidth = 64;
 
 const tipClassName = 'ai-small-whale-tip-content';
 
@@ -102,14 +104,14 @@ const tipClassName = 'ai-small-whale-tip-content';
 export default class AiWhale extends tsc<object> {
   @Ref('robot') robotRef: HTMLDivElement;
 
-  type: Ttype = 'blue';
+  type: ThemeType = 'blue';
   /* 机器人位置 */
-  whalePostion = {
+  whalePosition = {
     top: 0,
     left: 0,
   };
   /* 当前是否展开 */
-  isExpan = false;
+  isExpand = false;
   /* 当前屏幕宽高 */
   width = 0;
   height = 0;
@@ -132,7 +134,43 @@ export default class AiWhale extends tsc<object> {
   /* 10分钟已弹出则不再主动弹出 */
   lastRecordTime = 0;
 
-  mousemoveFn = () => {};
+  /* AI Blueking */
+  messages = [
+    {
+      content: '你好我是AI小鲸',
+      type: 'ai',
+    },
+  ];
+  prompts = [
+    {
+      id: 1,
+      content: '帮我计算1+1的结果',
+    },
+    {
+      id: 2,
+      content: '帮我计算2+2的结果',
+    },
+  ];
+  loading = false;
+  background = '#f5f7fa';
+  headBackground = 'linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)';
+  positionLimit = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
+  sizeLimit = {
+    height: 500,
+    width: 342,
+  };
+  startPosition = {
+    right: 4,
+    left: window.innerWidth - 342 - 4,
+  };
+  showAIBlueking = false;
+
+  mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
   get space() {
@@ -150,8 +188,8 @@ export default class AiWhale extends tsc<object> {
     document.addEventListener('mouseup', this.handleMouseup);
     this.width = document.querySelector('.bk-monitor').clientWidth;
     this.height = document.querySelector('.bk-monitor').clientHeight;
-    this.whalePostion.top = this.height - robotWdith - 20;
-    this.whalePostion.left = this.width - robotWdith / 2;
+    this.whalePosition.top = this.height - robotWidth - 20;
+    this.whalePosition.left = this.width - robotWidth / 2;
     this.init();
   }
 
@@ -160,25 +198,25 @@ export default class AiWhale extends tsc<object> {
     window.removeEventListener('resize', this.resizeFn);
     window.clearInterval(this.timeInstance);
     window.clearTimeout(this.hoverTimer);
-    this.handlePopoerHidden();
+    this.handlePopoverHidden();
   }
 
   handleWindowResize() {
     this.width = document.querySelector('.bk-monitor').clientWidth;
     this.height = document.querySelector('.bk-monitor').clientHeight;
     if (this.popoverInstance) {
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
     }
-    const height = this.height - robotWdith - 20;
-    const width = this.width - robotWdith / 2;
-    this.whalePostion.top = height;
-    this.whalePostion.left = width;
+    const height = this.height - robotWidth - 20;
+    const width = this.width - robotWidth / 2;
+    this.whalePosition.top = height;
+    this.whalePosition.left = width;
   }
 
   /* 点击小球 */
   handleMousedown(event: MouseEvent) {
     event.preventDefault();
-    // this.handlePopoerHidden();
+    // this.handlePopoverHidden();
     this.downActive = true;
     this.downTime = new Date().getTime();
     document.addEventListener('mousemove', this.mousemoveFn);
@@ -203,16 +241,16 @@ export default class AiWhale extends tsc<object> {
   /* 小球移动 */
   handleMousemove(event: MouseEvent) {
     if (this.downActive) {
-      this.handlePopoerHidden();
-      this.whalePostion.top = (() => {
-        if (event.pageY <= 0) return 0 - robotWdith / 2;
-        if (event.pageY >= this.height) return this.height - robotWdith / 2;
-        return event.pageY - robotWdith / 2;
+      this.handlePopoverHidden();
+      this.whalePosition.top = (() => {
+        if (event.pageY <= 0) return 0 - robotWidth / 2;
+        if (event.pageY >= this.height) return this.height - robotWidth / 2;
+        return event.pageY - robotWidth / 2;
       })();
-      this.whalePostion.left = (() => {
-        if (event.pageX <= 0) return 0 - robotWdith / 2;
-        if (event.pageX >= this.width) return this.width - robotWdith / 2;
-        return event.pageX - robotWdith / 2;
+      this.whalePosition.left = (() => {
+        if (event.pageX <= 0) return 0 - robotWidth / 2;
+        if (event.pageX >= this.width) return this.width - robotWidth / 2;
+        return event.pageX - robotWidth / 2;
       })();
     }
   }
@@ -225,13 +263,13 @@ export default class AiWhale extends tsc<object> {
       if (this.popoverInstance?.show) {
         this.popoverInstance?.show?.();
       } else {
-        this.handlePopoerHidden();
+        this.handlePopoverHidden();
         this.popoverInstance = this.$bkPopover(e.target, {
           content: this.$refs.tips,
           trigger: 'manual',
           interactive: true,
           // triggerTarget: e.target,
-          theme: 'light',
+          theme: 'light ai-whale',
           arrow: true,
           placement: 'top',
           boundary: 'window',
@@ -242,7 +280,7 @@ export default class AiWhale extends tsc<object> {
     }, wait);
   }
   /* 清除tip */
-  handlePopoerHidden() {
+  handlePopoverHidden() {
     this.hoverTimer && window.clearTimeout(this.hoverTimer);
     this.popoverInstance?.hide?.(0);
     this.popoverInstance?.destroy?.();
@@ -251,8 +289,8 @@ export default class AiWhale extends tsc<object> {
 
   /* 收起 */
   handleClose() {
-    this.handlePopoerHidden();
-    this.whalePostion.left = this.width - robotWdith / 2;
+    this.handlePopoverHidden();
+    this.whalePosition.left = this.width - robotWidth / 2;
   }
 
   handleClick(event: Event) {
@@ -267,9 +305,9 @@ export default class AiWhale extends tsc<object> {
   }
 
   /* 展开主机预览 */
-  handleHostPreview(isExpan: boolean) {
-    this.handlePopoerHidden();
-    this.isExpan = isExpan;
+  handleHostPreview(isExpand: boolean) {
+    this.handlePopoverHidden();
+    this.isExpand = isExpand;
     setTimeout(() => {
       this.handlePopoverShow({ target: this.robotRef } as any, 200);
     }, 0);
@@ -288,14 +326,14 @@ export default class AiWhale extends tsc<object> {
 
   /* 调取接口 */
   async handleGetData() {
-    this.handlePopoerHidden();
+    this.handlePopoverHidden();
     const data = await fetchRobotInfo({}, { reject403: true }).catch(() => null);
     if (data) {
       this.data = data;
       const level = this.data?.robot_level || 3;
       this.type = levelOfColor[level];
       if (this.type !== 'red' || !this.data.intelligent_detect?.host) {
-        this.isExpan = false;
+        this.isExpand = false;
       }
       this.fetchRange = fetchRangeOfStr[this.data?.fetch_range || '1d'];
       this.hostPreviewList = this.data.intelligent_detect?.host?.preview || [];
@@ -323,9 +361,9 @@ export default class AiWhale extends tsc<object> {
 
   /* 主动弹出 */
   handleInitiativeTip(isInit = false) {
-    this.whalePostion.left = this.width - robotWdith;
+    this.whalePosition.left = this.width - robotWidth;
     if (isInit) {
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
     }
     setTimeout(() => {
       this.handlePopoverShow({ target: this.robotRef } as any);
@@ -394,8 +432,30 @@ export default class AiWhale extends tsc<object> {
     }#/strategy-config/add`;
     window.open(url);
   }
-
-  render() {
+  handleAiBluekingClear() {
+    console.log('trigger clear');
+  }
+  handleAiBluekingSend(val: string) {
+    this.messages = [
+      ...this.messages,
+      {
+        type: 'user',
+        content: val,
+      },
+    ];
+    console.log('trigger send', val);
+  }
+  handleAiBluekingClose() {
+    this.showAIBlueking = false;
+  }
+  handleAiBluekingChoosePrompt(prompt) {
+    console.log('choose prompt', prompt);
+  }
+  handleToggleAiBlueking() {
+    this.showAIBlueking = !this.showAIBlueking;
+    // this.startPosition.left = this.whalePosition.left +;
+  }
+  createAIContent() {
     const countSpan = count => {
       const countNum = Number(count || 0);
       if (countNum === 0) {
@@ -432,14 +492,242 @@ export default class AiWhale extends tsc<object> {
         </span>
       </div>
     );
+    if (this.type === 'blue') {
+      return (
+        <div class='blue-content'>
+          <div class='header'>
+            <div class='left'>
+              <div>{this.$t('AI小鲸发现当前有')}:</div>
+            </div>
+            <div
+              class='right'
+              onClick={this.handleClose}
+            >
+              {this.$t('收起')}
+            </div>
+          </div>
+          <div class='click-message click-message-blue-type'>
+            <span
+              class={{ 'can-click': !!this.data.alert.abnormal_count }}
+              onClick={() => !!this.data.alert.abnormal_count && this.handleToEventCenter()}
+            >
+              <i18n path='当前空间: [{0}] {1}  ； 未恢复告警: {2}'>
+                <span>{this.space.type_name}</span>
+                <span>{this.space.name}</span>
+                <span class='blue-bold'>{this.data.alert.abnormal_count}</span>
+              </i18n>
+            </span>
+          </div>
+          <div class='content'>
+            <div>{this.$t('如有其他问题,可选择:')}</div>
+            {helpList()}
+          </div>
+        </div>
+      );
+    }
+    if (this.type === 'red') {
+      return (
+        <div class='red-content'>
+          {(() => {
+            if (this.isExpand) {
+              return (
+                <div class='host-detail'>
+                  <div class='header'>
+                    <div class='left'>
+                      <i18n path='主机智能异常检测发现{0}个主机异常'>
+                        {countSpan(this.data.intelligent_detect?.host?.abnormal_count)}
+                      </i18n>
+                      :
+                    </div>
+                    <div
+                      class='right'
+                      onClick={this.handleClose}
+                    >
+                      {this.$t('收起')}
+                    </div>
+                  </div>
+                  <div class='table-content'>
+                    <bk-table
+                      data={this.hostPreviewList}
+                      maxHeight={259}
+                    >
+                      <bk-table-column
+                        renderHeader={() => (
+                          <span>
+                            <span>{this.$t('内网IP')}</span>
+                            <span
+                              class='icon-monitor icon-mc-copy'
+                              onClick={this.handleClickCopyIp}
+                            />
+                          </span>
+                        )}
+                        scopedSlots={{
+                          default: props => (
+                            <span
+                              class='link'
+                              onClick={() => {
+                                this.handleToPerformance(props.row.ip, props.row?.bk_cloud_id);
+                              }}
+                            >
+                              {props.row.ip}
+                            </span>
+                          ),
+                        }}
+                      />
+                      <bk-table-column
+                        label={this.$t('异常指标数')}
+                        prop='exception_metric_count'
+                        resizable={false}
+                      />
+                      {/* <bk-table-column label={this.$t('其他指标')} prop="other_metric_count"></bk-table-column> */}
+                    </bk-table>
+                    <div class='bottom-options'>
+                      <div
+                        class='option'
+                        onClick={() => this.handleHostPreview(false)}
+                      >
+                        <span class='icon-monitor icon-back-left' />
+                        <span>{this.$t('返回概览')}</span>
+                      </div>
+                      <div
+                        class='option'
+                        onClick={this.handleToAiSettings}
+                      >
+                        <span class='icon-monitor icon-menu-setting' />
+                        <span>{this.$t('AI设置')}</span>
+                      </div>
+                      {/* <div class="option" onClick={this.handleToStrategyConfig}>
+              <span class="icon-monitor icon-mc-add-strategy"></span>
+              <span>{this.$t('新建策略')}</span>
+            </div> */}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div class='alert-overview'>
+                <div class='header'>
+                  <div class='left'>
+                    <span>{this.$t('AI小鲸发现当前有')}:</span>
+                  </div>
+                  <div
+                    class='right'
+                    onClick={this.handleClose}
+                  >
+                    {this.$t('收起')}
+                  </div>
+                </div>
+                <div class='content'>
+                  {abnormalCountContent()}
+                  {!!this.data.alert.person_abnormal_count && (
+                    <div class='click-message'>
+                      <span
+                        class={{ 'can-click': !!this.data.alert.person_abnormal_count }}
+                        onClick={() => !!this.data.alert.person_abnormal_count && this.handleToEventCenter(true)}
+                      >
+                        <i18n path='当前您有未恢复告警{0}条,最近{1}新增{2}条'>
+                          {countSpan(this.data.alert.person_abnormal_count)}
+                          <span>
+                            <span class='grey-bold'>{this.fetchRange.match(/[1236]+/g)[0]}</span>
+                            {this.fetchRange.match(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
+                          </span>
+                          {countSpan(this.data.alert.latest_person_abnormal_count)}
+                        </i18n>
+                        {!!this.data.alert.latest_person_abnormal_count && <span class='icon-monitor icon-fenxiang' />}
+                      </span>
+                    </div>
+                  )}
+                  {!!this.data.intelligent_detect?.host && (
+                    <div class='click-message'>
+                      <span
+                        class={{ 'can-click': !!this.data.intelligent_detect?.host?.abnormal_count }}
+                        onClick={() =>
+                          !!this.data.intelligent_detect?.host?.abnormal_count && this.handleHostPreview(true)
+                        }
+                      >
+                        <i18n path='主机智能异常检测发现最近{0}{1}台主机异常'>
+                          <span>
+                            <span class='grey-bold'>{this.fetchRange?.match(/[1236]+/g)?.[0] || ''}</span>
+                            {this.fetchRange.match?.(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
+                          </span>
+                          {countSpan(this.data.intelligent_detect?.host?.abnormal_count) || 0}
+                        </i18n>
+                        {!!this.data.intelligent_detect?.host?.abnormal_count && (
+                          <span class='icon-monitor icon-double-down' />
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      );
+    }
+    return (
+      <div class='red-content'>
+        <div class='alert-overview'>
+          <div class='header'>
+            <div class='left'>
+              <span>{this.$t('AI小鲸发现当前有')}:</span>
+            </div>
+            <div
+              class='right'
+              onClick={this.handleClose}
+            >
+              {this.$t('收起')}
+            </div>
+          </div>
+          <div class='content'>
+            {abnormalCountContent()}
+            <div class='mt16'>{this.$t('如有其他问题,可选择:')}:</div>
+            {helpList()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  createAiBlueking() {
+    return (
+      <AiBlueking
+        class='ai-blueking'
+        background={this.background}
+        head-background={this.headBackground}
+        loading={this.loading}
+        messages={this.messages}
+        position-limit={this.positionLimit}
+        prompts={this.prompts}
+        size-limit={this.sizeLimit}
+        start-position={this.startPosition}
+        onChoose-prompt={this.handleAiBluekingChoosePrompt}
+        onClear={this.handleAiBluekingClear}
+        onClose={this.handleAiBluekingClose}
+        onSend={this.handleAiBluekingSend}
+      />
+    );
+  }
+  createAIDialogFooter() {
+    return (
+      <div
+        class='ai-whale-footer'
+        onClick={this.handleToggleAiBlueking}
+      >
+        <span class='ai-icon' />
+        {this.showAIBlueking ? this.$t('关闭 AI 小鲸会话') : this.$t('打开 AI 小鲸会话')}
+      </div>
+    );
+  }
+  render() {
     return (
       <div class='ai-small-whale'>
         {!!this.data && (
           <div
             ref='robot'
             style={{
-              top: `${this.whalePostion.top}px`,
-              left: `${this.whalePostion.left}px`,
+              top: `${this.whalePosition.top}px`,
+              left: `${this.whalePosition.left}px`,
             }}
             class={['robot-img', this.type]}
             onClick={this.handleClick}
@@ -453,212 +741,12 @@ export default class AiWhale extends tsc<object> {
               ref='tips'
               class={tipClassName}
             >
-              {(() => {
-                if (this.type === 'blue') {
-                  return (
-                    <div class='blue-content'>
-                      <div class='header'>
-                        <div class='left'>
-                          <div>{this.$t('AI小鲸发现当前有')}:</div>
-                        </div>
-                        <div
-                          class='right'
-                          onClick={this.handleClose}
-                        >
-                          {this.$t('收起')}
-                        </div>
-                      </div>
-                      <div class='click-message click-message-blue-type'>
-                        <span
-                          class={{ 'can-click': !!this.data.alert.abnormal_count }}
-                          onClick={() => !!this.data.alert.abnormal_count && this.handleToEventCenter()}
-                        >
-                          <i18n path='当前空间: [{0}] {1}  ； 未恢复告警: {2}'>
-                            <span>{this.space.type_name}</span>
-                            <span>{this.space.name}</span>
-                            <span class='blue-bold'>{this.data.alert.abnormal_count}</span>
-                          </i18n>
-                        </span>
-                      </div>
-                      <div class='content'>
-                        <div>{this.$t('如有其他问题,可选择:')}</div>
-                        {helpList()}
-                      </div>
-                    </div>
-                  );
-                }
-                if (this.type === 'red') {
-                  return (
-                    <div class='red-content'>
-                      {(() => {
-                        if (this.isExpan) {
-                          return (
-                            <div class='host-detail'>
-                              <div class='header'>
-                                <div class='left'>
-                                  <i18n path='主机智能异常检测发现{0}个主机异常'>
-                                    {countSpan(this.data.intelligent_detect?.host?.abnormal_count)}
-                                  </i18n>
-                                  :
-                                </div>
-                                <div
-                                  class='right'
-                                  onClick={this.handleClose}
-                                >
-                                  {this.$t('收起')}
-                                </div>
-                              </div>
-                              <div class='table-content'>
-                                <bk-table
-                                  data={this.hostPreviewList}
-                                  maxHeight={259}
-                                >
-                                  <bk-table-column
-                                    renderHeader={() => (
-                                      <span>
-                                        <span>{this.$t('内网IP')}</span>
-                                        <span
-                                          class='icon-monitor icon-mc-copy'
-                                          onClick={this.handleClickCopyIp}
-                                        />
-                                      </span>
-                                    )}
-                                    scopedSlots={{
-                                      default: props => (
-                                        <span
-                                          class='link'
-                                          onClick={() => {
-                                            this.handleToPerformance(props.row.ip, props.row?.bk_cloud_id);
-                                          }}
-                                        >
-                                          {props.row.ip}
-                                        </span>
-                                      ),
-                                    }}
-                                  />
-                                  <bk-table-column
-                                    label={this.$t('异常指标数')}
-                                    prop='exception_metric_count'
-                                    resizable={false}
-                                  />
-                                  {/* <bk-table-column label={this.$t('其他指标')} prop="other_metric_count"></bk-table-column> */}
-                                </bk-table>
-                                <div class='bottom-options'>
-                                  <div
-                                    class='option'
-                                    onClick={() => this.handleHostPreview(false)}
-                                  >
-                                    <span class='icon-monitor icon-back-left' />
-                                    <span>{this.$t('返回概览')}</span>
-                                  </div>
-                                  <div
-                                    class='option'
-                                    onClick={this.handleToAiSettings}
-                                  >
-                                    <span class='icon-monitor icon-menu-setting' />
-                                    <span>{this.$t('AI设置')}</span>
-                                  </div>
-                                  {/* <div class="option" onClick={this.handleToStrategyConfig}>
-                          <span class="icon-monitor icon-mc-add-strategy"></span>
-                          <span>{this.$t('新建策略')}</span>
-                        </div> */}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div class='alert-overview'>
-                            <div class='header'>
-                              <div class='left'>
-                                <span>{this.$t('AI小鲸发现当前有')}:</span>
-                              </div>
-                              <div
-                                class='right'
-                                onClick={this.handleClose}
-                              >
-                                {this.$t('收起')}
-                              </div>
-                            </div>
-                            <div class='content'>
-                              {abnormalCountContent()}
-                              {!!this.data.alert.person_abnormal_count && (
-                                <div class='click-message'>
-                                  <span
-                                    class={{ 'can-click': !!this.data.alert.person_abnormal_count }}
-                                    onClick={() =>
-                                      !!this.data.alert.person_abnormal_count && this.handleToEventCenter(true)
-                                    }
-                                  >
-                                    <i18n path='当前您有未恢复告警{0}条,最近{1}新增{2}条'>
-                                      {countSpan(this.data.alert.person_abnormal_count)}
-                                      <span>
-                                        <span class='grey-bold'>{this.fetchRange.match(/[1236]+/g)[0]}</span>
-                                        {this.fetchRange.match(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
-                                      </span>
-                                      {countSpan(this.data.alert.latest_person_abnormal_count)}
-                                    </i18n>
-                                    {!!this.data.alert.latest_person_abnormal_count && (
-                                      <span class='icon-monitor icon-fenxiang' />
-                                    )}
-                                  </span>
-                                </div>
-                              )}
-                              {!!this.data.intelligent_detect?.host && (
-                                <div class='click-message'>
-                                  <span
-                                    class={{ 'can-click': !!this.data.intelligent_detect?.host?.abnormal_count }}
-                                    onClick={() =>
-                                      !!this.data.intelligent_detect?.host?.abnormal_count &&
-                                      this.handleHostPreview(true)
-                                    }
-                                  >
-                                    <i18n path='主机智能异常检测发现最近{0}{1}台主机异常'>
-                                      <span>
-                                        <span class='grey-bold'>{this.fetchRange?.match(/[1236]+/g)?.[0] || ''}</span>
-                                        {this.fetchRange.match?.(/[\u4e00-\u9fa5A-Za-z\s]+/g)?.[0] || ''}
-                                      </span>
-                                      {countSpan(this.data.intelligent_detect?.host?.abnormal_count) || 0}
-                                    </i18n>
-                                    {!!this.data.intelligent_detect?.host?.abnormal_count && (
-                                      <span class='icon-monitor icon-double-down' />
-                                    )}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                }
-                return (
-                  <div class='red-content'>
-                    <div class='alert-overview'>
-                      <div class='header'>
-                        <div class='left'>
-                          <span>{this.$t('AI小鲸发现当前有')}:</span>
-                        </div>
-                        <div
-                          class='right'
-                          onClick={this.handleClose}
-                        >
-                          {this.$t('收起')}
-                        </div>
-                      </div>
-                      <div class='content'>
-                        {abnormalCountContent()}
-                        <div class='mt16'>{this.$t('如有其他问题,可选择:')}:</div>
-                        {helpList()}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+              {this.createAIContent()}
+              {this.createAIDialogFooter()}
             </div>
           )}
         </div>
+        {this.showAIBlueking && this.createAiBlueking()}
       </div>
     );
   }

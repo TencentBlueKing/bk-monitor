@@ -215,7 +215,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.locaLValue = [...this.value];
       if (this.isShowPop) {
         this.inputValue = '';
-        this.handlePopoerHidden();
+        this.handlePopoverHidden();
         this.resetInputPosition();
       }
       this.handleConditionToTagList();
@@ -228,11 +228,11 @@ export default class CommonCondition extends tsc<IProps> {
     if (this.readonly) {
       return;
     }
-    if (!!this.popInstance?.show) {
-      this.handlePopoerHidden();
+    if (this.popInstance?.show) {
+      this.handlePopoverHidden();
       return;
     }
-    if (!!this.settingsPopInstance?.show) {
+    if (this.settingsPopInstance?.show) {
       this.handleSettingsPopHidden();
     }
     event.stopPropagation();
@@ -295,7 +295,7 @@ export default class CommonCondition extends tsc<IProps> {
     this.showPopFn(event);
   }
   /* 清除弹出层 */
-  handlePopoerHidden() {
+  handlePopoverHidden() {
     this.popInstance?.hide?.(0);
     this.popInstance?.destroy?.();
     this.popInstance = null;
@@ -379,7 +379,7 @@ export default class CommonCondition extends tsc<IProps> {
       showPop();
     };
     if (!this.isPopTypeOfValue && !this.isClickValueTag) {
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
     }
     const lastTagItem = this.tagList[this.curIndex];
     const lastTagItem2 = this.tagList?.[this.curIndex - 1];
@@ -397,7 +397,7 @@ export default class CommonCondition extends tsc<IProps> {
         id: item.id,
         name: item.name,
       });
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
       this.isClickKeyTag = false;
       this.resetInputPosition();
       this.handleChange();
@@ -415,7 +415,7 @@ export default class CommonCondition extends tsc<IProps> {
         id: item.id,
         name: item.name,
       });
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
       this.isClickMethodTag = false;
       this.isClickConditonTag = false;
       this.resetInputPosition();
@@ -435,7 +435,7 @@ export default class CommonCondition extends tsc<IProps> {
   /* 点击添加按钮并弹出condition选项 */
   handleAddClick(event: Event) {
     event.stopPropagation();
-    this.handlePopoerHidden();
+    this.handlePopoverHidden();
     this.isPopTypeOfValue = false;
     this.isClickValueTag = false;
     this.curList = CONDITIONS;
@@ -452,7 +452,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(inputItemIndex, 1);
       this.tagList[this.tagList.length - 1].type = TypeEnum.input;
     }
-    if (!!this.locaLValue.length) {
+    if (this.locaLValue.length) {
       if (this.tagList[this.tagList.length - 2]?.type === TypeEnum.condition) {
         this.tagList.splice(this.tagList.length - 2, 1);
         this.showAdd = true;
@@ -474,7 +474,7 @@ export default class CommonCondition extends tsc<IProps> {
     if (paths.includes(this.componetId)) return;
     this.validate();
     if (this.popInstance) {
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
     }
     this.resetInputPosition();
     this.isClickKeyTag = false;
@@ -620,7 +620,7 @@ export default class CommonCondition extends tsc<IProps> {
     };
     if (this.isClickKeyTag || this.isClickValueTag) {
       this.resetInputPosition();
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
       this.isClickKeyTag = false;
       this.isClickValueTag = false;
       return;
@@ -663,7 +663,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(0, 1);
     }
     this.isClickKeyTag = false;
-    this.handlePopoerHidden();
+    this.handlePopoverHidden();
     this.resetInputPosition();
     if (this.tagList.length <= 1) {
       this.showAdd = false;
@@ -736,7 +736,7 @@ export default class CommonCondition extends tsc<IProps> {
     this.isClickMethodTag = false;
     if (this.isClickKeyTag) {
       this.resetInputPosition();
-      this.handlePopoerHidden();
+      this.handlePopoverHidden();
       this.isClickKeyTag = false;
       return;
     }
@@ -768,7 +768,7 @@ export default class CommonCondition extends tsc<IProps> {
     const keyCode = event?.code || '';
     switch (keyCode) {
       case 'Enter': {
-        if (!!this.inputValue) {
+        if (this.inputValue) {
           const preTagItem = this.tagList[index - 1];
           if (this.isClickKeyTag) {
             /* 自定义key值 */
@@ -785,7 +785,7 @@ export default class CommonCondition extends tsc<IProps> {
                 type: TypeEnum.key,
               });
             }
-            this.handlePopoerHidden();
+            this.handlePopoverHidden();
             this.resetInputPosition();
             this.isClickKeyTag = false;
           } else if (this.tagList.length === 1 || preTagItem?.type === TypeEnum.condition) {
@@ -843,7 +843,7 @@ export default class CommonCondition extends tsc<IProps> {
             if (preTagItem?.type === TypeEnum.value && preTagItem?.id === '' && preTagItem.name === NULL_NAME) {
               this.tagList.splice(index - 1, 1);
             }
-            this.handlePopoerHidden();
+            this.handlePopoverHidden();
             this.resetInputPosition();
             this.showAdd = true;
             if (valueList.length) {
@@ -939,7 +939,7 @@ export default class CommonCondition extends tsc<IProps> {
           id: keyItem?.id || condition.field,
           name: keyItem?.name || condition.field,
           type: TypeEnum.key,
-          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
+          alias: keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tagList.push({
           id: methodItem?.id || METHODS[0].id,
@@ -1151,7 +1151,7 @@ export default class CommonCondition extends tsc<IProps> {
     let keyList = [];
     if (item.id === 'dimensions') {
       const tempKeys = this.getDimensionKeys() as any;
-      if (!!tempKeys?.length) {
+      if (tempKeys?.length) {
         keyList = tempKeys;
       }
     } else {
@@ -1205,7 +1205,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(this.curIndex, 0, opt as any);
     }
     this.curList = METHODS;
-    this.handlePopoerHidden();
+    this.handlePopoverHidden();
     setTimeout(() => {
       this.handleShowPop();
     }, 50);
@@ -1407,7 +1407,7 @@ export default class CommonCondition extends tsc<IProps> {
                       onClick={() => this.handleOptionClick(item)}
                       onMouseenter={e => this.handleOptionMouseEnter(e, item)}
                     >
-                      {!!item?.isStrategyId ? (
+                      {item?.isStrategyId ? (
                         <span class='strategy-name'>
                           <span>{item.name}</span>
                           <span class='strategy-name-info'>{`${item.first_label_name} (#${item.id})`}</span>
