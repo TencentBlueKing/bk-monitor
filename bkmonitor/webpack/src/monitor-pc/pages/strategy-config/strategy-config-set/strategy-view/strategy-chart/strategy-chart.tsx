@@ -311,6 +311,12 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       isMetric ? this.detectionConfig : this.scoreThreshold,
       this.yAxisNeedUnitGetter
     );
+    const { data_source_label, data_type_label, result_table_id, custom_event_name, agg_condition } =
+      this.metricData[0];
+    const type = `${data_source_label}_${data_type_label}`;
+    /** 是否是事件 */
+    const isEvent = type === 'custom_event' || type === 'bk_monitor_log';
+
     const data = {
       id: this.dashboardId,
       // type: 'graph',
@@ -327,6 +333,19 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           nearSeriesNum: this.nearNum,
           ...thresholdOptions,
         },
+        ...(isEvent
+          ? {
+              alert_filterable: {
+                filter_type: 'event',
+                data: {
+                  result_table_id,
+                  data_source_label,
+                  data_type_label,
+                  where: [{ key: 'event_name', method: 'eq', value: [custom_event_name] }, ...agg_condition],
+                },
+              },
+            }
+          : {}),
       },
       targets: [
         {
