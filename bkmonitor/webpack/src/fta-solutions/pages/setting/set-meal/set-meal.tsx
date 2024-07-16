@@ -28,16 +28,17 @@ import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { isZh } from 'monitor-pc/common/constant';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import { type EmptyStatusOperationType, type EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import debounce from '../../../common/debounce-decorator';
 import setMealAddModule from '../../../store/modules/set-meal-add';
 import OperateOptions from '../components/operate-options';
-import SetMealDetail, { ISetMealDetail } from '../set-meal-detail/set-meal-detail';
+import SetMealDetail, { type ISetMealDetail } from '../set-meal-detail/set-meal-detail';
 import * as ruleAuth from './authority-map';
 
 import './set-meal.scss';
@@ -96,6 +97,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   }
 
   activated() {
+    this.pagination.limit = commonPageSizeGet();
     this.getListActionConfig();
     if (this.id) {
       // 打开详情
@@ -133,6 +135,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   handlePageLimitChange(limit: number) {
     this.pagination.current = 1;
     this.pagination.limit = limit;
+    commonPageSizeSet(limit);
   }
   @debounce(300)
   handleSearch(v: string) {

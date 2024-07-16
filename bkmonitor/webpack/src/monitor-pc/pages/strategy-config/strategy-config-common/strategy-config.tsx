@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
-import * as tsx from 'vue-tsx-support';
+import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -40,15 +40,15 @@ import {
   getTargetDetail,
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
+import { type EmptyStatusOperationType, type EmptyStatusType } from '../../../components/empty-status/types';
+import { type INodeType, type TargetObjectType } from '../../../components/monitor-ip-selector/typing';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
-import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
 import { downFile } from '../../../utils';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -56,12 +56,12 @@ import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-ala
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
-import { IGroupData } from '../strategy-config-list/group';
+import { type IGroupData } from '../strategy-config-list/group';
 import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
-import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
+import { type IHeader, type ILabel, type IPopover, type IStrategyConfigProps } from './type';
 
 import './strategy-config.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -73,7 +73,7 @@ const STRATEGY_CONFIG_SETTING = 'strategy_config_setting';
 @Component({
   name: 'StrategyConfig',
 })
-class StrategyConfig extends Mixins(commonPageSizeMixin) {
+export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('authorityMap') authorityMap;
@@ -805,6 +805,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     ) {
       if (this.tableInstance.setDefaultStore) {
         this.tableInstance.setDefaultStore();
+        this.tableInstance.pageSize = commonPageSizeGet();
       }
       this.header.keyword = '';
     }
@@ -1118,7 +1119,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.table.loading = !needLoading;
     this.table.data = [];
     const page = defPage || this.tableInstance.page || 1;
-    const pageSize = defPageSize || this.tableInstance.pageSize || this.handleGetCommonPageSize();
+    const pageSize = defPageSize || this.tableInstance.pageSize || commonPageSizeGet();
     const params = {
       type: this.strategyType,
       page,
@@ -1280,7 +1281,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.handleGetListData(false, page);
   }
   handleLimitChange(limit) {
-    this.handleSetCommonPageSize(limit);
+    commonPageSizeSet(limit);
     this.handleGetListData(false, 1, limit);
   }
   handleHeadSelectChange(v) {
@@ -1881,7 +1882,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row))}
+                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row))}
                 >
                   <i class='icon-monitor icon-mc-chart-alert'></i>
                   <span class='alert-count'>{props.row.abnormalAlertCount}</span>
@@ -1896,7 +1897,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
+                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
                 >
                   <i class='icon-monitor icon-menu-shield'></i>
                   <span class='alert-count'>{props.row.shieldAlertCount}</span>
@@ -2791,5 +2792,3 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     );
   }
 }
-
-export default tsx.ofType<IStrategyConfigProps>().convert(StrategyConfig);
