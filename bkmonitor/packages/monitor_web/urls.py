@@ -10,13 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
-from bkoauth.client import oauth_client
-from bkoauth.exceptions import TokenAPIError
-from bkoauth.signals import (
-    update_user_access_token as original_update_user_access_token,
-)
 from django.conf.urls import include, url
-from django.contrib.auth import user_logged_in
+
+from patches.bkoauth import patch_bkoauth_update_user_access_token
 
 LOG = logging.getLogger('component')
 
@@ -54,15 +50,5 @@ urlpatterns = [
 ]
 
 
-# 重写bkoauth.update_user_access_token,消除原bkoauth产生的大量MissingSchema异常堆栈
-def update_user_access_token(sender, request, user, *args, **kwargs):
-    """自动刷新access_token"""
-    try:
-        access_token = oauth_client.get_access_token(request)
-        LOG.info('user logged in get access_token success: %s' % access_token)
-    except TokenAPIError as error:
-        LOG.error('user logged in get access_token failed: %s' % error)  # 改用error级别记录，消除MissingSchema异常堆栈
-
-
-user_logged_in.disconnect(original_update_user_access_token)  # 断开原先的信号连接
-user_logged_in.connect(update_user_access_token)  # 连接至自定义实现的update_user_access_token
+# 调用自定义实现的patch_bkoauth方法，消除大量的MissingSchema异常堆栈，之所以在这里调用，是因为bkoauth的初始化依赖于Django的初始化
+patch_bkoauth_update_user_access_token()
