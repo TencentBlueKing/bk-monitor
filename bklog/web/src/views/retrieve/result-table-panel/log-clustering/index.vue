@@ -293,6 +293,7 @@
         /** 索引集是否切换 */
         isIndexSetChange: false,
         isInitPage: true, // 是否是第一次进入数据指纹
+        scrollEl: null,
       };
     },
     computed: {
