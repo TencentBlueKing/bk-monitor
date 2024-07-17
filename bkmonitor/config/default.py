@@ -1376,3 +1376,6 @@ BK_SHARED_RES_URL = os.environ.get("BK_SHARED_RES_URL", os.environ.get("BKPAAS_S
 
 # 是否开启拨测联通性测试
 ENABLE_UPTIMECHECK_TEST = True
+
+# 检测结果缓存 TTL(小时)
+CHECK_RESULT_TTL_HOURS = 1
