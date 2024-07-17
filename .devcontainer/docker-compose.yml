@@ -1,0 +1,35 @@
+services:
+  web:
+    env_file: ../bkmonitor/.env
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../:/app
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+  mysql:
+    image: mysql:5.7
+    restart: always
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8 --collation-server=utf8_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: bkmonitor
+      MYSQL_DATABASE: bkmonitor
+      MYSQL_USER: bkmonitor
+      MYSQL_PASSWORD: bkmonitor
+  redis:
+    image: redis:5
+    restart: always
+    ports:
+      - "6379:6379"
+  rabbitmq:
+    image: rabbitmq:3
+    restart: always
+    ports:
+      - "5672:5672"
