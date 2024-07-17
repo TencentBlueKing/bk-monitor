@@ -110,15 +110,15 @@ interface ICommonTableEvent {
   // 表头字段设置事件
   onColumnSettingChange: string[];
   // 清空选择行事件
-  onClearSelect: void;
+  onClearSelect: () => void;
   // 收藏事件（在外层调用接口）
   onCollect?: (value: ITableItem<'collect'>) => void;
   // 表格列数据项筛选事件
   onFilterChange: IFilterDict;
   onSwitchOverview: boolean;
   // 固定表头情况下 滚动至底部事件
-  onScrollEnd: void;
-  onRowClick: void;
+  onScrollEnd: () => void;
+  onRowClick: () => void;
 }
 @Component
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {
@@ -459,9 +459,21 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + route.href;
         window.open(url);
       } else {
-        this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
-        });
+        const pathUrl = `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/');
+        const match = pathUrl.match(/^([^?]+)/);
+        // vue router 重复跳转到当前路由会报错 这里做一下判断
+        if(match?.[1] === `${this.$route.path}/`) {
+          const route = this.$router.resolve({
+            path: pathUrl,
+          });
+          const url = `${location.href}`.replace(location.pathname, '/').replace(location.hash, '') + route.href;
+          location.href = url;
+          location.reload();
+        } else {
+          this.$router.push({
+            path: pathUrl,
+          });
+        }
       }
       return;
     }
