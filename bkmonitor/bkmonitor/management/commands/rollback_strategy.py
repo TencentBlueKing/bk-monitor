@@ -35,7 +35,6 @@ class Command(BaseCommand):
 
 
 def rollback_strategy(strategy_id, timestamp):
-    print(f"strategy[{strategy_id}] process start")
     old = (
         StrategyHistoryModel.objects.filter(
             strategy_id=strategy_id, create_time__lt=datetime.datetime.fromtimestamp(timestamp)
@@ -53,9 +52,12 @@ def rollback_strategy(strategy_id, timestamp):
     if not old or not new:
         print(f"strategy[{strategy_id}] history not found, do nothing.")
         return
-    print(f"strategy[{strategy_id}] rollback start")
     old_content = old.content
     if old.operate == "create":
         old_content["id"] = strategy_id
-    resource.strategies.save_strategy_v2(old_content)
-    print(f"strategy[{strategy_id}] rollback done")
+    try:
+        resource.strategies.save_strategy_v2(old_content)
+    except Exception as e:
+        print(f"strategy[{strategy_id}] rollback error: {e}")
+    else:
+        print(f"strategy[{strategy_id}] rollback done")
