@@ -12,6 +12,9 @@ import json
 import urllib.parse
 from collections import defaultdict
 
+from django.utils.translation import ugettext_lazy as _
+from opentelemetry.semconv.resource import ResourceAttributes
+
 from apm_web.calculation import ErrorRateCalculation
 from apm_web.constants import component_where_mapping
 from apm_web.handlers.component_handler import ComponentHandler
@@ -19,13 +22,10 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric_handler import AvgDurationInstance, MetricHandler
 from apm_web.models import Application
 from apm_web.utils import group_by
-from django.utils.translation import ugettext_lazy as _
-from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
-from opentelemetry.semconv.resource import ResourceAttributes
-
 from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.unit import load_unit
+from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
 
 TOP_N_HANDLERS = {}
 
@@ -45,6 +45,8 @@ def register(top_n):
 
 class TopNHandler:
     query_type = None
+    # 返回单条数据
+    instant = True
 
     def __init__(
         self, application: Application, start_time: int, end_time: int, size: int, filter_dict=None, service_params=None
@@ -211,6 +213,7 @@ class EndpointCalledCountTopNHandler(TopNHandler):
                 "filter_dict": filter_dict,
                 "functions": [],
                 "where": where_condition,
+                "instant": self.instant,
             }
         )
 
@@ -280,6 +283,7 @@ class EndpointErrorRateTopNHandler(TopNHandler):
                 "filter_dict": filter_dict,
                 "functions": [],
                 "where": where_condition,
+                "instant": self.instant,
             }
         )
 
@@ -411,6 +415,7 @@ class ServiceCalledCountTopNHandler(TopNHandler):
                 "filter_dict": self.filter_dict if not override_filter_dict else override_filter_dict,
                 "functions": [],
                 "where": [],
+                "instant": self.instant,
             }
         )
 
@@ -466,6 +471,7 @@ class ServiceErrorCountTopNHandler(TopNHandler):
                 "filter_dict": self.filter_dict if not override_filter_dict else override_filter_dict,
                 "functions": [],
                 "where": [{"key": "status_code", "method": "eq", "value": ["2"]}],
+                "instant": self.instant,
             }
         )
 
