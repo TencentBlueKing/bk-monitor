@@ -178,7 +178,8 @@ class DataSource(models.Model):
                 if not consul_config:
                     continue
                 if (consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES) or (
-                    table_id in settings.SKIP_INFLUXDB_TABLE_ID_LIST
+                    consul_config.get("cluster_type") == ClusterInfo.TYPE_INFLUXDB
+                    and table_id in settings.SKIP_INFLUXDB_TABLE_ID_LIST
                 ):
                     continue
                 conf_list.append(consul_config)
