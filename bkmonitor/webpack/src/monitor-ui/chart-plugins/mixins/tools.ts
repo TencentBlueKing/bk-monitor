@@ -155,14 +155,25 @@ export default class ToolsMixin extends Vue {
         data_source_label,
         // eslint-disable-next-line @typescript-eslint/naming-convention
         data_type_label,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        result_table_id = '',
         where,
       } = variablesService.transformVariables(panel.options.alert_filterable.data);
       const query = {
-        result_table_id: '',
+        result_table_id,
         data_source_label,
         data_type_label,
         where,
       };
+      if (query.result_table_id) {
+        const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
+          panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
+        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
+          this.toolTimeRange[1]
+        }&timezone=${(this as any).timezone || window.timezone}`;
+        window.open(url);
+        return;
+      }
       getDataSourceConfig({
         data_source_label,
         data_type_label,
@@ -170,7 +181,7 @@ export default class ToolsMixin extends Vue {
         query.result_table_id = res.find(item => item.name.includes(bcs_cluster_id))?.id;
         const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
           panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-        }#/data-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
+        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
           this.toolTimeRange[1]
         }&timezone=${(this as any).timezone || window.timezone}`;
         window.open(url);

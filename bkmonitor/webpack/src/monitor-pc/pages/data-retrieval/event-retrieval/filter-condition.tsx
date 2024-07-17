@@ -258,7 +258,6 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
     if (valueCache) {
       this.valueOption = valueCache;
     } else {
-      this.currentValue.value = [];
       this.loading = true;
       getVariableValue(this.handleVarParams)
         .then(res => {
@@ -271,6 +270,11 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
         })
         .finally(() => (this.loading = false));
     }
+  }
+
+  handleFieldSelected() {
+    this.currentValue.value = [];
+    this.handleGetVarList();
   }
 
   render() {
@@ -332,7 +336,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                     vModel={this.currentValue.key}
                     clearable={false}
                     allow-create
-                    onSelected={this.handleGetVarList}
+                    onSelected={this.handleFieldSelected}
                   >
                     {this.groupBy.map(item => (
                       <bk-option
