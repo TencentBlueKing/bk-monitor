@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import logging
+import re
 
 import requests
 from django.http import Http404, HttpResponse
@@ -29,10 +30,9 @@ from django.utils.module_loading import import_string
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-
 from . import client
-from .provisioning import Datasource, Dashboard
 from .permissions import GrafanaRole
+from .provisioning import Dashboard, Datasource
 from .settings import grafana_settings
 from .utils import requests_curl_log
 
@@ -330,6 +330,19 @@ class ProxyBaseView(View):
 
     @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
+        if re.compile(r".*/snapshot(s-delete)/.*").match(request.path):
+            request.org_name = ""
+            request.META["CONTENT_TYPE"] = "application/json"
+            request.path = request.path.replace("grafana/grafana/", "grafana/")
+            try:
+                proxy_response = self._created_proxy_response(request)
+            except Exception as err:
+                logger.exception("proxy request error, %s", err)
+                raise Http404
+
+            response = self.get_django_response(proxy_response)
+            return response
+
         org_name = self.get_org_name(request, *args, **kwargs)
         request.org_name = org_name
 
