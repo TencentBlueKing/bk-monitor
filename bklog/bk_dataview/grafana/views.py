@@ -330,7 +330,7 @@ class ProxyBaseView(View):
 
     @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
-        if re.compile(r".*/snapshot(s|-delete)?/.*").match(request.path):
+        if re.compile(r".*/snapshot(s|s-delete)?/.*").match(request.path):
             request.org_name = ""
             request.META["CONTENT_TYPE"] = "application/json"
             request.path = request.path.replace("grafana/grafana/", "grafana/")
