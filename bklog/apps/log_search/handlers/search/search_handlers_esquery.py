@@ -1816,12 +1816,19 @@ class SearchHandler(object):
             if self.export_fields:
                 new_origin_log = {}
                 for _export_field in self.export_fields:
+                    # 处理a.b.c的情况
+                    if "." in _export_field:
+                        # 在log中找不到时,去log的子级查找
+                        key, *field_list = _export_field.split(".")
+                        result_string = "log.get(key, {})"
+                        for _field in field_list:
+                            result_string += (
+                                f".get('{_field}', {{}})" if _field != field_list[-1] else f".get('{_field}', '')"
+                            )
+                        new_origin_log[_export_field] = eval(result_string)
                     # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
-                    if _export_field in log:
+                    elif _export_field in log:
                         new_origin_log[_export_field] = log[_export_field]
-                    elif _export_field.replace("__ext.", "") in log.get("__ext", {}):
-                        # 在log中找不到时,去log.__ext下查找
-                        new_origin_log[_export_field] = log["__ext"][_export_field.replace("__ext.", "")]
                     else:
                         new_origin_log[_export_field] = log.get(_export_field, "")
                 origin_log = new_origin_log
