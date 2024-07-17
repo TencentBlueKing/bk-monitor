@@ -177,7 +177,10 @@ class DataSource(models.Model):
                 # # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
                 if not consul_config:
                     continue
-                if consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES:
+                if (consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES) or (
+                    consul_config.get("cluster_type") == ClusterInfo.TYPE_INFLUXDB
+                    and table_id in settings.SKIP_INFLUXDB_TABLE_ID_LIST
+                ):
                     continue
                 conf_list.append(consul_config)
             except real_storage.DoesNotExist:
