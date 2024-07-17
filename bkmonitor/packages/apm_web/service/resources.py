@@ -225,7 +225,6 @@ class ServiceInfoResource(Resource):
 class CMDBServiceTemplateResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
 
     @classmethod
     def get_cmdb_icon(cls, category_name: str):
@@ -255,7 +254,10 @@ class CMDBServiceTemplateResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
-        return self.get_templates(bk_biz_id)
+        if bk_biz_id < 0:
+            # 非业务不能获取 CMDB 模板
+            return []
+        return self.get_templates(validated_request_data["bk_biz_id"])
 
 
 class ServiceRelationResource(Resource):
