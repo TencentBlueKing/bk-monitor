@@ -29,9 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import { deleteScenePanelConfig, saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 import { random } from 'monitor-common/utils/utils';
 
-import { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 import { delCollectScene } from './variable-set';
 import ViewSettingsSide from './view-settings-side';
+
+import type { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 
 import './view-settings.scss';
 
@@ -205,7 +206,7 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
                 <template slot='label'>
                   <div class='custom-tab-panel'>
                     <div class='panel-left'>
-                      <i class='icon-monitor icon-mc-tuozhuai'></i>
+                      <i class='icon-monitor icon-mc-tuozhuai' />
                     </div>
                     <span>{item.name}</span>
                     <div class='panel-right'>
@@ -215,7 +216,7 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
                           e.stopPropagation();
                           this.tabDel(index);
                         }}
-                      ></span>
+                      />
                     </div>
                   </div>
                 </template>
@@ -234,7 +235,7 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
           viewSortHide={this.viewSortHide}
           onAddScene={this.handleAddScene}
           onChange={this.sideChange}
-        ></ViewSettingsSide>
+        />
       </div>
     );
   }

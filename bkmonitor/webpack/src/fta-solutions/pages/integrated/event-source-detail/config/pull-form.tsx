@@ -100,7 +100,7 @@ export default class PullForm extends tsc<IProps> {
           formList={this.formList}
           formModel={this.formModel}
           formRules={this.formRules}
-        ></DynamicForm>
+        />
         <bk-button
           class='submit'
           loading={this.loading}

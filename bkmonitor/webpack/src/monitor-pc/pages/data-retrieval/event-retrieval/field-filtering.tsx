@@ -28,8 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
-import { FieldFilteringType, FieldListType, FieldValue, IFilterCondition, IOption } from '../typings';
 import FieldList from './field-list';
+
+import type { FieldFilteringType, FieldListType, FieldValue, IFilterCondition, IOption } from '../typings';
 
 import './field-filtering.scss';
 
@@ -166,7 +167,7 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
             right-icon='bk-icon icon-search'
             value={this.searchKeyword}
             onChange={this.handleSearchChange}
-          ></bk-input>
+          />
           {/* <span class="line"></span> */}
           {/* <bk-popover
             class="field-type-popover"
@@ -212,12 +213,12 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
               value={this.isCheckedList}
               onAddCondition={this.handleAddCondition}
               onCheckedChange={this.handleValueChnage}
-            ></FieldList>
+            />
           ) : (
             <bk-exception
               scene='part'
               type='empty'
-            ></bk-exception>
+            />
           )}
         </div>
       </div>

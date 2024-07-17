@@ -47,15 +47,15 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Mixins, Prop } from 'vue-property-decorator';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
+import { Component, Mixins, Prop } from 'vue-property-decorator';
 
 import documentLinkMixin from '../../mixins/documentLinkMixin';
 
 // zh-cn
 @Component({
-  name: 'abnormal-tips'
+  name: 'abnormal-tips',
 })
 export default class AbnormalTips extends Mixins(documentLinkMixin) {
   @Prop({ type: Boolean, default: false }) readonly isTpl;

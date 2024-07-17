@@ -155,7 +155,7 @@ export default defineComponent({
             >
               <span class='link-text'>{row.span_name}</span>
             </Popover>
-            <i class='icon-monitor icon-fenxiang'></i>
+            <i class='icon-monitor icon-fenxiang' />
           </div>
         ),
       },
@@ -186,7 +186,7 @@ export default defineComponent({
             >
               <span class='link-text'>{row?.['resource.service.name']?.value}</span>
             </Popover>
-            <i class='icon-monitor icon-fenxiang'></i>
+            <i class='icon-monitor icon-fenxiang' />
           </div>
         ),
       },
@@ -267,7 +267,7 @@ export default defineComponent({
               >
                 {t('Span检索')}
               </span>
-              <i class='icon-monitor icon-fenxiang'></i>
+              <i class='icon-monitor icon-fenxiang' />
             </div>
 
             {/* TODO: 这里需要带什么参数去跳转页面 */}
@@ -294,7 +294,7 @@ export default defineComponent({
                 >
                   {t('观测')}
                 </span>
-                <i class='icon-monitor icon-fenxiang'></i>
+                <i class='icon-monitor icon-fenxiang' />
               </div>
             </Popover>
           </div>
@@ -326,7 +326,7 @@ export default defineComponent({
             >
               <span class='link-text'>{row.span_name}</span>
             </Popover>
-            <i class='icon-monitor icon-fenxiang'></i>
+            <i class='icon-monitor icon-fenxiang' />
           </div>
         ),
       },
@@ -357,7 +357,7 @@ export default defineComponent({
             >
               <span class='link-text'>{row?.['resource.service.name']?.value}</span>
             </Popover>
-            <i class='icon-monitor icon-fenxiang'></i>
+            <i class='icon-monitor icon-fenxiang' />
           </div>
         ),
       },
@@ -442,7 +442,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'max_duration' &&
@@ -452,7 +452,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -472,7 +472,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'max_duration' &&
@@ -482,7 +482,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
             </div>
@@ -523,7 +523,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('min_duration', 'current', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'min_duration' &&
@@ -533,7 +533,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('min_duration', 'current', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -553,7 +553,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'min_duration' &&
@@ -563,7 +563,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -583,7 +583,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'min_duration' &&
@@ -593,7 +593,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
             </div>
@@ -634,7 +634,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'sum_duration' &&
@@ -644,7 +644,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -664,7 +664,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'sum_duration' &&
@@ -674,7 +674,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -694,7 +694,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'sum_duration' &&
@@ -704,7 +704,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
             </div>
@@ -745,7 +745,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('P95', 'current', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'P95' &&
@@ -755,7 +755,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('P95', 'current', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -775,7 +775,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('P95', 'refer', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'P95' &&
@@ -785,7 +785,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('P95', 'refer', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -805,7 +805,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('P95', 'difference', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'P95' &&
@@ -815,7 +815,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('P95', 'difference', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
             </div>
@@ -856,7 +856,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('count', 'current', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'count' &&
@@ -866,7 +866,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('count', 'current', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -886,7 +886,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('count', 'refer', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'count' &&
@@ -896,7 +896,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('count', 'refer', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
               <div class='custom-header-row-bottom-child'>
@@ -916,7 +916,7 @@ export default defineComponent({
                     }
                     class='icon-up'
                     onClick={() => handleCustomHeaderSort('count', 'difference', 'asc')}
-                  ></AngleDownFill>
+                  />
                   <AngleUpFill
                     style={
                       selectedField.value === 'count' &&
@@ -926,7 +926,7 @@ export default defineComponent({
                     }
                     class='icon-down'
                     onClick={() => handleCustomHeaderSort('count', 'difference', 'desc')}
-                  ></AngleUpFill>
+                  />
                 </span>
               </div>
             </div>
@@ -962,7 +962,7 @@ export default defineComponent({
               >
                 {t('Span检索')}
               </span>
-              <i class='icon-monitor icon-fenxiang'></i>
+              <i class='icon-monitor icon-fenxiang' />
             </div>
 
             {/* TODO: 这里需要带什么参数去跳转页面 */}
@@ -989,7 +989,7 @@ export default defineComponent({
                 >
                   {t('观测')}
                 </span>
-                <i class='icon-monitor icon-fenxiang'></i>
+                <i class='icon-monitor icon-fenxiang' />
               </div>
             </Popover>
           </div>
@@ -1432,7 +1432,7 @@ export default defineComponent({
       });
       return (
         <EmptyStatus type={status.value}>
-          <span></span>
+          <span />
         </EmptyStatus>
       );
     };

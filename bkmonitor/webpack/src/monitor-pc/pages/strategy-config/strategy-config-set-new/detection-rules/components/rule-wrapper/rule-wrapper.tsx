@@ -26,13 +26,18 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DetectionRuleTypeEnum, IDetectionTypeItem, IDetectionTypeRuleData, MetricDetail } from '../../../typings';
+import {
+  DetectionRuleTypeEnum,
+  type IDetectionTypeItem,
+  type IDetectionTypeRuleData,
+  type MetricDetail,
+} from '../../../typings';
 import AbnormalCluster from '../abnormal-cluster/abnormal-cluster';
-import IntelligentDetect, { ChartType } from '../intelligent-detect/intelligent-detect';
+import IntelligentDetect, { type ChartType } from '../intelligent-detect/intelligent-detect';
 import PartialNodes from '../partial-nodes/partial-nodes';
 import RingRatio from '../ring-ratio/ring-ratio';
 import Threshold from '../threshold/threshold';
-import TimeSeriesForecast, { IModelData } from '../time-series-forecast/time-series-forecast';
+import TimeSeriesForecast, { type IModelData } from '../time-series-forecast/time-series-forecast';
 import YearRound from '../year-round/year-round';
 
 import './rule-wrapper.scss';
@@ -253,7 +258,7 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
             <span
               class='icon-monitor icon-mc-delete-line del-btn'
               onClick={this.handleDel}
-            ></span>
+            />
           )}
         </div>
         <div class='content'>{this.renderContent()}</div>

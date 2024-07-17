@@ -27,7 +27,7 @@ import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import NoticeModeNew, {
-  INoticeWayValue,
+  type INoticeWayValue,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
 import {
   executionNotifyConfigChange,
@@ -510,7 +510,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                         dutyPlans={this.dutyPlans}
                         value={this.previewData}
                         onStartTimeChange={this.handleStartTimeChange}
-                      ></RotationPreview>
+                      />
                       {/* 值班通知设置 */}
                       {this.dutyNotice.plan_notice.enabled && (
                         <div class='duty-notice'>
@@ -659,7 +659,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                         key={item.key}
                         label={item.label}
                         name={item.key}
-                      ></bk-tab-panel>
+                      />
                     ))}
                   </bk-tab>
                   <div class='notice-item-content'>
@@ -671,7 +671,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       readonly={true}
                       refreshKey={this.refreshKey.alertKey}
                       onRefreshKeyChange={() => (this.refreshKey.alertKey = false)}
-                    ></NoticeModeNew>
+                    />
                   </div>
                 </div>
                 <div
@@ -698,7 +698,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                         key={item.key}
                         label={item.label}
                         name={item.key}
-                      ></bk-tab-panel>
+                      />
                     ))}
                   </bk-tab>
                   <div class='notice-item-content'>
@@ -711,13 +711,13 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       refreshKey={this.refreshKey.actionKey}
                       type={1}
                       onRefreshKeyChange={() => (this.refreshKey.actionKey = false)}
-                    ></NoticeModeNew>
+                    />
                   </div>
                 </div>
               </div>
             </div>
           )}
-          <span></span>
+          <span />
           <div class='alarm-details-col text-top'>
             <div
               class='alarm-details-label alarm-details-des-label'

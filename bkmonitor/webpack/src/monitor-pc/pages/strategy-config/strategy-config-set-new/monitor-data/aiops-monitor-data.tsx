@@ -30,14 +30,15 @@ import { multivariateAnomalyScenes } from 'monitor-api/modules/strategies';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 
-import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
-import { IScenarioItem, ISceneConfig, MetricDetail, MetricType } from '../typings';
+import { type IScenarioItem, type ISceneConfig, type MetricDetail, MetricType } from '../typings';
 import AiopsMonitorMetricSelect from './aiops-monitor-metric-select';
+
+import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 
 import './aiops-monitor-data.scss';
 
@@ -397,7 +398,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   renderIpWrapper() {
     if (this.targetList.length || this.target.desc.message.length) {
       return [
-        <i class='icon-monitor icon-mc-tv'></i>,
+        <i class='icon-monitor icon-mc-tv' />,
         <span
           style='color: #63656e;'
           class='subtitle'
@@ -416,7 +417,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           <span
             class='icon-monitor icon-bianji'
             onClick={this.handleAddTarget}
-          ></span>
+          />
         ),
       ];
     }
@@ -430,7 +431,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
         class='ip-wrapper-title'
         on-click={this.handleAddTarget}
       >
-        <i class='icon-monitor icon-mc-plus-fill'></i>
+        <i class='icon-monitor icon-mc-plus-fill' />
         {this.$t('添加监控目标')}
       </div>,
       <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
@@ -555,7 +556,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                   scenarioList={this.scenarioList}
                   value={this.metrics}
                   onChange={this.handleMetricChange}
-                ></AiopsMonitorMetricSelect>
+                />
               </div>
             )}
           </bk-form-item>
@@ -582,7 +583,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                   .filter(item => this.formModel.level.includes(item.id))
                   .map(item => (
                     <span class='level-check'>
-                      <i class={['icon-monitor', item.icon, `status-${item.id}`]}></i>
+                      <i class={['icon-monitor', item.icon, `status-${item.id}`]} />
                       <span>{item.name}</span>
                     </span>
                   ))
@@ -596,7 +597,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                       class='level-check'
                       value={item.id}
                     >
-                      <i class={['icon-monitor', item.icon, `status-${item.id}`]}></i>
+                      <i class={['icon-monitor', item.icon, `status-${item.id}`]} />
                       <span>{item.name}</span>
                     </bk-checkbox>
                   ))}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
+import { type PropType, defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -49,7 +49,7 @@ import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';
-import { FrequencyType, Report } from '../types';
+import { FrequencyType, type Report } from '../types';
 import { getDefaultReportData, switchReportDataForCreate, switchReportDataForUpdate } from '../utils';
 import ExistedReportAlert from './existed-report-alert';
 
@@ -280,7 +280,7 @@ export default defineComponent({
                     onClick={() => {
                       handleCopy(data.name);
                     }}
-                  ></i>
+                  />
                 </div>
               );
             },
@@ -777,7 +777,7 @@ export default defineComponent({
                       <Select.Option
                         id={item.id}
                         name={item.name}
-                      ></Select.Option>
+                      />
                     );
                   })}
                 </Select>
@@ -831,7 +831,7 @@ export default defineComponent({
                   onClick={this.goToTargetScene}
                 >
                   {this.t('跳转至场景查看')}
-                  <i class='icon-monitor icon-mc-link'></i>
+                  <i class='icon-monitor icon-mc-link' />
                 </Button>
               </Form.FormItem>
             )}
@@ -854,7 +854,7 @@ export default defineComponent({
                       <Select.Option
                         id={item.id}
                         name={item.name}
-                      ></Select.Option>
+                      />
                     );
                   })}
                 </Select>
@@ -885,7 +885,7 @@ export default defineComponent({
                       <Select.Option
                         id={item.id}
                         name={item.name}
-                      ></Select.Option>
+                      />
                     );
                   })}
                 </Select>
@@ -899,7 +899,7 @@ export default defineComponent({
                       },
                     }}
                     theme='warning'
-                  ></Alert>
+                  />
                 </div>
               </Form.FormItem>
             )}
@@ -916,7 +916,7 @@ export default defineComponent({
                 <i
                   style='font-size: 26px;'
                   class={['icon-monitor', this.isShowAdvancedOption ? 'icon-double-down' : 'icon-double-up']}
-                ></i>
+                />
               </Button>
             </div>
 
@@ -939,7 +939,7 @@ export default defineComponent({
                             <Select.Option
                               id={item.id}
                               name={item.name}
-                            ></Select.Option>
+                            />
                           );
                         })}
                       </Select>
@@ -952,7 +952,7 @@ export default defineComponent({
                             },
                           }}
                           theme='warning'
-                        ></Alert>
+                        />
                       </div>
                     </Form.FormItem>
                   </div>
@@ -971,7 +971,7 @@ export default defineComponent({
                       custom-content={this.customSliderContent}
                       step={25}
                       onChange={this.handleSliderChange}
-                    ></Slider>
+                    />
                     <span>{this.t('多')}</span>
                   </div>
                 </Form.FormItem>
@@ -988,7 +988,7 @@ export default defineComponent({
                     min={0}
                     suffix={this.t('条')}
                     type='number'
-                  ></Input>
+                  />
                 </Form.FormItem>
 
                 <Form.FormItem
@@ -1003,7 +1003,7 @@ export default defineComponent({
                       onChange={() => {
                         this.formData.scenario_config.year_on_year_hour = this.isShowYOY ? 1 : 0;
                       }}
-                    ></Switcher>
+                    />
                     <Select
                       style='width: 120px;margin-left: 24px;'
                       v-model={this.formData.scenario_config.year_on_year_hour}
@@ -1016,7 +1016,7 @@ export default defineComponent({
                             id={item.id}
                             v-show={this.isShowYOY && item.id !== 0}
                             name={item.name}
-                          ></Select.Option>
+                          />
                         );
                       })}
                     </Select>
@@ -1066,7 +1066,7 @@ export default defineComponent({
                 style='width: 465px;'
                 v-model={this.formData.content_config.title}
                 placeholder={this.t('请输入')}
-              ></Input>
+              />
 
               <Popover
                 width='420px'
@@ -1078,7 +1078,7 @@ export default defineComponent({
                           columns={this.variableTable.columns.fields}
                           data={this.variableTable.data}
                           stripe
-                        ></Table>
+                        />
                       </div>
                     );
                   },
@@ -1097,7 +1097,7 @@ export default defineComponent({
                   <i
                     style='margin-right: 7px;'
                     class='icon-monitor icon-mc-detail'
-                  ></i>
+                  />
                   {this.t('变量列表')}
                 </Button>
               </Popover>
@@ -1133,7 +1133,7 @@ export default defineComponent({
               <Input
                 style='width: 465px;'
                 v-model={this.formData.name}
-              ></Input>
+              />
             </Form.FormItem>
 
             {/* 需要自定义校验规则 */}
@@ -1161,7 +1161,7 @@ export default defineComponent({
                           this.formDataRules.channels[0].validator();
                         });
                       }}
-                    ></MemberSelect>
+                    />
                     {this.errorTips.user.isShow && <div class='bk-form-error'>{this.errorTips.user.message}</div>}
                   </div>
 
@@ -1187,7 +1187,7 @@ export default defineComponent({
                         data-is-show-error-msg={this.errorTips.email.isShow}
                         disabled={!this.formData.channels[1].is_enabled}
                         prefix={this.t('邮件列表')}
-                      ></Input>
+                      />
                     </Popover>
                   </div>
                   <div data-is-show-error-msg='false'>
@@ -1197,7 +1197,7 @@ export default defineComponent({
                       disabled={!this.formData.channels[1].is_enabled}
                       placeholder={this.t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
                       prefix={this.t('提示文案')}
-                    ></Input>
+                    />
                   </div>
                   {this.errorTips.email.isShow && <div class='bk-form-error'>{this.errorTips.email.message}</div>}
 
@@ -1235,7 +1235,7 @@ export default defineComponent({
                         v-model={this.subscriberInput.wxbot}
                         disabled={!this.formData.channels[2].is_enabled}
                         prefix={this.t('群ID')}
-                      ></Input>
+                      />
                     </Popover>
                   </div>
                   {this.errorTips.wxbot.isShow && <div class='bk-form-error'>{this.errorTips.wxbot.message}</div>}
@@ -1302,7 +1302,7 @@ export default defineComponent({
                             }}
                             // @ts-ignore 只允许输入正整数
                             oninput="value=value.replace(/^(0+)|[^\d]+/g,'')"
-                          ></Input>
+                          />
                         </div>
                       );
                     },
@@ -1314,7 +1314,7 @@ export default defineComponent({
                       <Select.Option
                         id={item.id}
                         name={item.name}
-                      ></Select.Option>
+                      />
                     );
                   })}
                   {/* {this.hourOption.find(item => Number(item.id) !== this.frequency.hour) && (
@@ -1342,7 +1342,7 @@ export default defineComponent({
                           <Select.Option
                             id={item.id}
                             name={item.name}
-                          ></Select.Option>
+                          />
                         );
                       })}
                     </Select>
@@ -1361,7 +1361,7 @@ export default defineComponent({
                             <Select.Option
                               id={index + 1}
                               name={index + 1 + this.t('号')}
-                            ></Select.Option>
+                            />
                           );
                         })}
                     </Select>
@@ -1395,7 +1395,7 @@ export default defineComponent({
                     onChange={v => {
                       this.frequency.only_once_run_time = v;
                     }}
-                  ></DatePicker>
+                  />
                 </div>
               )}
             </Form.FormItem>
@@ -1417,7 +1417,7 @@ export default defineComponent({
                     this.timerange.start = v;
                     this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
                   }}
-                ></DatePicker>
+                />
                 <span style='padding: 0 10px;'>-</span>
                 <DatePicker
                   ref='effectiveEndRef'
@@ -1432,7 +1432,7 @@ export default defineComponent({
                     this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
                   }}
                   onOpen-change={this.handleDatePickerOpen}
-                ></DatePicker>
+                />
               </Form.FormItem>
             )}
           </Form>

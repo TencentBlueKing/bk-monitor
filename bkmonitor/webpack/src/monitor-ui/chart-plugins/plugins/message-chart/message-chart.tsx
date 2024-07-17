@@ -27,12 +27,13 @@ import { Component, Prop } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 
 // import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import CommonSimpleChart from '../common-simple-chart';
+
+import type { ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './message-chart.scss';
 
@@ -194,7 +195,7 @@ export default class MessageChart extends CommonSimpleChart {
                       class={`icon-monitor icon-mc-triangle-down collapse-item-icon ${
                         this.expand.includes(item.id) ? 'is-expand' : ''
                       }`}
-                    ></span>
+                    />
                     <div class='collapse-item-title'>
                       <div class='item-title'>{item.title}</div>
                       <div class='item-subtitle'>{item.subtitle}</div>

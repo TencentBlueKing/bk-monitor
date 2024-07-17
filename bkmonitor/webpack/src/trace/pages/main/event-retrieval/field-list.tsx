@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
+import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
 import { deepClone } from 'monitor-common/utils/utils';
-import { type FieldListType, type FieldValue } from 'monitor-pc/pages/data-retrieval/typings';
 
 import { SPAN_KIND_MAPS, SPAN_STATUS_CODE } from '../../../store/constant';
+
+import type { FieldListType, FieldValue } from 'monitor-pc/pages/data-retrieval/typings';
 
 import './field-list.scss';
 
@@ -160,7 +161,7 @@ export default defineComponent({
     const titleSlot = (item: TraceFieldValue, index: number) => (
       <div class={['collapse-item-title', { 'is-expanded': this.expandedData.includes(item.key) }]}>
         <span class='title-left'>
-          <i class={['icon-monitor', 'icon-mc-triangle-down']}></i>
+          <i class={['icon-monitor', 'icon-mc-triangle-down']} />
           {/* <span class="type-icon">#</span> */}
           <span class='field-name'>{item.fieldName}</span>
           <span class='field-value-count'>{item.total}</span>
@@ -227,7 +228,7 @@ export default defineComponent({
                   show-text={false}
                   stroke-width={4}
                   theme='success'
-                ></Progress>
+                />
               </div>
               <div class='icon-box'>
                 <EnlargeLine

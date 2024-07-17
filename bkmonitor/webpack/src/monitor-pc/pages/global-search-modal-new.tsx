@@ -275,7 +275,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
         class='result-text'
         domPropsInnerHTML={innerHtml}
         title={item.title}
-      ></span>
+      />
     );
   }
 
@@ -496,7 +496,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
               }}
               on-clear={() => this.handleSearch()}
               on-enter={() => this.handleSearch()}
-            ></bk-input>
+            />
             {this.isLoading && (
               <bk-spin
                 size='mini'
@@ -515,7 +515,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                   <span
                     class='bk-icon icon-delete'
                     onClick={() => this.handleDeleteHistory()}
-                  ></span>
+                  />
                 </div>
                 <div class='history-list'>
                   {this.searchHistoryList.map(item => (
@@ -586,7 +586,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                             class={['val-item', { 'not-allow': !val.is_allowed }]}
                             onClick={() => this.handleViewToScene(val, list.scene)}
                           >
-                            {!val.is_allowed && <span class='bk-icon icon-lock-shape'></span>}
+                            {!val.is_allowed && <span class='bk-icon icon-lock-shape' />}
                             {this.getResultItemText(val)}
                             {val.bk_biz_id && (
                               <span class='biz-name'>{`${this.$t('业务:')}[${val.bk_biz_id}]${val.bk_biz_name}`}</span>
@@ -609,7 +609,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                     <bk-spin
                       size='mini'
                       theme='info'
-                    ></bk-spin>
+                    />
                     {`${this.$t('加载中...')}`}
                   </span>
                   <span class='laoding-text-module'>{this.curSearchSceneName}</span>

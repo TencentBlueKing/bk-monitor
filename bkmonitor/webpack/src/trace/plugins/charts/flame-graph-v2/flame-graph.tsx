@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
+import { Teleport, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
-import { HierarchyNode } from 'd3-hierarchy';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
@@ -37,18 +36,20 @@ import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
 import FlameFilterList from './flame-filter-list';
 import {
-  BaseDataType,
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  IBaseTraceInfo,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
+  type IAxisRect,
+  type IBaseTraceInfo,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
   RootId,
 } from './types';
 import { FlameChart } from './use-flame';
+
+import type { HierarchyNode } from 'd3-hierarchy';
 
 import './flame-graph.scss';
 // 8b30e0f74e96efe07bb033c2d74e806
@@ -519,7 +520,7 @@ export default defineComponent({
                     <table class='tips-table'>
                       {this.diffTraceId && (
                         <thead>
-                          <th></th>
+                          <th />
                           <th>{this.$t('当前')}</th>
                           {this.tipDetail.id !== RootId && [<th>{this.$t('参照')}</th>, <th>{this.$t('差异')}</th>]}
                         </thead>
@@ -549,7 +550,7 @@ export default defineComponent({
                       </tbody>
                     </table>,
                     <div class='tips-info'>
-                      <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
+                      <span class='icon-monitor icon-mc-mouse tips-info-icon' />
                       {this.$t('鼠标右键有更多菜单')}
                     </div>,
                   ]}
@@ -593,7 +594,7 @@ export default defineComponent({
                   width: `${this.zoomRect?.width || 0}px`,
                 }}
                 class='flame-graph-zoom'
-              ></div>
+              />
               {/* <GraphTools
                 style={{
                   left: `${this.graphToolsRect.left}px`,

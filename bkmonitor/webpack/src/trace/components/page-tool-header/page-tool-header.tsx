@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 
-import { IFavoriteItem } from '../../typings';
 import RefreshRate from '../refresh-rate/refresh-rate';
-import SelectMenu, { ISelectMenuOption } from '../select-menu/select-menu';
+import SelectMenu, { type ISelectMenuOption } from '../select-menu/select-menu';
 import TimeRange from '../time-range/time-range';
-import { TimeRangeType } from '../time-range/utils';
+
+import type { IFavoriteItem } from '../../typings';
+import type { TimeRangeType } from '../time-range/utils';
 
 import './page-tool-header.scss';
 
@@ -84,7 +85,7 @@ export default defineComponent({
     }
     return () => (
       <div class='page-tool-header-component'>
-        {slots.prepend ? slots.prepend() : <div class='inquire-header-prepend'></div>}
+        {slots.prepend ? slots.prepend() : <div class='inquire-header-prepend' />}
         {slots.append ? (
           slots.append()
         ) : (
@@ -110,7 +111,7 @@ export default defineComponent({
                 list={props.menuList}
                 onSelect={val => emit('menuSelectChange', val)}
               >
-                <i class='icon-monitor icon-mc-more-tool'></i>
+                <i class='icon-monitor icon-mc-more-tool' />
               </SelectMenu>
             </span>
           </div>

@@ -67,7 +67,7 @@
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
-import { IAnnotation, IAnnotationListItem } from '../options/type-interface';
+import type { IAnnotation, IAnnotationListItem } from '../options/type-interface';
 
 @Component({ name: 'ChartAnnotation' })
 export default class ChartAnnotation extends Vue {

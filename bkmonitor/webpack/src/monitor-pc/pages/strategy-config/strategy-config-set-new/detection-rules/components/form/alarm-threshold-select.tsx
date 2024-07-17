@@ -294,7 +294,7 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
           <span
             class='add-btn icon-monitor icon-mc-add'
             onClick={this.handleAdd}
-          ></span>
+          />
         )}
         <SelectMenu
           list={this.menuList}
@@ -309,7 +309,7 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
               'on-hidden': this.handleMenuHidden,
             },
           }}
-        ></SelectMenu>
+        />
       </div>
     );
   }

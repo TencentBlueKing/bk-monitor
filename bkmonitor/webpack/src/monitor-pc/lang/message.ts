@@ -285,6 +285,7 @@ export default {
   '当前数据无维度，所以没有变量选择': 'No variables available as there are no dimensions for the current data',
   '你当前有 {0} 个业务权限，暂无告警事件':
     'You currently have {0} business permissions, and there are no alarm events temporarily',
+  '你当前有 {0} 个业务权限，暂无故障': 'You currently have {0} business permissions and there are no faults yet.',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
   无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',
@@ -447,4 +448,17 @@ export default {
   '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
   取消订阅成功: 'Unsubscribe successful',
   重新订阅成功: 'Re-subscribe successful',
+
+  标记成功: 'Marked successfully',
+  分派成功: 'Dispatched successfully',
+
+  取消反馈成功: 'Feedback canceled successfully',
+  '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
+    'There are no available handling packages under the current business, please go to the {0} page for configuration',
+  '按通知次数的指数递增，依次按N，2N，4N，8N,依次类推执行，最大24小时':
+    '按通知次数的指数递增，依次按N，2N，4N，8N, accordingly executing, maximum 24 hours',
+  暂无告警视图: 'No views',
+  观察中: 'Under observation',
+  已解决: 'Resolved',
+  暂无更多数据: 'No more data',
 };

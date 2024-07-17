@@ -594,7 +594,7 @@
       this.handleToggleRemarkSelect();
       this.scrollEvent('add');
     },
-    beforeUnmount() {
+    beforeDestroy() {
       this.scrollEvent('close');
     },
     methods: {

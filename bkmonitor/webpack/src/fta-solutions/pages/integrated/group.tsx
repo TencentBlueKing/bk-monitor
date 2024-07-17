@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { VNode } from 'vue';
+import type { TranslateResult } from 'vue-i18n';
 
 import './group.scss';
 
@@ -87,7 +88,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
     const num = item.data.reduce((pre, cur) => (pre += cur?.data.length), 0);
     return (
       <div class='group-title bold'>
-        <i class={['bk-icon icon-angle-right', { expand: this.defaultActiveName.includes(item.id) }]}></i>
+        <i class={['bk-icon icon-angle-right', { expand: this.defaultActiveName.includes(item.id) }]} />
         <span class='name'>{item.name}</span>
         <span class='group-number'>({num})</span>
       </div>
@@ -106,14 +107,14 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
     return (
       <div class='group-title filter'>
         <div class='title-left'>
-          <i class={['bk-icon icon-angle-right', { expand: this.defaultActiveName.includes(item.id) }]}></i>
+          <i class={['bk-icon icon-angle-right', { expand: this.defaultActiveName.includes(item.id) }]} />
           <span class='name'>{item.name}</span>
         </div>
         <i
           class='icon-monitor icon-menu-collect'
           v-bk-tooltips={{ content: this.$t('清空') }}
           onClick={event => this.handleClearChecked(event, item)}
-        ></i>
+        />
       </div>
     );
   }
@@ -133,7 +134,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
             }}
             name={item.id}
             hide-arrow
-          ></bk-collapse-item>
+          />
         ))}
       </bk-collapse>
     );

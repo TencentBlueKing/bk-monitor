@@ -235,7 +235,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
               <i
                 class='icon-monitor icon-mc-wailian'
                 onClick={() => this.handleToStrategy(detail.strategy.id)}
-              ></i>
+              />
             </div>
           </div>
         )}
@@ -296,7 +296,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
                     options={this.options}
                     placeholder={this.$t('选择日期时间范围')}
                     type={'datetimerange'}
-                  ></bk-date-picker>
+                  />
                 )}
               </div>
             </VerifyInput>
@@ -305,7 +305,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         <div class='stratrgy-item m0'>
           <div class='item-label'> {this.$t('告警内容')} </div>
           <div class='item-tips'>
-            <i class='icon-monitor icon-hint'></i>{' '}
+            <i class='icon-monitor icon-hint' />{' '}
             {this.$t('屏蔽的是告警内容的这类事件，不仅仅当前的事件还包括后续屏蔽时间内产生的事件。')}{' '}
           </div>
           {this.getInfoCompnent()}
@@ -319,7 +319,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
               maxlength={100}
               rows={3}
               type='textarea'
-            ></bk-input>
+            />
           </div>
         </div>
       </div>

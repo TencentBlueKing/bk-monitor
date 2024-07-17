@@ -28,11 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 // import MonitorDateRange from '../../../../components/monitor-date-range';
 import DropDownMenu from '../../../../components/monitor-dropdown';
-import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range';
+import TimeRange, { type TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../../constant/constant';
-import { OptionsItem, PanelHeaderType, REFLESH_DEFAULT_LIST, TIME_RANGE_DEFAULT_LIST } from '../../typings/panel-tools';
-import FavoritesList, { IFavList } from './favorites-list/favorites-list';
+import {
+  type OptionsItem,
+  type PanelHeaderType,
+  REFLESH_DEFAULT_LIST,
+  TIME_RANGE_DEFAULT_LIST,
+} from '../../typings/panel-tools';
+import FavoritesList, { type IFavList } from './favorites-list/favorites-list';
 
 import type { IRefleshItem } from '../dashboard-tools';
 
@@ -138,7 +143,7 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
             onShowChange={val => (this.shwoFav = val)}
           />
         )}
-        <span class='panel-header-center'></span>
+        <span class='panel-header-center' />
         <span class='panel-header-right'>
           {this.showDownSample && (
             <DropDownMenu

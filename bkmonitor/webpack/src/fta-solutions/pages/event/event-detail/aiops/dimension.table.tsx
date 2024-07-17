@@ -30,7 +30,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 import DimensionLine from 'monitor-ui/chart-plugins/plugins/aiops-dimension-point/aiops-dimension-point';
 
-import { EventReportType, IAnomalyDimensions } from './types';
+import { EventReportType, type IAnomalyDimensions } from './types';
 
 import './dimension.table.scss';
 
@@ -177,7 +177,7 @@ export default class DimensionTable extends tsc<IProps> {
             tipsClick: this.handleDimensionClick,
           },
         }}
-      ></DimensionLine>
+      />
     );
   }
 
@@ -223,22 +223,22 @@ export default class DimensionTable extends tsc<IProps> {
           before-select-all-change={this.handleBeforeSelectAllChange}
           before-select-change={this.handleBeforeSelectChange}
           type='selection'
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('异常维度')}
           scopedSlots={{ default: props => props.row.anomaly_dimension_alias }}
           show-overflow-tooltip={true}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('异常维度值个数/维度值总数')}
           min-width={120}
           scopedSlots={{ default: props => this.renderDimensionColumn(props.row) }}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('异常维度值占比')}
           scopedSlots={{ default: props => this.percentageText(props.row.dimension_value_percent) }}
           show-overflow-tooltip={true}
-        ></bk-table-column>
+        />
         <bk-table-column
           width={340}
           render-header={this.renderHeader.bind(
@@ -248,7 +248,7 @@ export default class DimensionTable extends tsc<IProps> {
           )}
           label={this.$t('异常分值分布')}
           scopedSlots={{ default: props => this.renderDistributed(props.row.anomaly_score_distribution) }}
-        ></bk-table-column>
+        />
         <bk-table-column
           render-header={this.renderHeader.bind(
             this,
@@ -261,7 +261,7 @@ export default class DimensionTable extends tsc<IProps> {
           show-overflow-tooltip={true}
           sort-orders={['ascending', 'descending']}
           sortable
-        ></bk-table-column>
+        />
       </bk-table>
     );
   }

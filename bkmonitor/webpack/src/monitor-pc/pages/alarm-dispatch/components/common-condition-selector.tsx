@@ -28,8 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import SimpleSelectInput from '../../alarm-shield/components/simple-select-input';
 import SelectMenu from '../../strategy-config/strategy-config-set-new/components/select-menu';
-import { CONDITIONS, ICondtionItem, METHODS, TContionType, TMthodType } from '../typing';
-import { TGroupKeys, TValueMap } from '../typing/condition';
+import { CONDITIONS, type ICondtionItem, METHODS, type TContionType, type TMthodType } from '../typing';
+
+import type { TGroupKeys, TValueMap } from '../typing/condition';
 
 import './common-condition-selector.scss';
 
@@ -278,7 +279,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
             placeholder={window.i18n.t('选择') as string}
             value={item.name}
             onChange={v => this.handleKeyChange(item, v)}
-          ></SimpleSelectInput>,
+          />,
           item.name
             ? [
                 <span
@@ -301,7 +302,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
                   allow-create
                   has-delete-icon
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                ></bk-tag-input>,
+                />,
               ]
             : undefined,
         ])}
@@ -310,7 +311,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
           class='condition-item condition-add'
           on-click={() => this.handleAddCondition()}
         >
-          <i class='bk-icon icon-plus'></i>
+          <i class='bk-icon icon-plus' />
         </span>
         <SelectMenu
           list={this.menuList}
@@ -319,7 +320,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
           target={this.curSelectTarget}
           on-on-hidden={() => this.handleMenuHidden()}
           on-on-select={item => this.handelMenuSelect(item)}
-        ></SelectMenu>
+        />
       </div>
     );
   }
