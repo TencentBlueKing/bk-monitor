@@ -110,15 +110,15 @@ interface ICommonTableEvent {
   // 表头字段设置事件
   onColumnSettingChange: string[];
   // 清空选择行事件
-  onClearSelect: void;
+  onClearSelect: () => void;
   // 收藏事件（在外层调用接口）
   onCollect?: (value: ITableItem<'collect'>) => void;
   // 表格列数据项筛选事件
   onFilterChange: IFilterDict;
   onSwitchOverview: boolean;
   // 固定表头情况下 滚动至底部事件
-  onScrollEnd: void;
-  onRowClick: void;
+  onScrollEnd: () => void;
+  onRowClick: (row) => void;
 }
 @Component
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {
@@ -340,7 +340,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (typeof val !== 'number' && !val) return '--';
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
-      <a
+      <div
         class='link-col'
         v-authority={{ active: !hasPermission }}
         onClick={e =>
@@ -360,7 +360,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           ''
         )}
         {` ${val.display_value || val.value}`}
-      </a>
+      </div>
     );
   }
   // link格式化
@@ -369,7 +369,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class='stack-link-col'>
         <div class='stack-link-wrap'>
-          <a
+          <div
             class='link-col stack-link'
             v-authority={{ active: !hasPermission }}
             onClick={e =>
@@ -389,7 +389,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               ''
             )}
             {` ${val.value}`}
-          </a>
+          </div>
           {val.is_stack && <span class='stack-icon'>{this.$t('堆栈')}</span>}
         </div>
         {val.subtitle && <div class='link-subtitle'>{val.subtitle}</div>}
@@ -402,12 +402,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class='link-list'>
         {val?.map(item => (
-          <a
+          <div
+            key={item.value}
             class='link-col'
             v-authority={{ active: !hasPermission }}
-            onClick={e =>
-              hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId)
-            }
+            onClick={e => {
+              hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId);
+            }}
           >
             {item.icon ? (
               <img
@@ -418,7 +419,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               ''
             )}
             {item.value}
-          </a>
+          </div>
         ))}
       </div>
     );
@@ -428,7 +429,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class='relation-col'>
         {val.map((item, index) => (
-          <span class='relation-col-item'>
+          <span
+            key={`${item.name}_${index}`}
+            class='relation-col-item'
+          >
             {index !== 0 && <span class='icon-monitor icon-back-right' />}
             <span class='label'>{item.label}</span>
             <span class='name'>{item.name}</span>
@@ -665,7 +669,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             v-bk-overflow-tips
             onClick={e => this.handleOverviewRow(e)}
           >
-            {!!this.overviewData[column.id] ? this.handleSetFormatter(column.id, this.overviewData) : '-'}
+            {this.overviewData[column.id] ? this.handleSetFormatter(column.id, this.overviewData) : '-'}
           </div>
         )}
       </div>
@@ -682,7 +686,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         <JsonViewer
           class='json-viewer-wrap'
           preview-mode={true}
-          value={!!this.jsonViewerDataKey ? data.row[this.jsonViewerDataKey] : data.row}
+          value={this.jsonViewerDataKey ? data.row[this.jsonViewerDataKey] : data.row}
         />
       );
     };
@@ -702,7 +706,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             render-header={
               (this.hasOverviewData || !!headerPreIcon) && column.checked
                 ? () => this.renderColumnsHeader(column)
-                : !!column?.renderHeader
+                : column?.renderHeader
                   ? () => column.renderHeader()
                   : undefined
             }
@@ -754,7 +758,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     const cellName = ({ column }) => {
       const id = column.property;
       const columnData = this.columns.find(item => item.id === id);
-      return !!columnData?.[HEADER_PRE_ICON_NAME] ? 'has-header-pre-icon' : '';
+      return columnData?.[HEADER_PRE_ICON_NAME] ? 'has-header-pre-icon' : '';
     };
     /** header cell 类名 */
     const headerCellname = ({ column }) => `${cellName({ column })} ${this.hasOverviewData ? 'overview-header' : ''}`;
@@ -799,8 +803,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               slot='prepend'
             >
               {this.$slots.prepend || [
-                <i class='icon-monitor icon-hint prepend-icon' />,
+                <i
+                  key='1'
+                  class='icon-monitor icon-hint prepend-icon'
+                />,
                 <i18n
+                  key='2'
                   path='已选择{count}条'
                   tag='span'
                 >
@@ -811,8 +819,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                     {this.selectedCount}
                   </span>
                 </i18n>,
-                <slot name='select-content' />,
+                <slot
+                  key='3'
+                  name='select-content'
+                />,
                 <bk-button
+                  key='4'
                   class='table-prepend-clear'
                   slot='count'
                   text={true}
