@@ -122,7 +122,10 @@ export default class WhereDisplay extends tsc<IProps> {
     return (
       <span class='where-display-wrap'>
         {this.value.map((item, index) => (
-          <span class='where-item'>
+          <span
+            key={index}
+            class='where-item'
+          >
             {!!item.condition && !!index ? <span class='where-condition'>{` ${item.condition} `}</span> : undefined}
             <span
               class='where-field'
