@@ -185,6 +185,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @InjectReactive('isSplitPanel') isSplitPanel: boolean;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
+  @Inject({ from: 'linkSelfClick', default: () => {} }) linkSelfClick: (val: ITableItem<'link'>) => void;
   // 选择行数
   selectedCount = 0;
   // 表格尺寸
@@ -456,16 +457,21 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     }
 
     if (item.target === 'self') {
+      const { route, href } = this.$router.resolve({
+        path: urlStr,
+      });
       if (this.isSplitPanel) {
-        const route = this.$router.resolve({
-          path: urlStr,
-        });
-        const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + route.href;
+        const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + href;
         window.open(url);
       } else {
+        // 跳转路径和当前路径一致，不进行跳转
+        if (route.fullPath === this.$route.fullPath) {
+          return;
+        }
         this.$router.push({
           path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
         });
+        this.linkSelfClick?.(item);
       }
       return;
     }
