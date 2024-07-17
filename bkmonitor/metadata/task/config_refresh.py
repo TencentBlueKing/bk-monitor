@@ -150,7 +150,6 @@ def clean_influxdb_host():
     models.InfluxDBHostInfo.clean_redis_host_config()
 
 
-@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshDatasource")
 def refresh_datasource():
     # 更新datasource的外部依赖 及 配置信息
     # NOTE: 过滤有结果表的数据源并且状态是启动
@@ -197,7 +196,6 @@ def refresh_kafka_storage():
             )
 
 
-@share_lock(identify="metadata_refreshKafkaTopicInfo")
 def refresh_kafka_topic_info():
     cluster_map = {}
     for kafka_topic_info in models.KafkaTopicInfo.objects.all():
