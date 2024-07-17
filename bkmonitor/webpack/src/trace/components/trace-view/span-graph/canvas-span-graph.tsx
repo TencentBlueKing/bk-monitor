@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
+import { type PropType, defineComponent, onMounted, ref, watch } from 'vue';
 
 import colorGenerator from '../utils/color-generator';
 import renderIntoCanvas from './render-into-canvas';

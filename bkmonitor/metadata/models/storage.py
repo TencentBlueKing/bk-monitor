@@ -2931,7 +2931,7 @@ class ESStorage(models.Model, StorageResultTable):
 
         return result
 
-    def group_expired_alias(self, alias_list, expired_days):
+    def group_expired_alias(self, alias_list, expired_days, need_delay_delete_alias: Optional[bool] = True):
         """
         将每个索引的别名进行分组，分为已过期和未过期
         :param alias_list: 别名列表，格式
@@ -2952,14 +2952,15 @@ class ESStorage(models.Model, StorageResultTable):
             }
         }
         """
-        logger.info(
-            "table_id->[%s] filtering expired alias before %s days.",
-            self.table_id,
-            expired_days + ES_ALIAS_EXPIRED_DELAY_DAYS,
-        )
+        # 是否延迟删除关联的别名
+        # NOTE: 现阶段仅热冷数据转换时，不需要增加；其它场景都需要增加一天，用于临过期时的跨天查询
+        if need_delay_delete_alias:
+            expired_days += ES_ALIAS_EXPIRED_DELAY_DAYS
+
+        logger.info("table_id->[%s] filtering expired alias before %s days.", self.table_id, expired_days)
 
         # 按照过期时间进行过期可能导致最早一天的数据查询缺失，让ES别名延迟1天过期，保证数据查询完整
-        expired_datetime_point = self.now - datetime.timedelta(days=expired_days + ES_ALIAS_EXPIRED_DELAY_DAYS)
+        expired_datetime_point = self.now - datetime.timedelta(days=expired_days)
 
         filter_result = {}
 
@@ -3057,7 +3058,7 @@ class ESStorage(models.Model, StorageResultTable):
         # 获取索引对应的别名
         alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
 
-        filter_result = self.group_expired_alias(alias_list, self.warm_phase_days)
+        filter_result = self.group_expired_alias(alias_list, self.warm_phase_days, need_delay_delete_alias=False)
 
         # 如果存在未过期的别名，那说明这个索引仍在被写入，不能把它切换到冷节点
         reallocate_index_list = [

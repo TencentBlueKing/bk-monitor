@@ -119,6 +119,35 @@ export default {
   已存储: 'Stored',
   存储失败: 'Storage Failed',
   解析成功: 'Parsed Successfully',
+  包名称: 'Package name',
+  业务名称: 'Business name',
+  业务ID: 'Business ID',
+  消息内容: 'Message content',
+  根因: 'Root cause',
+  敏感信息: 'Sensitive data',
+  // 故障
+  '生成故障，包含{alert_count}个告警，故障负责人：{assignees}':
+    'Generated fault, contains {alert_count} alarms, fault person in charge: {assignees}',
+  '故障观察中，剩余观察时间{last_minutes}分钟':
+    'Fault under observation, remaining observation time: {last_minutes} minutes',
+  '故障通知已发送（接收人：{receivers}）': 'Fault notification sent (recipients: {receivers})',
+  故障已恢复: 'Fault restored',
+  '故障{merged_incident_name}被合并入当前故障': 'Fault {merged_incident_name} merged into the current fault',
+  '{operator}故障属性{incident_key_alias}: 从{from_value}被修改为{to_value}':
+    '{operator} fault attribute {incident_key_alias}: changed from {from_value} to {to_value}',
+  '检测到新告警（{alert_name}）': 'New alarm detected ({alert_name})',
+  '告警通知已发送（{alert_name}；接收人：{receivers}）':
+    'The notification has been sent (alert name: {alert_name}; receivers: {receivers})',
+  '告警已收敛（{alert_name}，共包含{converged_count}个关联的告警事件）':
+    'Alarm converged ({alert_name}), contains {converged_count} related alarm events',
+  '反馈根因：{feedback_incident_root}': 'Feedback root cause: {feedback_incident_root}',
+  故障已关闭: 'Fault closed',
+  '告警已确认（{alert_name}）': 'Alarm acknowledged ({alert_name})',
+  '告警已屏蔽（{alert_name}）': 'Alarm muted ({alert_name})',
+  '告警已被手动处理（{alert_name}）': 'Alarm manually handled ({alert_name})',
+  '告警已被关闭（{alert_name}）': 'Alarm closed ({alert_name})',
+  '告警已分派（{alert_name}；处理人：{handlers}）': 'Alarm dispatched ({alert_name}; handlers: {handlers})',
+  '故障聚集在{0}，影响{1}': 'Fault aggregated at {0}, affecting {1}',
   字符: 'Character',
   截断: 'Truncate',
 };

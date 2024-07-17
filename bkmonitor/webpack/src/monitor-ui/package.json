@@ -7,8 +7,8 @@
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
     "lint": "npm run lint:script && npm run lint:vue",
-    "lint:vue": "eslint --fix --ext .vue  ./",
-    "lint:script": "eslint --fix --ext .js,.ts,tsx  ./",
+    "lint:vue": "eslint --fix  ./**/*.vue",
+    "lint:script": "eslint --fix  ./",
     "fix": "npm run lint"
   },
   "author": "bk fe",
@@ -16,7 +16,7 @@
   "dependencies": {
     "@antv/g6": "^4.8.24",
     "@blueking/fork-resize-detector": "^0.0.2",
-    "@blueking/search-select-v3": "0.0.1-beta.8",
+    "@blueking/search-select-v3": "0.0.1-beta.9",
     "@toast-ui/editor": "^3.2.2",
     "big.js": "^6.2.1",
     "bk-magic-vue": "2.5.8",

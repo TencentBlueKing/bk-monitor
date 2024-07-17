@@ -94,7 +94,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                   : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
               }
             >
-              <span class='icon-monitor icon-plus-line mr-6'></span>
+              <span class='icon-monitor icon-plus-line mr-6' />
               {this.$t('新建节点')}
             </bk-button>
           )}
@@ -107,7 +107,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                 this.authority.MANAGE_AUTH ? this.handleCreate('createTask') : this.handleShowAuthorityDetail()
               }
             >
-              <span class='icon-monitor icon-plus-line mr-6'></span>
+              <span class='icon-monitor icon-plus-line mr-6' />
               {this.$t('新建拨测')}
             </bk-button>
           )}
@@ -119,7 +119,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                 this.authority.MANAGE_AUTH ? this.handleCreate('createGroup') : this.handleShowAuthorityDetail()
               }
             >
-              <span class='icon-monitor icon-plus-line mr-6'></span>
+              <span class='icon-monitor icon-plus-line mr-6' />
               {this.$t('新建任务组')}
             </bk-button>
           )}
@@ -143,7 +143,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
             right-icon='bk-icon icon-search'
             clearable
             on-change={(v: string) => this.handleSearch(v)}
-          ></bk-input>
+          />
         </div>
       </div>
     );

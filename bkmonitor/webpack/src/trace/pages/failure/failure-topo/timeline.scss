@@ -1,0 +1,193 @@
+/* stylelint-disable scss/at-extend-no-missing-placeholder */
+
+/* stylelint-disable declaration-no-important */
+.failure-topo-timeline {
+  //   padding-right: 16px;
+  display: flex;
+  align-items: center;
+  width: 480px;
+  padding-left: 17px;
+  margin-left: 16px;
+  color: #c4c6cc;
+  border-left: 1px solid #313238;
+
+  .color {
+    color: #c4c6cc;
+  }
+
+  .bgColor {
+    background: #4f4f52;
+  }
+
+  .bk-date-picker-editor:focus {
+    border-color: #699df4;
+  }
+
+  .disabled-refresh {
+    cursor: not-allowed !important;
+
+  }
+
+  .bk-date-picker-cells-header span,
+  .bk-date-picker-cells-cell {
+    @extend .color;
+  }
+
+  .bk-date-picker-cells-cell-today em {
+    @extend .color;
+  }
+
+  .bk-date-picker-cells-cell-next-month em {
+    color: #63656e !important;
+  }
+
+  .bk-date-picker-cells-cell:hover em {
+    background-color: #58585c;
+  }
+
+  .bk-date-picker-cells-cell-next-month:hover em {
+    background: transparent;
+  }
+
+  .bk-date-picker-dropdown {
+    padding-top: 0px;
+    background: #454547;
+    border-color: #4f4f52;
+
+    @extend .color;
+
+    .bk-picker-confirm,
+    .bk-date-picker-header {
+      border-top-color: #454547;
+
+      @extend .bgColor;
+    }
+
+    .bk-time-picker-header {
+      @extend .bgColor;
+    }
+
+    .bk-picker-confirm {
+      button,
+      a {
+        color: #70a6ff !important;
+      }
+    }
+
+    .bk-date-picker-cells-cell-disabled {
+      color: #979BA5 !important;
+      background-color: #59595C !important;
+
+      em {
+        color: #979BA5 !important;
+      }
+    }
+
+    svg,
+    .bk-date-picker-header,
+    .bk-time-picker-header {
+      color: #c4c6cc;
+      border-bottom-color: #454547;
+    }
+
+    .bk-picker-panel-content {
+      background: #454547;
+    }
+  }
+
+  .label {
+    white-space: nowrap;
+  }
+
+  .icon-mc-arrow-right,
+  .icon-weibiaoti519 {
+    margin-left: 10px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  .slider {
+    width: 160px;
+    height: 4px;
+    margin-left: 12px;
+
+    .bk-slider-runway {
+      background: #5c5c5c !important;
+    }
+
+    .slider-button {
+      background: #5c5c5c;
+    }
+  }
+
+  .bk-date-picker-rel .bk-date-picker-editor[disabled] {
+    background: #454547 !important;
+  }
+
+  .date-picker {
+    width: 160px;
+    margin: 0px 12px;
+    color: #c4c6cc;
+    background: #454547;
+
+    .icon-wrapper {
+      height: 26px;
+      line-height: 26px;
+    }
+
+    input {
+      color: #c4c6cc;
+      background: #454547;
+      border-color: #7a7a7a;
+
+      @extend .icon-wrapper;
+    }
+  }
+
+  .bk-date-picker-editor[disabled] {
+    color: #c4c6cc;
+    background: #454547;
+    border-color: #7a7a7a;
+  }
+
+  .trigger-name {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 24px;
+    cursor: pointer;
+
+    i {
+      height: 14px;
+      margin-right: 5px;
+      font-size: 14px;
+    }
+  }
+}
+
+.timeline-dropdown-popover {
+  background-color: #454547 !important;
+  border: 1px solid #454547;
+  box-shadow: 0 2px 6px 0 #00000080 !important;
+
+  .bk-dropdown-content,
+  ul {
+    width: 120px;
+    background-color: #454547 !important;
+    border-color: #454547 !important;
+
+    li {
+      color: #c4c6cc;
+
+      &:hover {
+        color: #ffff;
+        background: #58585c;
+      }
+    }
+
+    .text-active {
+      color: #ffff;
+      background: #45608f !important;
+    }
+  }
+}

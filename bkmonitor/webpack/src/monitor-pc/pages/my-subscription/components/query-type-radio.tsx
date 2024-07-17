@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Component, Model, Prop } from 'vue-property-decorator';
-import { Component as tsc, ofType } from 'vue-tsx-support';
+import { ofType, Component as tsc } from 'vue-tsx-support';
 
-import { ReportQueryType } from '../types';
+import type { ReportQueryType } from '../types';
 
 import './query-type-radio.scss';
 
@@ -63,7 +63,7 @@ class QueryTypeRadio extends tsc<IProps, IEvent> {
               this.$emit('change', type);
             }}
           >
-            {isShow && <i class={`circle ${iconClass}`}></i>}
+            {isShow && <i class={`circle ${iconClass}`} />}
             {this.$t(text)}
           </div>
         ))}

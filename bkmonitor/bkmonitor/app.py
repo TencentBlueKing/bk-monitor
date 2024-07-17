@@ -42,6 +42,9 @@ class Config(AppConfig):
             if settings.ROLE == "worker":
                 CacheNode.refresh_from_settings()
 
+        # 注册iam migrate信号
+        post_migrate.connect(_migrate_iam, sender=self, dispatch_uid="bkmonitor iam")
+
         if os.getenv("BK_MONITOR_UNIFY_QUERY_HOST"):
             settings.UNIFY_QUERY_URL = (
                 f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
@@ -74,3 +77,9 @@ def _refresh_cache_node(sender, **kwargs):
     from bkmonitor.models import CacheNode
 
     CacheNode.refresh_from_settings()
+
+
+def _migrate_iam(sender, **kwargs):
+    from bkmonitor.migrate import Migrator
+
+    Migrator("iam", "bkmonitor.iam.migrations").migrate()

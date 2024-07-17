@@ -172,8 +172,16 @@ class Jinja2Renderer(object):
         """
         支持json和re函数
         """
+        notice_way = context.get("notice_way")
+        if notice_way in settings.MD_SUPPORTED_NOTICE_WAYS:
+            autoescape = True
+            escape_func = escape_markdown
+        else:
+            autoescape = False
+            escape_func = None
+
         return (
-            jinja2_environment(autoescape=False, escape_func=None)
+            jinja2_environment(autoescape=autoescape, escape_func=escape_func)
             .from_string(content)
             .render({"json": json, "re": re, **context})
         )
@@ -392,6 +400,10 @@ def escape_markdown(value):
 
     if isinstance(value, str):
         if not value:
+            return value
+
+        # 如果字符串不是以**开头和结尾，则不需要转义
+        if re.match(r"^\*\*.*\*\*", value) or re.match(r".*\[.*]\(.*\)", value):
             return value
 
         for char in ESCAPE_MARKDOWN_CHARS:

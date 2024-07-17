@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { checkDuplicateName } from 'monitor-api/modules/apm_meta';
 
-import { ICreateAppFormData } from './app-list';
-import { IAppSelectOptItem } from './app-select';
+import type { ICreateAppFormData } from './app-list';
+import type { IAppSelectOptItem } from './app-select';
 
 import './app-add-form.scss';
 
@@ -219,7 +219,7 @@ export default class AppAddForm extends tsc<IProps> {
                 <bk-input
                   v-model={this.formData.desc}
                   type='textarea'
-                ></bk-input>
+                />
               </bk-form-item>
             </bk-form>
           </div>

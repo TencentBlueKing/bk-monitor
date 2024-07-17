@@ -24,19 +24,19 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
+  type WatchStopHandle,
   defineComponent,
   onActivated,
   onBeforeUnmount,
   onMounted,
-  PropType,
   ref,
   shallowRef,
   watch,
-  WatchStopHandle,
 } from 'vue';
 
 import dayjs from 'dayjs';
-import { echarts, MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './base-echart.scss';
 

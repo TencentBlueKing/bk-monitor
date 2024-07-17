@@ -106,7 +106,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
             on-click={this.showChange}
           >
             <div class='rule-add'>
-              <span class='icon-monitor icon-mc-add'></span>
+              <span class='icon-monitor icon-mc-add' />
               {this.$t('检测规则')}
             </div>
           </bk-button>
@@ -118,7 +118,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                 <span
                   class='icon-monitor icon-mc-delete-line del-btn'
                   onClick={this.showChange}
-                ></span>
+                />
               )}
             </div>
             <div class='rules-category-list'>

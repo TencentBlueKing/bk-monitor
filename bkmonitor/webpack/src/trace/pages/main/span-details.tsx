@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, provide, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
@@ -33,9 +33,8 @@ import dayjs from 'dayjs';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
-import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exception-guide';
+import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
-import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
@@ -46,13 +45,15 @@ import { useAppStore } from '../../store/modules/app';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
-  IInfo,
-  IStageTimeItem,
-  IStageTimeItemContent,
-  ITagContent,
-  ITagsItem,
+  type IInfo,
+  type IStageTimeItem,
+  type IStageTimeItemContent,
+  type ITagContent,
+  type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+
+import type { Span } from '../../components/trace-view/typings';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -289,7 +290,7 @@ export default defineComponent({
             label: t('类型'),
             content: (
               <span>
-                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`}></i>}
+                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />}
                 <span>{getTypeText()}</span>
               </span>
             ),
@@ -647,7 +648,7 @@ export default defineComponent({
           class='expan-item-head'
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]}></span>
+          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]} />
           <span class='expan-item-title'>{title}</span>
           {subTitle || undefined}
         </div>
@@ -668,7 +669,7 @@ export default defineComponent({
           class={['expan-item-small-head', 'grey']}
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-arrow-down', { active: isExpan }]}></span>
+          <span class={['icon-monitor icon-arrow-down', { active: isExpan }]} />
           <span
             class='title'
             title={title}
@@ -726,13 +727,13 @@ export default defineComponent({
                 <span
                   class='icon-monitor icon-mc-copy'
                   onClick={() => handleCopy(item)}
-                ></span>
+                />
               </div>
             </span>
             {item.type === 'error' ? (
               <div class='right'>
                 <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
-                <span class='icon-monitor icon-mind-fill'></span>
+                <span class='icon-monitor icon-mind-fill' />
               </div>
             ) : (
               <div class='right'>{formatContent(item.content, item.isFormat)}</div>
@@ -745,7 +746,7 @@ export default defineComponent({
                 theme='primary'
                 onClick={() => (item.isFormat = !item.isFormat)}
               >
-                <i class='icon-monitor icon-code'></i>
+                <i class='icon-monitor icon-code' />
                 {t('格式化')}
               </Button>
             )}
@@ -769,7 +770,7 @@ export default defineComponent({
                 <div class='content'>
                   {item.error ? (
                     <span class='err-point'>
-                      <span class='red-point'></span>
+                      <span class='red-point' />
                     </span>
                   ) : undefined}
                   {item.label}
@@ -788,14 +789,14 @@ export default defineComponent({
                   <span class='center'>
                     {times.gap.type === 'toLeft'
                       ? [
-                          <span class='to-left'></span>,
+                          <span class='to-left' />,
                           <span class='center-text'>{times.gap.value}</span>,
-                          <span class='line'></span>,
+                          <span class='line' />,
                         ]
                       : [
-                          <span class='line'></span>,
+                          <span class='line' />,
                           <span class='center-text'>{times.gap.value}</span>,
-                          <span class='to-right'></span>,
+                          <span class='to-right' />,
                         ]}
                   </span>
                   <span class='right'>{times.tags[1]}</span>
@@ -805,9 +806,9 @@ export default defineComponent({
             if (item.type === 'gapTime') {
               return (
                 <div class='gap-time'>
-                  <div class='top'></div>
+                  <div class='top' />
                   <div class='center'>{item[item.type]}</div>
-                  <div class='bottom'></div>
+                  <div class='bottom' />
                 </div>
               );
             }
@@ -967,7 +968,7 @@ export default defineComponent({
                     size='small'
                     onClick={handleExportOriginData}
                   >
-                    <i class='icon-monitor icon-xiazai1'></i>
+                    <i class='icon-monitor icon-xiazai1' />
                     <span>{t('下载')}</span>
                   </Button>
                 </div>
@@ -1080,7 +1081,7 @@ export default defineComponent({
                                 <span
                                   style='margin-left: 8px;'
                                   class='icon-monitor icon-fenxiang'
-                                ></span>
+                                />
                               </Button>
                             )}
                             {content.list.map((child, childIndex) => {
@@ -1141,7 +1142,7 @@ export default defineComponent({
                                 isSingleChart={isSingleChart.value}
                                 needOverviewBtn={!!sceneData.value?.list?.length}
                                 panels={sceneData.value.overview_panels}
-                              ></FlexDashboardPanel>
+                              />
                             </div>
                           )}
                         </Loading>
@@ -1164,7 +1165,7 @@ export default defineComponent({
                                 isSingleChart={isSingleChart.value}
                                 needOverviewBtn={!!sceneData.value?.list?.length}
                                 panels={sceneData.value.overview_panels}
-                              ></FlexDashboardPanel>
+                              />
                             </div>
                           )}
                         </Loading>
@@ -1222,7 +1223,7 @@ export default defineComponent({
                   size='small'
                   onClick={handleExportOriginData}
                 >
-                  <i class='icon-monitor icon-xiazai1'></i>
+                  <i class='icon-monitor icon-xiazai1' />
                   <span>{t('下载')}</span>
                 </Button>
               </div>

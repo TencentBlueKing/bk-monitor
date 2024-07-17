@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { RouteConfig } from 'vue-router';
-
 import * as ruleAuth from 'fta-solutions/pages/setting/set-meal/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const SetMeal = () => import(/* webpackChunkName: "SetMeal" */ 'fta-solutions/pages/setting/set-meal/set-meal');
 const AddSetMeal = () =>

@@ -23,23 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
-import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
 
 import ApmCommonNavBar, {
   type INavItem,
   type ISelectItem,
 } from '../../components/apm-common-nav-bar/apm-common-nav-bar';
-import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
+import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
-import { IAppSelectOptItem } from '../home/app-select';
+
+import type { IAppSelectOptItem } from '../home/app-select';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './service.scss';
 

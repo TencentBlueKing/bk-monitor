@@ -24,12 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import VueI18n, { TranslateResult } from 'vue-i18n';
-
-import * as base from 'vue-tsx-support/types/base';
-import * as builtin from 'vue-tsx-support/types/builtin-components';
-
-import { IBizItem, ISpaceItem } from './types';
+import type { IBizItem, ISpaceItem } from './types';
+import type VueI18n from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
+import type * as base from 'vue-tsx-support/types/base';
+import type * as builtin from 'vue-tsx-support/types/builtin-components';
 
 interface IBkInfoProps {
   title: unknown;

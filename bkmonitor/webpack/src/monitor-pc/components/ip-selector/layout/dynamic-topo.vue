@@ -75,20 +75,21 @@
   </div>
 </template>
 <script lang="ts">
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { resize } from '../common/observer-directive';
 import TopoSearch from '../components/topo-search.vue';
 import TopoTree from '../components/topo-tree.vue';
-import {
-  IipListParams,
+import type {
   ISearchData,
   ISearchDataOption,
   ITableCheckData,
   ITableConfig,
   ITreeNode,
-  SearchDataFuncType } from '../types/selector-type';
+  IipListParams,
+  SearchDataFuncType,
+} from '../types/selector-type';
 
 import IpListTable from './ip-list.vue';
 
@@ -97,11 +98,11 @@ import IpListTable from './ip-list.vue';
   components: {
     TopoTree,
     TopoSearch,
-    IpListTable
+    IpListTable,
   },
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class DynamicTopo extends Vue {
   // 获取组件初始化数据
@@ -231,7 +232,7 @@ export default class DynamicTopo extends Vue {
       console.log(err);
       return {
         total: 0,
-        data: []
+        data: [],
       };
     }
   }
@@ -258,14 +259,14 @@ export default class DynamicTopo extends Vue {
       const reqParams = {
         selections: this.selections,
         parentNode: this.parentNode,
-        ...params
+        ...params,
       };
       return await this.getSearchTableData(reqParams, type);
     } catch (err) {
       console.log(err);
       return {
         total: 0,
-        data: []
+        data: [],
       };
     }
   }
@@ -303,9 +304,9 @@ export default class DynamicTopo extends Vue {
 
   &-right {
     flex: 1;
-    overflow: auto;
     // border-left: 1px solid #dcdee5;
     padding-left: 10px;
+    overflow: auto;
   }
 }
 </style>

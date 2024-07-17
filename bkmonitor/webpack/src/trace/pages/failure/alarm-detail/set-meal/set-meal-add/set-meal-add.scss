@@ -1,0 +1,143 @@
+.set-meal-add {
+  display: flex;
+  flex: 1;
+  width: 100%;
+
+  .set-warpper {
+    padding: 20px; 
+    margin-bottom: 10px;
+    background: #ffff;
+    background-color: white;
+    box-shadow: 0px 1px 2px 0px rgba(0,0,0,.10);
+
+    .set-title {
+      width: 56px;
+      height: 19px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #313238;
+      text-align: left;
+    }
+  }
+
+  .operate-warpper {
+    margin: 20px 0;
+
+    button {
+      margin-right: 8px;
+    }
+  }
+
+  .set-meal-left {
+    flex: 1;
+  }
+
+  .set-meal-right {
+    height: calc(100vh - 100px);
+    padding: 20px 0 0 0;
+    transition: width .3s ease-in-out;
+  }
+
+  .set-meal-wrapper {
+    position: relative;
+    display: flex;
+    width: 100%;
+  }
+
+  .set-warpper-container {
+    flex: 1;
+    min-width: 766px;
+    padding: 20px 20px 0 20px;
+    // height: calc(100vh - 100px);
+    overflow: auto;
+  }
+  // 下拉样式
+  .bk-select {
+    box-sizing: initial;
+    line-height: 24px;
+
+    .bk-select-angle {
+      top: 2px;
+      color: #63656e;
+    }
+
+    .bk-select-name {
+      height: 24px;
+      padding-left: 2px;
+    }
+  }
+
+  .bk-select.is-readonly {
+    color: #979ba5;
+
+    .bk-select-angle {
+      color: #979ba5;
+    }
+  }
+  // 下拉行内样式
+  .bk-select.select-inline {
+    box-sizing: initial;
+    line-height: 20px;
+
+    .bk-select-angle {
+      top: -1px;
+    }
+
+    .bk-select-name {
+      height: 20px;
+      padding-right: 34px;
+      padding-left: 16px;
+    }
+  }
+
+  .bk-form-control {
+    // input样式
+    .bk-input-text,
+    .bk-input-number {
+      .bk-form-input {
+        box-sizing: initial;
+        height: 24px;
+        padding-left: 2px;
+      }
+    }
+    // textarea样式
+    .bk-textarea-wrapper {
+      .bk-form-textarea {
+        padding-left: 4px;
+      }
+    }
+  }
+  // 行内使用样式
+  .bk-form-control.input-inline {
+    // input样式
+    .bk-input-text,
+    .bk-input-number {
+      .bk-form-input {
+        box-sizing: border-box;
+        height: 20px;
+        padding-left: 2px;
+        border-top: 0;
+      }
+    }
+  }
+
+  .bk-form-control.input-center {
+    .bk-input-text,
+    .bk-input-number {
+      .bk-form-input {
+        box-sizing: border-box;
+        height: 20px;
+        padding-left: 2px;
+        text-align: center;
+        border-top: 0;
+      }
+    }
+
+    .bk-input-number {
+      .input-number-option {
+        display: none;
+      }
+    }
+  }
+}

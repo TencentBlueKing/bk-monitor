@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { RouteConfig } from 'vue-router';
-
 import { applyGuidePage } from '../../common';
 import * as collectConfigAuth from '../../pages/collector-config/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const CollectorConfig = () =>
   import(/* webpackChunkName: 'CollectorConfig' */ '@page/collector-config/collector-config.vue');

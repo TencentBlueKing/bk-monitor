@@ -485,7 +485,7 @@
           <template #default="{ row, $index }">
             <div class="process-module">
               <div
-                v-if="row.component.length >= 1"
+                v-if="row.component?.length"
                 class="process-module-wrap"
                 :ref="'table-row-' + $index"
               >
@@ -567,7 +567,7 @@
   </div>
 </template>
 <script lang="ts">
-import { CreateElement } from 'vue';
+import type { CreateElement } from 'vue';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { typeTools } from 'monitor-common/utils/utils.js';
@@ -575,11 +575,11 @@ import { typeTools } from 'monitor-common/utils/utils.js';
 // import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue'
 import TipsTpl from '../../../components/abnormal-tips/tips-tpl.vue';
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import PerformanceModule from '../../../store/modules/performance';
-import MonitorVue from '../../../types/index';
+import type MonitorVue from '../../../types/index';
 import ColumnCheck from '../column-check/column-check.vue';
-import { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../performance-type';
+import type { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../performance-type';
 import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';

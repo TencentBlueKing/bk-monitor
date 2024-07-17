@@ -32,7 +32,7 @@ import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { statistics } from 'monitor-api/modules/home';
 import { throttle } from 'throttle-debounce';
 
-import BusinessItem, { IData } from './business-item';
+import BusinessItem, { type IData } from './business-item';
 
 import './home.scss';
 
@@ -470,7 +470,7 @@ export default class Home extends tsc<IHomeProps> {
                         id={option.id}
                         key={option.id}
                         name={option.name}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                   <bk-button
@@ -525,7 +525,7 @@ export default class Home extends tsc<IHomeProps> {
                     on-blur={() => this.isCanSearch() && this.init()}
                     on-enter={() => this.isCanSearch() && this.init()}
                     on-right-icon-click={() => this.isCanSearch() && this.init()}
-                  ></bk-input>
+                  />
                   <bk-select
                     ext-cls='filter-select'
                     v-model={this.businessOverview.filterItem}
@@ -537,7 +537,7 @@ export default class Home extends tsc<IHomeProps> {
                         id={option.id}
                         key={option.id}
                         name={option.name}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                 </span>
@@ -553,7 +553,7 @@ export default class Home extends tsc<IHomeProps> {
                       data={item}
                       onFavorite={(v: boolean) => this.handleFavorite(v, index)}
                       onToEvent={this.handleToEvent}
-                    ></BusinessItem>
+                    />
                   ))}
                 </div>
               ) : (
@@ -570,7 +570,7 @@ export default class Home extends tsc<IHomeProps> {
           <div
             class='home-scrollload'
             v-bkloading={{ isLoading: this.scrollLoading, opacity: 0, color: '#fff0' }}
-          ></div>
+          />
         </div>
         <div style={{ display: 'none' }}>
           <div ref='mttaTipRef'>

@@ -58,7 +58,7 @@
       </div>
     </div>
 
-    <div
+    <!-- <div
       style="width: 200px"
       class="pattern fl-sb"
     >
@@ -76,7 +76,7 @@
         ></bk-slider>
         <span>{{ $t('多') }}</span>
       </div>
-    </div>
+    </div> -->
 
     <div class="fl-sb">
       <bk-dropdown-menu
@@ -622,6 +622,7 @@
     line-height: 24px;
 
     .is-near24 {
+      margin-right: 20px;
       @include flex-center;
 
       > span {
@@ -634,7 +635,7 @@
 
     .pattern {
       width: 200px;
-      margin: 0 20px;
+      margin-right: 20px;
 
       .pattern-slider-box {
         width: 154px;

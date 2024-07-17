@@ -125,9 +125,9 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { getUrlParam } from 'monitor-common/utils';
+import { Component, Vue } from 'vue-property-decorator';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../components/access-request-dialog';
 interface INewBusiness {
@@ -150,7 +150,7 @@ export default class NoBusiness extends Vue {
     this.getAccess = {
       url: data.get_access_url || '',
       operator: data.operator || [],
-      businessName: data.bk_biz_name || ''
+      businessName: data.bk_biz_name || '',
     };
   }
   get hasDemoBiz() {

@@ -39,27 +39,27 @@ import {
 } from 'monitor-api/modules/apm_meta';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 // import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
-import CommonTable, { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
-import OperateOptions, { IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
+import CommonTable, { type ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import OperateOptions, { type IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from 'monitor-pc/router/space';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
-import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 
-import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
+import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import AppAddForm from './app-add-form';
-import { IAppSelectOptItem } from './app-select';
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
 
+import type { IAppSelectOptItem } from './app-select';
+import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 
 import './app-list.scss';
 
@@ -479,12 +479,12 @@ export default class AppList extends tsc<object> {
     const hasPermission = row?.permission[authorityMap.VIEW_AUTH] ?? true;
     return (
       <bk-switcher
-        v-authority={{ active: !hasPermission }}
         v-model={row.is_enabled}
+        v-authority={{ active: !hasPermission }}
         pre-check={() => this.handleEnablePreCheck(row, hasPermission)}
         size='small'
         theme='primary'
-      ></bk-switcher>
+      />
     );
   }
   handleGetOprateColumn(row: ITableDataItem) {
@@ -508,7 +508,7 @@ export default class AppList extends tsc<object> {
             })),
           }}
           onOptionClick={id => this.handleConfig(id, row)}
-        ></OperateOptions>
+        />
       </div>
     );
   }
@@ -600,7 +600,7 @@ export default class AppList extends tsc<object> {
                   onClick={this.handleAddApp}
                 >
                   <span class='app-add-btn'>
-                    <i class='icon-monitor icon-mc-add app-add-icon'></i>
+                    <i class='icon-monitor icon-mc-add app-add-icon' />
                     <span>{this.$t('新建应用')}</span>
                   </span>
                 </bk-button>
@@ -628,7 +628,7 @@ export default class AppList extends tsc<object> {
                 placeholder={this.$t('输入搜索或筛选')}
                 clearable
                 onInput={this.handleSearch}
-              ></bk-input>
+              />
               <CommonTable
                 {...{ props: this.tableData }}
                 scopedSlots={{
@@ -668,7 +668,7 @@ export default class AppList extends tsc<object> {
         <AppAddForm
           v-model={this.showAddDialog}
           pluginId={this.pluginId}
-        ></AppAddForm>
+        />
         <bk-dialog
           width={1360}
           ext-cls='guide-create-dialog'

@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MetricDetail } from '../typings/index';
+import type { MetricDetail } from '../typings/index';
 
 interface StrategyMetricItemTipsProps {
   data: MetricDetail;

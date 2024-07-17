@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IAddItemData } from '../space-add-list/space-add-list';
+import type { IAddItemData } from '../space-add-list/space-add-list';
 
 import './space-add-item.scss';
 
@@ -60,12 +60,12 @@ export default class SpaceAddItem extends tsc<IProps, IEvents> {
           onClick={this.handleChecked}
         >
           <div class='title-wrap'>
-            <i class={['title-icon', 'icon-monitor', this.data.icon]}></i>
+            <i class={['title-icon', 'icon-monitor', this.data.icon]} />
             <div class='title-text'>{this.data.name}</div>
           </div>
           <div class='header-desc'>{this.data.desc}</div>
           <div class={['item-radio', { checked: this.checked }]}>
-            {this.checked && <i class='icon-monitor icon-mc-check-fill'></i>}
+            {this.checked && <i class='icon-monitor icon-mc-check-fill' />}
           </div>
         </div>
         {this.checked && !this.disabled && (

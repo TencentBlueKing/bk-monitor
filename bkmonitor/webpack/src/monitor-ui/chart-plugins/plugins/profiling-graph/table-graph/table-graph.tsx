@@ -27,9 +27,18 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils';
-import { ProfileDataUnit, parseProfileDataTypeValue } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
-import { ColorTypes, ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
+import {
+  ColorTypes,
+  type ITableTipsDetail,
+  type ProfilingTableItem,
+  type TableColumn,
+  type TextDirectionType,
+} from '../../../typings';
 import { getHashVal } from '../flame-graph/utils';
 import { sortTableGraph } from './utils';
 
@@ -241,8 +250,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                     <div class='thead-content'>
                       <span>{col.name}</span>
                       <div class='sort-button'>
-                        <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`}></i>
-                        <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`}></i>
+                        <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`} />
+                        <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`} />
                       </div>
                     </div>
                   </th>
@@ -264,7 +273,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                         <span
                           style={`background-color: ${!this.localIsCompared ? row.color : '#dcdee5'}`}
                           class='color-reference'
-                        ></span>
+                        />
                         <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                         {/* <div class='trace-mark'>Trace</div> */}
                       </div>
@@ -311,7 +320,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
               {this.localIsCompared
                 ? [
                     <thead>
-                      <th></th>
+                      <th />
                       <th>{this.$t('当前')}</th>
                       <th>{this.$t('参照')}</th>
                       <th>{this.$t('差异')}</th>
@@ -319,7 +328,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                   ]
                 : [
                     <thead>
-                      <th></th>
+                      <th />
                       <th>Self (% of total)</th>
                       <th>Total (% of total)</th>
                     </thead>,
