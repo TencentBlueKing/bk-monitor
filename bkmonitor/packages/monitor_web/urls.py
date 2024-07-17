@@ -8,9 +8,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
 
-
+from bkoauth.client import oauth_client
+from bkoauth.exceptions import TokenAPIError
+from bkoauth.signals import (
+    update_user_access_token as original_update_user_access_token,
+)
 from django.conf.urls import include, url
+from django.contrib.auth import user_logged_in
+
+LOG = logging.getLogger('component')
 
 app_name = "monitor_web"
 
@@ -44,3 +52,17 @@ urlpatterns = [
     url(r"^", include("monitor_web.new_report.urls")),
     url(r"^", include("monitor_web.incident.urls")),
 ]
+
+
+# 重写bkoauth.update_user_access_token,消除原bkoauth产生的大量MissingSchema异常堆栈
+def update_user_access_token(sender, request, user, *args, **kwargs):
+    """自动刷新access_token"""
+    try:
+        access_token = oauth_client.get_access_token(request)
+        LOG.info('user logged in get access_token success: %s' % access_token)
+    except TokenAPIError as error:
+        LOG.error('user logged in get access_token failed: %s' % error)  # 改用error级别记录，消除MissingSchema异常堆栈
+
+
+user_logged_in.disconnect(original_update_user_access_token)  # 断开原先的信号连接
+user_logged_in.connect(update_user_access_token)  # 连接至自定义实现的update_user_access_token
