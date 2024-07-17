@@ -138,6 +138,7 @@
         queueStatus: false,
         showScrollTop: false, // 显示滚动到顶部icon
         isInit: false,
+        timer: null,
         kvShowFieldsList: [],
       };
     },
