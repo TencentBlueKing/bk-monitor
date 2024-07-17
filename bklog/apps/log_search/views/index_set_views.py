@@ -333,7 +333,7 @@ class IndexSetViewSet(ModelViewSet):
                                     "name": index_set["time_field"],
                                     "type": index_set["time_field_type"],
                                     "unit": index_set["time_field_unit"]
-                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                    if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
