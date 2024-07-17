@@ -1,0 +1,40 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+	"version": "0.2.0",
+	"name": "Monitor Web App",
+	"service": "web",
+	"workspaceFolder": "/app/code",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": "..",
+		"args": {
+		}
+	},
+	//"dockerComposeFile": "docker-compose.yml",
+	"mounts": [
+		{
+			"source": "${localWorkspaceFolder}",
+			"target": "/app/code",
+			"type": "bind",
+			"consistency": "cached"
+		}
+	],
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "pip install -r requirements.txt; pip install betterproto==2.0.0b5",
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+
+    "runArgs": ["--env-file",".env"]
+
+}
