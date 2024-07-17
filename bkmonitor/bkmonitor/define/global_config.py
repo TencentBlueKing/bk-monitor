@@ -303,6 +303,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_DATA_LABEL_EXPORT", slz.BooleanField(label="grafana和策略导出是否支持data_label转换", default=True)),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
         ("SKIP_INFLUXDB_TABLE_ID_LIST", slz.BooleanField(label="跳过写入influxdb的结果表列表", default=[])),
+        ("ENABLE_UPTIMECHECK_TEST", slz.BooleanField(label="是否开启拨测联通性测试", default=True)),
+        ("CHECK_RESULT_TTL_HOURS", slz.CharField(label="检测结果缓存 TTL(小时)", default=1)),
     ]
 )
 

@@ -413,6 +413,8 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         config = request.data.get("config")
         protocol = request.data.get("protocol")
         node_id_list = request.data.get("node_id_list")
+        if not settings.ENABLE_UPTIMECHECK_TEST:
+            return Response(_("未开启拨测联通性测试，保存任务中..."))
         return Response(
             resource.uptime_check.test_task(
                 {"bk_biz_id": bk_biz_id, "config": config, "protocol": protocol, "node_id_list": node_id_list}

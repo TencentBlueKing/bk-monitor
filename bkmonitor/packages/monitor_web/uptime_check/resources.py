@@ -2689,15 +2689,16 @@ class ImportUptimeCheckTaskResource(Resource):
         task_create_data["bk_biz_id"] = bk_biz_id
         del task_create_data["groups"]
 
-        # 先测试任务，确定可用后才可保存
-        resource.uptime_check.test_task(
-            {
-                "bk_biz_id": bk_biz_id,
-                "config": task_create_data["config"],
-                "protocol": task_create_data["protocol"],
-                "node_id_list": node_id_list,
-            }
-        )
+        # 当开启拨测联通性测试，则先测试任务，确定可用后才可保存
+        if settings.ENABLE_UPTIMECHECK_TEST:
+            resource.uptime_check.test_task(
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "config": task_create_data["config"],
+                    "protocol": task_create_data["protocol"],
+                    "node_id_list": node_id_list,
+                }
+            )
 
         tasks = UptimeCheckTask.objects.filter(name=task_create_data["name"])
         if tasks:

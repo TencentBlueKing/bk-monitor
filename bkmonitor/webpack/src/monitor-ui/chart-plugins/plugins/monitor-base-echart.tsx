@@ -126,10 +126,8 @@ class MonitorBaseEchart extends BaseEchart {
   handleDataZoom(event) {
     const [batch] = event.batch;
     if (batch.startValue && batch.endValue) {
-      window.requestAnimationFrame(() => {
-        (this as any).instance.dispatchAction({
-          type: 'restore',
-        });
+      (this as any).instance.dispatchAction({
+        type: 'restore',
       });
       const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
       let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
