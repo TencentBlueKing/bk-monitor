@@ -282,10 +282,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
-        (
-            "BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST",
-            slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[]),
-        ),
+        ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
         (
             "BCS_DATA_CONVERGENCE_CONFIG",
             slz.JSONField(
