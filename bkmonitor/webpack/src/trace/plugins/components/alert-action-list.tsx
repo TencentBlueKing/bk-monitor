@@ -57,8 +57,8 @@ export default defineComponent({
       return chartInfo?.is_feedback_root;
     });
     const currentData = computed(() => {
-      const { is_root } = chartInfo?.entity;
-      return { ...chartInfo, ...{ is_root, incident_id: incidentDetail.value?.incident_id } };
+      const { is_root } = chartInfo?.entity || { is_root: false };
+      return { ...chartInfo, ...{ is_root, incident_id: incidentDetail?.value?.incident_id } };
     });
     const actionClickFn = (e: MouseEvent, fn) => {
       e.stopImmediatePropagation();
@@ -155,7 +155,7 @@ export default defineComponent({
     });
 
     const incidentDetailData = computed(() => {
-      return incidentDetail.value;
+      return incidentDetail?.value;
     });
     const currentIds = ref([]);
     const currentBizIds = ref([]);
