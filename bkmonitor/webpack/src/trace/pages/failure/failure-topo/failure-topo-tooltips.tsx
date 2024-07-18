@@ -38,9 +38,9 @@ import type { IEdge, ITopoNode } from './types';
 import './failure-topo-tooltips.scss';
 
 type PopoverInstance = {
-  show: () => void;
-  hide: () => void;
-  close: () => void;
+  show?: () => void;
+  hide?: () => void;
+  close?: () => void;
   [key: string]: any;
 };
 
@@ -608,6 +608,7 @@ export default defineComponent({
               />
             </span>
             <OverflowTitle
+              key={node?.entity?.entity_id}
               class={['header-name', node?.entity?.entity_type === 'BcsPod' && 'header-pod-name']}
               type='tips'
             >
