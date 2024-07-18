@@ -106,10 +106,10 @@ export default defineComponent({
       () => props.show,
       async show => {
         if (show) {
-          strategyList.value = [];
+          // strategyList.value = [];
           getDimensionList();
-          strategyList.value = await getStrategyList();
-          allStrategy.list = [...strategyList.value];
+          // strategyList.value = await getStrategyList();
+          // allStrategy.list = [...strategyList.value];
         }
       },
       {
