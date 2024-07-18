@@ -99,7 +99,7 @@ class IncidentGraphEntity:
 
     def to_src_dict(self):
         data = asdict(self)
-        data["rank_name"] = data.pop("rank")["rank_name"]
+        data["rank_name"] = data["rank"]["rank_name"]
         data["component_type"] = self.component_type.value
         return data
 
@@ -246,7 +246,7 @@ class IncidentSnapshot(object):
         for entity_info in self.incident_snapshot_content["incident_propagation_graph"]["entities"]:
             entity_info["rank"] = self.incident_graph_ranks[entity_info.pop("rank_name")]
             entity_info["component_type"] = IncidentGraphComponentType(
-                entity_info.pop("compoent_type", IncidentGraphComponentType.PRIMARY.value)
+                entity_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
             )
             self.incident_graph_entities[entity_info["entity_id"]] = IncidentGraphEntity(**entity_info)
 
@@ -276,7 +276,7 @@ class IncidentSnapshot(object):
                 events=events,
                 anomaly_score=edge_info.get("anomaly_score", 0),
                 component_type=IncidentGraphComponentType(
-                    edge_info.pop("compoent_type", IncidentGraphComponentType.PRIMARY.value)
+                    edge_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
                 ),
             )
 
@@ -560,7 +560,7 @@ class IncidentSnapshot(object):
                             is_anomaly=self.incident_graph_edges[_from].is_anomaly,
                             events=self.incident_graph_edges[_from].events,
                             aggregated_edges=[self.incident_graph_edges[_from]],
-                            compoent_type=self.incident_graph_edges[_from].compoent_type,
+                            component_type=self.incident_graph_edges[_from].component_type,
                         )
                     elif _from in self.incident_graph_edges:
                         self.incident_graph_edges[_to].is_anomaly = (
@@ -585,7 +585,7 @@ class IncidentSnapshot(object):
                             is_anomaly=self.incident_graph_edges[_from].is_anomaly,
                             events=self.incident_graph_edges[_from].events,
                             aggregated_edges=[self.incident_graph_edges[_from]],
-                            compoent_type=self.incident_graph_edges[_from].compoent_type,
+                            component_type=self.incident_graph_edges[_from].component_type,
                         )
                     elif _from in self.incident_graph_edges:
                         self.incident_graph_edges[_to].is_anomaly = (
