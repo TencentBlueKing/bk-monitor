@@ -940,7 +940,7 @@ export default defineComponent({
             // nodeEntityId.value = tooltipsModel.value.entity.entity_id;
           }
           tooltipsType.value = type;
-          return tooltipsRef.value.$el;
+          return tooltipsRef.value.$el as HTMLDivElement;
         },
       });
     };
@@ -961,7 +961,8 @@ export default defineComponent({
       graph.render();
       /** 将红线置顶 */
       setTimeout(toFrontAnomalyEdge, 500);
-      ElkjsUtils.setRootComboStyle(topoRawDataCache.value.complete.combos, graph.getWidth());
+      const combos = graph.getCombos().map(combo => combo.getModel());
+      ElkjsUtils.setRootComboStyle(combos, graph.getWidth());
       const zoom = localStorage.getItem('failure-topo-zoom');
       if (zoom) {
         handleZoomChange(zoom);
@@ -993,11 +994,10 @@ export default defineComponent({
       const { combos = [], nodes = [], sub_combos = [] } = data || {};
       nodes.forEach(node =>
         Object.assign(node, {
-          width: 76,
+          width: 90,
           height: 92,
           comboId: ElkjsUtils.getComboId(node.comboId),
           subComboId: ElkjsUtils.getComboId(node.subComboId),
-          isCombo: false,
         })
       );
       combos.forEach(formatComboOption);
@@ -1324,6 +1324,16 @@ export default defineComponent({
       // 监听鼠标离开节点
       graph.on('node:mouseleave', e => {
         const nodeItem = e.item;
+        /** 移出隐藏名称 */
+        const model = nodeItem.getModel() as ITopoNode;
+        if (model.subComboId) {
+          const combo = graph.findById(model.subComboId);
+          if (!combo) return;
+          const label = combo.getContainer().find(element => element.get('type') === 'text');
+          if (label) {
+            label.attr('opacity', 0);
+          }
+        }
         graph.setItemState(nodeItem, 'hover', false);
       });
       /** resize之后的render 调用一次缓存的函数 通知可以播放 */

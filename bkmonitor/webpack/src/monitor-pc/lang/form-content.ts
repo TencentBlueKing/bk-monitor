@@ -150,4 +150,5 @@ export default {
   '故障聚集在{0}，影响{1}': 'Fault aggregated at {0}, affecting {1}',
   字符: 'Character',
   截断: 'Truncate',
+  '按 {0} 聚合': 'Aggregate by {0}',
 };
