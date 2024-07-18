@@ -937,17 +937,7 @@ class DataSource(models.Model):
         更新consul配置，告知ETL等其他依赖模块配置有所更新
         :return: True | raise Exception
         """
-        # 如果数据源没有启用，则不用刷新 consul 配置
-        from metadata.models.data_link.constants import DataLinkKind
-        from metadata.models.data_link.resource import DataLinkResourceConfig
-        from metadata.models.data_link.utils import get_bkdata_data_id_name
-
-        if (
-            not self.is_enable
-            or DataLinkResourceConfig.objects.filter(
-                name=get_bkdata_data_id_name(self.data_name), kind=DataLinkKind.DATAID.value
-            ).exists()
-        ):
+        if not self.can_refresh_consul_and_gse():
             logger.info(
                 "data->[%s] is not enable or has been moved to new data link, nothing will refresh to outer systems.",
                 self.bk_data_id,

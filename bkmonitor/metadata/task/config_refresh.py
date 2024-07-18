@@ -341,7 +341,7 @@ def clean_datasource_from_consul():
     """
     logger.info("start to delete datasource from consul")
     # 获取使用的 transfer 集群
-    data_info = models.DataSource.objects.values("bk_data_id", "transfer_cluster_id")
+    data_info = models.DataSource.objects.filter(is_enable=True).values("bk_data_id", "transfer_cluster_id")
     # 组装 transfer 消费的数据源 ID
     transfer_id_and_data_ids = {}
     for d in data_info:
