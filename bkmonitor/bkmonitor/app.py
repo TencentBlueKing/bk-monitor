@@ -18,6 +18,7 @@ from django.db.models.signals import post_migrate
 
 from bkmonitor.trace.log_trace import BluekingInstrumentor
 from bkmonitor.utils.dynamic_settings import hack_settings
+from patches.bkoauth import patch_bkoauth_update_user_access_token
 
 
 class Config(AppConfig):
@@ -44,6 +45,8 @@ class Config(AppConfig):
 
         # 注册iam migrate信号
         post_migrate.connect(_migrate_iam, sender=self, dispatch_uid="bkmonitor iam")
+        # 调用自定义实现的patch_bkoauth方法，消除大量的MissingSchema异常堆栈，之所以在这里调用，是因为bkoauth的初始化依赖于Django的初始化
+        post_migrate.connect(patch_bkoauth_update_user_access_token, sender=self, dispatch_uid="bkoauth")
 
         if os.getenv("BK_MONITOR_UNIFY_QUERY_HOST"):
             settings.UNIFY_QUERY_URL = (
