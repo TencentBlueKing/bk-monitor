@@ -224,8 +224,9 @@ class IncidentAlertAggregateDimension(CustomEnum):
 
 
 class IncidentGraphComponentType(CustomEnum):
-    """故障图谱边事件传播方向."""
+    """故障图谱组件类型."""
 
     PRIMARY = "primary"
     BASE_MAP = "base_map"
     TOPO = "topo"
+    ONE_HOP = "one_hop"
