@@ -9,9 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
 
-from patches.bkoauth import patch_bkoauth_update_user_access_token
+from django.conf.urls import include, url
 
 app_name = "monitor_web"
 
@@ -45,7 +44,3 @@ urlpatterns = [
     url(r"^", include("monitor_web.new_report.urls")),
     url(r"^", include("monitor_web.incident.urls")),
 ]
-
-
-# 调用自定义实现的patch_bkoauth方法，消除大量的MissingSchema异常堆栈，之所以在这里调用，是因为bkoauth的初始化依赖于Django的初始化
-patch_bkoauth_update_user_access_token()
