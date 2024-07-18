@@ -52,8 +52,7 @@ DATABASES = {
         "NAME": APP_CODE,  # noqa
         "USER": "root",
         "PASSWORD": "",
-        #暂时使用本地主机数据库--该ip为Colima提供的一个特殊的 IP 地址 192.168.5.2，用于从容器内部访问主机
-        "HOST": "192.168.5.2",
+        "HOST": "localhost",
         "PORT": "3306",
     },
     "monitor_api": {
@@ -61,8 +60,7 @@ DATABASES = {
         "NAME": APP_CODE,  # noqa
         "USER": "root",
         "PASSWORD": "",
-        #暂时使用本地主机数据库--该ip为Colima提供的一个特殊的 IP 地址 192.168.5.2，用于从容器内部访问主机
-        "HOST": "192.168.5.2",
+        "HOST": "localhost",
         "PORT": "3306",
     },
 }
