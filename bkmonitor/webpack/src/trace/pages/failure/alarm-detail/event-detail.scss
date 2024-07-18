@@ -1,0 +1,13 @@
+/* stylelint-disable declaration-no-important */
+.event-detail {
+  display: flex;
+  min-height: 600px;
+
+  .bk-monitor {
+    width: 100% !important;
+
+    .bk-navigation {
+      width: 100% !important;
+    }
+  }
+}

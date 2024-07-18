@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { TNil } from '../typings';
 import { formatDuration } from '../utils/date';
+
+import type { TNil } from '../typings';
 
 import './ticks.scss';
 

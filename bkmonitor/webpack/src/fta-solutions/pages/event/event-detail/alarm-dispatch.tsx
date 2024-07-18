@@ -170,7 +170,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
           v-bkloading={{ isLoading: this.loading }}
         >
           <div class='tips'>
-            <span class='icon-monitor icon-hint'></span>
+            <span class='icon-monitor icon-hint' />
             {this.$t('您一共选择了{0}条告警', [this.alertIds.length])}
           </div>
           <div class='form-item'>
@@ -185,7 +185,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
                 api={this.bkUrl}
                 empty-text={this.$t('搜索结果为空')}
                 placeholder={this.$t('输入用户')}
-              ></BkUserSelector>
+              />
             </div>
             {!!this.errorMsg.users && <div class='err-msg'>{this.errorMsg.users}</div>}
           </div>
@@ -212,7 +212,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
                 maxlength={100}
                 row={3}
                 type={'textarea'}
-              ></bk-input>
+              />
             </div>
             {!!this.errorMsg.reason && <div class='err-msg'>{this.errorMsg.reason}</div>}
           </div>

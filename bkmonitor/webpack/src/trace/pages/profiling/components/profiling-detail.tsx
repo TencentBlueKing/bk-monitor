@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Form, Loading, Sideslider } from 'bkui-vue';
 
 import { useDocumentLink } from '../../../hooks';
 import { transformByte } from '../../../utils';
-import { DetailType, FileDetail, ServicesDetail } from '../typings';
+import { DetailType, type FileDetail, type ServicesDetail } from '../typings';
 
 import './profiling-detail.scss';
 
@@ -111,7 +111,7 @@ export default defineComponent({
                 onClick={this.handleViewAppDetail}
               >
                 {this.t('应用详情')}
-                <i class='icon-monitor icon-fenxiang'></i>
+                <i class='icon-monitor icon-fenxiang' />
               </span>
             </Form.FormItem>
             {/* <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency || '-'}</Form.FormItem> */}
@@ -133,7 +133,7 @@ export default defineComponent({
           <Form.FormItem label={`${this.t('协议类型')}:`}>{data.file_type || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('解析状态')}:`}>
             <div class='status'>
-              <div class={['circle', this.statusMap[data.status].type]}></div>
+              <div class={['circle', this.statusMap[data.status].type]} />
               <span class='label'>{this.statusMap[data.status].name}</span>
             </div>
           </Form.FormItem>
@@ -169,7 +169,7 @@ export default defineComponent({
                   >
                     {this.t('Profile 接入指引')}
                   </a>
-                  <i class='icon-monitor icon-fenxiang'></i>
+                  <i class='icon-monitor icon-fenxiang' />
                 </span>
               </div>
             ),

@@ -17,6 +17,7 @@ from bkmonitor.action.serializers import DutySwitchSlz
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
+from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -55,6 +56,9 @@ class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
         """
         if self.action == "list":
             return serializers.UserGroupSlz
+        if self.action == "retrieve":
+            request = get_request(peaceful=True)
+            setattr(request, "notice_user_detail", True)
         return self.serializer_class
 
 
@@ -73,6 +77,9 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
         """
         if self.action == "list":
             return serializers.DutyRuleSlz
+        if self.action == "retrieve":
+            request = get_request(peaceful=True)
+            setattr(request, "notice_user_detail", True)
         return self.serializer_class
 
     def get_queryset(self):

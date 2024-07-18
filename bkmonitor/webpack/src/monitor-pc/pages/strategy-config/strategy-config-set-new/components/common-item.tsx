@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './common-item.scss';
 
@@ -69,7 +70,7 @@ export default class MyComponent extends tsc<ICommonProps> {
                 placement: 'top-start',
                 allowHTML: false,
               }}
-            ></i>
+            />
           )}
           {this.desc && <span class='common-item-label-desc'>{this.desc}</span>}
         </label>

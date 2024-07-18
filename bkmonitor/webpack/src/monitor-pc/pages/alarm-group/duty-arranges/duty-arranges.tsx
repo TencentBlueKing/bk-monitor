@@ -31,10 +31,11 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import { randomColor } from './color';
 import CustomDatePick from './custom-date-pick';
 import CustomTimeRange from './custom-time-range';
-import DutyPreview, { IPreviewValue, IUserGroup } from './duty-preview';
+import DutyPreview, { type IPreviewValue, type IUserGroup } from './duty-preview';
 import SimpleDayPick from './simple-day-pick';
-import UserListSort, { IUserListItem } from './user-list-sort';
-import { IGroupListItem } from './user-selector';
+import UserListSort, { type IUserListItem } from './user-list-sort';
+
+import type { IGroupListItem } from './user-selector';
 
 import './duty-arranges.scss';
 
@@ -1495,7 +1496,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                   >
                     <span
                       class={['icon-monitor', 'icon-mc-triangle-down', 'expan-icon', item.isExpan ? 'expan' : '']}
-                    ></span>
+                    />
                     <span class='title'>
                       <span
                         class='title-left'
@@ -1503,7 +1504,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                         onMouseleave={() => this.handleMouseleave(index)}
                         onMouseup={(e: Event) => e.stopPropagation()}
                       >
-                        <span class='icon-monitor icon-mc-tuozhuai'></span>
+                        <span class='icon-monitor icon-mc-tuozhuai' />
                       </span>
                       <span class='maintitle'>{item.title}</span>
                       <span class='subtitle'>
@@ -1518,7 +1519,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                               size='small'
                               theme='primary'
                               onChange={v => this.handleNeedRotation(v, index)}
-                            ></bk-switcher>
+                            />
                           </span>
                         </span>
                         <span class='text'>{item.subTitle}</span>
@@ -1528,7 +1529,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                       class={['icon-monitor', 'icon-mc-close', 'delete-icon']}
                       onClick={() => this.handleDelete(index)}
                       onMousedown={(e: Event) => e.stopPropagation()}
-                    ></span>
+                    />
                   </div>
                   <div class={['content', item.isExpan ? 'expan' : '']}>
                     {/* 用户组 */}
@@ -1544,7 +1545,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           hasAdd={item.needRotation}
                           value={item.dutyUsers}
                           onChange={v => this.handleUserListChange(v, index)}
-                        ></UserListSort>
+                        />
                       </div>
                     </div>
                     {/* 轮值类型 */}
@@ -1561,8 +1562,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           [
                             <div class='step-content-item'>
                               <span
-                                class='item-label'
                                 v-en-style='width: 100px'
+                                class='item-label'
                               >
                                 {this.$t('轮值类型')}
                               </span>
@@ -1578,7 +1579,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                         id={v.id}
                                         key={v.id}
                                         name={v.name}
-                                      ></bk-option>
+                                      />
                                     ))}
                                   </bk-select>
                                 </span>
@@ -1598,7 +1599,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                               id={item.id}
                                               key={item.id}
                                               name={item.name}
-                                            ></bk-option>
+                                            />
                                           ))}
                                         </bk-select>
                                       );
@@ -1609,7 +1610,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                           multiple={false}
                                           value={item.handoffTime.date}
                                           onChange={v => this.handleHandOffTimeDateChange(v as number, index)}
-                                        ></SimpleDayPick>
+                                        />
                                       );
                                     }
                                   })()}
@@ -1618,8 +1619,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                             </div>,
                             <div class='step-content-item mt-12'>
                               <div
-                                class='item-label'
                                 v-en-style='width: 100px'
+                                class='item-label'
                               >
                                 {this.$t('交接时间')}
                               </div>
@@ -1631,7 +1632,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                   transfer={true}
                                   on-open-change={v => this.handleHandOffTimeOpenChange(v, index)}
                                   onChange={v => this.handleHandOffTimeChange(v, index)}
-                                ></bk-time-picker>
+                                />
                               </div>
                             </div>,
                           ]
@@ -1649,7 +1650,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                     id={v.id}
                                     key={v.id}
                                     name={v.name}
-                                  ></bk-option>
+                                  />
                                 ))}
                               </bk-select>
                             </span>
@@ -1668,8 +1669,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           /* 交接 */
                           <div class='step-content-item'>
                             <span
-                              class='item-label'
                               v-en-style='width: 100px'
+                              class='item-label'
                             >
                               {this.$t('工作周期')}
                             </span>
@@ -1685,7 +1686,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                       id={v.id}
                                       key={v.id}
                                       name={v.name}
-                                    ></bk-option>
+                                    />
                                   ))}
                                 </bk-select>
                               </span>
@@ -1706,7 +1707,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                             id={item.id}
                                             key={item.id}
                                             name={item.name}
-                                          ></bk-option>
+                                          />
                                         ))}
                                       </bk-select>
                                     );
@@ -1716,7 +1717,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                       <SimpleDayPick
                                         value={item.dutyTime.workDays}
                                         onChange={v => this.handleWorkDaysChange(v as number[], index)}
-                                      ></SimpleDayPick>
+                                      />
                                     );
                                   }
                                 })()}
@@ -1728,8 +1729,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           item.dutyTime.workType !== 'daily' && (
                             <div class='step-content-item'>
                               <span
-                                class='item-label'
                                 v-en-style='width: 100px'
+                                class='item-label'
                               >
                                 {this.$t('工作周期')}
                               </span>
@@ -1747,7 +1748,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                             id={item.id}
                                             key={item.id}
                                             name={item.name}
-                                          ></bk-option>
+                                          />
                                         ))}
                                       </bk-select>
                                     );
@@ -1757,7 +1758,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                       <SimpleDayPick
                                         value={item.dutyTime.workDays}
                                         onChange={v => this.handleWorkDaysChange(v as number[], index)}
-                                      ></SimpleDayPick>
+                                      />
                                     );
                                   }
                                 })()}
@@ -1767,8 +1768,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                         )}
                         <div class='step-content-item mt-12'>
                           <span
-                            class='item-label'
                             v-en-style='width: 100px'
+                            class='item-label'
                           >
                             {this.$t('工作时间')}
                           </span>
@@ -1777,14 +1778,14 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                               allowCrossDay={item.dutyTime.workType === 'daily'}
                               value={item.dutyTime.workTime}
                               onChange={v => this.handleWorkTimeChange(v, index)}
-                            ></CustomTimeRange>
+                            />
                           </span>
                         </div>
                         {
                           <div class='step-content-item mt-12'>
                             <span
-                              class='item-label'
                               v-en-style='width: 100px'
+                              class='item-label'
                             >
                               {this.$t('生效时间')}
                             </span>
@@ -1795,7 +1796,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                 readonlyTime={false}
                                 value={item.effectiveTime}
                                 onChange={v => this.handleEffectiveTimeChange(v, index)}
-                              ></CustomDatePick>
+                              />
                             </span>
                           </div>
                         }
@@ -1823,7 +1824,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             >
               {this.$t('新增组')}
             </bk-button>
-            <span class='icon-monitor icon-hint'></span>
+            <span class='icon-monitor icon-hint' />
             <span class='tip-msg'>
               {this.$t('电话通知的拨打顺序是按通知对象顺序依次拨打。注意用户组内无法保证顺序。')}
             </span>
@@ -1835,7 +1836,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             key={this.previewKey}
             value={this.previewData}
             onCycleType={this.handleCycleType}
-          ></DutyPreview>
+          />
         </div>
         {!!this.userPreviewList.length && !this.readonly && (
           <div class='user-preivew'>

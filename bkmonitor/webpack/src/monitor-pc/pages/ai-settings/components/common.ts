@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { NotificationType, TopologyData } from '../types';
+import type { NotificationType, TopologyData } from '../types';
 // 编辑时设置监控目标描述
 export const handleSetTargetDesc = (
   targetList: TopologyData[],

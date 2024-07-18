@@ -28,13 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils/utils';
-import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { BookMarkModel, type IBookMark, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
-import { IDetail, setBizIdToPanel } from './type';
+import { type IDetail, setBizIdToPanel } from './type';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './performance-view.scss';
 
@@ -218,7 +219,7 @@ export default class PerformanceView extends tsc<IProps> {
             isSplitPanel={false}
             needOverviewBtn={false}
             panels={this.localPanels}
-          ></DashboardPanel>
+          />
         ) : (
           <div class='no-data'>
             {/* 无数据情况暂且不做 */}
@@ -256,7 +257,7 @@ export default class PerformanceView extends tsc<IProps> {
                   onClick={() => this.handleToPerformance()}
                 >
                   {window.i18n.t('跳转至主机监控')}
-                  <span class='icon-monitor icon-fenxiang'></span>
+                  <span class='icon-monitor icon-fenxiang' />
                 </span>
               </i18n>
             </div>

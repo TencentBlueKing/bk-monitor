@@ -465,4 +465,10 @@ export default {
   跳转至场景查看: 'Jump to Scene View',
   发送给自己: 'Send to yourself',
   查看单据详情: 'View document details',
+
+  // 故障根因
+  请调整筛选条件: 'Please adjust filter criteria',
+  设置聚合维度: 'Set aggregate dimension',
+  标记已解决: 'Marked as resolved',
+  查看操作指引: 'View operation instructions',
 };

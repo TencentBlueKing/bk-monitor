@@ -29,16 +29,17 @@ import { getLabel, getMainlineObjectTopo } from 'monitor-api/modules/commons';
 import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
 
-import {
+import { handleTimeRange } from '../../utils/index';
+import store from '../store';
+
+import type {
   IAggMethodList,
   IGetQueryConfigParams,
   IHistoryListItem,
   IQueryConfigsItem,
 } from '../../pages/data-retrieval/index';
-import { handleTimeRange } from '../../utils/index';
-import store from '../store';
 
 @Module({ name: 'data-retrieval', dynamic: true, namespaced: true, store })
 class DataRetrieval extends VuexModule {

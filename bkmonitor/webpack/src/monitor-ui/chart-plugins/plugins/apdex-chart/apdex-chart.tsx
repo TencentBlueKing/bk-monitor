@@ -35,10 +35,11 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST_BAR, MONITOR_BAR_OPTIONS } from '../../constants';
-import { ILegendItem, ITimeSeriesItem, PanelModel } from '../../typings';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
+
+import type { ILegendItem, ITimeSeriesItem, PanelModel } from '../../typings';
 
 import './apdex-chart.scss';
 

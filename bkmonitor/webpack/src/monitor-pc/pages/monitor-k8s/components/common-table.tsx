@@ -33,7 +33,12 @@ import { random } from 'monitor-common/utils/utils';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
-import {
+import CommonStatus from './common-status/common-status';
+import CommonTagList from './common-tag-list/common-tag-list';
+import MoreOperate from './more-operate/more-operate';
+import TextOverflowCopy from './text-overflow-copy/text-overflow-copy';
+
+import type {
   ColumnSort,
   IFilterDict,
   IFilterItem,
@@ -44,10 +49,6 @@ import {
   TableRow,
   TableSizeType,
 } from '../typings';
-import CommonStatus from './common-status/common-status';
-import CommonTagList from './common-tag-list/common-tag-list';
-import MoreOperate from './more-operate/more-operate';
-import TextOverflowCopy from './text-overflow-copy/text-overflow-copy';
 
 import './common-table.scss';
 
@@ -109,15 +110,15 @@ interface ICommonTableEvent {
   // 表头字段设置事件
   onColumnSettingChange: string[];
   // 清空选择行事件
-  onClearSelect: void;
+  onClearSelect: () => void;
   // 收藏事件（在外层调用接口）
   onCollect?: (value: ITableItem<'collect'>) => void;
   // 表格列数据项筛选事件
   onFilterChange: IFilterDict;
   onSwitchOverview: boolean;
   // 固定表头情况下 滚动至底部事件
-  onScrollEnd: void;
-  onRowClick: void;
+  onScrollEnd: () => void;
+  onRowClick: (row) => void;
 }
 @Component
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {
@@ -184,6 +185,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @InjectReactive('isSplitPanel') isSplitPanel: boolean;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
+  @Inject({ from: 'linkSelfClick', default: () => {} }) linkSelfClick: (val: ITableItem<'link'>) => void;
   // 选择行数
   selectedCount = 0;
   // 表格尺寸
@@ -230,7 +232,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (typeof val !== 'number' && !val) return '--';
     return (
       <span class='string-col'>
-        <TextOverflowCopy val={val}></TextOverflowCopy>
+        <TextOverflowCopy val={val} />
       </span>
     );
   }
@@ -286,7 +288,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   // tag类型格式化
   tagFormatter(val: ITableItem<'tag'>) {
-    return <CommonTagList value={val}></CommonTagList>;
+    return <CommonTagList value={val} />;
   }
   // key-value类型格式化
   kvFormatter(val: ITableItem<'kv'>) {
@@ -339,7 +341,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (typeof val !== 'number' && !val) return '--';
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
-      <a
+      <div
         class='link-col'
         v-authority={{ active: !hasPermission }}
         onClick={e =>
@@ -359,7 +361,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           ''
         )}
         {` ${val.display_value || val.value}`}
-      </a>
+      </div>
     );
   }
   // link格式化
@@ -368,7 +370,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class='stack-link-col'>
         <div class='stack-link-wrap'>
-          <a
+          <div
             class='link-col stack-link'
             v-authority={{ active: !hasPermission }}
             onClick={e =>
@@ -388,7 +390,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               ''
             )}
             {` ${val.value}`}
-          </a>
+          </div>
           {val.is_stack && <span class='stack-icon'>{this.$t('堆栈')}</span>}
         </div>
         {val.subtitle && <div class='link-subtitle'>{val.subtitle}</div>}
@@ -401,12 +403,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class='link-list'>
         {val?.map(item => (
-          <a
+          <div
+            key={item.value}
             class='link-col'
             v-authority={{ active: !hasPermission }}
-            onClick={e =>
-              hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId)
-            }
+            onClick={e => {
+              hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId);
+            }}
           >
             {item.icon ? (
               <img
@@ -417,7 +420,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               ''
             )}
             {item.value}
-          </a>
+          </div>
         ))}
       </div>
     );
@@ -427,8 +430,11 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class='relation-col'>
         {val.map((item, index) => (
-          <span class='relation-col-item'>
-            {index !== 0 && <span class='icon-monitor icon-back-right'></span>}
+          <span
+            key={`${item.name}_${index}`}
+            class='relation-col-item'
+          >
+            {index !== 0 && <span class='icon-monitor icon-back-right' />}
             <span class='label'>{item.label}</span>
             <span class='name'>{item.name}</span>
           </span>
@@ -451,16 +457,21 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     }
 
     if (item.target === 'self') {
+      const { route, href } = this.$router.resolve({
+        path: urlStr,
+      });
       if (this.isSplitPanel) {
-        const route = this.$router.resolve({
-          path: urlStr,
-        });
-        const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + route.href;
+        const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + href;
         window.open(url);
       } else {
+        // 跳转路径和当前路径一致，不进行跳转
+        if (route.fullPath === this.$route.fullPath) {
+          return;
+        }
         this.$router.push({
           path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
         });
+        this.linkSelfClick?.(item);
       }
       return;
     }
@@ -492,7 +503,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
           showText={false}
           size='small'
-        ></bk-progress>
+        />
       </div>
     ) : (
       '--'
@@ -510,12 +521,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           <span
             class='icon-monitor icon-mc-collect'
             onClick={() => !this.readonly && this.handleCollect(val)}
-          ></span>
+          />
         ) : (
           <span
             class='icon-monitor icon-mc-uncollect'
             onClick={() => !this.readonly && this.handleCollect(val)}
-          ></span>
+          />
         )}
       </div>
     );
@@ -527,7 +538,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         <MoreOperate
           options={val}
           onOptionClick={this.handleLinkClick}
-        ></MoreOperate>
+        />
       </div>
     ) : (
       '--'
@@ -644,7 +655,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class={['column-header-wrap', { 'has-pre-icon': !!headerPreIcon }]}>
         <div class='column-header-title'>
-          {!!headerPreIcon && <i class={['icon-monitor', 'header-pre-icon', headerPreIcon]}></i>}
+          {!!headerPreIcon && <i class={['icon-monitor', 'header-pre-icon', headerPreIcon]} />}
           <div
             class='column-header-text'
             v-bk-overflow-tips
@@ -664,7 +675,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             v-bk-overflow-tips
             onClick={e => this.handleOverviewRow(e)}
           >
-            {!!this.overviewData[column.id] ? this.handleSetFormatter(column.id, this.overviewData) : '-'}
+            {this.overviewData[column.id] ? this.handleSetFormatter(column.id, this.overviewData) : '-'}
           </div>
         )}
       </div>
@@ -681,8 +692,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         <JsonViewer
           class='json-viewer-wrap'
           preview-mode={true}
-          value={!!this.jsonViewerDataKey ? data.row[this.jsonViewerDataKey] : data.row}
-        ></JsonViewer>
+          value={this.jsonViewerDataKey ? data.row[this.jsonViewerDataKey] : data.row}
+        />
       );
     };
   }
@@ -701,7 +712,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             render-header={
               (this.hasOverviewData || !!headerPreIcon) && column.checked
                 ? () => this.renderColumnsHeader(column)
-                : !!column?.renderHeader
+                : column?.renderHeader
                   ? () => column.renderHeader()
                   : undefined
             }
@@ -753,7 +764,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     const cellName = ({ column }) => {
       const id = column.property;
       const columnData = this.columns.find(item => item.id === id);
-      return !!columnData?.[HEADER_PRE_ICON_NAME] ? 'has-header-pre-icon' : '';
+      return columnData?.[HEADER_PRE_ICON_NAME] ? 'has-header-pre-icon' : '';
     };
     /** header cell 类名 */
     const headerCellname = ({ column }) => `${cellName({ column })} ${this.hasOverviewData ? 'overview-header' : ''}`;
@@ -798,8 +809,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               slot='prepend'
             >
               {this.$slots.prepend || [
-                <i class='icon-monitor icon-hint prepend-icon'></i>,
+                <i
+                  key='1'
+                  class='icon-monitor icon-hint prepend-icon'
+                />,
                 <i18n
+                  key='2'
                   path='已选择{count}条'
                   tag='span'
                 >
@@ -810,8 +825,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                     {this.selectedCount}
                   </span>
                 </i18n>,
-                <slot name='select-content'></slot>,
+                <slot
+                  key='3'
+                  name='select-content'
+                />,
                 <bk-button
+                  key='4'
                   class='table-prepend-clear'
                   slot='count'
                   text={true}
@@ -827,7 +846,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             <bk-table-column
               scopedSlots={{ default: this.renderRowExpand() }}
               type='expand'
-            ></bk-table-column>
+            />
           )}
           {this.transformColumns()}
           {this.hasColnumSetting ? (

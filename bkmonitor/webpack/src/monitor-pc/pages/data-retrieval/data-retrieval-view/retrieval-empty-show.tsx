@@ -31,8 +31,9 @@ import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 
 import { handleGotoLink } from '../../../common/constant';
 import EmptyStatus, { defaultTextMap } from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, IEmptyStatusTextMap } from '../../../components/empty-status/types';
-import { IDataRetrievalView } from '../typings';
+
+import type { EmptyStatusOperationType, IEmptyStatusTextMap } from '../../../components/empty-status/types';
+import type { IDataRetrievalView } from '../typings';
 
 import './retrieval-empty-show.scss';
 
@@ -263,7 +264,7 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
               onClick={() => this.handleClickEventBtn('moreRule')}
             >
               {this.$t('查看更多语法规则')}
-              <span class='icon-monitor icon-fenxiang'></span>
+              <span class='icon-monitor icon-fenxiang' />
             </div>
           </div>
         );

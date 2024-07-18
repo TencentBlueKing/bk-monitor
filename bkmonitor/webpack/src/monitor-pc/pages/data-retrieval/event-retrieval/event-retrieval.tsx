@@ -33,12 +33,19 @@ import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { handleGotoLink } from '../../../common/constant';
-import { EmptyStatusType } from '../../../components/empty-status/types';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
-import { EventRetrievalViewType, FieldValue, IDataRetrievalView, IEventRetrieval, IFilterCondition } from '../typings';
+import {
+  type EventRetrievalViewType,
+  FieldValue,
+  type IDataRetrievalView,
+  type IEventRetrieval,
+  type IFilterCondition,
+} from '../typings';
 import FilterCondition from './filter-condition';
+
+import type { EmptyStatusType } from '../../../components/empty-status/types';
 
 import './event-retrieval.scss';
 
@@ -416,7 +423,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {this.$t('查看语法')}
-            <i class='icon-monitor icon-mc-link'></i>
+            <i class='icon-monitor icon-mc-link' />
           </a>
         </div>
         <ul class='tips-content-list'>
@@ -461,14 +468,35 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                 key={JSON.stringify(this.dataIdList)}
                 vModel={this.localValue.result_table_id}
                 clearable={false}
+                ext-popover-cls={'event-retrieval-data-id-select-popover'}
+                searchable={true}
                 onSelected={this.handleInitLocalValue}
               >
-                {this.dataIdList.map(item => (
-                  <bk-option
-                    id={item.id}
-                    name={item.name}
-                  />
-                ))}
+                {this.localValue.eventType === 'custom_event'
+                  ? this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      >
+                        <span class='event-item-name'>
+                          <span
+                            class='name-text'
+                            v-bk-overflow-tips
+                          >
+                            {item.name}
+                          </span>
+                          {!!item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
+                        </span>
+                      </bk-option>
+                    ))
+                  : this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
               </bk-select>
             </div>
           ) : undefined}
@@ -478,7 +506,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
               <i
                 class='icon-monitor icon-mc-help-fill'
                 v-bk-tooltips={this.tipsConfig}
-              ></i>
+              />
             </div>
             <bk-input
               class='query-string-input'

@@ -26,10 +26,11 @@
 import dayjs from 'dayjs';
 import { random } from 'lodash';
 
-import { FixedDataModel } from './components/fixed-rotation-tab';
-import { ReplaceDataModel } from './components/replace-rotation-tab';
-import { ReplaceItemDataModel } from './components/replace-rotation-table-item';
 import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common';
+
+import type { FixedDataModel } from './components/fixed-rotation-tab';
+import type { ReplaceDataModel } from './components/replace-rotation-tab';
+import type { ReplaceItemDataModel } from './components/replace-rotation-table-item';
 
 /**
  * 以15分钟为间隔生成一天的时间段

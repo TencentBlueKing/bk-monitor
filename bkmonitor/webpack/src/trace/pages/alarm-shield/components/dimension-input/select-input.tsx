@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, PropType, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { bkTooltips, Input, Loading, Popover, Radio } from 'bkui-vue';
+import { Input, Loading, Popover, Radio, bkTooltips } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2, promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
-
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import { IDimensionItem } from '../../typing';
+
+import type { IDimensionItem } from '../../typing';
 
 import './select-input.scss';
 
@@ -305,7 +305,7 @@ export default defineComponent({
                 curMetricMeta.value = metricMeta;
                 props.metricMetaSet(v, metricMeta);
               }
-              const dimensionList = !!metricListTemp.length
+              const dimensionList = metricListTemp.length
                 ? metricListTemp.reduce((pre, cur) => {
                     const dimensionList = pre
                       .concat(
@@ -315,18 +315,26 @@ export default defineComponent({
                     return dimensionList;
                   }, [])
                 : [];
-              props.dimensionSet(v, dimensionList);
-              selectData.options = dimensionList;
-              // 取策略各指标agg_dimension的合集
-              // const strategyDimensionSet = new Set();
-              // queryConfigs.forEach(q => {
-              //   q?.agg_dimension?.forEach(d => {
-              //     strategyDimensionSet.add(d);
-              //   });
-              // });
-              // const dimensionListFilter = dimensionList.filter(item => strategyDimensionSet.has(item.id));
-              // props.dimensionSet(v, dimensionListFilter);
-              // selectData.options = dimensionListFilter;
+              // 取策略各指标agg_dimension的交集
+              const getIntersection = (arrays: string[][]) => {
+                if (arrays.length === 0) {
+                  return [];
+                }
+                let intersection = arrays[0];
+                for (let i = 1; i < arrays.length; i++) {
+                  intersection = intersection.filter(item => arrays[i].includes(item));
+                }
+                return intersection;
+              };
+              const queryConfigDimensions = [];
+              queryConfigs.forEach(q => {
+                const temp = q?.agg_dimension || [];
+                queryConfigDimensions.push(temp);
+              });
+              const strategyDimensionSet = new Set(getIntersection(queryConfigDimensions));
+              const dimensionListFilter = dimensionList.filter(item => strategyDimensionSet.has(item.id));
+              props.dimensionSet(v, dimensionListFilter);
+              selectData.options = dimensionListFilter;
             }
           }
         }
@@ -474,7 +482,7 @@ export default defineComponent({
                   placeholder={this.t('请选择维度')}
                   onInput={this.handleInput}
                   onUpdate:modelValue={v => (this.localValue = v)}
-                ></Input>
+                />
               ),
               content: () =>
                 this.isDimensionGroup ? (
@@ -495,7 +503,7 @@ export default defineComponent({
                               {{
                                 prefix: () => (
                                   <span class='search-icon'>
-                                    <span class='icon-monitor icon-mc-search'></span>
+                                    <span class='icon-monitor icon-mc-search' />
                                   </span>
                                 ),
                               }}
@@ -507,7 +515,7 @@ export default defineComponent({
                             <span
                               class='icon-monitor icon-mc-search'
                               onClick={this.handleShowStrategySearch}
-                            ></span>
+                            />
                           </div>
                         )}
                       </div>
@@ -552,7 +560,7 @@ export default defineComponent({
                           {{
                             prefix: () => (
                               <span class='search-icon'>
-                                <span class='icon-monitor icon-mc-search'></span>
+                                <span class='icon-monitor icon-mc-search' />
                               </span>
                             ),
                           }}
@@ -592,7 +600,7 @@ export default defineComponent({
                         class='del-wrap'
                         onClick={() => this.handleDelete()}
                       >
-                        <span class='icon-monitor icon-mc-delete-line'></span>
+                        <span class='icon-monitor icon-mc-delete-line' />
                         <span>{this.$t('删除')}</span>
                       </div>
                     </div>
@@ -620,7 +628,7 @@ export default defineComponent({
                       class='extension'
                       onClick={() => this.handleDelete()}
                     >
-                      <i class='icon-monitor icon-chahao mr-8'></i>
+                      <i class='icon-monitor icon-chahao mr-8' />
                       <span>{this.t('删除')}</span>
                     </div>
                   </div>

@@ -32,7 +32,7 @@ import { listUsersUser } from 'monitor-api/modules/model';
 import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { CONDITIONS, ICondtionItem } from './index';
+import { CONDITIONS, type ICondtionItem } from './index';
 
 /* 通知人员需支持远程搜索 */
 export const NOTICE_USERS_KEY = 'notice_users';

@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
@@ -33,15 +32,17 @@ import { toPng } from 'html-to-image';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { MonitorEchartOptions, PanelModel } from '../../typings';
-import { ITableDataItem } from '../../typings/table-chart';
 import { downFile } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
+
+import type { MonitorEchartOptions, PanelModel } from '../../typings';
+import type { ITableDataItem } from '../../typings/table-chart';
+import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './related-log-chart.scss';
 
@@ -404,14 +405,14 @@ class RelatedLogChart extends CommonSimpleChart {
                         onClick={() => this.goLink()}
                       >
                         {this.$t('route-日志检索')}
-                        <i class='icon-monitor icon-fenxiang'></i>
+                        <i class='icon-monitor icon-fenxiang' />
                       </span>
                     ) : (
                       <span
                         class='link'
                         onClick={() => this.goLink()}
                       >
-                        <i class='icon-monitor icon-mc-target-link'></i>
+                        <i class='icon-monitor icon-mc-target-link' />
                         <span>{this.thirdPartyLog}</span>
                       </span>
                     )}
@@ -497,7 +498,7 @@ class RelatedLogChart extends CommonSimpleChart {
                         id={option.index_set_id}
                         key={option.index_set_id}
                         name={option.index_set_name}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                   <bk-input

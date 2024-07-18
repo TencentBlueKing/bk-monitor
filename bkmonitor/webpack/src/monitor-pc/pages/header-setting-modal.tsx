@@ -33,8 +33,8 @@ import {
   COMMON_ROUTE_LIST,
   COMMON_ROUTE_STORE_KEY,
   DEFAULT_ROUTE_LIST,
+  type IRouteConfigItem,
   getLocalStoreRoute,
-  IRouteConfigItem,
 } from '../router/router-config';
 
 import './header-setting-modal.scss';
@@ -185,7 +185,7 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
                     class={`icon-monitor route-check ${
                       this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
                     }`}
-                  ></i>
+                  />
                 </li>
               ))}
             </ul>
@@ -213,7 +213,7 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
               onDrop={this.handleDrop}
             >
               <i class={`${item.icon} item-icon`} />
-              <span class='icon-monitor icon-mc-tuozhuai item-drag'></span>
+              <span class='icon-monitor icon-mc-tuozhuai item-drag' />
               {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
               <span
                 class='icon-monitor icon-mc-close item-close'

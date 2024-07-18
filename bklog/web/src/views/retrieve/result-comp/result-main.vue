@@ -138,6 +138,7 @@
         queueStatus: false,
         showScrollTop: false, // 显示滚动到顶部icon
         isInit: false,
+        timer: null,
         kvShowFieldsList: [],
       };
     },
@@ -229,12 +230,11 @@
         this.$easeScroll(0, 300, this.$refs.scrollContainer);
       },
       handleScroll() {
-        if (this.throttle || this.isPageOver || this.$refs.resultTablePanel.active === 'clustering') {
+        if (this.isPageOver || this.$refs.resultTablePanel.active === 'clustering') {
           return;
         }
-        this.throttle = true;
-        setTimeout(() => {
-          this.throttle = false;
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => {
           const el = this.$refs.scrollContainer;
           this.showScrollTop = el.scrollTop > 550;
           if (el.scrollHeight - el.offsetHeight - el.scrollTop < 20) {

@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
-
 import { random } from 'monitor-common/utils';
 
 import {
@@ -35,6 +33,8 @@ import {
   mergeConditions,
   topNDataStrTransform,
 } from './condition';
+
+import type { TranslateResult } from 'vue-i18n';
 
 export type ActionType = 'add' | 'batchDelete' | 'batchReset' | 'copy' | 'delete' | 'reset';
 export type TContionType = 'and' | 'or';

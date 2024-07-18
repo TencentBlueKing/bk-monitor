@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import { applyGuidePage } from '../../common';
 import { VIEW_AUTH } from '../../pages/monitor-k8s/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const MonitorK8s = () => import(/* webpackChunkName: 'monitorK8s' */ '../../pages/monitor-k8s/monitor-k8s');
 const monitorK8sDetail = () =>

@@ -32,8 +32,7 @@ import { alertGraphQuery } from 'monitor-api/modules/alert';
 import { logQuery } from 'monitor-api/modules/grafana';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 import { transformDataKey, typeTools } from 'monitor-common/utils/utils';
-import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { IDetectionConfig, MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { type IDetectionConfig, MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import MonitorEchart from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import AiopsChartEvent, { createAutoTimerange } from './aiops-chart';
@@ -41,7 +40,9 @@ import IntelligenceScene from './intelligence-scene';
 import LoadingBox from './loading-box';
 import OutlierDetectionChart from './outlier-detection-chart';
 import TimeSeriesForecastingChart from './time-series-forecasting-chart';
-import { IDetail } from './type';
+
+import type { IDetail } from './type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './view-info.scss';
 
@@ -527,7 +528,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   // 事件及日志来源告警视图
   getSeriesViewComponent() {
     if (this.isHostAnomalyDetection) {
-      return <IntelligenceScene params={this.detail}></IntelligenceScene>;
+      return <IntelligenceScene params={this.detail} />;
     }
     /** 智能检测算法图表 */
     if (this.hasAIOpsDetection)
@@ -565,7 +566,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           traceInfoTimeRange={this.traceInfoTimeRange}
           on-data-zoom={this.dataZoom}
           on-export-data-retrieval={this.handleToDataRetrieval}
-        ></MonitorEchart>
+        />
       </div>
     );
   }
@@ -582,7 +583,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       <div class='source-log'>
         <div class='source-log-title'>{this.$t('源日志')}</div>
         <div class='source-log-tip'>
-          <span class='icon-monitor icon-hint'></span>
+          <span class='icon-monitor icon-hint' />
           <span class='tip-text'>{this.$t('默认显示最近20条')}</span>
         </div>
         <div style={{ height: `${this.tableHeight}px` }}>
@@ -591,17 +592,17 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
               width={260}
               label={this.$t('时间')}
               scopedSlots={timeSlots}
-            ></bk-table-column>
+            />
             <bk-table-column
               label={this.$t('日志')}
               scopedSlots={contentSlots}
               showOverflowTooltip={true}
-            ></bk-table-column>
+            />
           </bk-table>
         </div>
         {this.showLoadingBox ? (
           <div class='source-log-loading'>
-            <LoadingBox></LoadingBox>
+            <LoadingBox />
           </div>
         ) : undefined}
       </div>

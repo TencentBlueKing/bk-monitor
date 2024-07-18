@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import re
+import threading
 import time
 import urllib.parse
 from base64 import b64encode
@@ -1180,6 +1181,33 @@ class UptimeCheckBeatResource(Resource):
         else:
             return ip_to_host.get(host_key(ip=node.ip, bk_cloud_id=str(node.plat_id)), None)
 
+    def get_bad_agent(self, biz_to_host):
+        # 分业务获取gse agent信息
+        params_list = [(biz_id, hosts) for biz_id, hosts in list(biz_to_host.items())]
+        pool = ThreadPool()
+        gse_status_list = pool.map_ignore_exception(resource.cc.get_agent_status, params_list)
+        pool.close()
+        pool.join()
+        gse_status = {}
+        for item in gse_status_list:
+            gse_status.update(item)
+        bad_agent = [host for (host, status) in gse_status.items() if status != 0]
+        return bad_agent
+
+    def get_beat_data(self, all_hosts_, biz, heartbeats, lock):
+        if is_ipv6_biz(biz):
+            bk_host_ids = [str(host.bk_host_id) for host in all_hosts_]
+            beat_data = resource.uptime_check.get_beat_data({"bk_host_ids": bk_host_ids, "bk_biz_id": biz})
+        else:
+            ips = [{"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id)} for host in all_hosts_]
+            beat_data = resource.uptime_check.get_beat_data({"ips": ips, "bk_biz_id": biz})
+
+        lock.acquire()
+        try:
+            heartbeats.extend(beat_data)
+        finally:
+            lock.release()
+
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data.get("bk_biz_id")
 
@@ -1196,8 +1224,10 @@ class UptimeCheckBeatResource(Resource):
         biz_to_node = defaultdict(list)
         biz_to_host = defaultdict(list)
         heartbeats = []
+        heartbeats_lock = threading.Lock()
         ip_to_host = {}
         id_to_host = {}
+        biz_to_all_hosts = defaultdict(list)
         for node in nodes:
             biz_to_node[node.bk_biz_id].append(node)
 
@@ -1207,6 +1237,7 @@ class UptimeCheckBeatResource(Resource):
             ip_hosts = api.cmdb.get_host_without_biz(ips=origin_ips)["hosts"]
             hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
             all_hosts = ip_hosts + hosts
+            biz_to_all_hosts[biz].extend(all_hosts)
             ip_to_host.update(
                 {
                     host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
@@ -1215,37 +1246,47 @@ class UptimeCheckBeatResource(Resource):
                 }
             )
             id_to_host.update({host.bk_host_id: host for host in all_hosts})
-            if is_ipv6_biz(biz):
-                ips = [{"bk_host_id": str(host.bk_host_id), "bk_biz_id": biz} for host in all_hosts]
-            else:
-                ips = [
-                    {"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id), "bk_biz_id": biz}
-                    for host in all_hosts
-                ]
-            # 批量获取采集器信息
-            heartbeats.extend(resource.uptime_check.get_beat_data.bulk_request(ips))
+
+        for node in nodes:
+            node_host = self.node_to_host(node, ip_to_host, id_to_host)
+            biz_to_host[node.bk_biz_id].append(node_host)
+
+        pool = ThreadPool()
+        for biz, all_hosts_ in biz_to_all_hosts.items():
+            pool.apply_async(
+                self.get_beat_data,
+                kwds={"all_hosts_": all_hosts_, "biz": biz, "heartbeats": heartbeats, "lock": heartbeats_lock},
+            )
+        futures = []
+        bad_agent_result = pool.apply_async(self.get_bad_agent, kwds={"biz_to_host": biz_to_host})
+        futures.append(bad_agent_result)
+        pool.close()
+        pool.join()
+        bad_agent = []
+        for future in futures:
+            bad_agent.extend(future.get())
 
         for i in heartbeats:
             if not i:
                 continue
-            if i[0].get("bk_host_id"):
+            if i.get("bk_host_id"):
                 node_status = {
-                    i[0]["bk_host_id"]: {
-                        "bk_host_id": safe_int(i[0]["bk_host_id"]),
-                        "status": i[0].get("status"),
-                        "version": i[0].get("version"),
+                    i["bk_host_id"]: {
+                        "bk_host_id": safe_int(i["bk_host_id"]),
+                        "status": i.get("status"),
+                        "version": i.get("version"),
                         "gse_status": BEAT_STATUS["RUNNING"],
                     }
                 }
             else:
-                bk_host_id = ip_to_host[host_key(ip=i[0]["ip"], bk_cloud_id=i[0]["bk_cloud_id"])].bk_host_id
+                bk_host_id = ip_to_host[host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"])].bk_host_id
                 node_status = {
-                    host_key(ip=i[0]["ip"], bk_cloud_id=i[0]["bk_cloud_id"]): {
+                    host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"]): {
                         "bk_host_id": bk_host_id,
-                        "ip": i[0]["ip"],
-                        "bk_cloud_id": safe_int(i[0]["bk_cloud_id"]),
-                        "status": i[0].get("status"),
-                        "version": i[0].get("version"),
+                        "ip": i["ip"],
+                        "bk_cloud_id": safe_int(i["bk_cloud_id"]),
+                        "status": i.get("status"),
+                        "version": i.get("version"),
                         "gse_status": BEAT_STATUS["RUNNING"],
                     }
                 }
@@ -1272,21 +1313,8 @@ class UptimeCheckBeatResource(Resource):
                     "gse_status": BEAT_STATUS["RUNNING"],
                     **host_dict,
                 }
-            biz_to_host[node.bk_biz_id].append(node_host)
 
         result = list(result.values())
-
-        # 分业务获取gse agent信息
-        params_list = [(biz_id, hosts) for biz_id, hosts in list(biz_to_host.items())]
-        pool = ThreadPool()
-        gse_status_list = pool.map_ignore_exception(resource.cc.get_agent_status, params_list)
-        pool.close()
-        pool.join()
-        gse_status = {}
-        for item in gse_status_list:
-            gse_status.update(item)
-
-        bad_agent = [host for (host, status) in gse_status.items() if status != 0]
 
         for r in result:
             if not r.get("bk_host_id"):
@@ -1308,19 +1336,59 @@ class GetBeatDataResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_host_id = serializers.CharField(required=False, label="节点主机ID")
-        ip = serializers.CharField(required=False, label="节点IP")
-        bk_cloud_id = serializers.CharField(required=False, label="节点云区域ID")
+        class IpCloudIdSerializer(serializers.Serializer):
+            ip = serializers.CharField(required=False, label="节点IP")
+            bk_cloud_id = serializers.CharField(required=False, label="节点云区域ID")
+
+        bk_host_ids = serializers.ListField(required=False, label="节点主机ID列表")
+        ips = serializers.ListField(required=False, child=IpCloudIdSerializer(), label="节点IP和节点云区域ID列表")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
+
+        def validate(self, attrs):
+            bk_host_ids = attrs.get('bk_host_ids', None)
+            ips = attrs.get('ips', None)
+            if bk_host_ids is None and ips is None:
+                raise serializers.ValidationError("bk_host_ids 和 ips 至少存在一个")
+            return attrs
+
+    @staticmethod
+    def transform_ips(ips: list) -> list:
+        cloud_ips = defaultdict(list)
+
+        for ip_info in ips:
+            cloud_id = ip_info['bk_cloud_id']
+            ip = ip_info['ip']
+            cloud_ips[cloud_id].append(ip)
+
+        transformd_ips = []
+        for cloud_id, ip_list in cloud_ips.items():
+            transformd_ips.append({"ips": ip_list, "bk_cloud_id": cloud_id})
+
+        return transformd_ips
 
     def perform_request(self, data):
         end = arrow.utcnow().timestamp
         start = end - 180
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        condition_statement = []
-        for field in ["bk_host_id"] if data.get("bk_host_id") else ["ip", "bk_cloud_id"]:
-            condition_statement.append("{}='{}'".format(field, data.get(field, "")))
-        promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{','.join(condition_statement)}}}[1m]"
+        if data.get("bk_host_ids"):
+            condition_statement = f'''bk_host_id=~"{'|'.join(data.get('bk_host_ids'))}"'''
+            promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}[1m]"
+        else:
+            ips = data.get("ips")
+            transformd_ips = self.transform_ips(ips)
+            promql_statement_list = []
+            for ips_info in transformd_ips:
+                ips = ips_info["ips"]
+                bk_cloud_id = ips_info["bk_cloud_id"]
+                if len(ips) == 1:
+                    condition_statement = f'ip="{ips[0]}", bk_cloud_id="{bk_cloud_id}"'
+                else:
+                    condition_statement = f'''ip=~"{'|'.join(ips)}", bk_cloud_id="{bk_cloud_id}"'''
+                promql_statement_list.append(
+                    f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}[1m]"
+                )
+            promql_statement = "(" + " or ".join(promql_statement_list) + ")"
+
         query_config = {
             "data_source_label": DataSourceLabel.PROMETHEUS,
             "data_type_label": DataTypeLabel.TIME_SERIES,
@@ -1331,11 +1399,27 @@ class GetBeatDataResource(Resource):
         data_source = data_source_class(int(data["bk_biz_id"]), **query_config)
         query = UnifyQuery(bk_biz_id=int(data["bk_biz_id"]), data_sources=[data_source], expression="")
         records = query.query_data(start_time=start * 1000, end_time=end * 1000, limit=5)
-        # 如果非 ipv6 业务，要把 bk_host_id 字段去掉，以免影响后面的判断
-        if not data.get("bk_host_id"):
+
+        results = []
+        cloud_id_and_ip = []
+        bk_cloud_id_list = []
+        if not data.get("bk_host_ids"):
             for record in records:
+                # 如果非 ipv6 业务，要把 bk_host_id 字段去掉，以免影响后面的判断
                 record.pop("bk_host_id", None)
-        return records
+                ip = record["ip"]
+                bk_cloud_id = record["bk_cloud_id"]
+                if (bk_cloud_id, ip) not in cloud_id_and_ip:
+                    results.append(record)
+                    cloud_id_and_ip.append((bk_cloud_id, ip))
+        else:
+            for record in records:
+                bk_host_id = record["bk_host_id"]
+                if bk_host_id not in bk_cloud_id_list:
+                    results.append(record)
+                    bk_cloud_id_list.append(bk_host_id)
+
+        return results
 
 
 class GetStrategyStatusResource(Resource):
@@ -2605,15 +2689,16 @@ class ImportUptimeCheckTaskResource(Resource):
         task_create_data["bk_biz_id"] = bk_biz_id
         del task_create_data["groups"]
 
-        # 先测试任务，确定可用后才可保存
-        resource.uptime_check.test_task(
-            {
-                "bk_biz_id": bk_biz_id,
-                "config": task_create_data["config"],
-                "protocol": task_create_data["protocol"],
-                "node_id_list": node_id_list,
-            }
-        )
+        # 当开启拨测联通性测试，则先测试任务，确定可用后才可保存
+        if settings.ENABLE_UPTIMECHECK_TEST:
+            resource.uptime_check.test_task(
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "config": task_create_data["config"],
+                    "protocol": task_create_data["protocol"],
+                    "node_id_list": node_id_list,
+                }
+            )
 
         tasks = UptimeCheckTask.objects.filter(name=task_create_data["name"])
         if tasks:
