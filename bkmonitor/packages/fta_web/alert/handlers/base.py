@@ -29,6 +29,7 @@ from bkmonitor.utils.request import get_request, get_request_username
 from constants.alert import EventTargetType
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
+from fta_web.alert.utils import process_stage_string
 
 
 class QueryField:
@@ -283,7 +284,10 @@ class BaseQueryHandler:
         处理 query_string
         """
         query_string = self.query_string if query_string is None else query_string
-        if query_string:
+        query_string, stage_conditions = process_stage_string(query_string)
+
+        search_object = self.add_conditions(search_object, stage_conditions)
+        if query_string.strip():
             query_dsl = self.query_transformer.transform_query_string(query_string)
             if isinstance(query_dsl, str):
                 # 如果 query_dsl 是字符串，就使用 query_string 查询
