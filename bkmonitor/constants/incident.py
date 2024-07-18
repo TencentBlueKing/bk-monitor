@@ -221,3 +221,11 @@ class IncidentAlertAggregateDimension(CustomEnum):
             "metric_name": "metric_display",
         }
         return aggregate_dimension_map[self.value]
+
+
+class IncidentGraphComponentType(CustomEnum):
+    """故障图谱边事件传播方向."""
+
+    PRIMARY = "primary"
+    BASE_MAP = "base_map"
+    TOPO = "topo"

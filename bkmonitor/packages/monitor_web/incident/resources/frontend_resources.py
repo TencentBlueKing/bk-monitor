@@ -63,6 +63,10 @@ class IncidentBaseResource(Resource):
             kwargs["conditions"].append({'key': 'id', 'value': alert_ids, 'method': 'eq'})
         else:
             kwargs["conditions"] = [{'key': 'id', 'value': alert_ids, 'method': 'eq'}]
+        if "bk_biz_ids" not in kwargs:
+            kwargs["bk_biz_ids"] = list(
+                map(lambda x: int(x), snapshot.incident_snapshot_content['rca_summary']['bk_biz_ids'])
+            )
         alerts = IncidentAlertQueryHandler(**kwargs).search()["alerts"]
         return alerts
 

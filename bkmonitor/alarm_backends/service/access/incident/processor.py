@@ -17,6 +17,7 @@ from pika.spec import Basic
 
 from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
+from bkmonitor.aiops.incident.models import IncidentSnapshot
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentDocument, IncidentSnapshotDocument
@@ -93,6 +94,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             # 补充快照记录并写入ES
             incident_document.snapshot = snapshot
+            snapshot_model = IncidentSnapshot(snapshot.content.to_dict())
+            incident_document.generate_labels(snapshot_model)
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.CREATE)
             logger.info(f"[CREATE]Success to access incident[{sync_info['incident_id']}] as document")
         except Exception as e:
@@ -150,6 +153,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
                 # 补充快照记录并写入ES
                 incident_document.snapshot = snapshot
+                snapshot_model = IncidentSnapshot(snapshot.content.to_dict())
+                incident_document.generate_labels(snapshot_model)
+
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
             logger.info(f"[UPDATE]Success to access incident[{sync_info['incident_id']}] as document")
         except Exception as e:
