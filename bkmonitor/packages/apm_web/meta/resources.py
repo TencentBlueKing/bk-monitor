@@ -2203,36 +2203,31 @@ class QueryExceptionDetailEventResource(PageListResource):
                     if not subtitle:
                         exception_message = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_MESSAGE, "")
                         subtitle = f"{exception_type}: {exception_message}"
-                    if validated_data["exception_type"]:
-                        if exception_type == validated_data["exception_type"]:
-                            res.append(
-                                {
-                                    "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
-                                    "subtitle": subtitle,
-                                    "content": stacktrace,
-                                    "timestamp": int(event["timestamp"]),
-                                }
-                            )
-                    else:
-                        # 无过滤条件 -> 显示全部
-                        res.append(
-                            {
-                                "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
-                                "subtitle": subtitle,
-                                "content": stacktrace,
-                                "timestamp": int(event["timestamp"]),
-                            }
-                        )
-            else:
-                if subtitle:
+                    # 无过滤条件 -> 显示全部
                     res.append(
                         {
-                            "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
+                            "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
                             "subtitle": subtitle,
-                            "content": [],
-                            "timestamp": int(span["start_time"]),
+                            "content": stacktrace,
+                            "timestamp": int(event["timestamp"]),
+                            "exception_type": exception_type,
                         }
                     )
+            else:
+                res.append(
+                    {
+                        "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
+                        "subtitle": subtitle,
+                        "content": [],
+                        "timestamp": int(span["start_time"]),
+                        "exception_type": self.UNKNOWN,
+                    }
+                )
+
+        # exception_type 过滤
+        if validated_data["exception_type"]:
+            res = [i for i in res if i["exception_type"] == validated_data["exception_type"]]
+
         # 对 res 基于 timestamp 字段排序 (倒序)
         res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
         for index, r in enumerate(res, 1):
@@ -2285,7 +2280,6 @@ class QueryExceptionEndpointResource(Resource):
         }
 
         exception_spans = api.apm_api.query_span(query_dict)
-        has_event_trace_id = [i["trace_id"] for i in exception_spans if i.get("events")]
         indentify_mapping = {}
         colors = ServiceColorClassifier()
 
@@ -2317,9 +2311,7 @@ class QueryExceptionEndpointResource(Resource):
             else:
                 exception_type = self.UNKNOWN_EXCEPTION
                 if (
-                    validated_data["exception_type"]
-                    and exception_type == validated_data["exception_type"]
-                    and span["trace_id"] not in has_event_trace_id
+                    validated_data["exception_type"] and exception_type == validated_data["exception_type"]
                 ) or not validated_data["exception_type"]:
                     indentify = f"{service_name}: {span_name}"
                     if indentify in indentify_mapping:

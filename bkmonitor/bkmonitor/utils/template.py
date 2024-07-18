@@ -388,7 +388,7 @@ class DynAutoEscapeEnvironment(Environment):
             self.markup_class = markup_class
 
 
-ESCAPE_MARKDOWN_CHARS = r"\*_`[](){}#+-.!|"
+ESCAPE_MARKDOWN_CHARS = r"\*_`[](){}#+-!|"
 
 
 def escape_markdown(value):

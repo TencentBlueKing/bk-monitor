@@ -60,7 +60,12 @@ const defaultLayoutOptions = {
 
 const childLayoutOption = {
   'elk.algorithm': 'layered',
-  'elk.direction': 'RIGHT', // 设置为横向布局
+  'elk.direction': 'RIGHT',
+};
+
+const subChildOption = {
+  'elk.algorithm': 'layered',
+  'elk.direction': 'RIGHT',
   'elk.layered.layering.strategy': 'LONGEST_PATH',
   'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
   'elk.layered.mergeEdges': true,
@@ -84,6 +89,20 @@ const convertToElkFormat = data => {
       id: `${edge.source}-${edge.target}`,
       sources: [edge.source],
       targets: [edge.target],
+    });
+  });
+
+  data.nodes.forEach(child => {
+    Object.assign(child, { layoutOptions: subChildOption });
+    (child.children ?? []).forEach(subChild => {
+      if (subChild.isCombo) {
+        Object.assign(child, {
+          layoutOptions: {
+            'elk.algorithm': 'layered',
+            'elk.direction': 'DOWN',
+          },
+        });
+      }
     });
   });
 
@@ -156,6 +175,15 @@ const setSubNodesY = (children: VirtaulNode[], starY: number) => {
   });
 };
 
+const fixNodeYOffset = (nodes, diff) => {
+  nodes.forEach(node => {
+    node.y += diff;
+    if (node.children?.length) {
+      fixNodeYOffset(node.children, diff);
+    }
+  });
+};
+
 /**
  * 优化最终布局
  * @param layouted 计算之后的布局数据
@@ -165,6 +193,17 @@ const setSubNodesY = (children: VirtaulNode[], starY: number) => {
 const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const globalNodes = [];
   const groupByY = new Map<number, VirtaulNode[]>();
+
+  const topCombo = layouted.children[0];
+  const bottomComb = layouted.children[1];
+
+  const topYDiff = topCombo.y - topCombo.height / 2;
+  topCombo.y = topCombo.height / 2;
+  fixNodeYOffset(topCombo.children, topYDiff);
+
+  const bottomYDiff = bottomComb.y - bottomComb.height / 2 + topCombo.height;
+  bottomComb.y = bottomComb.height / 2 + topCombo.height;
+  fixNodeYOffset(bottomComb.children, bottomYDiff);
 
   const rootNode = data.nodes.find(node => node.entity.is_root);
   let rootBox = rootNode;
@@ -350,8 +389,14 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const leftPdding = Math.max(...usefullNodes.filter(node => node.x === globalMinX).map(node => node.width));
   const rightPadding = Math.max(...usefullNodes.filter(node => node.x === globalMaxX).map(node => node.width));
   const globalWidth = globalMaxX - globalMinX + leftPdding + rightPadding;
-  Object.assign(data.combos[0], { width: globalWidth, fixSize: [globalWidth, data.combos[0].height] });
-  Object.assign(data.combos[1], { width: globalWidth, fixSize: [globalWidth, data.combos[1].height] });
+  Object.assign(data.combos[0], {
+    width: globalWidth,
+    fixSize: [globalWidth, data.combos[0].height],
+  });
+  Object.assign(data.combos[1], {
+    width: globalWidth,
+    fixSize: [globalWidth, data.combos[1].height],
+  });
 
   const paddingLeft = globalMinX < 0 ? -globalMinX : 0;
 
@@ -366,19 +411,24 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     const target = (isCombo ? combos : nodes).find(n => n.id === queryId);
     if (target) {
       Object.assign(target, { x: x + paddingLeft, y });
+      if (isCombo && !node.isRoot) {
+        node.children.forEach((child, index) => {
+          child.x = target.x - target.width / 2 + index * child.width + 10;
+        });
+      }
     }
   });
 };
 
+/** 兼容动态combo数量 */
 const setRootComboStyle = (combos: Array<any>, width) => {
-  const maxWidth = Math.max(...getRootCombos({ combos }).map(combo => combo.width ?? 0), width);
-
-  Object.assign(combos[0], { width: maxWidth, x: width / 2, y: 0, fixSize: [maxWidth, combos[0].height] });
-  Object.assign(combos[1], {
-    width: maxWidth,
-    x: width / 2,
-    y: combos[0].height + combos[1].height / 2 + 15,
-    fixSize: [maxWidth, combos[1].height],
+  const rootCombos = getRootCombos({ combos });
+  const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width);
+  rootCombos.forEach((combo, index) => {
+    const prevCombo = rootCombos[index - 1];
+    const y = index === 0 ? 0 : prevCombo.y + prevCombo.height + combo.height / 2 + 15 + 30;
+    console.log(combo);
+    Object.assign(combo, { width: maxWidth, x: width / 2, y, fixSize: [maxWidth, combo.height + 30] });
   });
 };
 
@@ -466,7 +516,6 @@ const getLayoutData = elkData => {
       return Promise.reject(error);
     });
 };
-
 export default {
   getLayoutData,
   getComboId,

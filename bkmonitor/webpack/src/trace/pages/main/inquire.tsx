@@ -164,7 +164,6 @@ export default defineComponent({
             const defaultApp = appList.value.find(app => app.permission?.[authorityMap.VIEW_AUTH])?.app_name;
             state.app = defaultApp || '';
           }
-
           handleAppSelectChange(state.app);
         }
       }, 100);
@@ -287,13 +286,12 @@ export default defineComponent({
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
-      debugger;
       if (val) {
         if (!Object.keys(scopeSelects.value).length) {
           await getQueryOptions();
         }
         if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery)) {
-          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
+          if (state.isAlreadyScopeQuery) reGetFieldOptionValues(); 
           handleQueryScopeDebounce();
         }
 
@@ -415,6 +413,22 @@ export default defineComponent({
         conditionFilter.forEach(item => {
           if (item.value.length) filters.push(item);
         });
+      } else {
+        const {
+          conditionList: conditionListStringify,
+        } = route.query;
+        if(conditionListStringify) {
+          const result = JSON.parse(conditionListStringify as string);
+          for(const key in result) {
+            if(result[key]?.selectedConditionValue?.length) {
+              filters.push({
+                key,
+                operator: result[key].selectedCondition.value,
+                value: result[key].selectedConditionValue,
+              })
+            }
+          }
+        }
       }
 
       if (selectedListType.value === 'trace') {
@@ -520,7 +534,6 @@ export default defineComponent({
     }
     /* 范围查询 */
     async function handleQueryScope(isClickQueryBtn = false, needLoading = true) {
-      debugger;
       if ((!state.autoQuery && !isClickQueryBtn && state.isAlreadyScopeQuery) || !state.app) {
         return;
       }
@@ -549,7 +562,6 @@ export default defineComponent({
 
       setRouterQueryParams();
       collectCheckValue.value = params;
-      debugger;
       // Trace List 查询相关
       if (selectedListType.value === 'trace') {
         const listData = await listTrace(params).catch(() => []);
