@@ -33,7 +33,7 @@ import ErrorMsg from '../../components/error-msg/error-msg';
 import IntelligentModelsStore, { IntelligentModelsType } from '../../store/modules/intelligent-models';
 import AnomalyDetection from './components/anomaly-detection';
 import ExpanCard from './components/expan-card';
-import IpSelector from './components/ip-selector';
+// import IpSelector from './components/ip-selector';
 
 import type { HostValueItem, SchemeItem } from './types';
 import type { TranslateResult } from 'vue-i18n';
@@ -161,6 +161,7 @@ export default class AiSettingsSet extends tsc<object> {
       this.settingsData[1].data[0].data = {
         ...host,
         default_plan_id: host.default_plan_id || '',
+        is_enabled: true, // 默认 true
       };
     }
   }
@@ -249,6 +250,7 @@ export default class AiSettingsSet extends tsc<object> {
     return schemeList.map(item => (
       <bk-option
         id={item.id}
+        key={item.id}
         style='width: 100%;'
         name={item.name}
       >
@@ -323,7 +325,52 @@ export default class AiSettingsSet extends tsc<object> {
               title={child.title as string}
             >
               <div class='form-items'>
-                {this.formItemRender(
+                {[
+                  this.formItemRender(
+                    <span class='item-label required mt-6'>{this.$t('默认方案')}</span>,
+                    <ErrorMsg
+                      style='width: 100%;'
+                      message={child.errorsMsg.default_plan_id}
+                    >
+                      {this.loading ? (
+                        <div class='skeleton-element h16 mt-6' />
+                      ) : (
+                        <bk-select
+                          v-model={child.data.default_plan_id}
+                          clearable={false}
+                          ext-popover-cls='ai-settings-scheme-select'
+                          searchable
+                          on-change={() => {
+                            child.errorsMsg.default_plan_id = '';
+                          }}
+                        >
+                          {this.renderSchemeOption(this.multipleSchemeList)}
+                        </bk-select>
+                      )}
+                    </ErrorMsg>,
+                    true
+                  ),
+                  this.formItemRender(
+                    <span class='item-label required'>{this.$t('默认敏感度')}</span>,
+                    this.loading ? (
+                      <div class='skeleton-element h16' />
+                    ) : (
+                      <div class='mt-6'>
+                        <bk-slider
+                          v-model={child.data.default_sensitivity}
+                          max-value={10}
+                          min-value={1}
+                        />
+                        <div class='sensitivity-tips'>
+                          <span>{this.$t('较少告警')}</span>
+                          <span>{this.$t('较多告警')}</span>
+                        </div>
+                      </div>
+                    ),
+                    true
+                  ),
+                ]}
+                {/* {this.formItemRender(
                   this.$t('是否启用'),
                   this.loading ? (
                     <div class='skeleton-element h16' />
@@ -397,7 +444,7 @@ export default class AiSettingsSet extends tsc<object> {
                         true
                       ),
                     ]
-                  : undefined}
+                  : undefined} */}
               </div>
             </ExpanCard>
           );

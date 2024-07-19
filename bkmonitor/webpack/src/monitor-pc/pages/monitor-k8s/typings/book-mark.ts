@@ -184,9 +184,9 @@ export class BookMarkModel implements IBookMark {
     if (this.options?.detail_panel) {
       this.detailPanel = new PanelModel(this.options.detail_panel);
     }
-    if (this.options?.ai_panel) {
-      this.aiPanel = new PanelModel(this.options.ai_panel);
-    }
+    // if (this.options?.ai_panel) {
+    //   this.aiPanel = new PanelModel(this.options.ai_panel);
+    // }
     if (this.options?.overview_detail_panel) {
       this.overviewDetailPanel = new PanelModel(this.options.overview_detail_panel);
     }
@@ -207,24 +207,24 @@ export class BookMarkModel implements IBookMark {
     if (this.overview_panels?.length) {
       this.updatePanels('overview');
     }
-    if (!!bookmark.variables?.length) {
+    if (bookmark.variables?.length) {
       this.variables = bookmark.variables.map(item => new VariableModel(item));
     }
   }
   // 所有视图ID
-  get allPanelId() {
-    const tempSet = new Set();
-    this.panels.forEach(panel => {
-      if (panel.type === 'row') {
-        panel?.panels?.forEach(p => {
-          tempSet.add(p.id);
-        });
-      } else {
-        tempSet.add(panel.id);
-      }
-    });
-    return Array.from(tempSet) as string[];
-  }
+  // get allPanelId() {
+  //   const tempSet = new Set();
+  //   this.panels.forEach(panel => {
+  //     if (panel.type === 'row') {
+  //       panel?.panels?.forEach(p => {
+  //         tempSet.add(p.id);
+  //       });
+  //     } else {
+  //       tempSet.add(panel.id);
+  //     }
+  //   });
+  //   return Array.from(tempSet) as string[];
+  // }
   // dashbord tool menu list
   get dasbordToolMenuList(): IMenuItem[] {
     return [

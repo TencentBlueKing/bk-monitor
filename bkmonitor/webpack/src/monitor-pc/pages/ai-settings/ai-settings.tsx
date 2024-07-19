@@ -130,29 +130,31 @@ export default class AiSettingsPage extends tsc<object> {
 
   /* 获取关闭检测对象的详情信息 */
   getTargetDetail() {
-    this.sceneIntelligent.forEach(async detection => {
+    for (const detection of this.sceneIntelligent) {
       if (detection.data.exclude_target?.[0]?.[0]?.value?.length) {
-        const data = await getBusinessTargetDetail({
+        getBusinessTargetDetail({
           target: detection.data.exclude_target,
-        }).catch(() => null);
-        if (data) {
-          detection.excludeTargetDetail = {
-            targetTable: transformDataKey(data.target_detail),
-            targetType: data.node_type,
-            objType: data.instance_type,
-          };
-          detection.excludeTargetText = handleSetTargetDesc(
-            data.target_detail,
-            data.node_type,
-            data.instance_type,
-            data.node_count,
-            data.instance_count
-          );
-          return;
-        }
+        })
+          .then(data => {
+            if (data) {
+              detection.excludeTargetDetail = {
+                targetTable: transformDataKey(data.target_detail),
+                targetType: data.node_type,
+                objType: data.instance_type,
+              };
+              detection.excludeTargetText = handleSetTargetDesc(
+                data.target_detail,
+                data.node_type,
+                data.instance_type,
+                data.node_count,
+                data.instance_count
+              );
+              return;
+            }
+          })
+          .catch(() => null);
       }
-      detection.excludeTargetText = null;
-    });
+    }
   }
 
   /** 关闭通知对象弹窗 */
@@ -195,7 +197,7 @@ export default class AiSettingsPage extends tsc<object> {
 
     return (
       <div class='detail-form'>
-        <div class='form-item'>
+        {/* <div class='form-item'>
           <div class='label'>{this.$t('是否启用')}:</div>
           <div class='value'>{formatValue(this.$t(item.data.is_enabled ? '是' : '否'))}</div>
         </div>
@@ -232,7 +234,7 @@ export default class AiSettingsPage extends tsc<object> {
               )
             )}
           </div>
-        </div>
+        </div> */}
         <div class='form-item'>
           <div class='label'>{this.$t('方案')}:</div>
           <div class='value'>
@@ -281,7 +283,10 @@ export default class AiSettingsPage extends tsc<object> {
               <div class='skeleton-element empty-scene-detection' />
             ) : (
               this.sceneIntelligent.map(item => (
-                <div class='detection-item'>
+                <div
+                  key={item.name}
+                  class='detection-item'
+                >
                   <div class='name'>{item.name}</div>
                   {this.renderForm(item, 'sceneIntelligent')}
                 </div>
@@ -298,7 +303,9 @@ export default class AiSettingsPage extends tsc<object> {
           need-footer={false}
           show-footer={false}
           title={this.$t('关闭目标')}
-          on-change={v => (this.excludeTargetDialog.show = v)}
+          on-change={v => {
+            this.excludeTargetDialog.show = v;
+          }}
         >
           <StrategyTargetTable
             objType={this.excludeTargetDialog.objType}
