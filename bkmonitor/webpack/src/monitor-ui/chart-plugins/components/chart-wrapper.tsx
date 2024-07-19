@@ -33,6 +33,7 @@ import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
@@ -491,8 +492,21 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'apm-timeseries-chart':
+        return (
+          <ApmTimeSeries
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onCollectChart={this.handleCollectChart}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
+          />
+        );
       // 不需要报错显示
-      case 'graph':
+      // case 'graph':
       default:
         return (
           <LineEcharts

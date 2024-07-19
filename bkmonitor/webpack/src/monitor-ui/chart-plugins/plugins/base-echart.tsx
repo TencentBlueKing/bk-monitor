@@ -43,9 +43,9 @@ export interface IChartProps {
 }
 export interface IChartEvent {
   // mouseover 事件
-  onMouseover: void;
+  onMouseover: () => void;
   // mouseout 事件
-  onMouseout: void;
+  onMouseout: () => void;
   // dblclick 事件
   onDblClick: MouseEvent;
   /** mousemove事件  */
@@ -53,7 +53,17 @@ export interface IChartEvent {
   // click 事件
   onClick: MouseEvent;
 }
-const MOUSE_EVENTS = ['click', 'dblclick', 'mouseover', 'mousemove', 'mouseout', 'mousedown', 'mouseup', 'globalout'];
+const MOUSE_EVENTS = [
+  'click',
+  'dblclick',
+  'mouseover',
+  'mousemove',
+  'mouseout',
+  'mousedown',
+  'mouseup',
+  'globalout',
+  'contextmenu',
+];
 @Component
 export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Ref('chartInstance') chartRef: HTMLDivElement;
@@ -163,11 +173,12 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     });
   }
   initChartEvent() {
-    MOUSE_EVENTS.forEach(event => {
+    for (const event of MOUSE_EVENTS) {
       (this as any).instance.on(event, params => {
+        console.log(event, params);
         this.$emit(event, params);
       });
-    });
+    }
   }
   // echarts 实例销毁
   destroy() {
