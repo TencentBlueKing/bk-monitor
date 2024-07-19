@@ -28,6 +28,7 @@ import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { copyText } from 'monitor-common/utils/utils';
 
 import CycleInput from '../../../../components/cycle-input/cycle-input';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
@@ -88,7 +89,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   @Prop({ default: false, type: Boolean }) hasAiOpsDetect: boolean;
 
   hoverDeleteItemIndex = -1;
-  levelIconMap: string[] = [, 'icon-danger', 'icon-mind-fill', 'icon-tips'];
+  levelIconMap: string[] = ['', 'icon-danger', 'icon-mind-fill', 'icon-tips'];
   contentLoading = false;
   metricpopoerInstance: any = null;
   isShowExpress = false; // 此值用与单指标时可选填表达式
@@ -366,6 +367,19 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   handleQueryStringChange(e: Event, item: MetricDetail) {
     item.keywords_query_string = String((e.target as any).value).trim();
   }
+  handleCopyMetricName(e: Event, metric: MetricDetail) {
+    e.stopPropagation();
+    const copyStr = metric.promql_metric;
+    let hasErr = false;
+    copyText(copyStr, errMsg => {
+      this.$bkMessage({
+        message: errMsg,
+        theme: 'error',
+      });
+      hasErr = !!errMsg;
+    });
+    if (!hasErr) this.$bkMessage({ theme: 'success', message: this.$t('复制成功') });
+  }
   render() {
     return (
       <div class='metric-content'>
@@ -412,6 +426,20 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       >
                         {item.metric_field_name || item.metric_id || <span class='placeholder'>{this.$t('添加')}</span>}
                       </div>
+                      {(item.metric_field_name || item.metric_id) && this.dataTypeLabel === MetricType.TimeSeries && (
+                        <div
+                          class='operate'
+                          v-bk-tooltips={{
+                            content: window.i18n.t('复制指标名'),
+                            placements: ['top'],
+                          }}
+                        >
+                          <span
+                            class='icon-monitor icon-mc-copy'
+                            onClick={e => this.handleCopyMetricName(e, item)}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 }
@@ -582,7 +610,10 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             {/* =======计算表达式====== */}
             {this.canSetExpress || this.isShowExpress
               ? [
-                  <div class='expression-left'>
+                  <div
+                    key='0'
+                    class='expression-left'
+                  >
                     <span class='item-key'>
                       <i class='icon-monitor icon-arrow-turn' />
                     </span>
@@ -609,6 +640,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                         content: this.$t('AIOps算法只支持单指标'),
                         disabled: !this.hasAiOpsDetect || this.readonly,
                       }}
+                      type='button'
                       on-click={this.handleAddMetricProxy}
                     >
                       <i class='bk-icon icon-plus' />
