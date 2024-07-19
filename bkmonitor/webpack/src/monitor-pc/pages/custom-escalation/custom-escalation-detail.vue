@@ -586,6 +586,7 @@
                   <bk-table-column
                     width="170"
                     :label="$t('单位')"
+                    :render-header="renderUnitHeader"
                     prop="unit"
                   >
                     <template slot-scope="scope">
@@ -1037,6 +1038,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   metricCheckList: any = [];
   groupFilterList: string[] = [];
   metricFilterList: string[] = [];
+  unitFilterList: string[] = [];
   groupManage = {
     show: false,
   };
@@ -1068,7 +1070,10 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
 
   eventDataLoading = false;
 
+  /* 所有单位数据 */
   allUnitList = [];
+  /* 列表中已选的单位数据 */
+  tableAllUnitList = [];
 
   get metricSearchData() {
     return [
@@ -1126,6 +1131,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     };
     const leng1 = this.groupFilterList.length;
     const leng2 = this.metricFilterList.length;
+    const leng3 = this.unitFilterList.length;
     const typeLeng = this.metricSearchObj.type.length;
     const nameLeng = this.metricSearchObj.name.length;
     const enNameLeng = this.metricSearchObj.enName.length;
@@ -1139,6 +1145,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
             ) && isMetric
           : true) &&
         (leng2 ? this.metricFilterList.includes(item.monitor_type) : true) &&
+        (leng3 ? isMetric && this.unitFilterList.includes(item.unit) : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
           : true) &&
@@ -1288,6 +1295,25 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     });
   }
 
+  renderUnitHeader(h: CreateElement) {
+    return h(TableFiter, {
+      props: {
+        title: this.$t('单位'),
+        value: this.unitFilterList,
+        list: this.tableAllUnitList,
+      },
+      on: {
+        change: v => {
+          setTimeout(() => {
+            this.pagination.page = 1;
+            this.unitFilterList = v;
+            this.updateAllSelection();
+          }, 300);
+        },
+      },
+    });
+  }
+
   changePageCount(count: number) {
     this.pagination.total = count;
   }
@@ -1393,6 +1419,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       if (this.type === 'customTimeSeries') {
         [, , this.unitList] = data; // 单位list
         const allUnitList = [];
+        const allUnitListMap = new Map();
         for (const groupItem of this.unitList) {
           for (const unitItem of groupItem?.formats || []) {
             if (unitItem.id) {
@@ -1400,6 +1427,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
                 id: unitItem.id,
                 name: unitItem.name,
               });
+              allUnitListMap.set(unitItem.id, unitItem.name);
             }
           }
         }
@@ -1409,6 +1437,24 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
         } ${this.detailData.name}`;
         this.metricList =
           this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
+
+        // 获取表格内的单位数据
+        const tempSet = new Set();
+        const tableAllUnitList = [];
+        for (const metricItem of this.metricList) {
+          if (!tempSet.has(metricItem.unit)) {
+            const unitName = allUnitListMap.get(metricItem.unit);
+            if (unitName) {
+              tableAllUnitList.push({
+                id: metricItem.unit,
+                name: unitName,
+              });
+            }
+          }
+          tempSet.add(metricItem.unit);
+        }
+        this.tableAllUnitList = tableAllUnitList;
+
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
