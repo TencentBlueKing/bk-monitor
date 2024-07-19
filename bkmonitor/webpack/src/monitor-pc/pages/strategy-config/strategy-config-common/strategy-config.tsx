@@ -67,7 +67,7 @@ import type { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 import './strategy-config.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-const { i18n } = window;
+const { i18n: I18N } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
 const STRATEGY_CONFIG_SETTING = 'strategy_config_setting';
 
@@ -102,28 +102,28 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     value: 0,
     dropdownShow: false,
     list: [
-      // { id: 0, name: i18n.t('修改告警组') },
-      { id: 1, name: i18n.t('修改触发条件') },
-      { id: 5, name: i18n.t('修改恢复条件') },
-      // { id: 2, name: i18n.t('修改通知间隔') },
-      { id: 3, name: i18n.t('修改无数据告警') },
-      // { id: 4, name: i18n.t('修改告警恢复通知') },
-      { id: 6, name: i18n.t('启/停策略') },
-      { id: 7, name: i18n.t('删除策略') },
-      // { id: 9, name: i18n.t('修改告警模版') },
-      { id: 8, name: i18n.t('增删目标') },
-      { id: 10, name: i18n.t('修改标签') },
-      // { id: 11, name: i18n.t('修改处理套餐') }
-      { id: 21, name: i18n.t('修改算法') },
-      { id: 12, name: i18n.t('修改生效时间段') },
-      { id: 13, name: i18n.t('修改处理套餐') },
-      { id: 14, name: i18n.t('修改告警组') },
-      { id: 15, name: i18n.t('修改通知场景') },
-      { id: 20, name: i18n.t('修改通知升级') },
-      { id: 16, name: i18n.t('修改通知间隔') },
-      { id: 17, name: i18n.t('修改通知模板') },
-      { id: 18, name: i18n.t('修改告警风暴开关') },
-      { id: 19, name: i18n.t('导出Yaml（As Code功能）') },
+      // { id: 0, name: I18N.t('修改告警组') },
+      { id: 1, name: I18N.t('修改触发条件') },
+      { id: 5, name: I18N.t('修改恢复条件') },
+      // { id: 2, name: I18N.t('修改通知间隔') },
+      { id: 3, name: I18N.t('修改无数据告警') },
+      // { id: 4, name: I18N.t('修改告警恢复通知') },
+      { id: 6, name: I18N.t('启/停策略') },
+      { id: 7, name: I18N.t('删除策略') },
+      // { id: 9, name: I18N.t('修改告警模版') },
+      { id: 8, name: I18N.t('增删目标') },
+      { id: 10, name: I18N.t('修改标签') },
+      // { id: 11, name: I18N.t('修改处理套餐') }
+      { id: 21, name: I18N.t('修改算法') },
+      { id: 12, name: I18N.t('修改生效时间段') },
+      { id: 13, name: I18N.t('修改处理套餐') },
+      { id: 14, name: I18N.t('修改告警组') },
+      { id: 15, name: I18N.t('修改通知场景') },
+      { id: 20, name: I18N.t('修改通知升级') },
+      { id: 16, name: I18N.t('修改通知间隔') },
+      { id: 17, name: I18N.t('修改通知模板') },
+      { id: 18, name: I18N.t('修改告警风暴开关') },
+      { id: 19, name: I18N.t('导出Yaml（As Code功能）') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -137,14 +137,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       id: 'bk_monitor',
       checked: 'bk_monitor',
       cancel: '',
-      name: i18n.t('监控采集'),
+      name: I18N.t('监控采集'),
     },
     {
       value: '',
       id: 'log',
       checked: 'bk_monitor',
       cancel: '',
-      name: i18n.t('日志采集'),
+      name: I18N.t('日志采集'),
     },
   ];
   label: ILabel = {
@@ -201,7 +201,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     strategyIds: [],
     bizId: '',
     objectType: '',
-    title: i18n.t('监控目标'),
+    title: I18N.t('监控目标'),
     nodeType: '',
   };
   strategyLabelList = []; // 标签筛选俩表
@@ -209,7 +209,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   sourceList = []; // 数据来源筛选列表
   typeList = []; // 分类可筛选列表
   filterType = 'checkbox'; // 筛选列表类型
-  curFilterType = i18n.t('数据来源'); // 当前筛选类型
+  curFilterType = I18N.t('数据来源'); // 当前筛选类型
   dialogLoading = false;
   groupList = []; // 告警组数据列表
   scenarioList = []; // 监控对象
@@ -921,7 +921,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         });
       }
     });
-    if (!!this.keywords?.length) {
+    if (this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
     }
@@ -1288,9 +1288,39 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   handleHeadSelectChange(v) {
     // 导出 Yaml 文件
     if (v === 19) {
-      this.$bkInfo({
+      const h = this.$createElement;
+      const bkInfoInstance = this.$bkInfo({
         title: this.$t('请确认是否导出'),
-        subTitle: this.$t('导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作'),
+        subHeader: h(
+          'i18n',
+          {
+            attrs: {
+              path: '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往{0}进行操作',
+            },
+            class: 'i18n-as-code',
+          },
+          [
+            h(
+              'bk-button',
+              {
+                class: 'i18n-link',
+                props: {
+                  text: true,
+                  theme: 'primary',
+                },
+                on: {
+                  click: () => {
+                    bkInfoInstance.close();
+                    this.$router.push({
+                      name: 'export-import',
+                    });
+                  },
+                },
+              },
+              [this.$t('route-集成').toString(), ' - ', this.$t('route-导入导出').toString()]
+            ),
+          ]
+        ),
         confirmLoading: true,
         confirmFn: async () => {
           await exportConfigFile({
@@ -1865,6 +1895,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             {[
               props.row.isInvalid ? (
                 <i
+                  key={1}
                   class='icon-monitor icon-shixiao'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1876,6 +1907,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
               ) : undefined,
               props.row.abnormalAlertCount > 0 && !props.row.isInvalid ? (
                 <span
+                  key={2}
                   class='alert-tag red'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1891,6 +1923,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
               ) : undefined,
               props.row.shieldAlertCount ? (
                 <span
+                  key={3}
                   class='alert-tag grey'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1906,6 +1939,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
               ) : undefined,
               props.row.shieldInfo?.shield_ids?.length ? (
                 <span
+                  key={4}
                   class='alert-tag wuxian'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -2479,7 +2513,10 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
 
   getDialogComponent() {
     return [
-      <div style='display: none;'>
+      <div
+        key={1}
+        style='display: none;'
+      >
         <ul
           ref='operatorGroup'
           class='operator-group'
@@ -2547,6 +2584,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         </ul>
       </div>,
       <StrategyConfigDialog
+        key={2}
         checked-list={this.idList}
         dialog-show={this.dialog.show}
         group-list={this.groupList}
@@ -2557,11 +2595,19 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         onHideDialog={this.handleDialogChange}
       />,
       <AlarmShieldStrategy
+        key={3}
         is-show-strategy={this.isShowStrategy}
-        {...{ on: { 'update:isShowStrategy': val => (this.isShowStrategy = val) } }}
+        {...{
+          on: {
+            'update:isShowStrategy': val => {
+              this.isShowStrategy = val;
+            },
+          },
+        }}
         strategy-id={this.strategyId}
       />,
       <TableFilter
+        key={4}
         filter-type={this.filterType}
         menu-list={this.dataSourceList}
         radio-list={this.dataSourceList}
@@ -2589,6 +2635,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       //   ></StrategySetTarget>
       // ) : undefined,
       <StrategyIpv6
+        key={5}
         bizId={this.targetSet.bizId}
         nodeType={this.targetSet.nodeType as INodeType}
         objectType={this.targetSet.objectType as TargetObjectType}
@@ -2599,6 +2646,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       />,
       <AlarmGroupDetail
         id={this.alarmGroupDialog.id}
+        key={6}
         v-model={this.alarmGroupDialog.show}
         hasEditBtn={false}
       />,
@@ -2621,7 +2669,13 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             <FilterPanel
               class='content-left-filter'
               show={this.showFilterPanel}
-              {...{ on: { 'update:show': val => (this.showFilterPanel = val) } }}
+              {...{
+                on: {
+                  'update:show': val => {
+                    this.showFilterPanel = val;
+                  },
+                },
+              }}
               checkedData={this.header.keywordObj}
               data={this.filterPanelData}
               on-change={this.handleSearchSelectChange}
