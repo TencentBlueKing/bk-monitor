@@ -2290,7 +2290,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
   /* 搜索 */
   handleMetricSearchValue(v) {
-    console.log(v);
     this.metricSearchValue = v;
     const search = {
       type: [],
