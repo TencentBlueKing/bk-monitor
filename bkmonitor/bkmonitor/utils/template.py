@@ -396,7 +396,7 @@ def escape_markdown(value):
         return value
 
     if isinstance(value, str):
-        if not value:
+        if not value or re.match(r"^\*\*.*\*\*", value):
             return value
 
         value = value.replace("*", r"\*")
