@@ -1145,10 +1145,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         this.table.data = tableData;
         this.getTargetDetail(tableData);
         this.handleTableDataChange(this.table.data);
-        const total = await this.handelScenarioList(data, this.table.data);
-        // todo
-        this.pageCount = total;
-        // this.pageCount = this.tab.active > 0 ? this.tab.list[this.tab.active].count : total
+        this.pageCount = await this.handelScenarioList(data, this.table.data);
         this.strategyStatusOptions = data.strategy_status_list || [];
         this.sourceList = data.data_source_list
           .map(item => {
@@ -1214,24 +1211,24 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       return { name, id, sort: `${index}`, children, count: 0 };
     });
     const scenarioList = data.scenario_list;
-    scenarioFather.forEach(item => {
+    for (const item of scenarioFather) {
       let count = 0;
-      item.children.forEach(set => {
+      for (const set of item.children) {
         const res = scenarioList.find(child => child.id === set.id);
         count += res.count;
         // total += res.count;
         set.count = res.count;
-      });
+      }
       item.count = count;
-    });
+    }
     this.backDisplayMap.scenario.list = scenarioFather;
     this.handleUpdateScenarioListName();
-    tableData.forEach(item => {
+    for (const item of tableData) {
       const nameArr = this.getScenarioName(scenarioFather, item.strategyType);
       item.scenarioDisplayName = nameArr.join('-');
-    });
-    // 列表total设置为数据来源筛选项count总和
-    total = data.data_source_list.reduce((total, item) => total + item.count, 0);
+    }
+    // 列表total设置为监控对象筛选项count总和
+    total = data.scenario_list.reduce((total, item) => total + item.count, 0);
     return total;
   }
   /** 更新监控对象搜索框回显 */
