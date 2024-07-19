@@ -388,9 +388,6 @@ class DynAutoEscapeEnvironment(Environment):
             self.markup_class = markup_class
 
 
-ESCAPE_MARKDOWN_CHARS = r"\*_`[](){}#+-!|"
-
-
 def escape_markdown(value):
     """
     markdown字符转义
@@ -402,12 +399,9 @@ def escape_markdown(value):
         if not value:
             return value
 
-        # 如果字符串不是以**开头和结尾，则不需要转义
-        if re.match(r"^\*\*.*\*\*", value) or re.match(r".*\[.*]\(.*\)", value):
-            return value
-
-        for char in ESCAPE_MARKDOWN_CHARS:
-            value = value.replace(char, "\\" + char)
+        value = value.replace("*", r"\*")
+        value = value.replace("`", r"\`")
+        value = value.replace(" _", r" \_")
 
     return Markup(value)
 
