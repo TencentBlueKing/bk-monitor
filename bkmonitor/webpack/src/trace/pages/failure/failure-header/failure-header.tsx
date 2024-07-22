@@ -325,7 +325,7 @@ export default defineComponent({
                 {incident_name}
               </label>
               {(labels || []).map((item: any) => (
-                <Tag>{item}</Tag>
+                <Tag>{item.replace(/\//g, '')}</Tag>
               ))}
               <span
                 class='info-edit'

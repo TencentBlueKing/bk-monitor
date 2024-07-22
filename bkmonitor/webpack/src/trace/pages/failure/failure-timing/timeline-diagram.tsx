@@ -480,10 +480,12 @@ export default defineComponent({
         if (percentage.value !== 0) {
           nextTick(() => {
             const activeElements: any = processRef.value.querySelectorAll('.active');
-            const num = -activeElements[0].offsetLeft + 100;
-            const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
-            mainLeft.value = num > max ? num : max;
-            ratio.value = mainLeft.value / max;
+            if (activeElements.length > 0) {
+              const num = -activeElements[0].offsetLeft + 100;
+              const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
+              mainLeft.value = num > max ? num : max;
+              ratio.value = mainLeft.value / max;
+            }
           });
         }
       }
@@ -857,8 +859,9 @@ export default defineComponent({
         isDragging.value = false;
         timeLineMainRef.value.removeEventListener('mousemove', onMouseMove);
         timeLineMainRef.value.removeEventListener('mouseup', onMouseUp);
+        timeLineMainRef.value.removeEventListener('wheel', onMouseMove);
       };
-
+      timeLineMainRef.value.addEventListener('wheel', onMouseMove);
       timeLineMainRef.value.addEventListener('mousemove', onMouseMove);
       timeLineMainRef.value.addEventListener('mouseup', onMouseUp);
     };

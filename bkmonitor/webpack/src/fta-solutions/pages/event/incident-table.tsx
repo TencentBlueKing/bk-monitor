@@ -45,7 +45,7 @@ import './incident-table.scss';
 type TableSizeType = 'large' | 'medium' | 'small';
 
 interface IncidentItem {
-  labels: { key: string; value: string }[];
+  labels: { key: string; value: string }[] | string[];
   assignees: string[];
   incident_reason: string;
   bk_biz_id: string;
@@ -232,8 +232,8 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                     class='tag-column'
                     onMouseenter={e => this.handleMetricMouseenter(e, row.labels)}
                   >
-                    {row.labels?.map(item => (
-                      <div class='tag-item set-item'>{item.key ? `${item.key}: ${item.value}` : item}</div>
+                    {row.labels?.map((item) => (
+                      <div class='tag-item set-item'>{item.key ? `${item.key}: ${item.value.replace(/\//g, '')}` : item?.replace(/\//g, '')}</div>
                     )) || '--'}
                   </div>
                 </div>

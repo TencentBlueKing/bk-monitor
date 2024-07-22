@@ -4,7 +4,7 @@
 
   .failure-menu {
     position: absolute;
-    top: 108px;
+    top: -40px;
   }
 
   .failure-view-content {
@@ -22,8 +22,8 @@
         height: 32px;
         padding: 4px;
         margin-right: 40%;
-        color: #63656E;
-        background: #F0F1F5;
+        color: #63656e;
+        background: #f0f1f5;
         border-radius: 2px;
 
         .head-tab-item {
@@ -37,12 +37,12 @@
           border-radius: 2px;
 
           &.active {
-            color: #3A84FF;
+            color: #3a84ff;
             background: #fff;
             border-radius: 2px;
 
             .item-icon {
-              color: #3A84FF;
+              color: #3a84ff;
             }
           }
         }
@@ -50,7 +50,7 @@
         .item-icon {
           margin-right: 4px;
           font-size: 11px;
-          color: #979BA5;
+          color: #979ba5;
         }
       }
     }
