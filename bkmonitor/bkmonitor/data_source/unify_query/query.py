@@ -139,9 +139,13 @@ class UnifyQuery:
                 if "_result_" not in record:
                     record["_result_"] = record[params["query_list"][0]["reference_name"]]
 
-                # 如果是最后一条数据，且时间戳等于结束时间，不返回
-                if end_time and record.get("_time_") == end_time:
-                    continue
+                # instant 为 true, 不做处理
+                if params.get("instant"):
+                    pass
+                else:
+                    # 如果是最后一条数据，且时间戳等于结束时间，不返回
+                    if end_time and record.get("_time_") == end_time:
+                        continue
 
                 records.append(record)
         return records
