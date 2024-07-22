@@ -1168,19 +1168,21 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           ? isMetric && this.metricSearchObj.name.some(n => item.labels.some(l => fuzzyMatch(l.name, n)))
           : true) &&
         (enNameLeng ? this.metricSearchObj.enName.some(n => fuzzyMatch(item.name, n)) : true) &&
-        (unitLeng ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit, u)) : true) &&
+        (unitLeng
+          ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || (isMetric ? 'none' : ''), u))
+          : true) &&
         (textleng
           ? this.metricSearchObj.text.some(t => {
               const monitorType = {
-                '指标': 'metric',
-                '维度': 'dimension',
-              }
+                指标: 'metric',
+                维度: 'dimension',
+              };
               return (
                 item.monitor_type === t ||
                 monitorType?.[t] === item.monitor_type ||
                 (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
                 fuzzyMatch(item.name, t) ||
-                fuzzyMatch(item.unit, t)
+                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
               );
             })
           : true)
