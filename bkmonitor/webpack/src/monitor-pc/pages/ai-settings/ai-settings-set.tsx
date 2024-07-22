@@ -350,25 +350,25 @@ export default class AiSettingsSet extends tsc<object> {
                     </ErrorMsg>,
                     true
                   ),
-                  this.formItemRender(
-                    <span class='item-label required'>{this.$t('默认敏感度')}</span>,
-                    this.loading ? (
-                      <div class='skeleton-element h16' />
-                    ) : (
-                      <div class='mt-6'>
-                        <bk-slider
-                          v-model={child.data.default_sensitivity}
-                          max-value={10}
-                          min-value={1}
-                        />
-                        <div class='sensitivity-tips'>
-                          <span>{this.$t('较少告警')}</span>
-                          <span>{this.$t('较多告警')}</span>
-                        </div>
-                      </div>
-                    ),
-                    true
-                  ),
+                  // this.formItemRender(
+                  //   <span class='item-label required'>{this.$t('默认敏感度')}</span>,
+                  //   this.loading ? (
+                  //     <div class='skeleton-element h16' />
+                  //   ) : (
+                  //     <div class='mt-6'>
+                  //       <bk-slider
+                  //         v-model={child.data.default_sensitivity}
+                  //         max-value={10}
+                  //         min-value={1}
+                  //       />
+                  //       <div class='sensitivity-tips'>
+                  //         <span>{this.$t('较少告警')}</span>
+                  //         <span>{this.$t('较多告警')}</span>
+                  //       </div>
+                  //     </div>
+                  //   ),
+                  //   true
+                  // ),
                 ]}
                 {/* {this.formItemRender(
                   this.$t('是否启用'),

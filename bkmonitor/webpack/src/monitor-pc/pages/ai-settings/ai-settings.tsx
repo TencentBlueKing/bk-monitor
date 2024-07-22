@@ -236,15 +236,15 @@ export default class AiSettingsPage extends tsc<object> {
           </div>
         </div> */}
         <div class='form-item'>
-          <div class='label'>{this.$t('方案')}:</div>
+          <div class='label'>{this.$t('默认方案')}:</div>
           <div class='value'>
             {formatValue(schemeList.find(scheme => scheme.id === item.data.default_plan_id)?.name)}
           </div>
         </div>
-        <div class='form-item'>
+        {/* <div class='form-item'>
           <div class='label'>{this.$t('默认敏感度')}:</div>
           <div class='value'>{formatValue(item.data.default_sensitivity ?? '--')}</div>
-        </div>
+        </div> */}
       </div>
     );
   }
