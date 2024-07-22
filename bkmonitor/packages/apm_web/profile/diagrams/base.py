@@ -16,6 +16,9 @@ logger = logging.getLogger("apm")
 
 ROOT_DISPLAY_NAME = "root"
 
+# 节点名称中不能包含以下特殊字符
+DOT_INVALID_CHARS = ["[", "]", ":", ";", "{", "}", '"', "<", ">"]
+
 
 @dataclass
 class FunctionNode:
@@ -71,6 +74,20 @@ class FunctionNode:
                 stacktrace_line["function"]["name"],
             ]
         )
+
+    @classmethod
+    def replace_invalid_char(cls, line):
+        """
+        替换堆栈里面可能出现的特殊字符
+        如果包含特殊字符 则为错误格式的数据 需要用户检查
+        这里防止后续处理会出现异常进行替换
+        """
+        check_fields = ["systemName", "fileName", "name"]
+        for f in check_fields:
+            for c in DOT_INVALID_CHARS:
+                if c in line["function"][f]:
+                    line["function"][f] = line["function"][f].replace(c, "")
+        return line
 
 
 @dataclass
