@@ -45,8 +45,8 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll'],
-  setup() {
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'changeSpace'],
+  setup(props, { emit }) {
     const { t } = useI18n();
     const handleSearchRef = ref(null);
     const username = ref<IUserName>({
@@ -58,7 +58,11 @@ export default defineComponent({
       handleSearchRef.value?.handleFilter();
     };
 
+    const handleChangeSpace = (value: string[]) => {
+      emit('changeSpace', value);
+    };
     return {
+      handleChangeSpace,
       handleSearchRef,
       username,
       refreshTree,
@@ -74,6 +78,7 @@ export default defineComponent({
           tagInfo={this.$props.tagInfo}
           topoNodeId={this.$props.topoNodeId}
           username={this.username}
+          onChangeSpace={this.handleChangeSpace}
           onFilterSearch={(data: any) => this.$emit('filterSearch', data)}
           onNodeClick={(item: any) => this.$emit('nodeClick', item)}
           onNodeExpand={(data: any) => this.$emit('nodeExpand', data)}

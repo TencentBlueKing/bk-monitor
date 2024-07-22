@@ -108,6 +108,7 @@ export default defineComponent({
     const cacheResize = ref<boolean>(false);
     const wrapRef = ref<HTMLDivElement>();
     const refreshTime = ref<number>(30 * 1000);
+    const topoTools = ref(null);
     let refreshTimeout = null;
     const topoGraphRef = ref<HTMLDivElement>(null);
     const graphRef = ref<HTMLElement>(null);
@@ -875,6 +876,7 @@ export default defineComponent({
         onWheel(evt) {
           // 阻止默认的滚动行为
           evt.preventDefault();
+          evt.stopPropagation();
           return;
         },
       });
@@ -944,7 +946,20 @@ export default defineComponent({
         },
       });
     };
-
+    /** 清除高亮状态 */
+    function clearAllStats() {
+      graph.setAutoPaint(false);
+      graph.getEdges().forEach(function (edge) {
+        graph.clearItemStates(edge, ['dark', 'highlight']);
+        edge.toFront();
+      });
+      graph.getNodes().forEach(function (node) {
+        graph.clearItemStates(node, ['dark', 'highlight']);
+        node.toFront();
+      });
+      graph.paint();
+      graph.setAutoPaint(true);
+    }
     /** 窗口变化 */
     function handleResize() {
       if (!graph || graph.get('destroyed') || !graphRef.value) return;
@@ -958,17 +973,15 @@ export default defineComponent({
       tooltipsRef?.value?.hide?.();
       tooltips?.hide?.();
       graph.changeSize(width, height - 40);
-      graph.render();
-      /** 将红线置顶 */
-      setTimeout(toFrontAnomalyEdge, 500);
+
       const combos = graph.getCombos().map(combo => combo.getModel());
-      ElkjsUtils.setRootComboStyle(combos, graph.getWidth());
+      ElkjsUtils.setRootComboStyle(combos, Math.max(width, 1440));
+      graph.render();
       const zoom = localStorage.getItem('failure-topo-zoom');
       if (zoom) {
         handleZoomChange(zoom);
         zoomValue.value = Number(zoom);
       }
-      // graph.fitCenter();
       timelinePosition.value = topoRawDataCache.value.diff.length - 1;
       /** 打开时会触发导致动画消失 */
       if (resourceNodeId.value) {
@@ -982,6 +995,11 @@ export default defineComponent({
         const node = graph.findById(resourceNodeId.value);
         node && graph.setItemState(node, 'running', true);
       }
+      /** 将节点边置于顶层 */
+      setTimeout(() => {
+        clearAllStats();
+        toFrontAnomalyEdge();
+      }, 500);
     }
 
     const onResize = debounce(300, handleResize);
@@ -1048,7 +1066,8 @@ export default defineComponent({
           : incidentId.value.substr(0, 10),
       })
         .then(res => {
-          const { latest, diff, complete } = res;
+          let { latest, diff, complete } = res;
+          diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
           complete.combos = latest.combos;
           complete.sub_combos = latest.sub_combos;
           formatResponseData(complete);
@@ -1139,7 +1158,7 @@ export default defineComponent({
         }
         isRenderComplete.value = renderComplete;
         // 默认渲染最后帧
-        handleTimelineChange(topoRawDataCache.value.diff.length - 1);
+        handleTimelineChange(topoRawDataCache.value.diff.length - 1, true);
         /** 获取用户拖动设置后的zoom缩放级别 */
         const zoom = localStorage.getItem('failure-topo-zoom');
         if (zoom) {
@@ -1371,20 +1390,6 @@ export default defineComponent({
         graph.paint();
         graph.setAutoPaint(true);
       });
-      /** 清除高亮状态 */
-      function clearAllStats() {
-        graph.setAutoPaint(false);
-        graph.getEdges().forEach(function (edge) {
-          graph.clearItemStates(edge, ['dark', 'highlight']);
-          edge.toFront();
-        });
-        graph.getNodes().forEach(function (node) {
-          graph.clearItemStates(node, ['dark', 'highlight']);
-          node.toFront();
-        });
-        graph.paint();
-        graph.setAutoPaint(true);
-      }
 
       graph.on('combo:click', () => {
         tooltipsRef.value.hide();
@@ -1548,6 +1553,7 @@ export default defineComponent({
       const { value, isStart = true } = playOption;
       if ('timeline' in playOption) {
         timelinePosition.value = 0;
+        topoTools.value.handleChangeTimeLine(timelinePosition.value);
       }
       isPlay.value = value;
       if (value) {
@@ -1566,6 +1572,9 @@ export default defineComponent({
         if (timelinePosition.value + 1 === topoRawDataCache.value.diff.length) {
           isPlay.value = false;
           emit('playing', false);
+          setTimeout(() => {
+            topoTools.value.handleChangeTimeLine(timelinePosition.value);
+          });
           handleChangeRefleshTime(refreshTime.value);
           return;
         }
@@ -1574,8 +1583,8 @@ export default defineComponent({
       }
     };
     /** 点击展示某一帧的图 */
-    const handleTimelineChange = value => {
-      if (value === timelinePosition.value || isPlay.value) return;
+    const handleTimelineChange = (value, init = false) => {
+      if (!init && (value === timelinePosition.value || isPlay.value)) return;
       timelinePosition.value = value;
       if (!isPlay.value && topoRawDataCache.value.diff[value]) {
         /** 切换帧时 */
@@ -1590,8 +1599,8 @@ export default defineComponent({
             node && graph.hideItem(node);
           } else if (diffNode) {
             const node = graph.findById(diffNode.id);
-            node && graph.showItem(node);
             node && graph.updateItem(node, diffNode);
+            node && graph.showItem(node);
           }
         });
         /** 子combo需要根据节点时候有展示来决定 */
@@ -1710,6 +1719,7 @@ export default defineComponent({
     return {
       isPlay,
       nodeEntityId,
+      topoTools,
       showResourceGraph,
       timelinePosition,
       topoGraphRef,
@@ -1753,6 +1763,7 @@ export default defineComponent({
         class={['failure-topo', this.isPlay && 'failure-topo-play']}
       >
         <TopoTools
+          ref='topoTools'
           timelinePlayPosition={this.timelinePosition}
           topoRawDataList={this.topoRawDataCache.diff}
           onChangeRefleshTime={this.handleChangeRefleshTime}
