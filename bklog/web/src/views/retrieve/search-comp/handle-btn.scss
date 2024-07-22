@@ -25,7 +25,7 @@
   }
 
   .query-search {
-    font-size: 12px
+    font-size: 12px;
   }
 
   .favorite-btn-container {
@@ -34,7 +34,7 @@
     .favorite-btn {
       // width: 86px;
       margin: 0 8px;
-      font-size: 12px
+      font-size: 12px;
     }
 
     .favorite-btn-text {
@@ -59,7 +59,7 @@
       font-size: 12px;
     }
 
-    .bk-icon, {
+    .bk-icon {
       margin-top: -4px;
     }
 
@@ -106,7 +106,7 @@
 
     .loading {
       cursor: not-allowed;
-      transform: scale(.2) translateY(78px);
+      transform: scale(0.2) translateY(78px);
     }
   }
 }
