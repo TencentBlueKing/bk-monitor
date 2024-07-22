@@ -40,6 +40,8 @@ export interface IChartProps {
   options: MonitorEchartOptions;
   // hover是显示所有图标tooltips
   hoverAllTooltips?: boolean;
+  // 禁用右键菜单默认事件
+  isContextmenuPreventDefault?: boolean;
 }
 export interface IChartEvent {
   // mouseover 事件
@@ -52,6 +54,8 @@ export interface IChartEvent {
   onMousemove: MouseEvent;
   // click 事件
   onClick: MouseEvent;
+  // contextmenu 事件
+  onContextmenu?: (v: any) => void;
 }
 const MOUSE_EVENTS = [
   'click',
@@ -73,6 +77,8 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Prop({ required: true }) height: number;
   // 视图宽度 默认撑满父级
   @Prop() width: number;
+  // 禁用右键菜单默认事件
+  @Prop({ default: false }) isContextmenuPreventDefault: boolean;
   // 当前图表配置
   // curChartOption: MonitorEchartOptions = null;
   // // echarts 实例
@@ -173,9 +179,9 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     });
   }
   initChartEvent() {
+    this.chartRef.addEventListener('contextmenu', this.handleContextmenu);
     for (const event of MOUSE_EVENTS) {
       (this as any).instance.on(event, params => {
-        console.log(event, params);
         this.$emit(event, params);
       });
     }
@@ -202,6 +208,11 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   }
   handleMouseleave() {
     this.isMouseOver = false;
+  }
+  handleContextmenu(event) {
+    if (this.isContextmenuPreventDefault) {
+      event.preventDefault();
+    }
   }
   render() {
     return (

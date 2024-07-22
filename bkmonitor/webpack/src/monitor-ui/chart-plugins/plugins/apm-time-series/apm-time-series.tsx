@@ -42,8 +42,32 @@ import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
 
+import './apm-time-series.scss';
+
+// const eventHasId = (event: Event, id: string) => {
+//   let target = event.target;
+//   while(target) {
+//     if(id) {
+//       if(target.id === id) {
+
+//       }
+//     }
+//   }
+// };
+
 @Component
 export default class ApmTimeSeries extends TimeSeries {
+  contextmenuInfo = {
+    x: 0,
+    y: 0,
+    show: false,
+    options: [
+      { id: 'details', name: window.i18n.t('查看详情') },
+      { id: 'topo', name: window.i18n.t('查看拓扑') },
+    ],
+    id: random(10),
+  };
+
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -168,12 +192,16 @@ export default class ApmTimeSeries extends TimeSeries {
             ...item,
             datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
+        const stack = random(8);
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({
             name: item.name,
             cursor: 'auto',
-            data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
-            stack: item.stack || random(10),
+            data: item.datapoints.reduce((pre: any, cur: any) => {
+              pre.push([...cur].reverse());
+              return pre;
+            }, []),
+            stack: item.stack || stack || random(10),
             unit: this.panel.options?.unit || item.unit,
             markPoint: this.createMarkPointData(item, series),
             markLine: this.createMarkLine(index),
@@ -306,6 +334,22 @@ export default class ApmTimeSeries extends TimeSeries {
     this.handleLoadingChange(false);
   }
 
+  handleContextmenu(params) {
+    const { offsetX, offsetY } = params.event;
+    this.contextmenuInfo = {
+      ...this.contextmenuInfo,
+      x: offsetX + 4,
+      y: offsetY + 4,
+      show: true,
+    };
+    document.addEventListener('click', this.handleHideContextmenu);
+  }
+
+  handleHideContextmenu(event: MouseEvent) {
+    console.log(event);
+    document.removeEventListener('click', this.handleHideContextmenu);
+  }
+
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
@@ -345,13 +389,33 @@ export default class ApmTimeSeries extends TimeSeries {
                   height={this.height}
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  isContextmenuPreventDefault={true}
                   options={this.options}
                   showRestore={this.showRestore}
+                  onContextmenu={this.handleContextmenu}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
                 />
               )}
+              <div
+                id={this.contextmenuInfo.id}
+                style={{
+                  left: `${this.contextmenuInfo.x}px`,
+                  top: `${this.contextmenuInfo.y}px`,
+                  display: this.contextmenuInfo.show ? 'block' : 'none',
+                }}
+                class='contextmenu-list'
+              >
+                {this.contextmenuInfo.options.map(item => (
+                  <div
+                    key={item.id}
+                    class='contextmenu-list-item'
+                  >
+                    {item.name}
+                  </div>
+                ))}
+              </div>
             </div>
             {legend?.displayMode !== 'hidden' && (
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
