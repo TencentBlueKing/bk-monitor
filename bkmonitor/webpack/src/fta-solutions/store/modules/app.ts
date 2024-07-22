@@ -31,10 +31,10 @@
 
 import Vue from 'vue';
 
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
-import { ISpaceItem } from '../../typings';
+import type { ISpaceItem } from '../../typings';
 
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 export interface IAppState {

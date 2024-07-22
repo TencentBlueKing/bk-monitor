@@ -83,7 +83,7 @@
   &::-webkit-scrollbar-thumb {
     background: #a5a5a5;
     border-radius: 20px;
-    box-shadow: inset 0 0 6px rgba(204,204,204,.3);
+    box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
   }
 }
 
@@ -112,19 +112,23 @@
   }
 
   .bk-selector {
-    ::input-placeholder { /* WebKit browsers */
+    ::input-placeholder {
+      /* WebKit browsers */
       color: $failColor;
     }
 
-    :placeholder { /* Mozilla Firefox 4 to 18 */
+    :placeholder {
+      /* Mozilla Firefox 4 to 18 */
       color: $failColor;
     }
 
-    ::placeholder { /* Mozilla Firefox 19+ */
+    ::placeholder {
+      /* Mozilla Firefox 19+ */
       color: $failColor;
     }
 
-    :input-placeholder { /* Internet Explorer 10+ */
+    :input-placeholder {
+      /* Internet Explorer 10+ */
       color: $failColor;
     }
   }
@@ -159,7 +163,9 @@ input::-webkit-inner-spin-button {
   appearance: none !important;
 }
 
-input[type='number'] {appearance: textfield;}
+input[type='number'] {
+  appearance: textfield;
+}
 
 input[disabled='disabled'] {
   /* stylelint-disable-next-line declaration-no-important */
@@ -218,5 +224,5 @@ input[disabled='disabled'] {
 
 .bk-options .bk-option-content .bk-option-content-default {
   /* stylelint-disable-next-line declaration-no-important */
-  padding: 0!important;
+  padding: 0 !important;
 }

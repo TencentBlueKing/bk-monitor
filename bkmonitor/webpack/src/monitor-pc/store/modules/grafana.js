@@ -29,7 +29,7 @@ const state = {
   dashboardId: '',
   defaultDashboardId: -1,
   dashboardCheck: '',
-  manageAuth: false
+  manageAuth: false,
 };
 const getters = {
   curDashboardId(state) {
@@ -46,7 +46,7 @@ const getters = {
   },
   hasManageAuth(state) {
     return state.manageAuth;
-  }
+  },
 };
 
 const mutations = {
@@ -61,24 +61,24 @@ const mutations = {
   },
   setHasManageAuth(state, payload) {
     state.manageAuth = payload;
-  }
+  },
 };
 
 const actions = {
   async setDefaultDashboard({ commit, state, rootState }) {
     const data = await setDefaultDashboard({
       dashboard_uid: state.dashboardId,
-      bk_biz_id: rootState.app.bizId
+      bk_biz_id: rootState.app.bizId,
     }).catch(() => false);
     commit('setDefaultDashboardId', data ? state.dashboardId : -1);
     return !!data;
   },
   async getDefaultDashboard({ commit, state, rootState }) {
     const data = await getDefaultDashboard({
-      bk_biz_id: rootState.app.bizId
+      bk_biz_id: rootState.app.bizId,
     }).catch(() => false);
     commit('setDefaultDashboardId', data ? data.uid : state.defaultDashboardId);
-  }
+  },
 };
 
 export default {
@@ -86,5 +86,5 @@ export default {
   state,
   getters,
   mutations,
-  actions
+  actions,
 };

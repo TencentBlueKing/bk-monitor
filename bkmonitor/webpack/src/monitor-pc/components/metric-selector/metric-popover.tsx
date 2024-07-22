@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MetricPopoverEvents, MetricPopoverProps } from './typings';
+import type { MetricPopoverEvents, MetricPopoverProps } from './typings';
 
 import './metric-popover.scss';
 

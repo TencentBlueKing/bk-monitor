@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
-import { Component as tsc, ofType } from 'vue-tsx-support';
+import { ofType, Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { cancelOrResubscribeReport, getReportList, getSendRecords, sendReport } from 'monitor-api/modules/new_report';
-import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
 
 import ReportDetail from '../my-apply/components/report-detail';
 import QueryTypeRadio from './components/query-type-radio';
 import { Scenario, SendMode, SendStatus } from './mapping';
-import { FrequencyType, Report, ReportQueryType, ReportSendRecord, SendResult } from './types';
+import { FrequencyType, type Report, type ReportQueryType, type ReportSendRecord, type SendResult } from './types';
 import { getDefaultReportData, getDefaultSingleSendRecord, getSendFrequencyText } from './utils';
 
 import './my-subscription.scss';
@@ -323,7 +323,7 @@ class MySubscription extends tsc<object> {
                 }}
                 label={this.$t('发送时间')}
                 prop='send_time'
-              ></bk-table-column>
+              />
 
               <bk-table-column
                 scopedSlots={{
@@ -337,7 +337,7 @@ class MySubscription extends tsc<object> {
                   },
                 }}
                 label={this.$t('发送结果')}
-              ></bk-table-column>
+              />
 
               <bk-table-column
                 scopedSlots={{
@@ -389,7 +389,7 @@ class MySubscription extends tsc<object> {
                   },
                 }}
                 label={this.$t('操作')}
-              ></bk-table-column>
+              />
             </bk-table>
           </div>
         </bk-dialog>
@@ -443,7 +443,7 @@ class MySubscription extends tsc<object> {
                 search-key={['id']}
                 trigger='focus'
                 has-delete-icon
-              ></bk-tag-input>
+              />
             </div>
 
             <div class='footer-operation'>
@@ -481,7 +481,7 @@ class MySubscription extends tsc<object> {
               onChange={() => {
                 this.resetAndGetSubscriptionList();
               }}
-            ></QueryTypeRadio>
+            />
 
             <bk-input
               style='width: 320px;'
@@ -489,7 +489,7 @@ class MySubscription extends tsc<object> {
               placeholder={this.$t('请输入搜索条件')}
               right-icon='bk-icon icon-search'
               onEnter={this.resetAndGetSubscriptionList}
-            ></bk-input>
+            />
           </div>
 
           <bk-table
@@ -573,7 +573,7 @@ class MySubscription extends tsc<object> {
                 },
               }}
               label={this.$t('订阅名称')}
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -582,7 +582,7 @@ class MySubscription extends tsc<object> {
                 },
               }}
               label={this.$t('订阅场景')}
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -593,7 +593,7 @@ class MySubscription extends tsc<object> {
                 },
               }}
               label={this.$t('来源')}
-            ></bk-table-column>
+            />
 
             <bk-table-column
               filters={[
@@ -614,7 +614,7 @@ class MySubscription extends tsc<object> {
               columnKey='send_mode'
               label={this.$t('发送模式')}
               prop='send_mode'
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -629,7 +629,7 @@ class MySubscription extends tsc<object> {
                 },
               }}
               label={this.$t('发送时间')}
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -644,7 +644,7 @@ class MySubscription extends tsc<object> {
               label={this.$t('最近一次发送时间')}
               prop='last_send_time'
               sortable='custom'
-            ></bk-table-column>
+            />
 
             <bk-table-column
               filters={[
@@ -675,7 +675,7 @@ class MySubscription extends tsc<object> {
                       <i
                         style='margin-right: 10px;'
                         class={['dot-circle', row.send_status]}
-                      ></i>
+                      />
                       {SendStatus[row.send_status]}
                     </div>
                   );
@@ -684,7 +684,7 @@ class MySubscription extends tsc<object> {
               columnKey='send_status'
               label={this.$t('发送状态')}
               prop='send_status'
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -729,7 +729,7 @@ class MySubscription extends tsc<object> {
                 },
               }}
               label={this.$t('操作')}
-            ></bk-table-column>
+            />
           </bk-table>
         </div>
 
@@ -795,7 +795,7 @@ class MySubscription extends tsc<object> {
             <ReportDetail
               detailInfo={this.detailInfo}
               queryType={this.queryType}
-            ></ReportDetail>
+            />
           </div>
         </bk-sideslider>
 

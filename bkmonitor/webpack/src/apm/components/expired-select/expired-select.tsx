@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './expired-select.scss';
 
@@ -76,7 +77,7 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
   /** 组件宽度 */
   @Prop({ type: Number }) width: number;
   /** 最大值 */
-  @Prop({ type: Number, default: Infinity }) max: number;
+  @Prop({ type: Number, default: Number.POSITIVE_INFINITY }) max: number;
 
   @Ref() selectRef: any;
 

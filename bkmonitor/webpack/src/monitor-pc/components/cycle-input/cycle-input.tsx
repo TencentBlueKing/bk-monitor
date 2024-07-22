@@ -26,8 +26,9 @@
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IEvent, IntervalType, IOption, IProps, unitType } from './typings';
 import { defaultCycleOptionMin, defaultCycleOptionSec, timeToSec } from './utils';
+
+import type { IEvent, IOption, IProps, IntervalType, unitType } from './typings';
 
 import './cycle-input.scss';
 
@@ -232,8 +233,8 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           onHide={() => (this.unitActive = false)}
         >
           <span
-            class={['cycle-unit', { 'line-active': this.unitActive, 'unit-active': this.unitActive }]}
             v-en-style='min-width: 60px'
+            class={['cycle-unit', { 'line-active': this.unitActive, 'unit-active': this.unitActive }]}
             onClick={() => (this.unitActive = true)}
           >
             {this.unitName}

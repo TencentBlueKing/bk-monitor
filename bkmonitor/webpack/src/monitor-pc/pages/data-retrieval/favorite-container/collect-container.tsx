@@ -30,9 +30,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { FavoriteIndexType, IFavList } from '../typings';
 import CollectGroup from './collect-group';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { FavoriteIndexType, IFavList } from '../typings';
 
 import './collect-container.scss';
 
@@ -115,7 +116,7 @@ export default class CollectContainer extends tsc<FavoriteIndexType.IContainerPr
                       favCheckedValue={this.favCheckedValue}
                       groupList={this.groupList}
                       isSearchFilter={this.isSearchFilter}
-                    ></CollectGroup>
+                    />
                   </div>
                 ))}
               </transition-group>

@@ -434,16 +434,6 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
             )
             operations.append(_("{}前{}修改了告警策略：{}").format(time_str, s.update_user, s.name))
 
-        all_node_status = resource.uptime_check.uptime_check_beat(bk_biz_id=self.bk_biz_id)
-        node_status_mapping = {}
-        for node_status in all_node_status:
-            if is_ipv6_biz(self.bk_biz_id):
-                node_status_mapping[str(node_status["bk_host_id"])] = node_status
-            else:
-                node_status_mapping[
-                    host_key(ip=node_status["ip"], bk_cloud_id=str(node_status["bk_cloud_id"]))
-                ] = node_status
-
         node_list = UptimeCheckNode.objects.filter(Q(bk_biz_id=self.bk_biz_id) | Q(is_common=True))
         abnormal_node = []
         id_to_host = {}
@@ -451,8 +441,8 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
         bk_host_ids = [node.bk_host_id for node in node_list if node.bk_host_id]
         origin_ips = [node.ip for node in node_list if not node.bk_host_id]
         ip_hosts = api.cmdb.get_host_without_biz(ips=origin_ips)["hosts"]
-        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
-        all_hosts = ip_hosts + hosts
+        id_hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        all_hosts = ip_hosts + id_hosts
         ip_to_host.update(
             {
                 host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
@@ -461,6 +451,18 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
             }
         )
         id_to_host.update({host.bk_host_id: host for host in all_hosts})
+
+        all_node_status = resource.uptime_check.uptime_check_beat(
+            bk_biz_id=self.bk_biz_id, id_hosts=id_hosts, ip_hosts=ip_hosts
+        )
+        node_status_mapping = {}
+        for node_status in all_node_status:
+            if is_ipv6_biz(self.bk_biz_id):
+                node_status_mapping[str(node_status["bk_host_id"])] = node_status
+            else:
+                node_status_mapping[
+                    host_key(ip=node_status["ip"], bk_cloud_id=str(node_status["bk_cloud_id"]))
+                ] = node_status
 
         for node in node_list:
             if node.bk_host_id:

@@ -46,24 +46,24 @@ import { Component, Prop, Vue } from 'vue-property-decorator';
   name: 'param-card',
   model: {
     prop: 'value',
-    event: 'change'
-  }
+    event: 'change',
+  },
 })
 export default class ParamCard extends Vue {
   @Prop({ type: String, default: '' })
-    title: string;
+  title: string;
 
   @Prop({ type: String, default: '' })
-    value: string;
+  value: string;
 
   @Prop({
     type: String,
-    default: () => this.$t('输入')
+    default: () => this.$t('输入'),
   })
-    placeholder: string;
+  placeholder: string;
 
   @Prop({ type: Boolean, default: false })
-    disabled: boolean;
+  disabled: boolean;
 
   handleChange(val: string) {
     this.$emit('change', val);

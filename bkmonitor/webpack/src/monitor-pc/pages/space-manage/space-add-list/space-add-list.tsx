@@ -36,10 +36,10 @@ import './space-add-list.scss';
 
 const { i18n } = window;
 enum SpaceAddType {
-  research /** 研发项目 */,
-  container /** 容器项目 */,
-  business /** 业务 */,
-  other /** 其他 */,
+  business = 2 /** 业务 */,
+  container = 1 /** 容器项目 */,
+  other = 3 /** 其他 */,
+  research = 0 /** 研发项目 */,
 }
 export interface IAddItemData {
   id: SpaceAddType;
@@ -170,16 +170,17 @@ export default class SpaceAddList extends tsc<IProps> {
               class='common-link-item doc'
               onClick={() => this.handleGotoLink(data.doc)}
             >
-              <i class='icon-monitor icon-mc-detail'></i>
+              <i class='icon-monitor icon-mc-detail' />
               {this.$tc('文档说明')}
             </a>
             {data.href && (
               <a
                 class='common-link-item href'
                 href={data.href}
+                rel='noreferrer'
                 target='_blank'
               >
-                <i class='icon-monitor icon-mc-link'></i>
+                <i class='icon-monitor icon-mc-link' />
                 {this.$tc('去新建')}
               </a>
             )}
@@ -195,7 +196,7 @@ export default class SpaceAddList extends tsc<IProps> {
               spaceList={this.bkciSpaceList}
               onCancel={this.handleResearchFormCancel}
               onSuccess={this.handleResearchFormSuccess}
-            ></ResearchForm>
+            />
           );
         case SpaceAddType.container:
         case SpaceAddType.business:

@@ -85,8 +85,8 @@
   </span>
 </template>
 <script lang="ts">
-import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { deepClone } from 'monitor-common/utils/utils';
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 export interface IListItem {
   id: string | number;
@@ -113,7 +113,7 @@ export default class TableFilter extends Vue {
   @Watch('value', { immediate: true, deep: true })
   @Watch('list', { deep: true })
   handleLocalListChange() {
-    this.localList = this.list.map((item) => {
+    this.localList = this.list.map(item => {
       const temp = deepClone(item);
       temp.checked = this.value.includes(temp.id);
       return temp;

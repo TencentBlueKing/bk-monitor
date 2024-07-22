@@ -40,12 +40,12 @@ import { copyText } from 'monitor-common/utils/utils.js';
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
 import { transformJobUrl } from '../../../utils/index';
 import {
-  colorMap,
   EStatus,
   FILTER_TYPE_LIST,
-  IContentsItem,
-  labelMap,
+  type IContentsItem,
   STATUS_LIST,
+  colorMap,
+  labelMap,
   statusMap,
 } from '../collector-host-detail/utils';
 import AlertHistogram from './components/alert-histogram';
@@ -455,7 +455,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                         <span
                           style={{ background: item.color[1] }}
                           class='s-point'
-                        ></span>
+                        />
                       </span>
                     );
                   }
@@ -464,7 +464,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                       <bk-spin
                         class='mr-3'
                         size='mini'
-                      ></bk-spin>
+                      />
                     );
                   }
                   return undefined;
@@ -491,7 +491,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               hover-theme='primary'
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchRetry() : this.handleShowAuthorityDetail())}
             >
-              <span class='icon-monitor icon-zhongzhi1 mr-6'></span>
+              <span class='icon-monitor icon-zhongzhi1 mr-6' />
               <span>{this.$t('批量重试')}</span>
             </bk-button>
             <bk-button
@@ -558,7 +558,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                         borderColor: labelMap[content.label_name].color,
                       }}
                       class='pre-panel-mark fix-same-code'
-                    ></span>
+                    />
                   </span>
                 )}
                 <span slot='header'>
@@ -652,7 +652,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                   return <span>{row.instance_name}</span>;
                                 }
                                 case EColumn.alert: {
-                                  return <AlertHistogram value={row.alertHistogram}></AlertHistogram>;
+                                  return <AlertHistogram value={row.alertHistogram} />;
                                 }
                                 case EColumn.status: {
                                   return (
@@ -662,7 +662,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                           <bk-spin
                                             class='mr-3'
                                             size='mini'
-                                          ></bk-spin>
+                                          />
                                         ) : undefined,
                                         this.isRunning &&
                                         [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
@@ -675,7 +675,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                             <span
                                               style={{ background: colorMap[row.status][1] }}
                                               class='s-point'
-                                            ></span>
+                                            />
                                           </span>
                                         ) : undefined,
                                         this.isRunning ? (
@@ -740,7 +740,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                             label={column.name}
                             minWidth={column?.minWidth}
                             prop={column.id}
-                          ></bk-table-column>
+                          />
                         );
                       })}
                   </bk-table>
@@ -766,7 +766,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               domProps={{
                 innerHTML: transformJobUrl(this.side.detail),
               }}
-            ></pre>
+            />
           </div>
         </bk-sideslider>
       </div>

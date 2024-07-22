@@ -31,12 +31,13 @@ import { getUnitInfo } from 'monitor-api/modules/strategies';
 import { CONDITION_METHOD_LIST, SIMPLE_METHOD_LIST } from '../../../../constant/constant';
 import AbnormalCluster from '../../strategy-config-set-new/detection-rules/components/abnormal-cluster/abnormal-cluster';
 import IntelligentDetect, {
-  ChartType,
+  type ChartType,
 } from '../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import TimeSeriesForecast, {
-  IModelData,
+  type IModelData,
 } from '../../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
-import {
+
+import type {
   DetectionRuleTypeEnum,
   ICommonItem,
   IDetectionType,
@@ -503,7 +504,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
     return (
       <div class='detection-rules-display'>
         <div class='detec-rules-header'>
-          <i class={['icon-monitor', this.levelIcon]}></i>
+          <i class={['icon-monitor', this.levelIcon]} />
           <span class='level-name'>{this.levelName}</span>
           <span class='rules-name'>{this.rulesName}</span>
         </div>

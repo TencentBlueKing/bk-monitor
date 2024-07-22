@@ -67,6 +67,10 @@ const downloadLog = {
   url: '/search/index_set/:index_set_id/export/',
   method: 'post',
 };
+const unionDownloadLog = {
+  url: '/search/index_set/union_search/export/',
+  method: 'post',
+};
 const exportAsync = {
   url: '/search/index_set/:index_set_id/async_export/',
   method: 'post',
@@ -135,7 +139,31 @@ const getAggsTerms = {
   url: '/search/index_set/:index_set_id/aggs/terms/',
   method: 'post',
 };
-
+/** 获取字段top列表信息 */
+const fieldFetchTopList = {
+  url: '/field/index_set/fetch_topk_list/',
+  method: 'post',
+};
+/** 获取图表分析信息 */
+const fieldStatisticsInfo = {
+  url: '/field/index_set/statistics/info/',
+  method: 'post',
+};
+/** 获取趋势图总数的信息 */
+const fieldStatisticsTotal = {
+  url: '/field/index_set/statistics/total/',
+  method: 'post',
+};
+/** 获取图表分析图表 */
+const fieldStatisticsGraph = {
+  url: '/field/index_set/statistics/graph/',
+  method: 'post',
+};
+/** 获取字段去重数量 */
+const fieldDistinctCount = {
+  url: '/field/index_set/fetch_distinct_count_list/',
+  method: 'post',
+};
 export {
   getIndexSetList,
   getLogTableHead,
@@ -146,6 +174,7 @@ export {
   getOperators,
   getCloudAreaList,
   downloadLog,
+  unionDownloadLog,
   exportAsync,
   getRealTimeLog,
   getContentLog,
@@ -164,4 +193,9 @@ export {
   deleteFieldsConfig,
   getFieldsConfigByContextLog,
   getAggsTerms,
+  fieldFetchTopList,
+  fieldStatisticsInfo,
+  fieldStatisticsTotal,
+  fieldStatisticsGraph,
+  fieldDistinctCount,
 };

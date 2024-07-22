@@ -327,8 +327,10 @@
       openDownloadUrl() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
+        let downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;
         if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
+          downRequestUrl = '/search/index_set/union_search/export/';
           Object.assign(params, { index_set_ids: this.unionIndexList });
         }
         const data = {
@@ -339,7 +341,7 @@
           is_desensitize: this.desensitizeRadioType === 'desensitize',
         };
         axiosInstance
-          .post(`/search/index_set/${this.routerIndexSet}/export/`, data)
+        .post(downRequestUrl, data)
           .then(res => {
             if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
               this.$bkMessage({

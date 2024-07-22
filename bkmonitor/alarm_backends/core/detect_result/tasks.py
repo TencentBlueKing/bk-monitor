@@ -17,6 +17,7 @@ import time
 from django.conf import settings
 
 from alarm_backends.core.detect_result.clean import CleanResult
+from alarm_backends.service.scheduler.app import app
 from bkmonitor.models import CacheRouter
 from common.context_processors import Platform
 
@@ -31,15 +32,22 @@ def recover_weixin_robot_limit():
         settings.WECOM_ROBOT_BIZ_WHITE_LIST = []
 
 
-def clean_expired_detect_result(strategy_range=None):
+def clean_expired_detect_result():
     # 任务分发
-    if strategy_range is None:
-        recover_weixin_robot_limit()
-        strategy_score_list = CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score")
-        for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
-            clean_expired_detect_result.delay(strategy_range=s_range)
-        return
+    recover_weixin_robot_limit()
+    strategy_score_list = list(CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score"))
+    if len(strategy_score_list) < 2:
+        # 只有一个节点，直接清理就行
+        return async_clean_expired_detect_result((0, 2**20))
 
+    strategy_score_list.append(0)
+    strategy_score_list = sorted(set(strategy_score_list))
+    for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
+        async_clean_expired_detect_result.delay(strategy_range=s_range)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def async_clean_expired_detect_result(strategy_range=None):
     # 任务负载
     logger.info("clean_expired_detect_result(%s-%s) start", *strategy_range)
     try:

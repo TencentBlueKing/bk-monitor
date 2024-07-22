@@ -30,17 +30,18 @@ import { CancelToken } from 'monitor-api/index';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
-import { DetectionRuleTypeEnum, IDetectionTypeRuleData, MetricDetail } from '../../../typings';
+import { DetectionRuleTypeEnum, type IDetectionTypeRuleData, type MetricDetail } from '../../../typings';
 import Form from '../form/form';
 import {
   EFormItemValueType,
   FormItem,
+  type IFormDataItem,
+  type ISelectOptionItem,
   handleCreateModelOptionsDetail,
-  IFormDataItem,
-  ISelectOptionItem,
 } from '../form/utils';
-import { ITipsData } from '../intelligent-detect/intelligent-detect';
-import { IModelData } from '../time-series-forecast/time-series-forecast';
+
+import type { ITipsData } from '../intelligent-detect/intelligent-detect';
+import type { IModelData } from '../time-series-forecast/time-series-forecast';
 
 import './abnormal-cluster.scss';
 
@@ -373,7 +374,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
               class='alert-message-number'
               slot='title'
               domPropsInnerHTML={this.tipsData.message}
-            ></div>
+            />
           </bk-alert>
         )}
         <Form
@@ -384,7 +385,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
           readonly={this.readonly}
           rules={this.rules}
           onChange={this.handleFormValueChange}
-        ></Form>
+        />
       </div>
     );
   }

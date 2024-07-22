@@ -82,18 +82,18 @@
   </bk-table>
 </template>
 <script lang="ts">
-import { CreateElement } from 'vue';
-import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 import { random } from 'monitor-common/utils/utils';
+import type { CreateElement } from 'vue';
+import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import SelectionColumn from '../components/selection-column.vue';
-import { CheckType, CheckValue, IPagination, ITableConfig } from '../types/selector-type';
 import EmptyStatus from '../../empty-status/empty-status';
-import { EmptyStatusOperationType } from '../../empty-status/types';
+import type { EmptyStatusOperationType } from '../../empty-status/types';
+import SelectionColumn from '../components/selection-column.vue';
+import type { CheckType, CheckValue, IPagination, ITableConfig } from '../types/selector-type';
 
 @Component({
   name: 'ip-selector-table',
-  components: { EmptyStatus }
+  components: { EmptyStatus },
 })
 export default class IpSelectorTable extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly data!: any[];
@@ -134,14 +134,14 @@ export default class IpSelectorTable extends Vue {
       props: {
         value: this.checkValue,
         disabled: !this.data.length,
-        defaultActive: this.checkType
+        defaultActive: this.checkType,
       },
       on: {
         'update-value': (v: CheckValue) => {
           this.checkValue = v;
         },
-        change: this.handleSelectionChange
-      }
+        change: this.handleSelectionChange,
+      },
     });
   }
   // 全选和取消全选操作
@@ -165,7 +165,7 @@ export default class IpSelectorTable extends Vue {
       excludeData: this.excludeData,
       selections: this.selections,
       checkType: this.checkType,
-      checkValue: this.checkValue
+      checkValue: this.checkValue,
     };
   }
 

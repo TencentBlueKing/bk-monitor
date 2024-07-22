@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { RouteConfig } from 'vue-router';
-
 import * as serviceClassifyAuth from '../../pages/service-classify/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const ServiceClassify = () =>
   import(/* webpackChunkName: 'ServiceClassify' */ '@page/service-classify/service-classify.vue');

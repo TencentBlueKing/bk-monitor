@@ -29,7 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { destroyTimezone } from '../../i18n/dayjs';
 import CommonNavBar from './components/common-nav-bar';
 import CommonPage from './components/common-page';
-import { INavItem, IViewOptions } from './typings';
+
+import type { INavItem, IViewOptions } from './typings';
 
 import './monitor-k8s-detail.scss';
 

@@ -110,7 +110,7 @@
           <li
             class="node-info"
             v-for="item in nodeInfo.filter(
-              (item) => !['bk_bak_operato', 'operator'].includes(item.id) || data.bkObjId === 'module'
+              item => !['bk_bak_operato', 'operator'].includes(item.id) || data.bkObjId === 'module'
             )"
             :key="item.id"
           >
@@ -150,7 +150,7 @@
             <div
               :class="[
                 'count',
-                { active: alarmInfo.alarm_strategy.enabled > 0 || alarmInfo.alarm_strategy.disabled > 0 }
+                { active: alarmInfo.alarm_strategy.enabled > 0 || alarmInfo.alarm_strategy.disabled > 0 },
               ]"
               @click="handleToStrategyConfig"
             >
@@ -177,13 +177,13 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { copyText } from 'monitor-common/utils/utils.js';
+import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import PerformanceModule, { ICurNode } from '../../../store/modules/performance';
-import MonitorVue from '../../../types/index';
+import PerformanceModule, { type ICurNode } from '../../../store/modules/performance';
+import type MonitorVue from '../../../types/index';
 import IpStatusTips, { handleIpStatusData } from '../components/ip-status-tips';
-import { IHostInfo } from '../performance-type';
+import type { IHostInfo } from '../performance-type';
 
 @Component({ name: 'host-detail', components: { IpStatusTips } })
 export default class HostDetail extends Vue<MonitorVue> {
@@ -203,8 +203,8 @@ export default class HostDetail extends Vue<MonitorVue> {
     alarm_count: 0,
     alarm_strategy: {
       disabled: 0,
-      enabled: 0
-    }
+      enabled: 0,
+    },
   };
   // 是否展示所有模块
   private showAllModule = false;
@@ -216,7 +216,7 @@ export default class HostDetail extends Vue<MonitorVue> {
     0: window.i18n.t('正常'),
     1: window.i18n.t('离线'),
     2: window.i18n.t('无Agent'),
-    3: window.i18n.t('无数据上报')
+    3: window.i18n.t('无数据上报'),
   };
 
   private handleIpStatusData: Function = handleIpStatusData;
@@ -235,88 +235,88 @@ export default class HostDetail extends Vue<MonitorVue> {
         id: 'bk_host_name',
         title: this.$t('主机名'),
         value: '',
-        copy: true
+        copy: true,
       },
       {
         id: 'bk_host_innerip',
         title: this.$t('内网IP'),
         value: '',
         copy: true,
-        link: true
+        link: true,
       },
       {
         id: 'bk_host_outerip',
         title: this.$t('外网IP'),
         value: '',
-        copy: true
+        copy: true,
       },
       {
         id: 'bk_biz_name',
         title: this.$t('所属业务'),
-        value: ''
+        value: '',
       },
       {
         id: 'bk_state',
         title: this.$t('主机运营'),
-        value: ''
+        value: '',
       },
       {
         id: 'status',
         title: this.$t('采集状态'),
-        value: ''
+        value: '',
       },
       {
         id: 'bk_os_name',
         title: this.$t('OS名称'),
-        value: ''
+        value: '',
       },
       {
         id: 'bk_cloud_name',
         title: this.$t('管控区域'),
-        value: ''
+        value: '',
       },
       {
         id: 'module',
         title: this.$t('所属模块'),
-        value: ''
-      }
+        value: '',
+      },
     ];
     this.nodeInfo = [
       {
         id: 'bk_inst_id',
         title: this.$t('ID'),
-        value: ''
+        value: '',
       },
       {
         id: 'bk_obj_name',
         title: this.$t('节点类型'),
-        value: ''
+        value: '',
       },
       {
         id: 'bk_inst_name',
         title: this.$t('节点名称'),
-        value: ''
+        value: '',
       },
       {
         id: 'child_count',
         title: this.$t('子级数量'),
-        value: ''
+        value: '',
       },
       {
         id: 'host_count',
         title: this.$t('主机数量'),
-        value: ''
+        value: '',
       },
       {
         id: 'operator',
         title: this.$t('主要维护人'),
-        value: []
+        value: [],
       },
       {
         id: 'bk_bak_operato',
         title: this.$t('备份维护人'),
-        value: []
-      }
+        value: [],
+      },
     ];
   }
 
@@ -357,7 +357,7 @@ export default class HostDetail extends Vue<MonitorVue> {
             onHidden: () => {
               this.tipsPopoverInstance?.destroy();
               this.tipsPopoverInstance = null;
-            }
+            },
           },
           options
         )
@@ -376,9 +376,8 @@ export default class HostDetail extends Vue<MonitorVue> {
           queryString: ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale)
             ? `目标IP : ${this.data.ip}`
             : `ip : ${this.data.ip}`,
-          activeFilterId: 'NOT_SHIELDED_ABNORMAL'
-
-        }
+          activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+        },
       });
     }
   }
@@ -390,8 +389,8 @@ export default class HostDetail extends Vue<MonitorVue> {
         name: 'strategy-config',
         params: {
           ip: this.data.ip,
-          bkCloudId: this.data.cloudId
-        }
+          bkCloudId: this.data.cloudId,
+        },
       });
     }
   }
@@ -404,20 +403,20 @@ export default class HostDetail extends Vue<MonitorVue> {
       this.showAllModule = false;
       detailData = await PerformanceModule.getHostDetail({
         ip: this.data.ip,
-        bk_cloud_id: this.data.cloudId
+        bk_cloud_id: this.data.cloudId,
       });
       configData = this.hostInfo;
       this.hostId = detailData.bk_host_id;
     } else if (this.data.type === 'node' && this.data.bkInstId) {
       detailData = await PerformanceModule.getNodeDetail({
         bk_obj_id: this.data.bkObjId,
-        bk_inst_id: this.data.bkInstId
+        bk_inst_id: this.data.bkInstId,
       });
       configData = this.nodeInfo;
     }
 
     // 基本信息
-    Object.keys(detailData).forEach((key) => {
+    Object.keys(detailData).forEach(key => {
       const item = configData.find(item => item.id === key);
       item && (item.value = detailData[key]);
     });
@@ -443,12 +442,13 @@ export default class HostDetail extends Vue<MonitorVue> {
     copyText(value);
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('复制成功')
+      message: this.$t('复制成功'),
     });
   }
 }
 </script>
 <style lang="scss" scoped>
+/* stylelint-disable no-descending-specificity */
 .host-detail {
   display: flex;
   flex-direction: column;
@@ -558,7 +558,6 @@ export default class HostDetail extends Vue<MonitorVue> {
       &-content {
         flex: 1;
 
-
         .module-item {
           margin: 0;
           line-height: 20px;
@@ -572,7 +571,6 @@ export default class HostDetail extends Vue<MonitorVue> {
           height: 40px;
           overflow: hidden;
         }
-
 
         .btn {
           font-size: 12px;

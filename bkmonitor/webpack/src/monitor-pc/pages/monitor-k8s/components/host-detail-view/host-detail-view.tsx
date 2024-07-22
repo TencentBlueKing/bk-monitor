@@ -30,10 +30,11 @@ import dayjs from 'dayjs';
 import { copyText, random } from 'monitor-common/utils/utils';
 
 import Collapse from '../../../../components/collapse/collapse';
-import { ITableItem } from '../../typings';
-import { IDetailItem, IDetailValItem } from '../../typings/common-detail';
 import CommonStatus from '../common-status/common-status';
 import CommonTagList from '../common-tag-list/common-tag-list';
+
+import type { ITableItem } from '../../typings';
+import type { IDetailItem, IDetailValItem } from '../../typings/common-detail';
 
 interface IProps {
   data: IDetailItem[];
@@ -152,7 +153,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   }
   // tag类型格式化
   tagFormatter(val: ITableItem<'tag'>) {
-    return <CommonTagList value={val}></CommonTagList>;
+    return <CommonTagList value={val} />;
   }
   // key-value数据
   kvFormatter(val: ITableItem<'kv'>) {
@@ -212,7 +213,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
               e.stopPropagation();
               this.handleCopyText(val.value);
             }}
-          ></i>
+          />
         )}
       </div>
     );
@@ -262,7 +263,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           class={['common-progress-color', `color-${val.status}`]}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
           showText={false}
-        ></bk-progress>
+        />
       </div>
     );
   }
@@ -286,7 +287,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
               e.stopPropagation();
               this.handleCopyText(text);
             }}
-          ></i>
+          />
         )}
       </div>
     );
@@ -381,14 +382,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {/* 运营状态 */}
           {this.statusData[this.targetStatusName[0]] && (
             <div
-              class={['status-item', `bg-failed`]}
+              class={['status-item', 'bg-failed']}
               v-bk-tooltips={{
                 content: this.$t('主机当前状态'),
                 delay: 200,
                 boundary: 'window',
               }}
             >
-              <i class={`icon-monitor ${this.maintainStatusIcon}`}></i>
+              <i class={`icon-monitor ${this.maintainStatusIcon}`} />
               <span class='text'>{this.maintainStatusText}</span>
             </div>
           )}
@@ -413,7 +414,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                       (this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type || 'disabled'
                     }`,
                   ]}
-                ></span>
+                />
                 <span class='common-status-name'>
                   {(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.text}
                 </span>
@@ -472,7 +473,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {/* 所属模块 */}
           {(this.moduleData as IDetailItem[]).map(item => (
             <div key={item.name}>
-              {this.targetListName.includes(textMapping[item.name]) && <div class='divider'></div>}
+              {this.targetListName.includes(textMapping[item.name]) && <div class='divider' />}
               <div class='module-data-panel-item'>
                 <div class={['module-data-item-title']}>{item.name}</div>
                 <div class='module-data-item-value'>{this.handleTransformVal(item)}</div>

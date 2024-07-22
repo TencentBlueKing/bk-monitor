@@ -35,7 +35,8 @@ import IntelligentModelsStore, { IntelligentModelsType } from '../../store/modul
 // import HistoryDialog from '../../components/history-dialog/history-dialog';
 import StrategyTargetTable from '../strategy-config/strategy-config-detail/strategy-config-detail-table.vue';
 import { handleSetTargetDesc } from './components/common';
-import { AnomalyDetectionBase, SchemeItem } from './types';
+
+import type { AnomalyDetectionBase, SchemeItem } from './types';
 
 import './ai-settings.scss';
 
@@ -173,7 +174,7 @@ export default class AiSettingsPage extends tsc<object> {
 
     const formatValue = val => {
       if (this.loading) {
-        return <div class='skeleton-element'></div>;
+        return <div class='skeleton-element' />;
       }
       return val || '--';
     };
@@ -277,7 +278,7 @@ export default class AiSettingsPage extends tsc<object> {
           <div class='scene-detection'>
             <div class='title'>{this.$t('场景智能异常检测')}</div>
             {this.loading ? (
-              <div class='skeleton-element empty-scene-detection'></div>
+              <div class='skeleton-element empty-scene-detection' />
             ) : (
               this.sceneIntelligent.map(item => (
                 <div class='detection-item'>
@@ -303,7 +304,7 @@ export default class AiSettingsPage extends tsc<object> {
             objType={this.excludeTargetDialog.objType}
             tableData={this.excludeTargetDialog.tableData}
             targetType={this.excludeTargetDialog.targetType}
-          ></StrategyTargetTable>
+          />
         </bk-dialog>
       </div>
     );

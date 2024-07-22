@@ -24,16 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, nextTick, onMounted, PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onMounted, ref } from 'vue';
 
 import { useTraceStore } from '../../store/modules/trace';
-import { ITraceTree } from '../../typings';
 import { useFocusMatchesProvide, useSpanBarCurrentProvide, useViewRangeProvide } from './hooks';
 import SpanGraph from './span-graph';
 import TraceTimelineViewer from './trace-timeline-viewer';
-// import { trackRange } from './index.track';
-import { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from './typings';
 import filterSpans from './utils/filter-spans';
+
+import type { ITraceTree } from '../../typings';
+// import { trackRange } from './index.track';
+import type { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from './typings';
 
 import './index.scss';
 
