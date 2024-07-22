@@ -1049,6 +1049,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     name: [],
     enName: [],
     unit: [],
+    text: [],
   };
   /* 分组管理列表 */
   groupList: IGroupListItem[] = [];
@@ -1123,11 +1124,17 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   get metricTable() {
     const labelsMatchTypes = labels => {
       let temp = [];
-      labels.forEach(item => {
+      for (const item of labels) {
         temp = temp.concat(item.match_type);
-      });
+      }
       temp = [...new Set(temp)];
       return temp;
+    };
+    // 模糊匹配
+    const fuzzyMatch = (str: string, pattern: string) => {
+      const lowerStr = String(str).toLowerCase();
+      const lowerPattern = String(pattern).toLowerCase();
+      return lowerStr.includes(lowerPattern);
     };
     const leng1 = this.groupFilterList.length;
     const leng2 = this.metricFilterList.length;
@@ -1136,7 +1143,8 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     const nameLeng = this.metricSearchObj.name.length;
     const enNameLeng = this.metricSearchObj.enName.length;
     const unitLeng = this.metricSearchObj.unit.length;
-    const fiterList = this.metricData.filter(item => {
+    const textleng = this.metricSearchObj.text.length;
+    const filterList = this.metricData.filter(item => {
       const isMetric = item.monitor_type === 'metric';
       return (
         (leng1
@@ -1145,18 +1153,42 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
             ) && isMetric
           : true) &&
         (leng2 ? this.metricFilterList.includes(item.monitor_type) : true) &&
-        (leng3 ? isMetric && this.unitFilterList.includes(item.unit) : true) &&
+        (leng3
+          ? this.unitFilterList.some(u => {
+              if (u === 'none') {
+                return item.unit === 'none' || !item.unit;
+              }
+              return item.unit === u;
+            })
+          : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
           : true) &&
-        (nameLeng ? isMetric && this.metricSearchObj.name.some(n => item.labels.map(l => l.name).includes(n)) : true) &&
-        (enNameLeng ? isMetric && this.metricSearchObj.enName.some(n => n === item.name) : true) &&
-        (unitLeng ? isMetric && this.metricSearchObj.unit.some(u => u === item.unit) : true)
+        (nameLeng
+          ? isMetric && this.metricSearchObj.name.some(n => item.labels.some(l => fuzzyMatch(l.name, n)))
+          : true) &&
+        (enNameLeng ? this.metricSearchObj.enName.some(n => fuzzyMatch(item.name, n)) : true) &&
+        (unitLeng ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit, u)) : true) &&
+        (textleng
+          ? this.metricSearchObj.text.some(t => {
+              const monitorType = {
+                '指标': 'metric',
+                '维度': 'dimension',
+              }
+              return (
+                item.monitor_type === t ||
+                monitorType?.[t] === item.monitor_type ||
+                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+                fuzzyMatch(item.name, t) ||
+                fuzzyMatch(item.unit, t)
+              );
+            })
+          : true)
       );
     });
-    this.changePageCount(fiterList.length);
+    this.changePageCount(filterList.length);
     // this.handleGroupList(fiterList);
-    return fiterList.slice(
+    return filterList.slice(
       this.pagination.pageSize * (this.pagination.page - 1),
       this.pagination.pageSize * this.pagination.page
     );
@@ -1453,7 +1485,13 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           }
           tempSet.add(metricItem.unit);
         }
-        this.tableAllUnitList = tableAllUnitList;
+        this.tableAllUnitList = [
+          ...tableAllUnitList,
+          {
+            id: 'none',
+            name: `-${this.$t('空')}-`,
+          },
+        ];
 
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
@@ -2296,6 +2334,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       name: [],
       enName: [],
       unit: [],
+      text: [],
     };
     for (const item of this.metricSearchValue) {
       if (item.id === 'type') {
@@ -2309,6 +2348,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       if (item.id === 'unit') {
         search.unit = [...new Set(search.unit.concat(item.values.map(v => v.id)))];
+      }
+      if (item.type === 'text') {
+        search.text = [...new Set(search.text.concat([item.id]))];
       }
     }
     this.metricSearchObj = search;
