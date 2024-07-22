@@ -154,31 +154,21 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         )
         serializer = self.get_serializer(queryset, many=True)
 
-        # 获取采集器相关信息
-        all_node_status = []
-        try:
-            all_node_status = (
-                resource.uptime_check.uptime_check_beat(bk_biz_id=bk_biz_id)
-                if bk_biz_id
-                else resource.uptime_check.uptime_check_beat()
-            )
-        except Exception as e:
-            print("Failed to get uptime check node status: {}".format(e))
-
         result = []
         all_beat_version = {}
         bk_host_ids = [data["bk_host_id"] for data in serializer.data if data["bk_host_id"]]
         # 兼容bk_host_id不存在的拨测节点
         ips = [data["ip"] for data in serializer.data if not data["bk_host_id"]]
-        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
-        id_to_host = {host.bk_host_id: host for host in hosts}
+        id_hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        id_to_host = {host.bk_host_id: host for host in id_hosts}
         ip_to_host = {}
+        ip_hosts = []
         if ips:
             ip_hosts = api.cmdb.get_host_without_biz(ips=ips)["hosts"]
             ip_to_host.update(
                 {
                     host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
-                    for host in ip_hosts + hosts
+                    for host in ip_hosts + id_hosts
                     if host.bk_host_innerip
                 }
             )
@@ -208,6 +198,17 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                             plugin["plugin_status"],
                         )
                     )
+
+        # 获取采集器相关信息
+        all_node_status = []
+        try:
+            all_node_status = (
+                resource.uptime_check.uptime_check_beat(bk_biz_id=bk_biz_id, id_hosts=id_hosts, ip_hosts=ip_hosts)
+                if bk_biz_id
+                else resource.uptime_check.uptime_check_beat(id_hosts=id_hosts, ip_hosts=ip_hosts)
+            )
+        except Exception as e:
+            print("Failed to get uptime check node status: {}".format(e))
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
         for node in serializer.data:

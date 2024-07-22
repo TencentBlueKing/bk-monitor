@@ -649,6 +649,8 @@ export default {
   'label-未知': 'UNKNOWN',
   'label-准备中': 'PREPARE',
   展开长字段: 'Expand long field',
+  过滤参数: 'Filter parameter',
+  日志过滤: 'Log Filtration',
   'label-高亮': 'Highlight',
   代码: 'Code',
 };

@@ -1339,6 +1339,9 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
     path = serializers.ListField(
         label=_("日志采集路径"), child=serializers.CharField(allow_blank=True), required=False, allow_empty=True
     )
+    exclude_files = serializers.ListField(
+        label=_("日志采集路径黑名单"), child=serializers.CharField(allow_blank=True), required=False, allow_empty=True
+    )
     encoding = serializers.ChoiceField(label=_("日志字符集"), choices=EncodingsEnum.get_choices(), default="utf-8")
     multiline = MultilineSerializer(label=_("段日志配置"), required=False)
     extMeta = serializers.DictField(label=_("额外的元数据"), required=False, allow_empty=True)
