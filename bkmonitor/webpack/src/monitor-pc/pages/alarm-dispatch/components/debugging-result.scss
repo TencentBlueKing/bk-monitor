@@ -9,24 +9,32 @@ $statusColors: #ea3635 #ff9c00 #699df4;
   
 
 .debugging-result-siderlider {
+  .mr-4 {
+    margin-right: 4px;
+  }
+
+  .ml-4 {
+    margin-left: 4px;
+  }
+
   .wrap-content {
-    padding: 20px 40px;
     min-height: calc(100vh - 120px);
+    padding: 20px 40px;
 
     .expand-item {
       margin-top: 16px;
 
       .expand-item-header {
-        height: 40px;
-        background: #f0f1f5;
-        box-shadow: 0 1px 0 0 #dcdee5;
-        border-radius: 2px 2px 0 0;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        color: #63656e;
+        justify-content: space-between;
+        height: 40px;
         padding: 0 16px;
+        color: #63656e;
         cursor: pointer;
+        background: #f0f1f5;
+        border-radius: 2px 2px 0 0;
+        box-shadow: 0 1px 0 0 #dcdee5;
 
         .header-left {
           display: flex;
@@ -61,21 +69,21 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           align-items: center;
 
           .title {
-            font-size: 14px;
-            color: #63656e;
-            font-weight: 700;
             max-width: 570px;
-            white-space: nowrap;
             overflow: hidden;
+            font-size: 14px;
+            font-weight: 700;
+            color: #63656e;
             text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
           .count {
             height: 16px;
             padding: 0 8px;
-            background: #fff;
-            color: #979ba5;
             margin: 0 10px 0 6px;
+            color: #979ba5;
+            background: #fff;
 
             @include flex-center();
           }
@@ -89,9 +97,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           .count {
             height: 16px;
             padding: 0 8px;
+            margin: 0 8px 0 0;
             background: #dbd4ed;
             border-radius: 2px;
-            margin: 0 8px 0 2px;
 
             @include flex-center();
           }
@@ -99,12 +107,12 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
         .edit-btn-wrap {
           height: 26px;
+          padding: 0 10px;
+          margin: 0 0 0 auto;
+          color: #3a84ff;
           background: #fff;
           border: 1px solid #3a84ff;
           border-radius: 2px;
-          padding: 0 10px;
-          color: #3a84ff;
-          margin: 0 0 0 auto;
 
           @include flex-center();
 
@@ -116,11 +124,11 @@ $statusColors: #ea3635 #ff9c00 #699df4;
         .del-btn-wrap {
           width: 26px;
           height: 26px;
+          margin: 0 0 0 12px;
+          color: #ea3636;
           background: #fff;
           border: 1px solid #c4c6cc;
           border-radius: 2px;
-          margin: 0 0 0 12px;
-          color: #ea3636;
 
           @include flex-center();
         }
@@ -132,34 +140,34 @@ $statusColors: #ea3635 #ff9c00 #699df4;
         // border-top: 1px solid #dfe0e5;
 
         .alarm-group-header {
-          padding: 0 16px;
           display: flex;
           align-items: center;
-          background: #f0f5ff;
-          min-height: 40px;
           justify-content: space-between;
+          min-height: 40px;
+          padding: 0 16px;
+          background: #f0f5ff;
 
           .header-left {
             .group-title-wrap {
+              display: inline-flex;
+              align-items: center;
               width: 150px;
               max-width: 150px;
-              display: inline-flex;
               white-space: nowrap;
-              align-items: center;
 
               .title {
-                color: #63656e;
-                font-weight: 700;
+                display: inline-block;
                 max-width: 107px;
                 overflow: hidden;
-                display: inline-block;
+                font-weight: 700;
+                color: #63656e;
                 text-overflow: ellipsis;
               }
             }
 
             .start {
-              background: #e5f6ea;
               color: #3fc06d;
+              background: #e5f6ea;
             }
 
             .stop {
@@ -186,8 +194,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           height: auto;
 
           &.is-light {
-            border: 1px solid #3a84ff;
             border-collapse: collapse;
+            border: 1px solid #3a84ff;
           }
         }
 
@@ -200,12 +208,12 @@ $statusColors: #ea3635 #ff9c00 #699df4;
         }
 
         .event-status {
-          border-left: 4px solid #699df4;
           height: 16px;
-          line-height: 16px;
           padding-left: 4px;
+          line-height: 16px;
           color: #3a84ff;
           cursor: pointer;
+          border-left: 4px solid #699df4;
       
           @for $i from 1 through length($statusColors) {
             &.status-#{$i} {
@@ -216,13 +224,13 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
         .tag-item {
           display: inline-block;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
           max-width: 100%;
-          background: #f0f1f5;
           padding: 6px 11px;
           margin-right: 3px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          background: #f0f1f5;
         }
       }
     }
@@ -249,8 +257,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
     align-items: center;
 
     .right {
+      margin: 0 40px 0 auto;
       font-size: 12px;
-      margin: 0 64px 0 auto;
     }
   }
 }

@@ -350,7 +350,6 @@ export default {
 
   // 业务
   '-我有告警的业务-': '-Alarming Business-',
-  业务ID: 'Business ID',
   新业务接入详情: 'Access Details',
   业务拓扑: 'Business Topology',
   业务数: 'Businesses',
@@ -501,8 +500,8 @@ export default {
   按月: 'Monthly',
   上周: 'Last week',
   分: 'min', // 如果这个只用于指标检索的周期单位没有问题， 如果还有其他地方需要确认
-  '工作日(周一至周五)': 'Every working day (Monday to Friday)',
-  '周末(周六、周日)': 'Every weekend (Saturday, Sunday)',
+  '每工作日(周一至周五)': 'Every working day (Monday to Friday)',
+  '每周末(周六、周日)': 'Every weekend (Saturday, Sunday)',
   次日: 'Next Day',
 
   '1 小时前': '1 hour ago',
@@ -1850,4 +1849,12 @@ export default {
   系统恢复: 'System recovery',
   系统关闭: 'System closed',
   生成告警级别: 'Generate alarm levels',
+  // 故障
+  根因所属节点: 'Root Node',
+  标准提示: 'Type',
+  屏蔽类型: 'Mute type',
+  执行时间: 'Execution time',
+  语言: 'Language',
+  关联服务类型: 'Associated service type',
+  Apdex阈值T: 'Apdex threshold T',
 };

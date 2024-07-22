@@ -79,12 +79,12 @@ export default class CustomTimeRange extends tsc<IProps, IEvents> {
           type={'timerange'}
           on-change={this.handleChange}
           on-open-change={this.handleOpen}
-        ></bk-time-picker>
+        />
         <span
           class={['time-btn', { active: this.isActive }]}
           onClick={this.handleClick}
         >
-          <span class='icon-monitor icon-mc-time-shift time-icon'></span>
+          <span class='icon-monitor icon-mc-time-shift time-icon' />
         </span>
       </div>
     );

@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, nextTick, onMounted, PropType, reactive, ref, toRefs } from 'vue';
+import { type PropType, computed, defineComponent, inject, nextTick, onMounted, reactive, ref, toRefs } from 'vue';
 
 import { useTraceStore } from '../../../store/modules/trace';
-import { ITraceTree } from '../../../typings';
 import { useChildrenHiddenProvide } from '../hooks';
-import { Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
 import TimelineHeaderRow from './timeline-header-row';
 import VirtualizedTraceView from './virtualized-trace-view';
+
+import type { ITraceTree } from '../../../typings';
+import type { Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
 
 interface IState {
   height: number;

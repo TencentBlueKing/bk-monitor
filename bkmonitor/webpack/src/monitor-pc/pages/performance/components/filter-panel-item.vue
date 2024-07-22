@@ -143,10 +143,10 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { sort } from 'monitor-common/utils/utils.js';
+import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { FieldValue, IConditionValue, InputType, IOption } from '../performance-type';
+import type { FieldValue, IConditionValue, IOption, InputType } from '../performance-type';
 
 @Component({ name: 'filter-panel-item' })
 export default class PanelItem extends Vue {
@@ -162,8 +162,8 @@ export default class PanelItem extends Vue {
   @Prop({
     default: () => ({
       list: [],
-      active: ''
-    })
+      active: '',
+    }),
   })
   readonly conditions: IOption[];
 
@@ -172,8 +172,8 @@ export default class PanelItem extends Vue {
   conditionsData: IConditionValue[] = [
     {
       condition: undefined,
-      value: undefined
-    }
+      value: undefined,
+    },
   ];
 
   // textarea最小高度
@@ -194,7 +194,7 @@ export default class PanelItem extends Vue {
   // 排序options
   get sortOptions() {
     if (Array.isArray(this.options)) {
-      this.options.forEach((item) => {
+      this.options.forEach(item => {
         if (Array.isArray(item.children)) {
           item.children = sort(item.children, 'name');
         }
@@ -202,7 +202,9 @@ export default class PanelItem extends Vue {
       let temp = sort(this.options, 'name');
       // 处理空选项
       if (this.allowEmpt) {
-        temp = [temp.find(set => set.id === '__empt__'), ...temp.filter(set => set.id !== '__empt__')].filter(item => !!item);
+        temp = [temp.find(set => set.id === '__empt__'), ...temp.filter(set => set.id !== '__empt__')].filter(
+          item => !!item
+        );
       }
       // 添加搜索全选选项
       this.multiple && temp.length && temp.unshift({ id: '__all__', name: this.$t('- 全部 -') });
@@ -238,11 +240,11 @@ export default class PanelItem extends Vue {
     if (this.type === 'condition') {
       v.length === 0
         ? (this.conditionsData = [
-          {
-            condition: undefined,
-            value: undefined
-          }
-        ])
+            {
+              condition: undefined,
+              value: undefined,
+            },
+          ])
         : (this.conditionsData = v);
     } else if (this.type === 'cascade') {
       this.$nextTick(() => {
@@ -287,7 +289,7 @@ export default class PanelItem extends Vue {
   handleAddCondition(index: number) {
     this.conditionsData.splice(index + 1, 0, {
       condition: undefined,
-      value: undefined
+      value: undefined,
     });
   }
 
@@ -305,7 +307,7 @@ export default class PanelItem extends Vue {
 
   // select搜索筛选
   handleSelectSearch(keyWord) {
-    (this?.selectRef?.options || []).forEach((option) => {
+    (this?.selectRef?.options || []).forEach(option => {
       option.unmatched = !option.name.includes(keyWord);
       if (option.id === '__all__') option.unmatched = false;
     });

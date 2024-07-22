@@ -28,11 +28,15 @@ logger = logging.getLogger("core.detect_result")
 
 class CleanResult(object):
     @staticmethod
-    def clean_expired_detect_result():
+    def clean_expired_detect_result(strategy_range=None):
         """
         清理检测结果及最近拉取结果的缓存
         """
         strategy_ids = StrategyCacheManager.get_strategy_ids()
+        # 分片处理
+        if strategy_range is not None:
+            strategy_ids = [s_id for s_id in strategy_ids if s_id in range(*strategy_range)]
+
         strategies = StrategyCacheManager.get_strategy_by_ids(strategy_ids)
 
         client = key.LAST_CHECKPOINTS_CACHE_KEY.client
@@ -106,7 +110,6 @@ class CleanResult(object):
         index = 0
         for strategy in strategies:
             for item in strategy["items"]:
-
                 # 如果没有配置无数据告警，则不处理
                 no_data_config = item.get("no_data_config", {})
                 if not no_data_config.get("is_enabled", False):

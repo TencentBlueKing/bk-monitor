@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref, watch, reactive } from 'vue';
+import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
 
 import { Pagination, Popover } from 'bkui-vue';
 
@@ -155,7 +155,7 @@ export default defineComponent({
               <i
                 class='icon-monitor icon-back-left back-btn'
                 onClick={() => this.$emit('listChange', [])}
-              ></i>
+              />
               <span
                 class='text'
                 title={subTitle}
@@ -176,7 +176,7 @@ export default defineComponent({
             <i
               class={['icon-monitor icon-paixu', this.sortOrder.sort === 'desc' ? 'down' : 'up']}
               onClick={() => this.handleSortChange('sort')}
-            ></i>
+            />
             <Popover
               disabled={true}
               is-show={this.sortOrder.popoverShow}
@@ -189,7 +189,7 @@ export default defineComponent({
                 default: () => (
                   <div class='sort-select'>
                     <span class='text'>{this.$t('产生时间')}</span>
-                    <i class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
+                    <i class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
                   </div>
                 ),
                 content: () => (
@@ -221,7 +221,7 @@ export default defineComponent({
                   {original.collapsed ? (
                     <span class='collapsed-number'>{original.collapsedSpanNum}</span>
                   ) : (
-                    <i class={`icon-monitor span-icon span-kind icon-${getSpanKindIcon(original.kind)}`}></i>
+                    <i class={`icon-monitor span-icon span-kind icon-${getSpanKindIcon(original.kind)}`} />
                   )}
                   <span
                     class='span-name'
@@ -238,8 +238,8 @@ export default defineComponent({
                   )}
                 </div>
                 <div class='arrow-down-icon'>
-                  <div class='rect'></div>
-                  <div class='arrow'></div>
+                  <div class='rect' />
+                  <div class='arrow' />
                 </div>
                 <div class='list-li-body'>
                   <img

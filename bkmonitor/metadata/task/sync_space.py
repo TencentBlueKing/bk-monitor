@@ -20,7 +20,6 @@ from django.db.transaction import atomic
 from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from metadata import config, models
-from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
@@ -527,7 +526,6 @@ def push_and_publish_space_router(
     space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
 
 
-@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_push_and_publish_space_router")
 def push_and_publish_space_router_task():
     logger.info("start to push and publish space router")
 

@@ -24,16 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
-import { Component as tsc, ofType } from 'vue-tsx-support';
+import { ofType, Component as tsc } from 'vue-tsx-support';
 
 import { getApplyRecords, getReport } from '@api/modules/new_report';
 import dayjs from 'dayjs';
 
 import QueryTypeRadio from '../my-subscription/components/query-type-radio';
 import { ApplyStatus } from '../my-subscription/mapping';
-import { MyApplicationQueryType } from '../my-subscription/types';
 import { getDefaultReportData } from '../my-subscription/utils';
 import ReportDetail from './components/report-detail';
+
+import type { MyApplicationQueryType } from '../my-subscription/types';
 
 import './my-apply.scss';
 
@@ -100,14 +101,14 @@ class MyApply extends tsc<object> {
             <QueryTypeRadio
               v-model={this.approvalStatus}
               tabList={this.tabList}
-            ></QueryTypeRadio>
+            />
 
             <bk-input
               style='width: 320px;'
               v-model={this.searchValue}
               placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
-            ></bk-input>
+            />
           </div>
 
           <bk-table
@@ -125,7 +126,7 @@ class MyApply extends tsc<object> {
               }}
               label={this.$t('单号')}
               prop='approval_sn'
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -150,7 +151,7 @@ class MyApply extends tsc<object> {
                 },
               }}
               label={this.$t('邮件标题')}
-            ></bk-table-column>
+            />
 
             {/* 这个要重新取值，具体看接口返回直取 */}
             <bk-table-column
@@ -160,7 +161,7 @@ class MyApply extends tsc<object> {
                 },
               }}
               label={this.$t('当前步骤')}
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -169,7 +170,7 @@ class MyApply extends tsc<object> {
                 },
               }}
               label={this.$t('当前处理人')}
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -179,14 +180,14 @@ class MyApply extends tsc<object> {
                       style='display: flex; align-items: center;'
                       v-bk-overflow-tips
                     >
-                      <i class={['circle', row.status]}></i>
+                      <i class={['circle', row.status]} />
                       {ApplyStatus[row.status]}
                     </div>
                   );
                 },
               }}
               label={this.$t('单据状态')}
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -196,7 +197,7 @@ class MyApply extends tsc<object> {
               }}
               label={this.$t('提单时间')}
               prop='create_time'
-            ></bk-table-column>
+            />
 
             <bk-table-column
               scopedSlots={{
@@ -214,14 +215,14 @@ class MyApply extends tsc<object> {
                         <i
                           style='margin-left: 5px;'
                           class='icon-monitor icon-mc-link'
-                        ></i>
+                        />
                       </bk-button>
                     </div>
                   );
                 },
               }}
               label={this.$t('操作')}
-            ></bk-table-column>
+            />
           </bk-table>
         </div>
 
@@ -244,7 +245,7 @@ class MyApply extends tsc<object> {
           </div>
 
           <div slot='content'>
-            <ReportDetail detailInfo={this.detailInfo}></ReportDetail>
+            <ReportDetail detailInfo={this.detailInfo} />
           </div>
         </bk-sideslider>
       </div>

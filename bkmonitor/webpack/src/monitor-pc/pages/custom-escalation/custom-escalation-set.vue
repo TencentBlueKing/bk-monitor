@@ -241,20 +241,24 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue, Watch } from 'vue-property-decorator';
 import { getLabel } from 'monitor-api/modules/commons';
-import { createCustomEventGroup, createCustomTimeSeries, validateCustomEventGroupLabel, validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
+import {
+  createCustomEventGroup,
+  createCustomTimeSeries,
+  validateCustomEventGroupLabel,
+  validateCustomTsGroupLabel,
+} from 'monitor-api/modules/custom_report';
+import { Component, Vue, Watch } from 'vue-property-decorator';
 
 import VerifyInput from '../../components/verify-input/verify-input.vue';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
-import { IFormData, IParams, IRule } from '../../types/custom-escalation/custom-escalation-set';
-import MonitorVue from '../../types/index';
-
+import type { IFormData, IParams, IRule } from '../../types/custom-escalation/custom-escalation-set';
+import type MonitorVue from '../../types/index';
 
 @Component({
   components: {
-    VerifyInput
-  }
+    VerifyInput,
+  },
 })
 export default class CustomEscalationSet extends Vue<MonitorVue> {
   //   //  区别自定义事件和自定义指标
@@ -268,8 +272,14 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
   private currentItemIdName = 'bkEventGroupId'; // 当前 ID 字段
   private disableSubmit = false; // 是否禁用提交按钮（防止重复点击）
   private btnLoadingIcon = ''; // 提交时显示按钮loading效果
-  private protocolList: Array<{ id: string, name: string}> = [{ id: 'json', name: 'JSON' }, { id: 'prometheus', name: 'Prometheus' }]; // 上报协议字典
-  private scopeList: Array<{ id: boolean, name: string}> = [{ id: false, name: '本业务' }, { id: true, name: '全业务' }]; // 作用范围字典
+  private protocolList: Array<{ id: string; name: string }> = [
+    { id: 'json', name: 'JSON' },
+    { id: 'prometheus', name: 'Prometheus' },
+  ]; // 上报协议字典
+  private scopeList: Array<{ id: boolean; name: string }> = [
+    { id: false, name: '本业务' },
+    { id: true, name: '全业务' },
+  ]; // 作用范围字典
   // 表单model
   private formData: IFormData = {
     bkEventGroupId: '',
@@ -280,7 +290,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     dataLabel: '',
     isPlatform: false,
     protocol: '',
-    desc: ''
+    desc: '',
   };
 
   // 校验
@@ -290,7 +300,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     nameTips: '',
     dataLabel: false,
     dataLabelTips: '',
-    protocol: false
+    protocol: false,
   };
 
   /** 是否点击提交 */
@@ -319,7 +329,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
   get protocolDes() {
     const des = {
       json: this.$t('蓝鲸监控自有的JSON数据格式，创建完后有具体的格式说明'),
-      prometheus: this.$t('支持Prometheus的标准输出格式')
+      prometheus: this.$t('支持Prometheus的标准输出格式'),
     };
     return des[this.formData.protocol];
   }
@@ -337,11 +347,10 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
   /** 更新面包屑 */
   updateNavData(name = '') {
     if (!name) return;
-    const routeList = [
-    ];
+    const routeList = [];
     routeList.push({
       name,
-      id: ''
+      id: '',
     });
     this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
   }
@@ -368,15 +377,20 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
   //  名字失焦校验
   async handleCheckName() {
     if (this.formData.name) {
-      const res = this.type === 'customEvent'
-        ? await this.$store.dispatch(
-          'custom-escalation/validateCustomEventName',
-          { params: { name: this.formData.name }, options: { needRes: true, needMessage: false } }
-        ).catch(err => err)
-        : await this.$store.dispatch(
-          'custom-escalation/validateCustomTimetName',
-          { params: { name: this.formData.name }, options: { needRes: true, needMessage: false } }
-        ).catch(err => err);
+      const res =
+        this.type === 'customEvent'
+          ? await this.$store
+              .dispatch('custom-escalation/validateCustomEventName', {
+                params: { name: this.formData.name },
+                options: { needRes: true, needMessage: false },
+              })
+              .catch(err => err)
+          : await this.$store
+              .dispatch('custom-escalation/validateCustomTimetName', {
+                params: { name: this.formData.name },
+                options: { needRes: true, needMessage: false },
+              })
+              .catch(err => err);
       if (!res.result) {
         this.rule.nameTips = res.message;
         this.rule.name = true;
@@ -433,18 +447,17 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       this.rule.dataLabel = true;
       return false;
     }
-    const res = this.type === 'customEvent'
-      // eslint-disable-next-line vue/max-len
-      ? await validateCustomEventGroupLabel(
-        { data_label: this.formData.dataLabel },
-        { needRes: true, needMessage: false, needTraceId: false }
-      )
-        .catch(err => err)
-      : await validateCustomTsGroupLabel(
-        { data_label: this.formData.dataLabel },
-        { needRes: true, needMessage: false, needTraceId: false }
-      )
-        .catch(err => err);
+    const res =
+      this.type === 'customEvent'
+        ? // eslint-disable-next-line vue/max-len
+          await validateCustomEventGroupLabel(
+            { data_label: this.formData.dataLabel },
+            { needRes: true, needMessage: false, needTraceId: false }
+          ).catch(err => err)
+        : await validateCustomTsGroupLabel(
+            { data_label: this.formData.dataLabel },
+            { needRes: true, needMessage: false, needTraceId: false }
+          ).catch(err => err);
     if (res.code !== 200) {
       this.rule.dataLabelTips = res.message;
       this.rule.dataLabel = true;
@@ -489,30 +502,38 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       name: this.formData.name,
       scenario: this.formData.scenario,
       data_label: this.formData.dataLabel,
-      is_platform: this.formData.isPlatform
+      is_platform: this.formData.isPlatform,
     };
     let result: IParams = {};
     if (this.type === 'customEvent') {
       // 自定义事件
-      result = await createCustomEventGroup(params, { needMessage: false })
-        .catch(err => ({ bk_event_group_id: '', message: err.message, code: err.code }));
+      result = await createCustomEventGroup(params, { needMessage: false }).catch(err => ({
+        bk_event_group_id: '',
+        message: err.message,
+        code: err.code,
+      }));
       this.handleToDetail(result.bk_event_group_id);
     } else {
       // 自定义指标新增字段
       // eslint-disable-next-line no-unused-expressions
       const addParams = {
         protocol: this.formData.protocol,
-        desc: this.formData.desc
+        desc: this.formData.desc,
       };
       // 自定义指标
-      result = await createCustomTimeSeries({ ...params, ...addParams }, { needMessage: false })
-        .catch(err => ({ time_series_group_id: '', message: err.message, code: err.code }));
+      result = await createCustomTimeSeries({ ...params, ...addParams }, { needMessage: false }).catch(err => ({
+        time_series_group_id: '',
+        message: err.message,
+        code: err.code,
+      }));
       this.handleToDetail(result.time_series_group_id);
     }
-    if (result.code === 3335007) { // 英文名报错
+    if (result.code === 3335007) {
+      // 英文名报错
       this.rule.dataLabel = true;
       this.rule.dataLabelTips = result.message;
-    } else if (result.code === 3335006) { // 名称报错
+    } else if (result.code === 3335006) {
+      // 名称报错
       this.rule.name = true;
       this.rule.nameTips = result.message;
     } else if (!!result.code) {
@@ -527,7 +548,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     if (id) {
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('创建成功')
+        message: this.$t('创建成功'),
       });
 
       const name = this.type === 'customEvent' ? 'custom-detail-event' : 'custom-detail-timeseries';
@@ -535,8 +556,8 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
         name,
         params: {
           id,
-          isCreat: 'creat'
-        }
+          isCreat: 'creat',
+        },
       });
     }
   }

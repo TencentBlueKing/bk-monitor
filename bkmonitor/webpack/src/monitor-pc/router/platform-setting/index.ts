@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import * as platformSettingAuth from '../../pages/platform-setting/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const PlatformSetting = () =>
   import(/* webpackChunkName: 'PlatformSettings' */ '../../pages/platform-setting/platform-setting');

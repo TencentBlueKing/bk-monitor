@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { methodMap } from '../typing';
@@ -140,7 +140,7 @@ export default defineComponent({
             <div class='column-item column-item-agg-condition'>
               <div class='column-label column-target'> {t('监控条件')} : </div>
               <div class='column-agg-condition'>
-                {queryConfig.agg_condition.map((item, index) => [
+                {queryConfig?.agg_condition?.map((item, index) => [
                   index > 0 && <div class='column-agg-dimension mb-2'>{item.condition}</div>,
                   <div
                     key={index}
@@ -193,6 +193,24 @@ export default defineComponent({
               }
               if (item.data_type_label === 'alert') {
                 return getAlertContent(item);
+              }
+              if (item?.data_source_label === 'prometheus') {
+                return (
+                  <div class='item-content'>
+                    <div class='column-item'>
+                      <div class='column-label'> {t('告警名称')} : </div>
+                      <div class='column-content item-font'>{props.strategyData.name}</div>
+                    </div>
+                    <div class='column-item'>
+                      <div class='column-label'> {t('告警级别')} : </div>
+                      <div class='column-content item-font'>{levelMap[props.strategyData.detects[0].level]}</div>
+                    </div>
+                    <div class='column-item'>
+                      <div class='column-label'> {t('监控项')} : </div>
+                      <div class='column-content item-font'>{item.promql}</div>
+                    </div>
+                  </div>
+                );
               }
               return getTimeSeriesContent(item);
             })()}

@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ETabNames, IInfo } from './types';
+import { ETabNames, type IInfo } from './types';
 
 import './tab-title.scss';
 
@@ -79,7 +79,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
           onClick={this.handleActive.bind(this, 'dimension')}
         >
           <span class='aiops-tab-title-icon'>
-            <i class='aiops-tab-icon icon-monitor icon-mc-drill-down'></i>
+            <i class='aiops-tab-icon icon-monitor icon-mc-drill-down' />
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('维度下钻')}</span>
@@ -95,7 +95,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
               >
                 {!this.showDimensionDrill ? (
                   <div>
-                    <i class='icon-monitor icon-tips tips-icon'></i>
+                    <i class='icon-monitor icon-tips tips-icon' />
                     {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
                   </div>
                 ) : (
@@ -103,7 +103,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
                     this.dimensionDrillDownErr ? (
                       <span class='err-text'>
                         <span>
-                          <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
+                          <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
                           {this.$t('模型输出异常')}
                         </span>
                       </span>
@@ -131,14 +131,14 @@ export default class AiopsTabtitle extends tsc<IProps> {
           onClick={this.handleActive.bind(this, 'index')}
         >
           <span class='aiops-tab-title-icon'>
-            <i class='aiops-tab-icon icon-monitor icon-mc-correlation-metrics'></i>
+            <i class='aiops-tab-icon icon-monitor icon-mc-correlation-metrics' />
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('关联指标')}</span>
             {this.showDimensionDrill &&
               (!this.showMetricRecommendation ? (
                 <span class='aiops-tab-title-message aiops-tab-title-index-message'>
-                  <i class='icon-monitor icon-tips tips-icon'></i>
+                  <i class='icon-monitor icon-tips tips-icon' />
                   {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
                 </span>
               ) : (
@@ -154,7 +154,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
                   {this.metricRecommendationErr && (
                     <span class='err-text'>
                       <span>
-                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
+                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
                         {this.$t('模型输出异常')}
                       </span>
                     </span>

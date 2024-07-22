@@ -163,7 +163,7 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
               formList={this.formList}
               formModel={this.formModel}
               formRules={this.formRules}
-            ></DynamicForm>
+            />
           ) : (
             <span>{this.$t('确定要安装事件源{0}吗', [`【${this.data?.pluginDisplayName || ''}】`])}?</span>
           )}

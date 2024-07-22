@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { DecimalCount } from '../types/displayValue';
-import { FormattedValue, toFixed } from './valueFormats';
+import { type FormattedValue, toFixed } from './valueFormats';
+
+import type { DecimalCount } from '../types/displayValue';
 
 export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {
   if (size === null) {
@@ -59,7 +60,7 @@ export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue
     return { text: '' };
   }
   return {
-    text: parseFloat(toFixed(value, decimals)).toString(16).toUpperCase(),
+    text: Number.parseFloat(toFixed(value, decimals)).toString(16).toUpperCase(),
   };
 }
 

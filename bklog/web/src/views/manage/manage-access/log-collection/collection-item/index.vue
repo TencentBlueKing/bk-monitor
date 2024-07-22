@@ -529,7 +529,7 @@
                         v-cursor="{
                           active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'start') }"
+                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'delete') }"
                         href="javascript:;"
                         @click.stop="operateHandler(props.row, 'delete')"
                       >

@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
-import { ITableSeries } from '../options/type-interface';
+import type { ITableSeries } from '../options/type-interface';
 
 import './table-chart.scss';
 
@@ -79,7 +79,7 @@ export default class TableChart extends tsc<TableChartProps> {
             }}
             label={column.text}
             show-overflow-tooltip={true}
-          ></bk-table-column>
+          />
         ))}
       </bk-table>
     );

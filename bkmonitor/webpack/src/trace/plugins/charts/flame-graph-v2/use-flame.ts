@@ -25,24 +25,24 @@
  */
 import { axisTop } from 'd3-axis';
 import { easeCubic } from 'd3-ease';
-import { hierarchy, HierarchyNode, HierarchyRectangularNode, partition } from 'd3-hierarchy';
+import { type HierarchyNode, type HierarchyRectangularNode, hierarchy, partition } from 'd3-hierarchy';
 import { path } from 'd3-path';
-import { NumberValue, scaleLinear } from 'd3-scale';
-import { BaseType, select, Selection, ValueFn } from 'd3-selection';
+import { type NumberValue, scaleLinear } from 'd3-scale';
+import { type BaseType, type Selection, type ValueFn, select } from 'd3-selection';
 import { curveCatmullRom, line } from 'd3-shape';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import traceIcons from '../../utls/icons';
 import {
-  BaseDataType,
-  BaseRect,
+  type BaseDataType,
+  type BaseRect,
   ColorTypes,
-  IFlameChartOptions,
-  IFlameData,
-  ILineData,
-  IOtherData,
+  type IFlameChartOptions,
+  type IFlameData,
+  type ILineData,
+  type IOtherData,
   RootId,
-  ThreadPos,
+  type ThreadPos,
 } from './types';
 
 const usFormat = getValueFormat('µs');
@@ -480,7 +480,7 @@ export class FlameChart<D extends BaseDataType> {
             .transition()
             .duration(this.transitionDuration)
             .ease(this.transitionEase)
-            .attr('class', `split-line`)
+            .attr('class', 'split-line')
             .attr('stroke', '#ddd')
             .attr('stroke-width', 1)
             .attr('stroke-dasharray', '5,5')

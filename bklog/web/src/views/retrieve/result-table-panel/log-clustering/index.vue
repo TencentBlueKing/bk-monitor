@@ -268,7 +268,7 @@
         },
         requestData: {
           // 数据请求
-          pattern_level: '',
+          pattern_level: '05',
           year_on_year_hour: 0,
           show_new_pattern: false,
           group_by: [],
@@ -293,6 +293,7 @@
         /** 索引集是否切换 */
         isIndexSetChange: false,
         isInitPage: true, // 是否是第一次进入数据指纹
+        scrollEl: null,
       };
     },
     computed: {
@@ -441,8 +442,9 @@
           }
         }
         const patternList = clusterLevel.sort((a, b) => Number(b) - Number(a));
+        // clusterLevel[patternLevel - 1]
         const queryRequestData = {
-          pattern_level: clusterLevel[patternLevel - 1],
+          pattern_level: '05',
           group_by: [],
           remark_config: 'all',
           owner_config: 'all',

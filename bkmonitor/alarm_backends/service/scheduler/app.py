@@ -228,6 +228,7 @@ TASK_ROOT_MODULES = [
     "alarm_backends.service",
     "alarm_backends.service.alert",
     "alarm_backends.service.converge",
+    "alarm_backends.core",
     "api",
     "apm",
     "apm_ebpf",

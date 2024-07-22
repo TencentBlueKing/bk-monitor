@@ -30,10 +30,11 @@ import { CancelToken } from 'monitor-api/index';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
-import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
+import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
 import Form from '../form/form';
-import { FormItem, IFormDataItem } from '../form/utils';
-import { IModelData } from '../time-series-forecast/time-series-forecast';
+import { FormItem, type IFormDataItem } from '../form/utils';
+
+import type { IModelData } from '../time-series-forecast/time-series-forecast';
 
 import './intelligent-detect.scss';
 
@@ -340,7 +341,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
               class='ai-ops-tips'
               slot='title'
               domPropsInnerHTML={this.tipsData.message}
-            ></div>
+            />
           </bk-alert>
         )}
         <Form
@@ -351,7 +352,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
           readonly={this.readonly}
           rules={this.rules}
           onChange={this.handleValueChange}
-        ></Form>
+        />
       </div>
     );
   }

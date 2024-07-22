@@ -1,4 +1,14 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { random } from 'monitor-common/utils/utils';
+
+import { type IMetricDetail, MetricDetail } from '../../strategy-config/strategy-config-set-new/typings';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { PanelHeaderType, PanelToolsType } from '../../monitor-k8s/typings';
+import type { IFunctionItem } from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import type { IFunctionsValue } from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
+import type { IIndexListItem } from '../index-list/index-list';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,18 +34,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
-
-import { random } from 'monitor-common/utils/utils';
-
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { PanelHeaderType, PanelToolsType } from '../../monitor-k8s/typings';
-import { IFunctionItem } from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
-import { IFunctionsValue } from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { IMetricDetail, MetricDetail } from '../../strategy-config/strategy-config-set-new/typings';
-import { IIndexListItem } from '../index-list/index-list';
-
-import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TranslateResult } from 'vue-i18n';
 
 export interface whereItem {
   condition: 'and' | 'or';

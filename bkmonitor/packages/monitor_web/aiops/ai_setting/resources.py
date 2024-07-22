@@ -19,10 +19,6 @@ from monitor_web.aiops.ai_setting.serializers import (
     KPIAnomalyDetectionSerializer,
     MultivariateAnomalyDetectionSerializer,
 )
-from monitor_web.tasks import (
-    access_aiops_multivariate_anomaly_detection_by_bk_biz_id,
-    stop_aiops_multivariate_anomaly_detection_flow,
-)
 
 logger = logging.getLogger("monitor_web")
 
@@ -91,11 +87,5 @@ class SaveAiSettingResource(Resource):
             kpi_anomaly_detection=kpi_anomaly_detection,
             multivariate_anomaly_detection=multivariate_anomaly_detection_params,
         )
-
-        # aiops异步操作
-        if need_access_scenes:
-            access_aiops_multivariate_anomaly_detection_by_bk_biz_id.delay(bk_biz_id, need_access_scenes)
-        if need_stop_scenes:
-            stop_aiops_multivariate_anomaly_detection_flow.delay(bk_biz_id, need_stop_scenes)
 
         return {}

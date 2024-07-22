@@ -38,7 +38,7 @@ export default defineComponent({
   setup(props) {
     return () => (
       <div class='common-tip-component'>
-        <span class='icon-monitor icon-hint'></span>
+        <span class='icon-monitor icon-hint' />
         {props.content}
       </div>
     );

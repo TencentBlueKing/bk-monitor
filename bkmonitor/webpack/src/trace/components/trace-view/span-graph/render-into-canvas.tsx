@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { TNil } from '../typings';
+import type { TNil } from '../typings';
 
 // exported for tests
 export const BG_COLOR = '#fff';

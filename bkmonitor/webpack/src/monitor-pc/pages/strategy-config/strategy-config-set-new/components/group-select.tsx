@@ -186,12 +186,12 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
                 e.stopPropagation();
                 this.handleClear();
               }}
-            ></span>
+            />
           )}
           <span
             class={['icon-monitor', 'sel-icon', 'icon-arrow-down']}
             onClick={e => e.stopPropagation()}
-          ></span>
+          />
         </div>
         <div style='display: none;'>
           <div
@@ -205,7 +205,7 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
               placeholder={this.$t('输入关键字')}
               value={this.keyword}
               on-change={this.handleKeywordChange}
-            ></bk-input>
+            />
             {this.filterList.length > 0 ? (
               <div class='panel-list'>
                 {this.filterList.length > 0 && (
@@ -217,7 +217,7 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
                         onMouseenter={() => this.handleGroupMouseenter(item)}
                       >
                         {item.name}
-                        <i class='icon-monitor icon-arrow-right arrow-icon'></i>
+                        <i class='icon-monitor icon-arrow-right arrow-icon' />
                       </li>
                     ))}
                   </ul>

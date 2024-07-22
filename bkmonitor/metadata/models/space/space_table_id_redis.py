@@ -222,8 +222,23 @@ class SpaceTableIDRedis:
             table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
                 "table_id", "storage_cluster_id", "source_type", "index_set"
             )
+            # 查询结果表选项
+            tid_options = models.ResultTableOption.objects.filter(table_id__in=table_id_list).values(
+                "table_id", "name", "value"
+            )
         else:
             table_ids = models.ESStorage.objects.values("table_id", "storage_cluster_id", "source_type", "index_set")
+            tids = [obj["table_id"] for obj in table_ids]
+            tid_options = models.ResultTableOption.objects.filter(table_id__in=tids).values("table_id", "name", "value")
+
+        tid_options_map = {}
+        for option in tid_options:
+            try:
+                _option = {option["name"]: json.loads(option["value"])}
+            except Exception:
+                _option = {}
+
+            tid_options_map.setdefault(option["table_id"], {}).update(_option)
         # 组装数据
         # NOTE: 这里针对一段式的追加一个`__default__`
         # 组装需要的数据，字段相同
@@ -246,6 +261,8 @@ class SpaceTableIDRedis:
                     "storage_id": record.get("storage_cluster_id", 0),
                     "db": table_id_db,
                     "measurement": DEFAULT_MEASUREMENT,
+                    "source_type": source_type,
+                    "options": tid_options_map.get(tid) or {},
                 }
             )
         return data

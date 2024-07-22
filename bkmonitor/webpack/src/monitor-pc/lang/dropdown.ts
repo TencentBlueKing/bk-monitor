@@ -99,4 +99,5 @@ export default {
   指定时间: 'Specify time',
   我申请的: 'My Application',
   我的订阅: 'My Subscription',
+  基本设置: 'Basic Settings',
 };

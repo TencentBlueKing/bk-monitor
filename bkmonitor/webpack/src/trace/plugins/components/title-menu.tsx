@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, getCurrentInstance, PropType, ref, watch } from 'vue';
+import { type PropType, defineComponent, getCurrentInstance, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 
 import { createMetricTitleTooltips } from '../../utils';
-import { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../typings';
+
+import type { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../typings';
 
 import './title-menu.scss';
 
@@ -217,7 +218,7 @@ export default defineComponent({
                     class={['child-list-item', { active: child.id === item.childValue }]}
                     onClick={() => this.handleSelectChild(item, child)}
                   >
-                    {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`}></i>}
+                    {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`} />}
                     {child.name}
                   </li>
                 </Popover>
@@ -233,9 +234,7 @@ export default defineComponent({
               class='chart-menu-item'
               onClick={() => this.handleMenuClick(item)}
             >
-              <i
-                class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`}
-              ></i>
+              <i class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`} />
               {!item.checked ? item.name : item.nextName || item.name}
               {!!item.children?.length && item.hasLink && (
                 <bk-popover
@@ -252,7 +251,7 @@ export default defineComponent({
                   {childTpl(item)}
                 </bk-popover>
               )}
-              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon'></i> : undefined}
+              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
               {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right more-icon' />}
             </li>
           );
@@ -269,7 +268,7 @@ export default defineComponent({
                 offset={-1}
                 placement='right-start'
                 theme='light cycle-list-wrapper child-list-popover more'
-              ></Popover>
+              />
             );
           }
           return menuItemTpl;
@@ -281,7 +280,7 @@ export default defineComponent({
               class={`chart-menu-item ${index === 0 ? 'segmentation-item' : ''}`}
               onClick={() => this.handleMetricSelect(item)}
             >
-              <i class='icon-monitor icon-mc-add-strategy strategy-icon'></i>
+              <i class='icon-monitor icon-mc-add-strategy strategy-icon' />
               <span class='field-name'>{item.metric_field_name}</span>
               <Popover>
                 {{
@@ -290,7 +289,7 @@ export default defineComponent({
                     <div
                       class='common-chart-tooltips-wrap'
                       v-html={createMetricTitleTooltips(item)}
-                    ></div>
+                    />
                   ),
                 }}
               </Popover>

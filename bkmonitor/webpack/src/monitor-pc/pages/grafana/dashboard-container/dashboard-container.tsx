@@ -27,11 +27,12 @@ import { Component, Emit, Mixins, Prop, Provide, ProvideReactive, Ref } from 'vu
 import { ofType } from 'vue-tsx-support';
 
 import authorityMixinCreate from '../../../mixins/authorityMixin';
-import { ISpaceItem } from '../../../types';
 import * as grafanaAuth from '../authority-map';
 import DashboardAside, { GRAFANA_HOME_ID } from './dashboard-aside';
-import { IFavListItem } from './fav-list';
-import { TreeMenuItem } from './utils';
+
+import type { ISpaceItem } from '../../../types';
+import type { IFavListItem } from './fav-list';
+import type { TreeMenuItem } from './utils';
 
 // import ResizeLayout from '../../../components/resize-layout/resize-layout';
 import './dashboard-container.scss';
@@ -115,7 +116,7 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
           onClick={this.handleExpend}
         >
           {!this.expend && <span class='toggle-wrap-text'>{this.$t('目录')}</span>}
-          <i class='icon-monitor icon-arrow-left'></i>
+          <i class='icon-monitor icon-arrow-left' />
         </div>
       </bk-resize-layout>
     );

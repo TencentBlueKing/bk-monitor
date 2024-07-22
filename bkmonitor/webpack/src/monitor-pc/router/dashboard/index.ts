@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import * as grafanaAuth from '../../pages/grafana/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const Grafana = () => import(/* webpackChunkName: 'Grafana' */ '../../pages/grafana/grafana');
 export default [

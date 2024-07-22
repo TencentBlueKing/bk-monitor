@@ -24,7 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { IMetricDetail, MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+import type {
+  IMetricDetail,
+  MetricDetail,
+  MetricType,
+} from '../../pages/strategy-config/strategy-config-set-new/typings';
 
 export type TGetMetricData = (
   params: Record<string, any>
