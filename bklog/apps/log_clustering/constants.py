@@ -127,7 +127,7 @@ DEFAULT_PATTERN_MONITOR_MSG = """{{content.level}}
 {{content.dimension}}
 {{content.detail}}
 日志示例: {{ json.loads(alarm.related_info)["__clustering_field__"] }}
-更多日志: {{ json.loads(alarm.related_info)["bklog_link"] }}
+[更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
 """
 
 DEFAULT_PATTERN_RECOVER_MSG = """{{content.level}}
@@ -143,7 +143,7 @@ DEFAULT_PATTERN_RECOVER_MSG = """{{content.level}}
 {{content.dimension}}
 {{content.detail}}
 日志示例: {{ json.loads(alarm.related_info)["__clustering_field__"] }}
-更多日志: {{ json.loads(alarm.related_info)["bklog_link"] }}
+[更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
 """
 
 

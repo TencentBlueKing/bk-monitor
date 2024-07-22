@@ -1,0 +1,305 @@
+.failure-chart-wrap-loading {
+  height: 78%;
+}
+
+.failure-chart-wrap {
+    width: 100%;
+    height: 100%;
+    color: #63656e;
+    background-color: #fff;
+    background-repeat: repeat;
+    background-position: center;
+    border-radius: 2px;
+
+    .failure-chart-content {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: calc(100% - 56px);
+        padding-bottom: 6px;
+    }
+
+    .empty-chart {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        height: calc(100% - 56px);
+        color: #979ba5;
+    }
+  
+    .echart-header {
+      display: flex;
+      align-items: center;
+      min-width: 100%;
+      font-weight: 700;
+      color: #63656e;
+  
+      :deep(.chart-title-wrap) {
+        cursor: pointer;
+  
+        .chart-title {
+          padding: 0;
+        }
+      }
+
+      .root-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 96%;
+
+        .txt {
+          display: inline-block;
+          max-width: 88%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .root {
+          display: inline-block;
+          width: 24px;
+          height: 14px;
+          margin-left: 4px;
+          font-size: 9px;
+          line-height: 14px;
+          color: #fff;
+          text-align: center;
+          border-radius: 7px;
+
+          &.is-root-cause {
+            background: #FF9C01;
+          }
+
+          &.is-root {
+            background: #F55555;
+          }
+        }
+      }
+    }
+  
+    .chart-wrapper-echarts {
+      position: relative;
+      display: flex;
+  
+      .echart-instance-wrap {
+        position: relative;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 100px;
+        padding-left: 8px;
+        margin-top: 5px;
+        overflow: hidden;
+  
+        .chart-restore {
+          position: absolute;
+          top: 5px;
+          right: 8px;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 20px;
+          font-size: 12px;
+          border: 1px solid #c4c6cc;
+          border-radius: 2px;
+  
+          &:hover {
+            color: #63656e;
+            cursor: pointer;
+            border-color: #979ba5;
+          }
+        }
+      }
+  
+      .echart-instance {
+        display: flex;
+        flex: 1;
+        width: 100%;
+        overflow: hidden;
+      }
+  
+      .echart-legend {
+        margin-top: 8px;
+        margin-left: 16px;
+        overflow: auto;
+      }
+  
+      .echart-pie-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: translate3d(-50%, -50%, 0);
+      }
+    }
+  
+    .echart-content {
+      position: absolute;
+      top: 36px;
+      right: 1px;
+      bottom: 1px;
+      left: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0);
+    }
+  
+    .scatter-tips {
+      position: absolute;
+      padding: 10px 6px 6px 6px;
+      background: #000;
+      border-radius: 2px;
+      opacity: .8;
+  
+      .time {
+        margin-bottom: 4px;
+        font-size: 12px;
+        font-weight: Bold;
+        color: #fff;
+      }
+  
+      .info-item {
+        font-size: 12px;
+        line-height: 20px;
+        color: #fff;
+  
+        .content {
+          .link,
+          .copy {
+            color: #a3c5fd;
+          }
+  
+          .link {
+            &.pointer {
+              cursor: pointer;
+            }
+          }
+  
+          .copy {
+            cursor: pointer;
+          }
+        }
+      }
+  
+      .bottom {
+        margin-top: 8px;
+  
+        .point {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          margin-right: 10px;
+          border-radius: 50%;
+        }
+  
+        .label {
+          color: #fff;
+        }
+      }
+    }
+  
+    .is-error {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      z-index: 999;
+      display: block;
+      color: #fff;
+      cursor: pointer;
+      border-color: #e0226e transparent transparent #e0226e;
+      border-style: solid;
+      border-width: 12px;
+      border-radius: 2px;
+  
+      &::after {
+        position: absolute;
+        top: -12px;
+        left: -6px;
+        width: 4px;
+        height: 8px;
+        content: '!';
+      }
+    }
+  
+    .chart-resize-line {
+      position: relative;
+      height: 20px;
+      margin-top: 5px;
+      cursor: row-resize;
+  
+      &::before {
+        position: absolute;
+        top: 50%;
+        width: 100%;
+        content: '';
+        border-top: 1px solid transparent;
+        transition: border-color .2s ease-in-out 0s;
+        transform: translateY(-50%);
+      }
+  
+      &::after {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 24px;
+        height: 3px;
+        content: '';
+        background: #c4c6cc;
+        border-radius: 2px;
+        transform: translate(-50%, -50%);
+      }
+  
+      &:hover {
+        &::before {
+          border-color: #5794f2;
+        }
+  
+        &::after {
+          background: #3a84ff;
+        }
+      }
+    }
+  
+    .chart-table-box {
+      border-top: 1px solid #eaebf0;
+  
+      .chart-table-title {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 54px;
+        // justify-content: space-between;
+        font-weight: bold;
+  
+        .title-count {
+          margin-left: 16px;
+          font-weight: normal;
+          color: #979ba5;
+        }
+  
+        .export-csv-btn {
+          margin-left: auto;
+        }
+      }
+  
+      .chart-table {
+        ::v-deep td,
+        ::v-deep th.is-leaf {
+          height: 32px;
+        }
+      }
+  
+      ::v-deep .ellipsis {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+}

@@ -60,14 +60,20 @@ import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../common/util';
 import IpSelectorTable from '../components/ip-selector-table.vue';
-import { IipListParams, IPagination, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
+import type {
+  IPagination,
+  ITableCheckData,
+  ITableConfig,
+  IipListParams,
+  SearchDataFuncType,
+} from '../types/selector-type';
 
 // IP列表
 @Component({
   name: 'ip-list',
   components: {
-    IpSelectorTable
-  }
+    IpSelectorTable,
+  },
 })
 export default class IpList extends Vue {
   // 提交变更时调用该方法获取数据
@@ -97,7 +103,7 @@ export default class IpList extends Vue {
   private pagination: IPagination = {
     current: 1,
     limit: 20,
-    count: 0
+    count: 0,
   };
   private maxHeight = 400;
   private defaultSelections: any[] = [];
@@ -126,8 +132,9 @@ export default class IpList extends Vue {
   // eslint-disable-next-line @typescript-eslint/member-ordering
   public handleGetDefaultSelections() {
     // 获取默认勾选项
-    this.defaultSelections = this.tableData.filter(row => this.getDefaultSelections
-    && !!this.getDefaultSelections(row));
+    this.defaultSelections = this.tableData.filter(
+      row => this.getDefaultSelections && !!this.getDefaultSelections(row)
+    );
   }
   // eslint-disable-next-line @typescript-eslint/member-ordering
   public selectionAllData() {
@@ -142,7 +149,7 @@ export default class IpList extends Vue {
       const params: IipListParams = {
         current: this.pagination.current,
         limit: this.limit,
-        tableKeyword: this.tableKeyword
+        tableKeyword: this.tableKeyword,
       };
       const { total, data } = await this.getSearchTableData(params, type);
       if (data.length > this.pagination.limit) {
@@ -199,7 +206,7 @@ export default class IpList extends Vue {
     return {
       selections: tmpSelections,
       excludeData: tmpExcludeData,
-      checkType
+      checkType,
     };
   }
   handleClearFilter() {
@@ -211,13 +218,16 @@ export default class IpList extends Vue {
 <style lang="scss" scoped>
 .ip-list {
   height: 100%;
+
   .table-tab {
     display: flex;
     background-image: linear-gradient(transparent 36px, #dcdee5 0);
+
     &-item {
       padding: 10px 0 8px 0;
       margin-right: 20px;
       cursor: pointer;
+
       &.active {
         color: #3a84ff;
         border-bottom: 2px solid #3a84ff;

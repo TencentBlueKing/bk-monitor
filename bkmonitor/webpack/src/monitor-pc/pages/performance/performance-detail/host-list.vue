@@ -66,7 +66,7 @@
           class="tips-main"
         >
           <i class="icon-monitor icon-tips" />
-          <span class="text">{{$t('选择目标进行对比')}}</span>
+          <span class="text">{{ $t('选择目标进行对比') }}</span>
         </div>
       </bk-alert>
       <div class="content-bottom">
@@ -89,26 +89,29 @@
             <div
               :class="[
                 'bk-tree-node',
-                { 'active': (`${data.ip}-${data.bk_cloud_id}` === curNode.id)
-                    || (enableCmdbLevel && (`${data.bk_inst_id}-${data.bk_obj_id}` === curNode.id)),
-                  'checked-target': isTargetCompare && checkedTarget.includes(`${data.bk_cloud_id}-${data.ip}`)
-                }
+                {
+                  active:
+                    `${data.ip}-${data.bk_cloud_id}` === curNode.id ||
+                    (enableCmdbLevel && `${data.bk_inst_id}-${data.bk_obj_id}` === curNode.id),
+                  'checked-target': isTargetCompare && checkedTarget.includes(`${data.bk_cloud_id}-${data.ip}`),
+                },
               ]"
               @click="handleItemClick(data)"
             >
               <span
                 class="node-content"
-                style="padding-right: 5px;"
+                style="padding-right: 5px"
               >
                 <span
                   v-if="data.status !== undefined"
                   :class="['item-status', `status-${statusMap[data.status].status}`]"
                 />
-                <span>{{data.ip || data.bk_inst_name}}</span>
+                <span>{{ data.ip || data.bk_inst_name }}</span>
                 <span
                   v-if="data.bkHostName"
                   class="host-name"
-                >({{data.bkHostName}})</span>
+                  >({{ data.bkHostName }})</span
+                >
                 <span
                   class="add-compared"
                   v-if="data.ip && isTargetCompare"
@@ -121,7 +124,8 @@
                     class="add-compared-btn"
                     v-else
                     @click.stop="handleAddCompareTarget(data)"
-                  >{{$t('对比')}}</span>
+                    >{{ $t('对比') }}</span
+                  >
                 </span>
               </span>
             </div>
@@ -132,12 +136,12 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { deepClone } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
+import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import PerformanceModule, { ICurNode } from '../../../store/modules/performance';
-import { IQueryOption } from '../performance-type';
+import PerformanceModule, { type ICurNode } from '../../../store/modules/performance';
+import type { IQueryOption } from '../performance-type';
 
 @Component({ name: 'host-list' })
 export default class HostList extends Vue {
@@ -156,24 +160,24 @@ export default class HostList extends Vue {
   private statusMap = {
     '-1': {
       name: window.i18n.t('未知'),
-      status: '3'
+      status: '3',
     },
     0: {
       name: window.i18n.t('正常'),
-      status: '1'
+      status: '1',
     },
     1: {
       name: window.i18n.t('离线'),
-      status: '1'
+      status: '1',
     },
     2: {
       name: window.i18n.t('无Agent'),
-      status: '2'
+      status: '2',
     },
     3: {
       name: window.i18n.t('无数据上报'),
-      status: '3'
-    }
+      status: '3',
+    },
   };
   private searchData = [
     {
@@ -182,9 +186,9 @@ export default class HostList extends Vue {
       children: [
         {
           name: '蓝鲸',
-          id: 'bkmonitor'
-        }
-      ]
+          id: 'bkmonitor',
+        },
+      ],
     },
     {
       name: '模块',
@@ -192,9 +196,9 @@ export default class HostList extends Vue {
       children: [
         {
           name: 'paas平台',
-          id: 'pass'
-        }
-      ]
+          id: 'pass',
+        },
+      ],
     },
     {
       name: '操作系统',
@@ -202,10 +206,10 @@ export default class HostList extends Vue {
       children: [
         {
           name: '蓝鲸',
-          id: 'bkmonitor'
-        }
-      ]
-    }
+          id: 'bkmonitor',
+        },
+      ],
+    },
   ];
   private keyword = '';
   private drag = {
@@ -213,7 +217,7 @@ export default class HostList extends Vue {
     minWidth: 100,
     maxWidth: 500,
     defaultWidth: 280,
-    dragDown: false
+    dragDown: false,
   };
   private handleSearch = null;
   private handleResizeTreeDebounce = null;
@@ -269,10 +273,12 @@ export default class HostList extends Vue {
       if (list?.length) {
         // eslint-disable-next-line no-restricted-syntax
         for (const item of list) {
-          const sourceId = this.curNode.type === 'host' ? `${item.ip}-${item.bk_cloud_id}` : `${item.bk_inst_id}-${item.bk_obj_id}`;
+          const sourceId =
+            this.curNode.type === 'host' ? `${item.ip}-${item.bk_cloud_id}` : `${item.bk_inst_id}-${item.bk_obj_id}`;
           if (sourceId === targetName) {
             return item;
-          } if (item.children?.length) {
+          }
+          if (item.children?.length) {
             const res = fn(item.children, targetName);
             if (res) return res;
           }
@@ -297,16 +303,16 @@ export default class HostList extends Vue {
    * @description: 选中的目标对比
    */
   get checkedTarget() {
-    return this.isTargetCompare ? (this.compareValue.compare.value || []) as string[] : [];
+    return this.isTargetCompare ? ((this.compareValue.compare.value || []) as string[]) : [];
   }
 
   created() {
     PerformanceModule.getTopoTree({
       instance_type: 'host',
-      remove_empty_nodes: false
+      remove_empty_nodes: false,
     });
-    this.handleSearch = debounce(300, (v) => {
-    //   PerformanceModule.setKeyWord(v)
+    this.handleSearch = debounce(300, v => {
+      //   PerformanceModule.setKeyWord(v)
       this.bkBigTreeRef?.filter(v);
     });
   }
@@ -320,7 +326,7 @@ export default class HostList extends Vue {
   handleItemClick(data) {
     const curNode: ICurNode = {
       type: 'host',
-      id: ''
+      id: '',
     };
     if (!data.ip) {
       curNode.type = 'node';
@@ -380,13 +386,9 @@ export default class HostList extends Vue {
     }
     this.drag.dragDown = true;
     const rect = target.getBoundingClientRect();
-    document.onselectstart = function () {
-      return false;
-    };
-    document.ondragstart = function () {
-      return false;
-    };
-    const handleMouseMove = (event) => {
+    document.onselectstart = () => false;
+    document.ondragstart = () => false;
+    const handleMouseMove = event => {
       if (event.clientX - rect.left < this.drag.minWidth) {
         this.drag.width = 0;
         if (this.visible) this.handleTogglePanel();
@@ -553,6 +555,7 @@ $statusColors: #94f5a4 #f0f1f5 #fd9c9c;
         }
       }
 
+      /* stylelint-disable-next-line no-duplicate-selectors */
       :deep(.big-tree) {
         width: max-content;
         min-width: 100%;

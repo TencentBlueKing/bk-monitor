@@ -37,12 +37,12 @@ const mutations = {
   },
   SET_SERVICE_CATEGORY(state, data) {
     state.serviceCategory = data;
-  }
+  },
 };
 const state = {
   treeData: [],
   dataObject: [],
-  serviceCategory: []
+  serviceCategory: [],
 };
 const actions = {
   async getTopoTree({ commit }, params) {
@@ -59,7 +59,7 @@ const actions = {
     const arr = await getServiceCategory().catch(() => []);
     commit(SET_SERVICE_CATEGORY, arr);
     return arr;
-  }
+  },
 };
 const getters = {
   treeData(state) {
@@ -70,7 +70,7 @@ const getters = {
   },
   serviceCategory(state) {
     return state.serviceCategory;
-  }
+  },
 };
 
 export default {
@@ -78,5 +78,5 @@ export default {
   state,
   getters,
   mutations,
-  actions
+  actions,
 };

@@ -104,7 +104,7 @@ export default class SimpleSelect extends tsc<IProps, IEvents> {
               id={item.id}
               key={item.id}
               name={item.name}
-            ></bk-option>
+            />
           ))}
         </bk-select>
       </span>

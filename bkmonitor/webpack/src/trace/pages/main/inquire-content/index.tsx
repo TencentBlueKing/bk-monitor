@@ -23,19 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { Span } from '../../../components/trace-view/typings';
-import { IPanelModel } from '../../../plugins/typings';
 import PreciseQueryImg from '../../../static/img/precise-query.png';
 import RangeQueryImg from '../../../static/img/range-query.png';
 import { useTraceStore } from '../../../store/modules/trace';
-import { IAppItem } from '../../../typings';
 import SpanDetails from '../span-details';
 import TraceDetail from './trace-detail';
 import TraceList from './trace-list';
+
+import type { Span } from '../../../components/trace-view/typings';
+import type { IPanelModel } from '../../../plugins/typings';
+import type { IAppItem } from '../../../typings';
 
 import './index.scss';
 

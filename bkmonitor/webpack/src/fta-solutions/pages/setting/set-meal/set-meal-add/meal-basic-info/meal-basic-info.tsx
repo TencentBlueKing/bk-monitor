@@ -138,7 +138,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                       id={option.id}
                       key={index}
                       name={option.text}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </div>
@@ -157,7 +157,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                     maxlength={128}
                     minlength={1}
                     onChange={v => v && (this.errorMsg.name = '')}
-                  ></bk-input>
+                  />
                 </VerifyItem>
                 {/* </bk-form-item> */}
               </div>
@@ -178,7 +178,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                 <bk-switcher
                   v-model={this.basicInfo.enable}
                   theme={'primary'}
-                ></bk-switcher>
+                />
               </div>
             </div>
           </div>
@@ -196,7 +196,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                   maxlength={200}
                   placeholder={this.$t('输入套餐说明')}
                   type={'textarea'}
-                ></bk-input>
+                />
               </ResizeContainer>
             </div>
           </div>

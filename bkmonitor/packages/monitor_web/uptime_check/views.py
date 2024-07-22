@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from django.conf import settings
+from django.db.models import Prefetch
 from django.utils.translation import ugettext as _
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
@@ -143,9 +144,13 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             if bk_biz_id in biz_node["biz_scope"]:
                 biz_node_ids.append(biz_node["id"])
         queryset = (
-            UptimeCheckNode.objects.filter(id__in=biz_node_ids)
-            | common_nodes
-            | self.filter_queryset(self.get_queryset())
+            (
+                UptimeCheckNode.objects.filter(id__in=biz_node_ids)
+                | common_nodes
+                | self.filter_queryset(self.get_queryset())
+            )
+            .distinct()
+            .prefetch_related(Prefetch("tasks", queryset=UptimeCheckTask.objects.only("id")))
         )
         serializer = self.get_serializer(queryset, many=True)
 
@@ -204,8 +209,9 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                         )
                     )
 
+        node_task_counts = {node.id: node.tasks.count() for node in queryset}
         for node in serializer.data:
-            task_num = UptimeCheckNode.objects.get(id=node["id"]).tasks.count()
+            task_num = node_task_counts.get(node["id"], 0)
             if node.get("bk_host_id"):
                 host_instance = id_to_host.get(node["bk_host_id"], None)
             else:
@@ -407,6 +413,8 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         config = request.data.get("config")
         protocol = request.data.get("protocol")
         node_id_list = request.data.get("node_id_list")
+        if not settings.ENABLE_UPTIMECHECK_TEST:
+            return Response(_("未开启拨测联通性测试，保存任务中..."))
         return Response(
             resource.uptime_check.test_task(
                 {"bk_biz_id": bk_biz_id, "config": config, "protocol": protocol, "node_id_list": node_id_list}

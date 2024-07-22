@@ -31,7 +31,8 @@ import { dimensionData, modifyMetric } from 'monitor-api/modules/apm_meta';
 
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import * as authorityMap from '../../home/authority-map';
-import { IDimensionItem, IMetricData, IUnitItme } from './type';
+
+import type { IDimensionItem, IMetricData, IUnitItme } from './type';
 
 interface IndicatorDetailProps {
   data: IMetricData; // 指标详情
@@ -224,7 +225,7 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
         label="启/停"
         value={this.detailInfo.status}
         showEditable={false} /> */}
-        <div class='divider'></div>
+        <div class='divider' />
         <EditableFormItem
           label={this.$t('来源')}
           showEditable={false}
@@ -242,7 +243,7 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
           showEditable={false}
           value={this.detailInfo.tags}
         />
-        <div class='divider'></div>
+        <div class='divider' />
         <bk-table
           v-bkloading={{ isLoading: this.tableLoading }}
           data={this.dimensionList}
@@ -254,21 +255,21 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
             width='120'
             label={this.$t('维度名')}
             scopedSlots={{ default: props => props.row.field_name }}
-          ></bk-table-column>
+          />
           <bk-table-column
             width='240'
             label={this.$t('维度别名')}
             scopedSlots={aliasNameSlot}
-          ></bk-table-column>
+          />
           <bk-table-column
             width='60'
             label={this.$t('数量')}
             scopedSlots={{ default: props => props.row.count }}
-          ></bk-table-column>
+          />
           <bk-table-column
             label={this.$t('纬度值')}
             scopedSlots={{ default: props => props.row.data }}
-          ></bk-table-column>
+          />
         </bk-table>
       </div>
     );

@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VueConstructor } from 'vue';
-
 import { random } from 'monitor-common/utils/utils';
-import { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
+
+import type { VueConstructor } from 'vue';
+import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 
 let insertedEl: IDragHtmlElement = null;
 
@@ -81,12 +81,8 @@ const handleMouseUp = () => {
 const dragMouseDown = evt => {
   const key = evt.target.dataset.dragKey;
   insertedEl = insertedElMap[key];
-  document.onselectstart = function () {
-    return false;
-  };
-  document.ondragstart = function () {
-    return false;
-  };
+  document.onselectstart = () => false;
+  document.ondragstart = () => false;
 
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);

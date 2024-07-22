@@ -151,7 +151,7 @@ export default class BusinessAlarmOverview extends tsc<IBusinessAlarmProps> {
           <div
             class={['wall-border', `wall-border-${this.selectAlarm.status}`]}
             slot='custom'
-          ></div>
+          />
           <BusinessAlarmAquare
             class='content'
             is-all-normal={this.isAllNormal}
@@ -160,7 +160,7 @@ export default class BusinessAlarmOverview extends tsc<IBusinessAlarmProps> {
             status={this.selectAlarm.status}
             onIsAllNormal={v => (this.isAllNormal = v)}
             onSelectedIndex={v => (this.selectedIndex = v)}
-          ></BusinessAlarmAquare>
+          />
         </PanelCard>
         <div class='right'>
           <BusinessAlarmPanel
@@ -173,25 +173,25 @@ export default class BusinessAlarmOverview extends tsc<IBusinessAlarmProps> {
                 <Uptimecheck
                   alarm={this.selectAlarm}
                   homeDays={this.homeDays}
-                ></Uptimecheck>
+                />
               ) : undefined}
               {this.selectAlarm.name === this.alarmMap.service ? (
                 <Service
                   alarm={this.selectAlarm}
                   homeDays={this.homeDays}
-                ></Service>
+                />
               ) : undefined}
               {this.selectAlarm.name === this.alarmMap.process ? (
                 <Process
                   alarm={this.selectAlarm}
                   homeDays={this.homeDays}
-                ></Process>
+                />
               ) : undefined}
               {this.selectAlarm.name === this.alarmMap.os ? (
                 <Os
                   alarm={this.selectAlarm}
                   homeDays={this.homeDays}
-                ></Os>
+                />
               ) : undefined}
             </keep-alive>
           </BusinessAlarmPanel>

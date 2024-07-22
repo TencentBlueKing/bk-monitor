@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IRelationStatusItem, LegendActionType } from '../../typings';
+import type { IRelationStatusItem, LegendActionType } from '../../typings';
 
 import './relation-legend.scss';
 
@@ -94,7 +94,7 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
           >
             <div slot='dropdown-trigger'>
               <span class='btn-name'>{this.statistics.find(item => item.id === this.statisticsId)?.name}</span>
-              <i class={['icon-monitor', this.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
+              <i class={['icon-monitor', this.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
             </div>
             <ul
               class='bk-dropdown-list'
@@ -135,7 +135,7 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
               <span
                 style={{ background: item.show ? item.color : '#ccc' }}
                 class='legend-icon'
-              ></span>
+              />
               <span
                 style={{ color: item.show ? '#63656e' : '#ccc' }}
                 class='legend-name'

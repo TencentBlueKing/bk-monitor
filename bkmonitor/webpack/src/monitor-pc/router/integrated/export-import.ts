@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { RouteConfig } from 'vue-router';
-
 import * as exOrInAuth from '../../pages/export-import/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const ImportExport = () => import(/* webpackChunkName: 'ImportExport' */ '@page/export-import/export-import.vue');
 const ExportConfiguration = () =>

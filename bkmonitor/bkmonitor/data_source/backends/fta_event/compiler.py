@@ -12,11 +12,13 @@ specific language governing permissions and limitations under the License.
 
 import copy
 
-from bkmonitor.data_source.backends.elastic_search.compiler import SQLCompiler as ElasticSearchSQLCompiler
+from bkmonitor.data_source.backends.elastic_search.compiler import (
+    SQLCompiler as ElasticSearchSQLCompiler,
+)
 
 
 class SQLCompiler(ElasticSearchSQLCompiler):
-
+    RAW_FIELDS = ["alert_name"]
     TAGS_FIELD_PREFIX = "tags."
     DEFAULT_TIME_FIELD = "time"
 
@@ -78,22 +80,13 @@ class SQLCompiler(ElasticSearchSQLCompiler):
                 tag_key = dimension[len(SQLCompiler.TAGS_FIELD_PREFIX) :]
                 _aggs = {
                     dimension: {
-                        "nested": {
-                            "path": "tags",
-                        },
+                        "nested": {"path": "tags"},
                         "aggs": {
                             "key": {
-                                "filter": {
-                                    "term": {
-                                        "tags.key": tag_key,
-                                    }
-                                },
+                                "filter": {"term": {"tags.key": tag_key}},
                                 "aggs": {
                                     "value": {
-                                        "terms": {
-                                            "field": "tags.value.raw",
-                                            "size": 1440,
-                                        },
+                                        "terms": {"field": "tags.value.raw", "size": 1440},
                                         "aggs": {"_reverse": {"reverse_nested": {}, "aggs": aggs}},
                                     }
                                 },
@@ -102,14 +95,12 @@ class SQLCompiler(ElasticSearchSQLCompiler):
                     }
                 }
             else:
-                _aggs = {
-                    dimension: {
-                        "terms": {"field": dimension, "size": 1440},
-                        "aggs": aggs,
-                    }
-                }
+                if dimension in self.RAW_FIELDS:
+                    field = f"{dimension}.raw"
+                else:
+                    field = dimension
+                _aggs = {dimension: {"terms": {"field": field, "size": 1440}, "aggs": aggs}}
             aggs = _aggs
-
         return aggs
 
     def _get_buckets(self, records, record, dimensions, i, aggs, metric_alias):

@@ -6,24 +6,24 @@
   "private": true,
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
-    "lint": "eslint --fix --ext .js,.ts,tsx  ./",
+    "lint": "eslint --fix ./",
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.26",
+    "@blueking/bk-weweb": "0.0.26-beta.1",
     "@blueking/fork-resize-detector": "^0.0.2",
-    "@blueking/functional-dependency": "0.0.1-beta.10",
-    "@blueking/login-modal": "^1.0.1",
+    "@blueking/functional-dependency": "0.0.1-beta.14",
+    "@blueking/login-modal": "^1.0.5",
     "async-validator": "^3.5.2",
     "bk-magic-vue": "2.5.8",
-    "dayjs": "^1.11.10",
+    "dayjs": "^1.11.11",
     "deepmerge": "^4.3.1",
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",
     "monitor-pc": "workspace:*",
     "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
-    "throttle-debounce": "^5.0.0",
+    "throttle-debounce": "^5.0.2",
     "vue": "v2-latest",
     "vue-class-component": "^7.2.6",
     "vue-i18n": "^8.28.2",
@@ -33,10 +33,7 @@
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0"
   },
-  "keywords": [
-    "monitor",
-    "self healing"
-  ],
+  "keywords": ["monitor", "self healing"],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

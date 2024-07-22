@@ -26,7 +26,7 @@
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { filterTaskAlarmColor, IDragStatus, isTaskDisable } from '../uptime-check-data';
+import { type IDragStatus, filterTaskAlarmColor, isTaskDisable } from '../uptime-check-data';
 
 import './task-card.scss';
 
@@ -182,7 +182,7 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
               }
             }}
           >
-            <i class='icon-monitor icon-mc-more'></i>
+            <i class='icon-monitor icon-mc-more' />
           </span>
         </div>
         <div class='card-content'>
@@ -201,7 +201,7 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
                   <span class='unit'>{item.unit}</span>
                 </div>
               ) : (
-                <span class='icon-monitor icon-remind'></span>
+                <span class='icon-monitor icon-remind' />
               )}
               <div class='bottom'>{item.name}</div>
             </div>

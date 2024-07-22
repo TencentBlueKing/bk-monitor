@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { RouteConfig } from 'vue-router';
-
 import { applyGuidePage } from '../../common';
 import * as pluginAuth from '../../pages/plugin-manager/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const PluginManager = () =>
   import(/* webpackChunkName: 'PluginManager' */ '../../pages/plugin-manager/plugin-manager.vue');

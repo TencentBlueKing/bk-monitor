@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deleteStrategyLabel, strategyLabel } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { ITreeItem, TMode } from '../types';
+import type { ITreeItem, TMode } from '../types';
+import type { VNode } from 'vue';
 
 import './label-tree.scss';
 
@@ -503,7 +503,7 @@ export default class LabelTree extends tsc<IContainerProps> {
           node-key='id'
           show-icon={false}
           tpl={this.tpl}
-        ></bk-tree>
+        />
       </div>
     );
   }

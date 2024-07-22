@@ -30,13 +30,14 @@ import { deepClone } from 'monitor-common/utils/utils';
 import { recheckInterval } from 'monitor-ui/chart-plugins/utils';
 
 import CycleInput from '../../../components/cycle-input/cycle-input';
-import { IntervalType } from '../../../components/cycle-input/typings';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { METHOD_LIST } from '../../../constant/constant';
 import SimpleConditionInput from '../../alarm-shield/components/simple-condition-input';
 // import ConditionInput from '../../strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { DataRetrievalQueryItem, IDataRetrievalItem, IDataRetrievalView } from '../typings';
+
+import type { IntervalType } from '../../../components/cycle-input/typings';
+import type { DataRetrievalQueryItem, IDataRetrievalItem, IDataRetrievalView } from '../typings';
 
 import './data-retrieval-item.scss';
 
@@ -273,7 +274,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                           id={method.id}
                           key={index}
                           name={method.name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                   </div>
@@ -326,7 +327,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                       isHasNullOption={true}
                       onChange={this.handleConditionChaneg}
                       onKeyLoading={this.handleLoadingChange}
-                    ></SimpleConditionInput>
+                    />
                     {/* <ConditionInput
                     class={['query-where-selector', { 'is-empt': this.whereIsEmpt }]}
                     conditionList={this.localValue.agg_condition}
