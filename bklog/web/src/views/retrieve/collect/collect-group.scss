@@ -5,8 +5,8 @@
     margin-right: 2px;
     font-size: 12px;
     color: #63656e;
-    transition: transform .3s;
-    transform: scale(.5);
+    transition: transform 0.3s;
+    transform: scale(0.5);
   }
 
   .group-cur {
@@ -23,7 +23,7 @@
     }
 
     .is-active {
-      transform: scale(.5) rotate(90deg);
+      transform: scale(0.5) rotate(90deg);
     }
   }
 

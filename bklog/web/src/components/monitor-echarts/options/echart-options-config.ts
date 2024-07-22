@@ -199,3 +199,49 @@ export const pieOptions: any = {
     },
   ],
 };
+
+export const pillarChartOption = {
+  tooltip: {
+    trigger: 'axis',
+  },
+  xAxis: {
+    axisLine: {
+      show: false,
+    },
+    axisTick: {
+      show: false,
+    },
+    axisLabel: {
+      color: '#979BA5',
+    },
+    type: 'category',
+    data: [],
+  },
+  yAxis: {
+    type: 'value',
+    axisTick: {
+      show: false,
+    },
+    axisLine: {
+      show: false,
+    },
+    splitLine: {
+      show: true,
+      lineStyle: {
+        type: 'dashed',
+        color: '#F0F1F5',
+      },
+    },
+    axisLabel: {
+      color: '#979BA5',
+    },
+  },
+  grid: {
+    left: '0',
+    right: '4%',
+    top: '4%',
+    bottom: '0',
+    containLabel: true,
+  },
+  series: [],
+};
