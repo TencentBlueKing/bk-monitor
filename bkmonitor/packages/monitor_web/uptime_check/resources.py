@@ -1291,6 +1291,9 @@ class UptimeCheckBeatResource(Resource):
                     }
                 }
             else:
+                if host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"]) not in ip_to_host:
+                    continue
+
                 bk_host_id = ip_to_host[host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"])].bk_host_id
                 node_status = {
                     host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"]): {
