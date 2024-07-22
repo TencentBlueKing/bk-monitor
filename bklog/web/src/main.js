@@ -27,7 +27,7 @@
 import './public-path';
 
 import Vue from 'vue';
-import VueJsonPretty from 'vue-json-pretty';
+// import VueJsonPretty from 'vue-json-pretty';
 
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
@@ -43,12 +43,14 @@ import http from './api';
 import { bus } from './common/bus';
 import { renderHeader } from './common/util';
 import './directives/index';
+// import ShadowWrapper from './global/shadow-wrapper.vue';
+import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
 import router from './router';
 import store from './store';
 
 import './static/icons/log-icons.css';
-import 'vue-json-pretty/lib/styles.css';
+// import 'vue-json-pretty/lib/styles.css';
 
 const provider = new WebTracerProvider();
 provider.register({
@@ -92,8 +94,9 @@ router.onError(err => {
   }
 });
 
-Vue.component('VueJsonPretty', VueJsonPretty);
+Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
+// Vue.component('ShadowWrapper', ShadowWrapper);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 
