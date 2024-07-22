@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { RouteConfig } from 'vue-router';
+
 import { applyGuidePage } from '../../common';
 import * as uptimeAuth from '../../pages/uptime-check/authority-map';
-
-import type { RouteConfig } from 'vue-router';
 
 const UptimeCheckDetail = () =>
   import(

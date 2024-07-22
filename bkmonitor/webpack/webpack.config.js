@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 const webpack = require('webpack');
-const path = require('node:path');
-const fs = require('node:fs');
+const path = require('path');
+const fs = require('fs');
 const { transformAppDir, transformDistDir } = require('./webpack/utils');
 const CopyPlugin = require('copy-webpack-plugin');
 const MonitorWebpackPlugin = require('./webpack/monitor-webpack-plugin');

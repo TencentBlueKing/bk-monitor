@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import * as alarmShieldAuth from '../../pages/alarm-shield/authority-map';
+import { RouteConfig } from 'vue-router';
 
-import type { RouteConfig } from 'vue-router';
+import * as alarmShieldAuth from '../../pages/alarm-shield/authority-map';
 
 const AlarmShield = () => import(/* webpackChunkName: 'AlarmShield' */ '../../pages/alarm-shield/alarm-shield');
 // const AlarmShieldConfigSet = () =>

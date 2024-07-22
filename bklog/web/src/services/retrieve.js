@@ -67,10 +67,6 @@ const downloadLog = {
   url: '/search/index_set/:index_set_id/export/',
   method: 'post',
 };
-const unionDownloadLog = {
-  url: '/search/index_set/union_search/export/',
-  method: 'post',
-};
 const exportAsync = {
   url: '/search/index_set/:index_set_id/async_export/',
   method: 'post',
@@ -174,7 +170,6 @@ export {
   getOperators,
   getCloudAreaList,
   downloadLog,
-  unionDownloadLog,
   exportAsync,
   getRealTimeLog,
   getContentLog,

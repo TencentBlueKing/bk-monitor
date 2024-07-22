@@ -482,7 +482,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                 class='group-add'
                 onClick={this.handleClickAddGroup}
               >
-                <span class='icon-monitor icon-mc-plus-fill' />
+                <span class='icon-monitor icon-mc-plus-fill'></span>
                 <span>{this.$t('新建分组')}</span>
               </span>
             </div>
@@ -494,7 +494,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                   placeholder={this.$t('输入分组名称')}
                   onChange={this.handleAddNameChange}
                   onEnter={this.handleClickAddConfirm}
-                />
+                ></bk-input>
                 <bk-button
                   class='confirm'
                   theme='primary'
@@ -531,7 +531,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                     <span
                       class='icon-monitor icon-bianji'
                       onClick={() => this.handleClickEditName(index)}
-                    />
+                    ></span>
                   </span>
                   <span class='manua-wrap'>
                     <span class='manua-count'>
@@ -540,7 +540,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                     <span
                       class={['icon-monitor icon-mc-add', { active: item.isManualActive }]}
                       onClick={() => this.handleClickAdd(event, index)}
-                    />
+                    ></span>
                   </span>
                   <span class='match-rule'>
                     <span class='title'>
@@ -552,13 +552,13 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                         list={item.matchRules}
                         onActive={this.handleMatchRuleActive as any}
                         onChange={value => this.handleMatchRulesChange(index, value)}
-                      />
+                      ></MoreList>
                     </span>
                   </span>
                   <span
                     class='icon-monitor icon-mc-delete-line'
                     onClick={() => this.handleDeleteGroup(index)}
-                  />
+                  ></span>
                   {item.isEditName && (
                     <div class='input-wrap'>
                       {/* <bk-input
@@ -591,7 +591,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                               placeholder={this.$t('输入分组名称')}
                               onEnter={() => this.handleEditNameChange(index)}
                               onFocus={() => (this.editIndex = index)}
-                            />
+                            ></bk-input>
                           </bk-form-item>
                         </bk-form>
                         <bk-button
@@ -634,7 +634,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                     hide-arrow
                   >
                     <div class={['item-head', `item-head--${index}`]}>
-                      <span class='icon-monitor icon-arrow-down' />
+                      <span class='icon-monitor icon-arrow-down'></span>
                       {item.type === 'manual' ? (
                         <span class='name'>
                           {`【${this.$t('手动')}】- `}
@@ -677,7 +677,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                               <span
                                 class='icon-monitor icon-mc-delete-line'
                                 onClick={() => this.handleDeleteManual(row.name)}
-                              />
+                              ></span>
                             )}
                           </li>
                         ))}
@@ -711,7 +711,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                 left-icon={'bk-icon icon-search'}
                 placeholder={this.$t('输入关键字')}
                 onChange={this.handleManualSearch}
-              />
+              ></bk-input>
             </div>
             <div class='check-list-warp'>
               <div class='list-item'>

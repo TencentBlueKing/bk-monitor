@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { useTraceStore } from '../../store/modules/trace';
+import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
-import type { ISpanListItem, ITraceListItem } from '../../typings';
-import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { useTraceStore } from '../../store/modules/trace';
+import { ISpanListItem, ITraceListItem } from '../../typings';
 // import { formatDuration } from '../trace-view/utils/date';
 
 /** 耗时 interval */

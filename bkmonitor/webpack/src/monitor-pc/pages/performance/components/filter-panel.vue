@@ -79,8 +79,8 @@
 import { Component, Emit, Inject, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { Storage } from '../../../utils';
-import type { IFieldConfig, ISelectedValues } from '../performance-type';
-import type TableStore from '../table-store';
+import { IFieldConfig, ISelectedValues } from '../performance-type';
+import TableStore from '../table-store';
 
 import ConditionPanel from './condition-panel.vue';
 import FilterPanelItem from './filter-panel-item.vue';
@@ -92,8 +92,8 @@ const CONDITION_CHECKED_LIST = 'CONDITION_CHECKED_LIST'; /** 筛选条件缓存k
   components: {
     PerformanceDialog,
     FilterPanelItem,
-    ConditionPanel,
-  },
+    ConditionPanel
+  }
 })
 export default class FilterPanel extends Vue {
   @Model('update-value', { type: Boolean }) readonly value: boolean;
@@ -133,7 +133,7 @@ export default class FilterPanel extends Vue {
   @Emit('reset')
   handleReset() {
     this.tableInstance.page = 1;
-    this.tableInstance.fieldData.forEach(item => {
+    this.tableInstance.fieldData.forEach((item) => {
       item.value = Array.isArray(item.value) ? [] : '';
     });
   }
@@ -152,9 +152,9 @@ export default class FilterPanel extends Vue {
       'io_util',
       'mem_usage',
       'psc_mem_usage',
-      'display_name',
+      'display_name'
     ];
-    this.data.forEach(item => {
+    this.data.forEach((item) => {
       if (this.tableInstance.loading) {
         item.show = !!item.filterChecked && !loadingFieldIds.includes(item.id);
       } else {
@@ -170,7 +170,7 @@ export default class FilterPanel extends Vue {
 
   handleConditionConfirm(v: ISelectedValues) {
     const selected = v.selectedGroup.concat(v.unSelectedGroup);
-    this.data.forEach(item => {
+    this.data.forEach((item) => {
       item.filterChecked = selected.includes(item.id);
     });
     this.handleCheckedData();
@@ -180,7 +180,7 @@ export default class FilterPanel extends Vue {
   /** 根据缓存更新选中的条件的状态 */
   updateCheckedData() {
     const checkedList = this.storage.get(CONDITION_CHECKED_LIST);
-    this.data.forEach(item => {
+    this.data.forEach((item) => {
       if (!!checkedList) {
         item.show = checkedList.includes(item.id);
         item.filterChecked = item.show;
@@ -212,7 +212,7 @@ export default class FilterPanel extends Vue {
   @Emit('filter')
   handleFilterData() {
     this.tableInstance.page = 1;
-    this.tableInstance.fieldData.forEach(item => {
+    this.tableInstance.fieldData.forEach((item) => {
       const data = this.data.find(data => data.id === item.id);
       if (data) {
         item.value = data.value;
@@ -223,7 +223,7 @@ export default class FilterPanel extends Vue {
         if (item.id === 'cluster_module' && notEmptyValue) {
           this.tableInstance.fieldData
             .filter(item => ['bk_cluster', 'bk_inst_name'].includes(item.id))
-            .forEach(item => {
+            .forEach((item) => {
               item.checked = true;
             });
         } else if (notEmptyValue) {

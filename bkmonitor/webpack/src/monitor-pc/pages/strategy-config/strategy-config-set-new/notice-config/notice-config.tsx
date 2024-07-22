@@ -42,13 +42,11 @@ import StrategyTemplatePreview from '../../strategy-config-set/strategy-template
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import AlarmGroup from '../components/alarm-group';
 import CommonItem from '../components/common-form-item';
+import GroupSelect, { IGroupItem } from '../components/group-select';
 import VerifyItem from '../components/verify-item';
+import { IAlarmGroupList } from '../strategy-config-set';
+import { ICommonItem, strategyType } from '../typings/index';
 import NoticeItem from './notice-item';
-
-import type GroupSelect from '../components/group-select';
-import type { IGroupItem } from '../components/group-select';
-import type { IAlarmGroupList } from '../strategy-config-set';
-import type { ICommonItem, strategyType } from '../typings/index';
 
 import './notice-config.scss';
 
@@ -597,7 +595,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                               id={way.type}
                               key={way.type}
                               name={way.label}
-                            />
+                            ></bk-option>
                           ))}
                         </bk-select>
                       </span>
@@ -667,7 +665,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 >
                   {this.$t('查看分派规则')}
                 </span>
-                <i class='icon-monitor icon-fenxiang' />
+                <i class='icon-monitor icon-fenxiang'></i>
               </span>
             </NoticeItem>
             <NoticeItem
@@ -692,9 +690,9 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       strategyId={this.strategyId}
                       value={this.data.user_groups}
                       onChange={data => this.handleUserGroup(data)}
-                    />
+                    ></AlarmGroup>
                   ) : (
-                    <div class='skeleton-element alarm-group-skeleton' />
+                    <div class='skeleton-element alarm-group-skeleton'></div>
                   )}
                 </VerifyItem>
               </CommonItem>
@@ -713,7 +711,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       size='small'
                       theme='primary'
                       onChange={this.clearError}
-                    />
+                    ></bk-switcher>
                     {this.data.options.upgrade_config.is_enabled && (
                       <i18n
                         class='text'
@@ -761,9 +759,9 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         showAddTip={false}
                         strategyId={this.strategyId}
                         onChange={this.clearError}
-                      />
+                      ></AlarmGroup>
                     ) : (
-                      <div class='skeleton-element alarm-group-skeleton' />
+                      <div class='skeleton-element alarm-group-skeleton'></div>
                     )
                   ) : undefined}
                 </VerifyItem>
@@ -777,7 +775,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
           v-model={this.isShowDetail}
           strategyType={this.strategyType}
           needEditTips
-        />
+        ></SetMealDeail>
       </div>
     );
   }
@@ -787,11 +785,11 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     return (
       <div class={['advanced-config', { readonly: this.readonly }]}>
         <div
-          v-en-style='width: 180px'
           class={['expan-title', { down: this.expanShow }]}
+          v-en-style='width: 180px'
           onClick={() => (this.expanShow = !this.expanShow)}
         >
-          {this.$t('高级配置')} <i class='icon-monitor icon-double-down' />
+          {this.$t('高级配置')} <i class='icon-monitor icon-double-down'></i>
         </div>
         <div class={['expan-content', { show: this.expanShow }]}>
           <CommonItem
@@ -812,8 +810,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       ]
                     : [
                         <bk-select
-                          v-en-style='width: 100px'
                           class='select select-inline'
+                          v-en-style='width: 100px'
                           v-model={this.data.config.interval_notify_mode}
                           behavior='simplicity'
                           clearable={false}
@@ -825,7 +823,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                               id={item.id}
                               key={item.id}
                               name={item.name}
-                            />
+                            ></bk-option>
                           ))}
                         </bk-select>,
                         <bk-input
@@ -835,14 +833,14 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           size='small'
                           type='number'
                           onInput={this.handleChange}
-                        />,
+                        ></bk-input>,
                       ]}
                 </i18n>
                 <span
                   style={{ color: '#979ba5', marginTop: '-3px' }}
                   class='icon-monitor icon-hint'
                   v-bk-tooltips={{ content: intervalModeTips[this.data.config.interval_notify_mode], allowHTML: false }}
-                />
+                ></span>
               </span>
             </VerifyItem>
           </CommonItem>
@@ -857,8 +855,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 size='small'
                 theme='primary'
                 on-change={this.handleChange}
-              />
-              <i class='icon-monitor icon-hint' />
+              ></bk-switcher>
+              <i class='icon-monitor icon-hint'></i>
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
               </span>
@@ -877,7 +875,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                     size='small'
                     theme='primary'
                     on-change={this.handleChange}
-                  />
+                  ></bk-switcher>
                   {this.data.options.noise_reduce_config.is_enabled ? (
                     <i18n
                       class='noise-content'
@@ -885,7 +883,6 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                     >
                       <bk-select
                         class='select select-inline'
-                        v-model={this.data.options.noise_reduce_config.dimensions}
                         v-bk-tooltips={{
                           content: this.data.options.noise_reduce_config.dimensions.join('; '),
                           trigger: 'mouseenter',
@@ -894,6 +891,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           disabled: !this.data.options.noise_reduce_config.dimensions.length,
                           allowHTML: false,
                         }}
+                        v-model={this.data.options.noise_reduce_config.dimensions}
                         behavior='simplicity'
                         clearable={false}
                         placeholder={this.$t('选择')}
@@ -917,7 +915,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                               allowHTML: false,
                             }}
                             name={item.name}
-                          />
+                          ></bk-option>
                         ))}
                       </bk-select>
                       <bk-input
@@ -928,7 +926,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         size='small'
                         type='number'
                         onInput={this.handleChange}
-                      />
+                      ></bk-input>
                     </i18n>
                   ) : undefined}
                 </span>
@@ -942,7 +940,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 panels={this.templateTypes}
                 type={'text'}
                 onChange={this.handleChangeTemplate}
-              />
+              ></CustomTab>
             </div>
             <div class='wrap-bottom'>
               <CommonItem
@@ -960,7 +958,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                     readonly={this.readonly}
                     tipsList={this.getMessageTemplateList}
                     on-change={this.handleChange}
-                  />
+                  ></AutoInput>
                 </VerifyItem>
               </CommonItem>
               <div
@@ -971,12 +969,12 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                   <span>{this.$t('告警通知模板')}</span>
                   <span class='need-img-check'>
                     <bk-checkbox
-                      v-model={this.data.options.chart_image_enabled}
                       v-bk-tooltips={{
                         content: this.$t('蓝鲸监控机器人发送图片全局设置已关闭'),
                         placements: ['top'],
                         disabled: this.wxworkBotSendImage,
                       }}
+                      v-model={this.data.options.chart_image_enabled}
                       disabled={!this.wxworkBotSendImage}
                       on-change={this.handleChange}
                     >
@@ -990,14 +988,14 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                     class={'template-btn-wrap'}
                     onClick={this.handleShowVariateList}
                   >
-                    <i class='icon-monitor icon-audit' />
+                    <i class='icon-monitor icon-audit'></i>
                     <span class='template-btn-text'>{this.$t('变量列表')}</span>
                   </div>
                   <div
                     class={['template-btn-wrap', { 'template-btn-disabled': !this.templateData.message_tmpl }]}
                     onClick={this.handleShowTemplate}
                   >
-                    <i class='icon-monitor icon-audit' />
+                    <i class='icon-monitor icon-audit'></i>
                     <span class='template-btn-text'>{this.$t('模板预览')}</span>
                   </div>
                 </div>
@@ -1019,7 +1017,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                     default-value={this.templateData.message_tmpl}
                     trigger-list={this.getMessageTemplateList}
                     onChange={this.noticeTemplateChange}
-                  />
+                  ></TemplateInput>
                 </ResizeContainer>
               )}
             </div>
@@ -1027,12 +1025,12 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               dialogShow={this.isShowTemplate}
               template={this.templateData.message_tmpl}
               {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
-            />
+            ></StrategyTemplatePreview>
             <StrategyVariateList
               dialogShow={this.variateListShow}
               {...{ on: { 'update:dialogShow': val => (this.variateListShow = val) } }}
               variate-list={this.variateList}
-            />
+            ></StrategyVariateList>
           </div>
         </div>
       </div>

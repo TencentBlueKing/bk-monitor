@@ -27,7 +27,7 @@
 import dayjs from 'dayjs';
 import { xssFilter } from 'monitor-common/utils/xss';
 
-import type { IExtendMetricData } from '../plugins/typings';
+import { IExtendMetricData } from '../plugins/typings';
 
 export const specialEqual = (v: any, o: any) => {
   if (v === o || v == o) return true;
@@ -78,7 +78,7 @@ export const recheckInterval = (interval: 'auto' | number | string, timeRange: n
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
     const maxInterval = (timeRange / (step || 60) / MIN_PONIT_COUNT) * 60;
-    let minStep = Number.POSITIVE_INFINITY;
+    let minStep = Infinity;
     let val = 0;
     INTERVAL_CONTANT_LIST.forEach(v => {
       const step1 = Math.abs(v - minInterval);

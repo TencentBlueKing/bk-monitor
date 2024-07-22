@@ -85,7 +85,7 @@ import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
 import { defaultSearch } from '../common/util';
 import IpSelectorTable from '../components/ip-selector-table.vue';
-import type { IClassifyTab, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
+import { IClassifyTab, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
 
 import IpListTable from './ip-list.vue';
 
@@ -94,8 +94,8 @@ import IpListTable from './ip-list.vue';
   name: 'custom-input',
   components: {
     IpSelectorTable,
-    IpListTable,
-  },
+    IpListTable
+  }
 })
 export default class CustomInput extends Vue {
   // 表格搜索数据
@@ -117,28 +117,28 @@ export default class CustomInput extends Vue {
 
   private ipTab: IClassifyTab = {
     active: 'inner',
-    list: [],
+    list: []
   };
   private tabData = {
     inner: [],
     outer: [],
-    other: [],
+    other: []
   };
 
   private created() {
     this.ipTab.list = [
       {
         id: 'inner',
-        name: this.$t('内网IP'),
+        name: this.$t('内网IP')
       },
       {
         id: 'outer',
-        name: this.$t('外网IP'),
+        name: this.$t('外网IP')
       },
       {
         id: 'other',
-        name: this.$t('其他IP'),
-      },
+        name: this.$t('其他IP')
+      }
     ];
   }
 
@@ -163,7 +163,7 @@ export default class CustomInput extends Vue {
       const ipList = this.ipdata.split(/[\r\n]+/gm);
       const errList = new Set<string>();
       const goodList = new Set<string>();
-      ipList.forEach(ip => {
+      ipList.forEach((ip) => {
         ip = ip.trim();
         if (ip.match(this.ipMatch)) {
           goodList.add(ip);
@@ -188,7 +188,7 @@ export default class CustomInput extends Vue {
       if (!this.goodList.length) return { total: 0, data: [] };
       const reqParams = {
         ipList: this.goodList,
-        ...params,
+        ...params
       };
       if (type === 'input-change') {
         // 解析输入IP
@@ -197,13 +197,13 @@ export default class CustomInput extends Vue {
       const data = defaultSearch(this.tabData[this.ipTab.active], params.tableKeyword || '');
       return {
         total: data.length,
-        data,
+        data
       };
     } catch (err) {
       console.log(err);
       return {
         total: 0,
-        data: [],
+        data: []
       };
     }
   }
@@ -225,7 +225,7 @@ export default class CustomInput extends Vue {
       { inner: [], outer: [], other: [] }
     );
 
-    this.goodList.forEach(ip => {
+    this.goodList.forEach((ip) => {
       // 对比返回值，找到全部错误IP
       !res.data.some(item => item.ip === ip) && this.temErrList.push(ip);
     });
@@ -238,7 +238,7 @@ export default class CustomInput extends Vue {
       // this.tableRef.selectionAllData()
       this.$emit('check-change', {
         selections: res.data,
-        excludeData: [],
+        excludeData: []
       });
       this.tableRef?.handleGetDefaultData();
     }, 0);

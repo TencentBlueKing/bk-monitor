@@ -1159,7 +1159,6 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
 @task(ignore_result=True, queue="celery_resource")
 def access_host_anomaly_detect_by_strategy_id(strategy_id):
     from bkmonitor.aiops.utils import AiSetting
-    from bkmonitor.data_source.handler import DataQueryHandler
     from bkmonitor.models import (
         AlgorithmModel,
         ItemModel,
@@ -1210,38 +1209,17 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     rt_query_config.save()
 
     # 3. 创建智能检测dataflow
+    agg_dimensions = ai_setting.multivariate_anomaly_detection.host.intelligent_detect.get("agg_dimension", [])
     scene_id = get_scene_id_by_algorithm(detect_algorithm.type)
     plan_id = get_plan_id_by_algorithm(detect_algorithm.type)
     try:
-        scene_params_dataclass = MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP.get(SceneSet.HOST, None)
-
-        # 获取对应场景的参数开始构建flow
-        scene_params = scene_params_dataclass()
-
-        # 构建实时计算节点的sql
-        sql_build_params = scene_params.sql_build_params
-        agg_condition = sql_build_params["agg_condition"]
-
-        sql, params = (
-            DataQueryHandler(sql_build_params["data_source_label"], sql_build_params["data_type_label"])
-            .table(sql_build_params["result_table_id"])
-            .filter(**{"bk_biz_id": str(strategy.bk_biz_id)})
-            .agg_condition(agg_condition)
-            .values(*sql_build_params["value_fields"])
-            .query.sql_with_params()
-        )
-
-        scene_sql = sql_format_params(sql=sql, params=params)
-
         detect_data_flow = HostAnomalyIntelligentDetectTask(
             strategy_id=strategy.id,
             access_bk_biz_id=strategy.bk_biz_id,
-            rt_id=sql_build_params["result_table_id"],
-            strategy_sql=scene_sql,
             scene_id=scene_id,
             plan_id=plan_id,
             metric_field=rt_query_config.metric_field,
-            agg_dimensions=scene_params.agg_dimensions,
+            agg_dimensions=agg_dimensions,
             plan_args=plan_args,
         )
         detect_data_flow.create_flow()
@@ -1303,7 +1281,7 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         "metric_field": "is_anomaly",
         "extend_fields": {"values": ["anomaly_sort", "extra_info"]},
         "agg_condition": [],
-        "agg_dimension": scene_params.agg_dimensions,
+        "agg_dimension": agg_dimensions,
         "plan_id": plan_id,
         "agg_method": '',
         "status": AccessStatus.SUCCESS,

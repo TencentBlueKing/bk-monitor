@@ -80,7 +80,7 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
           <div class='desc-content'>
             {!this.pluginTypeId && [
               <div class='detail'>
-                <i18n path='套餐是业务运维设计制作的一套恢复故障的方案，可以复用于不同的告警，也可作为原子套餐用于制作组合套餐' />
+                <i18n path='套餐是业务运维设计制作的一套恢复故障的方案，可以复用于不同的告警，也可作为原子套餐用于制作组合套餐'></i18n>
                 。
               </div>,
               // <div class="see-detail">
@@ -93,7 +93,7 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
             <div class='format-desc'>
               {this.pluginDescription?.[this.pluginTypeId] && (
                 <div class='view-content'>
-                  <Viewer value={this.pluginDescription[this.pluginTypeId]} />
+                  <Viewer value={this.pluginDescription[this.pluginTypeId]}></Viewer>
                 </div>
               )}
               {/* <div class="format-title">
@@ -105,10 +105,10 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
                   <i18n
                     class='variable-title-left'
                     path='变量列表'
-                  />
+                  ></i18n>
                   <span class='variable-title-right'>{/* {this.$t('帮助文档')} <span>{'>'}</span> */}</span>
                 </div>
-                <VariableList pluginType={this.pluginType} />
+                <VariableList pluginType={this.pluginType}></VariableList>
               </div>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
           class='slider-btn'
           onClick={this.handleDescShow}
         >
-          <i class='icon-monitor icon-double-down' />
+          <i class='icon-monitor icon-double-down'></i>
         </div>
       </div>
     );

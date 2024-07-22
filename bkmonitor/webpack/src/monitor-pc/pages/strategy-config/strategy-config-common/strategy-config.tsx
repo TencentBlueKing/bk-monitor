@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -40,13 +40,15 @@ import {
   getTargetDetail,
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
-import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
+import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
 import { downFile } from '../../../utils';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -54,27 +56,24 @@ import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-ala
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
+import { IGroupData } from '../strategy-config-list/group';
 import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
-import type { IGroupData } from '../strategy-config-list/group';
-import type { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
+import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 
 import './strategy-config.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-const { i18n: I18N } = window;
+const { i18n } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
 const STRATEGY_CONFIG_SETTING = 'strategy_config_setting';
 
 @Component({
   name: 'StrategyConfig',
 })
-export default class StrategyConfig extends tsc<IStrategyConfigProps> {
+class StrategyConfig extends Mixins(commonPageSizeMixin) {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('authorityMap') authorityMap;
@@ -102,28 +101,28 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     value: 0,
     dropdownShow: false,
     list: [
-      // { id: 0, name: I18N.t('修改告警组') },
-      { id: 1, name: I18N.t('修改触发条件') },
-      { id: 5, name: I18N.t('修改恢复条件') },
-      // { id: 2, name: I18N.t('修改通知间隔') },
-      { id: 3, name: I18N.t('修改无数据告警') },
-      // { id: 4, name: I18N.t('修改告警恢复通知') },
-      { id: 6, name: I18N.t('启/停策略') },
-      { id: 7, name: I18N.t('删除策略') },
-      // { id: 9, name: I18N.t('修改告警模版') },
-      { id: 8, name: I18N.t('增删目标') },
-      { id: 10, name: I18N.t('修改标签') },
-      // { id: 11, name: I18N.t('修改处理套餐') }
-      { id: 21, name: I18N.t('修改算法') },
-      { id: 12, name: I18N.t('修改生效时间段') },
-      { id: 13, name: I18N.t('修改处理套餐') },
-      { id: 14, name: I18N.t('修改告警组') },
-      { id: 15, name: I18N.t('修改通知场景') },
-      { id: 20, name: I18N.t('修改通知升级') },
-      { id: 16, name: I18N.t('修改通知间隔') },
-      { id: 17, name: I18N.t('修改通知模板') },
-      { id: 18, name: I18N.t('修改告警风暴开关') },
-      { id: 19, name: I18N.t('导出Yaml（As Code功能）') },
+      // { id: 0, name: i18n.t('修改告警组') },
+      { id: 1, name: i18n.t('修改触发条件') },
+      { id: 5, name: i18n.t('修改恢复条件') },
+      // { id: 2, name: i18n.t('修改通知间隔') },
+      { id: 3, name: i18n.t('修改无数据告警') },
+      // { id: 4, name: i18n.t('修改告警恢复通知') },
+      { id: 6, name: i18n.t('启/停策略') },
+      { id: 7, name: i18n.t('删除策略') },
+      // { id: 9, name: i18n.t('修改告警模版') },
+      { id: 8, name: i18n.t('增删目标') },
+      { id: 10, name: i18n.t('修改标签') },
+      // { id: 11, name: i18n.t('修改处理套餐') }
+      { id: 21, name: i18n.t('修改算法') },
+      { id: 12, name: i18n.t('修改生效时间段') },
+      { id: 13, name: i18n.t('修改处理套餐') },
+      { id: 14, name: i18n.t('修改告警组') },
+      { id: 15, name: i18n.t('修改通知场景') },
+      { id: 20, name: i18n.t('修改通知升级') },
+      { id: 16, name: i18n.t('修改通知间隔') },
+      { id: 17, name: i18n.t('修改通知模板') },
+      { id: 18, name: i18n.t('修改告警风暴开关') },
+      { id: 19, name: i18n.t('导出Yaml（As Code功能）') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -137,14 +136,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       id: 'bk_monitor',
       checked: 'bk_monitor',
       cancel: '',
-      name: I18N.t('监控采集'),
+      name: i18n.t('监控采集'),
     },
     {
       value: '',
       id: 'log',
       checked: 'bk_monitor',
       cancel: '',
-      name: I18N.t('日志采集'),
+      name: i18n.t('日志采集'),
     },
   ];
   label: ILabel = {
@@ -201,7 +200,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     strategyIds: [],
     bizId: '',
     objectType: '',
-    title: I18N.t('监控目标'),
+    title: i18n.t('监控目标'),
     nodeType: '',
   };
   strategyLabelList = []; // 标签筛选俩表
@@ -209,7 +208,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   sourceList = []; // 数据来源筛选列表
   typeList = []; // 分类可筛选列表
   filterType = 'checkbox'; // 筛选列表类型
-  curFilterType = I18N.t('数据来源'); // 当前筛选类型
+  curFilterType = i18n.t('数据来源'); // 当前筛选类型
   dialogLoading = false;
   groupList = []; // 告警组数据列表
   scenarioList = []; // 监控对象
@@ -806,7 +805,6 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     ) {
       if (this.tableInstance.setDefaultStore) {
         this.tableInstance.setDefaultStore();
-        this.tableInstance.pageSize = commonPageSizeGet();
       }
       this.header.keyword = '';
     }
@@ -921,7 +919,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         });
       }
     });
-    if (this.keywords?.length) {
+    if (!!this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
     }
@@ -1120,7 +1118,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     this.table.loading = !needLoading;
     this.table.data = [];
     const page = defPage || this.tableInstance.page || 1;
-    const pageSize = defPageSize || this.tableInstance.pageSize || commonPageSizeGet();
+    const pageSize = defPageSize || this.tableInstance.pageSize || this.handleGetCommonPageSize();
     const params = {
       type: this.strategyType,
       page,
@@ -1145,7 +1143,10 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         this.table.data = tableData;
         this.getTargetDetail(tableData);
         this.handleTableDataChange(this.table.data);
-        this.pageCount = await this.handelScenarioList(data, this.table.data);
+        const total = await this.handelScenarioList(data, this.table.data);
+        // todo
+        this.pageCount = total;
+        // this.pageCount = this.tab.active > 0 ? this.tab.list[this.tab.active].count : total
         this.strategyStatusOptions = data.strategy_status_list || [];
         this.sourceList = data.data_source_list
           .map(item => {
@@ -1211,24 +1212,24 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       return { name, id, sort: `${index}`, children, count: 0 };
     });
     const scenarioList = data.scenario_list;
-    for (const item of scenarioFather) {
+    scenarioFather.forEach(item => {
       let count = 0;
-      for (const set of item.children) {
+      item.children.forEach(set => {
         const res = scenarioList.find(child => child.id === set.id);
         count += res.count;
         // total += res.count;
         set.count = res.count;
-      }
+      });
       item.count = count;
-    }
+    });
     this.backDisplayMap.scenario.list = scenarioFather;
     this.handleUpdateScenarioListName();
-    for (const item of tableData) {
+    tableData.forEach(item => {
       const nameArr = this.getScenarioName(scenarioFather, item.strategyType);
       item.scenarioDisplayName = nameArr.join('-');
-    }
-    // 列表total设置为监控对象筛选项count总和
-    total = data.scenario_list.reduce((total, item) => total + item.count, 0);
+    });
+    // 列表total设置为数据来源筛选项count总和
+    total = data.data_source_list.reduce((total, item) => total + item.count, 0);
     return total;
   }
   /** 更新监控对象搜索框回显 */
@@ -1279,45 +1280,15 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     this.handleGetListData(false, page);
   }
   handleLimitChange(limit) {
-    commonPageSizeSet(limit);
+    this.handleSetCommonPageSize(limit);
     this.handleGetListData(false, 1, limit);
   }
   handleHeadSelectChange(v) {
     // 导出 Yaml 文件
     if (v === 19) {
-      const h = this.$createElement;
-      const bkInfoInstance = this.$bkInfo({
+      this.$bkInfo({
         title: this.$t('请确认是否导出'),
-        subHeader: h(
-          'i18n',
-          {
-            attrs: {
-              path: '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往{0}进行操作',
-            },
-            class: 'i18n-as-code',
-          },
-          [
-            h(
-              'bk-button',
-              {
-                class: 'i18n-link',
-                props: {
-                  text: true,
-                  theme: 'primary',
-                },
-                on: {
-                  click: () => {
-                    bkInfoInstance.close();
-                    this.$router.push({
-                      name: 'export-import',
-                    });
-                  },
-                },
-              },
-              [this.$t('route-集成').toString(), ' - ', this.$t('route-导入导出').toString()]
-            ),
-          ]
-        ),
+        subTitle: this.$t('导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作'),
         confirmLoading: true,
         confirmFn: async () => {
           await exportConfigFile({
@@ -1738,7 +1709,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         onClick={e => this.handleShowTableFilter(e, type, title)}
       >
         {titleStr}
-        <i class='icon-monitor icon-filter-fill' />
+        <i class='icon-monitor icon-filter-fill'></i>
       </span>
     );
   }
@@ -1892,7 +1863,6 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             {[
               props.row.isInvalid ? (
                 <i
-                  key={1}
                   class='icon-monitor icon-shixiao'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1900,11 +1870,10 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                     content: `${props.row.invalidType}`,
                     allowHTML: false,
                   }}
-                />
+                ></i>
               ) : undefined,
               props.row.abnormalAlertCount > 0 && !props.row.isInvalid ? (
                 <span
-                  key={2}
                   class='alert-tag red'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1912,15 +1881,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                     content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row))}
+                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row))}
                 >
-                  <i class='icon-monitor icon-mc-chart-alert' />
+                  <i class='icon-monitor icon-mc-chart-alert'></i>
                   <span class='alert-count'>{props.row.abnormalAlertCount}</span>
                 </span>
               ) : undefined,
               props.row.shieldAlertCount ? (
                 <span
-                  key={3}
                   class='alert-tag grey'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1928,15 +1896,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                     content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
+                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
                 >
-                  <i class='icon-monitor icon-menu-shield' />
+                  <i class='icon-monitor icon-menu-shield'></i>
                   <span class='alert-count'>{props.row.shieldAlertCount}</span>
                 </span>
               ) : undefined,
               props.row.shieldInfo?.shield_ids?.length ? (
                 <span
-                  key={4}
                   class='alert-tag wuxian'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1945,11 +1912,11 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   }}
                   onClick={() => this.handleToAlarmShield(props.row.shieldInfo.shield_ids)}
                 >
-                  <i class='icon-monitor icon-menu-shield' />
+                  <i class='icon-monitor icon-menu-shield'></i>
                   <SvgIcon
                     class='wu-xian-text'
                     iconName={'wuqiong'}
-                  />
+                  ></SvgIcon>
                 </span>
               ) : undefined,
             ]}
@@ -1984,7 +1951,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 </span>
               ) : undefined}
             </span>,
-            index === 0 ? <br key={`br-${index}`} /> : undefined,
+            index === 0 ? <br key={`br-${index}`}></br> : undefined,
           ])}
         </span>
       ),
@@ -2139,7 +2106,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           pre-check={() => this.handlePreSwitchChange(props.row, type)}
           size='small'
           theme='primary'
-        />
+        ></bk-switcher>
         {!this.authority.MANAGE_AUTH ? (
           <div
             class='switch-wrap-modal'
@@ -2149,7 +2116,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
               e.preventDefault();
               !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH);
             }}
-          />
+          ></div>
         ) : undefined}
       </div>
     );
@@ -2253,7 +2220,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             <i
               class='bk-icon icon-more'
               data-popover='true'
-            />
+            ></i>
           </span>
         </div>
       ),
@@ -2312,7 +2279,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           width='50'
           align='center'
           type='selection'
-        />
+        ></bk-table-column>
         {id.checked && (
           <bk-table-column
             key='id'
@@ -2320,7 +2287,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             label='ID'
             prop='id'
             scopedSlots={idSlot}
-          />
+          ></bk-table-column>
         )}
         {strategyName.checked && (
           <bk-table-column
@@ -2328,7 +2295,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             label={this.$t('策略名')}
             min-width='200'
             scopedSlots={strategyNameSlot}
-          />
+          ></bk-table-column>
         )}
         {itemDescription.checked && (
           <bk-table-column
@@ -2336,7 +2303,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             label={this.$t('监控项')}
             min-width='200'
             scopedSlots={itemDescriptionSlot}
-          />
+          ></bk-table-column>
         )}
         {dataOrigin.checked && (
           <bk-table-column
@@ -2344,7 +2311,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='110'
             label={this.$t('数据来源')}
             scopedSlots={dataOriginSlot}
-          />
+          ></bk-table-column>
         )}
         {target.checked && (
           <bk-table-column
@@ -2352,21 +2319,21 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('监控目标')}
             scopedSlots={targetSlot}
-          />
+          ></bk-table-column>
         )}
         {labels.checked && (
           <bk-table-column
             key='labels'
             label={this.$t('标签')}
             scopedSlots={labelsSlot}
-          />
+          ></bk-table-column>
         )}
         {noticeGroupList.checked && (
           <bk-table-column
             key='noticeGroupList'
             label={this.$t('告警组')}
             scopedSlots={noticeGroupListSlot}
-          />
+          ></bk-table-column>
         )}
         {updator.checked && (
           <bk-table-column
@@ -2374,7 +2341,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('更新记录')}
             scopedSlots={updatorSlot}
-          />
+          ></bk-table-column>
         )}
         {enabled.checked && (
           <bk-table-column
@@ -2382,7 +2349,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='100'
             label={this.$t('启/停')}
             scopedSlots={enabledSlot}
-          />
+          ></bk-table-column>
         )}
         {dataTypeLabelName.checked && (
           <bk-table-column
@@ -2390,7 +2357,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='80'
             label={this.$t('策略类型')}
             scopedSlots={{ default: props => props.row.dataTypeLabelName }}
-          />
+          ></bk-table-column>
         )}
         {intervalNotifyMode.checked && (
           <bk-table-column
@@ -2398,7 +2365,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('通知间隔类型')}
             scopedSlots={{ default: props => props.row.intervalNotifyMode }}
-          />
+          ></bk-table-column>
         )}
         {dataMode.checked && (
           <bk-table-column
@@ -2406,7 +2373,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('查询类型')}
             scopedSlots={{ default: props => props.row.dataMode }}
-          />
+          ></bk-table-column>
         )}
         {notifyInterval.checked && (
           <bk-table-column
@@ -2414,7 +2381,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('通知间隔')}
             scopedSlots={{ default: props => `${props.row.notifyInterval}${this.$t('分钟')}` }}
-          />
+          ></bk-table-column>
         )}
         {trigger.checked && (
           <bk-table-column
@@ -2422,7 +2389,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('触发条件')}
             scopedSlots={triggerSlot}
-          />
+          ></bk-table-column>
         )}
         {recovery.checked && (
           <bk-table-column
@@ -2430,7 +2397,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='105'
             label={this.$t('恢复条件')}
             scopedSlots={recoverySlot}
-          />
+          ></bk-table-column>
         )}
         {needPoll.checked && (
           <bk-table-column
@@ -2438,7 +2405,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='80'
             label={this.$t('告警风暴')}
             scopedSlots={needPollSlot}
-          />
+          ></bk-table-column>
         )}
         {noDataEnabled.checked && (
           <bk-table-column
@@ -2446,7 +2413,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='80'
             label={this.$t('无数据')}
             scopedSlots={noDataEnabledSlot}
-          />
+          ></bk-table-column>
         )}
         {signals.checked && (
           <bk-table-column
@@ -2454,7 +2421,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('通知场景')}
             scopedSlots={signalsSlot}
-          />
+          ></bk-table-column>
         )}
         {levels.checked && (
           <bk-table-column
@@ -2462,7 +2429,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('级别')}
             scopedSlots={levelsSlot}
-          />
+          ></bk-table-column>
         )}
         {detectionTypes.checked && (
           <bk-table-column
@@ -2470,7 +2437,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('检测规则类型')}
             scopedSlots={detectionTypesSlot}
-          />
+          ></bk-table-column>
         )}
         {mealNames.checked && (
           <bk-table-column
@@ -2478,7 +2445,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='150'
             label={this.$t('处理套餐')}
             scopedSlots={mealNamesSlot}
-          />
+          ></bk-table-column>
         )}
         {configSource.checked && (
           <bk-table-column
@@ -2486,7 +2453,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='100'
             label={this.$t('配置来源')}
             scopedSlots={configSourceSlot}
-          />
+          ></bk-table-column>
         )}
         {app.checked && (
           <bk-table-column
@@ -2494,7 +2461,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width='100'
             label={this.$t('配置分组')}
             scopedSlots={appSlot}
-          />
+          ></bk-table-column>
         )}
         {operator.checked && (
           <bk-table-column
@@ -2502,7 +2469,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             width={this.$store.getters.lang === 'en' ? 220 : 150}
             label={this.$t('操作')}
             scopedSlots={operatorSlot}
-          />
+          ></bk-table-column>
         )}
       </bk-table>
     );
@@ -2510,10 +2477,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
 
   getDialogComponent() {
     return [
-      <div
-        key={1}
-        style='display: none;'
-      >
+      <div style='display: none;'>
         <ul
           ref='operatorGroup'
           class='operator-group'
@@ -2581,7 +2545,6 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         </ul>
       </div>,
       <StrategyConfigDialog
-        key={2}
         checked-list={this.idList}
         dialog-show={this.dialog.show}
         group-list={this.groupList}
@@ -2590,21 +2553,13 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         onConfirm={this.handleMuchEdit}
         onGetGroupList={this.getGroupList}
         onHideDialog={this.handleDialogChange}
-      />,
+      ></StrategyConfigDialog>,
       <AlarmShieldStrategy
-        key={3}
         is-show-strategy={this.isShowStrategy}
-        {...{
-          on: {
-            'update:isShowStrategy': val => {
-              this.isShowStrategy = val;
-            },
-          },
-        }}
+        {...{ on: { 'update:isShowStrategy': val => (this.isShowStrategy = val) } }}
         strategy-id={this.strategyId}
-      />,
+      ></AlarmShieldStrategy>,
       <TableFilter
-        key={4}
         filter-type={this.filterType}
         menu-list={this.dataSourceList}
         radio-list={this.dataSourceList}
@@ -2615,7 +2570,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         on-hide={this.handleChangeValue}
         on-reset={() => this.handleResetSourceFilter(true)}
         on-selected={this.handleSelectedDataSource}
-      />,
+      ></TableFilter>,
       // this.targetSet.show ? (
       //   <StrategySetTarget
       //     dialog-show={this.targetSet.show}
@@ -2632,7 +2587,6 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       //   ></StrategySetTarget>
       // ) : undefined,
       <StrategyIpv6
-        key={5}
         bizId={this.targetSet.bizId}
         nodeType={this.targetSet.nodeType as INodeType}
         objectType={this.targetSet.objectType as TargetObjectType}
@@ -2643,7 +2597,6 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       />,
       <AlarmGroupDetail
         id={this.alarmGroupDialog.id}
-        key={6}
         v-model={this.alarmGroupDialog.show}
         hasEditBtn={false}
       />,
@@ -2666,22 +2619,16 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             <FilterPanel
               class='content-left-filter'
               show={this.showFilterPanel}
-              {...{
-                on: {
-                  'update:show': val => {
-                    this.showFilterPanel = val;
-                  },
-                },
-              }}
+              {...{ on: { 'update:show': val => (this.showFilterPanel = val) } }}
               checkedData={this.header.keywordObj}
               data={this.filterPanelData}
               on-change={this.handleSearchSelectChange}
-            />
+            ></FilterPanel>
             <div
               class={['content-left-drag', { displaynone: !this.showFilterPanel }]}
               onMousedown={this.handleMouseDown}
               onMousemove={this.handleMouseMove}
-            />
+            ></div>
           </div>
           <div
             id='content-for-watch-resize'
@@ -2699,7 +2646,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   class='folding'
                   onClick={this.handleShowFilterPanel}
                 >
-                  <i class='icon-monitor icon-double-up' />
+                  <i class='icon-monitor icon-double-up'></i>
                 </span>
               </bk-badge>
               <bk-button
@@ -2712,7 +2659,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                     : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6' />
+                <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </bk-button>
               <bk-dropdown-menu
@@ -2727,7 +2674,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   slot='dropdown-trigger'
                 >
                   <span class='btn-name'> {this.$t('批量操作')} </span>
-                  <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
+                  <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
                 </div>
                 <ul
                   class='header-select-list'
@@ -2771,7 +2718,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 uniqueSelect={true}
                 clearable
                 onChange={this.handleSearchChange}
-              />
+              ></SearchSelect>
             </div>
             <div class='strategy-config-wrap'>
               <div class='config-wrap-setting'>
@@ -2784,7 +2731,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   trigger='click'
                 >
                   <div class='setting-btn'>
-                    <i class='icon-monitor icon-menu-set' />
+                    <i class='icon-monitor icon-menu-set'></i>
                   </div>
                   <div
                     class='tool-popover'
@@ -2834,7 +2781,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   show-total-count
                   on-change={this.handlePageChange}
                   on-limit-change={this.handleLimitChange}
-                />
+                ></bk-pagination>
               ) : undefined}
             </div>
           </div>
@@ -2844,3 +2791,5 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     );
   }
 }
+
+export default tsx.ofType<IStrategyConfigProps>().convert(StrategyConfig);

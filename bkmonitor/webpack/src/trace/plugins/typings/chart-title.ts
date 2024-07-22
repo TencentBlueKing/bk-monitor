@@ -1,4 +1,4 @@
-import type { IExtendMetricData } from './metric';
+import { IExtendMetricData } from './metric';
 
 /*
  * Tencent is pleased to support the open source community by making

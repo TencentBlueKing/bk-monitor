@@ -33,7 +33,7 @@ const actions = {
   async shieldSnapshot(store, params) {
     const obj = await shieldSnapshot(params).catch(() => ({}));
     return transformDataKey(obj);
-  },
+  }
 };
 
 export default {
@@ -41,5 +41,5 @@ export default {
   state,
   getters,
   mutations,
-  actions,
+  actions
 };

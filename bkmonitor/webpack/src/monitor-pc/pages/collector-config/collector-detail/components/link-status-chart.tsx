@@ -28,12 +28,11 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
+import { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import TimeRange, { type DateValue, type TimeRangeType } from '../../../../components/time-range/time-range';
+import TimeRange, { DateValue, TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, shortcuts } from '../../../../components/time-range/utils';
-
-import type { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './link-status-chart.scss';
 
@@ -213,12 +212,12 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
               needTimezone={false}
               value={this.timeRange}
               onChange={val => this.handleTimeRange(val)}
-            />
+            ></TimeRange>
             <span class='operate'>
               <i
                 class='icon-monitor icon-zhongzhi1 refresh'
                 onClick={this.handleRefresh}
-              />
+              ></i>
             </span>
           </div>
         </div>

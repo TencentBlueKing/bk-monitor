@@ -56,7 +56,7 @@ export default class DebuggerDialog extends tsc<IProps> {
         value={this.value}
         onCancel={this.handleCancel}
         onValueChange={this.handleShowChange}
-      />
+      ></bk-dialog>
     );
   }
 }

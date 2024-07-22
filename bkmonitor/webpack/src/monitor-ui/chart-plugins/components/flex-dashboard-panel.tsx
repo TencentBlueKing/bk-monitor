@@ -30,12 +30,11 @@ import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { type DashboardColumnType, type IPanelModel, type ObservablePanelField, PanelModel } from '../typings';
+import { DashboardColumnType, IPanelModel, ObservablePanelField, PanelModel } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
-
-import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
@@ -353,7 +352,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
         <EmptyStatus
           class='dashboard-panel empty-data'
           type='empty'
-        />
+        ></EmptyStatus>
       );
     return (
       <div
@@ -364,7 +363,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
           <div class='single-chart-content'>
             <div class={['single-chart-main', { 'has-btn': !!this.backToType }]}>
               <div class='single-chart-wrap'>
-                <ChartWrapper panel={this.singleChartPanel} />
+                <ChartWrapper panel={this.singleChartPanel}></ChartWrapper>
               </div>
             </div>
           </div>
@@ -408,7 +407,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                 onCheckAll={() => this.handleCheckAll()}
                 onCheckClose={() => this.handleCheckAll(false)}
                 onShowCollect={(v: boolean) => this.handleShowCollect(v)}
-              />
+              ></ChartCollect>
             ) : undefined,
           ]
         )}

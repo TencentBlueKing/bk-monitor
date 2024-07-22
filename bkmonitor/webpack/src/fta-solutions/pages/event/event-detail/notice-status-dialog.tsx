@@ -121,7 +121,7 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
             hasColumns={this.hasColumns}
             tableColumns={this.tableClounms}
             tableData={this.tableData}
-          />
+          ></NoticeStatusTable>
         </div>
       </bk-dialog>
     );

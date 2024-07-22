@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import * as AuthorizationListAuth from '../../pages/authorization-list/authority-map';
+import { RouteConfig } from 'vue-router';
 
-import type { RouteConfig } from 'vue-router';
+import * as AuthorizationListAuth from '../../pages/authorization-list/authority-map';
 
 const AuthorizationList = () =>
   import(/* webpackChunkName: 'FunctionSwitch' */ '../../pages/authorization-list/authorization-list');

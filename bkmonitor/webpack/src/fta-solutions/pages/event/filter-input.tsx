@@ -24,18 +24,17 @@
  * IN THE SOFTWARE.
  */
 
+import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { getEventPaths } from 'monitor-pc/utils';
 
 import debounceDecorator from '../../common/debounce-decorator';
 import EventModuleStore from '../../store/modules/event';
-
-import type { FilterInputStatus, ICommonItem, SearchType } from './typings/event';
-import type { TranslateResult } from 'vue-i18n';
+import { FilterInputStatus, ICommonItem, SearchType } from './typings/event';
 
 import './filter-input.scss';
 
@@ -139,7 +138,6 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   eventFieldList: IListItem[] = [];
   historyList: IListItem[] = [];
   favoriteList: IListItem[] = [];
-  incidentFieldList: IListItem[] = [];
   blurInPanel = false;
   methodList: IListItem[] = [
     {
@@ -180,9 +178,6 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         break;
       case 'event':
         list = this.eventFieldList;
-        break;
-      case 'incident':
-        list = this.incidentFieldList;
         break;
     }
     return this.isEn ? list.map(item => ({ ...item, name: item.id })) : list;
@@ -416,68 +411,6 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
     ];
     this.isManualInput = false;
-    this.incidentFieldList = [
-      {
-        id: 'id',
-        name: this.$t('故障UUID'),
-      },
-      {
-        id: 'incident_id',
-        name: this.$t('故障内部ID'),
-      },
-      {
-        id: 'incident_name',
-        name: this.$t('故障名称'),
-      },
-      {
-        id: 'incident_reason',
-        name: this.$t('故障原因'),
-      },
-      {
-        id: 'bk_biz_id',
-        name: this.$t('业务ID'),
-      },
-      {
-        id: 'status',
-        name: this.$t('故障状态'),
-      },
-      {
-        id: 'level',
-        name: this.$t('故障级别'),
-      },
-      {
-        id: 'assignees',
-        name: this.$t('负责人'),
-      },
-      {
-        id: 'handlers',
-        name: this.$t('处理人'),
-      },
-      {
-        id: 'labels',
-        name: this.$t('标签'),
-      },
-      {
-        id: 'create_time',
-        name: this.$t('故障检出时间'),
-      },
-      {
-        id: 'update_time',
-        name: this.$t('故障更新时间'),
-      },
-      {
-        id: 'begin_time',
-        name: this.$t('故障开始时间'),
-      },
-      {
-        id: 'end_time',
-        name: this.$t('故障结束时间'),
-      },
-      {
-        id: 'snapshot',
-        name: this.$t('故障图谱快照'),
-      },
-    ];
   }
   mounted() {
     addListener(this.filterSearchRef, this.handleUpdateResizePanel);
@@ -1187,7 +1120,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             onInput={this.handleInput}
             onKeydown={this.handleKeydown}
             onMousedown={this.handleInputFocus}
-          />
+          ></input>
           <span
             ref='preText'
             class='pre-text'
@@ -1206,7 +1139,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           v-en-class='en-lang'
           onMousedown={this.handleSetFavorite}
         >
-          <i class='icon-monitor icon-mc-uncollect favorite-icon' />
+          <i class='icon-monitor icon-mc-uncollect favorite-icon'></i>
           {this.$t('收藏')}
         </span>
         <div style='display: none;'>
@@ -1217,9 +1150,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           >
             <div class='field-panel common-panel'>
               <div class='panel-title'>{this.$t('建议字段')}</div>
-              {this.fieldList?.length
-                ? this.commonPanelComponent('field', this.fieldList)
-                : this.panelEmptyComponent(this.$t('暂无字段'))}
+              {this.fieldList?.length ? this.commonPanelComponent('field', this.fieldList) : this.panelEmptyComponent()}
             </div>
             <div class='search-panel common-panel'>
               <div class='panel-title'>{this.$t('最近搜索')}</div>

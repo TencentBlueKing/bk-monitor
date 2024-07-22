@@ -24,16 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onBeforeUnmount, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, PropType, ref } from 'vue';
 
 import { Button } from 'bkui-vue';
 
 import { useSpanBarCurrentInject, useViewRangeInject } from '../hooks';
-import DraggableManager, { type DraggableBounds, type DraggingUpdate, EUpdateTypes } from '../utils/draggable-manager';
-import GraphTicks from './graph-ticks';
-import Scrubber from './scrubber';
-
-import type {
+import {
   ISpanBarStore,
   IViewRange,
   IViewRangeTime,
@@ -41,6 +37,9 @@ import type {
   TUpdateViewRangeTimeFunction,
   ViewRangeTimeUpdate,
 } from '../typings';
+import DraggableManager, { DraggableBounds, DraggingUpdate, EUpdateTypes } from '../utils/draggable-manager';
+import GraphTicks from './graph-ticks';
+import Scrubber from './scrubber';
 
 import './viewing-layer.scss';
 

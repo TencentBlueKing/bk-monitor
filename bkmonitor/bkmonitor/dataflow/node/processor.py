@@ -368,13 +368,12 @@ class BusinessSceneNode(DownsamplingNode):
     业务指标节点
     """
 
-    def __init__(self, access_bk_biz_id, bk_biz_id, scene_name, strategy_id=None, *args, **kwargs):
+    def __init__(self, access_bk_biz_id, bk_biz_id, scene_name, *args, **kwargs):
         kwargs["agg_interval"] = 0
         super(BusinessSceneNode, self).__init__(*args, **kwargs)
 
         self.access_bk_biz_id = access_bk_biz_id
         self.bk_biz_id = bk_biz_id
-        self.strategy_id = strategy_id
         self.scene_name = scene_name
 
     @property
@@ -382,10 +381,7 @@ class BusinessSceneNode(DownsamplingNode):
         if self._process_rt_id:
             return self._process_rt_id
 
-        if self.strategy_id:
-            name = "{}_stra_{}_{}_plan".format(self.process_rt_id, self.strategy_id, self.scene_name)[-50:]
-        else:
-            name = "{}_{}_{}_plan".format(self.process_rt_id, self.access_bk_biz_id, self.scene_name)[-50:]
+        name = "{}_{}_{}_plan".format(self.process_rt_id, self.access_bk_biz_id, self.scene_name)[-50:]
         while not name[0].isalpha():
             # 保证首字符是英文
             name = name[1:]

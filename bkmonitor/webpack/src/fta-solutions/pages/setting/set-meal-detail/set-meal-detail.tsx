@@ -27,32 +27,31 @@
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getPluginTemplates, getPlugins, getTemplateDetail } from 'monitor-api/modules/action';
+import { getPlugins, getPluginTemplates, getTemplateDetail } from 'monitor-api/modules/action';
 import { retrieveActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import HistoryDialog from 'monitor-pc/components/history-dialog/history-dialog';
 
+import { strategyType } from '../../strategy-config/typings/strategy';
 import * as ruleAuth from '../set-meal/authority-map';
 import Container from '../set-meal/set-meal-add/components/container';
 import NoticeModeNew from '../set-meal/set-meal-add/components/notice-mode';
 import HttpCallBack from '../set-meal/set-meal-add/meal-content/http-callback';
 import {
-  type IExecution,
-  type IMealData,
-  type INoticeAlert,
-  type INoticeTemplate,
   executionName,
   executionNotifyConfigChange,
   executionTips,
+  IExecution,
+  IMealData,
+  INoticeAlert,
+  INoticeTemplate,
   intervalModeName,
   mealContentDataBackfill,
   mealDataInit,
   templateSignalName,
 } from '../set-meal/set-meal-add/meal-content/meal-content-data';
-
-import type { strategyType } from '../../strategy-config/typings/strategy';
 
 import './set-meal-detail.scss';
 
@@ -531,7 +530,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                       <bk-table-column
                         formatter={formatter}
                         label={this.$t('策略名')}
-                      />
+                      ></bk-table-column>
                     </bk-table>
                   ) : undefined}
                 </div>
@@ -608,7 +607,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                           <i
                             class='icon-monitor icon-mc-link link'
                             onClick={this.handleToPeripheral}
-                          />
+                          ></i>
                         ) : undefined}
                       </div>
                     </div>
@@ -634,7 +633,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                           item.value
                         ) : (
                           <span class='form-value-placeholder'>
-                            <i class='icon-monitor icon-remind' />
+                            <i class='icon-monitor icon-remind'></i>
                             <span class='value-placeholder-text'>{this.$t('变量不存在，请前往编辑套餐')}</span>
                           </span>
                         )}
@@ -672,7 +671,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                     isEdit={false}
                     label='URL'
                     value={this.mealData.webhook}
-                  />
+                  ></HttpCallBack>
                 ) : undefined
               }
               {
@@ -696,7 +695,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                               key={item.key}
                               label={item.label}
                               name={item.key}
-                            />
+                            ></bk-tab-panel>
                           ))}
                       </bk-tab>
                       <div class='notice-tab-wrap'>
@@ -732,7 +731,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                               noticeWay={this.noticeWayList}
                               notifyConfig={this.noticeAlertData.notifyConfig}
                               readonly={true}
-                            />
+                            ></NoticeModeNew>
                           </div>
                         </div>
                       </div>
@@ -753,7 +752,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                               key={item.key}
                               label={item.label}
                               name={item.key}
-                            />
+                            ></bk-tab-panel>
                           ))}
                       </bk-tab>
                       <div class='notice-tab-wrap'>
@@ -799,7 +798,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                               key={item.key}
                               label={item.label}
                               name={item.key}
-                            />
+                            ></bk-tab-panel>
                           ))}
                       </bk-tab>
                       <div class='notice-tab-wrap'>
@@ -811,7 +810,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                             class='form-item-label'
                             v-en-class='en-lang'
                           >
-                            <span class='icon-monitor icon-hint' />
+                            <span class='icon-monitor icon-hint'></span>
                             {executionTips[this.noticeExecutionActive]}
                           </div>
                           <div class='form-item-content pb12'>
@@ -820,7 +819,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                               notifyConfig={executionNotifyConfigChange(this.noticeExecutionData.notifyConfig)}
                               readonly={true}
                               type={1}
-                            />
+                            ></NoticeModeNew>
                           </div>
                         </div>
                       </div>

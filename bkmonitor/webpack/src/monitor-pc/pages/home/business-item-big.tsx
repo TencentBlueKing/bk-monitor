@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BusinessItem, { type IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
+import BusinessItem, { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
 import { monitorInfo } from 'monitor-api/modules/overview';
 
 import BusinessAlarmOverview from './components/business-alarm-overiview';
@@ -130,10 +130,10 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
           isMakeTop={true}
           onFavorite={this.handleSticky}
           onToEvent={this.handleToEvent}
-        />
-        <div class='line' />
+        ></BusinessItem>
+        <div class='line'></div>
         {this.businessAlarmLoading ? (
-          <BusinessRight />
+          <BusinessRight></BusinessRight>
         ) : (
           <div
             class='right-content'
@@ -142,7 +142,7 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
             <BusinessAlarmOverview
               businessAlarm={this.businessAlarm}
               homeDays={this.homeDays}
-            />
+            ></BusinessAlarmOverview>
           </div>
         )}
       </div>

@@ -26,9 +26,8 @@
 import { Component, Emit, InjectReactive, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { IOption } from '../../pages/monitor-k8s/typings';
 import { getPopoverWidth } from '../../utils';
-
-import type { IOption } from '../../pages/monitor-k8s/typings';
 
 import './custom-select.scss';
 
@@ -103,7 +102,7 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
           {this.$slots.target ??
             (!this.readonly && (
               <span class='custom-select-add'>
-                <i class='icon-monitor icon-mc-add' />
+                <i class='icon-monitor icon-mc-add'></i>
               </span>
             ))}
         </span>

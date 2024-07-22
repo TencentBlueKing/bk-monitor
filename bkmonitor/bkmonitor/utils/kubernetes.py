@@ -425,7 +425,6 @@ class KubernetesNodeJsonParser(KubernetesV1ObjectJsonParser):
         for address in self.status.get("addresses", []):
             if address.get("type") == "InternalIP":
                 node_ip = address.get("address")
-                break
         return node_ip
 
     def get_pod_number(self, endpoints):

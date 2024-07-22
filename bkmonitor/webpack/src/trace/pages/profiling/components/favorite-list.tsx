@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Popover, Radio } from 'bkui-vue';
 import { EnlargeLine, Transfer } from 'bkui-vue/lib/icon';
 
-import type { IFavList } from '../typings/favorite-list';
+import { IFavList } from '../typings/favorite-list';
 
 import './favorite-list.scss';
 
@@ -109,7 +109,7 @@ export default defineComponent({
             <span
               class='icon-monitor icon-mc-wholesale-editor'
               onClick={() => (this.isShowManageDialog = true)}
-            />
+            ></span>
           </div>
           <div class='search-tools jsac'>
             <Input
@@ -117,7 +117,7 @@ export default defineComponent({
               placeholder={this.$t('搜索收藏名')}
               type='search'
               onEnter={this.handleSearchFavorite}
-            />
+            ></Input>
             <div class='tools jsac'>
               <Popover
                 ref='popoverGroupRef'
@@ -127,7 +127,7 @@ export default defineComponent({
                 trigger='click'
               >
                 {{
-                  default: () => <span class='icon-monitor icon-jia' />,
+                  default: () => <span class='icon-monitor icon-jia'></span>,
                   content: () => (
                     <div class='operate-button'>
                       <Button text>{this.$t('确定')}</Button>
@@ -175,7 +175,7 @@ export default defineComponent({
           <EnlargeLine class='icon' />
           <span>{this.$t('新检索')}</span>
         </div>
-        <div class='group-container' />
+        <div class='group-container'></div>
       </div>
     );
   },

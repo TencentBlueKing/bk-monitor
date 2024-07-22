@@ -66,22 +66,23 @@
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+
 @Component({
-  name: 'column-check',
+  name: 'column-check'
 })
 export default class StrategySetTarget extends Vue {
   @Ref('popover') readonly popover!: any;
 
   @Prop({
-    default: [],
+    default: []
   })
-  list: { id: string; name: string }[];
+    list: { id: string; name: string }[];
 
   @Prop({
     default: 0,
-    validator: val => [0, 1, 2].includes(val),
+    validator: val => [0, 1, 2].includes(val)
   })
-  value: number;
+    value: number;
 
   @Prop({ default: 'current' }) readonly defaultType: 'current' | 'all';
   @Prop({ default: false, type: Boolean }) disabled: boolean;
@@ -103,7 +104,7 @@ export default class StrategySetTarget extends Vue {
   emitChange(value: number, type: string): { value: number; type: string } {
     return {
       value,
-      type,
+      type
     };
   }
 

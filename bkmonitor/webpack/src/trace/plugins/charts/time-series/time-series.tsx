@@ -23,17 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  type Ref,
-  computed,
-  defineComponent,
-  getCurrentInstance,
-  inject,
-  onBeforeUnmount,
-  ref,
-  watch,
-} from 'vue';
+import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, PropType, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { bkTooltips } from 'bkui-vue';
@@ -42,11 +32,12 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
-import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { getValueFormat, ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { VariablesService, isShadowEqual, reviewInterval } from '../../../utils';
+import { isShadowEqual, reviewInterval, VariablesService } from '../../../utils';
 import BaseEchart from '../../base-echart';
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
@@ -61,16 +52,6 @@ import {
   useViewOptionsInject,
 } from '../../hooks';
 import {
-  downCsvFile,
-  handleAddStrategy,
-  handleExplore,
-  handleRelateAlert,
-  handleStoreImage,
-  transformSrcData,
-  transformTableDataToCsvStr,
-} from '../../utls/menu';
-
-import type {
   ChartTitleMenuType,
   DataQuery,
   IExtendMetricData,
@@ -81,7 +62,15 @@ import type {
   ITitleAlarm,
   PanelModel,
 } from '../../typings';
-import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import {
+  downCsvFile,
+  handleAddStrategy,
+  handleExplore,
+  handleRelateAlert,
+  handleStoreImage,
+  transformSrcData,
+  transformTableDataToCsvStr,
+} from '../../utls/menu';
 
 import './time-series.scss';
 
@@ -309,12 +298,7 @@ export default defineComponent({
 
         legendItem.avg = +(+legendItem.total! / (hasValueLength || 1)).toFixed(2);
         legendItem.total = Number(legendItem.total).toFixed(2);
-        // 获取y轴上可设置的最小的精确度
-        const precision = handleGetMinPrecision(
-          item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-          unitFormatter,
-          item.unit
-        );
+
         if (item.name) {
           Object.keys(legendItem).forEach(key => {
             if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -326,6 +310,12 @@ export default defineComponent({
           });
           legendDatas.push(legendItem);
         }
+        // 获取y轴上可设置的最小的精确度
+        const precision = handleGetMinPrecision(
+          item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
+          unitFormatter,
+          item.unit
+        );
         return {
           ...item,
           color,
@@ -882,7 +872,7 @@ export default defineComponent({
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start',
             }}
-          />
+          ></span>
         )}
       </div>
     );

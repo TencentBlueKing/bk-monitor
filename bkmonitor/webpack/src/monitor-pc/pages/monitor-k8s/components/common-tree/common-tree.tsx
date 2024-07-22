@@ -24,22 +24,21 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
-import { modifiers as m, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers as m } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import { ITableFilterItem } from '../../typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
   transformConditionValueParams,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
-
-import type { ITableFilterItem } from '../../typings';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './common-tree.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -299,7 +298,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               <CommonStatus
                 class='status-icon'
                 type={data.status.type}
-              />
+              ></CommonStatus>
             )}
             <span class='item-name'>{data.name}</span>
           </span>
@@ -326,13 +325,13 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
-            />
+            ></bk-input>
           )}
           <bk-button
             class='reflesh-btn'
             onClick={this.handleRefresh}
           >
-            <i class='icon-monitor icon-shuaxin' />
+            <i class='icon-monitor icon-shuaxin'></i>
           </bk-button>
         </div>
         <StatusTab

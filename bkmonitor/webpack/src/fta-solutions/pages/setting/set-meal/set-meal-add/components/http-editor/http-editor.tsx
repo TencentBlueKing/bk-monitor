@@ -30,17 +30,8 @@ import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/util
 
 import ResizeContainer from '../../../../../../components/resize-container/resize-container';
 import VerifyItem from '../../../../../../components/verify-item/verify-item';
+import { IHeaderInfo, IHttpData, IParamsValueItem, ISelectListItem, ISetingValue, THeaderType, TMethod } from './types';
 import { localDataConvertToRequest } from './utils';
-
-import type {
-  IHeaderInfo,
-  IHttpData,
-  IParamsValueItem,
-  ISelectListItem,
-  ISetingValue,
-  THeaderType,
-  TMethod,
-} from './types';
 
 import './http-editor.scss';
 
@@ -472,7 +463,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               <i
                 class='icon-monitor icon-mc-close'
                 onClick={() => deleteFn(index, item)}
-              />
+              ></i>
             </div>
           );
         }
@@ -538,7 +529,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               behavior='simplicity'
               disabled={!this.isEdit}
               onInput={this.authParamInput}
-            />
+            ></bk-input>
           </div>
         ) : undefined}
         {type === 'basic_auth' ? (
@@ -551,7 +542,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 behavior='simplicity'
                 disabled={!this.isEdit}
                 onInput={this.authParamInput}
-              />
+              ></bk-input>
             </div>
             <div class='input-item'>
               <div class='auth-params-label'>{this.$t('密码')}</div>
@@ -562,7 +553,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 disabled={!this.isEdit}
                 type='password'
                 onInput={this.authParamInput}
-              />
+              ></bk-input>
             </div>
           </div>
         ) : undefined}
@@ -589,7 +580,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               label={item.label}
               prop={item.prop}
               {...{ scopedSlots }}
-            />
+            ></bk-table-column>
           ))}
         </bk-table>
       </div>
@@ -622,7 +613,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 allowHTML: false,
               }}
               onClick={() => (this.curHeaderData.hide = !isHide)}
-            />
+            ></i>
             {isHide ? (
               <span>
                 {this.$t('已隐藏')} {hideCount} {this.$t('项')}
@@ -640,7 +631,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               label={item.label}
               prop={item.prop}
               {...{ scopedSlots }}
-            />
+            ></bk-table-column>
           ))}
         </bk-table>
       </div>
@@ -701,7 +692,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                   id={option.id}
                   key={option.id}
                   name={option.name}
-                />
+                ></bk-option>
               ))}
             </bk-select>
           ) : undefined}
@@ -722,7 +713,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 onBlur={() => this.handleRawBlur(data.type, data.content)}
                 onFocus={() => (this.rawErrorMsg = '')}
                 onInput={this.bodyParamInput}
-              />
+              ></bk-input>
               {this.rawErrorMsg && <p style='margin: 0; color: #ff5656;'>{this.rawErrorMsg}</p>}
             </ResizeContainer>
           </div>
@@ -739,7 +730,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 label={item.label}
                 prop={item.prop}
                 {...{ scopedSlots }}
-              />
+              ></bk-table-column>
             ))}
           </bk-table>
         ) : undefined}
@@ -864,7 +855,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                     id={option}
                     key={option}
                     name={option}
-                  />
+                  ></bk-option>
                 ))}
               </bk-select>
               <VerifyItem
@@ -878,21 +869,21 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                   placeholder={this.$i18n.tc('输入请求 URL')}
                   onChange={this.urlChange}
                   onFocus={this.urlFocus}
-                />
+                ></bk-input>
               </VerifyItem>
             </div>
           ) : (
             <div class='dispaly-method-url'>
               {this.label ? <span class='label'>{this.label}</span> : undefined}
               <span class='method'>{this.httpData.method}</span>
-              <span class='border' />
+              <span class='border'></span>
               <span class='url'>{this.httpData.url}</span>
             </div>
           )
         }
         {/* http头信息区域 */}
         <div class='http-header-wrap'>
-          <div class='arrow' />
+          <div class='arrow'></div>
           <div class='http-header-main'>
             <div class='tab-select-wrap'>
               {this.localHeaderInfo.map((tab, i) => {
@@ -910,7 +901,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             </div>
             {!!this.curHeaderData.desc && (
               <div class='header-desc'>
-                <i class='icon-monitor icon-bangzhu' />
+                <i class='icon-monitor icon-bangzhu'></i>
                 <span class='desc-text'>{this.curHeaderData.desc}</span>
               </div>
             )}

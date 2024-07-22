@@ -594,7 +594,7 @@
       this.handleToggleRemarkSelect();
       this.scrollEvent('add');
     },
-    beforeDestroy() {
+    beforeUnmount() {
       this.scrollEvent('close');
     },
     methods: {
@@ -1050,10 +1050,10 @@
           return;
         }
         const lastSelect = v[v.length - 1];
-        if (lastSelect === 'all') {
+        if (['no_owner', 'all'].includes(lastSelect)) {
           this.ownerSelect = [lastSelect];
         } else {
-          this.ownerSelect = v.filter(item => !(item === 'all'));
+          this.ownerSelect = v.filter(item => !['no_owner', 'all'].includes(item));
         }
       },
       /**
@@ -1070,14 +1070,15 @@
        * @desc: 责任人提交
        */
       handleUserSubmit(v) {
-        const ownerData = v.includes('all')
+        const lastSelect = v[v.length - 1];
+        const ownerData = ['no_owner', 'all'].includes(lastSelect)
           ? {
-              owner_config: 'all',
+              owner_config: lastSelect,
               owners: [],
             }
           : {
-              owner_config: v.includes('no_owner') ? 'no_owner' : 'owner',
-              owners: v.filter(item => item !== 'no_owner'),
+              owner_config: 'owner',
+              owners: v,
             };
         this.$emit('handle-finger-operate', 'requestData', ownerData, true);
       },

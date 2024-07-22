@@ -27,7 +27,7 @@ import { getNoticeWay, getReceiver, noticeGroupDetail, noticeGroupList } from 'm
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 const state = {
-  isEdit: false,
+  isEdit: false
 };
 
 const mutations = {};
@@ -48,7 +48,7 @@ const actions = {
   async getReceiver() {
     const arr = await getReceiver().catch(() => []);
     return arr;
-  },
+  }
 };
 
 export default {
@@ -56,5 +56,5 @@ export default {
   state,
   mutations,
   getters,
-  actions,
+  actions
 };

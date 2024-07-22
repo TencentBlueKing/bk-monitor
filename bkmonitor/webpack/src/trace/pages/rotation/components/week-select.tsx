@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
@@ -193,7 +193,7 @@ export default defineComponent({
           ref='weekSelectRef'
           class={['week-select', this.show && 'active']}
         >
-          <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']} />
+          <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
             extCls='week-select-popover component'
             arrow={false}
@@ -219,7 +219,7 @@ export default defineComponent({
                         {item.isStart && <div class='start-tag'>{this.t('起始日')}</div>}
                       </div>
                       {item.Selected && !item.hasSetStart && (
-                        <i class='icon-monitor icon-mc-check-small selected-icon' />
+                        <i class='icon-monitor icon-mc-check-small selected-icon'></i>
                       )}
                       {item.hasSetStart && (
                         <span

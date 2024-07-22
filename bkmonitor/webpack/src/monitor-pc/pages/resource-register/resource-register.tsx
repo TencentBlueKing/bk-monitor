@@ -33,7 +33,7 @@ import { random } from 'monitor-common/utils';
 import ClusterConfig from './cluster-config';
 // import InfluxdbChild from './influxdb-child';
 import ClusterDetails from './cluster-details';
-import { EClusterType, ETableColumn, FILTER_LIST, type ITableDataRow, type ITableRowConfig } from './type';
+import { EClusterType, ETableColumn, FILTER_LIST, ITableDataRow, ITableRowConfig } from './type';
 
 import './resource-register.scss';
 
@@ -259,7 +259,7 @@ export default class ResourceRegister extends tsc<object> {
     return (
       <div class='status-info'>
         <div class={['status-point', status]}>
-          <div />
+          <div></div>
         </div>
         <div>{status === 'normal' ? this.$t('正常') : this.$t('失败')}</div>
       </div>
@@ -276,9 +276,9 @@ export default class ResourceRegister extends tsc<object> {
                 'icon-monitor icon-mc-triangle-down',
                 { active: this.tableData.expandRowKeys.indexOf(row.key) > -1 },
               ]}
-            />
+            ></span>
             <span class='name-wrap'>
-              <span class='icon-monitor icon-DB1 name-icon' />
+              <span class='icon-monitor icon-DB1 name-icon'></span>
               <span
                 class='name'
                 onClick={(e: Event) => this.handleOpenDetail(e, row)}
@@ -352,12 +352,12 @@ export default class ResourceRegister extends tsc<object> {
             >
               {this.isExpandAll ? (
                 <span>
-                  <span class='icon-monitor icon-zhankai1 expand-icon' />
+                  <span class='icon-monitor icon-zhankai1 expand-icon'></span>
                   <span>{this.$t('全部收起')}</span>
                 </span>
               ) : (
                 <span>
-                  <span class='icon-monitor icon-shouqi1 expand-icon' />
+                  <span class='icon-monitor icon-shouqi1 expand-icon'></span>
                   <span>{this.$t('全部展开')}</span>
                 </span>
               )}
@@ -374,7 +374,7 @@ export default class ResourceRegister extends tsc<object> {
                   class={['header-filter-item', { active: item.id === this.filterType }]}
                   onClick={() => this.handleFilterChange(item.id)}
                 >
-                  {!!item.icon && <span class={[`icon-monitor ${item.icon} item-icon`]} />}
+                  {!!item.icon && <span class={[`icon-monitor ${item.icon} item-icon`]}></span>}
                   <span>{item.name}</span>
                 </div>
               ))}
@@ -385,7 +385,7 @@ export default class ResourceRegister extends tsc<object> {
                 value={this.searchValue}
                 onBlur={this.handleSearchChange}
                 onEnter={this.handleSearchChange}
-              />
+              ></bk-input>
             </div>
           </div>
         </div>
@@ -451,7 +451,7 @@ export default class ResourceRegister extends tsc<object> {
                                       v-bk-tooltips={{
                                         content: this.$t('查看趋势'),
                                       }}
-                                    />
+                                    ></span>
                                   );
                                 }
                                 return (() => {
@@ -468,7 +468,7 @@ export default class ResourceRegister extends tsc<object> {
                               label={column.name}
                               prop={column.id}
                               sortable={column.sortable}
-                            />
+                            ></bk-table-column>
                           );
                         })}
                       </bk-table>
@@ -477,7 +477,7 @@ export default class ResourceRegister extends tsc<object> {
                 },
               }}
               type='expand'
-            />
+            ></bk-table-column>
             <bk-table-column type='setting'>
               <bk-table-setting-content
                 key={'__settings'}
@@ -504,7 +504,7 @@ export default class ResourceRegister extends tsc<object> {
                     column-key={column.id}
                     label={column.name}
                     prop={column.id}
-                  />
+                  ></bk-table-column>
                 );
               })}
           </bk-table>
@@ -514,13 +514,13 @@ export default class ResourceRegister extends tsc<object> {
           row-config={this.rowConfig}
           show={this.show}
           on-show-change={this.handleShowChange}
-        />
+        ></ClusterConfig>
         <ClusterDetails
           data={this.detailsData}
           show={this.detailsShow}
           onEdit={this.handleDetailsToEdit}
           onShowChange={this.handleDetailShowChange}
-        />
+        ></ClusterDetails>
       </div>
     );
   }

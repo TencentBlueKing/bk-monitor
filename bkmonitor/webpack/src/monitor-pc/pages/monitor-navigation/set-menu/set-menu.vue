@@ -78,7 +78,7 @@ export default class SetMenu extends Vue {
         theme: 'light common-monitor',
         maxWidth: 520,
         duration: [275, 0],
-        offset: '10, 2',
+        offset: '10, 2'
       });
     } else if (this.instance) {
       this.instance.hide();
@@ -93,53 +93,48 @@ export default class SetMenu extends Vue {
 </script>
 <style lang="scss" scoped>
 .mneu-wrap {
+  font-size: 12px;
+  background: #3a84ff;
+  border-color: #3a84ff;
+  color: #fff;
+  padding: 0 12px;
+  border-radius: 2px;
+  margin-left: 15px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 26px;
-  padding: 0 12px;
-  margin-left: 15px;
-  font-size: 12px;
-  color: #fff;
-  background: #3a84ff;
-  border-color: #3a84ff;
-  border-radius: 2px;
-
   &-icon {
+    font-size: 16px;
+    height: 26px;
+    width: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 26px;
-    font-size: 16px;
   }
-
   &:hover {
     cursor: pointer;
     background-color: #699df4;
     opacity: 1;
   }
 }
-
 .menu-list {
   display: flex;
   flex-direction: column;
-  padding: 6px 0;
   font-size: 12px;
   background-color: white;
-
+  padding: 6px 0;
   &-item {
     display: flex;
     align-items: center;
+    line-height: 32px;
     height: 32px;
     padding: 0 12px;
-    line-height: 32px;
     color: #63656e;
-
     &:hover {
-      color: #3a84ff;
       cursor: pointer;
       background-color: #eaf3ff;
+      color: #3a84ff;
     }
   }
 }

@@ -31,7 +31,7 @@ import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import { addCustomMetric } from 'monitor-api/modules/custom_report';
 import { getMetricListV2, updateMetricListByBiz } from 'monitor-api/modules/strategies';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
-import { Debounce, copyText, deepClone, docCookies } from 'monitor-common/utils/utils';
+import { copyText, Debounce, deepClone, docCookies } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 
 import { handleGotoLink } from '../../common/constant';
@@ -40,11 +40,10 @@ import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import EmptyStatus from '../empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
 import CheckedboxList from './checkedbox-list';
 import MetricPopover from './metric-popover';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
-import type { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps, TGetMetricData } from './typings';
+import { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps, TGetMetricData } from './typings';
 
 import './metric-selector.scss';
 
@@ -823,7 +822,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   class='metric-checkbox'
                   value={item.checked}
                   onChange={v => this.handleCheckMetric(item, v)}
-                />
+                ></bk-checkbox>
               </span>
             )}
             <span>{this.highLightContent(this.search, item.readable_name)}</span>
@@ -844,7 +843,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               e.stopPropagation();
               this.handleCopyMetricMame(item);
             }}
-          />
+          ></span>
           {/* <span class="icon-monitor icon-fenxiang"
             v-bk-tooltips={{
               content: window.i18n.t('完整查看'),
@@ -852,7 +851,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             }}
           ></span> */}
         </div>
-        <div class='tip-dom' />
+        <div class='tip-dom'></div>
       </div>
     );
   }
@@ -955,14 +954,14 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               placeholder={this.$t('搜索指标')}
               rightIcon={'bk-icon icon-search'}
               onInput={this.handleSearch}
-            />
+            ></bk-input>
             <bk-button
               class='refresh-btn'
               disabled={this.refreshLoading}
               icon={this.refreshLoading ? 'loading' : 'refresh'}
               text
               onClick={this.handleRefreshClick}
-            />
+            ></bk-button>
           </div>
           <div
             class='metric-selector-content-wrap'
@@ -1010,7 +1009,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                         {!isEn ? (
                           <span class='text'>{this.$t('已选')}</span>
                         ) : (
-                          <span class='icon-monitor icon-mc-check-small' />
+                          <span class='icon-monitor icon-mc-check-small'></span>
                         )}
                       </div>
                     </div>
@@ -1037,7 +1036,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                       </div>
                     )),
                     <div class='metric-next-page-tips'>
-                      {this.nextPageLoading && <span class='loading-icon' />}
+                      {this.nextPageLoading && <span class='loading-icon'></span>}
                       <span class='loading-text'>{this.$tc(this.isLoadAll ? '已加载全部数据' : '加载中...')}</span>
                     </div>,
                   ]

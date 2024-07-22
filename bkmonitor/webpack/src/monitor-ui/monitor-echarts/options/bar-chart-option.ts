@@ -28,8 +28,7 @@ import deepMerge from 'deepmerge';
 
 import MonitorBaseSeries from './base-chart-option';
 import { lineOrBarOptions } from './echart-options-config';
-
-import type { IChartInstance, ILegendItem } from './type-interface';
+import { IChartInstance, ILegendItem } from './type-interface';
 
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
   private handleGetMaxAndMinThreholds(series: any[] = []) {

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, inject, ref, watch } from 'vue';
+import { defineComponent, inject, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -32,6 +32,7 @@ import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
+import { IAuthority } from '../../typings/authority';
 import {
   getAutoOrderList,
   getPreviewParams,
@@ -41,9 +42,7 @@ import {
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';
-import { type RuleDetailModel, randomColor, transformRulesDetail } from './utils';
-
-import type { IAuthority } from '../../typings/authority';
+import { randomColor, RuleDetailModel, transformRulesDetail } from './utils';
 
 import './rotation-detail.scss';
 
@@ -138,10 +137,10 @@ export default defineComponent({
           <img
             alt=''
             src={user.logo}
-          />
+          ></img>
         );
-      if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img' />;
-      return <span class='icon-monitor icon-mc-user-one no-img' />;
+      if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
+      return <span class='icon-monitor icon-mc-user-one no-img'></span>;
     }
     /**
      * @description 关闭侧栏
@@ -202,7 +201,7 @@ export default defineComponent({
                 >
                   {this.t('编辑')}
                 </Button>
-                <HistoryDialog list={this.historyList} />
+                <HistoryDialog list={this.historyList}></HistoryDialog>
               </span>
             </div>
           ),
@@ -242,7 +241,7 @@ export default defineComponent({
                         <div class='rule-item'>
                           {rule.ruleTime.length > 1 && [
                             <span class='rule-item-index'>{this.t('第 {num} 班', { num: ind + 1 })}</span>,
-                            <div class='col-separate' />,
+                            <div class='col-separate'></div>,
                           ]}
                           <span class='rule-item-title'>{time.day}</span>
                           {time.timer.map(item => (
@@ -265,7 +264,7 @@ export default defineComponent({
                               <div
                                 style={{ background: randomColor(item.orderIndex) }}
                                 class='has-color'
-                              />
+                              ></div>
                             )}
                             {item.users.map((user, ind) => (
                               <div class='personnel-choice'>
@@ -273,7 +272,7 @@ export default defineComponent({
                                   <span
                                     style={{ 'background-color': randomColor(item.orderIndex + ind) }}
                                     class='user-color'
-                                  />
+                                  ></span>
                                 )}
                                 {this.renderUserLogo(user)}
                                 <span>{user.display_name}</span>
@@ -301,7 +300,7 @@ export default defineComponent({
                     <RotationCalendarPreview
                       class='width-806'
                       value={this.previewData}
-                    />
+                    ></RotationCalendarPreview>
                   </Loading>
                 </FormItem>
               </div>

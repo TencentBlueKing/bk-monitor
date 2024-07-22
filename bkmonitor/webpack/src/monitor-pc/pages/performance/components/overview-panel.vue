@@ -63,7 +63,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import type { IPanel, IPanelStatistics } from '../performance-type';
+import { IPanel, IPanelStatistics } from '../performance-type';
 
 @Component({ name: 'overview-panel' })
 export default class OverviewPanel extends Vue {
@@ -77,28 +77,28 @@ export default class OverviewPanel extends Vue {
         icon: 'icon-gaojing',
         name: window.i18n.t('告警中的主机'),
         key: 'unresolveData',
-        num: 0,
+        num: 0
       },
       {
         icon: 'icon-CPU',
         name: `${window.i18n.t('CPU使用率超80%')}`,
         key: 'cpuData',
-        num: 0,
+        num: 0
       },
       {
         icon: 'icon-neicun',
         name: `${window.i18n.t('应用内存使用率超80%')}`,
         key: 'menmoryData',
-        num: 0,
+        num: 0
       },
       {
         icon: 'icon-cipan',
         name: `${window.i18n.t('磁盘空间使用率超80%')}`,
         key: 'diskData',
-        num: 0,
-      },
+        num: 0
+      }
     ],
-    active: this.active,
+    active: this.active
   };
   created() {
     this.panel.list.forEach(item => (item.num = this.panelStatistics[item.key]));
@@ -111,7 +111,7 @@ export default class OverviewPanel extends Vue {
 
   @Watch('panelStatistics')
   private handlePanelStatisticsChange(statistics: IPanelStatistics) {
-    this.panel.list.forEach(item => {
+    this.panel.list.forEach((item) => {
       item.num = statistics[item.key];
     });
   }
@@ -132,16 +132,16 @@ export default class OverviewPanel extends Vue {
   height: 76px;
 
   &-panel {
-    position: relative;
-    display: flex;
     flex: 1 1 315px;
+    min-width: 200px;
+    padding-left: 45px;
+    height: 100%;
+    border: 1px solid #dcdee5;
+    background: #fff;
+    display: flex;
     align-items: center;
     justify-content: flex-start;
-    min-width: 200px;
-    height: 100%;
-    padding-left: 45px;
-    background: #fff;
-    border: 1px solid #dcdee5;
+    position: relative;
 
     @include hover();
 
@@ -164,14 +164,14 @@ export default class OverviewPanel extends Vue {
       &-num {
         font-size: 16px;
         font-weight: 600;
-        line-height: 22px;
         color: #000;
+        line-height: 22px;
       }
 
       &-name {
         font-size: 12px;
-        line-height: 16px;
         color: #979ba5;
+        line-height: 16px;
       }
     }
 
@@ -181,12 +181,12 @@ export default class OverviewPanel extends Vue {
       }
 
       &::after {
-        position: absolute;
+        content: '';
+        left: 0;
         right: 0;
         bottom: -1px;
-        left: 0;
+        position: absolute;
         height: 2px;
-        content: '';
         background: $primaryFontColor;
       }
     }

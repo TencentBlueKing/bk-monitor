@@ -26,6 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { INavItem } from '@/pages/monitor-k8s/typings';
 import { DateRange } from '@blueking/date-picker/vue2';
 import dayjs from 'dayjs';
 import { deleteShareToken, getShareTokenList } from 'monitor-api/modules/share';
@@ -33,8 +34,6 @@ import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import { shortcuts } from '../time-range/utils';
 import MiddleOmitted from './middle-omitted';
-
-import type { INavItem } from '@/pages/monitor-k8s/typings';
 
 import './history-share-manage.scss';
 
@@ -530,7 +529,7 @@ export default class HistoryShareManage extends tsc<IProps> {
         <div
           style={{ background: color1 }}
           class='point'
-        />
+        ></div>
       </div>
     );
     return (
@@ -563,7 +562,6 @@ export default class HistoryShareManage extends tsc<IProps> {
               <span class='content link'>
                 <a
                   href={this.shareUrl}
-                  rel='noreferrer'
                   target='_blank'
                 >
                   {this.shareUrl}
@@ -626,7 +624,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                                 v-model={this.isAll}
                                 indeterminate={this.isIndeterminate}
                                 onChange={this.handleSelectAll}
-                              />
+                              ></bk-checkbox>
                               <span class='ml8'>{item.name}</span>
                             </div>
                           )}
@@ -637,7 +635,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                                   v-model={row.isCheck}
                                   disabled={row.status !== EStatus.isEnabled}
                                   onChange={v => this.handleSelect(v, row)}
-                                />
+                                ></bk-checkbox>
                                 <MiddleOmitted
                                   v-bk-tooltips={{
                                     content: row.link,
@@ -648,11 +646,11 @@ export default class HistoryShareManage extends tsc<IProps> {
                                   click={() => this.handleToLink(row)}
                                   lengthNum={row.token.length + 1}
                                   value={row.link}
-                                />
+                                ></MiddleOmitted>
                               </div>
                             ),
                           }}
-                        />
+                        ></bk-table-column>
                       );
                     }
                     case 'accessCount': {
@@ -666,7 +664,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                                 <span
                                   class={['icon-monitor icon-mc-detail']}
                                   onClick={event => this.handleAccessDetail(event, row)}
-                                />
+                                ></span>
                               </span>
                             ),
                           }}
@@ -674,7 +672,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                           label={item.name}
                           prop={'accessCount'}
                           sortable={'custom'}
-                        />
+                        ></bk-table-column>
                       );
                     }
                     case 'status': {
@@ -690,7 +688,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                             ),
                           }}
                           label={this.$t('状态')}
-                        />
+                        ></bk-table-column>
                       );
                     }
                     case 'create_time': {
@@ -707,7 +705,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                           prop={'create_time'}
                           sortable={'custom'}
                           show-overflow-tooltip
-                        />
+                        ></bk-table-column>
                       );
                     }
                     case 'create_user': {
@@ -717,7 +715,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                           label={this.$t('分享人')}
                           prop={'create_user'}
                           sortable={'custom'}
-                        />
+                        ></bk-table-column>
                       );
                     }
                     case 'sort': {
@@ -729,7 +727,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                           }}
                           label={this.$t('链接有效期')}
                           prop={'expire_time'}
-                        />
+                        ></bk-table-column>
                       );
                     }
                   }
@@ -756,7 +754,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                   ),
                 }}
                 label={this.$t('操作')}
-              />
+              ></bk-table-column>
               <bk-table-column type='setting'>
                 <bk-table-setting-content
                   fields={this.tableColumns}
@@ -765,7 +763,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                   size={this.tableSize}
                   value-key='id'
                   on-setting-change={this.handleSettingChange}
-                />
+                ></bk-table-setting-content>
               </bk-table-column>
             </bk-table>
           </div>
@@ -790,12 +788,12 @@ export default class HistoryShareManage extends tsc<IProps> {
                 label={this.$t('访问人')}
                 prop={'user'}
                 sortable={'custom'}
-              />
+              ></bk-table-column>
               <bk-table-column
                 label={this.$t('访问时间')}
                 prop={'time'}
                 sortable={'custom'}
-              />
+              ></bk-table-column>
             </bk-table>
           </div>
           {/* 变量详情 */}
@@ -813,19 +811,19 @@ export default class HistoryShareManage extends tsc<IProps> {
               <bk-table-column
                 label={this.$t('变量名称')}
                 prop={'name'}
-              />
+              ></bk-table-column>
               <bk-table-column
                 scopedSlots={{
                   default: ({ row }) => <span>{this.$t(row.isUpdate ? '是' : '否')}</span>,
                 }}
                 label={this.$t('是否可更改')}
                 prop={'isUpdate'}
-              />
+              ></bk-table-column>
               <bk-table-column
                 width={280}
                 label={this.$t('默认选项')}
                 prop={'timeRange'}
-              />
+              ></bk-table-column>
             </bk-table>
           </div>
         </div>

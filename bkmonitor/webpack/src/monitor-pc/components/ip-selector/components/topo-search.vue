@@ -109,10 +109,10 @@
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../common/util';
-import type { ISearchData, ISearchDataOption } from '../types/selector-type';
+import { ISearchData, ISearchDataOption } from '../types/selector-type';
 
 @Component({
-  name: 'topo-search',
+  name: 'topo-search'
 })
 export default class TopoSearch extends Vue {
   @Model('change', { default: '', type: String }) private readonly value!: string;
@@ -132,7 +132,7 @@ export default class TopoSearch extends Vue {
     const options: ISearchDataOption = {
       idKey: 'id',
       nameKey: 'name',
-      pathKey: 'node_path',
+      pathKey: 'node_path'
     };
     return Object.assign(options, this.options);
   }
@@ -170,14 +170,12 @@ export default class TopoSearch extends Vue {
     }
     return {
       selections: this.selections.map(select => select.data),
-      excludeData: isOnlyAdd
-        ? []
-        : this.searchData.reduce((pre, next) => {
-            if (this.selections.some(item => item.id === next.id)) return pre;
+      excludeData: isOnlyAdd ? [] : this.searchData.reduce((pre, next) => {
+        if (this.selections.some(item => item.id === next.id)) return pre;
 
-            pre.push(next.data);
-            return pre;
-          }, []),
+        pre.push(next.data);
+        return pre;
+      }, [])
     };
   }
 
@@ -197,7 +195,7 @@ export default class TopoSearch extends Vue {
     this.showPanel = false;
     return {
       selections: this.selections.map(select => select.data),
-      excludeData: !!this.selections.length ? [] : this.searchData.map(item => item.data),
+      excludeData: !!this.selections.length ? [] : this.searchData.map(item => item.data)
     };
   }
 
@@ -224,14 +222,14 @@ export default class TopoSearch extends Vue {
     const { idKey, nameKey, pathKey } = this.dataOptions;
     this.searchData = Array.isArray(data)
       ? data.map((item, index) => {
-          const data: ISearchData = {
-            data: item,
-            id: item[idKey] || index,
-            label: item[nameKey],
-            path: pathKey ? item[pathKey] : '',
-          };
-          return data;
-        })
+        const data: ISearchData = {
+          data: item,
+          id: item[idKey] || index,
+          label: item[nameKey],
+          path: pathKey ? item[pathKey] : ''
+        };
+        return data;
+      })
       : [];
 
     this.selections = this.searchData.filter(item => this.defaultSelectionIds.includes(item.id));
@@ -239,7 +237,7 @@ export default class TopoSearch extends Vue {
 
   /* 搜索文案变蓝 */
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  getSearchTextArr(text: string): { isSearchStr: boolean; value: string }[] {
+  getSearchTextArr(text: string): {isSearchStr: boolean, value: string}[] {
     const splitStr = '<highHeight>';
     const search = this.value;
     const reg = new RegExp(search, 'g');
@@ -247,7 +245,7 @@ export default class TopoSearch extends Vue {
     const arr = temp.split(splitStr);
     return arr.map(item => ({
       isSearchStr: item === search,
-      value: item,
+      value: item
     }));
   }
 
@@ -263,117 +261,101 @@ export default class TopoSearch extends Vue {
 <style lang="scss" scoped>
 .topo-search {
   position: relative;
-
   &-result {
     position: absolute;
     top: 34px;
-    z-index: 2500;
     min-width: 100%;
     height: auto;
-    margin: 0;
-    text-align: left;
     background: #fff;
-    border: 1px solid #dcdee5;
+    margin: 0;
+    z-index: 2500;
     border-radius: 2px;
-    box-shadow: 0 2px 6px rgba(51, 60, 72, .1);
+    border: 1px solid #dcdee5;
     transition: all .3s ease;
-
+    box-shadow: 0 2px 6px rgba(51, 60, 72, .1);
+    text-align: left;
     .result-title {
       display: flex;
       justify-content: space-between;
-      height: 32px;
-      padding: 0 20px;
-      line-height: 32px;
       color: #c4c6cc;
-
+      height: 32px;
+      line-height: 32px;
+      padding: 0 20px;
       .select-all {
         font-size: 12px;
       }
     }
-
     .result-panel {
       overflow: auto;
     }
-
     .result-panel-item {
       display: flex;
       justify-content: space-between;
       height: 58px;
       padding: 0 20px;
       cursor: pointer;
-
       &:hover {
         background: #e1ecff;
       }
-
       .item-left {
-        display: flex;
         flex: 1;
+        display: flex;
         flex-direction: column;
         justify-content: center;
-
         &-name {
           font-weight: 700;
-          line-height: 16px;
           color: #63656e;
-
+          line-height: 16px;
           .highlight {
-            margin: 0 -3px;
             color: #3a84ff;
+            margin: 0 -3px;
           }
         }
-
         &-path {
-          line-height: 16px;
           color: #979ba5;
+          line-height: 16px;
         }
       }
-
       .item-right {
         display: flex;
         flex-direction: column;
         justify-content: center;
-
         .checkbox {
           position: relative;
           display: inline-block;
+          vertical-align: middle;
           width: 16px;
           height: 16px;
-          vertical-align: middle;
           border: 1px solid #979ba5;
           border-radius: 2px;
-
           &.is-checked {
+            border-color: #3a84ff;
             background-color: #3a84ff;
             background-clip: border-box;
-            border-color: #3a84ff;
-
             &::after {
+              content: "";
               position: absolute;
               top: 1px;
               left: 4px;
               width: 4px;
               height: 8px;
-              content: "";
               border: 2px solid #fff;
-              border-top: 0;
               border-left: 0;
-              transform: rotate(45deg) scaleY(1);
+              border-top: 0;
               transform-origin: center;
+              transform: rotate(45deg) scaleY(1);
             }
           }
         }
-
         .add {
           font-size: 12px;
         }
       }
     }
-
     .result-empty {
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       height: 100px;
     }
   }

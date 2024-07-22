@@ -27,7 +27,7 @@ import { Component, Vue } from 'vue-property-decorator';
 
 import { xssFilter } from 'monitor-common/utils/xss';
 
-import type { MetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
+import { MetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
 
 @Component
 export default class metricTipsContentMixin extends Vue {

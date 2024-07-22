@@ -501,7 +501,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
                   onInput={this.handleInput}
                   onKeydown={e => this.handleInputKeydown(e)}
                   onPaste={this.handlePaste}
-                />
+                ></input>
               </div>
             ) : (
               <li
@@ -513,7 +513,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
                 <span
                   class='icon-monitor icon-mc-close'
                   onClick={(event: Event) => this.handleDelete(event, index)}
-                />
+                ></span>
               </li>
             )
           )}
@@ -524,7 +524,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
               class='close-all'
               onClick={e => this.handleClearAll(e)}
             >
-              <span class='icon-monitor icon-mc-close-fill' />
+              <span class='icon-monitor icon-mc-close-fill'></span>
             </div>
           </div>
         )}
@@ -547,7 +547,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
                   onClick={() => this.handleSelectItem(item)}
                 >
                   <span>{item.lightContent || item.name}</span>
-                  {!!item?.isCheck && <span class='icon-monitor icon-mc-check-small' />}
+                  {!!item?.isCheck && <span class='icon-monitor icon-mc-check-small'></span>}
                 </div>
               ))}
           </div>

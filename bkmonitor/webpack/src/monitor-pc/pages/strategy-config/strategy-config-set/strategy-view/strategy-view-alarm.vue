@@ -56,8 +56,8 @@
   </div>
 </template>
 <script lang="ts">
-import dayjs from 'dayjs';
 import { Component, Vue } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 
 import { handleTimeRange } from '../../../../utils/index';
 
@@ -65,7 +65,7 @@ import { handleTimeRange } from '../../../../utils/index';
 export default class StrategyViewAlarm extends Vue {
   private data = {
     range: 1 * 60 * 60 * 1000,
-    alarmAggregation: [],
+    alarmAggregation: []
   };
   private levelMap = {
     1: '#ea3636',
@@ -73,7 +73,7 @@ export default class StrategyViewAlarm extends Vue {
     3: '#ffde3a',
     4: '#7dccac',
     5: '#d8d8d8',
-    6: '#979ba5',
+    6: '#979ba5'
   };
   private labelNums = 6;
 
@@ -94,28 +94,28 @@ export default class StrategyViewAlarm extends Vue {
     this.data.alarmAggregation = [
       {
         level: 1,
-        name: this.$t('致命'),
+        name: this.$t('致命')
       },
       {
         level: 2,
-        name: this.$t('预警'),
+        name: this.$t('预警')
       },
       {
         level: 3,
-        name: this.$t('提醒'),
+        name: this.$t('提醒')
       },
       {
         level: 4,
-        name: this.$t('正常'),
+        name: this.$t('正常')
       },
       {
         level: 5,
-        name: this.$t('无数据'),
+        name: this.$t('无数据')
       },
       {
         level: 6,
-        name: this.$t('信号屏蔽'),
-      },
+        name: this.$t('信号屏蔽')
+      }
     ];
   }
 }

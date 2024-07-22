@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import * as ruleAuth from '../../pages/strategy-config/authority-map';
+import { Route, RouteConfig } from 'vue-router';
 
-import type { Route, RouteConfig } from 'vue-router';
+import * as ruleAuth from '../../pages/strategy-config/authority-map';
 
 const StrategyConfig = () =>
   import(/* webpackChunkName: 'StrategyConfig' */ '../../pages/strategy-config/strategy-config');

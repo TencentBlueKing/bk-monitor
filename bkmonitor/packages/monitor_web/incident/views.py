@@ -8,7 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from bkmonitor.iam.drf import ViewBusinessPermission
+from rest_framework import permissions
+
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -17,7 +20,9 @@ class IncidentViewSet(ResourceViewSet):
     query_post_actions = []
 
     def get_permissions(self):
-        return [ViewBusinessPermission()]
+        if self.request.method in permissions.SAFE_METHODS or self.action in self.query_post_actions:
+            return [BusinessActionPermission([ActionEnum.VIEW_INCIDENT])]
+        return [BusinessActionPermission([ActionEnum.MANAGE_INCIDENT])]
 
     resource_routes = [
         # 故障列表接口

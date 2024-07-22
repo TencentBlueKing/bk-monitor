@@ -378,7 +378,7 @@ CHECK_RESULT_CACHE_KEY = register_key_with_config(
         # 这里的key_tpl修改后，需要同步修改LAST_CHECKPOINTS_CACHE_KEY的field_tpl
         "key_tpl": "{prefix}.detect.result.{{strategy_id}}.{{item_id}}."
         "{{dimensions_md5}}.{{level}}".format(prefix=KEY_PREFIX),
-        "ttl": int(settings.CHECK_RESULT_TTL_HOURS) * CONST_ONE_HOUR,
+        "ttl": CONST_ONE_HOUR,
         "backend": "service",
     }
 )

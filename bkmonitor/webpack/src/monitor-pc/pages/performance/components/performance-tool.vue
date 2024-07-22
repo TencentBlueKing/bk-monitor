@@ -133,12 +133,12 @@
   </div>
 </template>
 <script lang="ts">
-import { Debounce, copyText, typeTools } from 'monitor-common/utils/utils.js';
 import { Component, Emit, Inject, Prop, Vue } from 'vue-property-decorator';
+import { copyText, Debounce, typeTools } from 'monitor-common/utils/utils.js';
 
-import type MonitorVue from '../../../types/index';
-import type { CheckType, IFieldConfig, ITableRow } from '../performance-type';
-import type TableStore from '../table-store';
+import MonitorVue from '../../../types/index';
+import { CheckType, IFieldConfig, ITableRow } from '../performance-type';
+import TableStore from '../table-store';
 
 import FilterPanel from './filter-panel.vue';
 import FilterTag from './filter-tag.vue';
@@ -147,8 +147,8 @@ import FilterTag from './filter-tag.vue';
   name: 'performance-tool',
   components: {
     FilterPanel,
-    FilterTag,
-  },
+    FilterTag
+  }
 } as any)
 export default class PerformanceTool extends Vue<MonitorVue> {
   @Prop({ default: 'current', type: String }) readonly checkType: CheckType;
@@ -177,7 +177,7 @@ export default class PerformanceTool extends Vue<MonitorVue> {
   }
 
   get isFilter() {
-    return this.fieldData.some(item => {
+    return this.fieldData.some((item) => {
       if (Array.isArray(item.value)) {
         return item.type === 'condition'
           ? item.value.some(data => !typeTools.isNull(data.value) && data.condition)
@@ -207,26 +207,23 @@ export default class PerformanceTool extends Vue<MonitorVue> {
     const selections = this.getSelections();
     const firstRow = selections[0];
     const compares = selections.reduce((total, item, index) => {
-      if (!!index)
-        total.push({
-          bk_host_id: item.bk_host_id,
-          bk_target_cloud_id: item.bk_cloud_id,
-          bk_target_ip: item.bk_host_innerip,
-        });
+      if (!!index) total.push({
+        bk_host_id: item.bk_host_id,
+        bk_target_cloud_id: item.bk_cloud_id,
+        bk_target_ip: item.bk_host_innerip
+      });
       return total;
     }, []);
     this.$router.push({
       name: 'performance-detail',
       query: {
-        compares: encodeURIComponent(
-          JSON.stringify({
-            targets: compares,
-          })
-        ),
+        compares: encodeURIComponent(JSON.stringify({
+          targets: compares
+        }))
       },
       params: {
-        id: firstRow.bk_host_id.toString(),
-      },
+        id: firstRow.bk_host_id.toString()
+      }
     } as any);
     // this.selections = Object.freeze(JSON.parse(JSON.stringify(this.getSelections())));
     // this.visiable = true;
@@ -236,12 +233,12 @@ export default class PerformanceTool extends Vue<MonitorVue> {
   handleCopyIp(field: 'bk_host_innerip' | 'bk_host_innerip_v6' | 'bk_host_outerip' | 'bk_host_outerip_v6') {
     const selections = this.getSelections();
     const ipList = selections.map(item => item[field]).filter(Boolean);
-    copyText(ipList.join('\n'), err => {
+    copyText(ipList.join('\n'), (err) => {
       this.$bkMessage('error', err);
     });
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('复制成功 {num} 个IP', { num: ipList.length }),
+      message: this.$t('复制成功 {num} 个IP', { num: ipList.length })
     });
   }
 
@@ -285,7 +282,7 @@ export default class PerformanceTool extends Vue<MonitorVue> {
         if (!isEmpty) {
           pre.push({
             id: next.id,
-            value: next.value,
+            value: next.value
           });
         }
         return pre;
@@ -310,8 +307,8 @@ export default class PerformanceTool extends Vue<MonitorVue> {
       name: this.$route.name,
       query: {
         ...this.$route.query,
-        queryString: this.keyWord.trim?.().length ? this.keyWord : undefined,
-      },
+        queryString: this.keyWord.trim?.().length ? this.keyWord : undefined
+      }
     };
     this.$router.replace(params).catch(() => {});
   }
@@ -336,7 +333,7 @@ export default class PerformanceTool extends Vue<MonitorVue> {
   updateRouteQuery(search?, panelKey?) {
     return {
       search,
-      panelKey,
+      panelKey
     };
   }
 }

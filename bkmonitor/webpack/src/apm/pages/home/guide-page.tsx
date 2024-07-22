@@ -29,9 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { handleGotoLink } from 'monitor-pc/common/constant';
 
 import AppStore from '../../store/modules/app';
-
-import type { IGuideLink } from './app-list';
-import type { IAppSelectOptItem } from './app-select';
+import { IGuideLink } from './app-list';
+import { IAppSelectOptItem } from './app-select';
 
 import './guide-page.scss';
 
@@ -166,7 +165,7 @@ export default class GuidePage extends tsc<IProps, IEvents> {
             </div>
           </div>
           <div class='guide-right'>
-            <div class='guide-img-wrap' />
+            <div class='guide-img-wrap'></div>
           </div>
         </div>
       </div>

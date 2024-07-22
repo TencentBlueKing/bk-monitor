@@ -18,11 +18,7 @@ from django.db.transaction import atomic
 
 from core.drf_resource import api
 from metadata import config, models
-from metadata.models.constants import (
-    BULK_CREATE_BATCH_SIZE,
-    BULK_UPDATE_BATCH_SIZE,
-    EsSourceType,
-)
+from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 
@@ -31,11 +27,8 @@ class Command(BaseCommand):
     PAGE_SIZE = 1000
     DEFAULT_QUEUE_MAX_SIZE = 100000
 
-    def add_arguments(self, parser):
-        parser.add_argument("--force", action="store_true", help="强制刷新")
-
     def handle(self, *args, **options):
-        if not self._can_refresh(options):
+        if not self._can_refresh():
             self.stdout.write("data exists, skip refresh")
             return
 
@@ -58,10 +51,8 @@ class Command(BaseCommand):
 
         self.stdout.write("sync bklog es router success")
 
-    def _can_refresh(self, options):
+    def _can_refresh(self):
         """判断是否可以刷新"""
-        if options.get("force"):
-            return True
         # 如果存在索引集的数据，则认为不需要拉取历史数据
         return not models.ESStorage.objects.exclude(index_set=None).exclude(index_set="").exists()
 
@@ -93,7 +84,7 @@ class Command(BaseCommand):
         return data_queue
 
     def _request_es_router(self, page: int, data_queue: Queue):
-        data = api.log_search.list_es_router(page=page, pagesize=self.PAGE_SIZE)
+        data = api.log_search.list_es_router(page=page, page_size=self.PAGE_SIZE)
         es_router_list = data.get("list") or []
         try:
             data_queue.put(es_router_list)
@@ -124,7 +115,7 @@ class Command(BaseCommand):
         exist_rt_objs = models.ResultTable.objects.filter(table_id__in=tid_list)
         exist_tid_list, updated_rt_objs = [], []
         for obj in exist_rt_objs:
-            obj.data_label = tid_info[obj.table_id]["data_label"]
+            obj.data_label = es_router_list[obj.table_id]["data_label"]
             updated_rt_objs.append(obj)
             exist_tid_list.append(obj.table_id)
 
@@ -132,7 +123,7 @@ class Command(BaseCommand):
         # 批量更新数据集
         updated_objs = []
         for obj in exist_objs:
-            obj.index_set = tid_info[obj.table_id]["index_set"]
+            obj.index_set = es_router_list[obj.table_id]["index_set"]
             updated_objs.append(obj)
 
         try:
@@ -149,31 +140,14 @@ class Command(BaseCommand):
         space_and_biz = self._get_biz_id_by_space(space_type_and_id)
         rt_obj_list, es_obj_list = [], []
         update_space_set, update_rt_set, update_data_label_set = set(), set(), set()
-        need_add_option_objs, need_update_option_objs = [], []
         for tid, info in tid_info.items():
-            # 针对所有
-            update_rt_set.add(tid)
-            update_data_label_set.add(info["data_label"])
-            # 创建或更新 option
-            if info.get("options"):
-                (
-                    _need_add_option_objs,
-                    _need_update_option_objs,
-                ) = self._compose_create_or_update_option_objs(tid, info["options"])
-                # 更新
-                if _need_add_option_objs:
-                    need_add_option_objs.extend(_need_add_option_objs)
-                # 创建
-                if _need_update_option_objs:
-                    need_update_option_objs.extend(_need_update_option_objs)
-            # 批量创建或者更新option
             # 过滤已经存在或者数据为空的数据
-            if tid in exist_tid_list or (
-                not info.get("cluster_id") and info["source_type"] != EsSourceType.BKDATA.value
-            ):
+            if tid in exist_tid_list or (not info.get("cluster_id")):
                 continue
             # 记录需要更新的空间
             update_space_set.add(tuple(info["space_uid"].split("__")))
+            update_rt_set.add(tid)
+            update_data_label_set.add(info["data_label"])
             # 组装结果表的数据
             rt_obj_list.append(
                 models.ResultTable(
@@ -189,7 +163,7 @@ class Command(BaseCommand):
             es_obj_list.append(
                 models.ESStorage(
                     table_id=info["table_id"],
-                    storage_cluster_id=info["cluster_id"] or 0,  # 针对 bkdata 的 es 忽略集群
+                    storage_cluster_id=info["cluster_id"],
                     source_type=info["source_type"],
                     index_set=info["index_set"],
                 )
@@ -199,10 +173,6 @@ class Command(BaseCommand):
             with atomic(config.DATABASE_CONNECTION_NAME):
                 models.ResultTable.objects.bulk_create(rt_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
                 models.ESStorage.objects.bulk_create(es_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
-                models.ResultTableOption.objects.bulk_create(need_add_option_objs, batch_size=BULK_CREATE_BATCH_SIZE)
-                models.ResultTableOption.objects.bulk_update(
-                    need_update_option_objs, ["value", "value_type"], batch_size=BULK_UPDATE_BATCH_SIZE
-                )
         except Exception as e:
             self.stderr.write(f"failed to create rt or es storage, err: {e}")
 
@@ -221,29 +191,4 @@ class Command(BaseCommand):
             client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
         # 推送详情
         if update_rt_set:
-            client.push_table_id_detail(is_publish=True, include_es_table_ids=True)
-
-    def _compose_create_or_update_option_objs(self, table_id: str, options: List[Dict]) -> Tuple[List, List]:
-        """创建或者更新结果表 option"""
-        # 查询结果表下的option
-        exist_objs = {obj.name: obj for obj in models.ResultTableOption.objects.filter(table_id=table_id)}
-        need_update_objs, need_add_objs = [], []
-
-        for option in options:
-            exist_obj = exist_objs.get(option["name"])
-            need_update = False
-            if exist_obj:
-                # 更新数据
-                if option["value"] != exist_obj.value:
-                    exist_obj.value = option["value"]
-                    need_update = True
-                if option["value_type"] != exist_obj.value_type:
-                    exist_obj.value_type = option["value_type"]
-                    need_update = True
-                # 判断是否需要更新
-                if need_update:
-                    need_update_objs.append(exist_obj)
-            else:
-                need_add_objs.append(models.ResultTableOption(table_id=table_id, **dict(option)))
-
-        return need_add_objs, need_update_objs
+            client.push_table_id_detail(list(update_rt_set), is_publish=True, include_es_table_ids=True)

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { PropType, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 
 import { Loading } from 'bkui-vue';
 
@@ -104,7 +104,7 @@ export default defineComponent({
               <div>
                 <span class='duration'>{item.duration}</span>
                 <span class='time'>{item.startTime}</span>
-                {item.isError && <span class='icon-monitor icon-mind-fill' />}
+                {item.isError && <span class='icon-monitor icon-mind-fill'></span>}
               </div>
             </li>
           ))}
@@ -112,7 +112,7 @@ export default defineComponent({
         <Loading
           class='list-loading'
           loading={this.loading}
-        />
+        ></Loading>
       </div>
     );
   },

@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { VNode } from 'vue';
+import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -31,15 +33,12 @@ import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-ap
 import { copyText } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import TimeRangeComponent, { type TimeRangeType } from '../time-range/time-range';
-import { TimeRange, shortcuts } from '../time-range/utils';
-import TimeSelect, { type ITimeListItem } from '../time-select/time-select';
+import { NavBarMode } from '../../pages/monitor-k8s/components/common-nav-bar';
+import { INavItem } from '../../pages/monitor-k8s/typings';
+import TimeRangeComponent, { TimeRangeType } from '../time-range/time-range';
+import { shortcuts, TimeRange } from '../time-range/utils';
+import TimeSelect, { ITimeListItem } from '../time-select/time-select';
 import HistoryShareManage from './history-share-manage';
-
-import type { NavBarMode } from '../../pages/monitor-k8s/components/common-nav-bar';
-import type { INavItem } from '../../pages/monitor-k8s/typings';
-import type { VNode } from 'vue';
-import type { TranslateResult } from 'vue-i18n';
 
 import './temporary-share.scss';
 // const MomentFormater = 'YYYY-MM-DD HH:mm:ss';
@@ -378,7 +377,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
           theme='primary'
           value={this.isLockSearch}
           onChange={this.handleLockSearchChange}
-        />
+        ></bk-switcher>
       </div>
     );
   }
@@ -471,7 +470,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
             class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
             v-bk-tooltips={tipsOpts}
             onClick={this.handleShowDialog}
-          />
+          ></span>
         ) : (
           <div
             class={['position-bar', { readonly: this.readonly, display: this.onlyDisplay }]}
@@ -516,7 +515,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                 class='link-wrap'
                 onClick={() => this.handleShowHistory(true)}
               >
-                <span class='icon-monitor icon-setting' />
+                <span class='icon-monitor icon-setting'></span>
                 <span>{this.$t('管理历史分享')}</span>
               </span>
             </span>
@@ -537,7 +536,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                         default: () => <span>{this.$t('时间选择')}</span>,
                       }}
                       label={this.$t('变量名称')}
-                    />
+                    ></bk-table-column>
                     <bk-table-column
                       scopedSlots={{
                         default: ({ row }) => (
@@ -545,11 +544,11 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                             theme='primary'
                             value={row.canChange}
                             onChange={v => this.handleCanChange(v, row)}
-                          />
+                          ></bk-switcher>
                         ),
                       }}
                       label={this.$t('是否可更改')}
-                    />
+                    ></bk-table-column>
                     <bk-table-column
                       width={386}
                       scopedSlots={{
@@ -561,12 +560,12 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                               value={row.timeRange}
                               onChange={v => this.handleTableTimeRangeChange(v, row)}
                               onTimezoneChange={v => this.handleTableTimezoneChange(v, row)}
-                            />
+                            ></TimeRangeComponent>
                           </div>
                         ),
                       }}
                       label={this.$t('默认选项')}
-                    />
+                    ></bk-table-column>
                   </bk-table>
                 )
               )}
@@ -591,7 +590,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
             shareUrl={this.shareUrl}
             show={this.historyData.show}
             onShowChange={v => this.handleShowHistory(v)}
-          />
+          ></HistoryShareManage>
         )}
       </div>
     );

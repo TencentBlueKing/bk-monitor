@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
-import { ofType, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 
 import { Scenario } from '../../my-subscription/mapping';
-import { FrequencyType, type Report, type ReportQueryType } from '../../my-subscription/types';
+import { FrequencyType, Report, ReportQueryType } from '../../my-subscription/types';
 import { getDefaultReportData, getSendFrequencyText } from '../../my-subscription/utils';
 import DetailRow from './detail-row';
 
@@ -171,7 +171,7 @@ class ReportDetail extends tsc<IProps> {
                             class='avatar'
                           />
                         )} */}
-                            <i class='icon-monitor icon-mc-user-one' />
+                            <i class='icon-monitor icon-mc-user-one'></i>
                             <span>{item.id}</span>
                           </div>
                         );

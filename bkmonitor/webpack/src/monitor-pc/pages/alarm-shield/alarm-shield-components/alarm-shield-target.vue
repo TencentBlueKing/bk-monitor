@@ -78,21 +78,20 @@
 </template>
 
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils';
-import type { TranslateResult } from 'vue-i18n/types/index';
+import { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Prop, Vue } from 'vue-property-decorator';
+import { deepClone } from 'monitor-common/utils';
 
 import { transformMonitorToValue, transformValueToMonitor } from '../../../components/monitor-ip-selector/utils';
 import AlarmShieldIpv6, {
   Ipv6FieldMap,
   ShieldDetailTargetFieldMap,
-  ShieldDimension2NodeType,
-} from '../alarm-shield-set/alarm-shield-scope/alarm-shield-ipv6';
+  ShieldDimension2NodeType } from '../alarm-shield-set/alarm-shield-scope/alarm-shield-ipv6';
 
 @Component({
   components: {
-    AlarmShieldIpv6,
-  },
+    AlarmShieldIpv6
+  }
 })
 export default class AlarmShieldTarget extends Vue {
   targetError = false; //  未勾选提示
@@ -101,38 +100,39 @@ export default class AlarmShieldTarget extends Vue {
   //  选择器类型btn
   btnList: { name: TranslateResult; id: string }[] = [];
   //  不同选择器提示语
-  tips: { instance: TranslateResult; ip: TranslateResult; node: TranslateResult };
+  tips: { instance: TranslateResult; ip: TranslateResult; node: TranslateResult;};
   //  不同类型的展示标签
-  labelMap: { ip: TranslateResult; instance: TranslateResult; node: TranslateResult };
+  labelMap: { ip: TranslateResult; instance: TranslateResult; node: TranslateResult; };
   inited = true;
   showIpv6Dialog = false;
   ipv6Value = {};
   originIpv6Value = {};
   // 是否为克隆
   @Prop({ default: false })
-  isClone: boolean;
+    isClone: boolean;
   //  是否编辑
   @Prop({ default: false })
-  isEdit: boolean;
+    isEdit: boolean;
 
   //  targetData回填数据
   @Prop({ default: () => [] })
-  targetData: [];
+    targetData: [];
 
   //  targetType
   @Prop()
-  type: string;
+    type: string;
 
   @Prop({ default: () => [] })
-  dataTarget: string[];
+    dataTarget: string[];
 
   // 回填数据
   @Prop({ default: () => ({}) })
-  shieldData: any;
+    shieldData: any;
 
   // 是否需要校验
   @Prop({ default: true })
-  needVerify: boolean;
+    needVerify: boolean;
+
 
   get buttonList() {
     const res = [{ name: this.$t('button-拓扑节点'), id: 'node', order: 2 }];
@@ -149,19 +149,19 @@ export default class AlarmShieldTarget extends Vue {
     this.tips = {
       instance: this.$t('服务实例屏蔽: 屏蔽告警中包含该实例的通知'),
       ip: this.$t('主机屏蔽: 屏蔽告警中包含该IP通知,包含对应的实例'),
-      node: this.$t('节点屏蔽: 屏蔽告警中包含该节点下的所有IP和实例的通知'),
+      node: this.$t('节点屏蔽: 屏蔽告警中包含该节点下的所有IP和实例的通知')
     };
     this.labelMap = {
       ip: this.$t('主机'),
       instance: this.$t('服务实例'),
-      node: this.$t('节点名称'),
+      node: this.$t('节点名称')
     };
 
     if (this.isClone) {
       this.inited = false;
       this.targetType = this.type;
       this.cloneDefaultData();
-      this.$nextTick(() => (this.inited = true));
+      this.$nextTick(() => this.inited = true);
     }
   }
 
@@ -169,12 +169,9 @@ export default class AlarmShieldTarget extends Vue {
   cloneDefaultData() {
     const { scope_type, dimension_config } = this.shieldData;
     const targetList = dimension_config?.[ShieldDetailTargetFieldMap[scope_type]] || [];
-    this.ipv6Value =
-      scope_type === 'instance'
-        ? {
-            [Ipv6FieldMap[scope_type]]: targetList.map(id => ({ service_instance_id: id })),
-          }
-        : transformMonitorToValue(targetList, ShieldDimension2NodeType[scope_type]);
+    this.ipv6Value = scope_type === 'instance' ? {
+      [Ipv6FieldMap[scope_type]]: targetList.map(id => ({ service_instance_id: id }))
+    } : transformMonitorToValue(targetList, ShieldDimension2NodeType[scope_type]);
     this.originIpv6Value = deepClone(this.ipv6Value);
   }
 
@@ -195,12 +192,12 @@ export default class AlarmShieldTarget extends Vue {
     if (!data?.length) {
       return {
         scope_type: this.targetType,
-        target: [],
+        target: []
       };
     }
     return {
       scope_type: this.targetType,
-      target: transformValueToMonitor(this.ipv6Value, ShieldDimension2NodeType[this.targetType]),
+      target: transformValueToMonitor(this.ipv6Value, ShieldDimension2NodeType[this.targetType])
     };
   }
 

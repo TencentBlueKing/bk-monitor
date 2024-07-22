@@ -45,10 +45,10 @@
 </template>
 
 <script lang="ts">
-import * as monaco from 'monaco-editor';
 import { Component, Model, Prop, Vue, Watch } from 'vue-property-decorator';
+import * as monaco from 'monaco-editor';
 
-import type { IMonacoEditorInstance } from '../../types/index';
+import { IMonacoEditorInstance } from '../../types/index';
 // @ts-ignore
 self.MonacoEnvironment = {
   getWorkerUrl(moduleId, label) {
@@ -58,7 +58,7 @@ self.MonacoEnvironment = {
     return process.env.NODE_ENV === 'production'
       ? `${window.static_url}monitor/editor.worker.js`
       : './editor.worker.js';
-  },
+  }
 };
 @Component
 export default class MonacoEditor extends Vue {
@@ -148,7 +148,7 @@ export default class MonacoEditor extends Vue {
         language: this.language,
         fontSize: 16,
         fontFamily: this.$t('微软雅黑'),
-        cursorBlinking: 'solid',
+        cursorBlinking: 'solid'
       },
       this.options
     );
@@ -159,14 +159,14 @@ export default class MonacoEditor extends Vue {
     this.editor.onDidBlurEditorWidget(() => this.$emit('blur'));
     this.editor.onDidBlurEditorText(() => this.$emit('blurText'));
     this.editor.onDidChangeConfiguration(event => this.$emit('configuration', event));
-    this.editor.onDidChangeCursorPosition(event => {
+    this.editor.onDidChangeCursorPosition((event) => {
       this.$emit('position', event);
     });
-    this.editor.onDidChangeCursorSelection(event => {
+    this.editor.onDidChangeCursorSelection((event) => {
       this.$emit('selection', event);
     });
     // this.editor.onDidChangeModel(event => this.$emit('model', event))
-    this.editor.onDidChangeModelContent(event => {
+    this.editor.onDidChangeModelContent((event) => {
       const value = this.editor.getValue();
       if (this.value !== value) {
         this.$emit('change', value, event);
@@ -213,11 +213,10 @@ export default class MonacoEditor extends Vue {
 
   openFullScreen() {
     const element: any = this.$refs.monacoEditor;
-    const fullScreenMethod =
-      element.requestFullScreen || // W3C
-      element.webkitRequestFullScreen || // FireFox
-      element.webkitExitFullscreen || // Chrome等
-      element.msRequestFullscreen; // IE11
+    const fullScreenMethod =      element.requestFullScreen // W3C
+      || element.webkitRequestFullScreen // FireFox
+      || element.webkitExitFullscreen // Chrome等
+      || element.msRequestFullscreen; // IE11
     if (fullScreenMethod) {
       fullScreenMethod.call(element);
       this.renderWidth = window.screen.width;
@@ -229,7 +228,7 @@ export default class MonacoEditor extends Vue {
       this.$bkMessage({
         showClose: true,
         message: this.$t('此浏览器不支持全屏操作，请使用chrome浏览器'),
-        theme: 'warning',
+        theme: 'warning'
       });
     }
   }

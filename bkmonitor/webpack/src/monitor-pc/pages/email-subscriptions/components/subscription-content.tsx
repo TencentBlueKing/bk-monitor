@@ -182,7 +182,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       return cellValue;
     };
     const iconSlot = {
-      default: () => <span class='icon-drag' />,
+      default: () => <span class='icon-drag'></span>,
     };
     const operateSlot = {
       default: props => [
@@ -213,7 +213,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
         <bk-table-column
           width={52}
           scopedSlots={iconSlot}
-        />
+        ></bk-table-column>
         {tableColumnsMap.map(item => (
           <bk-table-column
             key={item.key}
@@ -222,13 +222,13 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
             label={item.label}
             prop={item.key}
             show-overflow-tooltip={['contentTitle', 'contentDetails'].includes(item.key)}
-          />
+          ></bk-table-column>
         ))}
         <bk-table-column
           width={150}
           label={this.$t('操作')}
           scopedSlots={operateSlot}
-        />
+        ></bk-table-column>
       </bk-table>
     );
   }
@@ -262,7 +262,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     };
     return (
       <bk-table data={this.data.pullData}>
-        <bk-table-column width={52} />
+        <bk-table-column width={52}></bk-table-column>
         {tableColumnsMap.map(item => {
           if (item.key === 'curBizId') {
             return (
@@ -271,7 +271,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
                 width={item.width}
                 label={item.label}
                 scopedSlots={{ default: ({ row }) => this.bizIdListNameMap[row.curBizId] || '--' }}
-              />
+              ></bk-table-column>
             );
           }
           if (item.key === 'curGrafanaName') {
@@ -280,10 +280,10 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
                 key={item.key}
                 width={item.width}
                 scopedSlots={{
-                  default: ({ row }) => row.curGrafanaName || <div class='status-loading' />,
+                  default: ({ row }) => row.curGrafanaName || <div class='status-loading'></div>,
                 }}
                 label={item.label}
-              />
+              ></bk-table-column>
             );
           }
           return (
@@ -292,14 +292,14 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
               width={item.width}
               label={item.label}
               prop={item.key}
-            />
+            ></bk-table-column>
           );
         })}
         <bk-table-column
           width={150}
           label={this.$t('操作')}
           scopedSlots={operateSlot}
-        />
+        ></bk-table-column>
       </bk-table>
     );
   }
@@ -318,12 +318,12 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
                 {...{ props: item }}
                 key={item.name}
                 disabled={this.getTabDisable(item.name)}
-              />
+              ></bk-tab-panel>
             ))}
           </bk-tab>
         </div>
         <div class='content-tip'>
-          <span class='icon-monitor icon-hint' />
+          <span class='icon-monitor icon-hint'></span>
           <span class='text'>{this.tips[this.curTab]}</span>
         </div>
         <bk-button

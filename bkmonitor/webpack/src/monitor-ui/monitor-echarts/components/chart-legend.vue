@@ -128,7 +128,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import type { ILegendItem } from '../options/type-interface';
+import { ILegendItem } from '../options/type-interface';
 
 @Component({
   name: 'chart-legend',

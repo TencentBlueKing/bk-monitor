@@ -25,7 +25,7 @@
  */
 import { useI18n } from 'vue-i18n';
 
-import { FrequencyType, type Report } from '../types';
+import { FrequencyType, Report } from '../types';
 
 export function getSendFrequencyText(data: Report) {
   const { t } = useI18n();
@@ -82,7 +82,7 @@ export function switchReportDataForCreate(data: Report) {
     scenario_config,
     frequency,
     content_config,
-    channels,
+    channels
   } = data;
   /* eslint-enable */
   return {
@@ -117,7 +117,7 @@ export function switchReportDataForUpdate(data: Report) {
     scenario_config,
     frequency,
     content_config,
-    channels,
+    channels
   } = data;
   /* eslint-enable */
   return {

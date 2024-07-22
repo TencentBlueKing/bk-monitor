@@ -10,15 +10,13 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Optional
+from typing import Optional
 
-from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import Resource
-from metadata import config, models
-from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
+from metadata import models
 from metadata.service.space_redis import (
     push_and_publish_es_aliases,
     push_and_publish_es_space_router,
@@ -26,59 +24,10 @@ from metadata.service.space_redis import (
 )
 
 
-class ParamsSerializer(serializers.Serializer):
-    """参数序列化器"""
-
-    class RtOption(serializers.Serializer):
-        name = serializers.CharField(required=True, label="名称")
-        value = serializers.CharField(required=True, label="值")
-        value_type = serializers.CharField(required=False, label="值类型", default="dict")
-        creator = serializers.CharField(required=False, label="创建者", default="system")
-
-    options = serializers.ListField(required=False, child=RtOption(), default=list)
-
-
-class BaseEsRouter(Resource):
-    def create_or_update_options(self, table_id: str, options: List[Dict]):
-        """创建或者更新结果表 option"""
-        # 查询结果表下的option
-        exist_objs = {obj.name: obj for obj in models.ResultTableOption.objects.filter(table_id=table_id)}
-        need_update_objs, need_add_objs = [], []
-        update_fields = set()
-
-        for option in options:
-            exist_obj = exist_objs.get(option["name"])
-            need_update = False
-            if exist_obj:
-                # 更新数据
-                if option["value"] != exist_obj.value:
-                    exist_obj.value = option["value"]
-                    update_fields.add("value")
-                    need_update = True
-                if option["value_type"] != exist_obj.value_type:
-                    exist_obj.value_type = option["value_type"]
-                    update_fields.add("value_type")
-                    need_update = True
-                # 判断是否需要更新
-                if need_update:
-                    need_update_objs.append(exist_obj)
-            else:
-                need_add_objs.append(models.ResultTableOption(table_id=table_id, **dict(option)))
-
-        # 批量创建
-        if need_add_objs:
-            models.ResultTableOption.objects.bulk_create(need_add_objs, batch_size=BULK_CREATE_BATCH_SIZE)
-        # 批量更新
-        if need_update_objs:
-            models.ResultTableOption.objects.bulk_update(
-                need_update_objs, update_fields, batch_size=BULK_UPDATE_BATCH_SIZE
-            )
-
-
-class CreateEsRouter(BaseEsRouter):
+class CreateEsRouter(Resource):
     """同步es路由信息"""
 
-    class RequestSerializer(ParamsSerializer):
+    class RequestSerializer(serializers.Serializer):
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="ES 结果表 ID")
@@ -91,28 +40,24 @@ class CreateEsRouter(BaseEsRouter):
         # 创建结果表和ES存储记录
         biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
         # 创建结果表
-        with atomic(config.DATABASE_CONNECTION_NAME):
-            models.ResultTable.objects.create(
-                table_id=data["table_id"],
-                table_name_zh=data["table_id"],
-                is_custom_table=True,
-                default_storage=models.ClusterInfo.TYPE_ES,
-                creator="system",
-                bk_biz_id=biz_id,
-                data_label=data.get("data_label") or "",
-            )
-            # 创建结果表 option
-            if data["options"]:
-                self.create_or_update_options(data["table_id"], data["options"])
-            # 创建es存储记录
-            models.ESStorage.create_table(
-                data["table_id"],
-                is_sync_db=False,
-                cluster_id=data["cluster_id"],
-                enable_create_index=False,
-                source_type=data.get("source_type") or "",
-                index_set=data.get("index_set") or "",
-            )
+        models.ResultTable.objects.create(
+            table_id=data["table_id"],
+            table_name_zh=data["table_id"],
+            is_custom_table=True,
+            default_storage=models.ClusterInfo.TYPE_ES,
+            creator="system",
+            bk_biz_id=biz_id,
+            data_label=data.get("data_label") or "",
+        )
+        # 创建es存储记录
+        models.ESStorage.create_table(
+            data["table_id"],
+            is_sync_db=False,
+            cluster_id=data["cluster_id"],
+            enable_create_index=False,
+            source_type=data.get("source_type") or "",
+            index_set=data.get("index_set") or "",
+        )
         # 推送空间数据
         push_and_publish_es_space_router(space_type=data["space_type"], space_id=data["space_id"])
         # 推送别名到结果表数据
@@ -123,14 +68,13 @@ class CreateEsRouter(BaseEsRouter):
             index_set=data.get("index_set"),
             source_type=data.get("source_type"),
             cluster_id=data["cluster_id"],
-            options=data.get("options"),
         )
 
 
-class UpdateEsRouter(BaseEsRouter):
+class UpdateEsRouter(Resource):
     """更新es路由信息"""
 
-    class RequestSerializer(ParamsSerializer):
+    class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="ES 结果表 ID")
         data_label = serializers.CharField(required=False, label="数据标签")
         cluster_id = serializers.CharField(required=False, label="ES 集群 ID")
@@ -168,11 +112,6 @@ class UpdateEsRouter(BaseEsRouter):
         if update_es_fields:
             need_refresh_table_id_detail = True
             es_storage.save(update_fields=update_es_fields)
-        # 更新options
-        if data.get("options"):
-            self.create_or_update_options(table_id, data["options"])
-            need_refresh_table_id_detail = True
-        options = list(models.ResultTableOption.objects.filter(table_id=table_id).values("name", "value"))
         # 如果别名或者索引集有变动，则需要通知到unify-query
         if need_refresh_data_label:
             push_and_publish_es_aliases(data_label=data["data_label"])
@@ -182,14 +121,13 @@ class UpdateEsRouter(BaseEsRouter):
                 index_set=es_storage.index_set,
                 source_type=es_storage.source_type,
                 cluster_id=es_storage.storage_cluster_id,
-                options=options,
             )
 
 
 class CreateOrUpdateEsRouter(Resource):
     """更新或者创建es路由信息"""
 
-    class RequestSerializer(ParamsSerializer):
+    class RequestSerializer(serializers.Serializer):
         space_type = serializers.CharField(required=False, label="空间类型")
         space_id = serializers.CharField(required=False, label="空间ID")
         table_id = serializers.CharField(required=True, label="ES 结果表 ID")

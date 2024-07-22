@@ -40,10 +40,9 @@ import { transformDataKey } from 'monitor-common/utils/utils';
 import ErrorMsg from '../../../../components/error-msg/error-msg';
 import MultiLabelSelect from '../../../../components/multi-label-select/multi-label-select';
 import { labelListToTreeData } from '../../../../components/multi-label-select/utils';
+import { ISpaceItem } from '../../../../types';
 import CommonItem from '../components/common-item';
-
-import type { ISpaceItem } from '../../../../types';
-import type { IScenarioItem } from '../typings/index';
+import { IScenarioItem } from '../typings/index';
 
 import './base-config.scss';
 
@@ -310,7 +309,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
                 id={item.id}
                 key={item.id}
                 name={item.text}
-              />
+              ></bk-option>
             ))}
           </bk-select>
         </CommonItem>
@@ -337,7 +336,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
                     id={option.id}
                     key={option.id}
                     name={option.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-option-group>
             ))}
@@ -414,7 +413,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
                 readonly={this.readonly}
                 tree-data={this.labelTreeData}
                 on-checkedChange={this.handleLabelsChange}
-              />
+              ></MultiLabelSelect>
             </ErrorMsg>
           )}
         </CommonItem>

@@ -433,7 +433,3 @@ class AddBkDataTableIdsViewSet(MetaViewSet):
 
 class CreateOrUpdateEsRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateEsRouter)]
-
-
-class ModifyDataIdSourceViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]

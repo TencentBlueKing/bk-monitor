@@ -50,7 +50,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, inject, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, defineComponent, inject, nextTick, onMounted, onUnmounted, PropType, ref } from 'vue';
 
 import * as authorityMap from 'apm/pages/home/authority-map';
 import _isEqual from 'lodash/isEqual';
@@ -60,9 +60,8 @@ import SpanDetails from '../../../pages/main/span-details';
 import { useAuthorityStore } from '../../../store/modules/authority';
 import { useTraceStore } from '../../../store/modules/trace';
 import { useChildrenHiddenInject } from '../hooks';
+import { Span, TNil, Trace } from '../typings';
 import ListView from './list-view';
-
-import type { Span, TNil, Trace } from '../typings';
 
 import './virtualized-trace-view.scss';
 

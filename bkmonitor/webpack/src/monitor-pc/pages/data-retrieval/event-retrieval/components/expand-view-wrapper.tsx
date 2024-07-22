@@ -28,9 +28,8 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { EventRetrievalViewType } from '../../typings';
 import KVList from './kv-list';
-
-import type { EventRetrievalViewType } from '../../typings';
 
 import './expand-view-wrapper.scss';
 import 'vue-json-pretty/lib/styles.css';

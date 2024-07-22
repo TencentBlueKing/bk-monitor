@@ -35,7 +35,7 @@
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import i18n from '../../i18n/i18n';
-import type MonitorVue from '../../types/index';
+import MonitorVue from '../../types/index';
 
 import LabelMenu from './label-menu.vue';
 
@@ -65,7 +65,7 @@ export default class FilterFunnel extends Vue<MonitorVue> {
   public handleShowFilterList(e: Event) {
     if (!this.labelMenuInstance) {
       this.labelMenuInstance = new LabelMenu({
-        i18n,
+        i18n
       }).$mount();
       this.labelMenuInstance.list = this.list;
       this.labelMenuInstance.$on('confirm', () => {
@@ -88,7 +88,7 @@ export default class FilterFunnel extends Vue<MonitorVue> {
         interactive: true,
         onHidden: () => {
           this.handleResetList();
-        },
+        }
       });
     }
     this.instance?.show(100);
@@ -116,7 +116,6 @@ export default class FilterFunnel extends Vue<MonitorVue> {
 .icon-filter-fill {
   color: #c0c4cc;
   cursor: pointer;
-
   &.active {
     color: #3a84ff;
   }

@@ -32,21 +32,15 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import CompareSelect from '../../monitor-k8s/components/panel-tools/compare-select';
 import PanelsTools from '../../monitor-k8s/components/panel-tools/panel-tools';
 // import PanelHeader from '../../monitor-k8s/components/panel-header/panel-header';
-import { DASHBOARD_PANEL_COLUMN_KEY, type OptionsItem, type PanelToolsType } from '../../monitor-k8s/typings';
+import { DASHBOARD_PANEL_COLUMN_KEY, OptionsItem, PanelToolsType } from '../../monitor-k8s/typings';
 import DashboardPanels from '../../performance/performance-detail/dashboard-panels.vue';
 import EventRetrievalView from '../event-retrieval/event-retrieval-view';
-import IndexList, { type IIndexListItem } from '../index-list/index-list';
+import IndexList, { IIndexListItem } from '../index-list/index-list';
+// import ComparePanel from '../../performance/performance-detail/compare-panel.vue';
+import { EventRetrievalViewType, FieldValue, IDataRetrieval, IDataRetrievalView, IFilterCondition } from '../typings';
 import RetrievalEmptyShow from './retrieval-empty-show';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
-// import ComparePanel from '../../performance/performance-detail/compare-panel.vue';
-import type {
-  EventRetrievalViewType,
-  FieldValue,
-  IDataRetrieval,
-  IDataRetrievalView,
-  IFilterCondition,
-} from '../typings';
 
 import './data-retrieval-view.scss';
 
@@ -597,7 +591,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                     class={['icon-monitor icon-mc-list', { active: this.isShowIndex, disabled: this.disabledLayout }]}
                     slot='append'
                     onClick={() => this.handleShowIndexPanel()}
-                  />
+                  ></span>
                 </PanelsTools>
               ) : undefined}
               {this.retrievalType === 'monitor' ? (
@@ -640,7 +634,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   onDrillSearch={this.handleDrillSearch}
                   onIntervalChange={this.handleEventChartIntervalChange}
                   onTimeRangeChange={this.handleTimeRangeChange}
-                />
+                ></EventRetrievalView>
               ) : undefined}
             </div>
             {this.retrievalType === 'monitor' && (
@@ -664,7 +658,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                     <i
                       class='icon-monitor icon-mc-close'
                       onClick={() => this.handleShowIndexPanel()}
-                    />
+                    ></i>
                   </div>
                   <div class='charts-view-right-list'>
                     {this.indexList.length ? (

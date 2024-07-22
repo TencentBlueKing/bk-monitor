@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from 'vue-router';
+import { RouteRecordRaw } from 'vue-router';
 
 /*
  * Tencent is pleased to support the open source community by making

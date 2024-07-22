@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, defineComponent, inject, reactive, watch } from 'vue';
+import { defineComponent, inject, PropType, reactive, Ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Select } from 'bkui-vue';
@@ -224,7 +224,7 @@ export default defineComponent({
                 <TimeTagPicker
                   v-model={item.workTime}
                   onChange={this.handleEmitData}
-                />
+                ></TimeTagPicker>
                 {validTimeOverlap(item.workTime) && <p class='err-msg'>{this.t('时间段重复')}</p>}
               </FormItem>
             </td>
@@ -241,7 +241,7 @@ export default defineComponent({
                     <div
                       style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
                       class='member-select-prefix'
-                    />
+                    ></div>
                   ),
                 }}
               </MemberSelect>
@@ -251,7 +251,7 @@ export default defineComponent({
                 class='delete-btn'
                 onClick={() => this.handleDelItem(ind)}
               >
-                <i class='icon-monitor icon-mc-delete-line' />
+                <i class='icon-monitor icon-mc-delete-line'></i>
               </div>
             )}
           </tr>
@@ -266,7 +266,7 @@ export default defineComponent({
               text
               onClick={this.handleAddItem}
             >
-              <i class='icon-monitor icon-plus-line add-icon' />
+              <i class='icon-monitor icon-plus-line add-icon'></i>
               {this.t('新增值班组')}
             </Button>
           </td>

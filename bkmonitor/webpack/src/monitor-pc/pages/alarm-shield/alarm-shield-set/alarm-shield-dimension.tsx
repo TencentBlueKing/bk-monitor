@@ -364,7 +364,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                   id={item.id}
                   key={item.id}
                   name={item.text}
-                />
+                ></bk-option>
               ))}
             </bk-select>
           </div>
@@ -389,11 +389,11 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                           allNames={this.allNames}
                           readonly={true}
                           value={this.conditionList as any}
-                        />
+                        ></WhereDisplay>
                       ),
                     }}
                     label={window.i18n.t('维度条件')}
-                  />
+                  ></bk-table-column>
                 </bk-table>
               </div>
             ) : (
@@ -420,7 +420,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                           id={item.id}
                           key={item.id}
                           name={item.name}
-                        />
+                        ></bk-option>
                       ))}
                     </div>
                   </div>
@@ -436,7 +436,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                         this.conditionList = v as any;
                         this.conditionErrMsg = '';
                       }}
-                    />
+                    ></SimpleConditionInput>
                   </div>
                 ) : undefined,
                 this.conditionErrMsg ? <div class='err-msg'>{this.conditionErrMsg}</div> : undefined,
@@ -448,7 +448,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           ref='noticeDate'
           v-model={this.commonDateData}
           isClone={this.isClone}
-        />
+        ></ShieldDateConfig>
         <div class='set-shield-config-item'>
           <div class='item-label'>{window.i18n.t('屏蔽内容')}</div>
           <div class='item-container'>
@@ -458,12 +458,12 @@ export default class AlarmShieldDimension extends tsc<IProps> {
               maxlength={100}
               row={3}
               type='textarea'
-            />
+            ></bk-input>
           </div>
         </div>
-        <AlarmShieldNotice ref='shieldNotice' />
+        <AlarmShieldNotice ref='shieldNotice'></AlarmShieldNotice>
         <div class='set-shield-config-item'>
-          <div class='item-label' />
+          <div class='item-label'></div>
           <div class='item-container mb20'>
             <bk-button
               theme='primary'

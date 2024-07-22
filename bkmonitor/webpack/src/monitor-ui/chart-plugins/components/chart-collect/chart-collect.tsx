@@ -29,14 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
+import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import ViewDetail from 'monitor-pc/pages/view-detail/index';
 import { isEnFn } from 'monitor-pc/utils';
 
+import { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
-
-import type { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
-import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './chart-collect.scss';
 
@@ -249,7 +248,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
               <i
                 class='icon-monitor icon-mc-close-fill'
                 onClick={this.handleCheckClose}
-              />
+              ></i>
             </div>
           ) : undefined}
         </transition>
@@ -258,13 +257,13 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
           isShow={this.showCollectionDialog}
           onOnCollectionSuccess={() => this.handleCollectSuccess}
           onShow={(v: boolean) => this.handleShowCollectEmit(v)}
-        />
+        ></CollectionDialog>
         {this.showDetail && (
           <ViewDetail
             showModal={this.showDetail}
             viewConfig={this.viewDetailConfig}
             on-close-modal={this.handleCloseDetail}
-          />
+          ></ViewDetail>
         )}
       </div>
     );

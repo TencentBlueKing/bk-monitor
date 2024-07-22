@@ -77,6 +77,6 @@ export default class AlarmDispatchConfigPage extends Mixins(authorityMixinCreate
   }
 
   render() {
-    return <AlarmDispatchConfig ref='alarmDispatchConfig' />;
+    return <AlarmDispatchConfig ref='alarmDispatchConfig'></AlarmDispatchConfig>;
   }
 }

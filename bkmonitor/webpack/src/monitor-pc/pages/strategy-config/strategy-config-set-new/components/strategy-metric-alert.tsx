@@ -33,7 +33,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
 
-import type { MetricDetail } from '../typings/index';
+import { MetricDetail } from '../typings/index';
 
 import './strategy-metric-alert.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -495,7 +495,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           <bk-checkbox
             checked={isCheck}
             on-change={v => this.handleCheck(v, row)}
-          />
+          ></bk-checkbox>
         );
       },
     };
@@ -504,7 +504,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         <bk-checkbox
           checked={true}
           on-change={() => this.handleDeleteCheckedMetric(row)}
-        />
+        ></bk-checkbox>
       ),
     };
     const renderHeader = () => {
@@ -517,7 +517,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           checked={isAllChecked}
           disabled={this.curTableData.list.length === 0}
           on-change={this.handleAllCheck}
-        />
+        ></bk-checkbox>
       );
     };
     const renderSeeCheckedHeader = () => (
@@ -525,14 +525,14 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         checked={true}
         disabled
         on-change={() => (this.checkData = [])}
-      />
+      ></bk-checkbox>
     );
     const checkBox = (
       <bk-table-column
         width={48}
         render-header={renderHeader}
         scopedSlots={checkboxSlot}
-      />
+      ></bk-table-column>
     );
     const columnMap = {
       bk_monitor_alert: () => [
@@ -542,12 +542,12 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           label={this.$t('策略ID')}
           prop='metric_field'
           show-overflow-tooltip
-        />,
+        ></bk-table-column>,
         <bk-table-column
           label={this.$t('策略名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        />,
+        ></bk-table-column>,
       ],
       bk_fta_alert: () => [
         checkBox,
@@ -555,7 +555,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           label={this.$t('告警名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        />,
+        ></bk-table-column>,
       ],
       seeChecked: () => [
         <bk-table-column
@@ -563,12 +563,12 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           width={48}
           render-header={renderSeeCheckedHeader}
           scopedSlots={seeCheckedSlot}
-        />,
+        ></bk-table-column>,
         <bk-table-column
           label={`${this.$t('策略名称')}/${this.$t('告警名称')}`}
           prop='metric_field_name'
           show-overflow-tooltip
-        />,
+        ></bk-table-column>,
       ],
     };
     return (
@@ -609,14 +609,14 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
                   modelValue={this.searchObj.keyWord}
                   placeholder={this.$t('关键字搜索')}
                   on-change={this.handleSearch}
-                />
+                ></SearchSelect>
               </div>
 
               <bk-button
                 class='btn-refresh'
                 icon='icon-refresh'
                 onClick={this.handleRefresh}
-              />
+              ></bk-button>
               <div class='see-selected'>
                 <bk-checkbox
                   v-model={this.isSeeSelected}

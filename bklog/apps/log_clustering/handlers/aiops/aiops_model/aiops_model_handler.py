@@ -23,9 +23,6 @@ import base64
 from typing import Dict
 
 import arrow
-from cloudpickle import cloudpickle
-from django.utils.translation import ugettext as _
-
 from apps.api import BkDataAIOPSApi
 from apps.log_clustering.exceptions import (
     EvaluationStatusResponseException,
@@ -85,6 +82,8 @@ from apps.log_clustering.handlers.aiops.aiops_model.data_cls import (
     UpdateTrainingScheduleCls,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
+from cloudpickle import cloudpickle
+from django.utils.translation import ugettext as _
 
 
 class AiopsModelHandler(BaseAiopsHandler):
@@ -1091,7 +1090,7 @@ class AiopsModelHandler(BaseAiopsHandler):
         获取模型输出对应的模型文件
         @param model_output_rt 模型输出结果表名称
         """
-        request_dict = self._set_username({"data_processing_id": model_output_rt, "compat": "true"})
+        request_dict = self._set_username({"data_processing_id": model_output_rt})
         return BkDataAIOPSApi.serving_data_processing_id_model_file(request_dict)
 
     @classmethod

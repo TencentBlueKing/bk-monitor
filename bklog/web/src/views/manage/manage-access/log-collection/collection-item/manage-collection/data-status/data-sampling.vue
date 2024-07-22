@@ -109,7 +109,7 @@
       </template>
       <template #content>
         <div class="p20 json-text-style">
-          <JsonFormatWrapper
+          <VueJsonPretty
             :data="jsonText"
             :deep="5"
           />

@@ -37,15 +37,14 @@ import {
   noDataStrategyInfo,
 } from 'monitor-api/modules/apm_meta';
 import { copyText } from 'monitor-common/utils/utils';
-import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import TimeRange, { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
-import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../components/panel-item/panel-item';
-
-import type { IStrategyData } from './type';
+import { IStrategyData } from './type';
 
 import 'vue-json-pretty/lib/styles.css';
 
@@ -319,7 +318,7 @@ export default class DataStatus extends tsc<object> {
               </div>
               <div class='msg-item'>
                 <span class='label'>{this.$t('告警状态')} : </span>
-                <span class={['status-icon', `status-${this.strategyStautsColor}`]} />
+                <span class={['status-icon', `status-${this.strategyStautsColor}`]}></span>
                 <span class='status-name'>{this.healthMaps[this.strategyInfo.alert_status]}</span>
               </div>
               <div class='msg-item'>
@@ -352,7 +351,7 @@ export default class DataStatus extends tsc<object> {
                   onClick={() => this.handlePageChange('event')}
                 >
                   {this.$t('历史告警')}
-                  <span class='icon-monitor icon-fenxiang' />
+                  <span class='icon-monitor icon-fenxiang'></span>
                 </span>
               </div>
             </div>
@@ -372,7 +371,7 @@ export default class DataStatus extends tsc<object> {
             slot='headerTool'
             onClick={() => this.handleRefresh()}
           >
-            <i class='icon-monitor icon-shuaxin' />
+            <i class='icon-monitor icon-shuaxin'></i>
             {this.$t('button-刷新')}
           </span>
           <bk-table

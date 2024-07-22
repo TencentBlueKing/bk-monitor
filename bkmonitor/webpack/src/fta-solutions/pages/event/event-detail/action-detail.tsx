@@ -238,21 +238,21 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
           width='150'
           label={this.$t('告警ID')}
           scopedSlots={{ default: props => props.row.id }}
-        />
+        ></bk-table-column>
         <bk-table-column
           width='200'
           label={this.$t('告警名称')}
           scopedSlots={{ default: props => props.row.alert_name }}
-        />
+        ></bk-table-column>
         <bk-table-column
           width='100'
           label={this.$t('告警级别')}
           scopedSlots={{ default: props => severity(props.row.severity) }}
-        />
+        ></bk-table-column>
         <bk-table-column
           label={this.$t('告警内容')}
           scopedSlots={{ default: props => alertContent(props.row.dimensions, props.row.description) }}
-        />
+        ></bk-table-column>
       </bk-table>
     );
   }
@@ -287,7 +287,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                   class='fenxiang-link'
                   onClick={this.handleToActionDetail}
                 >
-                  <span class='icon-monitor icon-fenxiang' />
+                  <span class='icon-monitor icon-fenxiang'></span>
                 </span>
               )}
             </span>
@@ -323,7 +323,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                   class='info-jtnr-link'
                   onClick={() => content?.url && window.open(content.url)}
                 >
-                  <span class='icon-monitor icon-copy-link' />
+                  <span class='icon-monitor icon-copy-link'></span>
                   {link}
                 </span>
               ) : undefined}

@@ -26,6 +26,7 @@
 import { Component, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import { MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
@@ -37,10 +38,8 @@ import PerformanceView from './performance-view';
 import RelatedEvents from './related-events';
 import SceneView from './scene-view';
 import TraceInfo from './trace-info';
+import { IDetail } from './type';
 import ViewInfo from './view-info';
-
-import type { IDetail } from './type';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './tab-container.scss';
 
@@ -319,7 +318,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
           on-hide={this.handleHideFilterPopover}
         >
           <div class='filter-btn'>
-            <span class='icon-monitor icon-menu-setting' />
+            <span class='icon-monitor icon-menu-setting'></span>
           </div>
           <div
             class='circulation-tool-popover'
@@ -377,7 +376,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
             <bk-tab-panel
               {...{ props: item }}
               key={item.name}
-            />
+            ></bk-tab-panel>
           ))}
         </bk-tab>
         {this.active === EPanelsNames.circulationRecord ? this.getCirculationFilterComponent() : undefined}
@@ -386,17 +385,17 @@ export default class TabContainer extends tsc<ITabContainerProps> {
           detail={this.detail}
           isScrollEnd={this.isScrollEnd}
           show={this.active === EPanelsNames.viewInfo}
-        />
+        ></ViewInfo>
         {!!(window as any).enable_aiops && !this.isHostAnomalyDetection && (
           <AiopsContainer
             detail={this.detail}
             show={this.active === EPanelsNames.viewInfo}
-          />
+          ></AiopsContainer>
         )}
         <HandleExperiences
           detail={this.detail}
           show={this.active === EPanelsNames.handleExperience}
-        />
+        ></HandleExperiences>
         <CirculationRecord
           actions={this.actions}
           conditions={this.getConditions}
@@ -404,39 +403,39 @@ export default class TabContainer extends tsc<ITabContainerProps> {
           isScrollEnd={this.isScrollEnd}
           show={this.active === EPanelsNames.circulationRecord}
           on-related-events={this.handleRelatedEvents}
-        />
+        ></CirculationRecord>
         <RelatedEvents
           alertId={this.alertId}
           detail={this.detail}
           params={this.relatedEventsParams}
           show={this.active === EPanelsNames.relatedEvents}
-        />
+        ></RelatedEvents>
         <PerformanceView
           detail={this.detail}
           show={this.active === EPanelsNames.performance}
-        />
+        ></PerformanceView>
         <PerformanceView
           detail={this.detail}
           isProcess={true}
           show={this.active === EPanelsNames.hostProcess}
-        />
+        ></PerformanceView>
         {/* 日志 tab */}
         <LogInfo
           detail={this.detail}
           show={this.active === EPanelsNames.logInfo}
-        />
+        ></LogInfo>
         {/* trace tab */}
         <TraceInfo
           detail={this.detail}
           show={this.active === EPanelsNames.traceInfo}
           traceIds={this.traceIds}
-        />
+        ></TraceInfo>
         <SceneView
           detail={this.detail}
           sceneId={this.sceneId}
           sceneName={this.sceneName}
           show={this.active === EPanelsNames.sceneView}
-        />
+        ></SceneView>
       </div>
     );
   }

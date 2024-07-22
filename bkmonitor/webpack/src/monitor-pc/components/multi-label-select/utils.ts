@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IList, ITreeItem } from './types';
+import { IList, ITreeItem } from './types';
 
 /**
  * 标签数组转树形结构

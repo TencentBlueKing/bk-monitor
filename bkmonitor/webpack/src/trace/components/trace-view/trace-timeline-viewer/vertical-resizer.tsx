@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onBeforeUnmount, reactive, ref, toRefs } from 'vue';
+import { defineComponent, onBeforeUnmount, PropType, reactive, ref, toRefs } from 'vue';
 
-import DraggableManager, { type DraggableBounds, type DraggingUpdate } from '../utils/draggable-manager';
+import DraggableManager, { DraggableBounds, DraggingUpdate } from '../utils/draggable-manager';
 
 import './vertical-resizer.scss';
 

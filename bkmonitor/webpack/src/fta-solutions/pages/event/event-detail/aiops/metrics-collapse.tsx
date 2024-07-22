@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce } from 'monitor-common/utils/utils';
 import { resize } from 'monitor-pc/components/ip-selector/common/observer-directive';
 
-import type { IInfo } from './types';
+import { IInfo } from './types';
 
 import './metrics-collapse.scss';
 
@@ -135,7 +135,7 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
                 this.isCollapse ? 'icon-right-shape' : 'icon-down-shape',
               ]}
               onClick={this.handleToggleCollapse.bind(this, false)}
-            />
+            ></i>
             <span
               class='correlation-metrics-title'
               onClick={this.handleToggleCollapse.bind(this, false)}
@@ -171,7 +171,7 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
                         appendTo: 'parent',
                         allowHTML: false,
                       }}
-                    />
+                    ></i>
                     {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
                   </span>
                   <ul

@@ -32,14 +32,13 @@ import { Debounce, random } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import { EStatus, getEffectiveStatus, statusMap } from '../../../../trace/pages/rotation/typings/common';
+import { IGroupListItem } from '../duty-arranges/user-selector';
 import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
 import DutyNoticeConfig, { initData as noticeData } from './duty-notice-config';
 import RotationDetail from './rotation-detail';
 import RotationPreview from './rotation-preview';
+import { IDutyItem, IDutyListItem } from './typing';
 import { getCalendarOfNum, setPreviewDataOfServer } from './utils';
-
-import type { IGroupListItem } from '../duty-arranges/user-selector';
-import type { IDutyItem, IDutyListItem } from './typing';
 
 import './rotation-config.scss';
 
@@ -504,10 +503,10 @@ export default class RotationConfig extends tsc<IProps> {
             outline
             onClick={e => !this.dutyLoading && this.handleAddRotation(e)}
           >
-            <span class='icon-monitor icon-plus-line' />
+            <span class='icon-monitor icon-plus-line'></span>
             <span class='fs-12'>{this.$t('值班规则')}</span>
           </bk-button>
-          <span class='icon-monitor icon-tishi' />
+          <span class='icon-monitor icon-tishi'></span>
           <span class='tip-text'>{this.$t('排在前面的规则优先级高')}</span>
         </div>
         <div class='duty-list'>
@@ -530,7 +529,7 @@ export default class RotationConfig extends tsc<IProps> {
                   onClick={e => e.stopPropagation()}
                   onMouseenter={() => this.handleMouseenter()}
                   onMouseleave={() => this.handleMouseleave()}
-                />
+                ></span>
                 <span
                   class='duty-item-name'
                   v-bk-overflow-tips
@@ -549,14 +548,14 @@ export default class RotationConfig extends tsc<IProps> {
                     e.stopPropagation();
                     this.handleToEditRotation(item);
                   }}
-                />
+                ></span>
                 <span
                   class='icon-monitor icon-mc-close'
                   onClick={e => {
                     e.stopPropagation();
                     this.handleDelRotation(index);
                   }}
-                />
+                ></span>
               </div>
             ))}
           </transition-group>
@@ -572,13 +571,13 @@ export default class RotationConfig extends tsc<IProps> {
             value={this.previewData}
             onInitStartTime={v => (this.previewStartTime = v)}
             onStartTimeChange={this.handleStartTimeChange}
-          />
+          ></RotationPreview>
         )}
         <div
           class='expan-btn mb-6'
           onClick={this.handleExpanNotice}
         >
-          <span class={['icon-monitor icon-double-up', { expand: !this.showNotice }]} />
+          <span class={['icon-monitor icon-double-up', { expand: !this.showNotice }]}></span>
           <span class='expan-btn-text'>{this.$t('值班通知设置')}</span>
         </div>
         <DutyNoticeConfig
@@ -588,7 +587,7 @@ export default class RotationConfig extends tsc<IProps> {
           renderKey={this.noticeRenderKey}
           value={this.noticeConfig}
           onChange={this.handleNoticeConfigChange}
-        />
+        ></DutyNoticeConfig>
         {!!this.userPreviewList.length && (
           <div class='user-preivew'>
             {this.userGroupData.map(
@@ -629,7 +628,7 @@ export default class RotationConfig extends tsc<IProps> {
           id={this.detailData.id}
           show={this.detailData.show}
           onShowChange={v => (this.detailData.show = v)}
-        />
+        ></RotationDetail>
         <div style={{ display: 'none' }}>
           <div
             ref='wrap'
@@ -643,7 +642,7 @@ export default class RotationConfig extends tsc<IProps> {
                 value={this.search}
                 clearable
                 onChange={this.handleSearchChange}
-              />
+              ></bk-input>
             </div>
             <div class='content-wrap'>
               {!this.showNoData ? (
@@ -659,7 +658,7 @@ export default class RotationConfig extends tsc<IProps> {
                         <bk-checkbox
                           value={item.isCheck}
                           onChange={v => this.handleCheckOption(v, item)}
-                        />
+                        ></bk-checkbox>
                       </div>
                       <span
                         class='item-name'
@@ -689,7 +688,7 @@ export default class RotationConfig extends tsc<IProps> {
               class='del-wrap'
               onClick={this.handleToAddRotation}
             >
-              <span class='icon-monitor icon-jia' />
+              <span class='icon-monitor icon-jia'></span>
               <span>{this.$t('新增轮值排班')}</span>
               <div
                 class='refresh-wrap'
@@ -700,9 +699,9 @@ export default class RotationConfig extends tsc<IProps> {
                     class='loading-icon'
                     alt=''
                     src={loadingIcon}
-                  />
+                  ></img>
                 ) : (
-                  <span class='icon-monitor icon-zhongzhi1' />
+                  <span class='icon-monitor icon-zhongzhi1'></span>
                 )}
               </div>
             </div>

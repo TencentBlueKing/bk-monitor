@@ -24,16 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent, PropType } from 'vue';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
-import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
+import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
+import { TimeRangeType } from '../../../components/time-range/utils';
 import { getDefaultTimezone } from '../../../i18n/dayjs';
+import { IFavoriteItem } from '../../../typings';
 import FavoritesList from '../favorites-list/favorites-list';
-
-import type { TimeRangeType } from '../../../components/time-range/utils';
-import type { IFavoriteItem } from '../../../typings';
 
 import './search-header.scss';
 
@@ -101,7 +100,7 @@ export default defineComponent({
               class='tool-icon right'
               onClick={() => emit('update:showLeft', true)}
             >
-              <i class='arrow-right icon-monitor icon-double-up' />
+              <i class='arrow-right icon-monitor icon-double-up'></i>
             </span>
           )}
         </div>
@@ -139,7 +138,7 @@ export default defineComponent({
               list={props.menuList}
               onSelect={val => emit('menuSelectChange', val)}
             >
-              <i class='icon-monitor icon-mc-more-tool' />
+              <i class='icon-monitor icon-mc-more-tool'></i>
             </SelectMenu>
           </span>
         </div>

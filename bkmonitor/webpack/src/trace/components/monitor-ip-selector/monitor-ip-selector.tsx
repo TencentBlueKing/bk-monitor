@@ -48,18 +48,18 @@ import {
 
 import { useAppStore } from '../../store/modules/app';
 import {
-  type CommomParams,
-  type IFetchNode,
-  type IHost,
-  type INode,
-  type IQuery,
-  type IScopeItme,
-  type IStatistics,
-  type ITemplateHost,
-  type ITemplateItem,
-  type ITemplateNode,
-  type ITreeItem,
+  CommomParams,
   componentProps,
+  IFetchNode,
+  IHost,
+  INode,
+  IQuery,
+  IScopeItme,
+  IStatistics,
+  ITemplateHost,
+  ITemplateItem,
+  ITemplateNode,
+  ITreeItem,
 } from './typing';
 import create from './vue3.x';
 
@@ -450,7 +450,7 @@ export default defineComponent({
         onCloseDialog={this.onCloseDialog}
         onOutputField-change={this.onOutPutFieldChange}
         onPanelChange={this.onPanelChange}
-      />
+      ></BkIpSelector>
     );
   },
 });

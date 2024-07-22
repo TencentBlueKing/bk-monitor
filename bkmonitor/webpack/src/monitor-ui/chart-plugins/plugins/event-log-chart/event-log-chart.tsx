@@ -29,16 +29,15 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 
 import ChartTitle from '../../components/chart-title/chart-title';
+// import { handleTimeRange } from 'monitor-pc/utils/index';
+import { ILegendItem, IPanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import CommonSimpleChart from '../common-simple-chart';
 import TimeSeries from '../time-series/time-series';
-
-// import { handleTimeRange } from 'monitor-pc/utils/index';
-import type { ILegendItem, IPanelModel } from '../../typings';
-import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 
 import './event-log-chart.scss';
 
@@ -241,7 +240,7 @@ class EventLogChart extends CommonSimpleChart {
               panel={this.timeSeriesPanel as any}
               showChartHeader={false}
               onSelectLegend={(v: ILegendItem[]) => this.handleEventLogSelectLegend(v)}
-            />,
+            ></TimeSeries>,
             !!this.tableData.length && (
               <CommonTable
                 class='event-log-table'
@@ -255,7 +254,7 @@ class EventLogChart extends CommonSimpleChart {
                 showExpand={true}
                 onLimitChange={this.handleLimitChange}
                 onPageChange={this.handlePageChange}
-              />
+              ></CommonTable>
             ),
           ]}
         </div>

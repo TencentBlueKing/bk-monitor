@@ -31,11 +31,10 @@ import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import ChartHeader from '../../components/chart-title/chart-title';
+import { IExtendMetricData, PanelModel } from '../../typings';
+import { IColumnBarData } from '../../typings/column-bar';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
-
-import type { IExtendMetricData, PanelModel } from '../../typings';
-import type { IColumnBarData } from '../../typings/column-bar';
 
 import './column-bar-echart.scss';
 
@@ -154,7 +153,7 @@ class ColumnBarEchart extends CommonSimpleChart {
                   'background-color': item.color || '#699DF4',
                 }}
                 class='progress-bar'
-              />
+              ></div>
             </div>
             <span class='item-value text'>{item.value}</span>
           </div>

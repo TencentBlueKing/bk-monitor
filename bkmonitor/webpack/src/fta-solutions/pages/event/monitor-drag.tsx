@@ -40,7 +40,6 @@ interface IMonitorDragProps {
   theme?: ThemeType;
   lineText?: string;
   isShow?: boolean;
-  top?: number;
 }
 interface IMonitorDragEvent {
   onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
@@ -60,7 +59,6 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
   /** 是否展开装填 */
   @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ type: Boolean, default: false }) isInPanelView: boolean;
-  @Prop({ type: Number, default: 0 }) top: number;
   left = 0;
   defaultLeft = 0;
   show = true;
@@ -117,8 +115,12 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
     const vm = this;
     if (this.isInPanelView && this.left) {
     }
-    document.onselectstart = () => false;
-    document.ondragstart = () => false;
+    document.onselectstart = function () {
+      return false;
+    };
+    document.ondragstart = function () {
+      return false;
+    };
     function handleMouseMove(event) {
       vm.isMoving = true;
       const swipeRight = event.clientX - mouseX >= 0;
@@ -177,17 +179,14 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
           {['line', 'line-round'].includes(this.theme) && (
             <div class={['theme-line', this.startPlacement, { 'is-show': this.isShow }]}>
               <span class='line-wrap'>
-                <span
-                  style={{ top: `${this.top}px` }}
-                  class={['line', { 'is-moving': this.isMoving }]}
-                >
+                <span class={['line', { 'is-moving': this.isMoving }]}>
                   {this.theme === 'line-round' && (
                     <div class='line-round-wrap'>
                       {[1, 2, 3, 4, 5].map(i => (
                         <span
                           key={i}
                           class={`line-round ${i === 3 ? `line-square line-round-${i}` : `line-round-${i}`}`}
-                        />
+                        ></span>
                       ))}
                     </div>
                   )}
@@ -199,7 +198,7 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
                   onClick={this.handleTrigger}
                 >
                   {!this.isShow && <span class='trigger-text'>{this.lineText}</span>}
-                  <i class='icon-monitor icon-arrow-left' />
+                  <i class='icon-monitor icon-arrow-left'></i>
                 </span>
               )}
             </div>

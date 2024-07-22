@@ -32,22 +32,6 @@ import { Debounce } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import {
-  filterSelectorPanelSearchList,
-  transformConditionSearchList,
-  transformConditionValueParams,
-  transformQueryDataSearch,
-  updateBkSearchSelectName,
-} from 'monitor-pc/pages/monitor-k8s/utils';
-
-import ChartHeader from '../../components/chart-title/chart-title';
-import { reviewInterval, setStyle } from '../../utils';
-import { VariablesService } from '../../utils/variable';
-import { CommonSimpleChart } from '../common-simple-chart';
-import StatusTab from './status-tab';
-
-import type { PanelModel } from '../../typings';
-import type { ITableDataItem } from '../../typings/table-chart';
-import type {
   IFilterDict,
   IMenuItem,
   IQueryData,
@@ -56,6 +40,21 @@ import type {
   ITableFilterItem,
   ITablePagination,
 } from 'monitor-pc/pages/monitor-k8s/typings';
+import {
+  filterSelectorPanelSearchList,
+  transformConditionSearchList,
+  transformConditionValueParams,
+  transformQueryDataSearch,
+  updateBkSearchSelectName,
+} from 'monitor-pc/pages/monitor-k8s/utils';
+
+import ChartHeader from '../../components/chart-title/chart-title';
+import { PanelModel } from '../../typings';
+import { ITableDataItem } from '../../typings/table-chart';
+import { reviewInterval, setStyle } from '../../utils';
+import { VariablesService } from '../../utils/variable';
+import { CommonSimpleChart } from '../common-simple-chart';
+import StatusTab from './status-tab';
 
 import './table-chart.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -482,7 +481,7 @@ export class TableChart extends CommonSimpleChart {
             onMenuClick={this.handleMenuToolsSelect}
           />
         ) : (
-          <div class='draggable-handle drag-area' />
+          <div class='draggable-handle drag-area'></div>
         )}
         <div
           ref='scrollRef'
@@ -537,7 +536,7 @@ export class TableChart extends CommonSimpleChart {
                     needAll={!this.hasAllFilter}
                     statusList={this.filterList}
                     onChange={this.handleStatusChange}
-                  />
+                  ></StatusTab>
                 )}
               </div>,
               <CommonTable

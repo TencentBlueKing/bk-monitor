@@ -117,10 +117,7 @@ class FetchSharedClusterNamespacesResource(BcsApiBaseResource):
 
     def render_response_data(self, validated_request_data, response_data):
         # 对响应数据进行额外处理
-        data = super(FetchSharedClusterNamespacesResource, self).render_response_data(
-            validated_request_data, response_data
-        )
-        return self._refine_ns(data, validated_request_data["cluster_id"])
+        return self._refine_ns(response_data, validated_request_data["cluster_id"])
 
     def _refine_ns(self, ns_list: List, cluster_id: str) -> List:
         """处理返回的命名空间"""

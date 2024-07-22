@@ -26,10 +26,9 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AlarmHandling, { type IAllDefense, type IValue as IAlarmItem } from './alarm-handling';
+import { IGroupItem } from '../components/group-select';
+import AlarmHandling, { IAllDefense, IValue as IAlarmItem } from './alarm-handling';
 import SimpleSelect from './simple-select';
-
-import type { IGroupItem } from '../components/group-select';
 
 import './alarm-handling-list.scss';
 
@@ -190,7 +189,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                 <i
                   class='icon-monitor icon-mc-delete-line'
                   onClick={() => this.handleDelete(index)}
-                />
+                ></i>
               ) : undefined}
               <SimpleSelect
                 disabled={this.readonly}
@@ -206,7 +205,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                   ) : (
                     <span class='add-placeholder'>{this.$t('选择添加告警场景')}</span>
                   )}
-                  <span class='icon-monitor icon-arrow-down' />
+                  <span class='icon-monitor icon-arrow-down'></span>
                 </span>
               </SimpleSelect>
               <AlarmHandling
@@ -219,7 +218,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                 value={item}
                 onAddMeal={() => this.handleAddMeal(index)}
                 onChange={v => this.handleAlarmChange(v, index)}
-              />
+              ></AlarmHandling>
             </div>
           ))}
         </div>
@@ -235,7 +234,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
             >
               <span class='signal-select-wrap'>
                 <span class='add-placeholder'>{this.$t('选择添加告警场景')}</span>
-                <span class='icon-monitor icon-arrow-down' />
+                <span class='icon-monitor icon-arrow-down'></span>
               </span>
             </SimpleSelect>
           </div>

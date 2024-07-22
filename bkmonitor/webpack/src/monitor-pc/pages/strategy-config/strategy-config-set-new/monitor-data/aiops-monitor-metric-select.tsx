@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from '../../../../../monitor-common/utils';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
-import { type IScenarioItem, MetricDetail, MetricType } from '../typings';
+import { IScenarioItem, MetricDetail, MetricType } from '../typings';
 
 import './aiops-monitor-metric-select.scss';
 
@@ -298,15 +298,15 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
               <span
                 class='icon-monitor icon-mc-close'
                 onClick={e => this.handleDel(e, index)}
-              />
+              ></span>
             </div>
           ))}
         </div>
-        <div class='icon-monitor icon-arrow-down' />
+        <div class='icon-monitor icon-arrow-down'></div>
         <div
           class='icon-monitor icon-mc-close-fill'
           onClick={e => this.handleClearAll(e)}
-        />
+        ></div>
         <MetricSelector
           defaultScenario={this.defaultScenario}
           getMetricData={this.getMetricData}
@@ -318,7 +318,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
           type={MetricType.TimeSeries}
           onChecked={val => this.handleChecked(val)}
           onShowChange={val => this.handleShowSelector(val)}
-        />
+        ></MetricSelector>
       </span>
     );
   }

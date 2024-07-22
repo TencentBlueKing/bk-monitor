@@ -404,8 +404,8 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           onMousedown={this.initResize}
         >
           <div class='lines'>
-            <div class='line-1' />
-            <div class='line-2' />
+            <div class='line-1'></div>
+            <div class='line-2'></div>
           </div>
         </div>
       </div>

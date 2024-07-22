@@ -48,9 +48,9 @@
 </template>
 
 <script lang="ts">
+import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 import BkUserSelector from '@blueking/user-selector';
 import { deepClone } from 'monitor-common/utils/utils';
-import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 @Component({
   name: 'member-selector',
   components: {
@@ -128,16 +128,16 @@ export default class MemberSelector extends Vue {
               {
                 class: n,
               },
-              [e.display_name]
+              [e.display_name],
             )
           : o(
               'span',
               {
                 class: n,
               },
-              [e.id, ' (', e.display_name, ')']
+              [e.id, ' (', e.display_name, ')'],
             ),
-      ]
+      ],
     );
   }
   renderMerberList(e, h) {

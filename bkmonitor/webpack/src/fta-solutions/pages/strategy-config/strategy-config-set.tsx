@@ -30,8 +30,7 @@ import StrategyConfigSet from 'monitor-pc/pages/strategy-config/strategy-config-
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import * as ruleAuth from './authority-map';
-
-import type { strategyType } from './typings/strategy';
+import { strategyType } from './typings/strategy';
 
 import './strategy-config-set.scss';
 

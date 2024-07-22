@@ -215,10 +215,10 @@
   </bk-dialog>
 </template>
 <script>
+import { createNamespacedHelpers } from 'vuex';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import { debounce, throttle } from 'throttle-debounce';
-import { createNamespacedHelpers } from 'vuex';
 import { createNamespacedHelpers } from 'vuex';
 
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -236,7 +236,7 @@ const PAGE = {
 export default {
   name: 'StrategyConfigMetric',
   components: {
-    SearchSelect,
+    SearchSelect
   },
   props: {
     isShow: Boolean,

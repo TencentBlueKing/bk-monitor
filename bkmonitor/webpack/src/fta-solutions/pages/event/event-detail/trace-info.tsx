@@ -31,13 +31,12 @@ import { errorListByTraceIds } from 'monitor-api/modules/apm_metric';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import bus from 'monitor-common/utils/event-bus';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IFilterDict, ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import { formatDuration } from '../../../../trace/components/trace-view/utils/date';
 import { createAutoTimerange } from './aiops-chart';
-
-import type { IDetail } from './type';
-import type { IFilterDict, ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
+import { IDetail } from './type';
 
 import './trace-info.scss';
 
@@ -327,7 +326,7 @@ export default class TraceInfo extends tsc<IProps> {
             onLimitChange={this.handletTraceLimitChange}
             onPageChange={this.handletTracePageChange}
             onSortChange={this.handleSortChange}
-          />
+          ></CommonTable>
         </div>
         <div
           class='err-info'
@@ -340,7 +339,7 @@ export default class TraceInfo extends tsc<IProps> {
               needAll={false}
               statusList={this.errData.filter}
               onChange={this.handleErrDataStatusChange}
-            />
+            ></StatusTab>
           </div>
           <CommonTable
             class='err-table'
@@ -354,7 +353,7 @@ export default class TraceInfo extends tsc<IProps> {
             onLimitChange={this.handleErrDataLimitChange}
             onPageChange={this.handleErrDataPageChange}
             onSortChange={this.handleErrDataSortChange}
-          />
+          ></CommonTable>
           {/* <div class="info-bottom">
           <span>当前仅显示5条数据</span>
           <span class="link">

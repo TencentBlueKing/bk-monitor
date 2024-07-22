@@ -33,13 +33,7 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
-import {
-  BookMarkModel,
-  type DashboardMode,
-  type IPanelModel,
-  type IViewOptions,
-  PanelModel,
-} from 'monitor-ui/chart-plugins/typings';
+import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import Collapse from '../../../components/collapse/collapse';
@@ -49,6 +43,7 @@ import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
+import { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 import AlarmTools from '../../monitor-k8s/components/alarm-tools';
 import CommonDetail, { INDEX_LIST_DEFAULT_CONFIG_KEY } from '../../monitor-k8s/components/common-detail';
 import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
@@ -58,30 +53,28 @@ import PageTitle from '../../monitor-k8s/components/page-title';
 import CompareSelect from '../../monitor-k8s/components/panel-tools/compare-select';
 import PanelTools from '../../monitor-k8s/components/panel-tools/panel-tools';
 import SplitPanel from '../../monitor-k8s/components/split-panel';
+import SettingsWrapper from '../../monitor-k8s/settings/settings';
 // import { CHART_INTERVAL } from '../../../constant/constant';
 import HostList from '../../performance/performance-detail/host-list/host-list';
-import HostTree, {
-  type FilterDictType,
-  type TreeNodeItem,
-} from '../../performance/performance-detail/host-tree/host-tree';
+import HostTree, { FilterDictType, TreeNodeItem } from '../../performance/performance-detail/host-tree/host-tree';
 import SettingModal from '../../setting-modal';
 import GroupSelect from '../components/group-select/group-select';
 import {
   DASHBOARD_PANEL_COLUMN_KEY,
-  type IBookMark,
-  type IMenuId,
-  type IMenuItem,
-  type IOption,
-  type IQueryData,
-  type IQueryDataSearch,
-  type ISearchItem,
-  type ITabItem,
-  type ITableItem,
+  IBookMark,
+  IMenuId,
+  IMenuItem,
+  IOption,
+  IQueryData,
+  IQueryDataSearch,
+  ISearchItem,
+  ITabItem,
+  ITableItem,
   METHOD_LIST,
-  type PanelToolsType,
+  PanelToolsType,
+  SearchType,
   SPLIT_MAX_WIDTH,
   SPLIT_MIN_WIDTH,
-  type SearchType,
 } from '../typings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
 import CommonList from './common-list/common-list';
@@ -91,8 +84,6 @@ import CommonTree from './common-tree/common-tree';
 import ApmApiPanel from './select-panel/apm-api-panel';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
-import type { IIndexListItem } from '../../data-retrieval/index-list/index-list';
-import type SettingsWrapper from '../../monitor-k8s/settings/settings';
 
 import './common-page.scss';
 
@@ -1596,7 +1587,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
             onListChange={this.compareHostchange}
             onOverviewChange={this.handleOverviewChange}
             onTitleChange={this.headerTitleChange}
-          />
+          ></HostList>
         );
       case 'table': // 宽窄表
         // case 'apm_topo': // 测试 TODO
@@ -1722,7 +1713,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                       onClick={this.handleToCompleteList}
                     >
                       <span class='all-list-text'>{this.$t('完整列表')}</span>
-                      <i class='icon-monitor icon-double-up' />
+                      <i class='icon-monitor icon-double-up'></i>
                     </span>
                   ) : undefined}
                 </CommonDetail>

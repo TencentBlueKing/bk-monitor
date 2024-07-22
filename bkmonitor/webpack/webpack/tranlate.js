@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const https = require('node:https');
-const path = require('node:path');
-const fs = require('node:fs');
+const https = require('https');
+const path = require('path');
+const fs = require('fs');
 async function fetchTranslate(tempUrl, text) {
   const writeStream = fs.createWriteStream(tempUrl);
   return new Promise(resolve => {

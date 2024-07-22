@@ -25,12 +25,12 @@
  * IN THE SOFTWARE.
  */
 
+import { TranslateResult } from 'vue-i18n';
+
 import { random } from 'monitor-common/utils/utils';
 
 import { CP_METHOD_LIST, INTERVAL_LIST, METHOD_LIST } from '../../../../constant/constant';
-
-import type { IModelData } from '../detection-rules/components/time-series-forecast/time-series-forecast';
-import type { TranslateResult } from 'vue-i18n';
+import { IModelData } from '../detection-rules/components/time-series-forecast/time-series-forecast';
 
 export type unitType = 'm' | 's';
 export interface ICommonItem {

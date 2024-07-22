@@ -30,10 +30,10 @@ import { batchUpdate, matchDebug } from 'monitor-api/modules/assign';
 import { destroyAssignGroup } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
 
-import TimeRange, { type TimeRangeType } from '../../../components/time-range/time-range';
+import TimeRange, { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import emptyImageSrc from '../../../static/images/png/empty.png';
-import { GROUP_KEYS, type IConditionProps } from '../typing/condition';
+import { GROUP_KEYS, IConditionProps } from '../typing/condition';
 import CommonCondition from './common-condition-new';
 
 import './debugging-result.scss';
@@ -86,13 +86,9 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
   loading = false;
   curTimeRange: TimeRangeType = ['now-7d', 'now'];
   curGroupId = 0;
-  localShow = false;
 
   @Watch('isShow', { immediate: true })
   handleShow(v: boolean) {
-    setTimeout(() => {
-      this.localShow = v;
-    }, 50);
     if (v) {
       this.getRuleMatchDebug();
     }
@@ -194,9 +190,8 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
     return (
       <bk-sideslider
         ext-cls='debugging-result-siderlider'
-        isShow={this.localShow}
-        quickClose={true}
-        showMask={true}
+        isShow={this.isShow}
+        quick-close={true}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
         width={960}
       >
@@ -210,7 +205,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
             needTimezone={false}
             value={this.curTimeRange}
             onChange={this.handleTimeRangeChange}
-          />
+          ></TimeRange>
         </div>
         <div slot='content'>
           <div
@@ -229,7 +224,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                   >
                     <div class='header-left'>
                       <div class={['expand-status', { 'is-expand': item.isExpand }]}>
-                        <i class='icon-monitor icon-mc-triangle-down' />
+                        <i class='icon-monitor icon-mc-triangle-down'></i>
                       </div>
                       <div class='title-wrap'>
                         <span
@@ -240,14 +235,14 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                         </span>
                       </div>
                       <div class='priority-wrap'>
-                        <span class='title'>{this.$t('优先级')}：</span>
+                        <span class='title'>{this.$t('优先级')}: </span>
                         <span class='count'>{item.priority}</span>
                       </div>
                     </div>
 
                     <div class='count-warp'>
                       <i18n path='共{0}条'>
-                        <span class='mr-4 ml-4'>{item.alerts_count || 0}</span>
+                        <span>{item.alerts_count || 0}</span>
                       </i18n>
                     </div>
                   </div>
@@ -296,7 +291,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                   readonly={true}
                                   value={config.conditions}
                                   valueMap={this.conditionProps.valueMap}
-                                />
+                                ></CommonCondition>
                               ) : (
                                 '--'
                               )}
@@ -306,7 +301,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                         {config.is_enabled && (
                           <div class='header-right'>
                             <i18n path='命中{0}条'>
-                              <span class='mr-4 ml-4'>{config.alerts?.length || 0}</span>
+                              <span>{config.alerts?.length || 0}</span>
                             </i18n>
                           </div>
                         )}
@@ -330,12 +325,12 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                             }}
                             label='ID'
                             prop='id'
-                          />
+                          ></bk-table-column>
                           <bk-table-column
                             label={this.$t('告警名称')}
                             prop='alert_name'
                             show-overflow-tooltip
-                          />
+                          ></bk-table-column>
                           <bk-table-column
                             scopedSlots={{
                               default: ({ row }) => {
@@ -366,12 +361,12 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                             }}
                             label={this.$t('告警指标')}
                             prop='metric'
-                          />
+                          ></bk-table-column>
                           <bk-table-column
                             label={this.$t('告警内容')}
                             prop='content'
                             show-overflow-tooltip
-                          />
+                          ></bk-table-column>
                         </bk-table>
                       )}
                     </div>

@@ -27,8 +27,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-
-import type { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './nav-bar.scss';
 
@@ -68,7 +67,7 @@ export default class NavBar extends tsc<IProps> {
           needBack={this.needBack}
           needShadow={true}
           routeList={this.routeList}
-        />
+        ></CommonNavBar>
         <div
           style={{
             'justify-content': this.position,

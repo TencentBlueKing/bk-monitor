@@ -194,14 +194,6 @@ export default {
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
     'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
   存在关联的告警组: 'There is an associated alarm group',
-  已选: 'selected',
-  设置展示类型: 'Set display type',
-  取消反馈根因: 'Cancel feedback root cause',
-  反馈根因: 'Feedback root cause',
-  '共 {slot0} 条边': 'There are {slot0} edges',
-  '共 {slot0} 个 {type}节点': 'There are {slot0} {type} nodes in total',
-  '共 {slot0} 个 {type}节点，其中 {slot1} 个异常':
-    'There are {slot0} {type} nodes in total, of which {slot1} are abnormal.',
   '10分钟内无数据': 'No data within 10 minutes',
   '直接进行 精准查询，定位到 Trace 详情': 'Directly perform precise queries and locate Trace details',
   '可以切换到 范围查询，根据条件筛选 Trace': 'You can switch to range query, filter Trace according to conditions',
@@ -209,6 +201,7 @@ export default {
   '文件解析可能耗费较长时间，可先选择已解析文件查看':
     'File parsing may take a long time, you can select the parsed file first to view',
   请上传文件后查看: 'Please upload the file and view it after that',
+  已选: 'selected',
   'tips-采集状态': 'Collection Status',
   '已成功发送 {0} 个内部用户': '{0} internal users successfully sent',
   '已成功发送 {0} 个外部邮件': '{0} external messages sent successfully',
@@ -246,39 +239,7 @@ export default {
   '已开启 Profiling 功能，请参考接入指引进行数据上报':
     'The Profiling has been turned on, please refer to the access guide for data reporting.',
   显示完整信息: 'Show full information',
-  '注意，该功能会调实际套餐去执行，请确认测试变量后再进行测试执行。':
-    'Note that this feature will execute the actual package, please confirm the test variable before testing execution.',
   请确认是否导出: 'Please confirm whether to export',
-  '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往{0}进行操作':
-    'The export YAML function is used for As Code. If you need to import and export policies, please go to {0} to perform operations.',
-  // 故障
-  节点图例: 'Node Legend',
-  反馈的根因: 'Feedback Root',
-  边图例: 'Edge Legend',
-  从属关系: 'Subordinate',
-  调用关系: 'Call',
-  故障传播: 'Fault Spread',
-  显示图例: 'Show Legend',
-  重置比例: 'Reset Scale',
-  自动聚合: 'Auto',
-  不聚合: 'No',
-  聚合异常: 'Error ',
-  查看资源: 'View Resource',
-  反馈新根因: 'New Feedback',
-  所属业务: 'Business',
-  包含告警: 'Alarm',
-  '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
-
-  // 故障
-  搜索数据为空: 'No search results',
-  已展开全部: 'All items expanded',
-  名称重复: 'Name duplication',
-  '请输入请求 URL': 'Enter request URL',
-  对象筛选: 'Space filter',
-  '标题 A-Z': 'Name A-Z',
-  暂无其他告警负责人: 'No other alarm responsible person',
-  '当前数据还未加载完成，如数据长时间未加载出来可{0}':
-    'The current data has not been loaded yet. If the data has not been loaded for a long time, {0}',
-  '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html':
-    'By default, the URI in the URL is taken for statistics. In actual production, many IDs are applied to the URI, so it is necessary to manually set and classify the same type of URI for statistics. For example:/user/{ID}/index.com',
+  '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作':
+    'The export YAML function is used for As Code. If you need to import and export policies, please go to Integration-Import and Export to perform operations.',
 };

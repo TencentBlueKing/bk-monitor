@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import * as customAuth from '../../pages/custom-escalation/authority-map';
+import { RouteConfig } from 'vue-router';
 
-import type { RouteConfig } from 'vue-router';
+import * as customAuth from '../../pages/custom-escalation/authority-map';
 
 const CustomEscalationSet = () =>
   import(/* webpackChunkName: 'CustomEscalationAdd' */ '@page/custom-escalation/custom-escalation-set.vue');

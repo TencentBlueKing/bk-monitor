@@ -31,13 +31,7 @@ import { copyText } from 'monitor-common/utils/utils';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import RulesViewer from '../rules-viewer/rules-viewer';
-import {
-  EPluginType,
-  type IAlertConfigTable,
-  type INormalizationTable,
-  type IPushConfigData,
-  type TPluginType,
-} from '../types';
+import { EPluginType, IAlertConfigTable, INormalizationTable, IPushConfigData, TPluginType } from '../types';
 import PullForm from './pull-form';
 
 import './config.scss';
@@ -156,7 +150,7 @@ export default class Config extends tsc<IConfig> {
       },
     };
     const rulesColumnScopedSlots = {
-      default: ({ row: { rules } }) => <RulesViewer value={rules} />,
+      default: ({ row: { rules } }) => <RulesViewer value={rules}></RulesViewer>,
     };
     const scopedSlots = key => {
       if (key === 'type') return typeColumnScopedSlots;
@@ -200,8 +194,8 @@ export default class Config extends tsc<IConfig> {
                     <td class='value'>是</td>
                     <td class='label right'>{this.$t('拉取频率')}</td>
                     <td class='value'>30分钟</td>
-                    <td class='label right' />
-                    <td class='value' />
+                    <td class='label right'></td>
+                    <td class='value'></td>
                   </tr>
                 </tbody>
               </table>
@@ -213,7 +207,7 @@ export default class Config extends tsc<IConfig> {
               <PullForm
                 formData={this.paramsSchema}
                 instanceId={this.instanceId}
-              />
+              ></PullForm>
             ) : undefined
           }
           {
@@ -231,7 +225,7 @@ export default class Config extends tsc<IConfig> {
                         class={['btn', { 'btn-loading': this.pushKeyLoading }]}
                         onClick={this.getSecureKey}
                       >
-                        {this.pushKeyLoading && <span class='loading' />}
+                        {this.pushKeyLoading && <span class='loading'></span>}
                         {this.$t('点击查看')}
                       </span>
                     )}
@@ -244,7 +238,7 @@ export default class Config extends tsc<IConfig> {
                     <i
                       class='icon-monitor icon-mc-copy'
                       onClick={() => this.handleCopy(this.ingesterHost)}
-                    />
+                    ></i>
                   </span>
                 </div>
               </div>
@@ -258,7 +252,7 @@ export default class Config extends tsc<IConfig> {
               class='md-viewer'
               flowchartStyle={true}
               value={this.tutorialMd}
-            />
+            ></Viewer>
           ) : (
             <div style='margin-bottom: 16px;'>{this.$t('暂无')}</div>
           )}
@@ -283,7 +277,7 @@ export default class Config extends tsc<IConfig> {
                   label={item.label}
                   prop={item.prop}
                   scopedSlots={item.key === 'type' ? typeColumnScopedSlots : null}
-                />
+                ></bk-table-column>
               ))}
               {/* <bk-table-column label={this.$t('操作')} width="180" scopedSlots={oprateScopedSlots}/> */}
             </bk-table>
@@ -306,7 +300,7 @@ export default class Config extends tsc<IConfig> {
                   label={item.label}
                   prop={item.prop}
                   scopedSlots={scopedSlots(item.key)}
-                />
+                ></bk-table-column>
               ))}
             </bk-table>
           </div>

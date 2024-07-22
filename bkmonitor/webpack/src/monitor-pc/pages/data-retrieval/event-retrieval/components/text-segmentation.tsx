@@ -27,7 +27,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { EventRetrievalViewType } from '../../typings';
+import { EventRetrievalViewType } from '../../typings';
 
 import './text-segmentation.scss';
 
@@ -139,12 +139,12 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.ITextSegm
               class='icon bk-icon icon-close-circle'
               v-bk-tooltips={{ content: this.$t('添加查询语句'), delay: 300 }}
               onClick={() => this.handleMenuClick('is')}
-            />
+            ></span>
             <span
               class='icon icon-monitor icon-mc-copy'
               v-bk-tooltips={{ content: this.$t('复制'), delay: 300 }}
               onClick={() => this.handleMenuClick('copy')}
-            />
+            ></span>
           </div>
         </div>
       </span>

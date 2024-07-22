@@ -26,10 +26,10 @@
 import { Component, Emit, Prop, PropSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type IScenarioItem, type MetricDetail, MetricType, type strategyType } from '../typings/index';
+import { IScenarioItem, MetricDetail, MetricType, strategyType } from '../typings/index';
 import StrategyMetricAlert from './strategy-metric-alert';
 import StrategyMetricCommon from './strategy-metric-common-new';
-import StrategyMetricWrap, { type TMode } from './strategy-metric-wrap';
+import StrategyMetricWrap, { TMode } from './strategy-metric-wrap';
 
 interface IStrategyMetricSelectorProps {
   type: string;
@@ -107,7 +107,7 @@ export default class StrategyMetricSelector extends tsc<IStrategyMetricSelectorP
           on-hide-dialog={this.emitShowChange}
           on-scenariotype={this.emitScenarioType}
           on-show-change={this.emitShowChange}
-        />
+        ></StrategyMetricCommon>
         {['event', 'log'].includes(this.type) && (
           <StrategyMetricWrap
             checkedMetric={this.metricData}
@@ -121,7 +121,7 @@ export default class StrategyMetricSelector extends tsc<IStrategyMetricSelectorP
             onLeftSelect={this.emitScenarioType}
             onSelected={v => this.emitMetricValue(v[0])}
             onShowChange={this.emitShowChange}
-          />
+          ></StrategyMetricWrap>
         )}
         {this.type === 'alert' && (
           <StrategyMetricAlert
@@ -132,7 +132,7 @@ export default class StrategyMetricSelector extends tsc<IStrategyMetricSelectorP
             onScenarioChange={this.emitScenarioType}
             onSelected={this.emitMetricValue}
             onShowChange={this.emitShowChange}
-          />
+          ></StrategyMetricAlert>
         )}
       </div>
     );

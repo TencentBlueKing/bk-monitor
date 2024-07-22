@@ -23,15 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
 import { useDocumentLink } from '../../../hooks';
-
-import type { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
+import { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
 
 import './application-cascade.scss';
 
@@ -167,7 +166,7 @@ export default defineComponent({
 
     /** 新增接入 */
     function jumpToApp() {
-      const hash = '#/apm/home?is_enabled_profiling=false';
+      const hash = `#/apm/home?is_enabled_profiling=false`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_self');
     }
@@ -213,7 +212,7 @@ export default defineComponent({
                   placeholder={this.t('选择应用/服务')}
                   readonly
                 >
-                  {{ suffix: () => <span class='icon-monitor icon-arrow-down' /> }}
+                  {{ suffix: () => <span class='icon-monitor icon-arrow-down'></span> }}
                 </Input>
               </div>
             ),
@@ -222,12 +221,12 @@ export default defineComponent({
                 {!this.loading ? (
                   <>
                     <div class='search-wrap'>
-                      <i class='icon-monitor icon-mc-search search-icon' />
+                      <i class='icon-monitor icon-mc-search search-icon'></i>
                       <Input
                         class='search-input'
                         v-model={this.searchKey}
                         placeholder={this.t('输入关键字')}
-                      />
+                      ></Input>
                     </div>
                     <div class='select-wrap'>
                       <div class='first panel'>
@@ -239,7 +238,7 @@ export default defineComponent({
                               class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                               onClick={() => this.handleAppClick(item)}
                             >
-                              <i class='icon-monitor icon-mc-menu-apm' />
+                              <i class='icon-monitor icon-mc-menu-apm'></i>
                               <span
                                 class='name'
                                 v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
@@ -248,7 +247,7 @@ export default defineComponent({
                                 <span class='desc'>({item.app_alias})</span>
                               </span>
 
-                              <i class='icon-monitor icon-arrow-right' />
+                              <i class='icon-monitor icon-arrow-right'></i>
                             </div>
                           ))}
                         </div>
@@ -259,7 +258,7 @@ export default defineComponent({
                             class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                             onClick={() => this.handleAppClick(item)}
                           >
-                            <i class='icon-monitor icon-mc-menu-apm' />
+                            <i class='icon-monitor icon-mc-menu-apm'></i>
                             <span
                               class='name'
                               v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
@@ -279,7 +278,7 @@ export default defineComponent({
                                   class={{ 'group-item': true, active: item.name === this.selectValue.serviceName }}
                                   onClick={() => this.handleServiceClick(item)}
                                 >
-                                  <i class='icon-monitor icon-mc-grafana-home' />
+                                  <i class='icon-monitor icon-mc-grafana-home'></i>
                                   <span class='name'>{item.name}</span>
                                 </div>
                               ))}
@@ -316,14 +315,14 @@ export default defineComponent({
                                   >
                                     {this.t('Profile 接入指引')}
                                   </a>
-                                  <i class='icon-monitor icon-fenxiang' />
+                                  <i class='icon-monitor icon-fenxiang'></i>
                                 </div>
                                 <div
                                   class='btn'
                                   onClick={this.handleViewApp}
                                 >
                                   <span>{this.t('查看应用')}</span>
-                                  <i class='icon-monitor icon-fenxiang' />
+                                  <i class='icon-monitor icon-fenxiang'></i>
                                 </div>
                               </Loading>
                             </div>
@@ -344,7 +343,7 @@ export default defineComponent({
                       size='small'
                       theme='primary'
                     >
-                      <div class='loading-spin' />
+                      <div class='loading-spin'></div>
                     </Loading>
                     <div class='loading-text'>{this.$t('应用加载中，请耐心等候…')}</div>
                   </div>
@@ -354,7 +353,7 @@ export default defineComponent({
                     class='jump-btn'
                     onClick={this.jumpToApp}
                   >
-                    <i class='icon-monitor icon-jia' />
+                    <i class='icon-monitor icon-jia'></i>
                     <span>{this.t('新增接入')}</span>
                   </div>
                 </div>

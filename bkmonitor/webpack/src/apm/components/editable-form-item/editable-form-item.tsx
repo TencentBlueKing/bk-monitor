@@ -24,16 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
 
 import ExpiredSelect from '../../components/expired-select/expired-select';
+import { IUnitItme } from '../../pages/application/app-configuration/type';
 import VerifyItem from '../verify-item/verify-item';
-
-import type { IUnitItme } from '../../pages/application/app-configuration/type';
-import type { TranslateResult } from 'vue-i18n';
 
 import './editable-form-item.scss';
 
@@ -196,17 +195,17 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
               <i
                 class='icon-monitor icon-mc-copy copy-icon'
                 onClick={() => this.handleCopy(this.value)}
-              />
+              ></i>
             )}
             <span
               class={`bk-icon toggle-icon ${this.showPassword ? 'icon-eye-slash' : 'icon-eye'}`}
               onClick={() => (this.showPassword = !this.showPassword)}
-            />
+            ></span>
           </span>
         ) : (
           <span class={['mask-content', { 'btn-loading': this.secureKeyLoading }]}>
             <span class='placeholder'>●●●●●●●●●●</span>
-            {this.secureKeyLoading && <span class='loading' />}
+            {this.secureKeyLoading && <span class='loading'></span>}
             <span
               class='view-btn'
               v-authority={{ active: !this.authority }}
@@ -259,7 +258,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
                 id={option.id}
                 key={option.id}
                 name={option.name}
-              />
+              ></bk-option>
             ))}
           </bk-select>
         );
@@ -281,7 +280,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
                     id={option.id}
                     key={option.id}
                     name={option.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-option-group>
             ))}
@@ -366,7 +365,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
               id={option.id}
               key={option.id}
               name={option.name}
-            />
+            ></bk-option>
           ))}
         </bk-select>
       </div>
@@ -421,17 +420,17 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
               {this.isEditing ? (
                 <div>
                   {this.isSubmiting ? (
-                    <div class='loading' />
+                    <div class='loading'></div>
                   ) : (
                     <span>
                       <span
                         class='bk-icon icon-check-line'
                         onClick={this.handleSubmit}
-                      />
+                      ></span>
                       <span
                         class='bk-icon icon-close-line-2'
                         onClick={this.handleCancel}
-                      />
+                      ></span>
                     </span>
                   )}
                 </div>
@@ -442,7 +441,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
                   onClick={() =>
                     this.authority ? this.handleEditClick() : this.handleShowAuthorityDetail(this.authorityName)
                   }
-                />
+                ></span>
               )}
             </div>
           )}

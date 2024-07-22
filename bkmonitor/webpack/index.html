@@ -1,50 +1,18 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1, maximum-scale=1, user-scalable=no"
     />
-    <link
-      rel="icon"
-      type="image/png"
-      href="./public/img/monitor-64.png"
-    />
-    <% if (APP_ENV === 'pc') { %>
-    <link
-      rel="preload"
-      as="image"
-      href="./loading.gif"
-    />
-    <% } %>
+    <link rel="icon" type="image/png" href="./public/img/monitor-64.png" />
     <meta charset="utf-8" />
     <title>监控平台 | 蓝鲸蓝鲸智云</title>
     <script template>
       document.title = '监控平台 | 蓝鲸蓝鲸智云';
     </script>
   </head>
-  <body style="margin: 0">
-    <% if (APP_ENV === 'pc') { %>
-    <div
-      id="__app_loading__"
-      style="
-        position: absolute;
-        z-index: 9999;
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      "
-    >
-      <img
-        height="160px"
-        width="200px"
-        src="./loading.gif"
-        alt="loading..."
-      />
-    </div>
-    <% } %>
+  <body>
     <div id="app"></div>
   </body>
 </html>

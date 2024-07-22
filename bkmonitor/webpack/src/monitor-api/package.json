@@ -6,15 +6,19 @@
   "private": true,
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
-    "lint": "eslint --fix  ./",
+    "lint": "eslint --fix --ext .js,.ts,tsx  ./",
     "fix": "npm run lint"
   },
   "dependencies": {
     "axios": "^0.26.1",
     "monitor-common": "workspace:*",
-    "qs": "^6.12.2"
+    "qs": "^6.12.0"
   },
-  "keywords": ["monitor", "api"],
+  "devDependencies": {},
+  "keywords": [
+    "monitor",
+    "api"
+  ],
   "author": "bk fe",
   "license": "MIT"
 }

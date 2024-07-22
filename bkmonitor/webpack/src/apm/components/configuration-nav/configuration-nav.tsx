@@ -69,7 +69,7 @@ export default class ConfigurationNav extends tsc<IConfiguratioNavProps, IConfig
               key={item.id}
               label={item.name}
               name={item.id}
-            />
+            ></bk-tab-panel>
           ))}
         </MonitorTab>
         <bk-alert class='info-alert'>

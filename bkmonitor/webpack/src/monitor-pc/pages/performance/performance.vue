@@ -72,18 +72,18 @@
 </template>
 
 <script lang="ts">
-import { Component, InjectReactive, Prop, Provide, Ref, Watch, Vue } from 'vue-property-decorator';
+import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { typeTools } from 'monitor-common/utils/utils';
-import { commonPageSizeSet } from 'monitor-common/utils';
 
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';
 import PerformanceModule from '../../store/modules/performance';
 
 import OverviewPanel from './components/overview-panel.vue';
 import PerformanceTable from './components/performance-table.vue';
 import PerformanceTool from './components/performance-tool.vue';
 // import { Route } from 'vue-router';
-import type { ICheck, IPageConfig, IPanelStatistics, ISearchItem, ISort, ITableRow } from './performance-type';
+import { ICheck, IPageConfig, IPanelStatistics, ISearchItem, ISort, ITableRow } from './performance-type';
 import TableStore from './table-store';
 
 Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
@@ -92,20 +92,20 @@ Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
   components: {
     OverviewPanel,
     PerformanceTool,
-    PerformanceTable,
-  },
+    PerformanceTable
+  }
 })
-export default class Performance extends Vue {
+export default class Performance extends Mixins(commonPageSizeMixin) {
   @Prop({ default: () => [], type: Array }) readonly search: ISearchItem[];
   @Ref('table') readonly tableRef: PerformanceTable;
-  @Ref('tool') readonly toolRef: PerformanceTool;
+  @Ref('tool')  readonly toolRef: PerformanceTool;
   isLoading = false;
   tableInstance: TableStore = new TableStore([], {}, this.bizList);
   // 置顶信息
   sticky = {
     key: 'userStikyNote',
     id: -1,
-    value: {},
+    value: {}
   };
 
   // 字段显示设置存储Key
@@ -123,7 +123,7 @@ export default class Performance extends Vue {
     cpuData: 'cpu_usage',
     menmoryData: 'mem_usage',
     diskData: 'disk_in_use',
-    unresolveData: 'alarm_count',
+    unresolveData: 'alarm_count'
   };
   // 无状态数据接口 | 全量数据接口 记录请求响应较快的接口
   fastInterface: 'getHostPerformance' | 'getMetricHostList' = 'getHostPerformance';
@@ -131,7 +131,7 @@ export default class Performance extends Vue {
   panelKey = '';
   emptyStatusType: EmptyStatusType = 'empty';
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refleshInterval')  readonly refleshInterval!: number;
   // 立即刷新图表
   @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
 
@@ -196,7 +196,7 @@ export default class Performance extends Vue {
       unresolveData: this.tableInstance.unresolveData.length,
       cpuData: this.tableInstance.cpuData.length,
       menmoryData: this.tableInstance.menmoryData.length,
-      diskData: this.tableInstance.diskData.length,
+      diskData: this.tableInstance.diskData.length
     };
   }
 
@@ -222,7 +222,7 @@ export default class Performance extends Vue {
       page: this.tableInstance.page,
       pageSize: this.tableInstance.pageSize,
       pageList: this.tableInstance.pageList,
-      total: this.tableInstance.total,
+      total: this.tableInstance.total
     };
   }
 
@@ -231,7 +231,7 @@ export default class Performance extends Vue {
   }
   deactivated() {
     this.tableInstance.panelKey = '';
-    this.tableInstance.fieldData.forEach(item => {
+    this.tableInstance.fieldData.forEach((item) => {
       item.value = Array.isArray(item.value) ? [] : '';
     });
   }
@@ -252,7 +252,7 @@ export default class Performance extends Vue {
     } else if (search) {
       conditions = search;
     }
-    conditions.forEach(item => {
+    conditions.forEach((item) => {
       const data = this.tableInstance.fieldData.find(data => data.id === item.id);
       if (data && !typeTools.isNull(item.value)) {
         data.value = item.value;
@@ -263,15 +263,15 @@ export default class Performance extends Vue {
 
   // 解析路由的query
   getRouteSearchQuery(): {
-    search: ISearchItem[];
-    panelKey: string;
+    search: ISearchItem[],
+    panelKey: string
   } {
     const searchStr = this.$route.query.search as string;
     let arr = null;
     searchStr && (arr = JSON.parse(decodeURIComponent(searchStr)));
     return {
       search: arr,
-      panelKey: this.$route.query.panelKey as string,
+      panelKey: this.$route.query.panelKey as string
     };
   }
   // 无状态数据
@@ -283,7 +283,7 @@ export default class Performance extends Vue {
       // 更新tableInstance
       this.tableInstance.updateData(hostData, {
         stickyValue: this.sticky.value,
-        panelKey: this.panelKey,
+        panelKey: this.panelKey
       });
       this.getTableData();
     }
@@ -294,14 +294,14 @@ export default class Performance extends Vue {
   async getHostList() {
     this.isLoading = true;
     const stickyList = await PerformanceModule.getUserConfigList({
-      key: this.sticky.key,
+      key: this.sticky.key
     });
     if (!stickyList.length) {
       // 如果用户配置不存在就创建配置
       PerformanceModule.createUserConfig({
         key: this.sticky.key,
-        value: JSON.stringify({}),
-      }).then(data => {
+        value: JSON.stringify({})
+      }).then((data) => {
         this.sticky.id = data.id || -1;
       });
     } else {
@@ -324,18 +324,18 @@ export default class Performance extends Vue {
   // 获取全部主机信息（性能问题，异步获取）
   getMetricHostList() {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    return new Promise(async resolve => {
+    return new Promise(async (resolve) => {
       this.tableInstance.loading = true;
-      const hostData = await PerformanceModule.getHostPerformanceMetric();
+      const hostData =  await PerformanceModule.getHostPerformanceMetric();
       resolve(hostData);
       this.tableInstance.updateData(hostData.hosts, {
         stickyValue: this.sticky.value,
-        panelKey: this.panelKey,
+        panelKey: this.panelKey
       });
       this.handleInitColChecked();
       this.getTableData();
       this.tableInstance.loading = false;
-      // 更新tableInstance
+    // 更新tableInstance
     });
   }
 
@@ -344,7 +344,7 @@ export default class Performance extends Vue {
     try {
       const storeCol = JSON.parse(localStorage.getItem(this.colStorageKey)) || {};
 
-      Object.keys(storeCol).forEach(key => {
+      Object.keys(storeCol).forEach((key) => {
         const index = this.tableInstance.fieldData.findIndex(item => item.id === key);
         if (index > -1) {
           this.tableInstance.fieldData[index].checked = true;
@@ -377,16 +377,14 @@ export default class Performance extends Vue {
   handleUpdateRouteQuery(panelKey = this.$route.query.panelKey, search = this.$route.query.search) {
     panelKey = panelKey === '' ? undefined : panelKey;
     search = Array.isArray(search ?? [])
-      ? search?.length
-        ? search
-        : undefined
+      ? search?.length ? search : undefined
       : JSON.parse(decodeURIComponent(search as string));
     this.$router.replace({
       name: this.$route.name,
       query: {
         panelKey,
-        search: search ? encodeURIComponent(JSON.stringify(search)) : undefined,
-      },
+        search: search ? encodeURIComponent(JSON.stringify(search)) : undefined
+      }
     });
   }
 
@@ -401,7 +399,7 @@ export default class Performance extends Vue {
   handleLimitChange(limit: number) {
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = limit;
-    commonPageSizeSet(limit)
+    this.handleSetCommonPageSize(String(limit));
     this.handleResetCheck();
     this.reLimitData();
   }
@@ -435,7 +433,7 @@ export default class Performance extends Vue {
     }
     const result = await PerformanceModule.updateUserConfig({
       id: this.sticky.id,
-      value: JSON.stringify(this.sticky.value),
+      value: JSON.stringify(this.sticky.value)
     });
     if (result) {
       const data = this.pagingData.find(item => item.rowId === row.rowId);

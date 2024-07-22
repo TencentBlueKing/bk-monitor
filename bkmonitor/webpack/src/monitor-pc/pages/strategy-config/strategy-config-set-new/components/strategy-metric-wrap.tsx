@@ -23,6 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/*
+ * @Date: 2021-06-17 19:16:02
+ * @LastEditTime: 2021-07-05 16:27:05
+ * @Description:
+ */
+import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -31,15 +37,8 @@ import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 
+import { strategyType } from '../typings/index';
 import StrategyMetricTableEvent from './strategy-metric-table-event';
-
-import type { strategyType } from '../typings/index';
-/*
- * @Date: 2021-06-17 19:16:02
- * @LastEditTime: 2021-07-05 16:27:05
- * @Description:
- */
-import type { TranslateResult } from 'vue-i18n';
 
 import './strategy-metric-wrap.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -470,13 +469,13 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
                   modelValue={this.searchData.keyWord}
                   placeholder={this.$t('关键字搜索')}
                   onChange={this.handleSearch}
-                />
+                ></SearchSelect>
               </div>
               <bk-button
                 class='btn-refresh'
                 icon='icon-refresh'
                 onClick={this.handleRefresh}
-              />
+              ></bk-button>
             </div>
           </div>
           <div class='metric-wrap-main'>
@@ -523,7 +522,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
                   type={this.tabActive}
                   onCheckedChange={this.handleCheckedChange}
                   onScrollToEnd={this.handleScrollToEnd}
-                />
+                ></StrategyMetricTableEvent>
               </div>
             </div>
           </div>

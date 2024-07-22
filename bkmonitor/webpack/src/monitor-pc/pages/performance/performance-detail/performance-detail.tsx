@@ -33,8 +33,7 @@ import GuidePage from '../../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../../i18n/dayjs';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import CommonPage from '../../monitor-k8s/components/common-page';
-
-import type { INavItem, IViewOptions } from '../../monitor-k8s/typings';
+import { INavItem, IViewOptions } from '../../monitor-k8s/typings';
 
 import './performance-detail.scss';
 

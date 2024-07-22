@@ -120,7 +120,7 @@ export default defineComponent({
           height={this.height}
           maskColor={'rgb(0 0 0 / 0%)'}
           pannable={true}
-        />
+        ></MiniMap>
         <div
           style={{
             width: `${this.width}px`,
@@ -138,7 +138,7 @@ export default defineComponent({
               fill={'#3a84ff1a'}
               stroke={'#3A84FF'}
               stroke-width={2}
-            />
+            ></path>
           </svg>
         </div>
       </div>

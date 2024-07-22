@@ -29,9 +29,8 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
+import { PanelModel } from '../../typings';
 import CommonSimpleChart from '../common-simple-chart';
-
-import type { PanelModel } from '../../typings';
 
 import './icon-chart.scss';
 
@@ -137,7 +136,7 @@ class IconChart extends CommonSimpleChart {
               <li class='icon-item'>
                 <div class='icon-wrap'>
                   <div class={`icon-box box-${item.status}`}>
-                    <i class={`bk-icon icon-${getIcon(item.status)}`} />
+                    <i class={`bk-icon icon-${getIcon(item.status)}`}></i>
                   </div>
                   <div
                     class='icon-item-label'
@@ -156,7 +155,7 @@ class IconChart extends CommonSimpleChart {
                     }}
                     alt=''
                     // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    src={require('../../../../fta-solutions/static/img/home/icon_mttr.svg')}
+                    src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}
                   />
                 )}
               </li>
@@ -165,7 +164,7 @@ class IconChart extends CommonSimpleChart {
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
         )}
-        <div class='draggable-handle draggable-handle-bar' />
+        <div class='draggable-handle draggable-handle-bar'></div>
       </div>
     );
   }

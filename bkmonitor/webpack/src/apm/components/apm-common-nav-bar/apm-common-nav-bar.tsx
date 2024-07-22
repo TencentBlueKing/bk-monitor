@@ -166,7 +166,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
           <span
             class='icon-monitor icon-back-left navigation-bar-back'
             onClick={() => this.handleBackGotoPage()}
-          />
+          ></span>
         )}
         <ul class='navigation-bar-list'>
           {this.navList.map((item, index) => (
@@ -209,7 +209,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                         class={{ 'arrow-wrap': true, active: this.navSelectShow[item.id] }}
                         slot='trigger'
                       >
-                        <i class='icon-monitor icon-mc-arrow-down' />
+                        <i class='icon-monitor icon-mc-arrow-down'></i>
                       </div>
                       {this.sortSelectList(item.selectOption).map(selectItem => (
                         <bk-option
@@ -230,7 +230,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                   ),
                 ]
               ) : (
-                <div class='skeleton-element' />
+                <div class='skeleton-element'></div>
               )}
             </li>
           ))}

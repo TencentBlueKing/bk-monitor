@@ -30,19 +30,21 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
-  type IUnifyQuerySeriesItem,
   downCsvFile,
+  IUnifyQuerySeriesItem,
   transformSrcData,
   transformTableDataToCsvStr,
 } from 'monitor-pc/pages/view-detail/utils';
 import { handleTimeRange } from 'monitor-pc/utils';
 
-import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
+import { getValueFormat, ValueFormatter } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
+import { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
 import {
   ChartLoadingMixin,
@@ -52,14 +54,7 @@ import {
   ResizeMixin,
   ToolsMxin,
 } from '../../mixins';
-import { isShadowEqual, reviewInterval } from '../../utils';
-import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
-import { handleRelateAlert } from '../../utils/menu';
-import { VariablesService } from '../../utils/variable';
-import BaseEchart from '../monitor-base-echart';
-
-import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
-import type {
+import {
   ChartTitleMenuType,
   DataQuery,
   ICommonCharts,
@@ -76,7 +71,11 @@ import type {
   MonitorEchartOptions,
   PanelModel,
 } from '../../typings';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { isShadowEqual, reviewInterval } from '../../utils';
+import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
+import { handleRelateAlert } from '../../utils/menu';
+import { VariablesService } from '../../utils/variable';
+import BaseEchart from '../monitor-base-echart';
 
 import './time-series.scss';
 
@@ -461,9 +460,7 @@ export class LineChart
             traceData: item.trace_data ?? '',
           })) as any
         );
-        const boundarySeries = seriesResult
-          .map(item => this.handleBoundaryList(item, series))
-          .flat(Number.POSITIVE_INFINITY);
+        const boundarySeries = seriesResult.map(item => this.handleBoundaryList(item, series)).flat(Infinity);
         if (!!boundarySeries) {
           seriesList = [...seriesList.map((item: any) => ({ ...item, z: 6 })), ...boundarySeries];
         }
@@ -641,7 +638,7 @@ export class LineChart
       boundaryList.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Number.POSITIVE_INFINITY
+          Infinity
         );
         this.minBase = Math.max(base, this.minBase);
       });

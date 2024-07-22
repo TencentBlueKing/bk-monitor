@@ -1,41 +1,20 @@
 .meal-content-simple-form {
   .title {
-    position: relative;
-    display: flex;
-    font-size: 12px;
-    line-height: 16px;
     color: #63656e;
+    line-height: 16px;
+    font-size: 12px;
+    display: flex;
     white-space: nowrap;
-
     .sub-title {
       max-width: 100%;
-      margin-left: 10px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    .required {
-      position: relative;
-
-      &::after {
-        position: absolute;
-        top: 50%;
-        display: inline-block;
-        height: 8px;
-        font-size: 12px;
-        line-height: 1;
-        color: #ea3636;
-        vertical-align: middle;
-        content: "*";
-        transform: translate(3px, -50%);
-      }
+      margin-left: 10px;
     }
   }
-
   .wrap {
     margin-bottom: 20px;
-
     .bk-form-input {
       padding: 0 10px 0 0;
     }

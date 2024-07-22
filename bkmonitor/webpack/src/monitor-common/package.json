@@ -5,7 +5,7 @@
   "main": ".eslintrc.js",
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
-    "lint": "eslint --fix ./",
+    "lint": "eslint --fix --ext .js,.ts,tsx  ./",
     "fix": "npm run prettier && npm run lint"
   },
   "devDependencies": {},

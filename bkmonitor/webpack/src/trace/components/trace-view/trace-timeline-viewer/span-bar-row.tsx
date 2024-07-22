@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { computed, defineComponent, PropType } from 'vue';
 
 import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
@@ -35,14 +35,13 @@ import { useTraceStore } from '../../../store/modules/trace';
 import { useChildrenHiddenInject, useSpanBarCurrentInject } from '../hooks';
 import ArrowRightShapeIcon from '../icons/arrow-right-shape.svg';
 import ErrorIcon from '../icons/error.svg';
+import { Span } from '../typings';
 import SpanBar from './span-bar';
 import SpanTreeOffset from './span-tree-offset';
 import Ticks from './ticks';
 import TimelineRow from './timeline-row';
 import TimelineRowCell from './timeline-row-cell';
-import { type ViewedBoundsFunctionType, createViewedBoundsFunc, formatDuration } from './utils';
-
-import type { Span } from '../typings';
+import { createViewedBoundsFunc, formatDuration, ViewedBoundsFunctionType } from './utils';
 
 import './span-bar-row.scss';
 
@@ -261,7 +260,7 @@ export default defineComponent({
             placement='left'
             theme='dark'
           >
-            <span class='have-read-mark' />
+            <span class='have-read-mark'></span>
           </Popover>
         )}
         {this.crossRelationInfo ? (
@@ -400,7 +399,7 @@ export default defineComponent({
                         <i
                           class='icon-monitor icon-mc-fold-menu icon-collapsed'
                           onClick={e => this.handleToggleCollapse(e, groupInfo.id, 'collpase')}
-                        />
+                        ></i>
                       ) : (
                         <span
                           class='collapsed-mark'

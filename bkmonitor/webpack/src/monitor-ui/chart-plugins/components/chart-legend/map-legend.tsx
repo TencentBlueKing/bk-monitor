@@ -25,9 +25,8 @@
  */
 import { Component } from 'vue-property-decorator';
 
+import { ILegendItem, LegendActionType } from '../../typings';
 import CommonLegend from './common-legend';
-
-import type { ILegendItem, LegendActionType } from '../../typings';
 
 import './map-legend.scss';
 
@@ -55,7 +54,7 @@ export default class MapLegend extends CommonLegend {
             <span
               style={{ backgroundColor: legend.color ? legend.color : '#ccc' }}
               class='legend-icon'
-            />
+            ></span>
             <div class='legend-name'>{legend.name}</div>
           </div>
         ))}

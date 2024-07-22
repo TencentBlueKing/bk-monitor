@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 export default function (miliseconds = 100, timeoutPropertyName = 'timeoutFn'): MethodDecorator {
-  return (
+  return function (
     target: object,
     propertyKey: string | symbol,
     descriptor: TypedPropertyDescriptor<any>
-  ): TypedPropertyDescriptor<any> => {
+  ): TypedPropertyDescriptor<any> {
     Object.defineProperty(target, timeoutPropertyName, {
       value: 0,
       writable: true,

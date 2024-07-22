@@ -31,10 +31,9 @@ import { transferCountSeries, transferLatestMsg } from 'monitor-api/modules/data
 import { copyText } from 'monitor-common/utils/utils';
 
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
+import { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import LinkStatusChart from './link-status-chart';
-
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './link-status.scss';
 
@@ -174,7 +173,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             />
           </div>
         </div>
-        <bk-divider class='divider' />
+        <bk-divider class='divider'></bk-divider>
         <div class='table-container'>
           <div class='title'>
             <div class='panel-title'>{this.$t('数据采样')}</div>
@@ -182,7 +181,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               class='refresh-btn'
               onClick={this.getTableData}
             >
-              <i class='icon-monitor icon-zhongzhi1' />
+              <i class='icon-monitor icon-zhongzhi1'></i>
             </div>
           </div>
 
@@ -229,7 +228,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                   ],
                 }}
                 label={this.$t('操作')}
-              />
+              ></bk-table-column>
             </bk-table>
           </div>
         </div>
@@ -257,7 +256,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               language='json'
               options={{ readOnly: true }}
               value={this.sideslider.data}
-            />
+            ></MonacoEditor>
           </div>
         </bk-sideslider>
       </div>

@@ -17,7 +17,7 @@
   ("merge", "分支合并及冲突解决"),
 */
 const colors = require('picocolors');
-const { readFileSync } = require('node:fs');
+const { readFileSync } = require('fs');
 const msgPath = process.argv[2];
 const msg = readFileSync(msgPath, 'utf-8').trim();
 const oldCommitRE = /^(revert: )?(feature|bugfix|minor|optimization|sprintfix|merge)(\(.+\))?: .{1,50}/;

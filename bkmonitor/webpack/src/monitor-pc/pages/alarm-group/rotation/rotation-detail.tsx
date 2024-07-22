@@ -36,7 +36,7 @@ import {
   setPreviewDataOfServer,
 } from '../../../../trace/pages/rotation/components/calendar-preview';
 import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
-import { type RuleDetailModel, randomColor, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
+import { randomColor, RuleDetailModel, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import RotationCalendarPreview from './rotation-calendar-preview';
 
@@ -121,10 +121,10 @@ export default class RotationDetail extends tsc<IProps> {
         <img
           alt=''
           src={user.logo}
-        />
+        ></img>
       );
-    if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img' />;
-    return <span class='icon-monitor icon-mc-user-one no-img' />;
+    if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
+    return <span class='icon-monitor icon-mc-user-one no-img'></span>;
   }
 
   render() {
@@ -161,7 +161,7 @@ export default class RotationDetail extends tsc<IProps> {
             <HistoryDialog
               style='margin: 0 0 0 8px'
               list={this.historyList}
-            />
+            ></HistoryDialog>
           </span>
         </div>
         <div
@@ -184,7 +184,7 @@ export default class RotationDetail extends tsc<IProps> {
                   <div class='rule-item'>
                     {rule.ruleTime.length > 1 && [
                       <span class='rule-item-index'>{this.$t('第 {num} 班', { num: ind + 1 })}</span>,
-                      <div class='col-separate' />,
+                      <div class='col-separate'></div>,
                     ]}
                     <span class='rule-item-title'>{time.day}</span>
                     {time.timer.map(item => (
@@ -207,7 +207,7 @@ export default class RotationDetail extends tsc<IProps> {
                         <div
                           style={{ background: randomColor(item.orderIndex) }}
                           class='has-color'
-                        />
+                        ></div>
                       )}
                       {item.users.map((user, ind) => (
                         <div class='personnel-choice'>
@@ -215,7 +215,7 @@ export default class RotationDetail extends tsc<IProps> {
                             <span
                               style={{ 'background-color': randomColor(item.orderIndex + ind) }}
                               class='user-color'
-                            />
+                            ></span>
                           )}
                           {this.renderUserLogo(user)}
                           <span>{user.display_name}</span>
@@ -233,7 +233,7 @@ export default class RotationDetail extends tsc<IProps> {
               this.detailData?.end_time || this.$t('永久')
             }`}</span>
           )}
-          {formItem(this.$t('轮值预览'), <RotationCalendarPreview value={this.previewData} />)}
+          {formItem(this.$t('轮值预览'), <RotationCalendarPreview value={this.previewData}></RotationCalendarPreview>)}
         </div>
       </bk-sideslider>
     );

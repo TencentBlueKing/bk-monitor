@@ -34,14 +34,13 @@ import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, random } from 'monitor-common/utils/utils';
 import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants';
-import { BookMarkModel, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
+import { IntervalType } from '../../../components/cycle-input/typings';
 import FilterVarSelectGroup from '../../monitor-k8s/components/filter-var-select/filter-var-select-group';
 import GroupSelect from '../../monitor-k8s/components/group-select/group-select';
-import { SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH, SPLIT_PANEL_LIST, type SceneType, type SplitPanelModel } from '../typings';
-
-import type { IntervalType } from '../../../components/cycle-input/typings';
-import type { FilterDictType } from '../../performance/performance-detail/host-tree/host-tree';
+import { FilterDictType } from '../../performance/performance-detail/host-tree/host-tree';
+import { SceneType, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH, SPLIT_PANEL_LIST, SplitPanelModel } from '../typings';
 
 import './split-panel.scss';
 
@@ -350,7 +349,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
             )}
             {this.sceneData.enableGroup && (
               <div class='group-column'>
-                <div class='split-line' />
+                <div class='split-line'></div>
                 <GroupSelect
                   class='k8s-group-select'
                   pageId={this.relateTab.replace(/_(detail|overview)$/gim, '')}
@@ -428,7 +427,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
                       id={option.id}
                       key={option.id}
                       name={option.name}
-                    />
+                    ></bk-option>
                   ))}
                 </bk-option-group>
               ))}
@@ -446,7 +445,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
                     id={option.id}
                     key={option.id}
                     name={option.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-select>
             )}
@@ -463,7 +462,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
                     id={`${option.id}_${option.type}`}
                     key={`${option.id}_${option.type}`}
                     name={option.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-select>
             )}

@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import * as ruleAuth from '../../pages/fta/authority-map';
+import { RouteConfig } from 'vue-router';
 
-import type { RouteConfig } from 'vue-router';
+import * as ruleAuth from '../../pages/fta/authority-map';
 
 const Fta = () => import(/* webpackChunkName: 'fta' */ '../../pages/fta/fta');
 export default [

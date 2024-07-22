@@ -27,11 +27,10 @@
 // @ts-ignore
 import deepMerge from 'deepmerge';
 
-import { type ValueFormatter, getValueFormat } from '../valueFormats';
+import { getValueFormat, ValueFormatter } from '../valueFormats';
 import MonitorBaseSeries from './base-chart-option';
 import { lineOrBarOptions } from './echart-options-config';
-
-import type { IChartInstance, ILegendItem } from './type-interface';
+import { IChartInstance, ILegendItem } from './type-interface';
 
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;
@@ -73,11 +72,11 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       boundary.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Number.POSITIVE_INFINITY
+          Infinity
         );
         minBase = Math.max(base, minBase);
       });
-      const boundarySeries = boundary.flatMap((item: any) => this.handleBoundarySeries(item, minBase));
+      const boundarySeries = boundary.map((item: any) => this.handleBoundarySeries(item, minBase)).flat();
       newSeries = newSeries.map((item: any) => ({
         ...item,
         minBase,
@@ -209,7 +208,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       /** 需要加强点的数据 */
       const markPointData = [];
       let dataLength = 0;
-      const markPointList = [];
+      let markPointList = [];
       item.data.forEach((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {
           const pre = item.data[seriesIndex - 1];
@@ -242,7 +241,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
             if (item.type === 'scatter') {
               /* trace散点图 */
-              const scatterData = {};
+              let scatterData = {};
               item.columns.forEach((c, cIndex) => {
                 scatterData[c] = item.data_points[seriesIndex][cIndex];
               });

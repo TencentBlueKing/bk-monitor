@@ -63,7 +63,7 @@ import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
  * 邮件订阅列表页
  */
 @Component({
-  name: 'email-subscriptions',
+  name: 'email-subscriptions'
 })
 export default class EmailSubscriptions extends Vue {
   @Prop({ default: '', type: String }) private readonly title: string;

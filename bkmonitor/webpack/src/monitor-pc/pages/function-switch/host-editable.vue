@@ -47,7 +47,7 @@
 import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
 
 @Component({
-  name: 'host-editable',
+  name: 'host-editable'
 })
 export default class HostEditable extends Vue {
   @Ref('input') readonly inputRef;
@@ -98,7 +98,6 @@ export default class HostEditable extends Vue {
   position: relative;
   height: 26px;
   cursor: pointer;
-
   .text {
     position: relative;
     padding: 0 20px 0 0;
@@ -106,22 +105,20 @@ export default class HostEditable extends Vue {
 
     @include ellipsis;
   }
-
   &:hover {
     background-color: #f0f1f5;
   }
-
   .input {
     position: absolute;
     top: 0;
     left: 0;
-    z-index: 1;
     width: 100%;
     height: 60px;
-    overflow-y: scroll;
-    background-color: #fff;
     border: 1px solid $slightFontColor;
     border-radius: 2px;
+    overflow-y: scroll;
+    background-color: #fff;
+    z-index: 1;
   }
 }
 </style>

@@ -29,7 +29,7 @@
  * @Description:
  */
 import Vue from 'vue';
-import Router, { type RouteConfig } from 'vue-router';
+import Router, { RouteConfig } from 'vue-router';
 
 import { random } from 'monitor-common/utils/utils';
 import ExceptionPage from 'monitor-pc/pages/exception-page/exception-page.vue';

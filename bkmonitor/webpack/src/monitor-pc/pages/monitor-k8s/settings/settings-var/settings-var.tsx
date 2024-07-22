@@ -26,17 +26,16 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getSceneViewDimensionValue, getSceneViewDimensions } from 'monitor-api/modules/scene_view';
+import { getSceneViewDimensions, getSceneViewDimensionValue } from 'monitor-api/modules/scene_view';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import DragItem from 'monitor-ui/monitor-draggable/drag-item';
-import MonitorDraggable, { type IOnDrop } from 'monitor-ui/monitor-draggable/monitor-draggable';
+import MonitorDraggable, { IOnDrop } from 'monitor-ui/monitor-draggable/monitor-draggable';
 
 import ConditionInput, {
-  type IVarOption,
+  IVarOption,
 } from '../../../strategy-config/strategy-config-set-new/monitor-data/condition-input';
-import { SETTINGS_POP_ZINDEX, handleCheckVarWhere, handleReplaceWhereVar } from '../../utils';
-
-import type { IBookMark, ICurVarItem, IOption, IViewOptions, IWhere, SettingsVarType } from '../../typings';
+import { IBookMark, ICurVarItem, IOption, IViewOptions, IWhere, SettingsVarType } from '../../typings';
+import { handleCheckVarWhere, handleReplaceWhereVar, SETTINGS_POP_ZINDEX } from '../../utils';
 
 import './settings-var.scss';
 /**
@@ -474,7 +473,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
             theme='primary'
             onClick={this.handleAddVar}
           >
-            <i class='icon-monitor icon-mc-add' />
+            <i class='icon-monitor icon-mc-add'></i>
             <span class='set-var-btn-text'>{this.$t('新增')}</span>
           </bk-button>
           {!!this.localVarList.length ? (
@@ -498,7 +497,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
                     <div class='set-var-item'>
                       <div class='set-var-item-header drag-handle'>
                         <span class='set-var-item-header-left'>
-                          <i class='icon-monitor icon-mc-tuozhuai' />
+                          <i class='icon-monitor icon-mc-tuozhuai'></i>
                           <span class='set-var-item-title'>{`$${item.groupBy}`}</span>
                           <bk-select
                             class='set-var-select'
@@ -510,7 +509,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
                         <i
                           class='icon-monitor icon-mc-delete-line'
                           onClick={() => this.handleDeleteVar(index)}
-                        />
+                        ></i>
                       </div>
                       <div class='set-var-item-content'>
                         <div class='set-var-form-group'>
@@ -539,7 +538,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
                                 class='set-var-alias'
                                 value={item.alias}
                                 disabled
-                              />
+                              ></bk-input>
                             </div>
                           </div>
                           <div class='set-var-form-item'>

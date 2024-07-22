@@ -84,7 +84,7 @@ function strToRgb(s: string): [number, number, number] {
   const r = s.slice(1, 3);
   const g = s.slice(3, 5);
   const b = s.slice(5);
-  return [Number.parseInt(r, 16), Number.parseInt(g, 16), Number.parseInt(b, 16)];
+  return [parseInt(r, 16), parseInt(g, 16), parseInt(b, 16)];
 }
 
 export class ColorGenerator {

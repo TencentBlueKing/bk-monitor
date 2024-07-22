@@ -25,7 +25,7 @@
  */
 
 import { Component } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import { metricInfo } from 'monitor-api/modules/apm_meta';
 import { getUnitList } from 'monitor-api/modules/strategies';
@@ -338,21 +338,21 @@ export default class IndicatorDimension extends tsc<object> {
             <bk-table-column
               label={this.$t('指标名')}
               scopedSlots={indicatorSlot}
-            />
+            ></bk-table-column>
             <bk-table-column
               label={this.$t('指标别名')}
               scopedSlots={{ default: props => props.row.metric_display_name || '--' }}
-            />
+            ></bk-table-column>
             <bk-table-column
               width='100'
               label={this.$t('指标类型')}
               scopedSlots={{ default: props => props.row.type }}
-            />
+            ></bk-table-column>
             <bk-table-column
               width='160'
               label={this.$t('单位')}
               scopedSlots={{ default: props => this.getUnitText(props.row.unit) }}
-            />
+            ></bk-table-column>
             {/* <bk-table-column
             label="启/停"
             width="80"
@@ -364,7 +364,7 @@ export default class IndicatorDimension extends tsc<object> {
               width='120'
               label={this.$t('操作')}
               scopedSlots={operatorSlot}
-            />
+            ></bk-table-column>
           </bk-table>
         </PanelItem>
 
@@ -387,7 +387,7 @@ export default class IndicatorDimension extends tsc<object> {
               onClick={() => this.handleRetrieve()}
             >
               {this.$t('检索')}
-              <span class='icon-monitor icon-fenxiang' />
+              <span class='icon-monitor icon-fenxiang'></span>
             </span>
           </div>
           <IndicatorDetail

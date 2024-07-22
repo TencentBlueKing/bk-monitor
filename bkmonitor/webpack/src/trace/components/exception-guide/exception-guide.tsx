@@ -24,11 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent, PropType } from 'vue';
 
 import { Button, Exception } from 'bkui-vue';
-
-import type { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import { type ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './exception-guide.scss';
 

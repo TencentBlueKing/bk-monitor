@@ -305,15 +305,19 @@
 </template>
 
 <script lang="ts">
+import VueI18n, { TranslateResult } from 'vue-i18n';
+import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
-import { groupList, reportContent, reportCreateOrUpdate, reportTest } from 'monitor-api/modules/report';
+import {
+  groupList,
+  reportContent,
+  reportCreateOrUpdate,
+  reportTest
+} from 'monitor-api/modules/report';
 import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { Sortable } from 'sortablejs';
-import type VueI18n from 'vue-i18n';
-import type { TranslateResult } from 'vue-i18n';
-import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
 
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import memberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
@@ -322,7 +326,7 @@ import addContent from './components/add-content.vue';
 import ReceiverList from './components/receiver-list.vue';
 import SubscriptionContent from './components/subscription-content';
 import timePeriod from './components/time-period.vue';
-import type { IContentFormData, ITableColumnItem } from './types';
+import { IContentFormData, ITableColumnItem } from './types';
 import { splitGraphId } from './utils';
 /** 默认的图表数据时间范围 按照发送频率 */
 const DEFAULT_TIME_RANGE = 'none';
@@ -346,14 +350,14 @@ interface ITimeRangeObj {
     MonitorDialog,
     memberSelector,
     ReceiverList,
-    SubscriptionContent,
-  },
+    SubscriptionContent
+  }
 })
 export default class SubscriptionsSet extends Vue {
   @Prop({ default: '', type: [Number, String] }) readonly id: number | string;
-  @Ref('validateForm') readonly validateFormRef: any;
-  @Ref('reportContentsFormItem') reportContentsFormItemRef: any;
-  @Ref('receiverTarget') receiverTargetRef: Element;
+  @Ref('validateForm')readonly validateFormRef: any;
+  @Ref('reportContentsFormItem')reportContentsFormItemRef: any;
+  @Ref('receiverTarget')receiverTargetRef: Element;
 
   isLoading = false;
   saveLoading = false;
@@ -372,20 +376,20 @@ export default class SubscriptionsSet extends Vue {
       {
         channelName: 'email',
         isEnabled: false,
-        subscribers: '',
+        subscribers: ''
       },
       {
         channelName: 'wxbot',
         isEnabled: false,
-        subscribers: '',
-      },
+        subscribers: ''
+      }
     ],
     managers: [],
     frequency: null,
     reportContents: [],
     fullReportContents: [], // 整屏截取数据
     timeRange: DEFAULT_TIME_RANGE, // 图表数据的时间范围
-    isLinkEnabled: false, // 是否附带链接
+    isLinkEnabled: false // 是否附带链接
   };
   sortEndReportContents = [];
   curFromIndex = 0;
@@ -395,26 +399,19 @@ export default class SubscriptionsSet extends Vue {
     subscribe: [
       {
         validator: this.checkSubscribe,
-        message: window.i18n.t('必填项'),
-        trigger: 'none',
-      },
+        message: window.i18n.t('必填项'), trigger: 'none'
+      }
     ],
-    managers: [
-      {
-        validator(val) {
-          return !!val.length;
-        },
-        message: window.i18n.t('必填项'),
-        trigger: 'none',
-      },
-    ],
+    managers: [{ validator(val) {
+      return !!val.length;
+    }, message: window.i18n.t('必填项'), trigger: 'none' }],
     timeRange: [
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'none',
-      },
-    ],
+        trigger: 'none'
+      }
+    ]
   };
   errors: any = null;
   // 表格列数据
@@ -422,7 +419,7 @@ export default class SubscriptionsSet extends Vue {
     { label: window.i18n.t('子标题'), key: 'contentTitle' },
     { label: window.i18n.t('图表数量'), key: 'graphs', width: 150 },
     { label: window.i18n.t('布局'), key: 'rowPicturesNum', width: 150 },
-    { label: window.i18n.t('说明'), key: 'contentDetails' },
+    { label: window.i18n.t('说明'), key: 'contentDetails' }
   ];
   tableKey = 'tableKey';
   // 当前编辑的数据
@@ -437,20 +434,20 @@ export default class SubscriptionsSet extends Vue {
     success: {
       icon: 'icon-mc-check-fill',
       title: window.i18n.t('发送测试邮件成功'),
-      content: window.i18n.t('邮件任务已生成，请一分钟后到邮箱查看'),
+      content: window.i18n.t('邮件任务已生成，请一分钟后到邮箱查看')
     },
     fail: {
       icon: 'icon-mc-close-fill',
       title: window.i18n.t('测试邮件发送失败'),
-      content: window.i18n.t('您好，订阅邮件模板发送失败，请稍后重试！'),
-    },
+      content: window.i18n.t('您好，订阅邮件模板发送失败，请稍后重试！')
+    }
   };
 
   // 人员数据
   memberList: any = [];
   // 接收人数据
   receiverList: any = {
-    show: false,
+    show: false
   };
   // 接收用户数据
   receiversUser: any = [];
@@ -463,52 +460,52 @@ export default class SubscriptionsSet extends Vue {
   timeRangeOption: IOption[] = [
     {
       id: 'none',
-      name: window.i18n.t('按发送频率'),
+      name: window.i18n.t('按发送频率')
     },
     {
       id: '5minutes',
-      name: window.i18n.t('近{n}分钟', { n: 5 }),
+      name: window.i18n.t('近{n}分钟', { n: 5 })
     },
     {
       id: '15minutes',
-      name: window.i18n.t('近{n}分钟', { n: 15 }),
+      name: window.i18n.t('近{n}分钟', { n: 15 })
     },
     {
       id: '30minutes',
-      name: window.i18n.t('近{n}分钟', { n: 30 }),
+      name: window.i18n.t('近{n}分钟', { n: 30 })
     },
     {
       id: '1hours',
-      name: window.i18n.t('近{n}小时', { n: 1 }),
+      name: window.i18n.t('近{n}小时', { n: 1 })
     },
     {
       id: '3hours',
-      name: window.i18n.t('近{n}小时', { n: 3 }),
+      name: window.i18n.t('近{n}小时', { n: 3 })
     },
     {
       id: '6hours',
-      name: window.i18n.t('近{n}小时', { n: 6 }),
+      name: window.i18n.t('近{n}小时', { n: 6 })
     },
     {
       id: '12hours',
-      name: window.i18n.t('近{n}小时', { n: 12 }),
+      name: window.i18n.t('近{n}小时', { n: 12 })
     },
     {
       id: '24hours',
-      name: window.i18n.t('近{n}小时', { n: 24 }),
+      name: window.i18n.t('近{n}小时', { n: 24 })
     },
     {
       id: '2days',
-      name: window.i18n.t('近 {n} 天', { n: 2 }),
+      name: window.i18n.t('近 {n} 天', { n: 2 })
     },
     {
       id: '7days',
-      name: window.i18n.t('近 {n} 天', { n: 7 }),
+      name: window.i18n.t('近 {n} 天', { n: 7 })
     },
     {
       id: '30days',
-      name: window.i18n.t('近 {n} 天', { n: 30 }),
-    },
+      name: window.i18n.t('近 {n} 天', { n: 30 })
+    }
   ];
 
   noticeWayList = [];
@@ -519,11 +516,11 @@ export default class SubscriptionsSet extends Vue {
     if (this.id) {
       // 编辑
       const receivers = [];
-      this.formData.receivers.forEach(item => {
+      this.formData.receivers.forEach((item) => {
         const res = groupList.find(set => item === set.id);
         res ? receivers.push(...res.children) : receivers.push(item);
       });
-      receivers.forEach(item => {
+      receivers.forEach((item) => {
         const res = this.receiversUser.find(set => set.id === item);
         let temp = {};
         if (res) {
@@ -532,21 +529,21 @@ export default class SubscriptionsSet extends Vue {
             name: item,
             createTime,
             isEnabled,
-            lastSendTime,
+            lastSendTime
           };
         } else {
           temp = {
             name: item,
             createTime: '',
             isEnabled: null,
-            lastSendTime: '',
+            lastSendTime: ''
           };
         }
         list.push(temp);
       });
     } else {
       const temp = [];
-      this.formData.receivers.forEach(item => {
+      this.formData.receivers.forEach((item) => {
         const res = groupList.find(set => item === set.id);
         if (res) {
           temp.push(...res.children);
@@ -558,11 +555,12 @@ export default class SubscriptionsSet extends Vue {
         name: item,
         createTime: '',
         isEnabled: null,
-        lastSendTime: '',
+        lastSendTime: ''
       }));
     }
     return list;
   }
+
 
   get isSuperUser() {
     return this.$store.getters.isSuperUser;
@@ -570,10 +568,7 @@ export default class SubscriptionsSet extends Vue {
 
   get wxworkBotTips() {
     const name = this.noticeWayList.find(item => item.type === 'wxwork-bot')?.name || '';
-    return this.$t(
-      "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
-      { name }
-    );
+    return this.$t('获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字\'会话ID\'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔', { name });
   }
 
   // 人员数据筛选
@@ -581,8 +576,8 @@ export default class SubscriptionsSet extends Vue {
     if (this.isSuperUser) {
       const temp = deepClone(this.memberList);
       const list = temp.filter(item => item.id === 'group');
-      list.forEach(item => {
-        item.children = item.children.map(group => {
+      list.forEach((item) => {
+        item.children = item.children.map((group) => {
           group.username = group.id;
           delete group.children;
           return group;
@@ -597,28 +592,27 @@ export default class SubscriptionsSet extends Vue {
     const pullData = this.formData?.fullReportContents || [];
     return {
       viewData,
-      pullData,
+      pullData
     };
   }
   created() {
     this.updateNavData(this.id ? this.$tc('编辑') : this.$tc('新建订阅'));
-    getNoticeWay()
-      .then(res => {
-        this.noticeWayList = res;
-      })
+    getNoticeWay().then((res) => {
+      this.noticeWayList = res;
+    })
       .catch(() => []);
     if (this.id) this.getEditInfo(this.id);
     // 获取通知对象数据
     // getReceiver({ bk_biz_id: 0 }).then((data) => {
     //   this.memberList = data
     // })
-    groupList().then(data => {
+    groupList().then((data) => {
       this.memberList = [
         {
           id: 'group',
           display_name: this.$t('用户组'),
-          children: data,
-        },
+          children: data
+        }
       ];
     });
   }
@@ -628,7 +622,7 @@ export default class SubscriptionsSet extends Vue {
     const routeList = [];
     routeList.push({
       name,
-      id: '',
+      id: ''
     });
     this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
   }
@@ -639,7 +633,7 @@ export default class SubscriptionsSet extends Vue {
    */
   getTimeRange(timeRangeObj: ITimeRangeObj) {
     const { timeLevel, number } = timeRangeObj;
-    return timeLevel && number ? `${number}${timeLevel}` : DEFAULT_TIME_RANGE;
+    return (timeLevel && number) ? `${number}${timeLevel}` : DEFAULT_TIME_RANGE;
   }
   /**
    * 转换成接口格式
@@ -649,14 +643,14 @@ export default class SubscriptionsSet extends Vue {
     if (str === 'none') return undefined;
     let res: ITimeRangeObj = {
       timeLevel: 'hours',
-      number: 24,
+      number: 24
     };
     const isMatch = str.match(/(\d+)(minutes|hours|days)/);
     if (isMatch) {
       const [, date, level] = isMatch;
       res = {
         timeLevel: level as ITimeRangeObj['timeLevel'],
-        number: +date,
+        number: +date
       };
     }
     return transformDataKey(res, true);
@@ -666,22 +660,18 @@ export default class SubscriptionsSet extends Vue {
    * 校验是否有选择订阅人
    */
   checkSubscribe() {
-    const {
-      formData: { receivers, receiversEnabled, channels },
-    } = this;
+    const { formData: { receivers, receiversEnabled, channels } } = this;
     // 必须勾选一种方式，且对应的方式必须有值
-    return (
-      (receiversEnabled && receivers.length) ||
-      (channels[0].isEnabled && channels[0].subscribers.length) ||
-      (channels[1].isEnabled && channels[1].subscribers.length)
-    );
+    return (receiversEnabled && receivers.length)
+    || (channels[0].isEnabled && channels[0].subscribers.length)
+    || (channels[1].isEnabled && channels[1].subscribers.length);
   }
   /**
    * 编辑信息
    */
   async getEditInfo(id) {
     this.isLoading = true;
-    const res = await reportContent({ report_item_id: id }).catch(() => false);
+    const res = await reportContent({ report_item_id: id }).catch(() => (false));
     if (!res) return;
     this.updateNavData(`${this.$t('编辑')} ${res.mail_title}`);
     const data = transformDataKey(res);
@@ -695,7 +685,7 @@ export default class SubscriptionsSet extends Vue {
     if (data.channels && Object.keys(data.channels).length) {
       this.formData.channels = data.channels.map(({ subscribers, ...params }) => ({
         ...params,
-        subscribers: subscribers.map(item => item.username).join(','),
+        subscribers: subscribers.map(item => item.username).join(',')
       }));
     }
     // this.
@@ -709,26 +699,24 @@ export default class SubscriptionsSet extends Vue {
     if (isFull) {
       this.contentType = 'full';
       const ids = Array.from<string>(new Set(data.contents.map(item => splitGraphId(item.graphs[0]).bizId)));
-      this.formData.fullReportContents = data.contents.map(content => {
+      this.formData.fullReportContents = data.contents.map((content) => {
         const { contentDetails, contentTitle, rowPicturesNum } = content;
         const graphData = splitGraphId(content.graphs[0]);
         return {
-          contentDetails,
-          contentTitle,
-          rowPicturesNum,
+          contentDetails, contentTitle, rowPicturesNum,
           curBizId: graphData.bizId,
           curGrafana: graphData.dashboardId,
-          curGrafanaName: '',
+          curGrafanaName: ''
         };
       });
       this.setFullReportContents(ids);
     } else {
       this.contentType = 'view';
       this.formData.reportContents = data.contents;
-      this.formData.reportContents.forEach(content => {
+      this.formData.reportContents.forEach((content) => {
         content.graphs = content.graphName.map(item => ({
           id: item.graphId,
-          name: item.graphName,
+          name: item.graphName
         }));
       });
     }
@@ -742,12 +730,12 @@ export default class SubscriptionsSet extends Vue {
   async setFullReportContents(ids: string[]) {
     const graghsList = await this.getGraphsListByBiz(ids);
     this.formData.fullReportContents.forEach((item: any) => {
-      const bizGraph = graghsList.find(graph => {
+      const bizGraph = graghsList.find((graph) => {
         return graph[item.curBizId];
       });
       if (bizGraph) {
-        item.curGrafanaName =
-          bizGraph[item.curBizId].find(graph => graph.uid === item.curGrafana)?.text || item.curGrafana;
+        item.curGrafanaName = bizGraph[item.curBizId].find(graph => graph.uid === item.curGrafana)?.text
+        || item.curGrafana;
       }
     });
   }
@@ -755,16 +743,14 @@ export default class SubscriptionsSet extends Vue {
   async getGraphsListByBiz(ids: string[]) {
     const promiseList = [];
     if (ids.length) {
-      await Promise.all(
-        ids.map(async id => {
-          const graphBiziId = {};
-          const res = await getDashboardList({ bk_biz_id: id }).catch(() => []);
-          graphBiziId[id] = res;
-          promiseList.push(graphBiziId);
-        })
-      );
+      await Promise.all(ids.map(async (id) => {
+        const graphBiziId = {};
+        const res = await getDashboardList({ bk_biz_id: id }).catch(() => []);
+        graphBiziId[id] = res;
+        promiseList.push(graphBiziId);
+      }));
     }
-    return Promise.all(promiseList).catch(() => []);
+    return Promise.all(promiseList).catch(() => ([]));
   }
 
   // 更新本地接收人数据
@@ -849,21 +835,21 @@ export default class SubscriptionsSet extends Vue {
   getReceiversParams(receivers) {
     let res = [];
     const groupList = this.memberList.find(item => item.id === 'group')?.children || [];
-    res = receivers.map(item => {
+    res = receivers.map((item) => {
       const flag = groupList.find(set => set.id === item);
       return {
         id: item,
         is_enabled: true,
-        type: flag ? 'group' : 'user',
+        type: flag ? 'group' : 'user'
       };
     });
-    this.receivers.forEach(item => {
+    this.receivers.forEach((item) => {
       if (item.group) {
         res.push({
           id: item.id,
           group: item.group,
           is_enabled: item.isEnabled,
-          type: item.type,
+          type: item.type
         });
       }
     });
@@ -875,64 +861,61 @@ export default class SubscriptionsSet extends Vue {
    */
   handleSave() {
     this.saveLoading = true;
-    this.validateFormRef
-      .validate()
-      .then(() => {
-        if (!(this.formData.reportContents.length || this.formData.fullReportContents.length)) {
-          this.errors = { field: 'reportContents', content: this.$t('必填项') };
-          this.saveLoading = false;
-          return;
-        }
-        this.errors = null;
-        const groupList = this.memberList.find(item => item.id === 'group')?.children || [];
-        let params = deepClone(this.formData);
-        if (!params.receiversEnabled) params.receivers = [];
-        delete params.receiversEnabled;
-        params.receivers = this.getReceiversParams(params.receivers);
-        params.managers = params.managers.map(item => {
-          const flag = groupList.find(set => set.id === item);
+    this.validateFormRef.validate().then(() => {
+      if (!(this.formData.reportContents.length || this.formData.fullReportContents.length)) {
+        this.errors = { field: 'reportContents', content: this.$t('必填项') };
+        this.saveLoading = false;
+        return;
+      }
+      this.errors = null;
+      const groupList = this.memberList.find(item => item.id === 'group')?.children || [];
+      let params = deepClone(this.formData);
+      if (!params.receiversEnabled) params.receivers = [];
+      delete params.receiversEnabled;
+      params.receivers = this.getReceiversParams(params.receivers);
+      params.managers = params.managers.map((item) => {
+        const flag = groupList.find(set => set.id === item);
+        return {
+          id: item,
+          type: flag ? 'group' : 'user'
+        };
+      });
+      params.channels.forEach((channel) => {
+        const subscribers = channel.subscribers.split(',');
+        channel.subscribers = subscribers.reduce((pre, cur) => {
+          if (cur.length) pre.push({ username: cur });
+          return pre;
+        }, []);
+      });
+      if (this.contentType === 'view') {
+        params.reportContents.forEach((content) => {
+          content.graphs = content.graphs.map(chart => chart.id);
+        });
+      }
+      if (this.contentType === 'full') {
+        params.reportContents = params.fullReportContents.map((content) => {
+          const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana } = content;
           return {
-            id: item,
-            type: flag ? 'group' : 'user',
+            contentDetails,
+            contentTitle,
+            rowPicturesNum,
+            graphs: [`${curBizId}-${curGrafana}-*`]
           };
         });
-        params.channels.forEach(channel => {
-          const subscribers = channel.subscribers.split(',');
-          channel.subscribers = subscribers.reduce((pre, cur) => {
-            if (cur.length) pre.push({ username: cur });
-            return pre;
-          }, []);
+      }
+      delete params.fullReportContents;
+      params = transformDataKey(params, true);
+      params.frequency.data_range = this.getTimeRangeObj(this.formData.timeRange);
+      reportCreateOrUpdate(params).then(() => {
+        this.$router.push({
+          name: 'email-subscriptions'
         });
-        if (this.contentType === 'view') {
-          params.reportContents.forEach(content => {
-            content.graphs = content.graphs.map(chart => chart.id);
-          });
-        }
-        if (this.contentType === 'full') {
-          params.reportContents = params.fullReportContents.map(content => {
-            const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana } = content;
-            return {
-              contentDetails,
-              contentTitle,
-              rowPicturesNum,
-              graphs: [`${curBizId}-${curGrafana}-*`],
-            };
-          });
-        }
-        delete params.fullReportContents;
-        params = transformDataKey(params, true);
-        params.frequency.data_range = this.getTimeRangeObj(this.formData.timeRange);
-        reportCreateOrUpdate(params)
-          .then(() => {
-            this.$router.push({
-              name: 'email-subscriptions',
-            });
-          })
-          .finally(() => {
-            this.saveLoading = false;
-          });
       })
-      .catch(err => {
+        .finally(() => {
+          this.saveLoading = false;
+        });
+    })
+      .catch((err) => {
         console.log(err);
         this.errors = err;
         this.saveLoading = false;
@@ -944,69 +927,66 @@ export default class SubscriptionsSet extends Vue {
    */
   handleTest() {
     this.testLoading = true;
-    this.validateFormRef
-      .validate()
-      .then(() => {
-        const {
-          reportContents,
-          fullReportContents,
-          mailTitle,
-          receivers,
-          frequency,
-          channels,
-          receiversEnabled,
-          isLinkEnabled,
-        } = deepClone(this.formData);
-        // const groupList = this.memberList.find(item => item.id === 'group').children
-        let params = {
-          mail_title: mailTitle,
-          receivers,
-          channels,
-          report_contents: reportContents,
-          frequency: {
-            ...frequency,
-            data_range: this.getTimeRangeObj(this.formData.timeRange),
-          },
-          isLinkEnabled,
-        };
-        if (!receiversEnabled) params.receivers = [];
-        params.receivers = this.getReceiversParams(params.receivers);
-        params.channels.forEach(channel => {
-          const subscribers = channel.subscribers.split(',');
-          channel.subscribers = subscribers.reduce((pre, cur) => {
-            if (cur.length) pre.push({ username: cur });
-            return pre;
-          }, []);
+    this.validateFormRef.validate().then(() => {
+      const {
+        reportContents,
+        fullReportContents,
+        mailTitle,
+        receivers,
+        frequency,
+        channels,
+        receiversEnabled,
+        isLinkEnabled
+      } = deepClone(this.formData);
+      // const groupList = this.memberList.find(item => item.id === 'group').children
+      let params = {
+        mail_title: mailTitle,
+        receivers,
+        channels,
+        report_contents: reportContents,
+        frequency: {
+          ...frequency,
+          data_range: this.getTimeRangeObj(this.formData.timeRange)
+        },
+        isLinkEnabled
+      };
+      if (!receiversEnabled) params.receivers = [];
+      params.receivers = this.getReceiversParams(params.receivers);
+      params.channels.forEach((channel) => {
+        const subscribers = channel.subscribers.split(',');
+        channel.subscribers = subscribers.reduce((pre, cur) => {
+          if (cur.length) pre.push({ username: cur });
+          return pre;
+        }, []);
+      });
+      if (this.contentType === 'view') {
+        params.report_contents.forEach((content) => {
+          content.graphs = content.graphs.map(chart => chart.id);
         });
-        if (this.contentType === 'view') {
-          params.report_contents.forEach(content => {
-            content.graphs = content.graphs.map(chart => chart.id);
-          });
-        } else if (this.contentType === 'full') {
-          params.report_contents = fullReportContents.map(content => {
-            const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana } = content;
-            return {
-              contentDetails,
-              contentTitle,
-              rowPicturesNum,
-              graphs: [`${curBizId}-${curGrafana}-*`],
-            };
-          });
-        }
-        params = transformDataKey(params, true);
-        reportTest(params)
-          .then(() => {
-            this.tipsType = 'success';
-          })
-          .catch(() => {
-            this.tipsType = 'fail';
-          })
-          .finally(() => {
-            this.showTips = true;
-            this.testLoading = false;
-          });
+      } else if (this.contentType === 'full') {
+        params.report_contents = fullReportContents.map((content) => {
+          const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana } = content;
+          return {
+            contentDetails,
+            contentTitle,
+            rowPicturesNum,
+            graphs: [`${curBizId}-${curGrafana}-*`]
+          };
+        });
+      }
+      params = transformDataKey(params, true);
+      reportTest(params).then(() => {
+        this.tipsType = 'success';
       })
-      .catch(err => {
+        .catch(() => {
+          this.tipsType = 'fail';
+        })
+        .finally(() => {
+          this.showTips = true;
+          this.testLoading = false;
+        });
+    })
+      .catch((err) => {
         this.errors = err;
         this.testLoading = false;
       });
@@ -1027,7 +1007,7 @@ export default class SubscriptionsSet extends Vue {
     receivers.forEach(item => item.id === row.name && (item.isEnabled = !item.isEnabled));
     let params = {
       reportItemId: this.id,
-      receivers,
+      receivers
     };
     params = transformDataKey(params, true);
     reportCreateOrUpdate(params)
@@ -1065,7 +1045,7 @@ export default class SubscriptionsSet extends Vue {
         this.sortEndReportContents[to] = this.sortEndReportContents[from];
         this.sortEndReportContents[from] = temp;
         this.curFromIndex = to;
-      },
+      }
     });
   }
 

@@ -29,9 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 
 import SortPanel from '../../performance/performance-detail/sort-panel.vue';
+import { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 import { delCollectScene, getCollectVariable, setCollectVariable } from './variable-set';
-
-import type { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 
 import './view-settings-side.scss';
 
@@ -248,7 +247,7 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                 maxlength={20}
                 show-word-limit
                 on-focus={() => (this.verify = false)}
-              />
+              ></bk-input>
             </div>
             <div
               style={this.viewSortHide ? 'display: none' : undefined}
@@ -269,15 +268,15 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                       v-model={this.createName}
                       maxlength={20}
                       show-word-limit
-                    />
+                    ></bk-input>
                     <i
                       class='ml5 bk-icon icon-check-1'
                       onClick={() => this.createGroup(true)}
-                    />
+                    ></i>
                     <i
                       class='ml5 icon-monitor icon-mc-close'
                       onClick={() => this.createGroup(false)}
-                    />
+                    ></i>
                   </div>
                 )}
               </span>
@@ -293,7 +292,7 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                       id={item.id}
                       key={item.id}
                       name={item.title}
-                    />
+                    ></bk-option>
                   ))}
                 </bk-select>
                 <bk-button
@@ -316,7 +315,7 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
             on-checked-change={v => (this.isChecked = v)}
             on-groups-change={this.groupsChange}
             on-save={this.handleSortChange}
-          />
+          ></SortPanel>
         </div>
       </bk-sideslider>
     );

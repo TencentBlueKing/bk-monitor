@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import Collapse from '../../../components/collapse/collapse';
 import { GRAFANA_HOME_ID, MoreType } from './dashboard-aside';
-import IconBtn, { type IIconBtnOptions } from './icon-btn';
-
-import type { TreeMenuItem } from './utils';
+import IconBtn, { IIconBtnOptions } from './icon-btn';
+import { TreeMenuItem } from './utils';
 
 import './tree-list.scss';
 
@@ -275,7 +274,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
               onMouseleave={() => this.handleMouseenter()}
             >
               <span class={['list-item-icon', { 'is-null': !(item.curIcon || item.uid === GRAFANA_HOME_ID) }]}>
-                {item.curIcon && <i class={['icon-monitor', item.curIcon]} />}
+                {item.curIcon && <i class={['icon-monitor', item.curIcon]}></i>}
               </span>
               {item.edit ? (
                 <div onClick={modifiers.stop(() => {})}>
@@ -285,7 +284,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                     v-model={item.editValue}
                     onBlur={() => this.handleRename(item)}
                     onEnter={() => this.handleRename(item)}
-                  />
+                  ></bk-input>
                 </div>
               ) : (
                 <span
@@ -308,7 +307,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                       <i
                         class='icon-monitor icon-mc-add'
                         slot='icon'
-                      />
+                      ></i>
                     </IconBtn>
                   )}
                   {this.checkedGroupItemFocus(this.needMore, item) && (
@@ -322,7 +321,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                       <i
                         class='icon-monitor icon-mc-more'
                         slot='icon'
-                      />
+                      ></i>
                     </IconBtn>
                   )}
                   {this.checkedDashboardItemFocus(this.needMore, item) && (
@@ -336,7 +335,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                       <i
                         class='icon-monitor icon-mc-more'
                         slot='icon'
-                      />
+                      ></i>
                     </IconBtn>
                   )}
                 </span>
@@ -355,7 +354,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                   needAdd={this.needAdd}
                   onMore={this.handleEmitMore}
                   onSelected={this.handleSelected}
-                />
+                ></TreeList>
               </Collapse>
             )}
           </div>

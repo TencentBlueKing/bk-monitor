@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Dropdown, Input } from 'bkui-vue';
-import { type ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
+import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
 
-import type { DirectionType } from '../../../../typings';
+import { DirectionType } from '../../../../typings';
 
 import './chart-title.scss';
 
@@ -116,7 +116,7 @@ export default defineComponent({
               }}
               onClick={() => this.handleModeChange(mode.id)}
             >
-              <i class={`icon-monitor icon-${mode.icon}`} />
+              <i class={`icon-monitor icon-${mode.icon}`}></i>
             </div>
           ))}
         </div>
@@ -130,13 +130,13 @@ export default defineComponent({
             class={`button-group-item ${this.textDirection === 'ltr' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('ltr')}
           >
-            <i class='icon-monitor icon-AB' />
+            <i class='icon-monitor icon-AB'></i>
           </div>
           <div
             class={`button-group-item ${this.textDirection === 'rtl' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('rtl')}
           >
-            <i class='icon-monitor icon-YZ' />
+            <i class='icon-monitor icon-YZ'></i>
           </div>
         </div>
         {/* <div class='download-button'>
@@ -161,7 +161,7 @@ export default defineComponent({
           placement='bottom-end'
         >
           <div class='download-button'>
-            <i class='icon-monitor icon-xiazai1' />
+            <i class='icon-monitor icon-xiazai1'></i>
           </div>
         </Dropdown>
       </div>

@@ -24,12 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { Component, Ref } from 'vue-property-decorator';
+import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyTimezone } from '../../i18n/dayjs';
 import DataRetrieval from './data-retrieval';
-
-import type { Route } from 'vue-router';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 

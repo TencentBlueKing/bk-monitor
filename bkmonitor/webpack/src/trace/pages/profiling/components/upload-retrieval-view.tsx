@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, reactive, ref } from 'vue';
+import { computed, defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Exception, Select } from 'bkui-vue';
@@ -32,12 +32,11 @@ import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
 
-import { ConditionType, type DataTypeItem, type RetrievalFormData } from '../typings';
+import { IQueryParams } from '../../../typings/trace';
+import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';
-
-import type { IQueryParams } from '../../../typings/trace';
 
 import './upload-retrieval-view.scss';
 
@@ -155,7 +154,7 @@ export default defineComponent({
       if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
           <div class={['status', { en: isEn }]}>
-            <div class='success circle' />
+            <div class='success circle'></div>
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
         );
@@ -163,7 +162,7 @@ export default defineComponent({
       if ([EFileStatus.parsingFailed, EFileStatus.storeFailed].includes(status)) {
         return (
           <div class={['status', { en: isEn }]}>
-            <div class='error circle' />
+            <div class='error circle'></div>
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
         );
@@ -235,7 +234,7 @@ export default defineComponent({
                       )}
                     </span>
                     <span class='right'>
-                      <span class={['icon-monitor icon-mc-triangle-down', { active: this.selectToggle }]} />
+                      <span class={['icon-monitor icon-mc-triangle-down', { active: this.selectToggle }]}></span>
                     </span>
                   </span>
                 ),
@@ -250,7 +249,7 @@ export default defineComponent({
                       <div class='upload-select-item'>
                         <div class='left'>
                           {this.statusRender(item.status)}
-                          <div class='divider' />
+                          <div class='divider'></div>
                           <div class='name'>{item.file_name || '--'}</div>
                           <div class='origin-name'>{`（${item.origin_file_name}）`}</div>
                         </div>
@@ -260,7 +259,7 @@ export default defineComponent({
                             e.stopPropagation();
                             this.handleShowFileDetail(item);
                           }}
-                        />
+                        ></i>
                       </div>
                     </Select.Option>
                   )),
@@ -285,11 +284,11 @@ export default defineComponent({
                     <div class='upload-select-item'>
                       <div class='left'>
                         {this.statusRender(item.status)}
-                        <div class='divider' />
+                        <div class='divider'></div>
                         <div class='name'>{item.file_name}</div>
                         <div class='origin-name'>{`（${item.origin_file_name}）`}</div>
                       </div>
-                      <i class='icon-monitor icon-mc-detail' />
+                      <i class='icon-monitor icon-mc-detail'></i>
                     </div>
                   </Select.Option>
                 ))}
@@ -321,7 +320,7 @@ export default defineComponent({
               dataTypeList={this.dataTypeList}
               queryParams={this.queryParams}
               onUpdate:dataType={this.handleDataTypeChange}
-            />
+            ></ProfilingRetrievalView>
           )}
         </div>
 
@@ -331,7 +330,7 @@ export default defineComponent({
           show={this.uploadDialogShow}
           onRefleshFiles={this.handleRefleshFiles}
           onShowChange={this.handleUploadShowChange}
-        />
+        ></ProfilingFileUpload>
       </div>
     );
   },

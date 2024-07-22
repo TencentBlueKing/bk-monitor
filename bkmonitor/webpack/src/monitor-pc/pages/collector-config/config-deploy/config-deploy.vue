@@ -43,24 +43,24 @@
       <div class="header-filter">
         <div
           v-for="item in statusList"
-          :class="['header-filter-item', { active: item.id === header.status }]"
           :key="item.id"
+          :class="['header-filter-item', { active: item.id === header.status }]"
           @click="header.status = item.id"
         >
           <span
             v-if="item.color"
-            :style="{ background: item.color[0] }"
             class="point mr-3"
+            :style="{ background: item.color[0] }"
           >
             <span
-              :style="{ background: item.color[1] }"
               class="s-point"
+              :style="{ background: item.color[1] }"
             />
           </span>
-          <span v-if="item.id === 'RUNNING' && item.count > 0">
+          <span v-if="item.id === 'RUNNING'">
             <bk-spin
-              class="mr-3"
               size="mini"
+              class="mr-3"
             />
           </span>
           <span class="mr-3">{{ item.name }}</span>
@@ -94,9 +94,9 @@
           {{ $t('执行中') }}({{ header.data.pendingNum }})</bk-button>
       </div> -->
       <bk-button
-        class="ml-auto header-retry"
-        :disabled="header.batchRetry || !(header.data.failedNum > 0 && header.data.pendingNum === 0)"
         :icon="header.batchRetry ? 'loading' : ''"
+        :disabled="header.batchRetry || !(header.data.failedNum > 0 && header.data.pendingNum === 0)"
+        class="ml-auto header-retry"
         hover-theme="primary"
         @click="handleBatchRetry"
       >
@@ -107,9 +107,9 @@
         {{ $t('批量重试') }}
       </bk-button>
       <bk-button
-        class="header-retry"
-        :disabled="!haveDeploying || disBatch"
         :icon="disBatch ? 'loading' : ''"
+        :disabled="!haveDeploying || disBatch"
+        class="header-retry"
         hover-theme="primary"
         @click="handleBatchStop"
         >{{ $t('批量终止') }}
@@ -127,18 +127,18 @@
     >
       <right-panel
         v-for="(item, index) in content"
+        :key="index"
+        class="content-panel"
+        need-border
+        :collapse="item.expand"
+        title-bg-color="#F0F1F5"
+        :collapse-color="item.child.length ? '#313238' : '#C4C6CC'"
+        :class="{ 'no-data': !item.child.length }"
         :style="{
           borderBottomWidth: item.expand ? '0' : '1px',
           marginBottom: index === content.length - 1 ? '20px' : '10px',
         }"
-        class="content-panel"
-        :class="{ 'no-data': !item.child.length }"
-        :collapse="item.expand"
-        :collapse-color="item.child.length ? '#313238' : '#C4C6CC'"
         :content-render="false"
-        :key="index"
-        title-bg-color="#F0F1F5"
-        need-border
         @change="handleCollapseChange(item, $event)"
       >
         <bk-table
@@ -148,8 +148,8 @@
           max-height="450"
         >
           <bk-table-column
-            :label="$t('目标')"
             min-width="120"
+            :label="$t('目标')"
             prop="instance_name"
           />
           <bk-table-column
@@ -161,16 +161,16 @@
                 <img
                   v-if="isRunning && (props.row.status === 'RUNNING' || props.row.status === 'PENDING')"
                   class="col-status-img"
-                  alt=""
                   src="../../../static/images/svg/spinner.svg"
+                  alt=""
                 />
                 <div
                   v-if="['SUCCESS', 'FAILED'].includes(props.row.status)"
+                  class="col-status-radius"
                   :style="{
                     background: statusMap[props.row.status].color,
                     'border-color': borderMap[props.row.status],
                   }"
-                  class="col-status-radius"
                 />
                 <span v-if="isRunning">{{ statusMap[props.row.status].name }}</span>
                 <span v-else>--</span>
@@ -228,19 +228,19 @@
           >
             <!-- <div class="pre-panel"> -->
             <span
-              :style="{ backgroundColor: labelMap[item.label_name].color }"
               class="pre-panel-name"
+              :style="{ backgroundColor: labelMap[item.label_name].color }"
               >{{ labelMap[item.label_name].name }}</span
             >
             <span
-              :style="{ borderColor: labelMap[item.label_name].color }"
               class="pre-panel-mark"
+              :style="{ borderColor: labelMap[item.label_name].color }"
             />
           </div>
         </template>
         <div
-          class="panel-title"
           slot="title"
+          class="panel-title"
         >
           <span class="title-name">{{ item.node_path }}</span>
           <div class="total">
@@ -295,13 +295,13 @@
     <bk-sideslider
       :is-show.sync="side.show"
       :quick-close="true"
-      :title="side.title"
       :width="900"
+      :title="side.title"
     >
       <div
-        class="side-detail"
         slot="content"
         v-bkloading="{ isLoading: side.loading }"
+        class="side-detail"
       >
         <!-- eslint-disable-next-line vue/no-v-html -->
         <pre
@@ -634,6 +634,7 @@ export default {
     async taskReadyStatus(id) {
       let timer = null;
       clearTimeout(timer);
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       return new Promise(async resolve => {
         const show = await isTaskReady({ collect_config_id: id });
         if (show) {
@@ -675,7 +676,6 @@ export default {
 }
 
 .ml-auto {
-  /* stylelint-disable-next-line declaration-no-important */
   margin-left: auto !important;
 }
 

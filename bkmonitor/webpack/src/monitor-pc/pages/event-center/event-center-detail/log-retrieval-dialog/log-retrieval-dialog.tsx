@@ -155,7 +155,7 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
           {this.showTips ? (
             <div class='log-retrieval-tips'>
               <div class='tips-top'>
-                <span class='icon-monitor icon-hint' />
+                <span class='icon-monitor icon-hint'></span>
                 <span>{this.$t('提示：通过 {0} 未找到对应的索引集。如果要采集日志可以前往日志平台。', [this.ip])}</span>
               </div>
               <div class='tips-bottom'>{this.$t('注意：ip查找索引集依赖节点管理版本>=2.1')}</div>
@@ -186,7 +186,7 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
                     id={item.id}
                     key={item.id}
                     name={item.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-select>
             </bk-form-item>
@@ -200,7 +200,7 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
                 v-model={this.data.time}
                 placeholder={this.$t('选择日期时间范围')}
                 type={'datetimerange'}
-              />
+              ></bk-date-picker>
             </bk-form-item>
             <bk-form-item
               error-display-type={'normal'}
@@ -214,7 +214,7 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
                 placeholder={''}
                 rows={3}
                 type={'textarea'}
-              />
+              ></bk-input>
             </bk-form-item>
           </bk-form>
           <template slot='footer'>

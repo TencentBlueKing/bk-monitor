@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import AlarmGroupDetail, { type IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
+import AlarmGroupDetail, { IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
 import * as ruleAuth from '../../../strategy-config/authority-map';
 
 import './alarm-group.scss';
@@ -215,7 +215,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 <span
                   class='icon-monitor icon-mc-close'
                   onClick={e => this.handleDelete(index, e)}
-                />
+                ></span>
               )}
             </span>
           ))}
@@ -273,7 +273,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                   }
                 >
                   <div class='add-container'>
-                    <i class='bk-icon icon-plus-circle' />
+                    <i class='bk-icon icon-plus-circle'></i>
                     <span class='add-text'>{this.$t('新增告警组')}</span>
                   </div>
                   {this.isRefresh && (
@@ -286,9 +286,9 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                           class='status-loading'
                           // eslint-disable-next-line @typescript-eslint/no-require-imports
                           src={require('../../../../static/images/svg/spinner.svg')}
-                        />
+                        ></img>
                       ) : (
-                        <span class='icon-monitor icon-zhongzhi1' />
+                        <span class='icon-monitor icon-zhongzhi1'></span>
                       )}
                     </div>
                   )}
@@ -298,7 +298,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 class={['add-tag']}
                 onClick={this.handleShowSelect}
               >
-                <span class='icon-monitor icon-mc-add' />
+                <span class='icon-monitor icon-mc-add'></span>
               </span>
             </span>
           )}
@@ -310,7 +310,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
           customEdit
           onEditGroup={this.handleEditAlarmGroup}
           onShowChange={val => !val && (this.detail.id = 0)}
-        />
+        ></AlarmGroupDetail>
       </div>
     );
   }

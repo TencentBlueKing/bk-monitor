@@ -226,7 +226,7 @@ export default class MonitorDialog extends Vue {
   }
 
   // 关闭弹窗
-  hideDialog(cancel?: boolean): void {
+  hideDialog(cancel?: Boolean): void {
     if (cancel !== false) {
       this.$emit('update:value', false);
       this.$emit('change', false);

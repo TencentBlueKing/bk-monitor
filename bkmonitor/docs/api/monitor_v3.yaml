@@ -2920,14 +2920,3 @@
   name: metadata_update_es_router
   path: /v2/monitor_v3/metadata_update_es_router/
   method: POST
-
-- api_type: operate
-  comp_codename: generic.v2.monitor_v3.monitor_v3_component
-  dest_http_method: POST
-  dest_path: /api/v3/meta/modify_data_id_source/
-  is_hidden: false
-  label: 修改指定数据源的配置信息
-  label_en: metadata modify data id source
-  name: metadata_modify_data_id_source
-  path: /v2/monitor_v3/modify_data_id_source/
-  method: POST

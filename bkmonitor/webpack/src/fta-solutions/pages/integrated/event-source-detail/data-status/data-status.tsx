@@ -178,7 +178,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
               class='right-btn-wrap'
               onClick={this.handleRefresh}
             >
-              <i class='icon-monitor icon-shuaxin' />
+              <i class='icon-monitor icon-shuaxin'></i>
               {i18n.t('button-刷新')}
             </span>
           </div>
@@ -191,7 +191,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
                 prop={item.prop}
                 resizable={false}
                 {...{ scopedSlots }}
-              />
+              ></bk-table-column>
             ))}
           </bk-table>
         </div>
@@ -225,7 +225,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
               language='json'
               options={{ readOnly: true }}
               value={this.sideslider.data}
-            />
+            ></MonacoEditor>
           </div>
         </bk-sideslider>
       </div>

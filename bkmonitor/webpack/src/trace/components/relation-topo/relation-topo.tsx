@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import {
-  type PropType,
   computed,
   defineComponent,
   inject,
   onBeforeUnmount,
   onMounted,
+  PropType,
   reactive,
   ref,
   toRefs,
@@ -37,7 +37,7 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import G6, { type Graph, type IEdge, type INode } from '@antv/g6';
+import G6, { Graph, IEdge, INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -51,6 +51,7 @@ import BlueExpandIcon from '../../static/img/blue-expand.svg';
 import CollapseIcon from '../../static/img/collapse.svg';
 import ExpandIcon from '../../static/img/expand.svg';
 import { useTraceStore } from '../../store/modules/trace';
+import { ITopoNode } from '../../typings';
 import {
   COMPARE_ADDED_COLOR,
   COMPARE_REMOVED_COLOR,
@@ -59,9 +60,7 @@ import {
   updateTemporaryCompareTrace,
 } from '../../utils/compare';
 import transformTraceTree from '../trace-view/model/transform-trace-data';
-
-import type { ITopoNode } from '../../typings';
-import type { Span } from '../trace-view/typings';
+import { Span } from '../trace-view/typings';
 
 import './relation-topo.scss';
 
@@ -650,7 +649,7 @@ export default defineComponent({
       const isRtl = ellipsisDirection.value === 'rtl';
       let currentWidth = 0;
       let res = str;
-      const pattern = /[\u4E00-\u9FA5]+/; // distinguish the Chinese charactors and letters
+      const pattern = new RegExp('[\u4E00-\u9FA5]+'); // distinguish the Chinese charactors and letters
       const parseStr = isRtl ? str.split('').reverse().join('') : str;
       parseStr
         .split('')
@@ -1172,7 +1171,7 @@ export default defineComponent({
                     ref='topoThumbnailRef'
                     style={`display: ${this.showLegend ? 'none' : 'block'}`}
                     class='topo-thumbnail'
-                  />
+                  ></div>
                   {this.showLegend && <ViewLegend />}
                 </div>
               ),
@@ -1185,7 +1184,7 @@ export default defineComponent({
             theme='warning'
             title={this.compareWarningAlert}
             closable
-          />
+          ></Alert>
         ) : (
           ''
         )}

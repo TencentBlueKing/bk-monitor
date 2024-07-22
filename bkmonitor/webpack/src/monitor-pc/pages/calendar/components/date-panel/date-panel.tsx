@@ -26,7 +26,7 @@
 import { Component, Emit, Model, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type Days, MonthsPanel } from './utils';
+import { Days, MonthsPanel } from './utils';
 
 import './date-panel.scss';
 /** 星期名称 */
@@ -106,12 +106,12 @@ export default class DatePanel extends tsc<IProps> {
             <i
               class='icon-monitor icon-arrow-left icon-left'
               onClick={() => this.handleMonthChange(-1)}
-            />
+            ></i>
             <span class='header-text'>{`${this.months.year}年${this.months.month + 1}月`}</span>
             <i
               class='icon-monitor icon-arrow-right icon-right'
               onClick={() => this.handleMonthChange(1)}
-            />
+            ></i>
           </div>
           <div class='date-row'>
             {this.weeksName.map(item => (

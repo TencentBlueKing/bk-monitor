@@ -50,33 +50,23 @@
  * IN THE SOFTWARE.
  */
 
-import {
-  type CSSProperties,
-  computed,
-  defineComponent,
-  getCurrentInstance,
-  onMounted,
-  onUnmounted,
-  ref,
-  watch,
-} from 'vue';
+import { computed, CSSProperties, defineComponent, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { useTraceStore } from '../../../../store/modules/trace';
 import { PEER_SERVICE } from '../../constants/tag-keys';
 import { useChildrenHiddenInject, useFocusMatchesInject, useSpanBarCurrentInject } from '../../hooks';
+import { Span, TNil } from '../../typings';
 import SpanBarRow from '../span-bar-row';
 import {
-  type ViewedBoundsFunctionType,
   createViewedBoundsFunc,
   findServerChildSpan,
   isErrorSpan,
   isKindClient,
   spanContainsErredSpan,
+  ViewedBoundsFunctionType,
 } from '../utils';
 import { DEFAULT_HEIGHTS, generateRowStates } from '../virtualized-trace-view';
 import Positions from './positions';
-
-import type { Span, TNil } from '../../typings';
 
 type TWrapperProps = {
   style: CSSProperties;

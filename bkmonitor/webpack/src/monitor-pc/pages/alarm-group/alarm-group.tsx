@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { VNode } from 'vue';
 import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
 
 import { random } from 'monitor-common/utils/utils';
@@ -30,8 +31,6 @@ import { random } from 'monitor-common/utils/utils';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as authorityMap from '../alarm-group/authority-map';
 import AlarmGroupList from './alarm-group-common/alarm-group';
-
-import type { VNode } from 'vue';
 
 Component.registerHooks(['beforeRouteEnter']);
 @Component({
@@ -59,7 +58,7 @@ export default class AlarmGroupListMonitor extends Mixins(authorityMixinCreate(a
         fromRouterName={this.fromRouterName}
         needReflesh={this.needReflesh}
         type='monitor'
-      />
+      ></AlarmGroupList>
     );
   }
 }

@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import type i18n from './i18n/i18n';
+import i18n from './i18n/i18n';
+
 import type { IBizItem, ISpaceItem } from './typings';
 import type { Dayjs } from 'dayjs';
 
@@ -35,7 +36,6 @@ declare global {
     user_name: string;
     username: string;
     timezone: string;
-    bkchat_manage_url: string;
     uin: string;
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];

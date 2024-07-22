@@ -218,7 +218,7 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
           <i
             class='bk-icon icon-close monitor-dialog-close'
             onClick={this.handleClose}
-          />
+          ></i>
         )}
         {this.needHeader && <div class='monitor-dialog-header'>{this.$slots.header || this.title}</div>}
         <div class='monitor-dialog-body'>{this.$slots.default}</div>

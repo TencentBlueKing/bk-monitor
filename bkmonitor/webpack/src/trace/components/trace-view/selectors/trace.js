@@ -26,7 +26,7 @@
 import { createSelector, createStructuredSelector } from 'reselect';
 
 import TreeNode from '../utils/TreeNode';
-import { ONE_SECOND, formatMillisecondTime, formatSecondTime } from '../utils/date';
+import { formatMillisecondTime, formatSecondTime, ONE_SECOND } from '../utils/date';
 import { numberSortComparator } from '../utils/sort';
 import { getProcessServiceName } from './process';
 import {

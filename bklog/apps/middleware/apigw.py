@@ -46,23 +46,18 @@ class UserModelBackend(ModelBackend):
     def __init__(self):
         super().__init__()
 
-        self.user_model = get_user_model()
+        user_model = get_user_model()
 
         # 未将用户保存到 db，防止未预期添加用户数据
         # 未查询 db 中用户，因用户可能在 db 中不存在
-        self.user_maker = lambda username: self.user_model(**{self.user_model.USERNAME_FIELD: username})
+        self.user_maker = lambda username: user_model(**{user_model.USERNAME_FIELD: username})
 
     def authenticate(self, request, gateway_name, bk_username, verified, **credentials):
-        try:
-            return self.user_model.objects.get(**{self.user_model.USERNAME_FIELD: bk_username})
-        except self.user_model.DoesNotExist:
-            return self.user_maker(bk_username)
+        return self.user_maker(bk_username)
 
 
 class CustomCachePublicKeyProvider(CachePublicKeyProvider):
-    def provide(
-        self, gateway_name: str, jwt_issuer: Optional[str] = None, request: HttpRequest = None
-    ) -> Optional[str]:
+    def provide(self, gateway_name: str, jwt_issuer: Optional[str] = None, request: HttpRequest = None) -> Optional[str]:
         """Return the public key specified by Settings"""
         external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
         if not request:

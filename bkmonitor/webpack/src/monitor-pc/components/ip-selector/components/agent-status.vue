@@ -59,7 +59,7 @@
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
-import type { IAgentStatusData } from '../types/selector-type';
+import { IAgentStatusData } from '../types/selector-type';
 
 @Component({ name: 'agent-status' })
 export default class AgentStatus extends Vue {
@@ -69,21 +69,21 @@ export default class AgentStatus extends Vue {
 </script>
 <style lang="scss" scoped>
 @mixin normal {
-  color: #3fc06d;
-  background: #86e7a9;
   border-color: #3fc06d;
+  background: #86e7a9;
+  color: #3fc06d;
 }
 
 @mixin error {
-  color: #ea3636;
-  background: #fd9c9c;
   border-color: #ea3636;
+  background: #fd9c9c;
+  color: #ea3636;
 }
 
 @mixin unknown {
-  color: #c4c6cc;
-  background: #f0f1f5;
   border-color: #c4c6cc;
+  background: #f0f1f5;
+  color: #c4c6cc;
 }
 
 .separator {
@@ -96,12 +96,12 @@ export default class AgentStatus extends Vue {
 }
 
 .status-mark {
-  display: inline-block;
+  margin-right: 8px;
   width: 8px;
   height: 8px;
-  margin-right: 8px;
-  border: 1px solid;
   border-radius: 4px;
+  border: 1px solid;
+  display: inline-block;
 }
 
 .status-font {
@@ -122,8 +122,8 @@ export default class AgentStatus extends Vue {
 
 .status-merit {
   display: inline-block;
-  min-width: 48px;
   padding: 2px;
+  min-width: 48px;
 
   .status-total {
     color: #3a84ff;

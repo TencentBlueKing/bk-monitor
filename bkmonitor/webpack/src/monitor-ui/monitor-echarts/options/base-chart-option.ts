@@ -25,7 +25,7 @@
  */
 import dayjs from 'dayjs';
 
-import type { ChartType, IChartOptionPorps } from './type-interface';
+import { ChartType, IChartOptionPorps } from './type-interface';
 
 export default class EchartsSeries {
   public chartOption = {};

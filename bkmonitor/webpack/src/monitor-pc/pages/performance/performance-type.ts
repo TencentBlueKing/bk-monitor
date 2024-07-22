@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { TimeRangeType } from '../../components/time-range/time-range';
 /*
  * @Author:
  * @Date: 2021-06-10 11:55:13
@@ -31,7 +30,9 @@ import type { TimeRangeType } from '../../components/time-range/time-range';
  * @LastEditors:
  * @Description:
  */
-import type { TranslateResult } from 'vue-i18n';
+import { TranslateResult } from 'vue-i18n';
+
+import type { TimeRangeType } from '../../components/time-range/time-range';
 
 export interface IHostData {
   hosts: any[];

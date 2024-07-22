@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
@@ -243,7 +243,7 @@ export default defineComponent({
           class='calendar-select-wrapper'
           onClick={this.handleShowSelect}
         >
-          <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']} />
+          <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
             width='250'
             extCls='calendar-select-popover component'
@@ -279,7 +279,7 @@ export default defineComponent({
                           <span class={{ 'setting-btn': item !== this.startDate }}>
                             {item === this.startDate ? this.t('起始日') : this.t('设为起始日')}
                           </span>
-                          <div class='popover-arrow' />
+                          <div class='popover-arrow'></div>
                         </div>
                       )}
                       {item}
@@ -293,7 +293,7 @@ export default defineComponent({
                   class={['content-wrapper', !this.sortLocalValue.length && 'placeholder']}
                   contenteditable
                   onBlur={this.handleBlur}
-                />
+                ></div>
               ),
             }}
           </Popover>

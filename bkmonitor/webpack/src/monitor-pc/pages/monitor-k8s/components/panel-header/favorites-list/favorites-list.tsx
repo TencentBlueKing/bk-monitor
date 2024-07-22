@@ -243,7 +243,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
           ref='favMain'
           class={['fav-main', { 'is-expanded': !this.isCollapsed }]}
         >
-          <div class='box-shadow' />
+          <div class='box-shadow'></div>
           <span class='fav-label'>{this.$t('收藏')}</span>
           <div
             ref='scroll'
@@ -263,13 +263,13 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
                   <i
                     class='icon-monitor icon-mc-close'
                     onClick={e => this.handleDeleteItem(item.id, e)}
-                  />
+                  ></i>
                 </li>
               ))}
             </ul>
           </div>
           <span class='arrow-down-wrap'>
-            <i class={['icon-monitor', 'icon-arrow-down', { 'is-expand': this.isExpand }]} />
+            <i class={['icon-monitor', 'icon-arrow-down', { 'is-expand': this.isExpand }]}></i>
           </span>
         </div>
       </div>

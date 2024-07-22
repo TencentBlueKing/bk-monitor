@@ -39,11 +39,11 @@ import authorityStore from '../../../store/modules/authority';
 import { downFile, formatTime } from '../../../utils';
 import CollectChart from '../components/collect-chart.vue';
 import RetrievalEmptyShow from '../data-retrieval-view/retrieval-empty-show';
+import { EventRetrievalViewType, IDataRetrievalView, IFilterCondition, IOption } from '../typings';
 import ChartToolsMenu from './chart-more-tool';
 import ExpandViewWrapper from './components/expand-view-wrapper';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
-import type { EventRetrievalViewType, IDataRetrievalView, IFilterCondition, IOption } from '../typings';
 
 import './event-retrieval-view.scss';
 
@@ -441,7 +441,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
       <ExpandViewWrapper
         data={data.row}
         onDrillSearch={this.handleDrillSearch}
-      />
+      ></ExpandViewWrapper>
     );
     return (
       <div class={['event-retrieval-view-wrapper', this.extCls]}>
@@ -457,7 +457,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
               >
                 {this.$t('添加为监控')}
               </span>
-              <i class='icon-monitor icon-mc-link' />
+              <i class='icon-monitor icon-mc-link'></i>
             </i18n>
           </div>
         ) : undefined}
@@ -516,7 +516,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
                     on-add-strategy={this.handleAddStrategy}
                     on-export-data-retrieval={this.handleToRetrieval}
                     onDblclick={this.handleChartDbclick}
-                  />
+                  ></MonitorEcharts>
                 ) : undefined}
               </div>
             </div>
@@ -563,13 +563,13 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
           total-count={1}
           is-single
           onClose={this.handleCloseCollect}
-        />
+        ></CollectChart>
         <BackTop
           ref='backTopRef'
           class='back-to-top'
           scrollTop={100}
         >
-          <i class='icon-monitor icon-arrow-up' />
+          <i class='icon-monitor icon-arrow-up'></i>
         </BackTop>
       </div>
     );

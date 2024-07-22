@@ -57,7 +57,7 @@ export default class TestControl extends tsc<object> {
           onClick={this.emitShow}
         >
           {this.$t('测试')}
-          <i class='icon-monitor icon-arrow-up' />
+          <i class='icon-monitor icon-arrow-up'></i>
         </div>
         <div class='test-control-main'>
           <div class='test-control-content'>
@@ -65,9 +65,9 @@ export default class TestControl extends tsc<object> {
               <div class='header-title'>{this.$t('配置项编辑器')}</div>
               <div class='header-btn-wrap'>
                 <div class='header-des'>{this.$t('最近10分钟没有获取到数据，请手动测试')}</div>
-                <i class='icon-monitor icon-shuaxin' />
+                <i class='icon-monitor icon-shuaxin'></i>
                 <div class='header-run'>
-                  <i class='icon-monitor icon-mc-triangle-down' />
+                  <i class='icon-monitor icon-mc-triangle-down'></i>
                   {this.$t('执行')}
                 </div>
               </div>
@@ -77,7 +77,7 @@ export default class TestControl extends tsc<object> {
                 class='content-main-left'
                 v-monitor-drag={{ minWidth: 100, maxWidth: 868, theme: 'simple' }}
               >
-                <Terminal animation={false} />
+                <Terminal animation={false}></Terminal>
               </div>
               <div class='content-main-right'>
                 <div class='main-right-title'>{this.$t('标准化结果')}</div>
@@ -85,7 +85,7 @@ export default class TestControl extends tsc<object> {
                   <tbody>
                     <tr>
                       <th class='label'>INPUT</th>
-                      <th class='label' />
+                      <th class='label'></th>
                       <th class='label'>OUTPUT</th>
                     </tr>
                     {this.tableData.map(item => (

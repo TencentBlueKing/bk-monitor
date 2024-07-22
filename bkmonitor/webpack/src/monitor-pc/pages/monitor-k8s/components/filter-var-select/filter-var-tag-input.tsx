@@ -108,7 +108,7 @@ export default class FilterVarTagInput extends tsc<IProps, IEvents> {
           allow-auto-match
           allow-create
           on-change={this.handleChange}
-        />
+        ></bk-tag-input>
       </span>
     );
   }

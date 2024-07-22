@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, type WatchStopHandle, inject, onBeforeUnmount, provide, watch } from 'vue';
+import { inject, onBeforeUnmount, provide, Ref, watch, WatchStopHandle } from 'vue';
 
+import { type PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+
+import { TimeRangeType } from '../../components/time-range/utils';
 import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
-
-import type { TimeRangeType } from '../../components/time-range/utils';
-import type { IPanelModel, IViewOptions } from '../typings';
-import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { IViewOptions } from '../typings';
 
 export const TIME_RANGE_KEY = 'timeRange';
 export const TIMEZONE_KEY = 'timezone';
@@ -204,6 +204,3 @@ export const useReadonlyProvider = (v: boolean) => {
   provide(READONLY, v);
 };
 export const useReadonlyInject = () => inject<Ref<boolean>>(READONLY);
-
-export const chartDetailProvideKey = Symbol('chart-detail-provide-key');
-export const useChartInfoInject = () => inject<IPanelModel>(chartDetailProvideKey);

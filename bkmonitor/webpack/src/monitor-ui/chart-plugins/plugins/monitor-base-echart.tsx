@@ -30,10 +30,9 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { hexToRgbA } from 'monitor-common/utils/utils';
 
-import { type MonitorEchartOptions, echarts } from '../typings/index';
-import BaseEchart, { type IChartEvent, type IChartProps } from './base-echart';
-
-import type { ICurPoint } from '../typings';
+import { ICurPoint } from '../typings';
+import { echarts, type MonitorEchartOptions } from '../typings/index';
+import BaseEchart, { IChartEvent, IChartProps } from './base-echart';
 
 import './base-echart.scss';
 
@@ -126,8 +125,10 @@ class MonitorBaseEchart extends BaseEchart {
   handleDataZoom(event) {
     const [batch] = event.batch;
     if (batch.startValue && batch.endValue) {
-      (this as any).instance.dispatchAction({
-        type: 'restore',
+      window.requestAnimationFrame(() => {
+        (this as any).instance.dispatchAction({
+          type: 'restore',
+        });
       });
       const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
       let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
@@ -313,7 +314,7 @@ class MonitorBaseEchart extends BaseEchart {
           onDblclick={this.handleDblClick}
           onMouseleave={this.handleMouseleave}
           onMouseover={this.handleMouseover}
-        />
+        ></div>
         {this.showRestore && (
           <span
             class='chart-restore'

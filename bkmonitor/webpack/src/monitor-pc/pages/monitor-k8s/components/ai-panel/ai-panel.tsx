@@ -28,17 +28,17 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { isShadowEqual, reviewInterval } from 'monitor-ui/chart-plugins/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
-import { type FormattedValue, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { FormattedValue, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { IQueryOption } from '../../../performance/performance-type';
 import ViewDetail from '../../../view-detail/view-detail-new';
+import { PanelToolsType } from '../../typings/panel-tools';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
-import type { IQueryOption } from '../../../performance/performance-type';
-import type { PanelToolsType } from '../../typings/panel-tools';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './ai-panel.scss';
 
@@ -335,7 +335,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
 
     return (
       <div class='no-data'>
-        <div class='no-data-img' />
+        <div class='no-data-img'></div>
         <div class='no-data-text'>{this.$t('智能检测一切正常')}</div>
       </div>
     );
@@ -352,7 +352,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
               content: this.$t('异常分值范围从0～1，越大越异常'),
               placements: ['top'],
             }}
-          />
+          ></i>
           <span
             class='icon-monitor icon-mc-add-strategy'
             v-bk-tooltips={{
@@ -360,7 +360,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
               delay: 200,
             }}
             onClick={this.handleToAddStrategy}
-          />
+          ></span>
           <i
             class='bk-icon icon-cog-shape setting-icon'
             v-bk-tooltips={{
@@ -368,7 +368,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
               delay: 200,
             }}
             onClick={this.handlerGoAiSettings}
-          />
+          ></i>
         </div>
         {this.tableData?.length > 0 && (
           <div class='ai-panel-subtitle'>
@@ -381,7 +381,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
             show={this.showViewDetail}
             viewConfig={this.viewConfig}
             on-close-modal={this.handleCloseViewDetail}
-          />
+          ></ViewDetail>
         )}
       </div>
     );

@@ -26,9 +26,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../../typings';
 import { createMetricTitleTooltips } from '../../utils';
-
-import type { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../../typings';
 
 import './chart-title-menu.scss';
 
@@ -227,7 +226,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                   }}
                   onClick={() => this.handleSelectChild(item, child)}
                 >
-                  {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`} />}
+                  {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`}></i>}
                   {child.name}
                 </li>
               ))}
@@ -242,7 +241,9 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
               class='chart-menu-item'
               onClick={() => this.handleMenuClick(item)}
             >
-              <i class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`} />
+              <i
+                class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`}
+              ></i>
               <span class='menu-item-name'>{!item.checked ? item.name : item.nextName || item.name}</span>
               {!!item.children?.length && item.hasLink && (
                 <bk-popover
@@ -260,7 +261,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                   {childTpl(item)}
                 </bk-popover>
               )}
-              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
+              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon'></i> : undefined}
               {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right more-icon' />}
             </li>
           );
@@ -290,7 +291,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 class={`chart-menu-item ${index === 0 ? 'segmentation-item' : ''}`}
                 onClick={() => this.handleMetricSelect(item)}
               >
-                <i class='icon-monitor icon-mc-add-strategy strategy-icon' />
+                <i class='icon-monitor icon-mc-add-strategy strategy-icon'></i>
                 <span
                   class='field-name'
                   v-bk-overflow-tips
@@ -300,7 +301,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 <i
                   class='bk-icon icon-info-circle tips-icon'
                   v-bk-tooltips={{ content: createMetricTitleTooltips(item), allowHTML: true }}
-                />
+                ></i>
               </li>
             ))}
       </ul>

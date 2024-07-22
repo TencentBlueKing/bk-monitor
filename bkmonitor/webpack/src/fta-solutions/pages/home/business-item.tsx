@@ -153,8 +153,9 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                   color: seriesMapData.color,
                 },
                 tooltip: {
-                  formatter:
-                    () => `<span style="color:${seriesMapData.color}">\u25CF</span> <b> ${seriesMapData.name}</b>
+                  formatter: () => `<span style="color:${seriesMapData.color}">\u25CF</span> <b> ${
+                    seriesMapData.name
+                  }</b>
             <br/>${this.$t('告警数量')}: <b>${item.count}</b><br/>`,
                   textStyle: {
                     fontSize: 12,
@@ -243,14 +244,14 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
             appendTo: 'parent',
           }}
           onClick={this.handleFavoriteClick}
-        />
+        ></span>
       ) : undefined;
     }
     return this.$store.getters.bizId !== this.data.id ? (
       <span
         class={['favorite', 'icon-monitor', this.data.isFavorite ? 'icon-shoucang' : 'icon-mc-uncollect']}
         onClick={this.handleFavoriteClick}
-      />
+      ></span>
     ) : undefined;
   }
 
@@ -271,7 +272,6 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
     const tags = spaceTypeTexts(item);
     return tags.map(tag => (
       <div
-        key={tag.name}
         style={{
           color: tag.light.color,
           backgroundColor: tag.light.backgroundColor,
@@ -318,10 +318,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
         <div class='item-body'>
           <div class='top'>
             {this.data.eventCounts.map(item => (
-              <span
-                key={`${item.name}：${item.count}${item.unit}`}
-                class='item-num'
-              >{`${item.name}：${item.count}${item.unit}`}</span>
+              <span class='item-num'>{`${item.name}：${item.count}${item.unit}`}</span>
             ))}
           </div>
           <div class='bottom'>

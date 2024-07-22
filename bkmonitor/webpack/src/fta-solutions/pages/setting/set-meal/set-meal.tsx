@@ -28,19 +28,17 @@ import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
-import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { isZh } from 'monitor-pc/common/constant';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import debounce from '../../../common/debounce-decorator';
 import setMealAddModule from '../../../store/modules/set-meal-add';
 import OperateOptions from '../components/operate-options';
-import SetMealDetail, { type ISetMealDetail } from '../set-meal-detail/set-meal-detail';
+import SetMealDetail, { ISetMealDetail } from '../set-meal-detail/set-meal-detail';
 import * as ruleAuth from './authority-map';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './set-meal.scss';
 
@@ -98,7 +96,6 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   }
 
   activated() {
-    this.pagination.limit = commonPageSizeGet();
     this.getListActionConfig();
     if (this.id) {
       // 打开详情
@@ -136,7 +133,6 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   handlePageLimitChange(limit: number) {
     this.pagination.current = 1;
     this.pagination.limit = limit;
-    commonPageSizeSet(limit);
   }
   @debounce(300)
   handleSearch(v: string) {
@@ -148,7 +144,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   headerMessage() {
     return (
       <div class='header-message'>
-        <i class='icon-monitor icon-tips' />
+        <i class='icon-monitor icon-tips'></i>
         <i18n path='处理套餐说明： 通过告警策略可以触发处理套餐，处理套餐可以与周边系统打通完成复杂的功能，甚至是达到自愈的目的。'>
           {/* <span class="message-link">{this.$t('查看文档')}</span> */}
         </i18n>
@@ -173,7 +169,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
               : this.handleShowAuthorityDetail(ruleAuth.MANAGE_ACTION_CONFIG)
           }
         >
-          <span class='icon-monitor icon-plus-line mr-6' />
+          <span class='icon-monitor icon-plus-line mr-6'></span>
           {this.$t('添加套餐')}
         </bk-button>
         <bk-input
@@ -302,11 +298,11 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     const enableScopedSlots = {
       default: ({ row }) => (
         <bk-switcher
-          v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
+          v-authority={{ active: !this.isAuth(parseInt(row.bk_biz_id)).authority }}
           preCheck={() =>
-            this.isAuth(Number.parseInt(row.bk_biz_id)).authority
+            this.isAuth(parseInt(row.bk_biz_id)).authority
               ? this.handleSwichChange(row)
-              : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
+              : this.handleShowAuthorityDetail(this.isAuth(parseInt(row.bk_biz_id)).authorityType)
           }
           size='small'
           theme='primary'
@@ -320,28 +316,28 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           {/* <bk-button text theme="primary">{this.$t('关联策略')} </bk-button> */}
           <bk-button
             class='mr-10'
-            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
+            v-authority={{ active: !this.isAuth(parseInt(row.bk_biz_id)).authority }}
             disabled={!row.edit_allowed}
             theme='primary'
             text
             onClick={() =>
-              this.isAuth(Number.parseInt(row.bk_biz_id)).authority
+              this.isAuth(parseInt(row.bk_biz_id)).authority
                 ? this.$router.push({ path: `/set-meal-edit/${row.id}` })
-                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
+                : this.handleShowAuthorityDetail(this.isAuth(parseInt(row.bk_biz_id)).authorityType)
             }
           >
             {this.$t('button-编辑')}
           </bk-button>
           <bk-button
             class='mr-10'
-            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
+            v-authority={{ active: !this.isAuth(parseInt(row.bk_biz_id)).authority }}
             disabled={!row.delete_allowed}
             theme='primary'
             text
             onClick={() =>
-              this.isAuth(Number.parseInt(row.bk_biz_id)).authority
+              this.isAuth(parseInt(row.bk_biz_id)).authority
                 ? this.handleDeleteRow(row)
-                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
+                : this.handleShowAuthorityDetail(this.isAuth(parseInt(row.bk_biz_id)).authorityType)
             }
           >
             {this.$t('删除')}
@@ -354,14 +350,14 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                   {
                     id: 'clone',
                     name: window.i18n.t('克隆'),
-                    authority: this.isAuth(Number.parseInt(row.bk_biz_id)).authority,
-                    authorityDetail: this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType,
+                    authority: this.isAuth(parseInt(row.bk_biz_id)).authority,
+                    authorityDetail: this.isAuth(parseInt(row.bk_biz_id)).authorityType,
                   },
                 ],
               } as any
             }
             onOptionClick={type => this.handleOperate(type, row.id)}
-          />
+          ></OperateOptions>
         </div>
       ),
     };
@@ -495,7 +491,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           width={this.detailData.width}
           isShow={this.detailData.isShow}
           onShowChange={v => (this.detailData.isShow = v)}
-        />
+        ></SetMealDetail>
       </div>
     );
   }

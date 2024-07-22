@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -34,9 +35,7 @@ import GuidePage from '../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../i18n/dayjs';
 import CommonNavBar from './components/common-nav-bar';
 import CommonPage from './components/common-page-new';
-
-import type { INavItem, IViewOptions, SceneType } from './typings';
-import type { TranslateResult } from 'vue-i18n';
+import { INavItem, IViewOptions, SceneType } from './typings';
 
 import './monitor-k8s.scss';
 
@@ -138,7 +137,7 @@ export default class MonitorK8s extends tsc<object> {
               onClick={this.handleAddCluster}
             >
               <span class='add-btn'>
-                <i class='icon-monitor icon-mc-add add-icon' />
+                <i class='icon-monitor icon-mc-add add-icon'></i>
                 <span>{this.$t('新建集群')}</span>
               </span>
             </bk-button>

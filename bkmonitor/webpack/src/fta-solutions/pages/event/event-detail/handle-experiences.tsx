@@ -32,15 +32,14 @@ import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
 import ConditionInput, {
-  type IConditionItem,
+  IConditionItem,
 } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import Editor from 'monitor-ui/markdown-editor/editor';
 
 import TipMsg from '../../setting/components/tip-msg';
 import Viewer from './custom-view';
+import { IDetail } from './type';
 import WhereDisplay from './where-display';
-
-import type { IDetail } from './type';
 
 import './handle-experiences.scss';
 
@@ -432,7 +431,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         class={['event-detail-handleexperiences', { displaynone: !this.show }]}
         v-bkloading={{ isLoading: this.isLoading }}
       >
-        <TipMsg msg={this.$tc('处理经验可以与指标和维度进行绑定，可以追加多种处理经验方便经验的共享。')} />
+        <TipMsg msg={this.$tc('处理经验可以与指标和维度进行绑定，可以追加多种处理经验方便经验的共享。')}></TipMsg>
         {/* 添加按钮 */}
         {!this.readonly && this.mode === 'list' && (
           <div
@@ -440,7 +439,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
             onClick={this.handleAdd}
           >
             <div class='center-text'>
-              <span class='icon-monitor icon-mc-add' />
+              <span class='icon-monitor icon-mc-add'></span>
               <span class='text'>{this.$t('新增处理建议')}</span>
             </div>
           </div>
@@ -467,7 +466,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                 <div class='item-header'>
                   {item.type === EType.METRIC && (
                     <div class='metric-title'>
-                      <div class='bookmarks' />
+                      <div class='bookmarks'></div>
                       {item.metric.length
                         ? `${this.$t('指标')} - ${item.metric.map(id => this.metricNameMap[id] || id).join(',')}`
                         : `${this.$t('告警名称')} - ${item.alert_name}`}
@@ -484,7 +483,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                           metric={this.metricMeta as any}
                           value={item.conditions as any}
                           onValueMapChange={v => (this.allWhereValueMap = v)}
-                        />
+                        ></WhereDisplay>
                       )}
                     </div>
                   )}
@@ -494,11 +493,11 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     <span
                       class='icon-monitor icon-bianji'
                       onClick={() => this.handleEdit(item)}
-                    />
+                    ></span>
                     <span
                       class='icon-monitor icon-mc-delete-line'
                       onClick={() => this.handleDelete(item, index)}
-                    />
+                    ></span>
                   </div>
                 </div>
                 <div class='item-content'>
@@ -506,7 +505,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     <Viewer
                       key={item.description.length}
                       value={item.description}
-                    />
+                    ></Viewer>
                   ) : undefined}
                 </div>
               </div>
@@ -542,7 +541,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                         id={item.id}
                         key={item.id}
                         name={item.name}
-                      />
+                      ></bk-option>
                     ))}
                   </bk-select>
                 </div>
@@ -558,7 +557,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                       groupByList={this.dimensionList}
                       metric={this.metricMeta as any}
                       value={this.conditionList as any}
-                    />
+                    ></WhereDisplay>
                   ) : (
                     <ConditionInput
                       conditionList={this.conditionList}
@@ -566,7 +565,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                       dimensionsList={this.dimensionList}
                       metricMeta={transformDataKey(this.metricMeta)}
                       on-change={this.handleCondition}
-                    />
+                    ></ConditionInput>
                   ))}
                 {!!this.errConditions && this.mode === 'add' ? (
                   <div class='err-red'>{this.errConditions}</div>
@@ -578,7 +577,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
               <Editor
                 value={this.curDescription}
                 on-input={(v: string) => this.handleInputContent(v)}
-              />
+              ></Editor>
               {this.errMsg ? <div class='err-red'>{this.errMsg}</div> : undefined}
             </div>
             <div class='content-bottom'>

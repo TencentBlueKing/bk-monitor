@@ -186,30 +186,29 @@
 </template>
 
 <script lang="ts">
+import { Component, Emit, Inject, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 // import PerformanceModule from '../../../store/modules/performance'
 import { deepClone } from 'monitor-common/utils/utils';
-import { Component, Emit, Inject, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { COLLECT_CHART_TYPE } from '../../../constant/constant';
 import EventRetrievalView from '../../data-retrieval/event-retrieval/event-retrieval-view';
-import type { IFilterCondition } from '../../data-retrieval/typings';
+import { IFilterCondition } from '../../data-retrieval/typings';
 import ComparePanel from '../../performance/performance-detail/compare-panel.vue';
 import DashboardPanels from '../../performance/performance-detail/dashboard-panels.vue';
 import DropDownMenu from '../../performance/performance-detail/dropdown-menu.vue';
 import SortPanel from '../../performance/performance-detail/sort-panel.vue';
-import type {
+import {
   ChartType,
   ICompareOption,
   IHostGroup,
   IOption,
   IQueryOption,
-  ISearchSelectList,
-} from '../../performance/performance-type';
-import type { IDetailInfo, IVariableData } from '../collector-config-type';
+  ISearchSelectList } from '../../performance/performance-type';
+import { IDetailInfo, IVariableData } from '../collector-config-type';
 
-import { type hideOptions, logEventRetrievalParams } from './log-handle';
-import type { addSceneResult, metric, orderList } from './type';
+import { hideOptions, logEventRetrievalParams } from './log-handle';
+import { addSceneResult, metric, orderList } from './type';
 import VariableSettings from './variable-settings';
 import ViewSettings from './view-settings';
 import ViewSettingsSide from './view-settings-side';
@@ -224,8 +223,8 @@ import ViewSettingsSide from './view-settings-side';
     ViewSettings,
     VariableSettings,
     ViewSettingsSide,
-    EventRetrievalView,
-  },
+    EventRetrievalView
+  }
 })
 export default class ViewWrapper extends Vue {
   @Prop({ default: '' }) id: number;
@@ -253,24 +252,20 @@ export default class ViewWrapper extends Vue {
   @Prop({ default: () => [], type: Array }) sceneList: any[];
   @Prop({ default: () => '', type: String }) sceneName: string;
   @Prop({ default: () => ({}), type: Object }) metricDimension: {
-    variableParams?: any;
-    metricList: { id: string; metrics: metric[] }[];
-    dimensionList: metric[];
+    variableParams?: any,
+    metricList: { id: string, metrics: metric[] }[],
+    dimensionList: metric[]
   };
-  @Prop({ default: () => [], type: Array }) defaultOrderList: any[];
+  @Prop({ default: () => ([]), type: Array }) defaultOrderList: any[];
   // 日志采集及自定义事件特殊处理(需隐藏部分)
-  @Prop({
-    type: Object,
-    default: () => ({
-      chartTypeHide: false,
-      viewSortHide: false,
-      compareHide: false,
-      searchHide: false,
-      dashboardHide: false,
-      convergeHide: false,
-    }),
-  })
-  hideOption: hideOptions;
+  @Prop({ type: Object, default: () => ({
+    chartTypeHide: false,
+    viewSortHide: false,
+    compareHide: false,
+    searchHide: false,
+    dashboardHide: false,
+    convergeHide: false
+  }) }) hideOption: hideOptions;
 
   @Prop({ default: false, type: Boolean }) needPrecisionFilter: boolean;
 
@@ -285,72 +280,72 @@ export default class ViewWrapper extends Vue {
     tools: {
       timeRange: 1 * 60 * 60 * 1000,
       refleshInterval: -1,
-      searchValue: [],
-    },
+      searchValue: []
+    }
   };
   private cacheCompareValue: { [propName: string]: IQueryOption } = {};
 
   private chartOption: any = {
     annotation: {
       show: true,
-      list: ['strategy'],
-    },
+      list: ['strategy']
+    }
   };
 
-  private showChartSort: boolean = false;
+  private showChartSort: Boolean = false;
 
   private timerangeList: IOption[] = [];
   private refleshList: IOption[] = [
     {
       name: window.i18n.t('刷新'),
-      id: -1,
+      id: -1
     },
     {
       name: '1m',
-      id: 60 * 1000,
+      id: 60 * 1000
     },
     {
       name: '5m',
-      id: 5 * 60 * 1000,
+      id: 5 * 60 * 1000
     },
     {
       name: '15m',
-      id: 15 * 60 * 1000,
+      id: 15 * 60 * 1000
     },
     {
       name: '30m',
-      id: 30 * 60 * 1000,
+      id: 30 * 60 * 1000
     },
     {
       name: '1h',
-      id: 60 * 60 * 1000,
+      id: 60 * 60 * 1000
     },
     {
       name: '2h',
-      id: 60 * 2 * 60 * 1000,
+      id: 60 * 2 * 60 * 1000
     },
     {
       name: '1d',
-      id: 60 * 24 * 60 * 1000,
-    },
+      id: 60 * 24 * 60 * 1000
+    }
   ];
   private timeshiftList: IOption[] = [
     {
       id: '1h',
-      name: window.i18n.t('1 小时前'),
+      name: window.i18n.t('1 小时前')
     },
     {
       id: '1d',
-      name: window.i18n.t('昨天'),
+      name: window.i18n.t('昨天')
     },
     {
       id: '1w',
-      name: window.i18n.t('上周'),
+      name: window.i18n.t('上周')
     },
     {
       id: '1M',
-      name: window.i18n.t('一月前'),
-    },
+      name: window.i18n.t('一月前')
+    }
   ];
   private chartType: ChartType = +localStorage.getItem(COLLECT_CHART_TYPE) % 3;
 
@@ -360,20 +355,20 @@ export default class ViewWrapper extends Vue {
   private aggMethods: IOption[] = [
     {
       id: 'AVG',
-      name: 'AVG',
+      name: 'AVG'
     },
     {
       id: 'SUM',
-      name: 'SUM',
+      name: 'SUM'
     },
     {
       id: 'MIN',
-      name: 'MIN',
+      name: 'MIN'
     },
     {
       id: 'MAX',
-      name: 'MAX',
-    },
+      name: 'MAX'
+    }
   ];
   private variableResult = []; // 变量结果
   private chartInterval = 'auto';
@@ -381,8 +376,8 @@ export default class ViewWrapper extends Vue {
   /** 自定义事件、日志类型图表配置 */
   private eventChartOption = {
     tool: {
-      list: ['screenshot', 'strategy', 'explore'],
-    },
+      list: ['screenshot', 'strategy', 'explore']
+    }
   };
 
   private isPrecisionFilter = false;
@@ -400,8 +395,8 @@ export default class ViewWrapper extends Vue {
         tools: {
           timeRange: 1 * 60 * 60 * 1000,
           refleshInterval: -1,
-          searchValue: [],
-        },
+          searchValue: []
+        }
       };
     } else {
       this.cacheCompareValue = {};
@@ -412,18 +407,18 @@ export default class ViewWrapper extends Vue {
     const list = [
       {
         id: 'none',
-        name: this.$t('不对比'),
+        name: this.$t('不对比')
       },
       {
         id: 'time',
-        name: this.$t('时间对比'),
-      },
+        name: this.$t('时间对比')
+      }
     ];
 
     if (this.viewType === 'leaf_node') {
       list.push({
         id: 'target',
-        name: this.$t('目标对比'),
+        name: this.$t('目标对比')
       });
     }
     return list;
@@ -435,19 +430,16 @@ export default class ViewWrapper extends Vue {
     if (!data.length) return [];
     const len = this.searchTypeMap.length;
     if (len && this.groupsData.length) {
-      data.forEach(item => {
-        item.panels = item.panels.filter(pan =>
-          this.searchTypeMap.some(keywordItem => {
-            const keywords = keywordItem.split('.').map(item => item.trim().toLocaleLowerCase());
-            const id = (pan.id ?? '').trim().toLocaleLowerCase();
-            if (keywords.length > 1) {
-              // 含有组的搜索
-              return id.indexOf(keywords[0]) > -1 && id.indexOf(keywords[1]) > -1;
-            }
-            const title = (pan.title ?? '').trim().toLocaleLowerCase();
-            return title.indexOf(keywords[0]) > -1 || id.indexOf(keywords[0]) > -1;
-          })
-        );
+      data.forEach((item) => {
+        item.panels = item.panels.filter(pan => this.searchTypeMap.some((keywordItem) => {
+          const keywords = keywordItem.split('.').map(item => item.trim().toLocaleLowerCase());
+          const id = (pan.id ?? '').trim().toLocaleLowerCase();
+          if (keywords.length > 1) { // 含有组的搜索
+            return id.indexOf(keywords[0]) > -1 && id.indexOf(keywords[1]) > -1;
+          }
+          const title = (pan.title ?? '').trim().toLocaleLowerCase();
+          return title.indexOf(keywords[0]) > -1 || id.indexOf(keywords[0]) > -1;
+        }));
       });
     }
     return data;
@@ -466,14 +458,14 @@ export default class ViewWrapper extends Vue {
       dimensionsPreviews: this.variableSettingsRef?.dimensionsPreviews,
       variableResult: this.variableResult, // 变量结果
       metricGroup: this.metricDimension.metricList, // 指标集
-      type: 'collect-config',
+      type: 'collect-config'
     };
   }
   // 传入视图设置
   get viewSettingParams() {
     const { variableResult } = this.collectConfigParams;
     return {
-      variableResult: variableResult || [],
+      variableResult: variableResult || []
     };
   }
 
@@ -481,64 +473,64 @@ export default class ViewWrapper extends Vue {
     this.timerangeList = [
       {
         name: `${this.$t('近{n}分钟', { n: 5 })}`,
-        value: 5 * 60 * 1000,
+        value: 5 * 60 * 1000
       },
       {
         name: `${this.$t('近{n}分钟', { n: 15 })}`,
-        value: 15 * 60 * 1000,
+        value: 15 * 60 * 1000
       },
       {
         name: `${this.$t('近{n}分钟', { n: 30 })}`,
-        value: 30 * 60 * 1000,
+        value: 30 * 60 * 1000
       },
       {
         name: `${this.$t('近{n}小时', { n: 1 })}`,
-        value: 1 * 60 * 60 * 1000,
+        value: 1 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('近{n}小时', { n: 3 })}`,
-        value: 3 * 60 * 60 * 1000,
+        value: 3 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('近{n}小时', { n: 6 })}`,
-        value: 6 * 60 * 60 * 1000,
+        value: 6 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('近{n}小时', { n: 12 })}`,
-        value: 12 * 60 * 60 * 1000,
+        value: 12 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('近{n}小时', { n: 24 })}`,
-        value: 24 * 60 * 60 * 1000,
+        value: 24 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('近 {n} 天', { n: 2 })}`,
-        value: 2 * 24 * 60 * 60 * 1000,
+        value: 2 * 24 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('近 {n} 天', { n: 7 })}`,
-        value: 7 * 24 * 60 * 60 * 1000,
+        value: 7 * 24 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('近 {n} 天', { n: 30 })}`,
-        value: 30 * 24 * 60 * 60 * 1000,
+        value: 30 * 24 * 60 * 60 * 1000
       },
       {
         name: `${this.$t('今天')}`,
-        value: 'today',
+        value: 'today'
       },
       {
         name: `${this.$t('昨天')}`,
-        value: 'yesterday',
+        value: 'yesterday'
       },
       {
         name: `${this.$t('前天')}`,
-        value: 'beforeYesterday',
+        value: 'beforeYesterday'
       },
       {
         name: `${this.$t('本周')}`,
-        value: 'thisWeek',
-      },
+        value: 'thisWeek'
+      }
     ];
   }
 
@@ -565,9 +557,9 @@ export default class ViewWrapper extends Vue {
       this.$emit('on-compare-change', v);
     } else if (v.type === 'search') {
       if (v.tools.searchValue.length) {
-        v.tools.searchValue.forEach(item => {
+        v.tools.searchValue.forEach((item) => {
           if (item.values) {
-            item.values.forEach(v => {
+            item.values.forEach((v) => {
               if (!this.searchTypeMap.includes(`${item.id}.${v.id}`)) {
                 this.searchTypeMap.push(`${item.id}.${v.id}`);
               }
@@ -643,8 +635,8 @@ export default class ViewWrapper extends Vue {
       config: {
         order,
         variables: this.viewSettingParams.variableResult.map(item => ({ id: item.key, name: item.name })),
-        name: this.sceneName,
-      },
+        name: this.sceneName
+      }
     });
     this.sortLoading = false;
     if (success) {
@@ -655,7 +647,7 @@ export default class ViewWrapper extends Vue {
   addTimeshiftOption(val: string) {
     this.timeshiftList.push({
       id: val,
-      name: val,
+      name: val
     });
   }
 
@@ -669,7 +661,7 @@ export default class ViewWrapper extends Vue {
    * @param {*} groupId 所属指标集
    * @return {*}
    */
-  handleVariableResult(val: { key: string; value: string[]; groupId: string; name: string }[]) {
+  handleVariableResult(val: { key: string, value: string[], groupId: string, name: string }[]) {
     if (JSON.stringify(val) === JSON.stringify(this.variableResult)) return;
     this.variableResult = JSON.parse(JSON.stringify(val));
     this.handleImmediateReflesh();
@@ -679,7 +671,7 @@ export default class ViewWrapper extends Vue {
    * @param {*} val
    * @return {*}
    */
-  showChartSortChange(val: boolean) {
+  showChartSortChange(val: Boolean) {
     this.showChartSort = val;
   }
 
@@ -751,31 +743,28 @@ export default class ViewWrapper extends Vue {
       where,
       method,
       metric_field,
-      group_by: groupBy,
-    } = data;
-    const queryConfigs = [
-      {
-        data_source_label,
-        data_type_label,
-        filter_dict: {},
-        functions: [],
-        group_by: groupBy || [],
-        index_set_id: '',
-        interval: 60,
-        table: result_table_id,
-        item: '',
-        where: where || [],
-        metrics: [{ alias: 'a', field: metric_field, method: method || 'COUNT' }],
-      },
-    ];
+      group_by: groupBy } = data;
+    const queryConfigs = [{
+      data_source_label,
+      data_type_label,
+      filter_dict: {},
+      functions: [],
+      group_by: groupBy || [],
+      index_set_id: '',
+      interval: 60,
+      table: result_table_id,
+      item: '',
+      where: where || [],
+      metrics: [
+        { alias: 'a', field: metric_field, method: method || 'COUNT' }
+      ]
+    }];
     const queryData = {
       expression: 'a',
-      query_configs: queryConfigs,
+      query_configs: queryConfigs
     };
     // eslint-disable-next-line vue/max-len
-    window.open(
-      `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(JSON.stringify(queryData))}`
-    );
+    window.open(`${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(JSON.stringify(queryData))}`);
   }
   /**
    * @description: 自定义事件、日志类型图表跳转检索
@@ -788,35 +777,28 @@ export default class ViewWrapper extends Vue {
       where,
       method,
       metric_field,
-      group_by: groupBy,
-    } = data;
-    const targets = [
-      {
-        data: {
-          expression: '',
-          query_configs: [
-            {
-              data_source_label,
-              data_type_label,
-              filter_dict: {},
-              functions: [],
-              group_by: groupBy || [],
-              index_set_id: '',
-              interval: 60,
-              result_table_id,
-              item: '',
-              where: where || [],
-              metric_field,
-              method,
-            },
-          ],
-        },
-      },
-    ];
+      group_by: groupBy } = data;
+    const targets = [{
+      data: {
+        expression: '',
+        query_configs: [{
+          data_source_label,
+          data_type_label,
+          filter_dict: {},
+          functions: [],
+          group_by: groupBy || [],
+          index_set_id: '',
+          interval: 60,
+          result_table_id,
+          item: '',
+          where: where || [],
+          metric_field,
+          method
+        }]
+      }
+    }];
     // eslint-disable-next-line vue/max-len
-    window.open(
-      `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}&type=event`
-    );
+    window.open(`${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}&type=event`);
   }
 }
 </script>

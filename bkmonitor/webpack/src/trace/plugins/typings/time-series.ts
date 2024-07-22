@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 // 时序性图表类型 bar: 柱状图 line: 线性图
 export type TimeSeriesType = 'bar' | 'line';

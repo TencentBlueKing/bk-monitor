@@ -87,7 +87,7 @@ export default class InfluxdbBasicInfo extends tsc<IProps> {
             v-model={this.localFormData.domain}
             onChange={this.handleEmitChange}
             onFocus={() => this.clearError()}
-          />
+          ></bk-input>
         </FormItem>
         <FormItem
           errMsg={this.formErrMsg.port}
@@ -98,7 +98,7 @@ export default class InfluxdbBasicInfo extends tsc<IProps> {
             v-model={this.localFormData.port}
             onChange={this.handleEmitChange}
             onFocus={() => this.clearError()}
-          />
+          ></bk-input>
         </FormItem>
         <div class='horizontal'>
           <FormItem

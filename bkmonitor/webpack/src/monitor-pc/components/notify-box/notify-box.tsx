@@ -57,7 +57,7 @@ export default class NotifyBox extends tsc<IStepBoxProps> {
         <div class='notify-title'>{this.$slots.title}</div>
         <div class='notify-content'>{this.$slots.content}</div>
         <div class='notify-action'>{this.$slots.action}</div>
-        <div class='target-arrow' />
+        <div class='target-arrow'></div>
       </div>
     );
   }

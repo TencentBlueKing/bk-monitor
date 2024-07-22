@@ -34,9 +34,8 @@ import GroupSelectMultiple from '../../../custom-escalation/group-select-multipl
 import { csvToArr } from '../../../custom-escalation/utils';
 import SortPanel from '../../../performance/performance-detail/sort-panel.vue';
 import { downCsvFile } from '../../../view-detail/utils';
-import { SETTINGS_POP_ZINDEX, matchRuleFn } from '../../utils';
-
-import type { IBookMark, SettingsDashboardType } from '../../typings';
+import { IBookMark, SettingsDashboardType } from '../../typings';
+import { matchRuleFn, SETTINGS_POP_ZINDEX } from '../../utils';
 
 import './settings-dashboard.scss';
 
@@ -590,7 +589,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                     label={item.name}
                     name={item.id}
                     render-label={tabItemTpl}
-                  />
+                  ></bk-tab-panel>
                 )
             )}
           </bk-tab>
@@ -619,7 +618,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                     class='add-btn'
                     onClick={() => this.createGroup(false)}
                   >
-                    <i class='bk-icon icon-plus-circle-shape' />
+                    <i class='bk-icon icon-plus-circle-shape'></i>
                     <span>{this.$t('创建分组')}</span>
                   </span>
                   {this.enableAutoGrouping ? (
@@ -628,7 +627,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                         class='import-btn'
                         onClick={this.handleExportChange}
                       >
-                        <span class='icon-monitor icon-shangchuan' />
+                        <span class='icon-monitor icon-shangchuan'></span>
                         <span>{this.$t('导出')}</span>
                       </span>
                       <span class='export-btn'>
@@ -638,7 +637,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                           return-text={true}
                           onChange={this.handleImportChange}
                         >
-                          <span class='icon-monitor icon-xiazai2' />
+                          <span class='icon-monitor icon-xiazai2'></span>
                           <span>{this.$t('导入')}</span>
                         </MonitorImport>
                       </span>
@@ -651,15 +650,15 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                     v-model={this.createName}
                     maxlength={20}
                     show-word-limit
-                  />
+                  ></bk-input>
                   <i
                     class='ml5 bk-icon icon-check-1'
                     onClick={() => this.createGroup(true)}
-                  />
+                  ></i>
                   <i
                     class='ml5 icon-monitor icon-mc-close'
                     onClick={() => this.createGroup(false)}
-                  />
+                  ></i>
                 </div>
               )}
               {/* 加进分组 */}
@@ -682,7 +681,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                         >
                           <span class='prepend-add-btn'>
                             {this.$t('加入分组')}
-                            <span class='icon-monitor icon-mc-triangle-down' />
+                            <span class='icon-monitor icon-mc-triangle-down'></span>
                           </span>
                         </GroupSelectMultiple>
                       </div>
@@ -701,7 +700,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                           id={item.id}
                           key={item.id}
                           name={item.title}
-                        />
+                        ></bk-option>
                       ))}
                     </bk-select>
                     <bk-button
@@ -731,7 +730,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                 on-reset={this.handleReset}
                 on-restore={this.handleRestore}
                 on-save={this.handleSortChange}
-              />
+              ></SortPanel>
             </div>
           </div>
         ) : (

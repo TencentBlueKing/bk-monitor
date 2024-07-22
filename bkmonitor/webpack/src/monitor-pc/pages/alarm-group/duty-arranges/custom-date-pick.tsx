@@ -127,15 +127,15 @@ export default class CustomDatePick extends tsc<IProps, IEvents> {
               <bk-input
                 v-model={this.curDateValue}
                 onChange={this.handleInputChange}
-              />
+              ></bk-input>
             </div>
-            <div class='center' />
+            <div class='center'></div>
             <div class='right'>
               {this.readonlyTime ? (
                 <bk-input
                   v-model={this.curTime}
                   readonly={true}
-                />
+                ></bk-input>
               ) : (
                 <bk-time-picker
                   v-model={this.curTime}
@@ -143,7 +143,7 @@ export default class CustomDatePick extends tsc<IProps, IEvents> {
                   placement={'bottom-end'}
                   transfer={false}
                   onChange={this.handleTimeChange}
-                />
+                ></bk-time-picker>
               )}
             </div>
           </div>

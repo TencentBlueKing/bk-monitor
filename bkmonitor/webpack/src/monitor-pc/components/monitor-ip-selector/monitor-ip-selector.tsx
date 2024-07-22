@@ -44,9 +44,7 @@ import {
   updateConfigIpChooserConfig,
 } from 'monitor-api/modules/model';
 
-import { PanelTargetMap } from './utils';
-
-import type {
+import {
   CommomParams,
   CoutIntanceName,
   IFetchNode,
@@ -54,6 +52,12 @@ import type {
   IIpV6Value,
   INode,
   INodeType,
+  IpSelectorConfig,
+  IpSelectorHostMemuExtend,
+  IpSelectorHostTableCustomColumn,
+  IpSelectorMode,
+  IpSelectorNameStyle,
+  IpSelectorService,
   IQuery,
   IScopeItme,
   IStatistics,
@@ -61,13 +65,8 @@ import type {
   ITemplateItem,
   ITemplateNode,
   ITreeItem,
-  IpSelectorConfig,
-  IpSelectorHostMemuExtend,
-  IpSelectorHostTableCustomColumn,
-  IpSelectorMode,
-  IpSelectorNameStyle,
-  IpSelectorService,
 } from './typing';
+import { PanelTargetMap } from './utils';
 
 import '@blueking/ip-selector/dist/styles/index.css';
 

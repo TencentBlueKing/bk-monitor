@@ -1,4 +1,4 @@
-import type { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } from './typing';
+import { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } from './typing';
 
 /*
  * Tencent is pleased to support the open source community by making

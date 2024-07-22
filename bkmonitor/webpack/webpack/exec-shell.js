@@ -1,10 +1,10 @@
-const util = require('node:util');
-const cp = require('node:child_process');
+const util = require('util');
+const cp = require('child_process');
 const execFile = util.promisify(cp.exec);
-const os = require('node:os');
+const os = require('os');
 const platform = os.platform().toLowerCase();
-const { readdirSync, existsSync } = require('node:fs');
-const { resolve } = require('node:path');
+const { readdirSync, existsSync } = require('fs');
+const { resolve } = require('path');
 const srcUrl = resolve(__dirname, '../src/');
 const getExecShell = () => {
   switch (process.env.execMode) {

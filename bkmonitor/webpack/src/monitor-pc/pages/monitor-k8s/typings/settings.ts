@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IBookMark, ICurVarItem } from 'monitor-ui/chart-plugins/typings';
-import type { VNode } from 'vue';
+import { VNode } from 'vue';
+
+import { IBookMark, ICurVarItem } from 'monitor-ui/chart-plugins/typings';
 /** 编辑页签  编辑变量 编辑视图 */
 export type SettingType = 'edit-dashboard' | 'edit-tab' | 'edit-variate';
 export type ISettingTpl = Record<SettingType, VNode>;

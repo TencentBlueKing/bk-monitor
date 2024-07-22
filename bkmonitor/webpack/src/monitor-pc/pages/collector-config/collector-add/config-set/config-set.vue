@@ -913,7 +913,7 @@ export default {
     if (this.config.mode === 'edit') {
       this.bizId = this.config.data.bizId;
     } else {
-      if (Number.parseInt(this.$store.getters.bizId, 10) === 0) {
+      if (parseInt(this.$store.getters.bizId, 10) === 0) {
         this.info.bizId = '';
       }
     }

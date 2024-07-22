@@ -52,11 +52,11 @@
   </div>
 </template>
 <script lang="ts">
-import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 
-import type { ICurNode } from '../../../store/modules/performance';
-import type { ChartType, IHostGroup, IQueryOption, ViewType } from '../performance-type';
+import { ICurNode } from '../../../store/modules/performance';
+import { ChartType, IHostGroup, IQueryOption, ViewType } from '../performance-type';
 
 import DashboardPanels from './dashboard-panels.vue';
 import ProcessContent from './view-content-process.vue';
@@ -66,8 +66,8 @@ import ProcessContent from './view-content-process.vue';
   components: {
     MonitorEcharts,
     ProcessContent,
-    DashboardPanels,
-  },
+    DashboardPanels
+  }
 })
 export default class ViewContent extends Vue {
   // 视图类型
@@ -86,22 +86,22 @@ export default class ViewContent extends Vue {
   private chartOption: any = {
     annotation: {
       show: true,
-      list: ['strategy'],
-    },
+      list: ['strategy']
+    }
   };
   get variableData() {
     if (this.curNode.type === 'host') {
       return {
         $bk_target_ip: this.curNode.ip,
         $bk_target_cloud_id: this.curNode.cloudId,
-        $process_name: this.curNode.processId,
+        $process_name: this.curNode.processId
       };
     }
     return {
       $bk_obj_id: this.curNode.bkObjId,
       $bk_inst_id: this.curNode.bkInstId,
       $method: this.method,
-      $process_name: this.curNode.processId,
+      $process_name: this.curNode.processId
     };
   }
   @Emit('process-change')

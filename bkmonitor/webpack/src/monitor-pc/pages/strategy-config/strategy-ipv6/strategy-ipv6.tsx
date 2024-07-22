@@ -31,17 +31,16 @@ import { deepClone } from 'monitor-common/utils';
 
 import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
 import {
-  getPanelListByObjectType,
-  transformMonitorToValue,
-  transformValueToMonitor,
-} from '../../../components/monitor-ip-selector/utils';
-
-import type {
   CoutIntanceName,
   IIpV6Value,
   INodeType,
   TargetObjectType,
 } from '../../../components/monitor-ip-selector/typing';
+import {
+  getPanelListByObjectType,
+  transformMonitorToValue,
+  transformValueToMonitor,
+} from '../../../components/monitor-ip-selector/utils';
 
 interface IStrategyIpv6Props {
   showDialog: boolean;

@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type DetailState from '../trace-timeline-viewer/span-detail/detail-state';
-import type TNil from './TNil';
+import DetailState from '../trace-timeline-viewer/span-detail/detail-state';
+import TNil from './TNil';
 
 type TTraceTimeline = {
   childrenHiddenIDs: Set<string>;

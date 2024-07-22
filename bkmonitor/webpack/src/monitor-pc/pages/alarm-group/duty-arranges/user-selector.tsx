@@ -139,7 +139,7 @@ export default class UserSelector extends tsc<IProps, IEvents> {
           onMouseenter={() => this.handleDraggableChange(true)}
           onMouseleave={() => this.handleDraggableChange(false)}
         >
-          {this.hasDrag && <span class='icon-monitor icon-mc-tuozhuai' />}
+          {this.hasDrag && <span class='icon-monitor icon-mc-tuozhuai'></span>}
         </div>
         <BkUserSelector
           ref='userSelector'
@@ -161,7 +161,7 @@ export default class UserSelector extends tsc<IProps, IEvents> {
           onChange={this.handleChange}
           onClear={this.handleClear}
           onFocus={this.handleFocus}
-        />
+        ></BkUserSelector>
       </div>
     );
   }

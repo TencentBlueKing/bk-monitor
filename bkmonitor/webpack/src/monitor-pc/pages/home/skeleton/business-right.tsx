@@ -34,16 +34,16 @@ export default class BusinessRight extends tsc<object> {
     return (
       <div class='business-right-skeleton'>
         <div class='business-right-skeleton-left'>
-          <div class='w-65 h-20 skeleton-element' />
-          <div class='w-180 h-172 mt-24 skeleton-element' />
+          <div class='w-65 h-20 skeleton-element'></div>
+          <div class='w-180 h-172 mt-24 skeleton-element'></div>
         </div>
         <div class='business-right-skeleton-right'>
-          <div class='w-173 h-32 skeleton-element' />
-          <div class='w--100 h-20 mt-12 skeleton-element' />
-          <div class='w-65 h-20 mt-24 skeleton-element' />
-          <div class='w-125 h-20 mt-12 skeleton-element' />
-          <div class='w-125 h-20 mt-12 skeleton-element' />
-          <div class='w-254 h-20 mt-24 skeleton-element' />
+          <div class='w-173 h-32 skeleton-element'></div>
+          <div class='w--100 h-20 mt-12 skeleton-element'></div>
+          <div class='w-65 h-20 mt-24 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-254 h-20 mt-24 skeleton-element'></div>
         </div>
       </div>
     );

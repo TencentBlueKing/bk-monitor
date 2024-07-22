@@ -29,9 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
+import { FavoriteIndexType, IFavList } from '../typings';
 import GroupDropdown from './component/group-dropdown';
-
-import type { FavoriteIndexType, IFavList } from '../typings';
 
 import './collect-group.scss';
 
@@ -129,7 +128,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
             class='group-cur'
             onClick={() => (this.isClickIcon = !this.isClickIcon)}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isClickIcon }]} />
+            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isClickIcon }]}></span>
             <span class='group-str'>{this.collectItem.name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.name)}

@@ -35,7 +35,7 @@ import {
   proxyHostInfo,
   queryCustomEventGroup,
   validateCustomEventGroupName,
-  validateCustomTsGroupName,
+  validateCustomTsGroupName
 } from 'monitor-api/modules/custom_report';
 import { getScenarioList } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils/utils';
@@ -117,10 +117,10 @@ const actions = {
   async getCustomTimeSeriesLatestDataByFields({}, params) {
     const data = await getCustomTimeSeriesLatestDataByFields(params).catch(() => false);
     return data;
-  },
+  }
 };
 
 export default {
   namespaced: true,
-  actions,
+  actions
 };

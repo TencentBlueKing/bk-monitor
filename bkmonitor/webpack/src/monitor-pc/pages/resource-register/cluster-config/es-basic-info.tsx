@@ -129,7 +129,7 @@ export default class EsBasicInfo extends tsc<IProps> {
               v-model={this.localFormData.address}
               onChange={this.handleEmitChange}
               onFocus={() => this.clearError()}
-            />
+            ></bk-input>
           </FormItem>
         </div>
         <div class='horizontal'>
@@ -143,7 +143,7 @@ export default class EsBasicInfo extends tsc<IProps> {
               v-model={this.localFormData.port}
               onChange={this.handleEmitChange}
               onFocus={() => this.clearError()}
-            />
+            ></bk-input>
           </FormItem>
           <FormItem
             width={270}
@@ -153,7 +153,7 @@ export default class EsBasicInfo extends tsc<IProps> {
               v-model={this.localFormData.schema}
               onChange={this.handleEmitChange}
               onFocus={() => this.clearError()}
-            />
+            ></bk-input>
           </FormItem>
         </div>
         <div class='horizontal'>
@@ -167,7 +167,7 @@ export default class EsBasicInfo extends tsc<IProps> {
               v-model={this.localFormData.username}
               onChange={this.handleEmitChange}
               onFocus={() => this.clearError()}
-            />
+            ></bk-input>
           </FormItem>
           <FormItem
             width={270}
@@ -180,7 +180,7 @@ export default class EsBasicInfo extends tsc<IProps> {
               type='password'
               onChange={this.handleEmitChange}
               onFocus={() => this.clearError()}
-            />
+            ></bk-input>
           </FormItem>
         </div>
       </div>

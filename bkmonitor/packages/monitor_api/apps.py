@@ -13,7 +13,7 @@ import sys
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.management import call_command
-from django.db import connections
+from django.db import ProgrammingError, connections
 
 from core.errors.errors import MigrateError
 
@@ -54,6 +54,8 @@ class MonitorAPIConfig(AppConfig):
                 settings.DATABASES.pop(alias, None)
 
     def ready(self):
+        from bkmonitor.migrate import Migrator
+
         self.check_external_db()
         if "migrate" not in sys.argv:
             return
@@ -65,3 +67,9 @@ class MonitorAPIConfig(AppConfig):
             self.migrate()
             # healthz指标自动更新
             # healthz_metric.run(apps)
+
+        # 迁移IAM
+        try:
+            Migrator("iam", "bkmonitor.iam.migrations").migrate()
+        except ProgrammingError:
+            pass

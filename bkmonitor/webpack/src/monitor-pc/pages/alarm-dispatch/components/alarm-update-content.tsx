@@ -55,7 +55,7 @@ const AlarmUpdateContent = ctx => {
                 <i
                   style={{ color: level.color }}
                   class={`icon-common ${level.icon}`}
-                />
+                ></i>
                 <span>{level.name}</span>
               </span>
             </span>

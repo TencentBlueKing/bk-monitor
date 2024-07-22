@@ -44,7 +44,7 @@ import {
   toTimeTicks,
 } from './dateTimeFormatters';
 import { binarySIPrefix, currency, decimalSIPrefix } from './symbolFormatters';
-import { type ValueFormatCategory, locale, scaledUnits, simpleCountUnit, toFixedUnit } from './valueFormats';
+import { locale, scaledUnits, simpleCountUnit, toFixedUnit, ValueFormatCategory } from './valueFormats';
 
 export default (): ValueFormatCategory[] => [
   {

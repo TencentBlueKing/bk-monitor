@@ -31,9 +31,8 @@ import GuidePage from '../../../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../../../i18n/dayjs';
 import CommonNavBar from '../../../monitor-k8s/components/common-nav-bar';
 import CommonPage from '../../../monitor-k8s/components/common-page';
+import { IMenuItem, INavItem, IViewOptions } from '../../../monitor-k8s/typings';
 import * as authorityMap from '../../authority-map';
-
-import type { IMenuItem, INavItem, IViewOptions } from '../../../monitor-k8s/typings';
 
 import './uptime-check-detail.scss';
 

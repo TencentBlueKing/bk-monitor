@@ -30,10 +30,9 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
+import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
-import List, { ETagsType, type IListItem } from './list';
-
-import type { ISpaceItem } from '../../types';
+import List, { ETagsType, IListItem } from './list';
 
 import './biz-select.scss';
 /** 业务组件常用的业务缓存key */
@@ -64,7 +63,7 @@ interface IProps {
 export type ThemeType = 'dark' | 'light';
 interface IEvents {
   onChange: number;
-  onOpenSpaceManager: () => void;
+  onOpenSpaceManager: void;
 }
 /**
  * 业务选择器组件
@@ -132,12 +131,12 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.localValue = this.value;
     this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
     const spaceTypeMap: Record<string, any> = {};
-    for (const item of this.bizList) {
+    this.bizList.forEach(item => {
       spaceTypeMap[item.space_type_id] = 1;
       if (item.space_type_id === 'bkci' && item.space_code) {
         spaceTypeMap.bcs = 1;
       }
-    }
+    });
     this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
@@ -224,7 +223,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
     const generalList = [];
-    for (const item of this.bizList) {
+    this.bizList.forEach(item => {
       let show = false;
       if (this.searchTypeId) {
         show =
@@ -234,9 +233,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       }
       if ((show && keyword) || (!this.searchTypeId && !show)) {
         show =
-          item.space_name?.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          item.py_text?.indexOf(keyword) > -1 ||
-          item.pyf_text?.indexOf(keyword) > -1 ||
+          item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
+          item.py_text.indexOf(keyword) > -1 ||
+          item.pyf_text.indexOf(keyword) > -1 ||
           `${item.id}`.includes(keyword) ||
           `${item.space_id}`.toLocaleLowerCase().includes(keyword);
       }
@@ -262,18 +261,18 @@ export default class BizSelect extends tsc<IProps, IEvents> {
           generalList.push(newItem);
         }
       }
-    }
+    });
     this.generalList = generalList;
     this.setPaginationData(true);
     list.children = this.pagination.data;
     const allList: IListItem[] = [];
-    if (stickyList.children.length) {
+    if (!!stickyList.children.length) {
       allList.push(stickyList);
     }
-    if (commonList.children.length) {
+    if (!!commonList.children.length) {
       const temp = this.commonListIds.reduce((total, id) => {
         const item = commonList.children.find(item => item.id === id);
-        if (item) total.push(item);
+        if (!!item) total.push(item);
         return total;
       }, []);
       commonList.children = [...temp];
@@ -317,9 +316,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       newIds.unshift(id);
     } else {
       newIds.unshift(id);
-      if (leng >= BIZ_SELECTOR_COMMON_MAX) {
-        newIds.length = BIZ_SELECTOR_COMMON_MAX;
-      }
+      leng >= BIZ_SELECTOR_COMMON_MAX && (newIds.length = BIZ_SELECTOR_COMMON_MAX);
     }
     this.commonListIds = newIds;
     this.storage.set(BIZ_SELECTOR_COMMON_IDS, this.commonListIds);
@@ -435,7 +432,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       const startPosition = element.scrollLeft;
       const distance = targetPosition - startPosition;
       const startTime = new Date().getTime();
-      const easeOutCubic = t => 1 - (1 - t) ** 3; // 1 - Math.pow(1 - t, 3)
+      const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
       const scroll = () => {
         const elapsed = new Date().getTime() - startTime;
         const progress = easeOutCubic(Math.min(elapsed / duration, 1));
@@ -466,14 +463,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   /* 当前业务的tag颜色 多个tag取第一个 */
   getFirstCodeBgColor() {
     let tags = [];
-    for (const item of this.bizList) {
+    this.bizList.forEach(item => {
       if (item.id === this.localValue) {
         tags = [item.space_type_id];
         if (item.space_type_id === 'bkci' && item.space_code) {
           tags.push('bcs');
         }
       }
-    }
+    });
     this.firstCodeBgColor =
       SPACE_FIRST_CODE_COLOR_MAP[tags?.[0] || 'default']?.[this.theme]?.backgroundColor || '#63656E';
   }
@@ -526,7 +523,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 <i
                   style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
                   class='icon-monitor icon-mc-triangle-down'
-                />
+                ></i>
               </div>
             )}
           </div>
@@ -575,13 +572,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
                     onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
                   >
-                    <span class='icon-monitor icon-arrow-left' />
+                    <span class='icon-monitor icon-arrow-left'></span>
                   </div>
                   <div
                     class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
                     onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
                   >
-                    <span class='icon-monitor icon-arrow-right' />
+                    <span class='icon-monitor icon-arrow-right'></span>
                   </div>
                 </div>
               )}
@@ -594,7 +591,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}
-                />
+                ></List>
               </ul>
             </div>
             {(process.env.APP !== 'external' || !!this.demo) && (
@@ -604,7 +601,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class='biz-btn'
                     onClick={this.handleOpenSpaceManager}
                   >
-                    <i class='biz-btn-icon icon-monitor icon-mc-two-column' />
+                    <i class='biz-btn-icon icon-monitor icon-mc-two-column'></i>
                     <span class='biz-btn-text'>{this.$t('空间管理')}</span>
                   </span>
                 )}
@@ -617,7 +614,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class='biz-btn'
                     onClick={this.handleToDemo}
                   >
-                    <i class='biz-btn-icon icon-monitor icon-mc-demo' />
+                    <i class='biz-btn-icon icon-monitor icon-mc-demo'></i>
                     <span class='biz-btn-text'>{this.$t('DEMO')}</span>
                   </span>
                 )}

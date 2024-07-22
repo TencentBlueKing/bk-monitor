@@ -91,7 +91,7 @@ class CommonViewSet(GenericViewSet):
 
     def finalize_response(self, request, response, *args, **kwargs):
         # 目前仅对 Restful Response 进行处理
-        if isinstance(response, Response) and not (isinstance(response.data, dict) and "result" in response.data):
+        if isinstance(response, Response):
             response.data = {"result": True, "data": response.data, "code": 0, "message": ""}
             response.status_code = status.HTTP_200_OK
 

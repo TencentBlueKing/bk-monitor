@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { TranslateResult } from 'vue-i18n';
+import { TranslateResult } from 'vue-i18n';
 
 export interface IRadioMap {
   id: number;
@@ -35,7 +35,7 @@ export interface IGraphValueItem {
   name: string;
 }
 
-export enum EWeek {
+export const enum EWeek {
   Fri = 5,
   Mon = 1,
   Sat = 6,
@@ -45,12 +45,12 @@ export enum EWeek {
   Wed = 3,
 }
 
-export enum EType {
-  day = 2,
-  hour = 5,
-  month = 4,
-  once = 1,
-  week = 3,
+export const enum EType {
+  'once' = 1,
+  'day',
+  'week',
+  'month',
+  'hour',
 }
 
 export interface ITimePeriodValue {

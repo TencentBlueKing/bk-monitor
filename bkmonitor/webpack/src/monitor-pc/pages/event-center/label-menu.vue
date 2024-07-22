@@ -74,7 +74,7 @@ export default class LabelMenu extends Vue {
 
   @Emit('clear')
   public handleClear() {
-    this.list.forEach(item => {
+    this.list.forEach((item) => {
       item.checked = false;
     });
     return this.list;
@@ -90,10 +90,9 @@ export default class LabelMenu extends Vue {
   .label-menu-list {
     display: flex;
     flex-direction: column;
-    padding: 6px 0;
     background-color: #fff;
     border-radius: 2px;
-
+    padding: 6px 0;
     .item {
       display: flex;
       align-items: center;
@@ -101,37 +100,31 @@ export default class LabelMenu extends Vue {
       padding: 0 10px;
       color: #63656e;
       cursor: pointer;
-
       .name {
         margin-left: 6px;
       }
-
       &:hover {
-        color: #3a84ff;
         background: #e1ecff;
+        color: #3a84ff;
       }
     }
   }
-
   .footer {
+    padding: 0 10px;
     display: flex;
     justify-content: center;
     height: 32px;
-    padding: 0 10px;
-    background-color: #fff;
     border-top: solid 2px #f0f1f5;
-
+    background-color: #fff;
     .btn-group {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
       width: 70px;
       height: 100%;
-
       .monitor-btn {
         color: #3a84ff;
         cursor: pointer;
-
         &:hover {
           color: #699df4;
         }

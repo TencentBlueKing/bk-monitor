@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import requests
 
@@ -85,9 +85,7 @@ def push_and_publish_es_aliases(data_label: str):
     logger.info("push and publish es alias, alias: %s", data_label)
 
 
-def push_and_publish_es_table_id(
-    table_id: str, index_set: str, source_type: str, cluster_id: str, options: Optional[List] = None
-):
+def push_and_publish_es_table_id(table_id: str, index_set: str, source_type: str, cluster_id: str):
     """推送并发布es结果表
 
     - 自有: 追加时间戳和read后缀
@@ -109,20 +107,9 @@ def push_and_publish_es_table_id(
         logger.error("compose table_id_db failed, index_set: %s", index_set)
         return
 
-    # 组装values，包含 options 字段
-    values = {"storage_id": cluster_id, "db": table_id_db, "measurement": "__default__", "options": {}}
-    if options:
-        _options = {}
-        for option in options:
-            try:
-                _options[option["name"]] = json.loads(option["value"])
-            except Exception:
-                _options[option["name"]] = {}
-        values["options"] = _options
-
     RedisTools.hmset_to_redis(
         RESULT_TABLE_DETAIL_KEY,
-        {table_id: json.dumps(values)},
+        {table_id: json.dumps({"storage_id": cluster_id, "db": table_id_db, "measurement": "__default__"})},
     )
     RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
 

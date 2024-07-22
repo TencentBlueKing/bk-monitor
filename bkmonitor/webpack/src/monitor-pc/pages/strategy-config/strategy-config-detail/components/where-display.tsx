@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { TranslateResult } from 'vue-i18n';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -30,9 +31,7 @@ import { getVariableValue } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils/utils';
 
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../constant/constant';
-
-import type { ICommonItem, IWhereItem, MetricDetail } from '../../strategy-config-set-new/typings';
-import type { TranslateResult } from 'vue-i18n';
+import { ICommonItem, IWhereItem, MetricDetail } from '../../strategy-config-set-new/typings';
 
 import './where-display.scss';
 
@@ -122,10 +121,7 @@ export default class WhereDisplay extends tsc<IProps> {
     return (
       <span class='where-display-wrap'>
         {this.value.map((item, index) => (
-          <span
-            key={index}
-            class='where-item'
-          >
+          <span class='where-item'>
             {!!item.condition && !!index ? <span class='where-condition'>{` ${item.condition} `}</span> : undefined}
             <span
               class='where-field'

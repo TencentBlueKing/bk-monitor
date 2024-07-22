@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { beforeEnter } from '../router/utils';
+import { RouteConfig, RouteConfigMultipleViews, RouteConfigSingleView } from 'vue-router/types/router';
 
-import type { RouteConfig, RouteConfigMultipleViews, RouteConfigSingleView } from 'vue-router/types/router';
+import { beforeEnter } from '../router/utils';
 
 export const applyGuidePage = (
   routes: RouteConfigMultipleViews[] | RouteConfigSingleView[],
@@ -44,6 +44,7 @@ export const applyGuidePage = (
       },
     };
   });
+
 export const applyNoAuthPage = (routes: RouteConfigMultipleViews[] | RouteConfigSingleView[], noAuthPage: any) =>
   routes.map((route: RouteConfig) => {
     if (route.path.length < 2) return route;

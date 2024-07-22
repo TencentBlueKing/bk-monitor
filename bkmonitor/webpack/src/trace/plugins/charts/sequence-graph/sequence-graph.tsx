@@ -637,7 +637,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           ref='sequenceGraphRef'
           class='sequence-graph'
         >
-          <div id={this.graphId} />
+          <div id={this.graphId}></div>
           <div
             ref='mermaidRef'
             class='sequence-graph-ref'
@@ -704,7 +704,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                         width={this.thumbnailRect.width * window.devicePixelRatio}
                         height={this.thumbnailRect.height * window.devicePixelRatio}
                         class='sequence-thumbnail-canvas'
-                      />
+                      ></canvas>
                     </div>
                   ),
                 ],

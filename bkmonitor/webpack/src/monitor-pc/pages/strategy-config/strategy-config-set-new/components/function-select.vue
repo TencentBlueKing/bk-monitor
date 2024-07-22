@@ -28,15 +28,14 @@
     :class="[
       'function-select-wrap',
       {
-        'is-readonly': readonly,
-      },
+        'is-readonly': readonly
+      }
     ]"
   >
     <span
       data-type="func"
       class="func-label"
-      >{{ $t('函数') }}</span
-    >
+    >{{ $t('函数') }}</span>
     <!-- <span
       data-type="func"
       :contenteditable="!readonly"
@@ -70,8 +69,9 @@
       <span
         @click="handleAddFunc(item.id, item, index)"
         :class="['is-hover', { 'is-readonly': readonly }]"
-        >{{ item.name }}</span
-      >
+      >{{
+        item.name
+      }}</span>
       <span class="brackets">&nbsp;(&nbsp;</span>
       <span
         class="params-item"
@@ -83,8 +83,7 @@
           :class="['params-text', 'is-hover', { 'is-readonly': readonly }]"
           v-show="!set.contenteditable"
           @click.stop="handleFuncParams(set, i)"
-          >{{ set.value }}</span
-        >
+        >{{ set.value }}</span>
         <input
           v-show="set.contenteditable"
           v-model="set.value"
@@ -92,7 +91,7 @@
           :data-focus="set.contenteditable"
           :class="['params-input', { 'is-edit': set.contenteditable }]"
           @blur="handleFuncParamsBlur(set, index, i)"
-        /><span v-if="i !== item.params.length - 1">,&nbsp;</span>
+        ><span v-if="i !== item.params.length - 1">,&nbsp;</span>
       </span>
       <span class="brackets">&nbsp;)&nbsp;</span>
     </span>
@@ -117,17 +116,17 @@
   </span>
 </template>
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils/utils';
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { deepClone } from 'monitor-common/utils/utils';
 
 import SelectMenu from '../components/select-menu.vue';
-import type { IFuncListItem, IFuncLocalParamsItem, IFuncLocalValue, IFuncValueItem, IIdNameItem } from '../type';
+import { IFuncListItem, IFuncLocalParamsItem, IFuncLocalValue, IFuncValueItem, IIdNameItem } from '../type';
 
 @Component({
   name: 'function-select',
   components: {
-    SelectMenu,
-  },
+    SelectMenu
+  }
 })
 export default class FunctionSelect extends Vue {
   @Model('valueChange', { default: () => [], type: Array }) private readonly value!: IFuncValueItem[];
@@ -150,9 +149,9 @@ export default class FunctionSelect extends Vue {
         {
           name: 'top',
           default: 5,
-          list: [1, 2, 3, 4, '5'],
-        },
-      ],
+          list: [1, 2, 3, 4, '5']
+        }
+      ]
     },
     {
       id: 2,
@@ -161,14 +160,14 @@ export default class FunctionSelect extends Vue {
         {
           name: 'bot1',
           default: 1,
-          list: [1, 2, 3, 4, 5],
+          list: [1, 2, 3, 4, 5]
         },
         {
           name: 'bot2',
           default: 2,
-          list: [1, 2, 3],
-        },
-      ],
+          list: [1, 2, 3]
+        }
+      ]
     },
     {
       id: 3,
@@ -177,14 +176,14 @@ export default class FunctionSelect extends Vue {
         {
           name: 'left1',
           default: 1,
-          list: [1, 2, 3, 4, 5],
+          list: [1, 2, 3, 4, 5]
         },
         {
           name: 'left2',
           default: 2,
-          list: [1, 2, 3],
-        },
-      ],
+          list: [1, 2, 3]
+        }
+      ]
     },
     {
       id: 4,
@@ -193,14 +192,14 @@ export default class FunctionSelect extends Vue {
         {
           name: 'right1',
           default: 1,
-          list: [1, 2, 3, 4, 5],
+          list: [1, 2, 3, 4, 5]
         },
         {
           name: 'righddfft',
           default: 2,
-          list: [1, 2, 3],
-        },
-      ],
+          list: [1, 2, 3]
+        }
+      ]
     },
     {
       id: 5,
@@ -209,14 +208,14 @@ export default class FunctionSelect extends Vue {
         {
           name: 'testf1df',
           default: 1,
-          list: [1, 2, 3, 4, 5],
+          list: [1, 2, 3, 4, 5]
         },
         {
           name: 'test1',
           default: 2,
-          list: [1, 2, 3],
-        },
-      ],
+          list: [1, 2, 3]
+        }
+      ]
     },
     {
       id: 6,
@@ -225,14 +224,14 @@ export default class FunctionSelect extends Vue {
         {
           name: 'rig223fdht1',
           default: 1,
-          list: [1, 2, 3, 4, 5],
+          list: [1, 2, 3, 4, 5]
         },
         {
           name: 'rig444ht',
           default: 2,
-          list: [1, 2, 3],
-        },
-      ],
+          list: [1, 2, 3]
+        }
+      ]
     },
     {
       id: 7,
@@ -241,15 +240,15 @@ export default class FunctionSelect extends Vue {
         {
           name: 'rigaaffht1',
           default: 1,
-          list: [1, 2, 3, 4, 5],
+          list: [1, 2, 3, 4, 5]
         },
         {
           name: 'rifdddfght',
           default: 2,
-          list: [1, 2, 3],
-        },
-      ],
-    },
+          list: [1, 2, 3]
+        }
+      ]
+    }
   ];
 
   // 对应函数的参数可选列表
@@ -365,12 +364,12 @@ export default class FunctionSelect extends Vue {
     if (this.menuType === 'function') {
       let func = this.funcList.find(item => item.id === id);
       func = deepClone(func);
-      func.params.map(item => {
+      func.params.map((item) => {
         this.$set(item, 'value', item.default);
         item.parentId = func.id;
         item.list = item.list.map(item => ({
           id: item,
-          name: item,
+          name: item
         }));
         this.$set(item, 'contenteditable', false);
         return item;
@@ -446,8 +445,8 @@ export default class FunctionSelect extends Vue {
       name: func.name,
       params: func.params.map(par => ({
         name: par.name,
-        value: par.value,
-      })),
+        value: par.value
+      }))
     }));
     return temp;
   }
@@ -457,9 +456,9 @@ export default class FunctionSelect extends Vue {
   private transformValueToLocal(value) {
     value = deepClone(value);
     if (!this.funcList.length) return (this.localValue = []);
-    const temp = value.map(func => {
+    const temp = value.map((func) => {
       const resFunc = this.funcList.find(f => f.id === func.id);
-      const params = func.params.map(par => {
+      const params = func.params.map((par) => {
         const resPar = resFunc.params.find(p => p.name === par.name);
         par.contenteditable = false;
         par.default = resPar.default;
@@ -470,7 +469,7 @@ export default class FunctionSelect extends Vue {
       return {
         id: func.id,
         name: func.name,
-        params,
+        params
       };
     });
     this.localValue = temp;
@@ -593,7 +592,7 @@ export default class FunctionSelect extends Vue {
 }
 
 .is-readonly {
-  /* stylelint-disable-next-line no-descending-specificity */
+  /* stylelint-disable-next-line no-duplicate-selectors */
   .func-item {
     &:hover {
       cursor: default;
@@ -608,7 +607,7 @@ export default class FunctionSelect extends Vue {
     }
   }
 
-  /* stylelint-disable-next-line no-descending-specificity */
+  /* stylelint-disable-next-line no-duplicate-selectors */
   .func-add-btn {
     cursor: default;
   }
@@ -619,6 +618,6 @@ export default class FunctionSelect extends Vue {
   width: 100%;
   padding: 0;
   border-radius: 0;
-  box-shadow: 0 0 6px rgba(204, 204, 204, 0.3);
+  box-shadow: 0 0 6px rgba(204, 204, 204, .3);
 }
 </style>

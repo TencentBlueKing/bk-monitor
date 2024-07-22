@@ -23,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import VueI18n, { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
 
-import type { ActionAnlyzeField, AnlyzeField, ICommonItem, SearchType } from './typings/event';
-import type { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
-import type VueI18n from 'vue-i18n';
-import type { TranslateResult } from 'vue-i18n';
+import { ActionAnlyzeField, AnlyzeField, ICommonItem, SearchType } from './typings/event';
 
 import './alert-analyze.scss';
 
@@ -246,7 +245,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
               class='icon-monitor icon-mc-copy'
               v-bk-tooltips={{ placement: 'right', content: this.$t('批量复制') }}
               onClick={() => this.handleCopyNames(this.detailFieldData.buckets || [])}
-            />
+            ></span>
           )}
         </div>
         <div
@@ -428,7 +427,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                           class='icon-monitor icon-mc-copy'
                           v-bk-tooltips={{ placement: 'top', content: this.$t('批量复制') }}
                           onClick={() => this.handleCopyNames(item.buckets || [])}
-                        />
+                        ></span>
                       )}
                     </span>
                     {item.bucket_count > 5 ? (

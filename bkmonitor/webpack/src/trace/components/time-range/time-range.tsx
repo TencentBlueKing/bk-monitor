@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent, PropType } from 'vue';
 
 import { DatePicker } from '@blueking/date-picker';
 
 import { updateTimezone } from '../../i18n/dayjs';
-
-import type { TimeRangeType } from './utils';
+import { TimeRangeType } from './utils';
 
 import '@blueking/date-picker/vue3/vue3.css';
 

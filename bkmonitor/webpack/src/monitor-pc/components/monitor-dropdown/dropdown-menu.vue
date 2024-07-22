@@ -86,7 +86,7 @@
 <script lang="ts">
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import type { IOption } from '../../pages/performance/performance-type';
+import { IOption } from '../../pages/performance/performance-type';
 
 @Component({ name: 'dropdown-menu' })
 export default class DropDownMenu extends Vue {

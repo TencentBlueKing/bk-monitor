@@ -27,8 +27,7 @@ import BarChartOption from './bar-chart-option';
 import MapChartOption from './echart-map-options';
 import LineChartOption from './line-chart-option';
 import PieChartOption from './pie-chart-option';
-
-import type { IChartOptionPorps } from './type-interface';
+import { IChartOptionPorps } from './type-interface';
 
 export default class MonitorChartOption {
   public chartOptionInstance: any = null;

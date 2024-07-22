@@ -28,7 +28,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 
 import getters from './getters';
-import App, { type IAppState } from './modules/app';
+import App, { IAppState } from './modules/app';
 import Home from './modules/home';
 
 Vue.use(Vuex);

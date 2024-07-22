@@ -130,7 +130,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
             class={['pre', { disabled: !this.canPre }]}
             onClick={() => this.handleClick('pre')}
           >
-            <span class='icon-monitor icon-arrow-left' />
+            <span class='icon-monitor icon-arrow-left'></span>
           </div>
         )}
         {this.hasScroll && (
@@ -138,7 +138,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
             class={['next', { disabled: !this.canNext }]}
             onClick={() => this.handleClick('next')}
           >
-            <span class='icon-monitor icon-arrow-right' />
+            <span class='icon-monitor icon-arrow-right'></span>
           </div>
         )}
       </div>

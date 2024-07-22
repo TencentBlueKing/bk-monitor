@@ -28,18 +28,17 @@ import { ofType } from 'vue-tsx-support';
 
 import deepmerge from 'deepmerge';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IMenuItem, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
+import { MonitorEchartOptions, PanelModel } from '../../typings';
+import { ITableDataItem } from '../../typings/table-chart';
 import { createImg, setStyle } from '../../utils';
 import BaseEchart from '../monitor-base-echart';
-
-import type { MonitorEchartOptions, PanelModel } from '../../typings';
-import type { ITableDataItem } from '../../typings/table-chart';
-import type { IMenuItem, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './table-bar-chart.scss';
 
@@ -334,7 +333,7 @@ class TableBarChart extends Mixins<
             pagination={this.pagination}
             paginationType='simple'
             onPageChange={this.handlePageChange}
-          />
+          ></CommonTable>
         </div>
       </div>
     );

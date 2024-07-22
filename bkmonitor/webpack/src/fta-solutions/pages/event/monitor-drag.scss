@@ -3,22 +3,22 @@
   &.normal {
     position: fixed;
     top: calc(50% - 50px);
-    z-index: 101;
+    width: 6px;
+    height: 100px;
     display: flex;
     align-items: center;
     justify-items: center;
-    width: 6px;
-    height: 100px;
     background-color: #dcdee5;
     border-radius: 3px;
+    z-index: 101;
 
     &::after {
+      content: ' ';
+      height: 80px;
+      width: 0;
+      border-left: 2px dotted white;
       position: absolute;
       left: 2px;
-      width: 0;
-      height: 80px;
-      content: ' ';
-      border-left: 2px dotted white;
     }
 
     &:hover {
@@ -30,8 +30,8 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    z-index: 10;
     width: 3px;
+    z-index: 10;
 
     .line-wrap {
       position: absolute;
@@ -55,12 +55,11 @@
         position: absolute;
         top: 0;
         bottom: 0;
+        width: 2px;
         z-index: 2;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 2px;
-        height: 100%;
 
         &.is-moving {
           background-color: #3a84ff;
@@ -69,25 +68,25 @@
             background-color: #3a84ff !important;
           }
         }
-
+        
         .line-round-wrap {
           display: flex;
           flex-direction: column;
-          align-items: center;
           justify-content: center;
+          align-items: center;
           margin-left: -8px;
 
           .line-round {
             width: 4px;
             height: 4px;
-            margin-bottom: 6px;
-            background-color: #c4c6cc;
             border-radius: 50%;
+            background-color: #c4c6cc;
+            margin-bottom: 6px;
 
             &.line-square {
+              border-radius: 0%;
               width: 5px;
               height: 5px;
-              border-radius: 0%;
               transform: rotate(45deg);
               transform-origin: center;
             }
@@ -95,35 +94,35 @@
         }
       }
     }
-
+    
     .line-trigger {
-      position: absolute;
-      top: 50%;
-      z-index: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
       width: 16px;
       min-height: 72px;
       padding: 10px 0;
-      overflow: hidden;
       font-size: 12px;
       color: #63656e;
-      cursor: pointer;
-      background-color: #eaebf0;
       border: 1px solid #dcdee5;
-      transform: translateY(-50%);
+      background-color: #eaebf0;
+      cursor: pointer;
+      z-index: 1;
+      overflow: hidden;
 
       .trigger-text {
         text-align: center;
-        writing-mode: horizontal-tb;
+        writing-mode: horizontal-tb
       }
 
       &:hover {
-        color: #3a84ff;
         background: #e1ecff;
         border-color: #3a84ff;
+        color: #3a84ff;
       }
     }
 

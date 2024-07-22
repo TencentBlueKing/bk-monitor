@@ -74,7 +74,7 @@ export default defineComponent({
         onClosed={() => {
           this.emit('update:modelValue', false);
         }}
-      />
+      ></Dialog>
     );
   },
 });

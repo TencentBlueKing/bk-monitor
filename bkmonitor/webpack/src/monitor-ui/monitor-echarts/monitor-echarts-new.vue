@@ -234,16 +234,16 @@
   </div>
 </template>
 <script lang="ts">
-import type { CreateElement } from 'vue';
+import { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { type ResizeCallback, addListener, removeListener } from '@blueking/fork-resize-detector';
+import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import { toBlob, toPng } from 'html-to-image';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
-import { type IUnifyQuerySeriesItem, downCsvFile } from 'monitor-pc/pages/view-detail/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
@@ -256,7 +256,7 @@ import TextChart from './components/text-chart.vue';
 import './map/china';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
-import type {
+import {
   ChartType,
   IAnnotation,
   ILegendItem,
@@ -267,7 +267,7 @@ import type {
   ITextChartOption,
   ITextSeries,
 } from './options/type-interface';
-import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
+import { echarts, type MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
 
@@ -334,7 +334,7 @@ export default class MonitorEcharts extends Vue {
       return window.graph_watermark ? `url('${watermarkMaker(window.user_name || window.username)}')` : '';
     },
   })
-  backgroundUrl: string;
+  backgroundUrl: String;
 
   // 获取图标数据
   @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<any[]>;

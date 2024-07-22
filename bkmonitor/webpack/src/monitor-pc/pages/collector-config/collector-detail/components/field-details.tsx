@@ -27,8 +27,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import Collapse from '../../../../components/collapse/collapse';
-
-import type { DetailData } from '../typings/detail';
+import { DetailData } from '../typings/detail';
 
 import './field-details.scss';
 

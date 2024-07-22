@@ -34,7 +34,7 @@ import MarkdowViewer from 'monitor-ui/markdown-editor/viewer';
 
 import * as authorityMap from '../../home/authority-map';
 import SelectCardItem from './select-card-item';
-import { type ICardItem, type IListDataItem, SystemData } from './utils';
+import { ICardItem, IListDataItem, SystemData } from './utils';
 
 import './no-data-guide.scss';
 
@@ -187,7 +187,7 @@ export default class NoDataGuide extends tsc<IProps> {
             //   }
             // }}
           >
-            <i class={['icon-monitor icon-mc-triangle-down', { 'is-collapse': this.isCollapse }]} />
+            <i class={['icon-monitor icon-mc-triangle-down', { 'is-collapse': this.isCollapse }]}></i>
             {name}
           </div>
         )}
@@ -244,7 +244,7 @@ export default class NoDataGuide extends tsc<IProps> {
                     onClick={this.handleExpandStepTips}
                   >
                     <span>{this.$t(this.expandStepTips ? '收起' : '展开')}</span>
-                    <i class={['icon-monitor icon-arrow-up', { 'is-hidden': !this.expandStepTips }]} />
+                    <i class={['icon-monitor icon-arrow-up', { 'is-hidden': !this.expandStepTips }]}></i>
                   </span>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default class NoDataGuide extends tsc<IProps> {
                     {(this.showSecureKey ? this.secureKey : '********') || '●●●●●●●●●●'}
                     {!this.secureKey ? (
                       <span class={['handle-btn', { 'btn-loading': this.secureKeyLoading }]}>
-                        <span class='loading' />
+                        <span class='loading'></span>
                         <span
                           class='handle-text'
                           v-authority={{ active: !this.authority.MANAGE_AUTH }}
@@ -279,7 +279,7 @@ export default class NoDataGuide extends tsc<IProps> {
                           <i
                             class='icon-monitor icon-mc-copy copy-icon'
                             onClick={() => this.handleCopy(this.secureKey)}
-                          />
+                          ></i>
                         )}
                       </span>
                     )}
@@ -348,7 +348,7 @@ export default class NoDataGuide extends tsc<IProps> {
                     class='md-viwer'
                     flowchartStyle={true}
                     value={this.mdData}
-                  />
+                  ></MarkdowViewer>
                 ) : (
                   <bk-exception
                     scene='part'

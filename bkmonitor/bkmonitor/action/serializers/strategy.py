@@ -42,7 +42,6 @@ from bkmonitor.models import (
 )
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.request import get_request
 from common.log import logger
 from constants.action import NoticeChannel
 from constants.common import (
@@ -189,13 +188,7 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
         if isinstance(duty_instances, (DutyPlan, DutyArrange)):
             duty_instances = [duty_instances]
         all_members = cls.get_all_members(duty_instances)
-        if not all_members:
-            return super(DutyBaseInfoSlz, cls).__new__(cls, *args, **kwargs)
-
-        # 新增 notice_user_detail 标记，获取用户中文名
-        request = get_request(peaceful=True)
-        need_username = getattr(request, "notice_user_detail", None)
-        if need_username:
+        if all_members:
             try:
                 user_list = api.bk_login.get_all_user(
                     page_size=500, fields="username,display_name", exact_lookups=",".join(set(all_members))

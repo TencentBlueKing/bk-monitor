@@ -233,15 +233,7 @@ class TraceHandler:
         return new_resource
 
     @classmethod
-    def handle_trace(
-        cls,
-        app_name,
-        trace_data: list,
-        trace_id: str,
-        relation_mapping: dict,
-        displays: list = None,
-        enabled_time_alignment=False,
-    ):
+    def handle_trace(cls, app_name, trace_data: list, trace_id: str, relation_mapping: dict, displays: list = None):
         # otel data must be in displays choice
         displays = displays or []
         if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
@@ -375,10 +367,9 @@ class TraceHandler:
                     # 说明两个服务有时间偏差 以主调为基准对齐
                     if time_delta < 0:
                         trace_info["time_error"] = True
-                        if enabled_time_alignment:
-                            # 避免相同服务名不同机器产生的时间再次偏差 这里只调整当前调用关系
-                            right_span[OtlpKey.START_TIME] -= time_delta
-                            right_span[OtlpKey.END_TIME] -= time_delta
+                        # 避免相同服务名不同机器产生的时间再次偏差 这里只调整当前调用关系
+                        right_span[OtlpKey.START_TIME] -= time_delta
+                        right_span[OtlpKey.END_TIME] -= time_delta
 
                     # 校验2:同步请求下被调开始时间不能大于主调结束时间
                     time_delta = right_span[OtlpKey.START_TIME] - span_pair["left"][OtlpKey.END_TIME]
@@ -387,11 +378,10 @@ class TraceHandler:
                         and right_span[OtlpKey.KIND] == SpanKind.SPAN_KIND_SERVER
                         and time_delta > 0
                     ):
+                        start_delta = right_span[OtlpKey.START_TIME] - span_pair["left"][OtlpKey.START_TIME]
                         trace_info["time_error"] = True
-                        if enabled_time_alignment:
-                            start_delta = right_span[OtlpKey.START_TIME] - span_pair["left"][OtlpKey.START_TIME]
-                            right_span[OtlpKey.START_TIME] -= start_delta
-                            right_span[OtlpKey.END_TIME] -= start_delta
+                        right_span[OtlpKey.START_TIME] -= start_delta
+                        right_span[OtlpKey.END_TIME] -= start_delta
 
         # 获取各服务名称的类型: 服务的类型为此服务第一个被调span的span的类型
         service_classify = cls.classify_service(service_span_mapping)

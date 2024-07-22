@@ -26,8 +26,7 @@
 
 import { timeRangeMerger } from '../../../../trace/pages/rotation/components/calendar-preview';
 import { randomColor } from '../../../../trace/pages/rotation/utils';
-
-import type { IDutyItem } from './typing';
+import { IDutyItem } from './typing';
 
 interface IOverlapTimesItem {
   verticalRange: number[];
@@ -245,8 +244,8 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
  * @returns
  */
 export function getOverlap(timeRnages: number[][]) {
-  let overlapStart = Number.NEGATIVE_INFINITY;
-  let overlapEnd = Number.POSITIVE_INFINITY;
+  let overlapStart = -Infinity;
+  let overlapEnd = Infinity;
 
   timeRnages.forEach(item => {
     overlapStart = Math.max(overlapStart, item[0]);

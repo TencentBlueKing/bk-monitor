@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IBookMark, SettingsTabType } from '../../typings';
+import { IBookMark, SettingsTabType } from '../../typings';
 
 import './tab-form.scss';
 
@@ -144,7 +144,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
               class='input-title'
               v-model={this.localForm.name}
               onBlur={this.handleValueChange}
-            />
+            ></bk-input>
           </bk-form-item>
           {/* <bk-form-item label={this.$t('链接内容')} property="link">
             <bk-input
@@ -162,7 +162,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
               size='large'
               theme='primary'
               onChange={this.handleValueChange}
-            />
+            ></bk-switcher>
           </bk-form-item>
           <bk-form-item>
             <div class='handle-footer'>

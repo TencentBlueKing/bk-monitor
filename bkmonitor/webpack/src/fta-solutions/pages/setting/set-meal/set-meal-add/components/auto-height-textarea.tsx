@@ -66,7 +66,7 @@ export default class AutoHeightTextarea extends tsc<IProps> {
         type='textarea'
         value={this.value}
         onChange={this.handleChange}
-      />
+      ></bk-input>
     );
   }
 }

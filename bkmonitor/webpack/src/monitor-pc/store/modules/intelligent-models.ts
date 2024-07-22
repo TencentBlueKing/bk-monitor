@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '../store';
 

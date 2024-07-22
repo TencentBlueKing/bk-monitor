@@ -31,8 +31,7 @@ import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as ruleAuth from './authority-map';
 import StrategyConfigSet from './strategy-config-set-new/strategy-config-set';
-
-import type { strategyType } from './strategy-config-set-new/typings';
+import { strategyType } from './strategy-config-set-new/typings';
 
 import './strategy-config-set.scss';
 const allowJumpMap = ['alarm-group-add', 'alarm-group-edit', 'set-meal-add', 'set-meal-edit'];

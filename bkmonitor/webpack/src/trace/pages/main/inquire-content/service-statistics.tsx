@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
@@ -33,8 +33,7 @@ import { Popover, Table } from 'bkui-vue';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-
-import type { TraceListType } from './trace-list';
+import { TraceListType } from './trace-list';
 
 import './service-statistics.scss';
 
@@ -267,7 +266,7 @@ export default defineComponent({
               >
                 {t('检索')}
               </span>
-              <i class='icon-monitor icon-fenxiang' />
+              <i class='icon-monitor icon-fenxiang'></i>
             </div>
 
             <div
@@ -281,7 +280,7 @@ export default defineComponent({
               >
                 {t('去观测')}
               </span>
-              <i class='icon-monitor icon-fenxiang' />
+              <i class='icon-monitor icon-fenxiang'></i>
             </div>
           </div>
         ),

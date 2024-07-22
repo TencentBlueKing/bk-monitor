@@ -27,14 +27,15 @@
 
 import { random } from 'monitor-common/utils/utils';
 import {
-  type IPanelModel,
-  type IVariableModel,
+  IPanelModel,
+  IVariableModel,
   PanelModel,
   VariableModel,
 } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
-import type { IMenuItem } from '.';
-import type { SceneType } from '../components/common-page-new';
+import { IMenuItem } from '.';
+import { type SceneType } from '../components/common-page-new';
+
 import type { TranslateResult } from 'vue-i18n';
 
 // 视图模式 auto：平铺模式 custom：自定义模式

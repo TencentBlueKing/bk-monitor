@@ -31,10 +31,9 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import * as ruleAuth from '../../authority-map';
 import CommonItem from '../components/common-form-item';
-import GroupSelect, { type IGroupItem } from '../components/group-select';
-
-import type { IActionConfig } from '../type';
-import type { strategyType } from '../typings/index';
+import GroupSelect, { IGroupItem } from '../components/group-select';
+import { IActionConfig } from '../type';
+import { strategyType } from '../typings/index';
 
 import './alarm-handling.scss';
 
@@ -226,7 +225,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
               <i
                 style='margin: 4px 4px 0 0;'
                 class='icon-monitor icon-jia'
-              />
+              ></i>
               <span
                 class='add-text'
                 v-bk-tooltips={{
@@ -265,7 +264,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
             size='small'
             theme='primary'
             on-change={this.handleChange}
-          />
+          ></bk-switcher>
           {this.data.options.converge_config.is_enabled && (
             <i18n
               class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
@@ -281,7 +280,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                   size='small'
                   type='number'
                   on-change={this.handleChange}
-                />
+                ></bk-input>
               ) : (
                 <span>{this.data.options.converge_config.timedelta}</span>
               )}
@@ -295,7 +294,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                   size='small'
                   type='number'
                   on-change={this.handleChange}
-                />
+                ></bk-input>
               ) : (
                 <span>{this.data.options.converge_config.count}</span>
               )}
@@ -315,7 +314,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                     id={option.key}
                     key={option.key}
                     name={option.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-select>
             </i18n>
@@ -323,7 +322,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         </CommonItem>
         {this.data.options.converge_config.is_enabled && (
           <div class='tips-key1'>
-            <i class='icon-monitor icon-hint' />{' '}
+            <i class='icon-monitor icon-hint'></i>{' '}
             <span class='tip-text'>
               {this.defenseTips[this.data.options.converge_config.converge_func] ||
                 this.allDefense[0]?.description ||
@@ -337,7 +336,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           needEditTips={!this.readonly}
           strategyId={this.strategyId}
           strategyType={this.strategyType}
-        />
+        ></SetMealDeail>
       </div>
     );
   }

@@ -38,21 +38,20 @@ import RingRatio from '../../../../static/images/svg/ring-ratio.svg';
 import Threshold from '../../../../static/images/svg/threshold.svg';
 import TimeSeriesForecasting from '../../../../static/images/svg/time-series-forecasting.svg';
 import YearRound from '../../../../static/images/svg/year-round.svg';
-import IntelligentModelsStore, { type IntelligentModelsType } from '../../../../store/modules/intelligent-models';
+import IntelligentModelsStore, { IntelligentModelsType } from '../../../../store/modules/intelligent-models';
 import { createOnlyId } from '../../../../utils';
 import {
+  dataModeType,
   DetectionRuleTypeEnum,
-  type ICommonItem,
-  type IDetectionTypeItem,
-  type IDetectionTypeRuleData,
-  type MetricDetail,
-  type dataModeType,
+  ICommonItem,
+  IDetectionTypeItem,
+  IDetectionTypeRuleData,
+  MetricDetail,
 } from '../typings/index';
+import { ChartType } from './components/intelligent-detect/intelligent-detect';
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
+import { IModelData } from './components/time-series-forecast/time-series-forecast';
 import RulesSelect from './rules-select';
-
-import type { ChartType } from './components/intelligent-detect/intelligent-detect';
-import type { IModelData } from './components/time-series-forecast/time-series-forecast';
 
 import './detection-rules.scss';
 
@@ -209,16 +208,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   /** 是否支持智能检测算法 时序预测条件一致 */
   get isCanSetAiops(): boolean {
-    const {
-      data_source_label: dataSourceLabel,
-      data_type_label: dataTypeLabel,
-      functions,
-      result_table_id,
-    } = this.metricData[0] || {};
+    const { data_source_label: dataSourceLabel, data_type_label: dataTypeLabel, functions } = this.metricData[0] || {};
     return (
       this.metricData.length === 1 &&
-      (['bk_data'].includes(dataSourceLabel) ||
-        (['bk_monitor'].includes(dataSourceLabel) && result_table_id?.startsWith('system.'))) &&
+      ['bk_data', 'bk_monitor'].includes(dataSourceLabel) &&
       dataTypeLabel === 'time_series' &&
       !functions?.length
     );
@@ -291,15 +284,13 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       ) {
         if (!this.isCanSetAiops) {
           item.disabled = true;
-          item.disabledTip = this.$tc('只支持计算平台的单指标数据');
+          item.disabledTip = this.$tc('只支持监控平台和计算平台的单指标数据');
         }
-        if (!item.disabled) {
-          item.disabled = !(
-            window.enable_aiops &&
-            IntelligentModelsStore.intelligentModelsMap.get(item.id.toString() as IntelligentModelsType)?.length > 0
-          );
-          item.disabledTip = '';
-        }
+        item.disabled = !(
+          window.enable_aiops &&
+          IntelligentModelsStore.intelligentModelsMap.get(item.id.toString() as IntelligentModelsType)?.length > 0
+        );
+        item.disabledTip = '';
       }
 
       // 智能算法规则
@@ -537,7 +528,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 onChange={this.handleUnitChange}
               >
                 {this.unitDisplay}
-                <span class='icon-monitor icon-mc-triangle-down' />
+                <span class='icon-monitor icon-mc-triangle-down'></span>
               </MonitorSelect>
             </div>
           ) : undefined}
@@ -545,7 +536,6 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         <div class='detection-list'>
           {this.addType.map((item, index) => (
             <div
-              key={index}
               class='detection-list-item'
               onClick={() => this.handleRuleClick(item)}
             >
@@ -577,7 +567,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
           readonly={this.readonly}
           typeList={this.detectionTypeListFilter}
           onTypeChange={this.handleAddRuleType}
-        />
+        ></RulesSelect>
 
         {this.hasValid && !this.addType.length && <p class='err-msg'>{this.$t('最少选择一个算法')}</p>}
       </div>

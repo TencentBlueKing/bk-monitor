@@ -95,7 +95,7 @@ export default class NumberSelect extends tsc<IProps> {
             showControls={false}
             type='number'
             onBlur={() => this.handleBlur()}
-          />
+          ></bk-input>
         </slot>
         <ul
           class='list-wrap'

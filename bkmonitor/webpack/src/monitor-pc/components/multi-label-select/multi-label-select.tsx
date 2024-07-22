@@ -28,6 +28,8 @@
  * @LastEditTime: 2021-06-30 19:22:24
  * @Description:
  */
+// import { Tree } from 'bk-magic-vue'
+import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -36,11 +38,8 @@ import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
 import LabelTree from './label-tree/label-tree';
+import { IAddWrapSize, ITreeItem, TBehavior, TMode } from './types';
 import { labelListToTreeData } from './utils';
-
-import type { IAddWrapSize, ITreeItem, TBehavior, TMode } from './types';
-// import { Tree } from 'bk-magic-vue'
-import type { VNode } from 'vue';
 
 import './multi-label-select.scss';
 
@@ -582,7 +581,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
           <div class='multi-label-add'>
             <bk-button onClick={this.handleAddFirstLevelLabel}>
               <div class='add-btn-wrap'>
-                <i class='icon-monitor icon-mc-add' />
+                <i class='icon-monitor icon-mc-add'></i>
                 <span class='text'>{this.$t('添加一级标签')}</span>
               </div>
             </bk-button>
@@ -602,13 +601,13 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                     onLoading={this.handleTreeLoading}
                   />
                 </div>
-                <i class='resize-icon-inner' />
+                <i class='resize-icon-inner'></i>
                 <i
                   class='resize-icon-wrap'
                   onMousedown={this.handleMouseDown}
                   onMousemove={this.handleMousemove}
                   onMouseup={this.handleMouseup}
-                />
+                ></i>
               </div>
             ) : (
               ''
@@ -659,7 +658,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                         <i
                           class='icon-monitor icon-mc-close remove-key'
                           onClick={() => this.handleRemoveTag(index)}
-                        />
+                        ></i>
                       ) : undefined}
                     </li>
                   ))}
@@ -685,7 +684,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                   )}
                 </ul>
                 <span class='arrow-down-wrap'>
-                  <i class='icon-monitor icon-arrow-down' />
+                  <i class='icon-monitor icon-arrow-down'></i>
                 </span>
               </div>
               <div

@@ -31,6 +31,6 @@ import './navigation-slider.scss';
 @Component
 export default class FtaNavigationSlider extends tsc<object> {
   render() {
-    return <div class='fta-navigation-slider' />;
+    return <div class='fta-navigation-slider'></div>;
   }
 }

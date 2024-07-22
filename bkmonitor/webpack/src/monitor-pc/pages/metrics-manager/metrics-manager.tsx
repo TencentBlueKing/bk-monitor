@@ -30,13 +30,12 @@ import { getMetricListV2 } from 'monitor-api/modules/strategies';
 // import { MetricType } from '../../components/metric-selector/typings';
 import { random } from 'monitor-common/utils/utils';
 
-import FilterPanel, { type IFilterData } from '../strategy-config/strategy-config-list/filter-panel';
+import { EmptyStatusType } from '../../components/empty-status/types';
+import FilterPanel, { IFilterData } from '../strategy-config/strategy-config-list/filter-panel';
+import { IGroupData } from '../strategy-config/strategy-config-list/group';
+import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 import { handleMouseDown, handleMouseMove } from '../strategy-config/util';
 import MetricsTable from './metrics-table';
-
-import type { EmptyStatusType } from '../../components/empty-status/types';
-import type { IGroupData } from '../strategy-config/strategy-config-list/group';
-import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 
 import './metrics-manager.scss';
 /** 采集来源数据 */
@@ -308,7 +307,7 @@ export default class MetricsManager extends tsc<object> {
               onMouseenter={() => (this.drapActive = true)}
               onMouseleave={() => (this.drapActive = false)}
               onMousemove={this.handleMouseMove}
-            />
+            ></div>
             <FilterPanel
               key={this.leftFilter.key}
               checkedData={this.leftFilter.checkedData}
@@ -323,7 +322,7 @@ export default class MetricsManager extends tsc<object> {
                   <span
                     class='right icon-monitor icon-double-up'
                     onClick={() => this.handleShowLeft(false)}
-                  />
+                  ></span>
                 </div>
               </div>
             </FilterPanel>
@@ -350,7 +349,7 @@ export default class MetricsManager extends tsc<object> {
                   <span
                     class='right icon-monitor icon-double-up'
                     onClick={() => this.handleShowLeft(true)}
-                  />
+                  ></span>
                 </span>
               ) : undefined}
             </MetricsTable>

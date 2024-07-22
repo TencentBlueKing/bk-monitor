@@ -46,7 +46,7 @@ import { Component, Mixins, Prop } from 'vue-property-decorator';
 import documentLinkMixin from '../../mixins/documentLinkMixin';
 
 @Component({
-  name: 'page-tips',
+  name: 'page-tips'
 })
 export default class PageTips extends Mixins(documentLinkMixin) {
   @Prop({ default: '', type: String }) private readonly tipsText: string;
@@ -64,35 +64,31 @@ export default class PageTips extends Mixins(documentLinkMixin) {
   display: flex;
   align-items: center;
   min-height: 32px;
-  padding: 0 10px;
-  font-size: 0;
   background: #f0f8ff;
   border: 1px solid #c5daff;
   border-radius: 2px;
-
+  font-size: 0;
+  padding: 0 10px;
   span {
     font-size: 12px;
   }
-
   .icon-tips {
     display: flex;
     align-items: center;
-    margin-right: 8px;
     font-size: 16;
     color: #3a84ff;
+    margin-right: 8px;
   }
-
   .text {
     padding: 7px 0;
-    margin-right: 4px;
     line-height: 16px;
+    margin-right: 4px;
   }
-
   .link {
     margin-right: 4px;
     color: #3a84ff;
-    white-space: nowrap;
     cursor: pointer;
+    white-space: nowrap;
   }
 }
 </style>

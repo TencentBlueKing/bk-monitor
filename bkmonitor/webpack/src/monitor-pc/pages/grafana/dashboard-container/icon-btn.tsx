@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import './icon-btn.scss';
 
@@ -106,7 +106,7 @@ export default class IconBtn extends tsc<IProps, IEvents> {
         ]}
         onClick={this.handleClick}
       >
-        {this.$slots.icon || (this.icon && <i class={['icon-monitor', this.icon]} />)}
+        {this.$slots.icon || (this.icon && <i class={['icon-monitor', this.icon]}></i>)}
         {this.title && <span>{this.title}</span>}
       </span>
     );
@@ -143,7 +143,7 @@ export default class IconBtn extends tsc<IProps, IEvents> {
                     <i
                       style={{ ...opt.style }}
                       class={['icon-monitor', 'option-icon', opt.icon]}
-                    />
+                    ></i>
                   )}
                   <span>{opt.name}</span>
                 </div>

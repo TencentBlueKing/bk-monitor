@@ -181,7 +181,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
             placeholder={this.$t('填写告警确认备注信息')}
             rows={5}
             type='textarea'
-          />
+          ></bk-input>
         </div>
         <template slot='footer'>
           <bk-button

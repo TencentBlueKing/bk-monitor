@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import AlarmGroupDetail, { type IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
+import AlarmGroupDetail, { IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
 import * as ruleAuth from '../../authority-map';
 
 import './alarm-group.scss';
@@ -221,7 +221,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 <span
                   class='icon-monitor icon-mc-close'
                   onClick={e => this.handleDelete(index, e)}
-                />
+                ></span>
               )}
             </span>
           ))}
@@ -280,7 +280,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                   }
                 >
                   <div class='add-container'>
-                    <i class='bk-icon icon-plus-circle' />
+                    <i class='bk-icon icon-plus-circle'></i>
                     <span
                       class='add-text'
                       v-bk-tooltips={{
@@ -306,20 +306,20 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                           class='status-loading'
                           alt=''
                           src={require('../../../../static/images/svg/spinner.svg')}
-                        />
+                        ></img>
                       ) : (
-                        <span class='icon-monitor icon-mc-retry' />
+                        <span class='icon-monitor icon-mc-retry'></span>
                       )}
                     </div>
                   )}
                 </div>
               </bk-select>
               <span
-                v-en-style='width: 120px'
                 class={['add-tag', { disabled: this.disabled }]}
+                v-en-style='width: 120px'
                 onClick={!this.disabled && this.handleShowSelect}
               >
-                <span class='icon-monitor icon-mc-add' />
+                <span class='icon-monitor icon-mc-add'></span>
                 <span class='add-tag-text'>{this.$t('添加告警组')}</span>
               </span>
             </span>
@@ -332,7 +332,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
           customEdit
           onEditGroup={this.handleEditAlarmGroup}
           onShowChange={val => !val && (this.detail.id = 0)}
-        />
+        ></AlarmGroupDetail>
       </div>
     );
   }

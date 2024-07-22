@@ -135,11 +135,12 @@
       margin-bottom: 50px;
     }
 
-    .bk-textarea > textarea {
+    .bk-textarea>textarea {
       box-sizing: border-box;
       font: inherit;
       color: #63656e;
     }
+
 
     .handle-btn-group {
       position: absolute;
@@ -162,7 +163,7 @@
         font-size: 12px;
       }
 
-      & > :not(:last-child) {
+      &>:not(:last-child) {
         margin-right: 8px;
       }
 
@@ -345,7 +346,6 @@
     .link {
       margin-left: 5px;
       color: #3a84ff;
-      cursor: pointer;
 
       .icon-mc-link {
         margin-left: 2px;
@@ -430,27 +430,27 @@
     z-index: 1;
     width: 100%;
   }
-
+  
   .content-list.is-log-tab {
     padding: 0 !important;
 
     .flex-dashboard-item {
       height: calc(100vh - 257px) !important;
     }
-
+    
     .dashboard-panel .flex-dashboard-item {
       margin-right: 0 !important;
       margin-bottom: 0 !important;
     }
-
+  
     .dashboard-panel {
       height: calc(100vh - 255px);
     }
-
+    
     .related-table-container {
       height: calc(100vh - 568px);
     }
-
+  
     .related-log-chart-wrap .related-log-chart-main {
       margin-right: 16px;
       margin-left: 16px;
@@ -466,7 +466,7 @@
       height: calc(100vh - 264px) !important;
     }
   }
-
+  
   .bk-loading-mask {
     opacity: 1 !important;
   }

@@ -30,8 +30,7 @@ import { statusList } from 'monitor-api/modules/report';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import ListCollapse from './components/list-collapse.vue';
-
-import type { ITableColumnItem } from './types';
+import { ITableColumnItem } from './types';
 
 import './email-subscriptions-history.scss';
 
@@ -139,14 +138,14 @@ export default class EmailSubscriptionsHistory extends tsc<object> {
                     }}
                     label={this.$t('发送状态')}
                     prop='isSuccess'
-                  />
+                  ></bk-table-column>
                 ) : (
                   <bk-table-column
                     key={index}
                     formatter={item.formatter}
                     label={item.label}
                     prop={item.key}
-                  />
+                  ></bk-table-column>
                 )
               )}
             </bk-table>

@@ -28,13 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils/utils';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import { transformSensitivityValue } from 'monitor-pc/pages/strategy-config/util';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
-import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { handleThreshold, parseMetricId } from 'monitor-ui/chart-plugins/utils';
 
-import type { IDetail } from './type';
-import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { IDetail } from './type';
 
 /** 自动生成一个时间范围
  * 1、时间的起始时间，当发生时是发生时间往前60个周期
@@ -209,6 +209,8 @@ export default class AiopsChartEvent extends tsc<IProps> {
   }
 
   render() {
-    return <div class='event-detial-aiops-chart'>{!!this.panel && <ChartWrapper panel={this.panel} />}</div>;
+    return (
+      <div class='event-detial-aiops-chart'>{!!this.panel && <ChartWrapper panel={this.panel}></ChartWrapper>}</div>
+    );
   }
 }

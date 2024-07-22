@@ -4,9 +4,9 @@
  * iconfont.* 目前只需要 'css', 'ttf', 'woff', 'woff2' 四种格式文件
  * 2、执行npm run iconfont
  */
-const fs = require('node:fs');
-const path = require('node:path');
-const updateFont = () => {
+const fs = require('fs');
+const path = require('path');
+const updateFont = function () {
   try {
     const sourcePreFix = 'src/monitor-static/icons';
     // const reg = new RegExp('^@font-face[\\s\\S]*\\.icon-monitor[\\s\\S]*?\\}')

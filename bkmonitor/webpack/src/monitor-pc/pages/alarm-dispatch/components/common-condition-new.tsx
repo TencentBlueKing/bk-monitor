@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -31,20 +32,18 @@ import { Debounce, deepClone, random } from 'monitor-common/utils';
 
 import HorizontalScrollContainer from '../../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { getEventPaths } from '../../../utils';
-import { CONDITIONS, type ICondtionItem, METHODS, type TContionType, type TMthodType, deepCompare } from '../typing';
+import { CONDITIONS, deepCompare, ICondtionItem, METHODS, TContionType, TMthodType } from '../typing';
 import {
+  conditionCompare,
+  conditionsInclues,
   EKeyTags,
-  type ISpecialOptions,
+  ISpecialOptions,
   KEY_FILTER_TAGS,
   KEY_TAG_MAPS,
   NOTICE_USERS_KEY,
-  type TGroupKeys,
-  type TValueMap,
-  conditionCompare,
-  conditionsInclues,
+  TGroupKeys,
+  TValueMap,
 } from '../typing/condition';
-
-import type { TranslateResult } from 'vue-i18n';
 
 import './common-condition-new.scss';
 
@@ -1284,7 +1283,7 @@ export default class CommonCondition extends tsc<IProps> {
               allowHTML: false,
             }}
           >
-            <span class='icon-monitor icon-mind-fill' />
+            <span class='icon-monitor icon-mind-fill'></span>
           </div>
         )}
         {this.tagList.map((item, index) => (
@@ -1360,7 +1359,7 @@ export default class CommonCondition extends tsc<IProps> {
                           <span
                             class='icon-monitor icon-mc-close'
                             onClick={e => this.handDelValue(e, index, tagIndex)}
-                          />
+                          ></span>
                         )}
                       </div>
                     );
@@ -1379,7 +1378,7 @@ export default class CommonCondition extends tsc<IProps> {
                           onBlur={this.handBlur}
                           onInput={this.handleInput}
                           onKeydown={e => this.handleInputKeydown(e, index, tagIndex)}
-                        />
+                        ></input>
                       </div>
                     );
                   }
@@ -1401,7 +1400,7 @@ export default class CommonCondition extends tsc<IProps> {
                       class={['tag-add no-dispaly-none', { active: this.addActive }]}
                       onClick={this.handleAddFirst}
                     >
-                      <span class='icon-monitor icon-plus-line' />
+                      <span class='icon-monitor icon-plus-line'></span>
                     </div>
                   );
                 }
@@ -1429,7 +1428,7 @@ export default class CommonCondition extends tsc<IProps> {
               class={['tag-add', { active: this.addActive }, { permanent: !this.isFormMode }]}
               onClick={this.handleAdd}
             >
-              <span class='icon-monitor icon-plus-line' />
+              <span class='icon-monitor icon-plus-line'></span>
             </div>
           </div>
         )}
@@ -1448,7 +1447,7 @@ export default class CommonCondition extends tsc<IProps> {
                   placeholder={window.i18n.t('输入关键字搜索')}
                   value={this.searchValue}
                   onChange={this.handleSearchChange}
-                />
+                ></bk-input>
               </div>
             )}
             {/* key选项类型筛选栏  */}
@@ -1494,7 +1493,7 @@ export default class CommonCondition extends tsc<IProps> {
                         onMouseenter={e => this.handleKeyMouseEnter(e, item)}
                       >
                         <span>{item.name}</span>
-                        {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right' />}
+                        {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right'></span>}
                       </div>
                     ))
                   ) : (
@@ -1550,7 +1549,7 @@ export default class CommonCondition extends tsc<IProps> {
                               <span class='strategy-name-info'>{`${item.first_label_name || ''} (#${item.id})`}</span>
                             )}
                           </span>
-                          {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small' />}
+                          {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small'></span>}
                         </div>
                       ))
                     ) : (
@@ -1575,7 +1574,7 @@ export default class CommonCondition extends tsc<IProps> {
                         onMousedown={() => this.handleSelectValue(item)}
                       >
                         <span>{item.name}</span>
-                        {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small' />}
+                        {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small'></span>}
                       </div>
                     ))
                   ) : (
@@ -1590,7 +1589,7 @@ export default class CommonCondition extends tsc<IProps> {
                 class='del-bottom'
                 onClick={this.handleDelKey}
               >
-                <span class='icon-monitor icon-mc-delete-line' />
+                <span class='icon-monitor icon-mc-delete-line'></span>
                 <span class='del-text'>{this.$t('删除')}</span>
               </div>
             )}
@@ -1609,7 +1608,7 @@ export default class CommonCondition extends tsc<IProps> {
                 placeholder={window.i18n.t('输入关键字搜索')}
                 value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
-              />
+              ></bk-input>
             </div>
             {this.keyListSecond.length ? (
               <div class='wrap-list'>
@@ -1645,7 +1644,7 @@ export default class CommonCondition extends tsc<IProps> {
             class={settingPopClassName}
           >
             <div class='top'>
-              <span class='icon-monitor icon-remind' />
+              <span class='icon-monitor icon-remind'></span>
               <i18n path='变更当前值将会使 {0}，是否确定变更？'>
                 <span class='blod'>{window.i18n.t('统一设置条件失效')}</span>
               </i18n>

@@ -172,7 +172,7 @@ export default class AutoInput extends tsc<IAuto> {
             readonly={this.readonly}
             value={this.value}
             onInput={this.handleInput}
-          />
+          ></bk-input>
         </div>
         <div style='display: none'>
           <ul

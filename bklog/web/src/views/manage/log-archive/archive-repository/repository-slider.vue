@@ -36,7 +36,8 @@
       :title="isEdit ? $t('编辑归档仓库') : $t('新建归档仓库')"
       :width="676"
       transfer
-      @animation-end="updateIsShow"
+      @animation-end="$emit('hidden')"
+      @update:is-show="updateIsShow"
     >
       <template #content>
         <div
@@ -474,9 +475,8 @@
         const curCluster = this.esClusterList.find(cluster => cluster.cluster_config.cluster_id === value);
         this.esClusterSource = curCluster.source_name || '';
       },
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
+      updateIsShow(val) {
+        this.$emit('update:show-slider', val);
       },
       handleCancel() {
         this.$emit('update:show-slider', false);

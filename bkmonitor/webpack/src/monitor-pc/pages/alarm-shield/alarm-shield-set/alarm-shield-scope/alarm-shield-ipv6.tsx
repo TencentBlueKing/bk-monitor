@@ -27,8 +27,7 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorIpSelector from '../../../../components/monitor-ip-selector/monitor-ip-selector';
-
-import type { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
+import { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
 
 interface IAlarmShieldIpv6Props {
   showDialog: boolean;

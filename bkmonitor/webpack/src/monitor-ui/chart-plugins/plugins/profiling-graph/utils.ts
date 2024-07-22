@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import VueI18n from 'vue-i18n';
 
-import type VueI18n from 'vue-i18n';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 interface ProfileDataValue {
   value: number | string;

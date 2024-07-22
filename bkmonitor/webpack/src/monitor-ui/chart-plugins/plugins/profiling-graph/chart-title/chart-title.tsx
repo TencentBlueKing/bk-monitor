@@ -102,7 +102,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               class={`button-group-item ${this.activeMode === mode.id ? 'active' : ''}`}
               onClick={() => this.handleModeChange(mode.id)}
             >
-              <i class={`icon-monitor icon-${mode.icon}`} />
+              <i class={`icon-monitor icon-${mode.icon}`}></i>
             </div>
           ))}
         </div>
@@ -117,7 +117,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               class={`button-group-item ${item === this.textDirection ? 'active' : ''}`}
               onClick={() => this.handleTextDirectionChange(item)}
             >
-              <i class={`icon-monitor icon-${item === TextDirectionType.Ltr ? 'AB' : 'YZ'}`} />
+              <i class={`icon-monitor icon-${item === TextDirectionType.Ltr ? 'AB' : 'YZ'}`}></i>
             </div>
           ))}
         </div>
@@ -128,7 +128,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         >
           <div slot='dropdown-trigger'>
             <div class='download-button'>
-              <i class='icon-monitor icon-xiazai1' />
+              <i class='icon-monitor icon-xiazai1'></i>
             </div>
           </div>
           <ul

@@ -671,10 +671,6 @@ class IpchooserHostDetailResource(NodeManAPIGWResource):
     action = "core/api/ipchooser_host/details/"
     method = "POST"
 
-    @property
-    def bk_username(self):
-        return settings.COMMON_USERNAME
-
     class RequestSerializer(serializers.Serializer):
         class HostSerializer(serializers.Serializer):
             class MetaSerializer(serializers.Serializer):

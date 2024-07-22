@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, onBeforeUnmount, onMounted } from 'vue';
+import { onBeforeUnmount, onMounted, Ref } from 'vue';
 
 export function useChartIntersection(el: Ref<HTMLDivElement>, getPanelData: (...args: any) => Promise<void>) {
   let intersectionObserver: IntersectionObserver | null = null;

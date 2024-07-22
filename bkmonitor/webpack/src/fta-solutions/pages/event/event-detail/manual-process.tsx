@@ -435,12 +435,12 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
                 placeholder={this.$tc('选择套餐')}
                 value={this.mealId}
                 onChange={this.handleSelected}
-              />
+              ></GroupSelect>
               {}
               <i
                 class='icon-monitor icon-shuaxin'
                 onClick={this.handleRefreshTemplate}
-              />
+              ></i>
             </div>
           </div>
           {this.curMeal?.plugin_type !== 'webhook' && (
@@ -457,7 +457,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
                     id={item.id}
                     key={item.id}
                     name={item.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-select>
             </div>
@@ -471,7 +471,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
                 isOnlyHttp={true}
                 value={this.webhookData}
                 onChange={this.handleWebhookData}
-              />
+              ></HttpCallBack>
             ) : (
               <Container title={this.formData.name}>
                 {this.formData.formList.length && Object.keys(this.formData.formModel).length ? (
@@ -482,7 +482,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
                     formRules={this.formData.formRules}
                     labelWidth={500}
                     noAutoInput={true}
-                  />
+                  ></DynamicForm>
                 ) : (
                   [<span class='nodata'>{this.$t('当前无需填写参数')}</span>, <br />]
                 )}

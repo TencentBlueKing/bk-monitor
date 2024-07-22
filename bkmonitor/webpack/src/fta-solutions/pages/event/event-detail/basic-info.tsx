@@ -32,8 +32,7 @@ import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/c
 
 import { toPerformanceDetail } from '../../../common/go-link';
 import { getOperatorDisabled } from '../utils';
-
-import type { IDetail } from './type';
+import { IDetail } from './type';
 
 import './basic-info.scss';
 
@@ -139,7 +138,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       CLOSED: 'bar-closed',
     };
     const className = eventStatus ? classList[eventStatus] : '';
-    return <div class={[className, { 'bar-small': isShielded }]} />;
+    return <div class={[className, { 'bar-small': isShielded }]}></div>;
   }
   // 告警级别标签
   getTagComponent(severity) {
@@ -191,7 +190,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             onClick={this.handleToCollectDetail}
           >
             <span>{this.$t('变更')}</span>
-            <span class='icon-monitor icon-fenxiang' />
+            <span class='icon-monitor icon-fenxiang'></span>
           </span>
         )}
       </span>
@@ -228,13 +227,13 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             class='icon-monitor icon-chuli'
             v-bk-tooltips={{ content: this.$t('手动处理') }}
             onClick={() => this.$emit('manual-process')}
-          />,
+          ></span>,
           <span
             class='alarm-dispatch'
             v-bk-tooltips={{ content: this.$t('告警分派') }}
             onClick={this.handleAlarmDispatch}
           >
-            <span class='icon-monitor icon-fenpai' />
+            <span class='icon-monitor icon-fenpai'></span>
           </span>,
         ]}
       </span>
@@ -461,7 +460,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               onClick={this.handleToShield}
             >
               {this.$t('屏蔽策略')}
-              <span class='icon-monitor icon-fenxiang' />
+              <span class='icon-monitor icon-fenxiang'></span>
             </div>
           ) : undefined,
         ];
@@ -485,7 +484,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           <span
             style={{ color: iconColor }}
             class={['icon-monitor', iconName]}
-          />
+          ></span>
           <div class='status-text'>{iconText}</div>
         </div>
         {!this.followerDisabled ? operateDom || undefined : undefined}
@@ -514,7 +513,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                   onClick={this.toStrategyDetail}
                 >
                   <span>{this.$t('来源：{0}', [this.basicInfo.plugin_display_name])}</span>
-                  <i class='icon-monitor icon-fenxiang icon-float' />
+                  <i class='icon-monitor icon-fenxiang icon-float'></i>
                 </span>
               ) : undefined}
             </div>

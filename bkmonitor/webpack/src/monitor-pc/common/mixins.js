@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,7 +33,7 @@ import store from '../store/store';
 const gotoPageMixin = {
   data() {
     return {
-      commonBaseUrl: `${window.site_url}${store.getters.bizId}`,
+      commonBaseUrl: `${window.site_url}${store.getters.bizId}`
     };
   },
   methods: {
@@ -41,8 +42,8 @@ const gotoPageMixin = {
     },
     customBizIdGotoPage(bizId = store.getters.bizId, url) {
       window.location.href = `${location.origin}${location.pathname}?bizId=${bizId}#${url}`;
-    },
-  },
+    }
+  }
 };
 /**
  * 通用拨测状态颜色
@@ -60,7 +61,7 @@ const uptimeCheckMixin = {
         return 'rgb(255, 156, 1)'; // 橙色
       }
       return 'rgb(234, 54, 54)'; // 红色
-    },
+    }
   },
   methods: {
     filterTaskDuration(v, status) {
@@ -110,8 +111,8 @@ const uptimeCheckMixin = {
         return '#ff9c01';
       }
       return '#ea3436';
-    },
-  },
+    }
+  }
 };
 const collapseMixin = {
   methods: {
@@ -151,8 +152,8 @@ const collapseMixin = {
       el.classList.remove('collapse-transition');
       el.style.height = '';
       el.style.overflow = el.dataset.oldOverflow;
-    },
-  },
+    }
+  }
 };
 const alarmShieldMixin = {
   methods: {
@@ -165,8 +166,8 @@ const alarmShieldMixin = {
           end_time: '',
           type: date.type,
           day_list: [],
-          week_list: [],
-        },
+          week_list: []
+        }
       };
       if (date.type !== 1) {
         const [beginTime, endTime] = date.dateRange;
@@ -176,36 +177,36 @@ const alarmShieldMixin = {
       switch (date.type) {
         case 1:
           cycle.cycle_config.day_list = date.day.list;
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.begin_time = date.single.range[0];
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.end_time = date.single.range[1];
           break;
         case 2:
           cycle.cycle_config.day_list = date.day.list;
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.cycle_config.begin_time = date.day.range[0];
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.cycle_config.end_time = date.day.range[1];
           break;
         case 3:
           cycle.cycle_config.week_list = date.week.list;
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.cycle_config.begin_time = date.week.range[0];
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.cycle_config.end_time = date.week.range[1];
           break;
         case 4:
           cycle.cycle_config.day_list = date.month.list;
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.cycle_config.begin_time = date.month.range[0];
-
+          // eslint-disable-next-line prefer-destructuring
           cycle.cycle_config.end_time = date.month.range[1];
           break;
       }
       return cycle;
-    },
-  },
+    }
+  }
 };
 const quickAlarmShieldMixin = {
   data() {
@@ -213,15 +214,15 @@ const quickAlarmShieldMixin = {
       options: {
         disabledDate(date) {
           return date.getTime() < Date.now() - 8.64e7 || date.getTime() > Date.now() + 8.64e7 * 181; // 限制用户只能选择半年以内的日期
-        },
+        }
       },
       timeList: [
         { name: `0.5${window.i18n.t('小时')}`, id: 18 },
         { name: `1${window.i18n.t('小时')}`, id: 36 },
         { name: `12${window.i18n.t('小时')}`, id: 432 },
         { name: `1${window.i18n.t('天')}`, id: 864 },
-        { name: `7${window.i18n.t('天')}`, id: 6048 },
-      ],
+        { name: `7${window.i18n.t('天')}`, id: 6048 }
+      ]
     };
   },
   methods: {
@@ -257,8 +258,8 @@ const quickAlarmShieldMixin = {
       } else {
         this.customTime = '';
       }
-    },
-  },
+    }
+  }
 };
 const strategyMapMixin = {
   data() {
@@ -277,7 +278,7 @@ const strategyMapMixin = {
         include: '#FF9C01',
         exclude: '#FF9C01',
         regex: '#FF9C01',
-        nregex: '#FF9C01',
+        nregex: '#FF9C01'
       },
       aggConditionFontMap: {
         '=': 'bold',
@@ -291,7 +292,7 @@ const strategyMapMixin = {
         include: 'bold',
         exclude: 'bold',
         regex: 'bold',
-        nregex: 'bold',
+        nregex: 'bold'
       },
       methodMap: {
         gte: '>=',
@@ -305,10 +306,10 @@ const strategyMapMixin = {
         include: 'include',
         exclude: 'exclude',
         reg: 'regex',
-        nreg: 'nregex',
-      },
+        nreg: 'nregex'
+      }
     };
-  },
+  }
 };
 const memberSelectorMixin = {
   methods: {
@@ -329,8 +330,8 @@ const memberSelectorMixin = {
         <div class={parentClass}>
           {node.logo ? (
             <img
-              class={avatarClass}
               alt=''
+              class={avatarClass}
               src={node.logo}
             />
           ) : (
@@ -340,7 +341,7 @@ const memberSelectorMixin = {
                   ? 'icon-monitor icon-mc-user-group only-img'
                   : 'icon-monitor icon-mc-user-one only-img'
               }
-            />
+            ></i>
           )}
           {/* { type === 'list'
                       ? <span class={textClass}>{node.display_name} ({node.id})</span>
@@ -354,15 +355,15 @@ const memberSelectorMixin = {
           )}
         </div>
       );
-    },
-  },
+    }
+  }
 };
 const importConfigMixin = {
   data() {
     return {
       taskQueue: [],
       timer: null,
-      interval: 2000,
+      interval: 2000
     };
   },
   watch: {
@@ -378,8 +379,8 @@ const importConfigMixin = {
           this.timer = null;
         }
       },
-      immediate: true,
-    },
+      immediate: true
+    }
   },
   beforeDestroy() {
     this.taskQueue = [];
@@ -402,8 +403,8 @@ const importConfigMixin = {
         }, this.interval);
       };
       this.timer = setTimeout(fn, this.interval);
-    },
-  },
+    }
+  }
 };
 // 策略配置中转换静态阈值mixin
 const strategyThresholdMixin = {
@@ -417,13 +418,13 @@ const strategyThresholdMixin = {
               pre.push([
                 {
                   method,
-                  threshold,
-                },
+                  threshold
+                }
               ]);
             } else {
               pre[pre.length - 1].push({
                 method,
-                threshold,
+                threshold
               });
             }
             return pre;
@@ -444,7 +445,7 @@ const strategyThresholdMixin = {
               }
               return {
                 ...item,
-                condition: index > 0 && setIndex === 0 ? 'or' : 'and',
+                condition: index > 0 && setIndex === 0 ? 'or' : 'and'
               };
             })
           );
@@ -452,8 +453,8 @@ const strategyThresholdMixin = {
         }, []);
       }
       return [];
-    },
-  },
+    }
+  }
 };
 // 拖到拉伸mixin 注意需要结合具体dom使用
 const resizeMixin = {
@@ -463,8 +464,8 @@ const resizeMixin = {
         show: false,
         ready: false,
         left: 0,
-        draging: false,
-      },
+        draging: false
+      }
     };
   },
   beforeDestroy() {
@@ -524,27 +525,39 @@ const resizeMixin = {
     handleMouseOut() {
       document.body.style.cursor = '';
       this.resizeState.ready = false;
+    }
+  }
+};
+// 根据每个列表页面设置统一的pageSize 并保存
+const commonPageSizeMixin = {
+  methods: {
+    handleSetCommonPageSize(pageSize = 10) {
+      localStorage.setItem('__common_page_size__', pageSize);
     },
-  },
+    handleGetCommonPageSize() {
+      return +localStorage.getItem('__common_page_size__') || 10;
+    }
+  }
 };
 
 // 设置全局通用的Loading
 const mainLoadingMixin = {
   watch: {
     mainLoading: {
-      handler: 'handleSetMainLoading',
-    },
+      handler: 'handleSetMainLoading'
+    }
   },
   methods: {
     handleSetMainLoading(v) {
       this.$store.commit('app/SET_MAIN_LOADING', v);
-    },
-  },
+    }
+  }
 };
 
 export {
   alarmShieldMixin,
   collapseMixin,
+  commonPageSizeMixin,
   gotoPageMixin,
   importConfigMixin,
   mainLoadingMixin,
@@ -553,5 +566,5 @@ export {
   resizeMixin,
   strategyMapMixin,
   strategyThresholdMixin,
-  uptimeCheckMixin,
+  uptimeCheckMixin
 };

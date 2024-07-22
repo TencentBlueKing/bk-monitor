@@ -455,7 +455,7 @@ import PollingLoading from '../../../../components/polling-loading/polling-loadi
 import VerifyInput from '../../../../components/verify-input/verify-input';
 import authorityMixinCreate from '../../../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
-import { allSpaceRegex, emojiRegex } from '../../../../utils/index';
+import { emojiRegex, allSpaceRegex } from '../../../../utils/index';
 import * as uptimeAuth from '../../authority-map';
 import AdvancedOption, { RESPONSE_FORMAT_OPTIONS } from './advanced-option';
 import HttpTarget from './http-target';
@@ -519,7 +519,7 @@ export default {
   data() {
     return {
       task: {
-        business: Number.parseInt(this.$store.getters.bizId, 10),
+        business: parseInt(this.$store.getters.bizId, 10),
       },
       backup: {},
       taskInfo: {},
@@ -541,7 +541,7 @@ export default {
       nameErrorMsg: '',
       isShowAdvanced: false,
       advancedOptions: {},
-      ccBizId: Number.parseInt(this.$store.getters.bizId, 10),
+      ccBizId: parseInt(this.$store.getters.bizId, 10),
       // 拨测节点信息
       node: {},
       groupList: [],

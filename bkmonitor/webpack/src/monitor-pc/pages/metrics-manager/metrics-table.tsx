@@ -30,12 +30,11 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import { secToString } from '../../components/cycle-input/utils';
 import EmptyStatus from '../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import CommonTable from '../monitor-k8s/components/common-table';
+import { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings/table';
+import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 import MetricDetailSide from './metric-detail-side';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import type { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings/table';
-import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 
 import './metrics-table.scss';
 
@@ -243,7 +242,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
                   trueValue={item.checked}
                   value={item.value}
                   on-change={() => this.handleCheckTabelHeader(item.checked)}
-                />
+                ></bk-checkbox>
                 <span class='name'>{item.name}</span>
               </li>
             ))}
@@ -325,7 +324,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         onClick={e => handleShow(e)}
       >
         {names[id]}
-        <i class='icon-monitor icon-filter-fill' />
+        <i class='icon-monitor icon-filter-fill'></i>
       </span>
     );
   }
@@ -456,7 +455,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
               right-icon='bk-icon icon-search'
               clearable
               on-change={this.handleConditionChange}
-            />
+            ></bk-input>
           </div>
         )}
         <div class={['content', { 'show-search': this.showSearch }]}>
@@ -526,7 +525,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
           detail={this.details.data}
           show={this.details.show}
           onShowChange={(v: boolean) => (this.details.show = v)}
-        />
+        ></MetricDetailSide>
       </div>
     );
   }

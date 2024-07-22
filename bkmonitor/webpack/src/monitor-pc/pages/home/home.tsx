@@ -27,6 +27,7 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
 import { initUnit } from 'fta-solutions/pages/home/home';
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { statistics } from 'monitor-api/modules/home';
@@ -34,14 +35,12 @@ import MonitorDialog from 'monitor-ui/monitor-dialog';
 import { throttle } from 'throttle-debounce';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import NoBussiness from '../no-business/no-business.vue';
 import BusinessItemBig from './business-item-big';
 import NoBusinessItem from './no-business-item';
-import OverviewContent, { type IData as IDataOverviewData } from './overview-content';
+import OverviewContent, { IData as IDataOverviewData } from './overview-content';
 import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import type { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
 
 import './home.scss';
 
@@ -443,7 +442,7 @@ export default class Home extends tsc<object> {
                         id={option.id}
                         key={option.id}
                         name={option.name}
-                      />
+                      ></bk-option>
                     ))}
                   </bk-select>
                   <bk-button
@@ -454,7 +453,7 @@ export default class Home extends tsc<object> {
                   </bk-button>
                 </span>
               </div>
-              <OverviewContent data={this.dataOverview.data} />
+              <OverviewContent data={this.dataOverview.data}></OverviewContent>
             </div>
             <div class='business-overview'>
               <div class='overview-title'>
@@ -470,7 +469,7 @@ export default class Home extends tsc<object> {
                     on-blur={() => this.isCanSearch() && this.init()}
                     on-enter={() => this.isCanSearch() && this.init()}
                     on-right-icon-click={() => this.isCanSearch() && this.init()}
-                  />
+                  ></bk-input>
                   <bk-select
                     ext-cls='filter-select'
                     v-model={this.businessOverview.filterItem}
@@ -482,7 +481,7 @@ export default class Home extends tsc<object> {
                         id={option.id}
                         key={option.id}
                         name={option.name}
-                      />
+                      ></bk-option>
                     ))}
                   </bk-select>
                 </span>
@@ -496,7 +495,7 @@ export default class Home extends tsc<object> {
                     if (this.loading) {
                       return new Array(this.firstPageSize)
                         .fill(null)
-                        .map((_item, index) => <BusinessItemBigSkeleton key={index} />);
+                        .map((_item, index) => <BusinessItemBigSkeleton key={index}></BusinessItemBigSkeleton>);
                     }
                     return this.businessOverview.data.map(item =>
                       item.isAllowed ? (
@@ -506,9 +505,9 @@ export default class Home extends tsc<object> {
                           homeDays={this.homeDays}
                           onSticky={() => this.handleSticky()}
                           onToEvent={this.handleToEvent}
-                        />
+                        ></BusinessItemBig>
                       ) : (
-                        <NoBusinessItem data={{ ...item }} />
+                        <NoBusinessItem data={{ ...item }}></NoBusinessItem>
                       )
                     );
                   })()}
@@ -538,7 +537,7 @@ export default class Home extends tsc<object> {
         <div
           class='home-scrollload'
           v-bkloading={{ isLoading: this.scrollLoading, opacity: 0, color: '#fff0' }}
-        />
+        ></div>
         <MonitorDialog
           class='no-business-guide'
           fullScreen={true}

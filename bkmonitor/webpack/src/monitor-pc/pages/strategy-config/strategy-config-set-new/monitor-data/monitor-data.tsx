@@ -29,6 +29,7 @@
  * @Description:
  */
 
+import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -36,16 +37,14 @@ import { copyText, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
+import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
-import { type EditModeType, type MetricDetail, MetricType, type dataModeType } from '../typings';
+import { dataModeType, EditModeType, MetricDetail, MetricType } from '../typings';
+import { IFunctionsValue } from './function-select';
 import MonitorDataInput from './monitor-data-input';
-
-import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
-import type { IFunctionsValue } from './function-select';
-import type { TranslateResult } from 'vue-i18n';
 
 import './monitor-data.scss';
 
@@ -598,7 +597,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     onClick={() => this.handleMetricSelectShow(true)}
                   >
                     <span>{this.$t('指标选择')}</span>
-                    <span class='icon-monitor icon-arrow-down' />
+                    <span class='icon-monitor icon-arrow-down'></span>
                   </div>
                 )}
                 <MetricSelector
@@ -608,7 +607,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   type={MetricType.TimeSeries}
                   onSelected={this.handleSelectMetric}
                   onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
-                />
+                ></MetricSelector>
               </div>
               <div class='tool-right'>
                 <span
@@ -697,7 +696,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         content: this.$t('数据步长'),
                         placements: ['top'],
                       }}
-                    />
+                    ></span>
                   </div>
                 </bk-input>
               </div>
@@ -713,7 +712,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         class='ip-wrapper-title'
                         on-click={this.handleAddTarget}
                       >
-                        <i class='icon-monitor icon-mc-plus-fill' />
+                        <i class='icon-monitor icon-mc-plus-fill'></i>
                         {this.$t('添加监控目标')}
                       </div>
                     ) : (
@@ -722,7 +721,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
                   ]
                 : [
-                    <i class='icon-monitor icon-mc-tv' />,
+                    <i class='icon-monitor icon-mc-tv'></i>,
                     <span
                       style='color: #63656e;'
                       class='subtitle'
@@ -741,16 +740,16 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       <span
                         class='icon-monitor icon-bianji'
                         onClick={this.handleAddTarget}
-                      />
+                      ></span>
                     ),
                     this.showTargetMessageTip && (
                       <span class='ip-dimension-tip'>
-                        <span class='icon-monitor icon-remind' />
+                        <span class='icon-monitor icon-remind'></span>
                         <span>{this.$t('当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效')}</span>
                         <span
                           class='icon-monitor icon-mc-close'
                           onClick={() => (this.showTargetMessageTip = false)}
-                        />
+                        ></span>
                       </span>
                     ),
                   ]}

@@ -91,9 +91,8 @@ const errorHandle = (response, config) => {
         !config.reject403 &&
         window.space_list?.length &&
         !(
-          (['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
-            location.hash.includes('#/event-center/detail')) &&
-          !config.url.includes('/incident/')
+          ['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
+          location.hash.includes('#/event-center/detail')
         ) &&
         config.url !== 'rest/v2/grafana/dashboards/'
       ) {

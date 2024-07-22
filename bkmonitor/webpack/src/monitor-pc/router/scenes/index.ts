@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { RouteConfig } from 'vue-router';
+
 import ApmRoutes from './apm';
 import CustomScenes from './custom-scenes';
 import k8sRoutes from './k8s';
 import performanceRoutes from './performance';
 import uptimeCheckRoutes from './uptime-check';
-
-import type { RouteConfig } from 'vue-router';
 
 export default [
   ...ApmRoutes,

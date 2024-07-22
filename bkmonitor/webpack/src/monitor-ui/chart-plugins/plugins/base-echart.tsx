@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type MonitorEchartOptions, echarts } from '../typings/index';
+import { echarts, MonitorEchartOptions } from '../typings/index';
 import { getTimeSeriesXInterval } from '../utils/axis';
 
 import './base-echart.scss';

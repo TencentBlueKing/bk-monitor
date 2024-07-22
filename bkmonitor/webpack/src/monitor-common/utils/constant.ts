@@ -45,6 +45,3 @@ export const LOCAL_BIZ_STORE_KEY = '__biz_id__';
 export const LANGUAGE_COOKIE_KEY = 'blueking_language';
 
 export const TIMEZONE_STORE_KEY = 'blueking_timezone';
-
-// localstorage key 存储表格每页多少条数据
-export const COMMON_PAGE_SIZE_KEY = 'bk_monitor_common_page_size';

@@ -31,15 +31,7 @@ import { Debounce, random } from 'monitor-common/utils/utils';
 // import ListMenu from './list-menu';
 import { throttle } from 'throttle-debounce';
 
-import {
-  type BookMarkMode,
-  COMMON_TAB_LIST,
-  type CommonTabType,
-  type IMenuItem,
-  type ISearchItem,
-  type ITabItem,
-  type SearchType,
-} from '../typings';
+import { BookMarkMode, COMMON_TAB_LIST, CommonTabType, IMenuItem, ISearchItem, ITabItem, SearchType } from '../typings';
 
 import './page-title.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -224,7 +216,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
           v-bk-tooltips={{ content: this.$t('概览'), delay: 200, boundary: 'window', disabled: !this.isSmallScreen }}
           onClick={() => !this.disableOverview && this.handleListPanelActive(false)}
         >
-          <i class='icon-monitor icon-mc-overview option-icon' />
+          <i class='icon-monitor icon-mc-overview option-icon'></i>
           {!this.isSmallScreen ? <span class='option-text'>{this.$t('概览')}</span> : undefined}
         </span>
         <span
@@ -232,7 +224,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
           v-bk-tooltips={{ content: this.$t('列表'), delay: 200, boundary: 'window', disabled: !this.isSmallScreen }}
           onClick={() => this.handleListPanelActive(true)}
         >
-          <i class='icon-monitor icon-mc-list option-icon' />
+          <i class='icon-monitor icon-mc-list option-icon'></i>
           {!this.isSmallScreen ? <span class='option-text'>{this.$t('列表')}</span> : undefined}
         </span>
       </span>
@@ -289,7 +281,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                     slot='add'
                     onClick={this.handleAddTab}
                   >
-                    <i class='icon-monitor icon-mc-add' />
+                    <i class='icon-monitor icon-mc-add'></i>
                   </span>
                 )}
               </bk-tab>
@@ -310,7 +302,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                             data={this.searchData}
                             modelValue={this.searchValue}
                             on-change={this.handleSearchChange}
-                          />
+                          ></SearchSelect>
                         </div>
                       ) : (
                         <span
@@ -337,10 +329,12 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                                 id={item.id}
                                 key={item.id}
                                 name={item.name}
-                              />
+                              ></bk-option>
                             ))}
                           </bk-select>
-                          {(!this.insideSearchSelect || !this.searchValue.length) && <i class='bk-icon icon-search' />}
+                          {(!this.insideSearchSelect || !this.searchValue.length) && (
+                            <i class='bk-icon icon-search'></i>
+                          )}
                         </span>
                       ),
                     ]

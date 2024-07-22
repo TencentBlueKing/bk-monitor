@@ -34,6 +34,6 @@ export default class AlarmDispatchPage extends Mixins(authorityMixinCreate(autho
   @Provide('authority') authority;
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   render() {
-    return <AlarmDispatch />;
+    return <AlarmDispatch></AlarmDispatch>;
   }
 }

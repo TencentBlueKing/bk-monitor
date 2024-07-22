@@ -277,12 +277,12 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
         ) : (
           <span class='list placeholder'>{this.$t('选择每月时间范围')}</span>
         )}
-        <i class={['bk-icon', 'icon-angle-down', { 'up-arrow': !!this.popoverInstances }]} />
+        <i class={['bk-icon', 'icon-angle-down', { 'up-arrow': !!this.popoverInstances }]}></i>
         {this.activeList.length ? (
           <i
             class='bk-select-clear bk-icon icon-close'
             onClick={this.handleClearMonthList}
-          />
+          ></i>
         ) : undefined}
         <div style={{ display: 'none' }}>
           <ul

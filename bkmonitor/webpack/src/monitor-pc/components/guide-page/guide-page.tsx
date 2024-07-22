@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
+import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getDocLink } from 'monitor-api/modules/commons';
 
-import type { IBtnAndLinkItem, ISPaceIntroduceData, SpaceIntroduceKeys } from '../../types/common/common';
-import type { Route } from 'vue-router';
+import { IBtnAndLinkItem, ISPaceIntroduceData, SpaceIntroduceKeys } from '../../types/common/common';
 
 import './guide-page.scss';
 
@@ -152,7 +152,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
             )}
           </div>
           <div class='guide-right'>
-            <div class={`guide-img-wrap img-${this.guideId ?? this.navId}`} />
+            <div class={`guide-img-wrap img-${this.guideId ?? this.navId}`}></div>
           </div>
         </div>
       </div>

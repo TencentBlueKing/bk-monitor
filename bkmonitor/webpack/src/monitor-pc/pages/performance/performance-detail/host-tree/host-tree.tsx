@@ -24,15 +24,18 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
-import { modifiers as m, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers as m } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IOption, IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
+import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
@@ -41,10 +44,6 @@ import {
   updateBkSearchSelectName,
 } from '../../../monitor-k8s/utils';
 import { DEFAULT_TAB_LIST } from '../host-list/host-list';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
-import type { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
-import type { IOption, IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './host-tree.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -774,7 +773,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
               }}
             >
               {!!data.status ? (
-                <span class={['host-status', `status-${this.getItemStatusClassName(data.status)}`]} />
+                <span class={['host-status', `status-${this.getItemStatusClassName(data.status)}`]}></span>
               ) : undefined}
               <span class='host-name'>
                 {'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name}
@@ -786,7 +785,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
             {data.bk_host_id && this.isTargetCompare ? (
               <span class='add-compared'>
                 {this.compareTargets.includes(data.id) ? (
-                  <i class='icon-monitor icon-mc-check-small' />
+                  <i class='icon-monitor icon-mc-check-small'></i>
                 ) : (
                   <span
                     class='add-compared-btn'
@@ -823,13 +822,13 @@ export default class HostTree extends tsc<IProps, IEvents> {
                   placeholder={this.$t('搜索IP / 主机名')}
                   right-icon='bk-icon icon-search'
                   onInput={this.handleLocalSearch}
-                />
+                ></bk-input>
               )}
               <bk-button
                 class='refresh-btn'
                 onClick={this.handleRefresh}
               >
-                <i class='icon-monitor icon-shuaxin' />
+                <i class='icon-monitor icon-shuaxin'></i>
               </bk-button>
             </div>
             {this.isStatusFilter && (
@@ -839,14 +838,14 @@ export default class HostTree extends tsc<IProps, IEvents> {
                 statusList={this.statusList}
                 disabledClickZero
                 onChange={this.handleStatusChange}
-              />
+              ></StatusTab>
             )}
             {this.showOverview && (
               <div
                 class={['overview-item', { active: this.isOverviewActive }]}
                 onClick={this.handleShowOverview}
               >
-                <i class='icon-monitor icon-mc-overview' />
+                <i class='icon-monitor icon-mc-overview'></i>
                 {this.$t('概览')}
               </div>
             )}
@@ -855,7 +854,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
                 class='target-compare-tips'
                 title={this.$t('选择目标进行对比')}
                 type='info'
-              />
+              ></bk-alert>
             ) : undefined}
           </div>
           {this.hostTreeData.length ? (

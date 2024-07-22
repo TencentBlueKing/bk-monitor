@@ -33,7 +33,6 @@ interface Iform {
   lable?: string;
   placeholder?: string;
   subTitle?: string;
-  required?: boolean;
 }
 interface IProps {
   forms: Iform[];
@@ -62,17 +61,13 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
       <div class='meal-content-simple-form'>
         {this.forms.length ? (
           this.forms.map((item, index) => [
-            <div class={'title'}>
-              <span class={{ required: !!item?.required }}>
-                {item.lable}
-                {!!item?.subTitle && (
-                  <span
-                    class='sub-title'
-                    title={item.subTitle}
-                  >
-                    {item.subTitle}
-                  </span>
-                )}
+            <div class='title'>
+              {item.lable}
+              <span
+                class='sub-title'
+                title={item?.subTitle || ''}
+              >
+                {item?.subTitle || ''}
               </span>
             </div>,
             <div class='wrap'>
@@ -84,7 +79,7 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
                 behavior='simplicity'
                 value={item.value}
                 onChange={(v: string) => this.handleInputChange(v, index)}
-              />
+              ></bk-input>
             </div>,
           ])
         ) : (

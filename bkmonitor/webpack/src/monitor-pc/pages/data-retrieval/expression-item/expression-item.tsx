@@ -29,8 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-
-import type { IDataRetrieval } from '../typings';
+import { IDataRetrieval } from '../typings';
 
 import './expression-item.scss';
 

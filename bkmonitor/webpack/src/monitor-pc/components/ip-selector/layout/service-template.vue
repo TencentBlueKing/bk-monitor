@@ -89,18 +89,17 @@
   </div>
 </template>
 <script lang="ts">
-import type { TranslateResult } from 'vue-i18n';
+import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce, defaultSearch } from '../common/util';
 import IpSelectorTable from '../components/ip-selector-table.vue';
-import type {
+import {
+  IipListParams,
   ITableCheckData,
   ITableConfig,
   ITemplateDataOptions,
-  IipListParams,
-  SearchDataFuncType,
-} from '../types/selector-type';
+  SearchDataFuncType } from '../types/selector-type';
 
 import IpListTable from './ip-list.vue';
 
@@ -109,8 +108,8 @@ import IpListTable from './ip-list.vue';
   name: 'service-template',
   components: {
     IpSelectorTable,
-    IpListTable,
-  },
+    IpListTable
+  }
 })
 export default class ServiceTemplate extends Vue {
   // 获取组件初始化数据
@@ -125,9 +124,9 @@ export default class ServiceTemplate extends Vue {
     default: () => ({
       idKey: 'bk_inst_id',
       childrenKey: 'instances_count',
-      labelKey: 'bk_inst_name',
+      labelKey: 'bk_inst_name'
     }),
-    type: Object,
+    type: Object
   })
   private readonly templateOptions!: ITemplateDataOptions;
   // 表格字段配置
@@ -206,14 +205,14 @@ export default class ServiceTemplate extends Vue {
       const selections = this.tplData.filter(item => this.selectionIds.includes(item[idKey]));
       const reqParams = {
         selections,
-        ...params,
+        ...params
       };
       return await this.getSearchTableData(reqParams, type);
     } catch (err) {
       console.log(err);
       return {
         total: 0,
-        data: [],
+        data: []
       };
     }
   }
@@ -236,7 +235,7 @@ export default class ServiceTemplate extends Vue {
   private handleCheckChange(): ITableCheckData {
     const { idKey = 'bk_inst_id' } = this.templateOptions;
     return {
-      selections: this.tplData.filter(item => this.selectionIds.includes(item[idKey])),
+      selections: this.tplData.filter(item => this.selectionIds.includes(item[idKey]))
     };
   }
 
@@ -258,11 +257,10 @@ export default class ServiceTemplate extends Vue {
     }, []);
   }
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  handleAllSelected() {
-    /* 全选/清除全选 */
+  handleAllSelected() { /* 全选/清除全选 */
     if (!this.currentTemplateData.length) return;
     if (this.isSelectAll) {
-      this.currentTemplateData.forEach(item => {
+      this.currentTemplateData.forEach((item) => {
         const index = this.selectionIds.indexOf(item.bk_inst_id);
         if (index > -1) {
           this.selectionIds.splice(index, 1);
@@ -270,7 +268,7 @@ export default class ServiceTemplate extends Vue {
       });
     } else {
       const selectIds = [];
-      this.currentTemplateData.forEach(item => {
+      this.currentTemplateData.forEach((item) => {
         if (!this.selectionIds.includes(item.bk_inst_id)) {
           selectIds.push(item.bk_inst_id);
         }
@@ -286,7 +284,8 @@ export default class ServiceTemplate extends Vue {
   getAllSelectedStatus() {
     if (!!this.searchValue) {
       this.isSelectAll = this.currentTemplateData.length
-        ? this.currentTemplateData.every(item => this.selectionIds.includes(item.bk_inst_id))
+        ? this.currentTemplateData
+          .every(item => this.selectionIds.includes(item.bk_inst_id))
         : false;
     }
   }
@@ -309,12 +308,12 @@ export default class ServiceTemplate extends Vue {
     }
 
     .template-list-item {
+      height: 32px;
+      line-height: 32px;
       display: flex;
       justify-content: space-between;
-      height: 32px;
-      padding: 0 10px;
-      line-height: 32px;
       cursor: pointer;
+      padding: 0 10px;
       border-radius: 2px;
 
       .item-name {
@@ -323,20 +322,20 @@ export default class ServiceTemplate extends Vue {
         overflow: hidden;
 
         .label {
-          flex: 1;
           margin-left: 8px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          flex: 1;
         }
       }
 
       .count {
-        display: inline-block;
         height: 20px;
-        padding: 0 5px;
         line-height: 20px;
         background: #f0f1f5;
+        padding: 0 5px;
+        display: inline-block;
       }
 
       &:hover {
@@ -349,8 +348,8 @@ export default class ServiceTemplate extends Vue {
       text-align: right;
 
       .btn {
-        font-size: 12px;
         color: #3a84ff;
+        font-size: 12px;
         cursor: pointer;
       }
     }

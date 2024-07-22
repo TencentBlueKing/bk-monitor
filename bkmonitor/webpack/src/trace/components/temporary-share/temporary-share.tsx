@@ -23,18 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, type VNode, computed, defineComponent, ref } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
+import { computed, defineComponent, Ref, ref, VNode } from 'vue';
+import { TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
-import { Button, Dialog, InfoBox, Message, Switcher, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
 import { copyText } from 'monitor-common/utils/utils';
 
 import { useAppStore } from '../../store/modules/app';
 import TimeRangeComp from '../time-range/time-range';
-import { TimeRange, type TimeRangeType } from '../time-range/utils';
+import { TimeRange, TimeRangeType } from '../time-range/utils';
 
 import './temporary-share.scss';
 
@@ -203,7 +203,7 @@ export default defineComponent({
             theme='primary'
             value={isLockSearch.value}
             onChange={handleLockSearchChange}
-          />
+          ></Switcher>
         </div>
       );
     }
@@ -260,7 +260,7 @@ export default defineComponent({
           class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
           v-bk-tooltips={tipsOpts}
           onClick={this.handleShowDialog}
-        />
+        ></span>
         {!this.onlyCopy && (
           <Dialog
             width={700}

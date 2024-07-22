@@ -41,7 +41,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
-import type { IMenu } from '../types/selector-type';
+import { IMenu } from '../types/selector-type';
 
 @Component({ name: 'menu-list' })
 export default class Menu extends Vue {
@@ -56,23 +56,20 @@ export default class Menu extends Vue {
 </script>
 <style lang="scss" scoped>
 .menu {
-  min-width: 84px;
-  padding: 6px 0;
   font-size: 12px;
+  padding: 6px 0;
+  min-width: 84px;
   background: #fff;
-
   &-item {
     height: 32px;
-    padding: 0 10px;
     line-height: 32px;
+    padding: 0 10px;
     cursor: pointer;
-
     &:hover {
-      color: #3a84ff;
       background: #f5f6fa;
+      color: #3a84ff;
     }
   }
-
   &-item[disabled] {
     color: #c4c6cc;
     cursor: not-allowed;

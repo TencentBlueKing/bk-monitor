@@ -36,7 +36,8 @@
       :title="isEdit ? $t('编辑集群') : $t('新建集群')"
       :width="640"
       transfer
-      @animation-end="updateIsShow"
+      @animation-end="$emit('hidden')"
+      @update:is-show="updateIsShow"
     >
       <template #content>
         <div
@@ -872,9 +873,8 @@
       },
     },
     methods: {
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
+      updateIsShow(val) {
+        this.$emit('update:show-slider', val);
       },
       inUseProjectPopover(isUse) {
         return {

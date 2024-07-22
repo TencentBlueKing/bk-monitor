@@ -36,11 +36,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import RatioLegend from '../../components/chart-legend/ratio-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_PIE_OPTIONS } from '../../constants';
-import { VariablesService } from '../../utils/variable';
-import CommonSimpleChart from '../common-simple-chart';
-import BaseEchart from '../monitor-base-echart';
-
-import type {
+import {
   IExtendMetricData,
   ILegendItem,
   IMenuItem,
@@ -48,6 +44,9 @@ import type {
   MonitorEchartOptions,
   PanelModel,
 } from '../../typings';
+import { VariablesService } from '../../utils/variable';
+import CommonSimpleChart from '../common-simple-chart';
+import BaseEchart from '../monitor-base-echart';
 
 import './ratio-ring-chart.scss';
 /** 传递接口数据key */

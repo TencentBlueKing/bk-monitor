@@ -29,9 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { connect } from 'echarts/core';
 
 import loadingIcon from '../../icons/spinner.svg';
+import { PanelModel } from '../../typings';
 import LineChart from '../time-series/time-series';
-
-import type { PanelModel } from '../../typings';
 
 import './aiops-chart.scss';
 
@@ -106,7 +105,7 @@ export default class AiopsChart extends tsc<IProps> {
                 class='loading-icon'
                 alt=''
                 src={loadingIcon}
-              />
+              ></img>
             )}
             <LineChart
               clearErrorMsg={this.clearErrorMsg}

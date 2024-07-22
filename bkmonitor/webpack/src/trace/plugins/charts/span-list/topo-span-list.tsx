@@ -24,15 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { computed, defineComponent, PropType } from 'vue';
 import { ref } from 'vue';
 
+import { Span } from '../../../components/trace-view/typings';
 import { useTraceStore } from '../../../store/modules/trace';
 import { ETopoType } from '../../../typings';
+import { type SpanListItem } from './span-list';
 import SpanList from './span-list';
-
-import type { Span } from '../../../components/trace-view/typings';
-import type { SpanListItem } from './span-list';
 export default defineComponent({
   name: 'TopoSpanList',
   props: {
@@ -164,7 +163,7 @@ export default defineComponent({
         subTitle={this.subTitle}
         onListChange={this.handleListChange}
         onViewDetail={this.handleViewDetail}
-      />
+      ></SpanList>
     );
   },
 });

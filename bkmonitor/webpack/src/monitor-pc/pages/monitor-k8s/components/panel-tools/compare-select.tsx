@@ -23,17 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS, type PanelToolsType } from '../../typings/panel-tools';
+import { IOption } from '../../typings';
+import { COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS, PanelToolsType } from '../../typings/panel-tools';
 import TargetCompareSelect from './target-compare-select';
-
-import type { IOption } from '../../typings';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
-import type { VNode } from 'vue';
 
 import './compare-select.scss';
 
@@ -344,7 +343,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
             id={item.id}
             key={item.id}
             name={item.name}
-          />
+          ></bk-option>
         ))}
       </bk-select>
     );
@@ -380,7 +379,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
               list={this.targetOptionsFilter as any}
               value={this.localTargetValue}
               onChange={this.handleTargetChange}
-            />
+            ></TargetCompareSelect>
           </span>
           {/* {this.commonSelectTpl()} */}
         </span>

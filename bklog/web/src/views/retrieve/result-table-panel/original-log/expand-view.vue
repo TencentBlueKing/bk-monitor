@@ -58,7 +58,7 @@
       class="view-content json-view-content"
       v-show="activeExpandView === 'json'"
     >
-      <JsonFormatWrapper
+      <VueJsonPretty
         :data="jsonShowData"
         :deep="5"
       />

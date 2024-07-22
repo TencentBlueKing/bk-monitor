@@ -90,7 +90,7 @@ export default class TimezoneSelect extends tsc<IProps> {
           <div class='right'>
             {!!this.curInfo.name && <bk-tag>{`UTC${this.curInfo.Z}`}</bk-tag>}
             <div class='icon-wrap'>
-              <span class={['icon-monitor icon-arrow-down', { active: this.toggle }]} />
+              <span class={['icon-monitor icon-arrow-down', { active: this.toggle }]}></span>
             </div>
           </div>
         </div>

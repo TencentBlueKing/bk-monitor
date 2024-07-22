@@ -24,13 +24,16 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import { IStatusData } from '../../../collector-config/collector-view-detail/status-tab-list';
+import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
@@ -38,11 +41,7 @@ import {
   transformQueryDataSearch,
   updateBkSearchSelectName,
 } from '../../../monitor-k8s/utils';
-
-import type { IStatusData } from '../../../collector-config/collector-view-detail/status-tab-list';
-import type { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
-import type { StatusClassNameType } from '../host-tree/host-tree';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { StatusClassNameType } from '../host-tree/host-tree';
 
 import './host-list.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -440,14 +439,14 @@ export default class HostList extends tsc<IProps, IEvents> {
                   this.hostStatusMap[item.status],
                   `status-${this.getItemStatusClassName(item.status)}`,
                 ]}
-              />
+              ></span>
             ) : undefined}
             <span class={['host-item-ip']}>{item.ip || item.name}</span>
             {!!item.bk_host_name ? <span class='host-item-host-name'>({item.bk_host_name})</span> : undefined}
             {this.isTargetCompare ? (
               <span class='compare-btn-wrap'>
                 {this.compareTargets.includes(itemId) ? (
-                  <i class='icon-monitor icon-mc-check-small' />
+                  <i class='icon-monitor icon-mc-check-small'></i>
                 ) : (
                   <span
                     class='compare-btn-text'
@@ -484,7 +483,7 @@ export default class HostList extends tsc<IProps, IEvents> {
                 right-icon='bk-icon icon-search'
                 value={this.searchKeyword}
                 onInput={this.handleLocalSearch}
-              />
+              ></bk-input>
             )}
             {this.enableStatusFilter && (
               <StatusTab
@@ -493,14 +492,14 @@ export default class HostList extends tsc<IProps, IEvents> {
                 statusList={this.statusList}
                 disabledClickZero
                 onChange={this.handleStatusFilter}
-              />
+              ></StatusTab>
             )}
             {this.enableOverview && (
               <div
                 class={['overview-btn', { active: this.selectId === 'overview' }]}
                 onClick={this.handleClickOverview}
               >
-                <i class='icon-monitor icon-mc-overview' />
+                <i class='icon-monitor icon-mc-overview'></i>
                 {this.$t('概览')}
               </div>
             )}
@@ -509,7 +508,7 @@ export default class HostList extends tsc<IProps, IEvents> {
                 class='target-compare-tips'
                 title={this.$t('选择目标进行对比')}
                 type='info'
-              />
+              ></bk-alert>
             ) : undefined}
           </div>
 

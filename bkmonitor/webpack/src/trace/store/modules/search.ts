@@ -26,7 +26,7 @@
 import { traceChats } from 'monitor-api/modules/apm_trace';
 import { defineStore } from 'pinia';
 
-import { type IPanelModel, PanelModel } from '../../plugins/typings';
+import { IPanelModel, PanelModel } from '../../plugins/typings';
 
 export interface ISearchState {
   // 图表配置列表

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
@@ -35,11 +36,9 @@ import { getPopoverWidth } from '../../../../utils';
 // import ConditionInput from './condition-input';
 import SimpleConditionInput from '../../../alarm-shield/components/simple-condition-input';
 // import IntervalSelect from '../../../../components/cycle-input/interval-select'
-import { type MetricDetail, MetricType } from '../typings/index';
-import FunctionSelect, { type IFunctionsValue } from './function-select';
+import { MetricDetail, MetricType } from '../typings/index';
+import FunctionSelect, { IFunctionsValue } from './function-select';
 import LogMetricInfo from './log-metric-info';
-
-import type { TranslateResult } from 'vue-i18n';
 
 import './monitor-data-input.scss';
 
@@ -317,7 +316,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
           class={textClass}
           domPropsInnerHTML={innerHtml}
           onMouseenter={e => this.handleDimensionMouseEnter(e, node)}
-        />
+        ></span>
       </div>
     );
   }
@@ -453,7 +452,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                           id={option.id}
                           key={option.id}
                           name={option.name}
-                        />
+                        ></bk-option>
                       ))}
                     </bk-select>
                   </div>
@@ -474,7 +473,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                           id={option.metric_id}
                           key={option.metric_id}
                           name={option.metric_field_name}
-                        />
+                        ></bk-option>
                       ))}
                     </bk-select>
                   </div>
@@ -524,7 +523,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       trigger='focus'
                       allow-create
                       has-delete-icon
-                    />
+                    ></bk-tag-input>
                   </div>
                 )}
                 {/* =======条件====== */}
@@ -555,7 +554,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     isHasNullOption={true}
                     on-change={v => this.handleConditionChange(item, v)}
                     onKeyLoading={v => (this.contentLoading = v)}
-                  />
+                  ></SimpleConditionInput>
                 )}
                 {/* =======函数====== */}
                 {!this.isRealTimeModel && item.canSetFunction && !this.hasAiOpsDetect && !item.isNullMetric && (
@@ -571,7 +570,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                   // style={{ display: this.hoverDeleteItemIndex === index ? 'flex' : 'none' }}
                   on-click={() => this.handleDeleteMetric(item, index)}
                 >
-                  <i class='icon-monitor icon-mc-delete-line' />
+                  <i class='icon-monitor icon-mc-delete-line'></i>
                 </div>
               </div>
             </div>
@@ -584,7 +583,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
               ? [
                   <div class='expression-left'>
                     <span class='item-key'>
-                      <i class='icon-monitor icon-arrow-turn' />
+                      <i class='icon-monitor icon-arrow-turn'></i>
                     </span>
                     <div class='form-label'>{this.$t('表达式')}</div>
                     <input
@@ -611,7 +610,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       }}
                       on-click={this.handleAddMetricProxy}
                     >
-                      <i class='bk-icon icon-plus' />
+                      <i class='bk-icon icon-plus'></i>
                       <span class='name'>{`${this.$t('添加')}${this.metricNameLabel}`}</span>
                     </button>
                   ),
@@ -625,7 +624,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       class='metric-add-btn'
                       onClick={this.handleAddMetricProxy}
                     >
-                      <i class='icon-monitor icon-mc-add' />
+                      <i class='icon-monitor icon-mc-add'></i>
                       <span
                         v-bk-tooltips={{
                           content: this.$t('AIOps算法只支持单指标'),
@@ -643,7 +642,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       }}
                       onClick={this.handleAddExpression}
                     >
-                      <i class='icon-monitor icon-mc-add' />
+                      <i class='icon-monitor icon-mc-add'></i>
                       <span>{this.$t('表达式')}</span>
                     </div>
                   </div>

@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import store from '@store/store';
 import {
   checkAllowedByActionIds,
   checkAllowedByApmApplication,
@@ -30,9 +31,7 @@ import {
   getAuthorityMeta,
 } from 'monitor-api/modules/iam';
 import { transformDataKey } from 'monitor-common/utils/utils';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
-
-import store from '@store/store';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 @Module({ name: 'authority', dynamic: true, namespaced: true, store })
 class Authority extends VuexModule {

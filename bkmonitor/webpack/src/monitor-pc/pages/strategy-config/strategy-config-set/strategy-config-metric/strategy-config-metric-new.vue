@@ -189,15 +189,15 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
+import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
-import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 
 import documentLinkMixin from '../../../../mixins/documentLinkMixin';
-import type MonitorVue from '../../../../types/index';
-import type {
+import MonitorVue from '../../../../types/index';
+import {
   IDataSource,
   IDataSourceItem,
   IMetric,
@@ -206,7 +206,7 @@ import type {
   ISearchOption,
   IStaticParams,
   ITag,
-  ITimeSelect,
+  ITimeSelect
 } from '../../../../types/strategy-config/strategy-metric';
 
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -215,8 +215,8 @@ import '@blueking/search-select-v3/vue2/vue2.css';
   name: 'strategy-config-metric-new',
   components: {
     MonitorDialog,
-    SearchSelect,
-  },
+    SearchSelect
+  }
 } as any)
 export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<MonitorVue> {
   @Prop() // 是否显示dialog
@@ -242,7 +242,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     bk_monitor_time_series: 'fromMonitor', // 监控采集
     log_time_series: 'formLogPlatform', // 日志采集
     bk_data_time_series: 'fromDataSource', // 数据平台
-    custom_time_series: 'fromCustomRreporting', // 自定义指标
+    custom_time_series: 'fromCustomRreporting' // 自定义指标
   };
   loading = false;
   scenarioType = ''; // 当前选择的监控对象
@@ -254,18 +254,18 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     bk_monitor_time_series: 1,
     bk_data_time_series: 1,
     custom_time_series: 1,
-    log_time_series: 1,
+    log_time_series: 1
   };
   searchObj: ISearchObj = {
     // 键值对搜索数据
     keyWord: [],
-    data: [],
+    data: []
   };
   timeSelect: ITimeSelect; // 时间范围选择
   tag: ITag = {
     // 标签数据
     value: '',
-    list: [],
+    list: []
   };
   uptimeCheckTaskId = -1; // 跳转到拨测任务所需的ID
   popoverInstance = null; // tipsElement
@@ -303,7 +303,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
   get scenarioListAll() {
     let arr = [];
     const list = JSON.parse(JSON.stringify(this.scenarioList));
-    list.reverse().forEach(item => {
+    list.reverse().forEach((item) => {
       const child = item.children.map(one => ({ name: one.id, label: one.name }));
       arr = [...child, ...arr];
     });
@@ -314,9 +314,9 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
   get seachParams() {
     let strValue = '';
     const objValue = {};
-    this.searchObj.keyWord.forEach(item => {
+    this.searchObj.keyWord.forEach((item) => {
       if (Array.isArray(item.values)) {
-        item.values.forEach(v => {
+        item.values.forEach((v) => {
           objValue[item.id] = v.id;
         });
       } else {
@@ -343,7 +343,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         dataTypeLabel: 'time_series',
         sourceType: 'bk_monitor_time_series',
         sourceName: this.$tc('监控采集'),
-        list: [],
+        list: []
       },
       log_time_series: {
         count: 0,
@@ -351,7 +351,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         dataTypeLabel: 'time_series',
         sourceType: 'log_time_series',
         sourceName: this.$tc('日志采集'),
-        list: [],
+        list: []
       },
       bk_data_time_series: {
         count: 0,
@@ -359,7 +359,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         dataTypeLabel: 'time_series',
         sourceType: 'bk_data_time_series',
         sourceName: this.$tc('计算平台'),
-        list: [],
+        list: []
       },
       custom_time_series: {
         count: 0,
@@ -367,7 +367,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         dataTypeLabel: 'time_series',
         sourceType: 'custom_time_series',
         sourceName: this.$tc('自定义指标'),
-        list: [],
+        list: []
       },
       bk_monitor_log: {
         count: 0,
@@ -375,8 +375,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         dataTypeLabel: 'log',
         sourceType: 'bk_monitor_log',
         sourceName: this.$tc('其他'),
-        list: [],
-      },
+        list: []
+      }
     };
     this.timeSelect = {
       value: 7,
@@ -385,8 +385,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         { id: 3, name: this.$tc('近 3 天') },
         { id: 7, name: this.$tc('近 7 天') },
         { id: 15, name: this.$tc('近 15 天') },
-        { id: 30, name: this.$tc('近 30 天') },
-      ],
+        { id: 30, name: this.$tc('近 30 天') }
+      ]
     };
   }
 
@@ -400,13 +400,10 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
 
   //  确定metric
   handleDetermineMetric(checkedMetric, item) {
-    return checkedMetric.some(
-      met =>
-        met.metric_field === item.metric_field &&
-        met.result_table_id === item.result_table_id &&
-        met.related_id === item.related_id &&
-        met.related_name === item.related_name
-    );
+    return checkedMetric.some(met => met.metric_field === item.metric_field
+        && met.result_table_id === item.result_table_id
+        && met.related_id === item.related_id
+        && met.related_name === item.related_name);
   }
 
   async getMetric(metric) {
@@ -422,8 +419,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
       {
         id: 'metric_field',
         name: this.$tc('指标名'),
-        values: [{ id: metric.metricName, name: metric.metricName }],
-      },
+        values: [{ id: metric.metricName, name: metric.metricName }]
+      }
     ];
     if (isSame('uptimecheck', this.scenarioType)) {
       conditions.push(
@@ -434,7 +431,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     const resultTableIdParams = {
       id: 'result_table_id',
       name: this.$tc('分类ID'),
-      values: [{ id: metric.resultTableId, name: metric.resultTableId }],
+      values: [{ id: metric.resultTableId, name: metric.resultTableId }]
     };
     if (isSame('log_time_series')) {
       resultTableIdParams.name = this.$tc('索引');
@@ -446,13 +443,10 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     this.searchObj.keyWord = conditions;
     await this.getMonitorSource(metric.dataSourceLabel, metric.dataTypeLabel, null, false);
     return this.curData.list.length
-      ? this.curData.list.find(
-          item =>
-            item.metric_field === metric.metricName &&
-            item.result_table_id === metric.resultTableId &&
-            item.data_source_label === metric.dataSourceLabel &&
-            item.data_type_label === metric.dataTypeLabel
-        ) || this.curData.list[0]
+      ? this.curData.list.find(item => item.metric_field === metric.metricName
+            && item.result_table_id === metric.resultTableId
+            && item.data_source_label === metric.dataSourceLabel
+            && item.data_type_label === metric.dataTypeLabel) || this.curData.list[0]
       : {};
   }
   //  切换监控对象 tabCard
@@ -487,7 +481,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
       bk_biz_id: this.$store.getters.bizId,
       data_source_label: dataSourceLabel || this.curData.dataSourceLabel,
       data_type_label: dataTypeLabel || this.curData.dataTypeLabel,
-      result_table_label: this.scenarioType,
+      result_table_label: this.scenarioType
     };
   }
 
@@ -499,20 +493,20 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     const params = {
       ...staticParams,
       search_fields: {
-        ...this.seachParams.objValue,
+        ...this.seachParams.objValue
       },
       search_value: this.seachParams.strValue,
       page_size: 24,
       page: this.page[this.leftActive] ? this.page[this.leftActive] : 1,
-      tag: this.tag.value,
+      tag: this.tag.value
     };
     if (!needResultTableLabel) {
       delete params.result_table_label;
     }
     await getMetricList(params)
-      .then(data => {
+      .then((data) => {
         this.tag.list = data.tag_list;
-        data.count_list.forEach(item => {
+        data.count_list.forEach((item) => {
           if (this.dataSource[item.source_type]) {
             this.dataSource[item.source_type].count = item.count;
           }
@@ -536,7 +530,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     const options = [
       // 公共项
       { id: 'metric_field', name: this.$tc('指标名'), children: [] },
-      { id: 'metric_field_name', name: this.$tc('指标别名'), children: [] },
+      { id: 'metric_field_name', name: this.$tc('指标别名'), children: [] }
     ];
     const searchObj = {
       bk_monitor_time_series: [
@@ -547,7 +541,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         { id: 'result_table_id', name: this.$tc('分类ID'), children: [] },
         { id: 'result_table_name', name: this.$tc('分类名'), children: [] },
         { id: 'description', name: this.$tc('含义'), children: [] },
-        { id: 'collect_config', name: this.$tc('采集配置'), children: [] },
+        { id: 'collect_config', name: this.$tc('采集配置'), children: [] }
       ],
       log_time_series: [
         // 日志采集
@@ -556,19 +550,19 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         { id: 'related_id', name: this.$tc('索引集ID'), children: [] },
         { id: 'result_table_id', name: this.$tc('索引'), children: [] },
         { id: 'scenario_name', name: this.$tc('数据源类别'), children: [] },
-        { id: 'storage_cluster_name', name: this.$tc('数据源名'), children: [] },
+        { id: 'storage_cluster_name', name: this.$tc('数据源名'), children: [] }
       ],
       bk_data_time_series: [
         // 数据平台
         ...options,
-        { id: 'result_table_id', name: this.$tc('表名'), children: [] },
+        { id: 'result_table_id', name: this.$tc('表名'), children: [] }
       ],
       custom_time_series: [
         // 自定义指标
         ...options,
         { id: 'bk_data_id', name: this.$tc('数据ID'), children: [] },
-        { id: 'result_table_name', name: this.$tc('数据名'), children: [] },
-      ],
+        { id: 'result_table_name', name: this.$tc('数据名'), children: [] }
+      ]
     };
     return searchObj[this.leftActive];
   }
@@ -609,7 +603,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         theme: 'tippy-metric',
         arrow: true,
         placement: 'auto',
-        boundary: 'window',
+        boundary: 'window'
       });
       this.popoverInstance.show();
     }, 1000);
@@ -635,8 +629,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     this.$router.push({
       name: 'uptime-check',
       params: {
-        taskId: this.uptimeCheckTaskId.toString(),
-      },
+        taskId: this.uptimeCheckTaskId.toString()
+      }
     });
   }
 
@@ -652,12 +646,12 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
       // 公共展示项
       {
         label: this.$t('指标名'),
-        val: data.metric_field,
+        val: data.metric_field
       },
       {
         val: data.metric_field_name,
-        label: this.$t('指标别名'),
-      },
+        label: this.$t('指标别名')
+      }
     ];
     const elList = {
       bk_monitor_time_series: [
@@ -667,7 +661,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         { val: data.related_name, label: this.$t('插件名') },
         { val: data.result_table_id, label: this.$t('分类ID') },
         { val: data.result_table_name, label: this.$t('分类名') },
-        { val: data.description, label: this.$t('含义') },
+        { val: data.description, label: this.$t('含义') }
       ],
       log_time_series: [
         // 日志采集
@@ -675,28 +669,26 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         { val: data.related_name, label: this.$t('索引集') },
         { val: data.result_table_id, label: this.$t('索引') },
         { val: data.extend_fields.scenario_name, label: this.$t('数据源类别') },
-        { val: data.extend_fields.storage_cluster_name, label: this.$t('数据源名') },
+        { val: data.extend_fields.storage_cluster_name, label: this.$t('数据源名') }
       ],
       bk_data_time_series: [
         // 数据平台
         ...options,
-        { val: data.result_table_id, label: this.$t('表名') },
+        { val: data.result_table_id, label: this.$t('表名') }
       ],
       custom_time_series: [
         // 自定义指标
         ...options,
         { val: data.extend_fields.bk_data_id, label: this.$t('数据ID') },
-        { val: data.result_table_name, label: this.$t('数据名') },
-      ],
+        { val: data.result_table_name, label: this.$t('数据名') }
+      ]
     };
     // 拨测指标融合后不需要显示插件id插件名
     const relatedId = data.related_id;
     const resultTableLabel = data.result_table_label;
     if (!relatedId && resultTableLabel === 'uptimecheck') {
       const list = elList.bk_monitor_time_series;
-      elList.bk_monitor_time_series = list.filter(
-        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名')
-      );
+      elList.bk_monitor_time_series = list.filter(item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名'));
     }
     let content = '';
     const curElList = elList[this.leftActive];
@@ -720,7 +712,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
         }
       });
     }
-    curElList.forEach(item => {
+    curElList.forEach((item) => {
       content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
     });
     return content;
@@ -748,12 +740,11 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
   handleMetricFieldName(row) {
     const obj = {
       id: '',
-      alias: '',
+      alias: ''
     };
-    obj.id =
-      this.leftActive === 'log_time_series'
-        ? `${row.related_name}.${row.metric_field}`
-        : `${row.result_table_id}.${row.metric_field}`;
+    obj.id =      this.leftActive === 'log_time_series'
+      ? `${row.related_name}.${row.metric_field}`
+      : `${row.result_table_id}.${row.metric_field}`;
     // 英文
     if (this.$store.getters.lang !== 'en') {
       obj.alias = !row.metric_field_name || row.metric_field_name === row.metric_field ? '' : row.metric_field_name;

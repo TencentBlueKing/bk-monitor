@@ -66,7 +66,7 @@ export default class AlarmShieldDetailDimension extends tsc<IProps> {
                 allNames={this.allNames}
                 readonly={true}
                 value={this.conditionList as any}
-              />
+              ></WhereDisplay>
             ) : (
               '--'
             )}

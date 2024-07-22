@@ -27,11 +27,10 @@
 import _isEqual from 'lodash/isEqual';
 
 import { getTraceSpanIdsAsTree } from '../selectors/trace';
+import { KeyValuePair, Span, SpanData, Trace, TraceData } from '../typings';
+import TreeNode from '../utils/TreeNode';
 import { getConfigValue } from '../utils/config/get-config';
 import { getTraceName } from './trace-viewer';
-
-import type { KeyValuePair, Span, SpanData, Trace, TraceData } from '../typings';
-import type TreeNode from '../utils/TreeNode';
 
 // exported for tests
 export function deduplicateTags(spanTags: KeyValuePair[]) {

@@ -326,7 +326,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
           >
             {this.$t('编辑')}
           </bk-button>
-          <HistoryDialog list={this.historyList} />
+          <HistoryDialog list={this.historyList}></HistoryDialog>
         </div>
         <div class='detail-wrap-item'>
           <div class='wrap-item-title'>{this.$t('基本信息')}</div>
@@ -346,14 +346,14 @@ export default class CollectorConfiguration extends tsc<IProps> {
                             maxlength={50}
                             onBlur={this.handleTagClickout}
                             onKeydown={this.handleLabelKey}
-                          />
+                          ></bk-input>
                         ) : (
                           <span
                             class='edit-span'
                             onClick={() => this.handleEditLabel(key)}
                           >
                             <span>{this.basicInfo?.[key]}</span>
-                            <span class='icon-monitor icon-bianji' />
+                            <span class='icon-monitor icon-bianji'></span>
                           </span>
                         )}
                       </span>,
@@ -367,7 +367,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         <span
                           class='icon-monitor icon-bianji'
                           onClick={this.handleToEditPlugin}
-                        />
+                        ></span>
                       </span>
                     );
                   }
@@ -442,7 +442,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
               : undefined}
           </div>
         </div>
-        <div class='split-line mt-24' />
+        <div class='split-line mt-24'></div>
         <div class='detail-wrap-item'>
           <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
           {!!this.targetInfo?.table_data?.length && (
@@ -507,7 +507,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         return column.name;
                       })()}
                       prop={column.id}
-                    />
+                    ></bk-table-column>
                   );
                 })}
               </bk-table>
@@ -547,7 +547,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                       }}
                       label={column.name}
                       prop={column.id}
-                    />
+                    ></bk-table-column>
                   );
                 })}
               </bk-table>

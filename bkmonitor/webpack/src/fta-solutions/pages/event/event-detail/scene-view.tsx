@@ -28,14 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils/utils';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, type IBookMark, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
-import { type IDetail, setBizIdToPanel } from './type';
-
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { IDetail, setBizIdToPanel } from './type';
 
 import './scene-view.scss';
 
@@ -157,7 +156,7 @@ export default class SceneView extends tsc<IProps> {
             isSplitPanel={false}
             needOverviewBtn={false}
             panels={this.localPanels}
-          />
+          ></DashboardPanel>
         )}
         {!this.readonly && !!this.localPanels.length && (
           <div class='view-bottom'>
@@ -168,7 +167,7 @@ export default class SceneView extends tsc<IProps> {
                   onClick={() => this.handleToCustomScene()}
                 >
                   {window.i18n.t('跳转至自定义场景')}
-                  <span class='icon-monitor icon-fenxiang' />
+                  <span class='icon-monitor icon-fenxiang'></span>
                 </span>
               </i18n>
             </div>

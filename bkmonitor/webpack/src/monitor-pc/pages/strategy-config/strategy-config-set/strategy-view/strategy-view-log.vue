@@ -70,8 +70,8 @@
   </div>
 </template>
 <script lang="ts">
-import dayjs from 'dayjs';
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 
 @Component({ name: 'strategy-view-log' })
 export default class StrategyViewLog extends Vue {
@@ -114,8 +114,7 @@ export default class StrategyViewLog extends Vue {
   getFormatTime({ time }) {
     if (typeof time === 'string') {
       return dayjs.tz(+time).format('YYYY-MM-DD HH:mm:ss');
-    }
-    if (typeof time === 'number') {
+    } if (typeof time === 'number') {
       if (time.toString().length === 10) {
         return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
       }

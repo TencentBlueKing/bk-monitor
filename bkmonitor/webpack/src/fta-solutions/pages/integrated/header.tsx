@@ -23,12 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { importEventPlugin } from 'monitor-api/modules/event_plugin';
-
-import type { TranslateResult } from 'vue-i18n';
 
 export type ViewType = 'card' | 'list';
 interface ITypeData {
@@ -111,7 +110,7 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
             onClick={() => this.handleImport()}
           >
             <span class='import-btn'>
-              <span class='icon-monitor icon-xiazai1' />
+              <span class='icon-monitor icon-xiazai1'></span>
               <span>{this.$t('导入')}</span>
               <input
                 ref='upload'
@@ -143,7 +142,7 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
                 }}
                 onClick={() => this.handleChangeViewType(item)}
               >
-                <i class={item.icon} />
+                <i class={item.icon}></i>
               </span>
             ))}
           </div>
@@ -153,7 +152,7 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
             right-icon='bk-icon icon-search'
             value={this.searchValue}
             onChange={this.handleSearchValueChange}
-          />
+          ></bk-input>
         </div>
       </header>
     );

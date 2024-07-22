@@ -30,11 +30,10 @@ import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import ChartTitle from '../../components/chart-title/chart-title';
+import { PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
-
-import type { PanelModel } from '../../typings';
 
 import './port-status-chart.scss';
 
@@ -135,7 +134,7 @@ class PortStatusChart extends CommonSimpleChart {
             >
               <div class='port-name'>{item.value}</div>
               <div class='port-status'>
-                <span class='status-dot' />
+                <span class='status-dot'></span>
                 <span class='status-name'>{item.name}</span>
               </div>
             </li>

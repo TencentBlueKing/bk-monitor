@@ -23,17 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-module.exports = api => {
-  api?.cache.never();
+module.exports = function (api) {
+  api && api.cache.never();
   const presets = [
     [
       '@babel/preset-env',
       {
         targets: {
-          browsers:
-            process.env.APP === 'mobile'
-              ? ['>0.03%', 'last 2 versions', 'IE > 9']
-              : ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead'],
+          browsers: ['> 1%', 'last 1 versions', 'not ie <= 11'],
           node: 'current',
         },
         useBuiltIns: 'usage',
@@ -52,6 +49,19 @@ module.exports = api => {
   ].filter(Boolean);
   const plugins = [
     '@babel/plugin-transform-runtime',
+    // process.env.APP !== 'trace' ? [
+    //   'babel-plugin-import-bk-magic-vue',
+    //   {
+    //     baseLibName: 'bk-magic-vue'
+    //   }
+    // ] : undefined,
+    // process.env.APP === 'pc' ? [
+    //   'component',
+    //   {
+    //     libraryName: 'element-ui',
+    //     styleLibraryName: 'theme-chalk'
+    //   }
+    // ] : undefined,
     process.env.APP === 'mobile'
       ? [
           'import',
@@ -64,6 +74,13 @@ module.exports = api => {
         ]
       : undefined,
     process.env.APP === 'trace' ? '@vue/babel-plugin-jsx' : undefined,
+    // process.env.APP === 'trace' ? [
+    //   'import-bkui-vue',
+    //   {
+    //     libraryName: 'bkui-vue',
+    //     style: true
+    //   }
+    // ] : undefined
   ].filter(Boolean);
   return {
     presets,

@@ -28,30 +28,29 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from 'monitor-api/index';
-import { Debounce, copyText, random } from 'monitor-common/utils/utils';
+import { copyText, Debounce, random } from 'monitor-common/utils/utils';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { resize } from '../../../components/ip-selector/common/observer-directive';
 import MonitorResizeLayout, {
   ASIDE_COLLAPSE_HEIGHT,
   ASIDE_DEFAULT_HEIGHT,
-  type IUpdateHeight,
+  IUpdateHeight,
 } from '../../../components/resize-layout/resize-layout';
+import { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
-import IndexList, { type IIndexListItem } from '../../data-retrieval/index-list/index-list';
+import IndexList, { IIndexListItem } from '../../data-retrieval/index-list/index-list';
+import { ITableItem } from '../typings';
+import { IDetailItem } from '../typings/common-detail';
 import Aipanel from './ai-panel/ai-panel';
+import { type ShowModeType } from './common-page-new';
 import HostDetailView from './host-detail-view/host-detail-view';
-import ShowModeButton, { type ShowModeButtonType } from './show-mode-button/show-mode-button';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { TimeRangeType } from '../../../components/time-range/time-range';
-import type { ITableItem } from '../typings';
-import type { IDetailItem } from '../typings/common-detail';
-import type { ShowModeType } from './common-page-new';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import ShowModeButton, { ShowModeButtonType } from './show-mode-button/show-mode-button';
 
 import './common-detail.scss';
 
@@ -555,7 +554,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               class='bk-icon icon-minus detail-shrink'
               v-bk-tooltips={{ content: this.$t('收起'), delay: 200, boundary: 'window' }}
               onClick={() => this.handleClickShrink()}
-            />
+            ></i>
           )}
         </div>
         <div class={`common-detail-panel ${this.needOverflow ? 'need-overflow' : ''}`}>
@@ -566,7 +565,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               width={this.width}
               data={this.data}
               onLinkToDetail={v => this.$emit('linkToDetail', v)}
-            />
+            ></HostDetailView>
           )}
           {this.aiPanel && (
             <Aipanel
@@ -622,12 +621,12 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                 slot='aside'
               >
                 {/* 拉到顶 出现浅阴影 */}
-                {this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar' />}
+                {this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar'></div>}
                 <div
                   class='index-tree-header'
                   onClick={this.handleExpandIndexList}
                 >
-                  <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]} />
+                  <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]}></span>
                   <span class='index-tree-header-text'>{this.$t('索引')}</span>
                   <div
                     class={['index-search-bar', { 'full-width': this.showIndexSearchInput }]}
@@ -648,7 +647,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                         class='bk-icon icon-search'
                         slot='prefix'
                         onClick={() => (this.showIndexSearchInput = true)}
-                      />
+                      ></i>
                     )}
                   </div>
                 </div>

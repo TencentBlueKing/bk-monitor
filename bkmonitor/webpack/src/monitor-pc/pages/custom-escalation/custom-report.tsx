@@ -33,20 +33,18 @@ import {
   queryCustomEventGroup,
 } from 'monitor-api/modules/custom_report';
 import { checkAllowedByActionIds, getAuthorityDetail } from 'monitor-api/modules/iam';
-import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils/utils';
 // import LeftPanel from './left-panel.vue';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import PageTips from '../../components/pageTips/pageTips.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import CommonTable, { type ICommonTableProps } from '../monitor-k8s/components/common-table';
+import CommonTable, { ICommonTableProps } from '../monitor-k8s/components/common-table';
+import { ITableColumn } from '../monitor-k8s/typings';
 import OperateOptions from '../uptime-check/components/operate-options';
 import * as customAuth from './authority-map';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import type { ITableColumn } from '../monitor-k8s/typings';
 
 import './custom-report.scss';
 
@@ -270,7 +268,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       pagination: {
         count: 0,
         current: 1,
-        limit: commonPageSizeGet(),
+        limit: 10,
         showTotalCount: true,
       },
       loading: false,
@@ -329,7 +327,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
 
   //  还原分页参数和清空搜索框
   clearConditions() {
-    const defaultPageSize = commonPageSizeGet();
+    const defaultPageSize = this.handleGetCommonPageSize();
     this.tableData.pagination = {
       current: 1,
       count: 0,
@@ -339,6 +337,12 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     this.search = '';
   }
 
+  handleSetCommonPageSize(pageSize = 10) {
+    localStorage.setItem('__common_page_size__', `${pageSize}`);
+  }
+  handleGetCommonPageSize() {
+    return +localStorage.getItem('__common_page_size__') || 10;
+  }
   /**
    * @description: 跳转详情
    * @param {IEventItem} row
@@ -469,7 +473,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     if (size !== this.tableData.pagination.limit) {
       this.tableData.pagination.limit = size;
       this.tableData.pagination.current = 1;
-      commonPageSizeSet(size);
+      this.handleSetCommonPageSize(size);
       this.init();
     }
   }
@@ -517,7 +521,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             doc-link={'fromCustomRreporting'}
             link-text={this.$t('采集器安装前往节点管理')}
             link-url={`${this.$store.getters.bkNodemanHost}#/plugin-manager/list`}
-          />
+          ></PageTips>
           <div class='custom-report-page-content'>
             <div class='content-left-operator'>
               <bk-button
@@ -530,7 +534,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                     : this.handleShowAuthorityDetail(this.manageAuthDetail)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6' />
+                <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </bk-button>
               <div class='bk-button-group'>
@@ -550,7 +554,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 placeholder={this.$tc('搜索 ID / 名称')}
                 rightIcon='bk-icon icon-search'
                 on-change={this.handleSearch}
-              />
+              ></bk-input>
             </div>
             <CommonTable
               class='content-left-table'
@@ -612,7 +616,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       ],
                     }}
                     onOptionClick={(v: 'delete' | 'view') => this.handleOperate(v, row)}
-                  />
+                  ></OperateOptions>
                 ),
               }}
               onLimitChange={this.handlePageLimitChange}

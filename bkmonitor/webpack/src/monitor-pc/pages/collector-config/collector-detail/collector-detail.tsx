@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Route } from 'vue-router';
 
 import {
   collectConfigList,
@@ -40,14 +41,12 @@ import * as collectAuth from '../authority-map';
 import { STATUS_LIST } from '../collector-host-detail/utils';
 import CollectorConfiguration from './collector-configuration';
 import CollectorStatusDetails from './collector-status-details';
+import { IAlarmGroupList } from './components/alarm-group';
 import AlertTopic from './components/alert-topic';
 import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
-import { type DetailData, TCollectorAlertStage, TabEnum } from './typings/detail';
-
-import type { IAlarmGroupList } from './components/alarm-group';
-import type { Route, NavigationGuardNext } from 'vue-router';
+import { DetailData, TabEnum, TCollectorAlertStage } from './typings/detail';
 
 import './collector-detail.scss';
 
@@ -101,7 +100,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
 
   alarmGroupListLoading = false;
 
-  public beforeRouteEnter(to: Route, from: Route, next: NavigationGuardNext) {
+  public beforeRouteEnter(to: Route, from: Route, next: Function) {
     const { params } = to;
     next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
@@ -310,7 +309,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
                 collectConfigData={this.collectConfigData}
                 detailData={this.detailData}
                 show={this.active === TabEnum.Configuration}
-              />
+              ></CollectorConfiguration>
             )}
           </bk-tab-panel>
           <bk-tab-panel
@@ -325,13 +324,13 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               stage={TCollectorAlertStage.collecting}
               updateKey={this.allData[TabEnum.TargetDetail].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
-            />
+            ></AlertTopic>
             <CollectorStatusDetails
               data={this.allData[TabEnum.TargetDetail].data}
               updateKey={this.allData[TabEnum.TargetDetail].updateKey}
               onCanPolling={this.handlePolling}
               onRefresh={this.handleRefreshData}
-            />
+            ></CollectorStatusDetails>
           </bk-tab-panel>
           <bk-tab-panel
             label={this.$t('链路状态')}
@@ -345,7 +344,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               stage={TCollectorAlertStage.transfer}
               updateKey={this.allData[TabEnum.DataLink].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
-            />
+            ></AlertTopic>
             <LinkStatus
               collectId={this.collectId}
               show={this.active === TabEnum.DataLink}
@@ -363,7 +362,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               stage={TCollectorAlertStage.storage}
               updateKey={this.allData[TabEnum.StorageState].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
-            />
+            ></AlertTopic>
             <StorageState
               collectId={this.collectId}
               data={this.allData[TabEnum.StorageState].data}
@@ -380,15 +379,14 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             class='tab-right-tip'
             slot='setting'
           >
-            <span class='icon-monitor icon-tishi' />
-            <i18n path='数据采集好了，去 {0}'>
-              <span
-                class='link-btn'
-                onClick={() => this.handleToRetrieval()}
-              >
-                {this.$t('查看数据')}
-              </span>
-            </i18n>
+            <span class='icon-monitor icon-tishi'></span>
+            <span>{this.$t('可对当前采集内容进行检索')},</span>
+            <span
+              class='link-btn'
+              onClick={() => this.handleToRetrieval()}
+            >
+              {this.$t('去检索')}
+            </span>
           </span>
         </MonitorTab>
       </div>

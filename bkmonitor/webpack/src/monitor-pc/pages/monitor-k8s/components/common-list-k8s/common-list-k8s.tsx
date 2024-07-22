@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import { IQueryData, IQueryDataSearch, ITableFilterItem } from '../../typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
@@ -39,9 +41,6 @@ import {
   updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
-
-import type { IQueryData, IQueryDataSearch, ITableFilterItem } from '../../typings';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './common-list-k8s.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -310,20 +309,20 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
                 modelValue={this.searchCondition}
                 placeholder={this.$t('搜索')}
                 on-change={this.handleSearch}
-              />
+              ></SearchSelect>
             ) : (
               <bk-input
                 v-model={this.keyword}
                 placeholder={this.$t('搜索')}
                 right-icon='bk-icon icon-search'
                 onInput={this.handleLocalSearch}
-              />
+              ></bk-input>
             )}
             <bk-button
               class='reflesh-btn'
               onClick={this.handleRefresh}
             >
-              <i class='icon-monitor icon-shuaxin' />
+              <i class='icon-monitor icon-shuaxin'></i>
             </bk-button>
           </div>
           <StatusTab
@@ -332,12 +331,12 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
             statusList={this.statusList}
             disabledClickZero
             onChange={this.handleStatusChange}
-          />
+          ></StatusTab>
           <div
             class={['overview-btn-wrap', { active: this.isOverview }]}
             onClick={() => this.handleSelectOverview(true)}
           >
-            <i class='icon-monitor icon-mc-overview' />
+            <i class='icon-monitor icon-mc-overview'></i>
             <span class='overview-text'>{this.$t('概览')}</span>
           </div>
           <div class='list-wrapper'>
@@ -358,12 +357,12 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
                         onClick={() => this.handleSelect(data)}
                       >
                         <span class='status-tag-wrap'>
-                          <CommonStatus type={data.status.type} />
+                          <CommonStatus type={data.status.type}></CommonStatus>
                         </span>
                         {this.isTargetCompare ? (
                           <span class='compare-btn-wrap'>
                             {this.compareTargets.includes(itemId) ? (
-                              <i class='icon-monitor icon-mc-check-small' />
+                              <i class='icon-monitor icon-mc-check-small'></i>
                             ) : (
                               <span
                                 class='compare-btn-text'
@@ -380,7 +379,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
                   },
                 }}
                 item-height={32}
-              />
+              ></bk-virtual-scroll>
             ) : (
               <bk-exception
                 class='exception-part'

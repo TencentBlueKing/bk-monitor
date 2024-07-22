@@ -33,9 +33,8 @@ import { byteConvert } from 'monitor-common/utils/utils';
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
-
-import type { ISetupData } from '../app-add/app-add';
-import type { ClusterOption, IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
+import { ISetupData } from '../app-add/app-add';
+import { ClusterOption, IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
 
 interface IStorageStateProps {
   appInfo: IAppInfo;
@@ -288,7 +287,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
     const statusSlot = {
       default: props => [
         <span class='status-wrap'>
-          <span class={['status-icon', `status-${props.row.health}`]} />
+          <span class={['status-icon', `status-${props.row.health}`]}></span>
           <span class='status-name'>{this.healthMaps[props.row.health]}</span>
         </span>,
       ],

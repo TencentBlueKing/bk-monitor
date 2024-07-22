@@ -466,7 +466,7 @@ export default class DataPipeline extends tsc<object> {
           <div
             key={index}
             class={['status-cube', `status-${status}`]}
-          />
+          ></div>
         ))}
       </div>
     ));
@@ -481,7 +481,7 @@ export default class DataPipeline extends tsc<object> {
           <span class='pipline-name'>
             <span
               class={['icon-monitor icon-mc-triangle-down', { active: this.tableData.expandRowKeys?.[0] === row.key }]}
-            />
+            ></span>
             <span v-bk-overflow-tips>{row.name}</span>
           </span>
         );
@@ -497,7 +497,7 @@ export default class DataPipeline extends tsc<object> {
           <span class='count-status-info'>
             <div class='name-info'>
               <span class='name'>{row?.transfer_cluster_id || '--'}</span>
-              <span class='icon-monitor icon-fenxiang' />
+              <span class='icon-monitor icon-fenxiang'></span>
             </div>
             {this.countStatusContent(this.getStautsContent(row?.transfer_cluster_id) as any)}
           </span>
@@ -511,7 +511,7 @@ export default class DataPipeline extends tsc<object> {
           >
             <div class='name-info'>
               <span class='name'>{row.kafka_cluster_name || '--'}</span>
-              <span class='icon-monitor icon-fenxiang' />
+              <span class='icon-monitor icon-fenxiang'></span>
             </div>
             {this.countStatusContent(this.getStautsContent(row.kafka_cluster_id) as any)}
           </span>
@@ -524,7 +524,7 @@ export default class DataPipeline extends tsc<object> {
         >
           <div class='name-info'>
             <span class='name'>{row.influxdb_storage_cluster_name || '--'}</span>
-            <span class='icon-monitor icon-fenxiang' />
+            <span class='icon-monitor icon-fenxiang'></span>
           </div>
           {this.countStatusContent(this.getStautsContent(row.influxdb_storage_cluster_id) as any)}
         </span>;
@@ -537,7 +537,7 @@ export default class DataPipeline extends tsc<object> {
           >
             <div class='name-info'>
               <span class='name'>{row.kafka_storage_cluster_name || '--'}</span>
-              <span class='icon-monitor icon-fenxiang' />
+              <span class='icon-monitor icon-fenxiang'></span>
             </div>
             {this.countStatusContent(this.getStautsContent(row.kafka_storage_cluster_id) as any)}
           </span>
@@ -554,7 +554,7 @@ export default class DataPipeline extends tsc<object> {
               size='small'
               theme='primary'
               value={row.is_enable}
-            />
+            ></bk-switcher>
           </div>
         );
       }
@@ -636,7 +636,7 @@ export default class DataPipeline extends tsc<object> {
               value={this.searchValue}
               on-blur={this.handleSearchBlur}
               on-enter={this.handleSearchEnter}
-            />
+            ></bk-input>
           </div>
         </div>
         <div
@@ -691,14 +691,14 @@ export default class DataPipeline extends tsc<object> {
                             width={childColumn.width}
                             formatter={(row: any) => this.handleSetChildFormatter(childColumn.id as any, row)}
                             label={childColumn.name}
-                          />
+                          ></bk-table-column>
                         ))}
                       </bk-table>
                     </div>
                   ),
                 }}
                 type='expand'
-              />
+              ></bk-table-column>
             }
             {
               <bk-table-column type='setting'>
@@ -730,7 +730,7 @@ export default class DataPipeline extends tsc<object> {
                     filters={column.filters}
                     label={column.name}
                     prop={column.id}
-                  />
+                  ></bk-table-column>
                 );
               })}
           </bk-table>
@@ -742,7 +742,7 @@ export default class DataPipeline extends tsc<object> {
           onEdit={this.handleEditPipline}
           onShowChange={this.handleShowChange}
           onSuccess={this.handleSuccess}
-        />
+        ></DataPipelineConfig>
       </div>
     );
   }

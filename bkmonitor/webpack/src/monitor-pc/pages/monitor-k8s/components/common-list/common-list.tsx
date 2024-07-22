@@ -24,15 +24,18 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
@@ -41,10 +44,6 @@ import {
   updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
-import type { IQueryData, IQueryDataSearch } from '../../typings';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './common-list.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -338,13 +337,13 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
-            />
+            ></bk-input>
           )}
           <bk-button
             class='reflesh-btn'
             onClick={this.handleRefresh}
           >
-            <i class='icon-monitor icon-shuaxin' />
+            <i class='icon-monitor icon-shuaxin'></i>
           </bk-button>
         </div>
         {this.isEnableStatusFilter && (
@@ -353,7 +352,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             v-model={this.currentStatus}
             statusList={this.statusList}
             onChange={this.handleStatusFilter}
-          />
+          ></StatusTab>
         )}
         <div class='list-wrapper'>
           {this.localList?.length ? (
@@ -376,12 +375,12 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                         <CommonStatus
                           class='status-icon'
                           type={data.status.type}
-                        />
+                        ></CommonStatus>
                       )}
                       {this.isTargetCompare ? (
                         <span class='compare-btn-wrap'>
                           {this.compareTargets.includes(itemId) ? (
-                            <i class='icon-monitor icon-mc-check-small' />
+                            <i class='icon-monitor icon-mc-check-small'></i>
                           ) : (
                             <span
                               class='compare-btn-text'
@@ -403,7 +402,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                 },
               }}
               item-height={32}
-            />
+            ></bk-virtual-scroll>
           ) : (
             <EmptyStatus
               type={this.emptyType}

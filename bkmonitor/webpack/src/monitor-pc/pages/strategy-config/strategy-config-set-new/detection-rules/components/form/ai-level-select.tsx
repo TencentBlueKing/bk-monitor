@@ -165,7 +165,7 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
           <i
             class={['icon-monitor', 'icon-setting', this.disabled ? 'disabled' : '']}
             onClick={this.showLevelPopover}
-          />
+          ></i>
         ) : (
           <bk-select
             class='level-select'
@@ -183,7 +183,7 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
                 key={item.id}
                 name={item.name}
               >
-                <i class={`icon-monitor ${item.icon}`} />
+                <i class={`icon-monitor ${item.icon}`}></i>
                 <span class='name'>{item.name}</span>
               </bk-option>
             ))}
@@ -209,7 +209,7 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
                     key={level.id}
                     value={level.id}
                   >
-                    <i class={`icon-monitor ${level.icon}`} />
+                    <i class={`icon-monitor ${level.icon}`}></i>
                     {level.name}
                   </bk-checkbox>
                 ))}

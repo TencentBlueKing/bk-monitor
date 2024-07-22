@@ -143,14 +143,14 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
               class={['left', { active: this.state === 1 }]}
               onClick={() => this.handleState(1)}
             >
-              <span class='icon-monitor icon-mc-like-filled' />
+              <span class='icon-monitor icon-mc-like-filled'></span>
               <span class='text'>{window.i18n.tc('有用')}</span>
             </div>
             <div
               class={['right', { active: this.state === 2 }]}
               onClick={() => this.handleState(2)}
             >
-              <span class='icon-monitor icon-mc-unlike-filled' />
+              <span class='icon-monitor icon-mc-unlike-filled'></span>
               <span class='text'>{window.i18n.tc('无用')}</span>
             </div>
           </div>
@@ -174,7 +174,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
               rows={3}
               type={'textarea'}
               onChange={() => (this.errMsg = '')}
-            />
+            ></bk-input>
             {this.errMsg ? <div class='err-msg'>{this.errMsg}</div> : undefined}
           </div>
         </div>

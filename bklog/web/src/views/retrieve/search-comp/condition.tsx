@@ -33,12 +33,10 @@ import { Debounce } from '../../../common/util';
 
 import './condition.scss';
 
-// 使用 Number 类型处理的 32 位整数范围是安全的
-const INTEGER_MIN_NUMBER = -2147483648;
-const INTEGER_MAX_NUMBER = 2147483647;
-// 使用 BigInt 类型来处理 64 位整数范围，避免精度丢失
-const LONG_MIN_NUMBER = -9223372036854775808n;
-const LONG_MAX_NUMBER = 9223372036854775807n;
+const INTEGER_MIN_NUMBER = -Math.pow(2, 31) + 1;
+const INTEGER_MAX_NUMBER = Math.pow(2, 31) - 1;
+const LONG_MIN_NUMBER = -Math.pow(2, 63) + 1;
+const LONG_MAX_NUMBER = Math.pow(2, 63) - 1;
 
 interface ITextTypeOperatorData {
   andOrVal?: string;
@@ -301,8 +299,7 @@ export default class Condition extends tsc<object> {
         this.localValue.splice(this.localValue.length - 1, 1);
         return;
       }
-      // 注意这里取决于是否需要处理BigInt，如果值可能会很大，使用BigInt，否则使用Number
-      const matchVal = this.fieldType === 'long' ? BigInt(matchList.join('')) : Number(matchList.join(''));
+      const matchVal = Number(matchList.join(',')); // 拿到数字的值进行一个大小对比
       this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType); // 判断数字最大值 超出则使用最大值
     }
 
@@ -311,17 +308,14 @@ export default class Condition extends tsc<object> {
 
   /**
    * @desc: 数字类型大小对比
-   * @param {BigInt | Number} value 对比的值
+   * @param {Number} value 对比的值
    * @param {String} numberType 对比的字段类型
    * @returns {String} 返回数字的字符串
    */
-  getResetValue(value: bigint | number, numberType = 'integer') {
+  getResetValue(value: number, numberType = 'integer') {
     const valMap = this.valueScopeMap[numberType];
-    const maxVal = valMap.max;
-    const minVal = valMap.min;
-
-    if (value > maxVal) return String(maxVal);
-    if (value < minVal) return String(minVal);
+    if (value > valMap.max) return String(valMap.max);
+    if (value < valMap.min) return String(valMap.min);
     return String(value);
   }
 

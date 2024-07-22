@@ -27,12 +27,11 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import { FavoriteIndexType, IFavList } from '../typings';
 import CollectContainer from './collect-container';
 import SharedDialog from './component/shared-dialog';
 import ManageGroupDialog from './manage-group-dialog';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { FavoriteIndexType, IFavList } from '../typings';
 
 import './collect-index.scss';
 
@@ -272,7 +271,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
               <span
                 class='icon-monitor icon-mc-wholesale-editor'
                 onClick={() => (this.isShowManageDialog = true)}
-              />
+              ></span>
             </div>
             <div class='search-box fl-jcsb'>
               <bk-input
@@ -282,7 +281,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                 onEnter={this.handleSearchFavorite}
                 onKeyup={this.handleInputSearchFavorite}
                 onRightIconClick={this.handleSearchFavorite}
-              />
+              ></bk-input>
               <div class='fl-jcsb operate-box'>
                 <bk-popover
                   ref='popoverGroup'
@@ -290,7 +289,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                   placement='bottom-start'
                   tippy-options={this.tippyOption}
                 >
-                  <span class='bk-icon icon-plus-circle' />
+                  <span class='bk-icon icon-plus-circle'></span>
                   <div slot='content'>
                     <bk-form
                       ref='checkInputForm'
@@ -310,7 +309,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                           clearable
                           onEnter={() => this.handleClickGroupBtn('add')}
                           onKeydown={this.handleGroupKeyDown}
-                        />
+                        ></bk-input>
                       </bk-form-item>
                     </bk-form>
                     <div class='operate-button'>
@@ -331,7 +330,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                   tippy-options={this.tippyOption}
                 >
                   <div class='icon-box'>
-                    <span class='bk-icon icon-sort' />
+                    <span class='bk-icon icon-sort'></span>
                   </div>
                   <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
@@ -361,7 +360,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             class={['new-search', { active: this.isNewSearch }]}
             onClick={() => this.handleEmitOperateChange('new-search', undefined)}
           >
-            <span class='bk-icon icon-enlarge-line' />
+            <span class='bk-icon icon-enlarge-line'></span>
             <span>{this.$t('新检索')}</span>
           </div>
         </CollectContainer>

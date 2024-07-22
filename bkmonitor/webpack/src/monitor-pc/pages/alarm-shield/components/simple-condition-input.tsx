@@ -364,7 +364,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
               slot='extension'
               on-click={() => this.handleDeleteKey(index)}
             >
-              <i class='icon-monitor icon-chahao' />
+              <i class='icon-monitor icon-chahao'></i>
               <span>{this.$t('删除')}</span>
             </div>
           </SimpleSelectInput>,
@@ -394,7 +394,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                   allow-create
                   has-delete-icon
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                />,
+                ></bk-tag-input>,
               ]
             : undefined,
         ])}
@@ -403,7 +403,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           class='condition-item condition-add'
           on-click={() => this.handleAddCondition()}
         >
-          <i class='bk-icon icon-plus' />
+          <i class='bk-icon icon-plus'></i>
         </span>
         <SelectMenu
           list={this.menuList}
@@ -412,7 +412,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           target={this.curSelectTarget}
           on-on-hidden={() => this.handleMenuHidden()}
           on-on-select={item => this.handelMenuSelect(item)}
-        />
+        ></SelectMenu>
       </div>
     );
   }

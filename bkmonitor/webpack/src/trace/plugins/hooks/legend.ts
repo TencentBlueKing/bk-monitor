@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { deepClone } from 'monitor-common/utils/utils';
+import { Ref } from 'vue';
 
-import type BaseEchart from '../base-echart';
-import type { ILegendItem, LegendActionType } from '../typings';
-import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
-import type { Ref } from 'vue';
+import { deepClone } from 'monitor-common/utils/utils';
+import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+
+import BaseEchart from '../base-echart';
+import { ILegendItem, LegendActionType } from '../typings';
 
 export function useChartLegend(
   baseChart: Ref<typeof BaseEchart | undefined>,

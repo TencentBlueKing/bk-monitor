@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IDiffInfo } from '../typings';
+import { IDiffInfo } from '../typings';
 
 export const COMPARE_DIFF_COLOR_LIST = [
   {

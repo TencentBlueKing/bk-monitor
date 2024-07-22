@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { RouteConfig } from 'vue-router';
+
 // import * as rotation from '../../pages/rotation/authority-map';
 import * as AlarmGroupAuth from '../../pages/alarm-group/authority-map';
-
-import type { RouteConfig } from 'vue-router';
 
 const Rotation = () => import(/* webpackChunkName: 'Rotation' */ '../../pages/rotation/rotation');
 export default [

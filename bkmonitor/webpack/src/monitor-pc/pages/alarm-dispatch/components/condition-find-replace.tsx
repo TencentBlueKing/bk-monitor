@@ -26,10 +26,9 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { TGroupKeys, TValueMap } from '../typing/condition';
 // import CommonConditionSelector from './common-condition-selector';
 import CommonCondition from './common-condition-new';
-
-import type { TGroupKeys, TValueMap } from '../typing/condition';
 
 import './condition-find-replace.scss';
 
@@ -77,7 +76,7 @@ export default class ConditionFindReplace extends tsc<IProps> {
               value={this.findData}
               valueMap={this.valueMap}
               onChange={v => (this.findData = v)}
-            />
+            ></CommonCondition>
           </div>
         </div>
         <div class='repace-wrap'>
@@ -92,7 +91,7 @@ export default class ConditionFindReplace extends tsc<IProps> {
               value={this.findData}
               valueMap={this.valueMap}
               onChange={v => (this.replaceData = v)}
-            />
+            ></CommonCondition>
           </div>
         </div>
       </div>

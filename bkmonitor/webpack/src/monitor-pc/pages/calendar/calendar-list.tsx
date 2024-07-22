@@ -32,21 +32,14 @@ import { Debounce } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { Storage } from '../../utils';
 import CommonStatus from '../monitor-k8s/components/common-status/common-status';
+import { ITableFilterItem } from '../monitor-k8s/typings';
 import CalendarAddForm from './calendar-add-form';
-import CalendarInfo, { type IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
-import {
-  EDelAndEditType,
-  ERepeatTypeId,
-  type ICalendarTableItem,
-  type IOptionsItem,
-  WORKING_DATE_LIST,
-  Z_INDEX,
-} from './types';
+import CalendarInfo, { IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
+import { EDelAndEditType, ERepeatTypeId, ICalendarTableItem, IOptionsItem, WORKING_DATE_LIST, Z_INDEX } from './types';
 
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import type { ITableFilterItem } from '../monitor-k8s/typings';
 import type { TranslateResult } from 'vue-i18n';
 
 import './calendar-list.scss';
@@ -183,7 +176,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
             <CommonStatus
               text={status.text}
               type={status.type}
-            />
+            ></CommonStatus>
           );
         },
       },
@@ -408,7 +401,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
             needAll={false}
             statusList={this.timeRangeList}
             onChange={this.handleTimeRangeChange}
-          />
+          ></StatusTab>
           <bk-input
             class='search-input'
             v-model={this.searchKeyword}
@@ -439,7 +432,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
               <bk-option
                 id={opt.id}
                 name={opt.name}
-              />
+              ></bk-option>
             ))}
           </bk-select>
         </div>
@@ -468,7 +461,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
               label={item.label}
               prop={item.id}
               show-overflow-tooltip={true}
-            />
+            ></bk-table-column>
           ))}
           <bk-table-column
             tippy-options={{ zIndex: Z_INDEX }}
@@ -479,7 +472,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
               selected={this.selectedFields}
               size={this.tableSize}
               on-setting-change={this.handleSettingChange}
-            />
+            ></bk-table-setting-content>
           </bk-table-column>
         </bk-table>
         {/* 新增弹层 */}
@@ -500,7 +493,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           zIndex={this.infoConfig.zIndex}
           onCancel={this.handleInfoCancel}
           onConfirm={this.handleInfoConfirm}
-        />
+        ></CalendarInfo>
       </div>
     );
   }

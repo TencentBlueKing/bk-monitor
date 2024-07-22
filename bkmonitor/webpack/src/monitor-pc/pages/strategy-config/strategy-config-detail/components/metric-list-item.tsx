@@ -28,10 +28,9 @@ import { ofType } from 'vue-tsx-support';
 
 import { secToString } from '../../../../components/cycle-input/utils';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixinTsx';
+import { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
+import { MetricDetail } from '../../strategy-config-set-new/typings';
 import WhereDisplay from './where-display';
-
-import type { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
-import type { MetricDetail } from '../../strategy-config-set-new/typings';
 
 import './metric-list-item.scss';
 
@@ -282,7 +281,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
     return (
       <div class='metirc-list-item-wrap'>
         <div class='metric-alias'>
-          {this.expression ? <i class='icon-monitor icon-arrow-turn' /> : this.metric.alias?.toLocaleUpperCase?.()}
+          {this.expression ? <i class='icon-monitor icon-arrow-turn'></i> : this.metric.alias?.toLocaleUpperCase?.()}
         </div>
         <div class={['metric-main', { 'is-expression': this.expression }]}>
           {this.expression ? (
@@ -306,7 +305,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
                   <span class='configs-value'>{item.value || '--'}</span>
                 </span>
               ))}
-              <span class='flex-item' />
+              <span class='flex-item'></span>
             </div>
           )}
         </div>

@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 
-import type { ICommonItem, SearchType } from './typings/event';
+import { ICommonItem, SearchType } from './typings/event';
 
 import './event-chart.scss';
 

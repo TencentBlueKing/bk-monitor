@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import * as AlarmGroupAuth from '../../pages/alarm-group/authority-map';
-
 /*
  * @Date: 2020-11-10 21:35:35
  * @LastEditTime: 2021-06-26 10:03:15
  * @Description:
  */
-import type Vue from 'vue';
-import type { Route, RouteConfig } from 'vue-router';
+import Vue from 'vue';
+import { Route, RouteConfig } from 'vue-router';
+
+import * as AlarmGroupAuth from '../../pages/alarm-group/authority-map';
 
 const AlarmGroup = () => import(/* webpackChunkName: 'AlarmGroup' */ '../../pages/alarm-group/alarm-group');
 const AlarmGroupAdd = () =>

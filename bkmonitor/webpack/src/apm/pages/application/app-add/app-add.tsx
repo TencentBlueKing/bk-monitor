@@ -28,17 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { createApplication, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import { Debounce } from 'monitor-common/utils/utils';
+import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
+import { ICreateAppFormData } from '../../home/app-list';
 import NavBar from '../../home/nav-bar';
 import PluginStatusTag from './plugin-status-tag';
-import SelectSystem, { type ICardItem, type IListDataItem } from './select-system';
-import SettingParams, { type IEsClusterInfo } from './setting-params';
+import SelectSystem, { ICardItem, IListDataItem } from './select-system';
+import SettingParams, { IEsClusterInfo } from './setting-params';
 import SideSlider from './side-slider';
 import { SystemData } from './utils';
-
-import type { ICreateAppFormData } from '../../home/app-list';
-import type { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './app-add.scss';
 
@@ -363,7 +362,7 @@ export default class AppAdd extends tsc<object> {
             slot='handler'
             cur-step={this.currentStep}
             steps={this.steps}
-          />
+          ></bk-steps>
         </NavBar>
         <div class='app-add-content'>
           <div
@@ -377,7 +376,7 @@ export default class AppAdd extends tsc<object> {
                   loading={this.loading}
                   onChange={info => (this.appInfo = info)}
                   onNextStep={this.handleNext}
-                />,
+                ></SelectSystem>,
                 <SettingParams
                   appInfoData={this.appInfo}
                   currentPlugin={this.currentPlugin}
@@ -385,12 +384,12 @@ export default class AppAdd extends tsc<object> {
                   setupData={this.setupData}
                   onPreStep={() => (this.currentStep = 1)}
                   onSubmit={this.handleSubmit}
-                />,
+                ></SettingParams>,
               ][this.currentStep - 1]
             }
             {this.currentStep === 3 && (
               <div class='add-success-tips'>
-                <i class='icon-monitor icon-check' />
+                <i class='icon-monitor icon-check'></i>
                 <div class='success-text'>{this.$t('新建应用成功')}</div>
                 <i18n
                   class='jump-link-row'
@@ -429,7 +428,7 @@ export default class AppAdd extends tsc<object> {
                 <Viewer
                   class='md-viewer'
                   value={this.pluginDescMd}
-                />
+                ></Viewer>
               </div>
             </SideSlider>
           )}

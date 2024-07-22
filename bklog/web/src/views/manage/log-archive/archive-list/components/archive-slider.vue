@@ -33,7 +33,8 @@
       :title="isEdit ? $t('编辑归档') : $t('新建归档')"
       :width="676"
       transfer
-      @animation-end="updateIsShow"
+      @animation-end="$emit('hidden')"
+      @update:is-show="updateIsShow"
     >
       <template #content>
         <div
@@ -323,9 +324,8 @@
         this.collectorType = this.collectorList.find(item => item.list.some(val => val.id === value))?.id || '';
         this.formData.target_snapshot_repository_name = '';
       },
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
+      updateIsShow(val) {
+        this.$emit('update:show-slider', val);
       },
       handleCancel() {
         this.$emit('update:show-slider', false);

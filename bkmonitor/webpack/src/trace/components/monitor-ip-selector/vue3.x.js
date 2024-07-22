@@ -25,7 +25,7 @@
  */
 import { h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import { Component, Vue2, merge } from '@blueking/ip-selector/dist/vue2.6.x.esm';
+import { Component, merge, Vue2 } from '@blueking/ip-selector/dist/vue2.6.x.esm';
 
 export default options => {
   merge(options);

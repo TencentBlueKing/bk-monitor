@@ -54,12 +54,12 @@ export default class Square extends tsc<ISquareProps, ISquareEvents> {
         onClick={this.clickHandle}
       >
         <div class={`square-${this.status}`}>
-          <div class='front' />
-          <div class='bottom' />
-          <div class='back' />
-          <div class='top' />
-          <div class='left' />
-          <div class='right' />
+          <div class='front'></div>
+          <div class='bottom'></div>
+          <div class='back'></div>
+          <div class='top'></div>
+          <div class='left'></div>
+          <div class='right'></div>
         </div>
       </div>
     );

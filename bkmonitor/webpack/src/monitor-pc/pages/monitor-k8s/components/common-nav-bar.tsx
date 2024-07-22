@@ -27,7 +27,7 @@ import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 // import TemporaryShare from '../../../components/temporary-share/temporary-share';
-import type { INavItem, IRouteBackItem } from '../typings';
+import { INavItem, IRouteBackItem } from '../typings';
 
 import './common-nav-bar.scss';
 
@@ -106,7 +106,7 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
           <span
             class='icon-monitor icon-back-left navigation-bar-back'
             onClick={() => this.handleBackGotoPage()}
-          />
+          ></span>
         )}
         {!!this.$slots.custom ? (
           <div class='navigation-bar-list'>{this.$slots.custom}</div>

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { ITraceData } from '../typings';
+import { ITraceData } from '../typings';
 
 interface ISpanKindMaps {
   [key: number]: string;

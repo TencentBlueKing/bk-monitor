@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IBaseInfo, TPluginTypeObj, TScenaris } from '../types';
+import { IBaseInfo, TPluginTypeObj, TScenaris } from '../types';
 
 import './detail-header.scss';
 
@@ -93,7 +93,7 @@ const HeaderFunctional = ctx => {
           <span class='version-wrap'>
             {sourceCode ? (
               <span class='src-code'>
-                <i class='icon-monitor icon-icon_12_source' />
+                <i class='icon-monitor icon-icon_12_source'></i>
                 {i18n.t('源码')}
               </span>
             ) : undefined}
@@ -119,7 +119,7 @@ const HeaderFunctional = ctx => {
               <td class='value'>{createUser}</td>
               <td class='label right'>{i18n.t('热度')}</td>
               <td class='value'>
-                <i class='icon-monitor icon-icon_12_heat' />
+                <i class='icon-monitor icon-icon_12_heat'></i>
                 {popularity}
               </td>
             </tr>

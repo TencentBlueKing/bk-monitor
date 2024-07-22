@@ -1097,7 +1097,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 type='primary'
               >
                 <span>{this.$t('移动到...')}</span>
-                <i class='bk-icon icon-angle-down' />
+                <i class='bk-icon icon-angle-down'></i>
               </bk-button>
               <ul
                 style='overflow: auto'
@@ -1141,10 +1141,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 size='small'
                 theme='primary'
                 onChange={this.handleAutoCollectChange}
-              />
+              ></bk-switcher>
               <span>{this.$t('自动采集新增指标')}</span>
             </span>
-            <i class='icon-monitor icon-remind mr-8' />
+            <i class='icon-monitor icon-remind mr-8'></i>
             <span class='tip-text mr-30'>{this.$t('打开后，除了采集启用的指标还会采集未来新增的指标。')}</span>
           </div>
           <div class='operate-right'>
@@ -1161,7 +1161,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     }
                   >
                     <span class='text-btn'>
-                      <span class='icon-monitor icon-shangchuan' />
+                      <span class='icon-monitor icon-shangchuan'></span>
                       <span class='shangchuan'>{this.$t('导入')}</span>
                     </span>
                   </MonitorImport>,
@@ -1174,7 +1174,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     }
                   >
                     <span class='text-btn'>
-                      <span class='icon-monitor icon-xiazai2' />
+                      <span class='icon-monitor icon-xiazai2'></span>
                       <span class='shangchuan'>{this.$t('导出')}</span>
                     </span>
                   </MonitorExport>,
@@ -1188,7 +1188,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     v-model={this.dataPreview}
                     size='small'
                     theme='primary'
-                  />,
+                  ></bk-switcher>,
                 ];
               }
               return [
@@ -1201,7 +1201,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   }
                 >
                   <span class='text-btn'>
-                    <span class='icon-monitor icon-shangchuan' />
+                    <span class='icon-monitor icon-shangchuan'></span>
                     <span class='shangchuan'>{this.$t('导入')}</span>
                   </span>
                 </MonitorImport>,
@@ -1213,7 +1213,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   }
                 >
                   <span class='text-btn'>
-                    <span class='icon-monitor icon-xiazai2' />
+                    <span class='icon-monitor icon-xiazai2'></span>
                     <span class='shangchuan'>{this.$t('导出')}</span>
                   </span>
                 </MonitorExport>,
@@ -1223,7 +1223,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     v-model={this.hideStop}
                     size='small'
                     theme='primary'
-                  />
+                  ></bk-switcher>
                 </span>,
               ];
             })()}
@@ -1275,7 +1275,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         >
           <div class='metric-name'>
             <div class='hint'>
-              <i class='icon-monitor icon-hint' />
+              <i class='icon-monitor icon-hint'></i>
               {this.$t('指标分类的定义影响指标检索的时候,如试图查看，仪表盘添加视图和添加监控策略时选择指标的分类。')}
             </div>
             <p class='item required'>{this.$t('名称')}</p>
@@ -1298,7 +1298,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               <bk-input
                 v-model={this.groupDialog.desc}
                 placeholder={this.$t('别名')}
-              />
+              ></bk-input>
             </VerifyInput>
             <p class='item'> {this.$t('匹配规则')} </p>
             <VerifyInput>
@@ -1373,7 +1373,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           <span class='footer-tip'>
             {this.hasWrongFormat.length
               ? [
-                  <span class='icon-monitor icon-remind' />,
+                  <span class='icon-monitor icon-remind'></span>,
                   <span>
                     {this.$t('当前有多项{0}存在格式错误，可对指标名称进行统一格式转换', [this.hasWrongFormat.join('')])}
                   </span>,
@@ -1381,7 +1381,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     class='zhuanhuang'
                     onClick={this.handleOneClickTransFrom}
                   >
-                    <span class='icon-monitor icon-zhuanhuan' />
+                    <span class='icon-monitor icon-zhuanhuan'></span>
                     <span>{this.$t('一键转换')}</span>
                   </span>,
                 ]

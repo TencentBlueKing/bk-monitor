@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, type Ref, computed, defineComponent, inject, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Switcher } from 'bkui-vue';
@@ -33,12 +33,12 @@ import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_pr
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
-  type ApplicationList,
+  ApplicationList,
   ConditionType,
-  type IConditionItem,
-  type RetrievalFormData,
+  IConditionItem,
+  RetrievalFormData,
   SearchType,
-  type ToolsFormData,
+  ToolsFormData,
 } from '../typings';
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
@@ -304,12 +304,12 @@ export default defineComponent({
                     loading={this.applicationListLoading}
                     value={[this.localFormData.server.app_name, this.localFormData.server.service_name]}
                     onChange={this.handleApplicationChange}
-                  />
+                  ></ApplicationCascade>
                   <div
                     class='detail-btn'
                     onClick={this.handleDetailClick}
                   >
-                    <i class='icon-monitor icon-mc-detail' />
+                    <i class='icon-monitor icon-mc-detail'></i>
                   </div>
                 </div>
               </div>,

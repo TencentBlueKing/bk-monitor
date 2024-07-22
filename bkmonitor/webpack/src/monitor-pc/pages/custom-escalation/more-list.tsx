@@ -222,14 +222,14 @@ export default class MoreList extends tsc<IProps> {
               <span
                 class='icon-monitor icon-mc-close'
                 onClick={e => this.handleDelete(e, index)}
-              />
+              ></span>
             </li>
           ))}
           <li
             class={['list-item', 'add', { 'add-active': this.isAdd }]}
             onClick={this.handleAdd}
           >
-            <span class='icon-monitor icon-mc-add' />
+            <span class='icon-monitor icon-mc-add'></span>
           </li>
         </ul>
         <div style='display: none'>
@@ -243,7 +243,7 @@ export default class MoreList extends tsc<IProps> {
               maxlength={40}
               onChange={this.handleInputChange}
               onEnter={this.handleSave}
-            />
+            ></bk-input>
             <div
               style={{ display: !!this.errMsg ? 'block' : 'none' }}
               class='err-msg'

@@ -34,10 +34,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import PieLegend from '../../components/chart-legend/pie-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_PIE_OPTIONS } from '../../constants';
-import CommonSimpleChart from '../common-simple-chart';
-import BaseEchart from '../monitor-base-echart';
-
-import type {
+import {
   IExtendMetricData,
   ILegendItem,
   IMenuItem,
@@ -45,6 +42,8 @@ import type {
   MonitorEchartOptions,
   PanelModel,
 } from '../../typings';
+import CommonSimpleChart from '../common-simple-chart';
+import BaseEchart from '../monitor-base-echart';
 
 import './pie-echart.scss';
 

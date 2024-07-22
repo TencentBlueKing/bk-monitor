@@ -283,14 +283,14 @@
   </performance-dialog>
 </template>
 <script lang="ts">
-import { deepClone, typeTools } from 'monitor-common/utils/utils';
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
+import { deepClone, typeTools } from 'monitor-common/utils/utils';
 
-import type { orderList } from '../../collector-config/collector-view/type';
+import { orderList } from '../../collector-config/collector-view/type';
 import MoreList from '../../custom-escalation/more-list.tsx';
 import { matchRuleFn } from '../../monitor-k8s/utils';
 import PerformanceDialog from '../components/performance-dialog.vue';
-import type { IDragItem, IGroupItem, IHostGroup } from '../performance-type';
+import { IDragItem, IGroupItem, IHostGroup } from '../performance-type';
 
 import SortDragList from './sort-drag-list.vue';
 
@@ -299,8 +299,8 @@ import SortDragList from './sort-drag-list.vue';
   components: {
     PerformanceDialog,
     SortDragList,
-    MoreList,
-  },
+    MoreList
+  }
 })
 export default class SortPanel extends Vue {
   @Model('update-value', { type: Boolean }) readonly value: boolean;
@@ -327,11 +327,11 @@ export default class SortPanel extends Vue {
   private newGroupName = '';
   private dragover = {
     groupId: '',
-    itemId: '',
+    itemId: ''
   };
   private draging = {
     groupId: '',
-    itemId: '',
+    itemId: ''
   };
   private isDraging = false;
   private dragoverTimer = null;
@@ -349,14 +349,10 @@ export default class SortPanel extends Vue {
 
   @Watch('groupsData', { immediate: true })
   handleGroupDataChange(v) {
-    this.groups = JSON.parse(
-      JSON.stringify(
-        v.map(item => ({
-          ...item,
-          id: item.id === '' ? '__UNGROUP__' : item.id,
-        }))
-      )
-    );
+    this.groups = JSON.parse(JSON.stringify(v.map(item => ({
+      ...item,
+      id: item.id === '' ? '__UNGROUP__' : item.id
+    }))));
   }
 
   @Emit('reset')
@@ -389,7 +385,9 @@ export default class SortPanel extends Vue {
 
   @Emit('groups-change')
   handleGroupsChange() {
-    return this.enableAutoGrouping ? this.groups : this.groups.map(item => ({ id: item.id, title: item.title }));
+    return this.enableAutoGrouping
+      ? this.groups
+      : this.groups.map(item => ({ id: item.id, title: item.title }));
   }
 
   @Emit('checked-change')
@@ -399,7 +397,7 @@ export default class SortPanel extends Vue {
   @Emit('checked-count')
   handleCheckCount(v) {
     return v;
-  }
+  };
 
   handleCheckChange(obj: any) {
     const group = this.groupsChecked.find(item => item.id === obj.id);
@@ -409,8 +407,8 @@ export default class SortPanel extends Vue {
       this.groupsChecked.push(obj);
     }
     const panelsId = new Set();
-    this.groupsChecked.forEach(item => {
-      item.panels.forEach(panel => {
+    this.groupsChecked.forEach((item) => {
+      item.panels.forEach((panel) => {
         panelsId.add(panel.id);
       });
     });
@@ -422,22 +420,22 @@ export default class SortPanel extends Vue {
     const delIndexList = [];
     const addPanels = [];
     const checkedPanelsObj = {};
-    this.groupsChecked.forEach(item => {
+    this.groupsChecked.forEach((item) => {
       checkedPanelsObj[item.id] = item.panels;
       addPanels.push(...item.panels);
     });
-    this.groups.forEach(item => {
+    this.groups.forEach((item) => {
       if (checkedPanelsObj?.[item.id]) {
         const panels = checkedPanelsObj[item.id];
         const delIndexObj = { id: item.id, panels: [] };
-        panels.forEach(panel => {
+        panels.forEach((panel) => {
           const index = item.panels.findIndex(group => group.id === panel.id);
           index > -1 && delIndexObj.panels.push(index);
         });
         delIndexList.push(delIndexObj);
       }
     });
-    delIndexList.forEach(item => {
+    delIndexList.forEach((item) => {
       const group = this.groups.find(group => group.id === item.id);
       const len = group.panels.length;
       const ids = checkedPanelsObj[item.id].map(obj => obj.id);
@@ -467,43 +465,40 @@ export default class SortPanel extends Vue {
     const addPanelsId = new Set();
     const addGroupsId = new Set();
     const addGroupsIdOfChild = new Map();
-    this.groupsChecked.forEach(item => {
+    this.groupsChecked.forEach((item) => {
       addGroupsId.add(item.id);
       checkedPanelsObj[item.id] = item.panels;
-      addGroupsIdOfChild.set(
-        item.id,
-        item.panels.map(p => p.id)
-      );
-      item.panels.forEach(panel => {
+      addGroupsIdOfChild.set(item.id, item.panels.map(p => p.id));
+      item.panels.forEach((panel) => {
         if (!addPanelsId.has(panel.id)) addPanels.push(panel);
         addPanelsId.add(panel.id);
       });
     });
     const matchFn = (panel, rules) => {
       const targetRules = [];
-      rules.forEach(r => {
+      rules.forEach((r) => {
         if (matchRuleFn(panel.title, rules)) targetRules.push(r);
       });
       return {
         ...panel,
         match_rule: targetRules,
-        match_type: targetRules.length ? ['manual', 'auto'] : ['manual'],
+        match_type: targetRules.length ? ['manual', 'auto'] : ['manual']
       };
     };
-    this.groups.forEach(item => {
+    this.groups.forEach((item) => {
       if (ids.includes(item.id)) {
         // 只添加
         const targetPanels = [];
         const diffPanels = [];
         const panelsId = new Set(item.panels.map(p => p.id));
-        addPanels.forEach(p => {
+        addPanels.forEach((p) => {
           if (!panelsId.has(p.id)) {
             diffPanels.push(matchFn(p, item.auto_rules));
           }
         });
         targetPanels.push(...item.panels);
         targetPanels.unshift(...diffPanels);
-        targetPanels.forEach(target => {
+        targetPanels.forEach((target) => {
           if (addPanelsId.has(target.id)) {
             target.match_type = [...new Set(target.match_type.concat(['manual']))];
           }
@@ -512,7 +507,7 @@ export default class SortPanel extends Vue {
       } else if (addGroupsId.has(item.id)) {
         // 只删除
         const targetPanels = [];
-        item.panels.forEach(p => {
+        item.panels.forEach((p) => {
           if (addGroupsIdOfChild.get(item.id).includes(p.id)) {
             const isHasAuto = p.match_type.includes('auto'); // 不删除
             if (isHasAuto) {
@@ -563,7 +558,7 @@ export default class SortPanel extends Vue {
       const len = this.groups.push({
         id: '__UNGROUP__',
         title: this.$tc('未分组的指标'),
-        panels: [],
+        panels: []
       });
       unknownGroupIndex = len - 1;
     }
@@ -573,17 +568,17 @@ export default class SortPanel extends Vue {
       /* 其他分组已有的无需加入未分组 */
       this.groups.forEach((g, gIndex) => {
         if (gIndex !== index) {
-          g.panels.forEach(panel => {
+          g.panels.forEach((panel) => {
             oldPanelIdSet.add(panel.id);
           });
         }
       });
-      group.panels.forEach(panel => {
+      group.panels.forEach((panel) => {
         if (!oldPanelIdSet.has(panel.id)) {
           targetPanels.push({
             ...panel,
             match_type: ['manual'],
-            match_rules: [],
+            match_rules: []
           });
         }
       });
@@ -611,7 +606,7 @@ export default class SortPanel extends Vue {
     e.dataTransfer.setData('groupId', group.id);
     this.draging = {
       groupId: group.id,
-      itemId: '',
+      itemId: ''
     };
     this.isDraging = true;
   }
@@ -662,11 +657,11 @@ export default class SortPanel extends Vue {
   handleClearDragData() {
     this.dragover = {
       groupId: '',
-      itemId: '',
+      itemId: ''
     };
     this.draging = {
       groupId: '',
-      itemId: '',
+      itemId: ''
     };
   }
   // 指标项拖拽开始事件
@@ -675,12 +670,12 @@ export default class SortPanel extends Vue {
       'item',
       JSON.stringify({
         itemId: item.id,
-        groupId: group.id,
+        groupId: group.id
       })
     );
     this.draging = {
       itemId: item.id,
-      groupId: group.id,
+      groupId: group.id
     };
     this.isDraging = true;
   }
@@ -725,7 +720,9 @@ export default class SortPanel extends Vue {
         }
         return;
       }
-      if (this.enableAutoGrouping && dragGroup.id !== dropGroup.id && dragPanel.match_type.includes('auto')) {
+      if (this.enableAutoGrouping
+        && dragGroup.id !== dropGroup.id
+        && dragPanel.match_type.includes('auto')) {
         const tmp = dragGroup.id !== '__UNGROUP__' ? deepClone(dragPanel) : dragGroup.panels.splice(dragIndex, 1)[0];
         /* 判断目标匹配规则是否匹配 */
         const rules = dropGroup.auto_rules;
@@ -737,11 +734,7 @@ export default class SortPanel extends Vue {
           tmp.match_type = ['manual'];
           tmp.match_rules = [];
         }
-        if (
-          dragGroup.id !== '__UNGROUP__' &&
-          dragPanel.match_type.includes('auto') &&
-          dragPanel.match_type.includes('manual')
-        ) {
+        if (dragGroup.id !== '__UNGROUP__' && dragPanel.match_type.includes('auto') && dragPanel.match_type.includes('manual')) {
           dragGroup.panels[dragIndex].match_type = ['auto'];
         }
         dropGroup.panels.splice(dropIndex, 0, tmp);
@@ -794,7 +787,7 @@ export default class SortPanel extends Vue {
     const group = {
       id: `custom_${new Date().getTime()}`,
       title: this.newGroupName,
-      panels: [],
+      panels: []
     };
     this.groups.unshift(group);
     if (this.enableAutoGrouping) {

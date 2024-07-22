@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
+/* eslint-disable no-param-reassign */
 const nodeList = [];
 const clickctx = '$clickoutsideCtx';
 let beginClick; // 确保鼠标按下和松开时是同一个目标
@@ -69,7 +69,7 @@ export default {
       id,
       clickoutsideHandler,
       callbackName: binding.expression,
-      callbackFn: binding.value,
+      callbackFn: binding.value
     };
   },
   update(el, binding) {
@@ -83,5 +83,5 @@ export default {
         break;
       }
     }
-  },
+  }
 };

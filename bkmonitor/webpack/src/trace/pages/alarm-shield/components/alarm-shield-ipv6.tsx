@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineAsyncComponent, defineComponent, nextTick, ref, watch } from 'vue';
+import { defineAsyncComponent, defineComponent, nextTick, PropType, ref, watch } from 'vue';
 
+import { IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 import { Ipv6FieldMap } from '../typing';
-
-import type { IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 
 import './alarm-shield-ipv6.scss';
 const MonitorIpSelector = defineAsyncComponent(

@@ -25,9 +25,8 @@
  */
 import dayjs from 'dayjs';
 
-import { type FormattedValue, type ValueFormatter, toFixed, toFixedScaled } from './valueFormats';
-
-import type { DecimalCount } from '../types/displayValue';
+import { DecimalCount } from '../types/displayValue';
+import { FormattedValue, toFixed, toFixedScaled, ValueFormatter } from './valueFormats';
 
 interface IntervalsInSeconds {
   [interval: string]: number;

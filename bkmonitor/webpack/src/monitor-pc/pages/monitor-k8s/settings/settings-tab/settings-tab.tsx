@@ -28,10 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
+import { IBookMark, SettingsTabType } from '../../typings';
 import { SETTINGS_POP_ZINDEX } from '../../utils';
 import TabForm from './tab-form';
-
-import type { IBookMark, SettingsTabType } from '../../typings';
 
 import './settings-tab.scss';
 /**
@@ -287,7 +286,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
               class='create-btn'
               onClick={() => this.addTab(true)}
             >
-              <i class='bk-icon icon-plus-circle-shape' />
+              <i class='bk-icon icon-plus-circle-shape'></i>
               <span>{this.$t('新增页签')}</span>
             </div>
           )}
@@ -312,7 +311,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
                 onDrop={this.handleDrop}
               >
                 <div class='tab-main'>
-                  <i class='icon-monitor icon-mc-tuozhuai' />
+                  <i class='icon-monitor icon-mc-tuozhuai'></i>
                   <span class='tab-title'>{tab.name}</span>
                   {tab.show_panel_count && <span class='tab-chart-count'>{tab.panel_count}</span>}
                 </div>

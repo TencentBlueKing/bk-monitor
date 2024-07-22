@@ -43,13 +43,13 @@ import FormItem from './components/form-item';
 import MemberSelector from './components/member-selector';
 import ScopeDateConfig from './components/scope-date-config';
 import {
+  categoryMap,
   EShieldCycle,
   EShieldType,
-  type INoticeDate,
+  INoticeDate,
   Ipv6FieldMap,
   ShieldDetailTargetFieldMap,
   ShieldDimension2NodeType,
-  categoryMap,
 } from './typing';
 
 import './alarm-shield-config.scss';
@@ -159,10 +159,10 @@ export default defineComponent({
         isClone.value = route.name === 'alarm-shield-clone';
         let api = null;
         if (isEdit.value) {
-          navList.value[0].name = `${t('route-编辑屏蔽')} #${route.params.id}`;
+          navList.value[0].name = `${t('编辑屏蔽')} #${route.params.id}`;
           api = frontendShieldDetail;
         } else if (isClone.value) {
-          navList.value[0].name = `${t('route-克隆屏蔽')} #${route.params.id}`;
+          navList.value[0].name = `${t('克隆屏蔽')} #${route.params.id}`;
           api = frontendCloneInfo;
         }
         if (api) {
@@ -508,7 +508,7 @@ export default defineComponent({
           callbackRouterBack={this.handleBackPage}
           needBack={true}
           routeList={this.navList}
-        />
+        ></NavBar>
         <Loading loading={this.loading}>
           <div class='alarms-shield-config-page'>
             {/* <div class='alarm-shield-tip'>
@@ -531,7 +531,7 @@ export default defineComponent({
                       id={item.id}
                       key={item.id}
                       name={item.text}
-                    />
+                    ></Select.Option>
                   ))}
                 </Select>
               </FormItem>
@@ -562,21 +562,21 @@ export default defineComponent({
                 show={this.tabData.active === EShieldType.Strategy}
                 value={this.strategyShieldData}
                 onChange={v => (this.strategyShieldData = v)}
-              />
+              ></AlarmShieldConfigStrategy>
               <AlarmShieldConfigScope
                 ref='scopeRef'
                 isEdit={this.isEdit}
                 show={this.tabData.active === EShieldType.Scope}
                 value={this.scopeData}
                 onChange={v => (this.scopeData = v)}
-              />
+              ></AlarmShieldConfigScope>
               <AlarmShieldConfigDimension
                 ref='dimensionRef'
                 isEdit={this.isEdit}
                 show={this.tabData.active === EShieldType.Dimension}
                 value={this.dimensionShieldData}
                 onChange={v => (this.dimensionShieldData = v)}
-              />
+              ></AlarmShieldConfigDimension>
               {this.tabData.active === EShieldType.Event && (
                 <>
                   <FormItem
@@ -600,7 +600,7 @@ export default defineComponent({
                   ref='dateRef'
                   value={this.noticeDate}
                   onChange={v => this.handleNoticeDateChange(v)}
-                />
+                ></ScopeDateConfig>
               )}
               <FormItem
                 class='mt24'
@@ -613,7 +613,7 @@ export default defineComponent({
                   rows={3}
                   type='textarea'
                   onUpdate:modelValue={v => (this.formData.desc = v)}
-                />
+                ></Input>
               </FormItem>
               <FormItem
                 class='mt24'
@@ -624,7 +624,7 @@ export default defineComponent({
                   modelValue={this.showNoticeConfig}
                   theme='primary'
                   onUpdate:modelValue={v => this.handleShowNoticeConfig(v)}
-                />
+                ></Switcher>
               </FormItem>
               {!!this.showNoticeConfig && (
                 <>
@@ -640,7 +640,7 @@ export default defineComponent({
                       userGroups={this.defaultGroupList}
                       value={this.formData.noticeMember}
                       onChange={this.handleUserChange}
-                    />
+                    ></MemberSelector>
                   </FormItem>
                   <FormItem
                     class='mt24'
@@ -678,7 +678,7 @@ export default defineComponent({
                             modelValue={this.formData.noticeNumber}
                             type='number'
                             onUpdate:modelValue={v => this.handleNoticeNumberChange(v)}
-                          />
+                          ></Input>
                         </span>
                       </i18n-t>
                     </div>

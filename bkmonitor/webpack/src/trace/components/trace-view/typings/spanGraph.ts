@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import type { TNil } from './trace';
-import type { Ref } from 'vue';
+import { Ref } from 'vue';
+
+import { TNil } from './trace';
 
 interface ITimeCursorUpdate {
   cursor: TNil | number;

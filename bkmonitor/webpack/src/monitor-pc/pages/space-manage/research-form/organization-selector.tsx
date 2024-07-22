@@ -161,7 +161,7 @@ export default class OrganizationSelector extends tsc<IProps> {
                   id={option.id}
                   key={option.id}
                   name={option.name}
-                />
+                ></bk-option>
               ))}
             </bk-select>
           </div>

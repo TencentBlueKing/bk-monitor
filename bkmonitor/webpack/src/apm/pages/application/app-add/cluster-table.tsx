@@ -130,7 +130,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
           onClick={() => (this.isShowTable = !this.isShowTable)}
         >
           <div class={['cluster-title-container', this.isShowTable ? '' : 'is-hidden']}>
-            <span class='bk-icon icon-angle-up-fill' />
+            <span class='bk-icon icon-angle-up-fill'></span>
             <p>{this.tableShowType ? this.$t('共享集群') : this.$t('业务独享集群')}</p>
           </div>
         </div>
@@ -152,14 +152,14 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
                 }}
                 label={this.$t('集群名')}
                 min-width='220'
-              />
+              ></bk-table-column>
               <bk-table-column
                 scopedSlots={{
                   default: ({ row }) => <span>{this.formatFileSize(row.storage_total)}</span>,
                 }}
                 label={this.$t('总量')}
                 min-width='110'
-              />
+              ></bk-table-column>
               <bk-table-column
                 scopedSlots={{
                   default: ({ row }) => (
@@ -169,7 +169,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
                           percent={this.getPercent(row.storage_usage)}
                           show-text={false}
                           theme='success'
-                        />
+                        ></bk-progress>
                       </div>
                       <span>{`${this.getPercent(row.storage_usage, 1)}%`}</span>
                     </div>
@@ -177,16 +177,16 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
                 }}
                 label={this.$t('空闲率')}
                 min-width='110'
-              />
+              ></bk-table-column>
               <bk-table-column
                 label={this.$t('索引数')}
                 prop={'index_count'}
-              />
+              ></bk-table-column>
               {this.tableShowType && (
                 <bk-table-column
                   label={this.$t('业务数')}
                   prop={'biz_count'}
-                />
+                ></bk-table-column>
               )}
             </bk-table>
             {Boolean(this.activeItem) && (
@@ -210,7 +210,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
           <div class={['cluster-main', this.isShowTable ? '' : 'is-hidden']}>
             <div class='noData-container'>
               <div class='noData-message'>
-                <span class='bk-table-empty-icon bk-icon icon-empty' />
+                <span class='bk-table-empty-icon bk-icon icon-empty'></span>
                 <p class='empty-message'>
                   {this.tableShowType
                     ? this.$t('当前还没有共享集群，请联系平台管理员提供')

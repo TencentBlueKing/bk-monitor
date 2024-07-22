@@ -29,13 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { customServiceDataView, customServiceList, deleteCustomSerivice } from 'monitor-api/modules/apm_meta';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../components/panel-item/panel-item';
 import AddServiceDialog from './add-service-dialog';
+import { IAppInfo, ICustomServiceInfo } from './type';
 
-import type { IAppInfo, ICustomServiceInfo } from './type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 interface IPagination {
   current: number;

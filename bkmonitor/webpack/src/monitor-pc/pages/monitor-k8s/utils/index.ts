@@ -25,7 +25,7 @@
  */
 import { deepClone } from 'monitor-common/utils/utils';
 
-import type { IBkSeachSelectValue, IQueryDataSearch, IWhere } from '../typings';
+import { IBkSeachSelectValue, IQueryDataSearch, IWhere } from '../typings';
 
 /** 视图的设置页面的弹层层级 */
 export const SETTINGS_POP_ZINDEX = 4100;

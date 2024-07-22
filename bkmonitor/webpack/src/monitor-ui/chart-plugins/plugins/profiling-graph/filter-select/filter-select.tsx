@@ -26,11 +26,10 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { queryLabelValues, queryLabels } from 'monitor-api/modules/apm_profile';
+import { queryLabels, queryLabelValues } from 'monitor-api/modules/apm_profile';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getPopoverWidth } from 'monitor-pc/utils';
-
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './filter-select.scss';
 
@@ -212,12 +211,12 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                 clearable
                 has-delete-icon
                 on-change={() => this.handleSelectValueChange(mode)}
-              />
+              ></bk-tag-input>
             </span>
             <i
               class='icon-monitor icon-mc-minus-plus'
               on-click={() => this.handleDeleteVarSelector(item.title, mode)}
-            />
+            ></i>
           </span>
         )),
         <span class={['filter-add-btn', { active: mode === 'filter' ? this.isShowAddFilter : this.isShowAddDiff }]}>
@@ -225,7 +224,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
             key={mode}
             class='icon-monitor icon-mc-add'
             onClick={() => this.handleShowDropDown(mode)}
-          />
+          ></i>
           <bk-select
             ref={`${mode}KeySelectRef`}
             class='bk-select-wrap'

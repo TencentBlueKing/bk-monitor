@@ -28,8 +28,7 @@ import { Component, Provide, ProvideReactive } from 'vue-property-decorator';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as alarmGroupAuth from './authority-map';
 import StrategyConfig from './strategy-config-common/strategy-config';
-
-import type { strategyType } from './strategy-config-set-new/typings';
+import { strategyType } from './strategy-config-set-new/typings';
 
 import './strategy-config.scss';
 

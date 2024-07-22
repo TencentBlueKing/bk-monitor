@@ -132,10 +132,10 @@
 </template>
 
 <script lang="ts">
-import dayjs from 'dayjs';
 import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 
-import type { EType, IRadioMap, ITimePeriodValue } from '../types';
+import { EType, IRadioMap, ITimePeriodValue } from '../types';
 /** 按天频率 包含周末 */
 const INCLUDES_WEEKEND = [1, 2, 3, 4, 5, 6, 7];
 /** 按天频率 不包含周末 */
@@ -144,7 +144,7 @@ const EXCLUDES_WEEKEND = [1, 2, 3, 4, 5];
  * 时间周期组件
  */
 @Component({
-  name: 'time-period',
+  name: 'time-period'
 })
 export default class TimePeriod extends Vue {
   @Model('updateValue', {
@@ -152,11 +152,11 @@ export default class TimePeriod extends Vue {
       type: 2,
       runTime: '09:30:20',
       dayList: [1],
-      weekList: [1],
+      weekList: [1]
     }),
-    type: Object,
+    type: Object
   })
-  value: ITimePeriodValue;
+    value: ITimePeriodValue;
 
   // 时间数据
   typeValue: EType = 2;
@@ -167,7 +167,7 @@ export default class TimePeriod extends Vue {
     { name: window.i18n.t('星期四'), id: 4 },
     { name: window.i18n.t('星期五'), id: 5 },
     { name: window.i18n.t('星期六'), id: 6 },
-    { name: window.i18n.t('星期日'), id: 7 },
+    { name: window.i18n.t('星期日'), id: 7 }
   ];
   week: number[] = [1];
   month: number[] = [1];
@@ -177,7 +177,7 @@ export default class TimePeriod extends Vue {
     { name: 1, id: 1 },
     { name: 2, id: 2 },
     { name: 6, id: 6 },
-    { name: 12, id: 12 },
+    { name: 12, id: 12 }
   ];
   //   dayTime: Date | string = new Date()
   dayTime: Date | string = dayjs.tz(new Date()).format('HH:mm:ss');
@@ -193,7 +193,7 @@ export default class TimePeriod extends Vue {
       const start: number = +new Date(cur.getFullYear(), 0, 1, 0, 0, 0, 0);
       const end: number = +new Date(cur.getFullYear(), 11, 31, 23, 59, 59, 0);
       return !(item >= start && item <= end);
-    },
+    }
   };
 
   // 时间类型选择
@@ -202,7 +202,7 @@ export default class TimePeriod extends Vue {
     { id: 2, name: window.i18n.t('按天') },
     { id: 3, name: window.i18n.t('按周') },
     { id: 4, name: window.i18n.t('按月') },
-    { id: 1, name: window.i18n.t('仅一次') },
+    { id: 1, name: window.i18n.t('仅一次') }
   ];
 
   // 值更新
@@ -254,7 +254,7 @@ export default class TimePeriod extends Vue {
       runTime: '',
       dayList: [],
       weekList: [],
-      hour: 0,
+      hour: 0
     };
     if ([2, 3, 4].includes(this.typeValue)) value.runTime = `${type === 'time' ? v : this.dayTime}`;
     switch (this.typeValue) {

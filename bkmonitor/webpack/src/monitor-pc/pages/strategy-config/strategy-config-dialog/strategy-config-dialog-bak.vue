@@ -329,8 +329,8 @@ import { listUserGroup } from 'monitor-api/modules/model';
 import { noticeVariableList } from 'monitor-api/modules/strategies';
 
 import MultiLabelSelect from '../../../components/multi-label-select/multi-label-select';
-import AlarmHandling from '../strategy-config-set-new/alarm-handling-bak/alarm-handling.tsx';
 import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input';
+import AlarmHandling from '../strategy-config-set-new/alarm-handling-bak/alarm-handling.tsx';
 // import { createNamespacedHelpers } from 'vuex'
 // const { mapActions } = createNamespacedHelpers('strategy-config')
 export default {
@@ -578,7 +578,7 @@ export default {
       if (index > -1) {
         inputVal = inputVal.replace(/\./gi, '');
       }
-      this.data[type][prop] = Number.parseInt(inputVal, 10);
+      this.data[type][prop] = parseInt(inputVal, 10);
     },
     validateGroupList() {
       this.data.noticeGroupError = !this.data.alarmGroup.length;
@@ -595,8 +595,8 @@ export default {
           return true;
         }
       }
-      const cycleOne = Number.parseInt(this.data.triggerCondition.cycleOne, 10);
-      const count = Number.parseInt(this.data.triggerCondition.count, 10);
+      const cycleOne = parseInt(this.data.triggerCondition.cycleOne, 10);
+      const count = parseInt(this.data.triggerCondition.count, 10);
       if (cycleOne < count) {
         this.data.triggerError = true;
       } else {
@@ -624,12 +624,11 @@ export default {
             ? false
             : {
                 trigger_config: {
-                  count: Number.parseInt(this.data.triggerCondition.count, 10),
-                  check_window: Number.parseInt(this.data.triggerCondition.cycleOne, 10),
+                  count: parseInt(this.data.triggerCondition.count, 10),
+                  check_window: parseInt(this.data.triggerCondition.cycleOne, 10),
                 },
               },
-        2: () =>
-          this.validateRecoveAlarmCondition() ? false : { alarm_interval: Number.parseInt(this.data.notice.val, 10) },
+        2: () => (this.validateRecoveAlarmCondition() ? false : { alarm_interval: parseInt(this.data.notice.val, 10) }),
         3: () => {
           if (this.data.openAlarmNoData && this.validateNoDataAlarmCycle()) {
             return false;
@@ -637,7 +636,7 @@ export default {
           return this.data.openAlarmNoData
             ? {
                 no_data_config: {
-                  continuous: Number.parseInt(this.data.noDataAlarm.cycle, 10),
+                  continuous: parseInt(this.data.noDataAlarm.cycle, 10),
                   is_enabled: this.data.openAlarmNoData,
                 },
               }

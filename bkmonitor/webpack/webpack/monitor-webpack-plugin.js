@@ -1,5 +1,5 @@
 const webpackLog = require('webpack-log');
-const crypto = require('node:crypto');
+const crypto = require('crypto');
 const log = webpackLog({ name: 'monitor-webpack-plugin' });
 const RawSource = require('webpack-sources/lib/RawSource');
 const CachedSource = require('webpack-sources/lib/CachedSource');
@@ -140,7 +140,7 @@ module.exports = class MonitorWebpackPlugin {
 
   resolveInternalInfo(chunk) {
     const reg = /((http:\/\/|ftp:\/\/|https:\/\/|\/\/)?(([^./"' \u4e00-\u9fa5（]+\.)*(oa\.com|ied\.com)+))/gi;
-    if (chunk.match?.(reg)) {
+    if (chunk.match && chunk.match(reg)) {
       const res = chunk.replace(reg, 'http://blueking.com');
       return {
         source() {

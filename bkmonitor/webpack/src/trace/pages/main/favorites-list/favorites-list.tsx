@@ -23,21 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  defineComponent,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  toRefs,
-  watch,
-} from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, PropType, reactive, ref, toRefs, watch } from 'vue';
 
 import { debounce, deepClone } from 'monitor-common/utils/utils';
 
-import type { IFavList, IFavoriteItem } from '../../../typings';
+import { IFavList, IFavoriteItem } from '../../../typings';
 
 import './favorites-list.scss';
 
@@ -227,7 +217,7 @@ export default defineComponent({
           ref='favMain'
           class='fav-main'
         >
-          <div class='box-shadow' />
+          <div class='box-shadow'></div>
           <span class='fav-label'>{this.$t('收藏')}</span>
           <div
             ref='scroll'

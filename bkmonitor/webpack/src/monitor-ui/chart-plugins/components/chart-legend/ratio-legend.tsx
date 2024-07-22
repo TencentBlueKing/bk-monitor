@@ -26,9 +26,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import { ILegendItem, LegendActionType } from '../../typings';
 import CommonLegend from './common-legend';
-
-import type { ILegendItem, LegendActionType } from '../../typings';
 
 import './ratio-legend.scss';
 
@@ -73,7 +72,7 @@ class RatioLegend extends CommonLegend {
                     borderColor: legend.show ? legend.borderColor : '#ccc',
                   }}
                   class='legend-icon'
-                />
+                ></span>
                 <div
                   style={{ color: legend.show ? '#63656e' : '#ccc' }}
                   class='legend-name'

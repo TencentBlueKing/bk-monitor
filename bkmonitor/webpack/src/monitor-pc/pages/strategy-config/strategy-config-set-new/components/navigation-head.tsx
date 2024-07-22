@@ -59,13 +59,13 @@ export default class Navigation extends tsc<IProps, IEvents> {
         <span
           class='icon-monitor icon-back-left'
           onClick={() => this.$router.back()}
-        />
+        ></span>
         <span class='title'>{this.title || this.$t('加载中...')}</span>
         <span
           class={['right-btn', { active: this.active }]}
           onClick={() => this.handleRightClick()}
         >
-          <span class='icon-monitor icon-audit' />
+          <span class='icon-monitor icon-audit'></span>
         </span>
       </div>
     );

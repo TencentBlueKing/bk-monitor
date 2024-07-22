@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import type { TNil } from '../../typings';
-import type DraggableManager from './draggable-manager';
-import type EUpdateTypes from './e-update-types';
+import { TNil } from '../../typings';
+import DraggableManager from './draggable-manager';
+import EUpdateTypes from './e-update-types';
 
 export type DraggableBounds = {
   clientXLeft: number;

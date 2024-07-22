@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 import dayjs from 'dayjs';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
-import type { IOption } from '../pages/monitor-k8s/typings';
-import type { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import { IOption } from '../pages/monitor-k8s/typings';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符

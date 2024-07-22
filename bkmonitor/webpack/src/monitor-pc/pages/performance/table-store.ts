@@ -1,4 +1,3 @@
-import { commonPageSizeGet } from 'monitor-common/utils';
 /* eslint-disable @typescript-eslint/prefer-for-of */
 
 /*
@@ -36,27 +35,27 @@ import { commonPageSizeGet } from 'monitor-common/utils';
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { typeTools } from 'monitor-common/utils/utils.js';
 
-import type { CheckType, IConditionValue, IFieldConfig, IOption, ITableOptions, ITableRow } from './performance-type';
+import { CheckType, IConditionValue, IFieldConfig, IOption, ITableOptions, ITableRow } from './performance-type';
 
 const IP_LIST_MATCH = new RegExp(/((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)/, 'g');
 const IPV6_LIST_MATCH = new RegExp(/([\da-fA-F]{4}:){7}[\da-fA-F]{4}/, 'g');
 const commonTopoLevel = ['biz', 'module', 'set'];
 export default class TableStore {
+  private bizList: any[] = [];
   allClusterTopo = [];
-  allData!: Readonly<Array<ITableRow>>;
-  bizList: any[] = [];
-  cacheClusterMap = new Map();
+  public allData!: Readonly<Array<ITableRow>>;
+  public cacheClusterMap = new Map();
   // 缓存options数据的字段
-  cacheFieldOptionsSet = {
+  public cacheFieldOptionsSet = {
     bk_host_name: new Set(),
     bk_os_name: new Set(),
     bk_cloud_name: new Set(),
     display_name: new Set(), // 进程选项缓存
   };
-  cacheModuleMap = new Map();
-  checkType: CheckType = 'current';
-  // selections: ITableRow[] = []
-  conditionsList: IOption[] = [
+  public cacheModuleMap = new Map();
+  public checkType: CheckType = 'current';
+  // public selections: ITableRow[] = []
+  public conditionsList: IOption[] = [
     {
       name: '>',
       id: '>',
@@ -78,9 +77,9 @@ export default class TableStore {
       id: '=',
     },
   ];
-  cpuData = [];
-  diskData = [];
-  fieldData: Array<IFieldConfig> = [
+  public cpuData = [];
+  public diskData = [];
+  public fieldData: Array<IFieldConfig> = [
     {
       name: window.i18n.t('主机'),
       id: 'host_display_name',
@@ -374,27 +373,27 @@ export default class TableStore {
     },
   ];
   // 缓存当前筛选数据
-  filterData!: Readonly<Array<ITableRow>>;
-  keyWord = '';
-  loading = false;
-  menmoryData = [];
+  public filterData!: Readonly<Array<ITableRow>>;
+  public keyWord = '';
+  public loading = false;
+  public menmoryData = [];
+  public order = 'descending';
 
-  order = 'descending';
-  page = 1;
-  pageList: Array<number> = [10, 20, 50, 100];
-  pageSize: number = commonPageSizeGet();
-  panelKey = '';
-  sortKey = 'totalAlarmCount';
-  stickyValue = {};
+  public page = 1;
+  public pageList: Array<number> = [10, 20, 50, 100];
+  public pageSize: number = +localStorage.getItem('__common_page_size__') || 10;
+  public panelKey = '';
+  public sortKey = 'totalAlarmCount';
+  public stickyValue = {};
   topoNameMap = {};
-  total = 0;
-  unresolveData = [];
-  constructor(data: Array<any>, options: ITableOptions, bizList: any[]) {
+  public total = 0;
+  public unresolveData = [];
+  public constructor(data: Array<any>, options: ITableOptions, bizList: any[]) {
     this.bizList = bizList;
     this.updateData(data, options);
   }
 
-  get columns() {
+  public get columns() {
     const columns = {};
     this.fieldData.forEach(field => {
       columns[field.id] = field;
@@ -403,7 +402,7 @@ export default class TableStore {
   }
 
   // 获取级联对象
-  convertToTree(topo_link, topo_link_display) {
+  public convertToTree(topo_link, topo_link_display) {
     if (topo_link.length === 0 || topo_link_display.length === 0) {
       return null;
     }
@@ -515,7 +514,7 @@ export default class TableStore {
     return treeList;
   }
   // 关键字匹配
-  filterDataByKeyword(data: ITableRow[]) {
+  public filterDataByKeyword(data: ITableRow[]) {
     // const keyWord = this.keyWord.trim().toLocaleLowerCase()
     const keyWord = this.keyWord.trim();
     const fieldData = this.fieldData.filter(item => item.fuzzySearch);
@@ -561,7 +560,7 @@ export default class TableStore {
       return false;
     });
   }
-  getCompareValue(item: ITableRow, field: IFieldConfig) {
+  public getCompareValue(item: ITableRow, field: IFieldConfig) {
     let originValue = item[field.id] === undefined ? '' : item[field.id]; // 当 field.id 为 模块、进程、集群、模块\集群时，该值为undefined
     let curValue = field.value === '' ? '' : field.value; // 筛选条件的值
     if (['bk_host_innerip', 'bk_host_outerip'].includes(field.id)) {
@@ -596,7 +595,7 @@ export default class TableStore {
       curValue,
     };
   }
-  getTableData() {
+  public getTableData() {
     let data = [...(this.panelKey ? this[this.panelKey] : this.allData)];
     const fieldData = this.fieldData.filter(field =>
       Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined
@@ -617,7 +616,7 @@ export default class TableStore {
   }
 
   // 初始化行属性（扩展属性）
-  initRowData(item) {
+  public initRowData(item) {
     // 集群名称
     item.bk_cluster = [];
     // 填充options数据
@@ -719,7 +718,7 @@ export default class TableStore {
   }
 
   // 条件匹配
-  isMatchedCondition(item: ITableRow, field: IFieldConfig) {
+  public isMatchedCondition(item: ITableRow, field: IFieldConfig) {
     const { curValue, originValue } = this.getCompareValue(item, field);
     if (field.dynamic) {
       const value = Array.isArray(curValue[0]) ? curValue[0] : Array.isArray(curValue) ? curValue : [curValue];
@@ -817,29 +816,29 @@ export default class TableStore {
 
     return originValue === curValue;
   }
-  pagination(data: ITableRow[]) {
+  public pagination(data: ITableRow[]) {
     return data.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
   }
   // 重新分页数据
-  reLimitData() {
+  public reLimitData() {
     // return this.reOrderData()
     return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
   }
 
   // 重新排序缓存数据
-  reOrderData() {
+  public reOrderData() {
     this.filterData = Object.freeze(this.sortDataByKey([...this.filterData]));
-    return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
+    return JSON.parse(JSON.stringify(this.pagination(this.filterData)));
   }
 
-  setState(rowId: string, key: string, value: any) {
+  public setState(rowId: string, key: string, value: any) {
     const row = this.allData.find(item => item.rowId === rowId);
     if (Object.prototype.hasOwnProperty.call(row, key)) {
       row[key] = value;
     }
   }
 
-  sortDataByKey(data: ITableRow[]) {
+  public sortDataByKey(data: ITableRow[]) {
     data.sort((pre, next) => {
       const isPreTop = Object.prototype.hasOwnProperty.call(this.stickyValue, pre.rowId) ? 1 : 0;
       const isNextTop = Object.prototype.hasOwnProperty.call(this.stickyValue, next.rowId) ? 1 : 0;
@@ -853,7 +852,7 @@ export default class TableStore {
     return data;
   }
 
-  updateData(data: Array<any>, options?: ITableOptions) {
+  public updateData(data: Array<any>, options?: ITableOptions) {
     this.stickyValue = options?.stickyValue || {};
     this.panelKey = options?.panelKey || '';
     this.unresolveData = [];
@@ -865,7 +864,7 @@ export default class TableStore {
     this.updateFieldDataOptions();
   }
 
-  updateFieldDataOptions() {
+  public updateFieldDataOptions() {
     for (const key in this.cacheFieldOptionsSet) {
       const cacheFieldSet = this.cacheFieldOptionsSet[key];
       const fieldData = this.fieldData.find(item => item.id === key);

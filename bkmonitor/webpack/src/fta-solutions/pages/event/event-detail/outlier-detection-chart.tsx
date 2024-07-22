@@ -27,11 +27,10 @@ import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
-import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
-
-import type { IDetail } from './type';
+import { IDetail } from './type';
 
 import './outlier-detection-chart.scss';
 
@@ -90,6 +89,8 @@ export default class OutlierDetectionChart extends tsc<object> {
     this.panel = new PanelModel(panelData);
   }
   render() {
-    return <div class='outlier-detection-chart'>{!!this.panel && <ChartWrapper panel={this.panel} />}</div>;
+    return (
+      <div class='outlier-detection-chart'>{!!this.panel && <ChartWrapper panel={this.panel}></ChartWrapper>}</div>
+    );
   }
 }

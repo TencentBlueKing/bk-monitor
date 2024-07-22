@@ -220,8 +220,8 @@ export default class CustomSelect extends tsc<IProps> {
             class={rightIconClassName}
             onClick={e => this.handleClear(e)}
           >
-            <span class='icon-monitor icon-arrow-down' />
-            <span class='icon-monitor icon-mc-close-fill' />
+            <span class='icon-monitor icon-arrow-down'></span>
+            <span class='icon-monitor icon-mc-close-fill'></span>
           </span>
         </div>
         <div style={{ display: 'none' }}>
@@ -241,7 +241,7 @@ export default class CustomSelect extends tsc<IProps> {
                     <bk-checkbox
                       value={item.isCheck}
                       onChange={v => this.handleCheckOption(v, item)}
-                    />
+                    ></bk-checkbox>
                   </div>
                   <span
                     class='name'

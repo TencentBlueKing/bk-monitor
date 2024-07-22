@@ -25,9 +25,8 @@
  */
 import { defineComponent, ref, watch } from 'vue';
 
+import { ILegendItem, TableLegendHeadType } from '../typings';
 import { commonLegendEmits, commonLegendProps, useCommonLegend } from './common-legend';
-
-import type { ILegendItem, TableLegendHeadType } from '../typings';
 
 import './table-legend.scss';
 
@@ -102,11 +101,11 @@ export default defineComponent({
                   <i
                     class={{ 'sort-caret is-asc': true, active: this.sortTitle === title && this.sort === 1 }}
                     onClick={() => this.handleSortChange(title, 1)}
-                  />
+                  ></i>
                   <i
                     class={{ 'sort-caret is-desc': true, active: this.sortTitle === title && this.sort === 2 }}
                     onClick={() => this.handleSortChange(title, 2)}
-                  />
+                  ></i>
                 </span>
               </th>
             ))}
@@ -130,7 +129,7 @@ export default defineComponent({
                           <span
                             style={{ backgroundColor: item.show ? item.color : '#ccc' }}
                             class='metric-label'
-                          />
+                          ></span>
                           <span
                             style={{ color: item.show ? '#63656e' : '#ccc' }}
                             class='metric-name'

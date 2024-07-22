@@ -29,14 +29,12 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
-import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
-import EmptyStatus, { type EmptyStatusType } from '../../components/empty-status/empty-status';
+import EmptyStatus, { EmptyStatusType } from '../../components/empty-status/empty-status';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
+import { IAuthority } from '../../typings/authority';
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
-
-import type { IAuthority } from '../../typings/authority';
 
 import './alarm-shield.scss';
 
@@ -233,8 +231,6 @@ export default defineComponent({
 
     init();
     async function init() {
-      const pageSize = commonPageSizeGet();
-      tableData.pagination.limit = pageSize;
       tableData.loading = true;
       authority.auth = await getAuthorityMap(authMap);
       createdConditionList();
@@ -534,7 +530,6 @@ export default defineComponent({
     function handleLimitChange(limit: number) {
       tableData.pagination.current = 1;
       tableData.pagination.limit = limit;
-      commonPageSizeSet(limit);
       handleGetShiledList();
     }
 
@@ -710,7 +705,7 @@ export default defineComponent({
                     : this.authority.showDetail([this.authority.map.MANAGE_AUTH])
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6' />
+                <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.t('新增屏蔽')}
               </Button>
               <div class='shield-status status-tab-wrap'>
@@ -721,7 +716,7 @@ export default defineComponent({
                     onClick={() => this.handleStatusChange(item)}
                   >
                     <span class={['status-point', `status-${item.type}`]}>
-                      <span class={item.type} />
+                      <span class={item.type}></span>
                     </span>
                     <span class='status-name'>{item.name}</span>
                   </span>
@@ -738,14 +733,14 @@ export default defineComponent({
                 onChange={v => (this.dateRange = v)}
                 onClear={() => this.handleDatePickClear()}
                 onPick-success={this.handleDatePick}
-              />
+              ></DatePicker>
               <SearchSelect
                 class='shield-search'
                 data={this.searchData}
                 modelValue={this.searchValues}
                 placeholder={this.t('输入屏蔽内容、ID')}
                 onUpdate:modelValue={v => this.handleSearchCondition(v)}
-              />
+              ></SearchSelect>
             </div>
           </div>
           <Loading loading={this.tableData.loading}>
@@ -783,7 +778,7 @@ export default defineComponent({
                     <EmptyStatus
                       type={this.emptyType}
                       onOperation={this.handleEmptyOperation}
-                    />
+                    ></EmptyStatus>
                   ),
                 }}
               </Table>
@@ -798,7 +793,7 @@ export default defineComponent({
                   modelValue={this.tableData.pagination.current}
                   onChange={v => this.handlePageChange(v)}
                   onLimitChange={v => this.handleLimitChange(v)}
-                />
+                ></Pagination>
               )}
             </div>
           </Loading>
@@ -807,7 +802,7 @@ export default defineComponent({
           id={this.detailData.id}
           show={this.detailData.show}
           onShowChange={this.handleDetailShowChange}
-        />
+        ></AlarmShieldDetail>
       </div>
     );
   },

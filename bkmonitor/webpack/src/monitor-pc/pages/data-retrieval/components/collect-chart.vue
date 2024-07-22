@@ -78,8 +78,8 @@ import CollectionDialog from './collection-dialog.vue';
 @Component({
   name: 'collect-chart',
   components: {
-    CollectionDialog,
-  },
+    CollectionDialog
+  }
 } as any)
 export default class CollectChart extends Vue {
   @Prop({ required: true }) show: boolean;

@@ -33,11 +33,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import ChartHeader from '../../components/chart-title/chart-title';
-import { handleRelateAlert } from '../../utils/menu';
-import { VariablesService } from '../../utils/variable';
-import { CommonSimpleChart } from '../common-simple-chart';
-
-import type {
+import {
   ChartTitleMenuType,
   IExtendMetricData,
   IMenuItem,
@@ -45,6 +41,9 @@ import type {
   ITitleAlarm,
   PanelModel,
 } from '../../typings';
+import { handleRelateAlert } from '../../utils/menu';
+import { VariablesService } from '../../utils/variable';
+import { CommonSimpleChart } from '../common-simple-chart';
 
 import './resource-chart.scss';
 
@@ -260,7 +259,7 @@ class ResourceChart extends CommonSimpleChart {
           >
             <div
               style={{ color: item.color || '#313238' }}
-              class={'content-header'}
+              class={`content-header`}
             >
               <span class='item-val'>{item.value}</span>
               {item.tips && (

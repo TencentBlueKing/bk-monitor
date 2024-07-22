@@ -208,7 +208,7 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import { DEFAULT_REFLESH_LIST, DEFAULT_TIMESHIFT_LIST, DEFAULT_TIME_RANGE_LIST } from '../../common/constant';
+import { DEFAULT_REFLESH_LIST, DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../common/constant';
 import SortButton from '../../components/sort-button/sort-button';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';

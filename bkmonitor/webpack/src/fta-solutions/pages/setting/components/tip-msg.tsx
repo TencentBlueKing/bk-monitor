@@ -42,7 +42,7 @@ export default class TipMsg extends tsc<ITipMsg> {
   render() {
     return (
       <div class='tip-msg-component'>
-        <span class={['icon-monitor tip-icon', this.iconName]} />
+        <span class={['icon-monitor tip-icon', this.iconName]}></span>
         <span class='msg-text'>{this.msg}</span>
       </div>
     );

@@ -506,7 +506,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             <VueJsonPretty
               data={row.config}
               deep={5}
-            />
+            ></VueJsonPretty>
           </div>
         ) : (
           <span
@@ -528,12 +528,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             class='group-check-box'
             checked={this.getCheckedStatus(row)}
             on-change={status => this.handleRowCheckChange(row, status)}
-          />
+          ></bk-checkbox>
           <div class='manage-input'>
             <bk-input
               vModel={row.name}
               onBlur={val => this.handleChangeFavoriteName(row, val)}
-            />
+            ></bk-input>
           </div>
         </div>,
       ],
@@ -555,7 +555,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               id={`${item.group_id}`}
               key={`${item.group_id}`}
               name={item.group_name}
-            />
+            ></bk-option>
           ))}
           <div slot='extension'>
             {this.isShowAddGroup ? (
@@ -564,7 +564,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
                 onClick={() => (this.isShowAddGroup = false)}
               >
                 <div>
-                  <i class='bk-icon icon-plus-circle' />
+                  <i class='bk-icon icon-plus-circle'></i>
                   {this.$t('新增')}
                 </div>
               </div>
@@ -574,19 +574,19 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
                   vModel={this.groupName}
                   behavior={'simplicity'}
                   maxlength={30}
-                />
+                ></bk-input>
                 <div class='operate-button'>
                   <span
                     class='bk-icon icon-check-line'
                     onClick={() => this.handleAddGroupName()}
-                  />
+                  ></span>
                   <span
                     class='bk-icon icon-close-line-2'
                     onClick={() => {
                       this.isShowAddGroup = true;
                       this.groupName = '';
                     }}
-                  />
+                  ></span>
                 </div>
               </li>
             )}
@@ -607,7 +607,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               id={item.id}
               key={item.id}
               name={item.name}
-            />
+            ></bk-option>
           ))}
         </bk-select>,
       ],
@@ -620,7 +620,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             class='delete'
             onClick={() => this.handleDeleteFavorite(row)}
           >
-            <span class='bk-icon icon-delete' />
+            <span class='bk-icon icon-delete'></span>
           </div>
         </div>,
       ],
@@ -633,7 +633,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
         indeterminate={this.checkValue === 1}
         value={this.checkValue === 2}
         on-change={this.handleSelectionChange}
-      />
+      ></bk-checkbox>
     );
 
     return (
@@ -681,7 +681,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               >
                 <span class='operate-click'>
                   ，&nbsp;{this.$t('移至分组')}
-                  <span class='bk-icon icon-down-shape' />
+                  <span class='bk-icon icon-down-shape'></span>
                 </span>
               </div>
               <div
@@ -712,7 +712,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             render-header={renderHeader}
             scopedSlots={expandSlot}
             type='expand'
-          />
+          ></bk-table-column>
 
           <bk-table-column
             key={'column_name'}
@@ -722,7 +722,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             label-class-name='group-title'
             prop={'name'}
             scopedSlots={nameSlot}
-          />
+          ></bk-table-column>
 
           {this.checkFields('group_name') ? (
             <bk-table-column
@@ -736,7 +736,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               min-width='112'
               prop={'group_id'}
               scopedSlots={groupSlot}
-            />
+            ></bk-table-column>
           ) : undefined}
 
           {this.checkFields('visible_type') ? (
@@ -748,7 +748,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               min-width='112'
               prop={'visible_type'}
               scopedSlots={visibleSlot}
-            />
+            ></bk-table-column>
           ) : undefined}
 
           {this.checkFields('updated_by') ? (
@@ -759,7 +759,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               filters={this.updateSourceFilters}
               label={this.$t('最近更新人')}
               prop={'update_user'}
-            />
+            ></bk-table-column>
           ) : undefined}
 
           {this.checkFields('updated_at') ? (
@@ -770,7 +770,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               }}
               label={this.$t('最近更新时间')}
               prop={'update_time'}
-            />
+            ></bk-table-column>
           ) : undefined}
 
           <bk-table-column
@@ -779,7 +779,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             class-name='group-input'
             label-class-name='group-title'
             scopedSlots={switchSlot}
-          />
+          ></bk-table-column>
 
           <bk-table-column type='setting'>
             <bk-table-setting-content
@@ -787,7 +787,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               selected={this.tableSetting.selectedFields}
               size={this.tableSetting.size}
               on-setting-change={this.handleSettingChange}
-            />
+            ></bk-table-setting-content>
           </bk-table-column>
         </bk-table>
       </bk-dialog>

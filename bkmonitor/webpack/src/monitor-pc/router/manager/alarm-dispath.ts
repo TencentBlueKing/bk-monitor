@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { RouteConfig } from 'vue-router';
+import { RouteConfig } from 'vue-router';
 
 const AlarmDispatch = () =>
   import(/* webpackChunkName: 'AlarmDispatch' */ '../../pages/alarm-dispatch/alarm-dispatch-page');

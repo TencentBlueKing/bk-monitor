@@ -27,8 +27,7 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './empty-table.scss';
 

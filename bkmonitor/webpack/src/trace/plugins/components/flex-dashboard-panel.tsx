@@ -23,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, provide, ref, toRef, watch } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, provide, ref, toRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { random } from 'monitor-common/utils/utils';
-import { type DashboardColumnType, type IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { type SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { DashboardColumnType, IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import ChartWrapper from './chart-wrapper';
-
-import type { SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
@@ -59,11 +58,9 @@ export default defineComponent({
     matchFields: { default: () => {}, type: Object },
     /** 自定义高度 */
     customHeightFn: { type: [Function, null], default: null },
-    /** 是否显示告警视图图表 */
-    isAlarmView: { type: Boolean, default: false },
   },
-  emits: ['linkTo', 'lintToDetail', 'backToOverview', 'successLoad'],
-  setup(props, { emit }) {
+  emits: ['linkTo', 'lintToDetail', 'backToOverview'],
+  setup(props) {
     const { t } = useI18n();
     provide('isSplitPanel', toRef(props, 'isSplitPanel'));
     // 视图实例集合
@@ -82,7 +79,7 @@ export default defineComponent({
         localPanels.value = handleInitLocalPanels(props.panels);
       },
       {
-        immediate: true,
+        //   immediate: true
       }
     );
 
@@ -262,9 +259,6 @@ export default defineComponent({
         panel?.updateShow(collapse);
       });
     }
-    const handleSuccessLoad = () => {
-      emit('successLoad');
-    };
 
     function renderFn() {
       if (!props.panels?.length) return <div class='dashboard-panel empty-data'>{t('查无数据')}</div>;
@@ -277,10 +271,7 @@ export default defineComponent({
             <div class='single-chart-content'>
               <div class={['single-chart-main', { 'has-btn': !!props.backToType }]}>
                 <div class='single-chart-wrap'>
-                  <ChartWrapper
-                    isAlarmView={props.isAlarmView}
-                    panel={singleChartPanel.value}
-                  />
+                  <ChartWrapper panel={singleChartPanel.value}></ChartWrapper>
                 </div>
               </div>
             </div>
@@ -306,11 +297,9 @@ export default defineComponent({
                   >
                     <ChartWrapper
                       key={`${panel.id}__key__`}
-                      isAlarmView={props.isAlarmView}
                       panel={panel}
                       onChartCheck={v => handleChartCheck(v, panel)}
                       onCollapse={v => panel.type === 'row' && handleCollapse(v, panel)}
-                      onSuccessLoad={handleSuccessLoad}
                     />
                   </div>
                 ))}

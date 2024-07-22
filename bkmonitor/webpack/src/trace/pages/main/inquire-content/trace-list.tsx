@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import {
-  type PropType,
   computed,
   defineComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
+  PropType,
   provide,
   reactive,
   ref,
@@ -51,17 +51,16 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRanceInject } from '../../../plugins/hooks';
+import { PanelModel } from '../../../plugins/typings';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
-import { type ListType, useTraceStore } from '../../../store/modules/trace';
+import { ListType, useTraceStore } from '../../../store/modules/trace';
+import { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
 import SpanDetails from '../span-details';
 import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
 import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
-
-import type { PanelModel } from '../../../plugins/typings';
-import type { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
 
 import './trace-list.scss';
 
@@ -347,7 +346,7 @@ export default defineComponent({
             >
               <span title={cell}>{cell}</span>
             </span>
-            <i class='icon-monitor icon-fenxiang' />
+            <i class='icon-monitor icon-fenxiang'></i>
           </div>
         ),
       },
@@ -378,10 +377,10 @@ export default defineComponent({
                 class='link-text link-server'
                 onClick={() => handleOpenService(cell)}
               >
-                {data.error ? <span class='icon-monitor icon-mind-fill' /> : undefined}
+                {data.error ? <span class='icon-monitor icon-mind-fill'></span> : undefined}
                 <span title={cell}>{cell}</span>
               </span>
-              <i class='icon-monitor icon-fenxiang' />
+              <i class='icon-monitor icon-fenxiang'></i>
             </div>
           ) : (
             '--'
@@ -417,7 +416,7 @@ export default defineComponent({
               >
                 <span title={cell}>{cell}</span>
               </span>
-              <i class='icon-monitor icon-fenxiang' />
+              <i class='icon-monitor icon-fenxiang'></i>
             </div>
           ) : (
             '--'
@@ -1213,7 +1212,7 @@ export default defineComponent({
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           // TODO: 需要补上 圆点 样式
           <div style='display: flex; align-items: center'>
-            <span class={`span-status-code-${data.status_code.type}`} />
+            <span class={`span-status-code-${data.status_code.type}`}></span>
             <span>{data.status_code.value}</span>
           </div>
         ),
@@ -1265,7 +1264,7 @@ export default defineComponent({
             onClick={() => handleOpenService(data.resource['service.name'])}
           >
             <span title={data.resource['service.name']}>{data.resource['service.name']}</span>
-            <i class='icon-monitor icon-fenxiang' />
+            <i class='icon-monitor icon-fenxiang'></i>
           </div>
         ),
       },
@@ -1359,7 +1358,7 @@ export default defineComponent({
             >
               {cell}
             </span>
-            <i class='icon-monitor icon-fenxiang' />
+            <i class='icon-monitor icon-fenxiang'></i>
           </div>
         ),
       },
@@ -1505,7 +1504,7 @@ export default defineComponent({
             class='description link'
           >
             {this.$t('查看更多语法规则')}
-            <span class='icon-monitor icon-fenxiang' />
+            <span class='icon-monitor icon-fenxiang'></span>
           </div>
         </div>
       </EmptyStatus>
@@ -1574,7 +1573,7 @@ export default defineComponent({
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
           // onColumnSort={this.handleTraceColumnSort}
-        />
+        ></InterfaceStatistics>
       </div>
     );
 
@@ -1589,7 +1588,7 @@ export default defineComponent({
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
           // onColumnSort={this.handleTraceColumnSort}
-        />
+        ></ServiceStatistics>
       </div>
     );
 
@@ -1606,7 +1605,7 @@ export default defineComponent({
             class={`collapse-title ${this.collapseActive ? 'collapse-active' : ''}`}
             onClick={this.handleCollapse}
           >
-            <span class='icon-monitor icon-mc-triangle-down' />
+            <span class='icon-monitor icon-mc-triangle-down'></span>
             <span>{this.$t('总览')}</span>
           </div>
           {this.collapseActive && (
@@ -1801,7 +1800,7 @@ export default defineComponent({
           show={this.isShowSpanDetail}
           spanDetails={this.spanDetails}
           onShow={v => (this.isShowSpanDetail = v)}
-        />
+        ></SpanDetails>
 
         <Dialog
           class='trace-info-fullscreen-dialog'

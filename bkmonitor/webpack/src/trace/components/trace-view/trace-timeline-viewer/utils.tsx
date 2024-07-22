@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { Span } from '../typings';
+import { Span } from '../typings';
 
 export type ViewedBoundsFunctionType = (start: number, end: number) => { start: number; end: number };
 /**

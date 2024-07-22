@@ -27,10 +27,10 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
-  type ICalendarData,
-  type ICalendarDataUser,
   calendarDataConversion,
   getCalendarNew,
+  ICalendarData,
+  ICalendarDataUser,
 } from '../../../../trace/pages/rotation/components/calendar-preview';
 
 import './rotation-calendar-preview.scss';
@@ -171,7 +171,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
                     <div
                       style={{ background: data.color }}
                       class='user-header'
-                    />
+                    ></div>
                     <div
                       style={{ color: data.color }}
                       class='user-content'
@@ -189,7 +189,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
                     }}
                     class='user-item no-user'
                     onMouseenter={(event: Event) => this.handleMouseenter(event, data.other)}
-                  />
+                  ></div>
                 )
               )}
             </div>

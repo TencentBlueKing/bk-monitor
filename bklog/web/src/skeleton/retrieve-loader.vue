@@ -96,7 +96,7 @@
           : this.visibleFields;
       },
     },
-    mounted() {
+    created() {
       if (this.isLoading) this.loaderLen = 12;
       const ele = document.querySelector('.result-scroll-container');
       if (ele) ele.addEventListener('scroll', this.handleScroll);

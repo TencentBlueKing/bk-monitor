@@ -25,9 +25,8 @@
  */
 import { ofType } from 'vue-tsx-support';
 
+import { IOption } from '../../pages/performance/performance-type';
 import Component from './dropdown-menu.vue';
-
-import type { IOption } from '../../pages/performance/performance-type';
 
 export interface IDropdowProps {
   value?: number | string;

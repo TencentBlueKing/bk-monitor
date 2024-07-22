@@ -31,11 +31,10 @@ import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
+import { PanelModel } from '../../typings';
 import { findComponentUpper } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
-
-import type { PanelModel } from '../../typings';
 
 import './number-chart.scss';
 
@@ -133,7 +132,7 @@ class NumberChart extends CommonSimpleChart {
                     }}
                     alt=''
                     // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    src={require('../../../../fta-solutions/static/img/home/icon_mttr.svg')}
+                    src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}
                   />
                 )}
               </div>
@@ -143,7 +142,7 @@ class NumberChart extends CommonSimpleChart {
             </li>
           ))}
         </ul>
-        <div class='draggable-handle draggable-handle-bar' />
+        <div class='draggable-handle draggable-handle-bar'></div>
       </div>
     );
   }

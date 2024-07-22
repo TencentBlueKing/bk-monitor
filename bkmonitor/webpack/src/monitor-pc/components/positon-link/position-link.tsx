@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce, copyText } from 'monitor-common/utils/utils';
+import { copyText, Debounce } from 'monitor-common/utils/utils';
 
 import './position-link.scss';
 
@@ -78,7 +78,7 @@ export default class PositionLink extends tsc<IProps> {
         }}
         onClick={this.handleCopyText}
       >
-        <i class='icon-monitor icon-dingwei1' />
+        <i class='icon-monitor icon-dingwei1'></i>
         <span class='position-text'>{this.positionText}</span>
         <span
           style='font-size: 12px;'

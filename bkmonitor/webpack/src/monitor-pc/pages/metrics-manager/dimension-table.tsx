@@ -30,12 +30,11 @@ import { getVariableValue } from 'monitor-api/modules/grafana';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import TagList from '../../components/table-tag-list/table-tag-list';
 import CommonTable from '../monitor-k8s/components/common-table';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import type { ITableColumn } from '../monitor-k8s/typings';
-import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
+import { ITableColumn } from '../monitor-k8s/typings';
+import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 
 import './dimension-table.scss';
 
@@ -199,7 +198,7 @@ export default class DimensionTable extends tsc<IProps> {
           rightIcon='bk-icon icon-search'
           clearable
           on-change={this.handleSearch}
-        />
+        ></bk-input>
         <CommonTable
           class='dimension-table'
           scopedSlots={{
@@ -208,7 +207,7 @@ export default class DimensionTable extends tsc<IProps> {
                 <TagList
                   list={row.values.map(item => item.label)}
                   onShowMore={() => this.showMoreTag(row.values)}
-                />
+                ></TagList>
               ) : (
                 '--'
               ),

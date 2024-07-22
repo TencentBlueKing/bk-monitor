@@ -23,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 /*
  * @Date: 2021-06-14 15:39:58
  * @LastEditTime: 2021-06-15 16:45:02
  * @Description:
  */
-import type { VNode } from 'vue';
-import type { TranslateResult } from 'vue-i18n';
+import { VNode } from 'vue';
+import { TranslateResult } from 'vue-i18n';
+import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import './group.scss';
 
@@ -98,7 +97,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
   boldTitleSlot(item: IGroupData): VNode {
     return (
       <div class='group-title bold'>
-        <i class={['bk-icon icon-angle-right', { expand: this.activeName?.includes(item.id) }]} />
+        <i class={['bk-icon icon-angle-right', { expand: this.activeName?.includes(item.id) }]}></i>
         <span class='name'>{item.name}</span>
       </div>
     );
@@ -113,13 +112,13 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
     return (
       <div class='group-title filter'>
         <div class='title-left'>
-          <i class={['bk-icon icon-angle-right', { expand: this.activeName.includes(item.id) }]} />
+          <i class={['bk-icon icon-angle-right', { expand: this.activeName.includes(item.id) }]}></i>
           <span class='name'>{item.name}</span>
         </div>
         <i
           class='icon-monitor icon-mc-clear'
           onClick={event => this.handleClearChecked(event, item)}
-        />
+        ></i>
       </div>
     );
   }
@@ -144,7 +143,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
               }}
               name={item.id}
               hide-arrow
-            />
+            ></bk-collapse-item>
           ) : undefined
         )}
       </bk-collapse>

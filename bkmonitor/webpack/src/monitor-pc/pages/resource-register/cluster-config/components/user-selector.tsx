@@ -115,7 +115,7 @@ export default class UserSelector extends tsc<IProps> {
           onChange={this.handleChange}
           onClear={this.handleClear}
           onFocus={this.handleFocus}
-        />
+        ></BkUserSelector>
       </div>
     );
   }

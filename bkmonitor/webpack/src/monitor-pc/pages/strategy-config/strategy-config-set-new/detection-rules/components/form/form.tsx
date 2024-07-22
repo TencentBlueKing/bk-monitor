@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ThresholdSelect from '../threshold/threshold-select';
 import AiLevelSelect from './ai-level-select';
-import AlarmThresholdSelect, { type BoundType } from './alarm-threshold-select';
-import { EFormItemValueType, type FormItem, type IUnitOptionItem } from './utils';
+import AlarmThresholdSelect, { BoundType } from './alarm-threshold-select';
+import { EFormItemValueType, FormItem, IUnitOptionItem } from './utils';
 
 import './form.scss';
 /** 数组值分隔符 */
@@ -205,7 +205,7 @@ export default class Form extends tsc<IProps, IEvents> {
                 <bk-option
                   id={opt.id}
                   name={opt.name}
-                />
+                ></bk-option>
               ))}
             </bk-select>
           );
@@ -258,7 +258,7 @@ export default class Form extends tsc<IProps, IEvents> {
                               <tr class={['ai-ops-form-item type-tooltips-item', { 'is-error': item.error }]}>
                                 <td class='form-item-label type-tooltips-item-label'>
                                   <span class='td-content'>
-                                    {item.error && <span class='icon-monitor icon-mind-fill' />}
+                                    {item.error && <span class='icon-monitor icon-mind-fill'></span>}
                                     <span class='type-tooltips-label-text'>{item.label}：</span>
                                   </span>
                                 </td>
@@ -289,7 +289,7 @@ export default class Form extends tsc<IProps, IEvents> {
               placeholder={formItem.placeholder}
               type='number'
               onInput={this.formValueChange}
-            />
+            ></bk-input>
           );
         case 'input-unit' /** 带单位换算的的输入框 */:
           return (
@@ -305,7 +305,7 @@ export default class Form extends tsc<IProps, IEvents> {
                 type='number'
                 value={formItem.value / formItem.unitId}
                 onInput={inputUnitChange}
-              />
+              ></bk-input>
               <span class='unit-wrap'>{this.getOptionName(formItem.unitId, formItem.unitOption)}</span>
             </div>
           );
@@ -319,7 +319,7 @@ export default class Form extends tsc<IProps, IEvents> {
               disabled={this.readonly}
               placeholder={formItem.placeholder}
               onInput={this.formValueChange}
-            />
+            ></bk-input>
           );
         case 'thresholds' /** 阈值选择器 */:
           return (
@@ -425,7 +425,7 @@ export default class Form extends tsc<IProps, IEvents> {
                 <i
                   class='icon-monitor icon-hint'
                   v-bk-tooltips={{ content: formItem.description, allowHTML: false }}
-                />
+                ></i>
               )}
             </div>
           </bk-form-item>

@@ -33,8 +33,7 @@ import { deepClone } from 'monitor-common/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
-
-import type { TestSendingTarget } from './types';
+import { TestSendingTarget } from './types';
 
 import './create-subscription.scss';
 
@@ -138,7 +137,7 @@ export default defineComponent({
             ref='refOfCreateSubscriptionForm'
             mode='create'
             onSelectExistedReport={this.handleGoToReportListPage}
-          />
+          ></CreateSubscriptionForm>
         </div>
         <div class='footer-bar'>
           <Button
@@ -190,7 +189,7 @@ export default defineComponent({
           </Button>
         </div>
 
-        <TestSendSuccessDialog v-model={this.isShowTestSendResult} />
+        <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
       </div>
     );
   },

@@ -20,7 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Union
+from typing import Dict, List, Any, Union
 
 
 @dataclass
@@ -806,7 +806,6 @@ class AiopsReleaseCls(object):
 class AiopsReleaseModelReleaseIdModelFileCls(object):
     model_id: str
     model_release_id: str
-    compat: str = "true"
 
 
 @dataclass

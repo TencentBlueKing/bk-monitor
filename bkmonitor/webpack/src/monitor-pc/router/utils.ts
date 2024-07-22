@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import introduce, { type IntroduceRouteKey } from '../common/introduce';
+import { CreateElement } from 'vue';
+
+import introduce, { IntroduceRouteKey } from '../common/introduce';
 import loading from '../pages/loading/page-loading';
 import store from '../store/store';
-
-import type { CreateElement } from 'vue';
 
 export const lazyLoadRoute = async (component: any) => {
   const asyncComponent = () => ({

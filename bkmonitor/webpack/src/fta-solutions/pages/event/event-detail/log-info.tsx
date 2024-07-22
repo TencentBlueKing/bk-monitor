@@ -28,15 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
-
-import type { IDetail } from './type';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import type { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
-import type { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { IDetail } from './type';
 
 import './log-info.scss';
 
@@ -132,7 +131,7 @@ export default class LogInfo extends tsc<IProps> {
             isSplitPanel={false}
             needOverviewBtn={false}
             panels={this.localPanels}
-          />
+          ></DashboardPanel>
         ) : (
           ''
         )}

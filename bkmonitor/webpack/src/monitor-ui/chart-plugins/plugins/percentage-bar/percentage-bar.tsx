@@ -30,13 +30,12 @@ import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import ChartHeader from '../../components/chart-title/chart-title';
+import { IExtendMetricData, PanelModel } from '../../typings';
 import { VariablesService } from '../../utils/variable';
 import CommonSimpleChart from '../common-simple-chart';
-
-import type { IExtendMetricData, PanelModel } from '../../typings';
-import type { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './percentage-bar.scss';
 
@@ -289,7 +288,7 @@ class PercentageBarChart extends CommonSimpleChart {
                           <div
                             style={`width: ${this.handleProgressUsage(item.usage)}%;`}
                             class='progress-inner'
-                          />
+                          ></div>
                         </div>
                       </div>
                     </td>

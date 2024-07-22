@@ -24,7 +24,6 @@ from django.utils.translation import ugettext as _
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSBaseUsageResources, BCSLabel
 from bkmonitor.utils.common_utils import chunks
-from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.kubernetes import BcsClusterType
 from core.drf_resource import api
 
@@ -78,8 +77,7 @@ class BCSNodeManager(BCSBaseManager):
             node_list = []
         if not node_list:
             return None
-        # ipv6 的 instance 的格式形如：[x:x:x:x:x:x:x:x]:port
-        ip_list = [f"\\\\[{node.ip}\\\\]:" if is_v6(node.ip) else f"{node.ip}:" for node in node_list if node.ip]
+        ip_list = [f"{node.ip}:" for node in node_list if node.ip]
         instance = "^({})".format("|".join(ip_list))
         return instance
 

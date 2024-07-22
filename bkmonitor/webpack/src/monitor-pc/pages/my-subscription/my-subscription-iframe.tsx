@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
-import { ofType, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, ofType } from 'vue-tsx-support';
 
 import MySubscription from './my-subscription';
 
@@ -37,7 +37,7 @@ class MySubscriptionIframe extends tsc<object> {
   render() {
     return (
       <div style='width: 100%;height: 100vh;background-color: white;'>
-        <MySubscription />;
+        <MySubscription></MySubscription>;
       </div>
     );
   }

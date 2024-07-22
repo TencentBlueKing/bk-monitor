@@ -24,15 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, ref } from 'vue';
+import { defineComponent, PropType, ref } from 'vue';
 
 import _get from 'lodash/get';
 
 import AngleDownIcon from '../icons/angle-down.svg';
 import AngleRightIcon from '../icons/angle-right.svg';
+import { Span } from '../typings';
 import spanAncestorIds from '../utils/span-ancestor-ids';
-
-import type { Span } from '../typings';
 
 import './span-tree-offset.scss';
 

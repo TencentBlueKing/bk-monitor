@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ValueFormatter, scaledUnits } from './valueFormats';
-
-import type { DecimalCount } from '../types/displayValue';
+import { DecimalCount } from '../types/displayValue';
+import { scaledUnits, ValueFormatter } from './valueFormats';
 
 export function currency(symbol: string, asSuffix?: boolean): ValueFormatter {
   const units = ['', 'K', 'M', 'B', 'T'];

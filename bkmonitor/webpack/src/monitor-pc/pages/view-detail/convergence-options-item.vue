@@ -57,7 +57,7 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({
-  name: 'convergence-options',
+  name: 'convergence-options'
 })
 export default class ConvergenceOptions extends Vue {
   @Prop()
@@ -109,24 +109,21 @@ export default class ConvergenceOptions extends Vue {
 
 <style lang="scss" scoped>
 .convergence-options {
-  position: relative;
   width: 320px;
   height: 73px;
   padding: 5px 10px 10px 10px;
-
+  position: relative;
   &-label {
     margin-bottom: 6px;
   }
-
   &:hover {
     background: #f5f6fa;
     border-radius: 2px;
   }
-
   .icon-mc-close {
     position: absolute;
-    top: 0;
     right: 0;
+    top: 0;
     font-size: 24px;
     color: #ea3636;
     cursor: pointer;

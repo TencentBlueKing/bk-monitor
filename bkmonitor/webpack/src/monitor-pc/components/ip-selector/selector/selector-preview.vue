@@ -109,7 +109,7 @@ import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../common/util';
 import Menu from '../components/menu.vue';
-import type { IMenu, IPerateFunc, IPreviewData } from '../types/selector-type';
+import { IMenu, IPerateFunc, IPreviewData } from '../types/selector-type';
 
 // 预览区域
 @Component({ name: 'selector-preview' })
@@ -155,7 +155,7 @@ export default class SelectorPreview extends Vue {
   private handleMenuItemClick(menu: IMenu, item: IPreviewData) {
     return {
       menu,
-      item,
+      item
     };
   }
 
@@ -165,7 +165,7 @@ export default class SelectorPreview extends Vue {
     this.hoverChild = index > -1 && item.data[index + 1] ? item.data[index + 1] : null;
     return {
       child,
-      item,
+      item
     };
   }
 
@@ -202,7 +202,7 @@ export default class SelectorPreview extends Vue {
       onHidden: () => {
         this.popoverInstance?.destroy();
         this.popoverInstance = null;
-      },
+      }
     });
     this.popoverInstance.show();
   }

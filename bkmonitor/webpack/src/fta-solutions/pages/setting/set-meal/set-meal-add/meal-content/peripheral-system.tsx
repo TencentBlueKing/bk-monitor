@@ -31,8 +31,7 @@ import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import CommonItem from '../components/common-item';
 import Container from '../components/container';
 import DynamicForm from '../components/dynamic-form/dynamic-form';
-
-import type { IPeripheral } from './meal-content-data';
+import { IPeripheral } from './meal-content-data';
 
 import './peripheral-system.scss';
 
@@ -269,7 +268,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                       id={option.id}
                       key={option.id}
                       name={option.name}
-                    />
+                    ></bk-option>
                   ))}
                   <div
                     style='cursor: pointer;'
@@ -279,7 +278,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                     <i
                       style={{ marginRight: '5px' }}
                       class='bk-icon icon-plus-circle'
-                    />
+                    ></i>
                     {this.newInfo.tips}
                   </div>
                 </bk-select>
@@ -289,12 +288,12 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                   <i
                     class='icon-monitor icon-mc-link'
                     onClick={this.handleLinkTo}
-                  />
+                  ></i>
                 ) : undefined}
                 <i
                   class='icon-monitor icon-shuaxin'
                   onClick={this.handleRefreshTemplate}
-                />
+                ></i>
               </span>
             </div>
           </CommonItem>
@@ -314,7 +313,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                     formModel={this.formModel}
                     formRules={this.formRules}
                     on-change={this.handleFormDataChage}
-                  />
+                  ></DynamicForm>
                 ) : (
                   [this.$t('当前{n}无需填写参数', { n: this.label }), <br />]
                 )}
@@ -347,7 +346,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                       showControls={false}
                       type={'number'}
                       on-change={() => this.handleDataChange()}
-                    />
+                    ></bk-input>
                   </i18n>
                 </CommonItem>
               </div>

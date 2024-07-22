@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import type { IItem } from '../threshold/threshold-select';
-import type { BoundType } from './alarm-threshold-select';
+import { IItem } from '../threshold/threshold-select';
+import { BoundType } from './alarm-threshold-select';
 
 type FormItemType =
   | 'ai-level'

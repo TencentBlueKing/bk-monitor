@@ -26,9 +26,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import StatusTips, { type MapType, type StatusType } from './status-tips';
-
-import type { IGroupData } from './group';
+import { IGroupData } from './group';
+import StatusTips, { MapType, StatusType } from './status-tips';
 
 import './content-group-item.scss';
 
@@ -85,7 +84,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
               {/* 插件分组：事件插件 | 周边服务 */}
               {item.name ? (
                 <div class='group-item-title'>
-                  <span class='title-tips mr5' />
+                  <span class='title-tips mr5'></span>
                   {item.name}
                 </div>
               ) : null}
@@ -134,7 +133,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
         onMouseleave={this.handleCardMouseLeave}
       >
         {/* 插件状态 */}
-        <StatusTips status={item.status} />
+        <StatusTips status={item.status}></StatusTips>
         {/* 插件ICON和名称 */}
         <div class='plugin-panel-content'>
           {item.logo ? (
@@ -154,12 +153,12 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
           {/* 插件来源 */}
           <span class='footer-left'>
             {item.author}
-            {item.is_official ? <i class='icon-monitor icon-mc-official' /> : null}
+            {item.is_official ? <i class='icon-monitor icon-mc-official'></i> : null}
           </span>
           {/* 插件热度 */}
           <span class='footer-right'>
             {item.popularity}
-            <i class='icon-monitor icon-mc-heat' />
+            <i class='icon-monitor icon-mc-heat'></i>
           </span>
         </div>
         {/* 插件描述 */}
@@ -209,14 +208,14 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
             class='operate-btn detail pr20'
             onClick={() => this.pluginOperate(item, 'detail')}
           >
-            <i class='mt4 icon-monitor icon-tips' />
+            <i class='mt4 icon-monitor icon-tips'></i>
             {this.$t('详情')}
           </span>
           <span
             class='operate-btn pl20'
             onClick={() => this.pluginOperate(item, 'enabled')}
           >
-            <i class='mt4 icon-monitor icon-bofang' />
+            <i class='mt4 icon-monitor icon-bofang'></i>
             {this.$t('启用')}
           </span>
         </span>
@@ -234,14 +233,14 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
             class='operate-btn detail pr20'
             onClick={() => this.pluginOperate(item, 'detail')}
           >
-            <i class='mt4 icon-monitor icon-tips' />
+            <i class='mt4 icon-monitor icon-tips'></i>
             {this.$t('详情')}
           </span>
           <span
             class='operate-btn pl20'
             onClick={() => this.pluginOperate(item, 'install')}
           >
-            <i class='mt4 icon-monitor icon-mc-add' />
+            <i class='mt4 icon-monitor icon-mc-add'></i>
             {this.$t('安装')}
           </span>
         </span>
@@ -254,7 +253,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
           class='plugin-operate operate-btn'
           onClick={() => this.pluginOperate(item, 'config')}
         >
-          <i class='icon-monitor icon-menu-config' />
+          <i class='icon-monitor icon-menu-config'></i>
           {this.$t('配置')}
         </span>
       );

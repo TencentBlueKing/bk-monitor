@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
+import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Popover, Radio, Table } from 'bkui-vue';
@@ -359,7 +359,7 @@ export default defineComponent({
                                 class='scope-list-item'
                                 onClick={() => this.handleChangeScope(item.id)}
                               >
-                                <span class='icon-monitor icon-jia' />
+                                <span class='icon-monitor icon-jia'></span>
                                 <span class='item-text'>{item.name}</span>
                               </span>
                             );
@@ -396,7 +396,7 @@ export default defineComponent({
               <CommonTip
                 class='mt8 min-w940'
                 content={this.tipsMap[this.scopeState.bkGroup.value] || ''}
-              />
+              ></CommonTip>
             )}
             {this.scopeState.bkGroup.value !== 'biz' && !this.isEdit && !!this.scopeState.inited && (
               <AlarmShieldIpv6
@@ -407,7 +407,7 @@ export default defineComponent({
                 showViewDiff={this.isClone}
                 onChange={this.handleValueChange}
                 onCloseDialog={this.handleIpv6DialogChange}
-              />
+              ></AlarmShieldIpv6>
             )}
             {!!this.isEdit &&
               (this.scopeState.bkGroup.value !== 'biz' ? (
@@ -423,7 +423,7 @@ export default defineComponent({
                     border={['outer']}
                     data={this.scopeState.tableData}
                     maxHeight={450}
-                  />
+                  ></Table>
                 </div>
               ) : (
                 <span>{this.t('业务')}</span>

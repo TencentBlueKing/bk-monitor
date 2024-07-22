@@ -104,7 +104,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         onClick={() => this.handleToEventDetail(type, true)}
       >
         <span class='btn-text'>{this.$t('新开页')}</span>
-        <span class='icon-monitor icon-fenxiang' />
+        <span class='icon-monitor icon-fenxiang'></span>
       </span>
     );
   }
@@ -124,7 +124,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
             <i
               class='icon-monitor icon-copy-link'
               onClick={() => this.handleToEventDetail('detail')}
-            />
+            ></i>
           ) : (
             <TemporaryShare
               customData={{ eventId: this.eventId }}
@@ -141,7 +141,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           <i
             class='icon-monitor icon-copy-link'
             onClick={() => this.handleToEventDetail('action-detail')}
-          />
+          ></i>
           {this.newPageBtn('action-detail')}
         </div>
       ),
@@ -160,13 +160,13 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           bizId={this.bizId}
           onCloseSlider={() => this.emitIsShow(false)}
           onInfo={this.handleInfo}
-        />
+        ></EventDetail>
       ),
       handleDetail: () => (
         <ActionDetail
           id={this.eventId}
           bizId={this.bizId}
-        />
+        ></ActionDetail>
       ),
     };
     return tplMap[this.type]();

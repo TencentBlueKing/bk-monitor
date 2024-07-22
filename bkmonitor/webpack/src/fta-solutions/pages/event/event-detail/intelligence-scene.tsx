@@ -29,13 +29,12 @@ import { Component as tsc } from 'vue-tsx-support';
 import { connect, disconnect } from 'echarts/core';
 import { multiAnomalyDetectGraph } from 'monitor-api/modules/alert';
 import { random } from 'monitor-common/utils';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
-import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
-
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './intelligence-scene.scss';
 
@@ -171,7 +170,7 @@ export default class IntelligenceScene extends tsc<IProps> {
               needCheck={false}
               panel={panel}
               onDblClick={this.handledblClick}
-            />
+            ></ChartWrapper>
           </div>
         ))}
       </div>

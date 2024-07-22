@@ -233,26 +233,30 @@
 </template>
 
 <script lang="ts">
-import { addShield, editShield } from 'monitor-api/modules/shield';
-import { getMetricListV2, getStrategyListV2, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
-import { random, transformDataKey } from 'monitor-common/utils/utils';
 // eslint-disable-next-line no-unused-vars
-import type { TranslateResult } from 'vue-i18n/types/index';
+import { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Mixins, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 // eslint-disable-next-line no-unused-vars
-import type { Location } from 'vue-router/types/router';
+import { Location } from 'vue-router/types/router';
+import { addShield, editShield } from 'monitor-api/modules/shield';
+import {
+  getMetricListV2,
+  getStrategyListV2,
+  getStrategyV2,
+  plainStrategyList } from 'monitor-api/modules/strategies';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
 
 import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import alarmShieldMixin from '../../../mixins/alarmShieldMixin';
 import strategyMapMixin from '../../../mixins/strategyMapMixin';
 // eslint-disable-next-line no-unused-vars
-import type MonitorVue from '../../../types/index';
+import MonitorVue from '../../../types/index';
 import ShieldDateConfig from '../alarm-shield-components/alarm-shield-date.vue';
 import AlarmShieldNotice from '../alarm-shield-components/alarm-shield-notice.vue';
 import ShieldTarget from '../alarm-shield-components/alarm-shield-target.vue';
-import StrategyDetailNew from '../alarm-shield-components/strategy-detail-new.tsx';
 import StrategyDetail from '../alarm-shield-components/strategy-detail.vue';
+import StrategyDetailNew from '../alarm-shield-components/strategy-detail-new.tsx';
 import SimpleConditionInput from '../components/simple-condition-input';
 
 interface IStrategyList {
@@ -291,8 +295,8 @@ interface IDimensionConfig {
     ShieldTarget,
     StrategyDetailNew,
     SimpleConditionInput,
-    WhereDisplay,
-  },
+    WhereDisplay
+  }
 })
 export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strategyMapMixin)<MonitorVue> {
   isEdit = false; // 是否编辑
@@ -314,7 +318,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
   //  校验提示
   rule: { strategyId: boolean; noticeLever: boolean } = {
     strategyId: false,
-    noticeLever: false,
+    noticeLever: false
   };
   /* 告警等级可选项 */
   levelOptional = [];
@@ -324,26 +328,26 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
     dimensionList: [], // 维度列表
     metricMeta: null, // 获取条件候选值得参数
     conditionList: [], // 维度条件数据
-    allNames: {}, // 维度名合集
+    allNames: {} // 维度名合集
   };
   //  屏蔽范围组件
   @Ref() readonly shieldTarget!: ShieldTarget;
 
   @Model('changeCommonDateData', {
-    type: Object,
+    type: Object
   })
-  commonDateData!: Object;
+    commonDateData!: Object;
 
   //  编辑时回填的屏蔽详情数据
   @Prop({ default: () => ({}) })
-  shieldData: any;
+    shieldData: any;
 
   //  是否来自策略列表页
   @Prop({ default: () => ({}) })
-  fromStrategy: { is: boolean; id: number };
+    fromStrategy: { is: boolean; id: number };
 
   @Prop({ default: false })
-  edit: boolean;
+    edit: boolean;
 
   @Watch('shieldData', { deep: true })
   onShieldDataChange(v: any = {}): void {
@@ -367,9 +371,9 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
       /* 回填维度条件 */
       this.dimensionCondition.conditionList = v.dimension_config.dimension_conditions.map(item => ({
         ...item,
-        dimensionName: item.name || item.key,
+        dimensionName: item.name || item.key
       }));
-      this.dimensionCondition.conditionList.forEach(item => {
+      this.dimensionCondition.conditionList.forEach((item) => {
         this.dimensionCondition.allNames[item.key] = item.name || item.key;
       });
       this.dimensionCondition.conditionKey = random(8);
@@ -426,7 +430,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
     shieldDate.typeEn = type;
     shieldDate[type] = {
       list: [...cycleConfig.dayList, ...cycleConfig.weekList],
-      range: [cycleConfig.beginTime, cycleConfig.endTime],
+      range: [cycleConfig.beginTime, cycleConfig.endTime]
     };
     shieldDate.dateRange = [data.beginTime, data.endTime];
     //  单次
@@ -443,8 +447,8 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
         notificationMethod: data.noticeConfig.noticeWay,
         noticeNumber: data.noticeConfig.noticeTime,
         member: {
-          value: data.noticeConfig.noticeReceiver.map(item => item.id),
-        },
+          value: data.noticeConfig.noticeReceiver.map(item => item.id)
+        }
       };
       const RNotice: any = this.$refs.notice;
       RNotice.setNoticeData(shieldNoticeData);
@@ -489,7 +493,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
         this.noticeLever = [];
       }
       getStrategyV2({ id: id[0] })
-        .then(data => {
+        .then((data) => {
           this.strategyData = data;
           this.levelOptional = data.detects.map(item => item.level);
           this.isShowDetail = true;
@@ -518,9 +522,9 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
       conditions: [
         {
           key: 'strategy_id',
-          value: ids,
-        },
-      ],
+          value: ids
+        }
+      ]
     })
       .then(res => res.strategy_config_list)
       .catch(() => []);
@@ -543,8 +547,8 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
   async setDimensionConditionParams(strategys: any[]) {
     if (strategys.length) {
       const metricIds = [];
-      strategys.forEach(item => {
-        item.items?.[0].query_configs.forEach(queryConfig => {
+      strategys.forEach((item) => {
+        item.items?.[0].query_configs.forEach((queryConfig) => {
           if (!metricIds.includes(queryConfig.metric_id)) {
             metricIds.push(queryConfig.metric_id);
           }
@@ -553,7 +557,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
       const { metric_list: metricList = [] } = await getMetricListV2({
         page: 1,
         page_size: metricIds.length,
-        conditions: [{ key: 'metric_id', value: metricIds }],
+        conditions: [{ key: 'metric_id', value: metricIds }]
       }).catch(() => ({}));
       const [metricItem] = metricList;
       if (metricItem) {
@@ -562,7 +566,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
           dataTypeLabel: metricItem.data_type_label,
           metricField: metricItem.metric_field,
           resultTableId: metricItem.result_table_id,
-          indexSetId: metricItem.index_set_id,
+          indexSetId: metricItem.index_set_id
         };
       } else {
         this.dimensionCondition.metricMeta = null;
@@ -570,11 +574,11 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
       this.dimensionCondition.dimensionList = (
         !!metricList.length
           ? metricList.reduce((pre, cur) => {
-              const dimensionList = pre
-                .concat(cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension))
-                .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
-              return dimensionList;
-            }, [])
+            const dimensionList = pre
+              .concat(cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension))
+              .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
+            return dimensionList;
+          }, [])
           : []
       ).filter(item => !['bk_target_ip', 'bk_target_cloud_id', 'bk_topo_node'].includes(item.id));
       this.dimensionCondition.conditionKey = random(8);
@@ -609,15 +613,15 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
             key: item.key,
             method: item.method,
             value: item.value,
-            name: item.dimensionName,
+            name: item.dimensionName
           }))
-          .filter(item => !!item.key),
+          .filter(item => !!item.key)
       },
       description: this.desc,
       shield_notice: this.noticeShow,
       cycle_config: cycle.cycle_config,
       begin_time: cycle.begin_time,
-      end_time: cycle.end_time,
+      end_time: cycle.end_time
     };
     if (this.shieldTarget && !this.isEdit && this.isShowShieldScope) {
       const targetData: { scope_type: string; target: [] } = this.shieldTarget.getTargetData();

@@ -55,38 +55,30 @@ import {
   traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
-import { deepClone, random } from 'monitor-common/utils/utils';
-import { handleGotoLink } from 'monitor-pc/common/constant';
-import { debounce } from 'throttle-debounce';
+import { debounce, deepClone, random } from 'monitor-common/utils/utils';
+import { type IEventRetrieval, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
-import { DEFAULT_TIME_RANGE, type TimeRangeType, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { ISelectMenuOption } from '../../components/select-menu/select-menu';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '../../components/time-range/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
+import { type Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
 import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
-  TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
+  TIMEZONE_KEY,
   VIEWOPTIONS_KEY,
 } from '../../plugins/hooks';
+import { IViewOptions } from '../../plugins/typings';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
-import { type IServiceStatisticsType, type ListType, useTraceStore } from '../../store/modules/trace';
-import { monitorDrag } from '../../utils/drag-directive';
-import DurationFilter from './duration-filter/duration-filter';
-import HandleBtn from './handle-btn/handle-btn';
-import InquireContent from './inquire-content';
-import SearchHeader from './search-header/search-header';
-import SearchLeft, { formItem } from './search-left/search-left';
-
-import type { ISelectMenuOption } from '../../components/select-menu/select-menu';
-import type { Span } from '../../components/trace-view/typings';
-import type { IViewOptions } from '../../plugins/typings';
-import type {
+import { IServiceStatisticsType, ListType, useTraceStore } from '../../store/modules/trace';
+import {
   IAppItem,
   IFavoriteItem,
   IScopeSelect,
@@ -95,7 +87,12 @@ import type {
   ITraceData,
   SearchType,
 } from '../../typings';
-import type { IEventRetrieval, IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
+import { monitorDrag } from '../../utils/drag-directive';
+import DurationFilter from './duration-filter/duration-filter';
+import HandleBtn from './handle-btn/handle-btn';
+import InquireContent from './inquire-content';
+import SearchHeader from './search-header/search-header';
+import SearchLeft, { formItem } from './search-left/search-left';
 
 import './inquire.scss';
 
@@ -164,6 +161,7 @@ export default defineComponent({
             const defaultApp = appList.value.find(app => app.permission?.[authorityMap.VIEW_AUTH])?.app_name;
             state.app = defaultApp || '';
           }
+
           handleAppSelectChange(state.app);
         }
       }, 100);
@@ -291,7 +289,7 @@ export default defineComponent({
           await getQueryOptions();
         }
         if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery)) {
-          if (state.isAlreadyScopeQuery) reGetFieldOptionValues(); 
+          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
           handleQueryScopeDebounce();
         }
 
@@ -413,22 +411,6 @@ export default defineComponent({
         conditionFilter.forEach(item => {
           if (item.value.length) filters.push(item);
         });
-      } else {
-        const {
-          conditionList: conditionListStringify,
-        } = route.query;
-        if(conditionListStringify) {
-          const result = JSON.parse(conditionListStringify as string);
-          for(const key in result) {
-            if(result[key]?.selectedConditionValue?.length) {
-              filters.push({
-                key,
-                operator: result[key].selectedCondition.value,
-                value: result[key].selectedConditionValue,
-              })
-            }
-          }
-        }
       }
 
       if (selectedListType.value === 'trace') {
@@ -713,7 +695,7 @@ export default defineComponent({
         query,
       });
     };
-    const handleQueryScopeDebounce = debounce(300, handleQueryScope);
+    const handleQueryScopeDebounce = debounce(handleQueryScope, 300, false);
     /* 范围查询动态参数更新 */
     function handleScopeQueryChange() {
       traceListPagination.offset = 0;
@@ -1125,11 +1107,11 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <a
             class='link'
+            href='/'
             target='_blank'
-            onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {t('查看语法')}
-            <i class='icon-monitor icon-mc-link' />
+            <i class='icon-monitor icon-mc-link'></i>
           </a>
         </div>
         <ul class='tips-content-list'>
@@ -1447,7 +1429,7 @@ export default defineComponent({
                 theme='light'
                 trigger='click'
               >
-                <span class='icon-monitor icon-mc-help-fill' />
+                <span class='icon-monitor icon-mc-help-fill'></span>
               </Popover>
             </div>
           ) as any,
@@ -1510,7 +1492,7 @@ export default defineComponent({
             <i
               style='margin-right: 6px;'
               class='icon-monitor icon-plus-line'
-            />
+            ></i>
             <span>{t('添加条件')}</span>
           </Button>
 
@@ -1520,7 +1502,7 @@ export default defineComponent({
             disabled={isAddConditionButtonLoading.value}
             list={standardFieldList.value}
             onChange={handleCascaderChange}
-          />
+          ></Cascader>
         </div>
         <HandleBtn
           autoQuery={state.autoQuery}
@@ -1555,7 +1537,7 @@ export default defineComponent({
                 <span
                   class='icon-monitor icon-double-down'
                   onClick={() => handleLeftHiddenAndShow(false)}
-                />
+                ></span>
               </div>
             </div>
             {/* 查询操作表单 */}
@@ -1605,7 +1587,7 @@ export default defineComponent({
               onSelectCollect={handleSelectCollect}
               onTimeRangeChange={handleTimeRangeChange}
               onTimezoneChange={handleTimezoneChange}
-            />
+            ></SearchHeader>
             <div
               style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
               class='inquire-right-main'
@@ -1643,7 +1625,7 @@ export default defineComponent({
                 name={collectDialog.name}
                 subtitle={t('收藏名')}
                 title={t('确认删除该收藏？')}
-              />
+              ></DeleteDialogContent>
             ),
           }}
           footerAlign={'center'}
@@ -1654,7 +1636,7 @@ export default defineComponent({
             collectDialog.show = false;
           }}
           onConfirm={() => deleteCollect()}
-        />
+        ></Dialog>
       </div>
     );
     return {

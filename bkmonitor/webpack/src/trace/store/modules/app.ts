@@ -25,7 +25,7 @@
  */
 import { defineStore } from 'pinia';
 
-import type { IDocLinkData, ISpaceItem } from '../../typings';
+import { IDocLinkData, ISpaceItem } from '../../typings';
 
 export interface IAppState {
   userName: string;

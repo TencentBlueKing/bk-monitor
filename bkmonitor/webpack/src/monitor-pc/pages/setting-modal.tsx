@@ -30,9 +30,8 @@ import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import NoPermission from '../components/no-permission/no-permission';
 import authorityMixinCreate from '../mixins/authorityMixin';
+import { IMenuItem } from '../types';
 import * as ruleAuth from './authority-map';
-
-import type { IMenuItem } from '../types';
 
 import './setting-modal.scss';
 
@@ -95,19 +94,19 @@ class SettingModal extends Mixins(authorityMixinCreate(ruleAuth, 'created')) {
         return this.authority.VIEW_GLOBAL_AUTH ? (
           this.$slots.default
         ) : (
-          <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH} />
+          <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH}></NoPermission>
         );
       case 'healthz':
         return this.authority.VIEW_SELF_AUTH ? (
           this.$slots.default
         ) : (
-          <NoPermission actionIds={this.authorityMap.VIEW_SELF_AUTH} />
+          <NoPermission actionIds={this.authorityMap.VIEW_SELF_AUTH}></NoPermission>
         );
       case 'migrate-dashboard':
         return this.authority.VIEW_MIGRATE_DASHBOARD ? (
           this.$slots.default
         ) : (
-          <NoPermission actionIds={this.authorityMap.VIEW_MIGRATE_DASHBOARD} />
+          <NoPermission actionIds={this.authorityMap.VIEW_MIGRATE_DASHBOARD}></NoPermission>
         );
       // // 待补充迁移仪表盘及策略权限控制
       // return this.$slots.default;
@@ -115,14 +114,14 @@ class SettingModal extends Mixins(authorityMixinCreate(ruleAuth, 'created')) {
         return this.authority.VIEW_GLOBAL_AUTH ? (
           this.$slots.default
         ) : (
-          <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH} />
+          <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH}></NoPermission>
         );
       case 'resource-register':
       case 'data-pipeline':
         return this.authorityMap.VIEW_GLOBAL_AUTH ? (
           this.$slots.default
         ) : (
-          <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH} />
+          <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH}></NoPermission>
         );
       default:
         return this.$slots.default;

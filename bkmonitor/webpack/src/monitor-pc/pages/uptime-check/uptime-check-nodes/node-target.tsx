@@ -27,9 +27,8 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
+import { IHost, IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 import AddBtn from '../uptime-check-task/uptime-check-form/add-btn';
-
-import type { IHost, IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 
 import './node-target.scss';
 

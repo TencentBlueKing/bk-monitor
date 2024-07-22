@@ -26,14 +26,13 @@
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
-import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
 import { createAutoTimerange } from './aiops-chart';
-
-import type { IDetail } from './type';
-import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { IDetail } from './type';
 
 import './time-series-forecasting-chart.scss';
 
@@ -120,6 +119,10 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
   }
 
   render() {
-    return <div class='time-series-forecasting-chart'>{!!this.panel && <ChartWrapper panel={this.panel} />}</div>;
+    return (
+      <div class='time-series-forecasting-chart'>
+        {!!this.panel && <ChartWrapper panel={this.panel}></ChartWrapper>}
+      </div>
+    );
   }
 }

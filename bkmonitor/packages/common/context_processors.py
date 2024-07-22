@@ -204,7 +204,7 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
     except Exception as e:
         logger.error(f"Get AIOPS_BIZ_WHITE_LIST Failed: {e}")
 
-    # 根因故障定位页面渲染
+    # 根因古战定位页面渲染
     context["ENABLE_AIOPS_INCIDENT"] = "false"
     try:
         # 判断是否在白名单中

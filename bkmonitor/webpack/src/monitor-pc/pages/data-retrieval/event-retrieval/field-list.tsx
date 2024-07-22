@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { FieldFilteringType, FieldListType, FieldValue, IFilterCondition } from '../typings';
+import { FieldFilteringType, FieldListType, FieldValue, IFilterCondition } from '../typings';
 
 import './field-list.scss';
 /** 维度值记录排名前5 */
@@ -90,7 +90,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
     const titleSlot = (item: FieldValue, index: number) => (
       <div class={['collapse-item-title', { 'is-expanded': this.expandedData.includes(item.key) }]}>
         <span class='title-left'>
-          <i class={['icon-monitor', 'icon-mc-triangle-down', { acitve: this.expandedData.includes(item.key) }]} />
+          <i class={['icon-monitor', 'icon-mc-triangle-down', { acitve: this.expandedData.includes(item.key) }]}></i>
           {/* <span class="type-icon">#</span> */}
           <span class='field-name'>{this.handleAlias(item.field)}</span>
           <span class='field-value-count'>({item.total})</span>
@@ -133,16 +133,16 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
                     show-text={false}
                     stroke-width={6}
                     theme='success'
-                  />
+                  ></bk-progress>
                 </div>
                 <i
                   class='icon-monitor icon-jia'
                   onClick={() => this.handleAddConditon('eq', item, val)}
-                />
+                ></i>
                 <i
                   class='icon-monitor icon-jian'
                   onClick={() => this.handleAddConditon('neq', item, val)}
-                />
+                ></i>
               </div>
             );
           })}
@@ -175,7 +175,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
             }}
             disabled={!item.dimensions?.length}
             name={item.key}
-          />
+          ></bk-collapse-item>
         ))}
       </bk-collapse>
     );

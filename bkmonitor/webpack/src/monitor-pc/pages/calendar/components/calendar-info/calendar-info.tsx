@@ -76,7 +76,7 @@ export default class CalendarInfo extends tsc<IProps, IEvents> {
         <div class='calendar-info-wrap'>
           <div class='calendar-info-icon'>
             <span class='calendar-info-icon-wrap'>
-              <i class='icon-monitor icon-mind-fill' />
+              <i class='icon-monitor icon-mind-fill'></i>
             </span>
           </div>
           <div class='calendar-info-title'>{this.infoTitle}</div>

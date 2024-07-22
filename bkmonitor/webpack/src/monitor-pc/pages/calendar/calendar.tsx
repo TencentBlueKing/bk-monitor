@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Ref } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import {
   deleteCalendar,
@@ -38,7 +38,7 @@ import CustomSelect from '../../components/custom-select/custom-select';
 import CalendarAddInput from './calendar-add-input';
 import CalendarList from './calendar-list';
 import CalendarInfo from './components/calendar-info/calendar-info';
-import { type ICalendarListItem, type ICalendarTypeListItem, type IOptionsItem, Z_INDEX } from './types';
+import { ICalendarListItem, ICalendarTypeListItem, IOptionsItem, Z_INDEX } from './types';
 
 import './calendar.scss';
 
@@ -314,7 +314,7 @@ export default class Calendar extends tsc<object> {
                         z-index={Z_INDEX}
                         onShow={this.handleShowAdd}
                       >
-                        <i class='icon-monitor icon-mc-add' />
+                        <i class='icon-monitor icon-mc-add'></i>
                         <div
                           class='calendar-add-popover-content'
                           slot='content'
@@ -338,7 +338,7 @@ export default class Calendar extends tsc<object> {
                             class={['calendar-checkedbox', !!set.color ? 'color-theme' : '']}
                             v-model={set.checked}
                             onChange={this.handleCheckedCalendar}
-                          />
+                          ></bk-checkbox>
                           <span class='calendar-name'>
                             {this.editId === set.id ? (
                               <input
@@ -347,7 +347,7 @@ export default class Calendar extends tsc<object> {
                                 v-model={this.editName}
                                 onBlur={() => this.handleEditSubmit(set)}
                                 onKeydown={modifiers.enter(() => this.handleEditSubmit(set))}
-                              />
+                              ></input>
                             ) : (
                               <span class={['calendar-name-text', { editable: !index }]}>
                                 <span
@@ -359,7 +359,7 @@ export default class Calendar extends tsc<object> {
                                 <i
                                   class='icon-monitor icon-bianji'
                                   onClick={() => this.handleShowEditName(set, !index)}
-                                />
+                                ></i>
                               </span>
                             )}
                           </span>
@@ -445,13 +445,13 @@ export default class Calendar extends tsc<object> {
                   slot='target'
                 >
                   {this.$tc('合并到日历')}
-                  <i class='icon-monitor icon-arrow-down' />
+                  <i class='icon-monitor icon-arrow-down'></i>
                 </bk-button>
                 {this.mergeableCalendarList.map(opt => (
                   <bk-option
                     id={opt.id}
                     name={opt.name}
-                  />
+                  ></bk-option>
                 ))}
               </CustomSelect>
             )}

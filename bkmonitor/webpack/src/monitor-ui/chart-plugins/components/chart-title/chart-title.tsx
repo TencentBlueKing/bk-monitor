@@ -24,15 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { createMetricTitleTooltips } from '../../utils';
-import { VariablesService } from '../../utils/variable';
-import ChartMenu, { type IChartTitleMenuEvents } from './chart-title-menu';
-
-import type {
+import {
   ChartTitleMenuType,
   CurrentTargetType,
   IExtendMetricData,
@@ -41,6 +37,9 @@ import type {
   ITitleAlarm,
   IViewOptions,
 } from '../../typings';
+import { createMetricTitleTooltips } from '../../utils';
+import { VariablesService } from '../../utils/variable';
+import ChartMenu, { IChartTitleMenuEvents } from './chart-title-menu';
 
 import './chart-title.scss';
 
@@ -375,7 +374,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   }}
                 />
               ),
-              <span class='title-center' />,
+              <span class='title-center'></span>,
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
                   style={{
@@ -387,7 +386,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                     delay: 200,
                   }}
                   onClick={this.handleAllMetricSelect}
-                />
+                ></i>
               ) : undefined,
               <span
                 style={{
@@ -421,7 +420,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
           onShowChildren={this.handleShowChildren}
-        />
+        ></ChartMenu>
       </div>
     );
   }

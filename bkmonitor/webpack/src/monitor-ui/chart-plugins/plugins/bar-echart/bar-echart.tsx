@@ -33,9 +33,8 @@ import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
+import { ICommonCharts, ILegendItem, IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import BaseEchart from '../monitor-base-echart';
-
-import type { ICommonCharts, ILegendItem, IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
 
 import './bar-echart.scss';
 

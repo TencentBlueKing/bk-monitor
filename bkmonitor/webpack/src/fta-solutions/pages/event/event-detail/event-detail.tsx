@@ -40,6 +40,7 @@ import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
 import ChatGroup from '../../../components/chat-group/chat-group';
+import { IChatGroupDialogOptions } from '../typings/event';
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
@@ -50,9 +51,7 @@ import ManualDebugStatus from './manual-debug-status';
 import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 import TabContainer from './tab-container';
-
-import type { IChatGroupDialogOptions } from '../typings/event';
-import type { IDetail } from './type';
+import { IDetail } from './type';
 
 import './event-detail.scss';
 
@@ -499,7 +498,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         show={alarmConfirm.show}
         on-change={this.alarmConfirmChange}
         onConfirm={this.handleConfirmAfter}
-      />,
+      ></AlarmConfirm>,
       <QuickShield
         authority={this.authority}
         bizIds={[this.basicInfo.bk_biz_id]}
@@ -510,7 +509,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         on-change={this.quickShieldChange}
         on-succes={this.quickShieldSucces}
         on-time-change={this.handleTimeChange}
-      />,
+      ></QuickShield>,
       this.logRetrieval.isMounted ? (
         <LogRetrievalDialog
           bizId={this.basicInfo.bk_biz_id}
@@ -519,18 +518,18 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
           show={this.logRetrieval.show}
           showTips={this.logRetrieval.isShowTip}
           onShowChange={this.handleLogDialogShow}
-        />
+        ></LogRetrievalDialog>
       ) : undefined,
       <HandleStatusDialog
         v-model={this.dialog.statusDialog.show}
         actions={this.actions}
-      />,
+      ></HandleStatusDialog>,
       <Feedback
         ids={[this.basicInfo.id]}
         show={feedback.show}
         onChange={this.handleFeedback}
         onConfirm={this.handleFeedBackConfirm}
-      />,
+      ></Feedback>,
       <ManualProcess
         alertIds={this.dialog.manualProcess.alertIds}
         bizIds={this.dialog.manualProcess.bizIds}
@@ -538,19 +537,19 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         onDebugStatus={this.handleDebugStatus}
         onMealInfo={this.handleMealInfo}
         onShowChange={this.manualProcessShowChange}
-      />,
+      ></ManualProcess>,
       <ManualDebugStatus
         actionIds={this.dialog.manualProcess.actionIds}
         bizIds={this.dialog.manualProcess.bizIds}
         debugKey={this.dialog.manualProcess.debugKey}
         mealInfo={this.dialog.manualProcess.mealInfo}
-      />,
+      ></ManualDebugStatus>,
       <AlarmDispatch
         alertIds={this.dialog.alarmDispatch.alertIds}
         bizIds={this.dialog.alarmDispatch.bizIds}
         show={this.dialog.alarmDispatch.show}
         onShow={this.handleAlarmDispatchShowChange}
-      />,
+      ></AlarmDispatch>,
     ];
   }
 
@@ -606,7 +605,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
               class='chat-btn'
               onClick={() => this.handleChatGroup()}
             >
-              <span class='icon-monitor icon-we-com' />
+              <span class='icon-monitor icon-we-com'></span>
               {window.i18n.tc('拉群')}
             </div>
           ) : (
@@ -616,7 +615,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
             class='feedback-btn'
             onClick={() => this.handleFeedback(true)}
           >
-            <span class='icon-monitor icon-fankui' />
+            <span class='icon-monitor icon-fankui'></span>
             {this.isFeedback ? window.i18n.tc('已反馈') : window.i18n.tc('反馈')}
           </div>
           <BasicInfo
@@ -627,8 +626,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
             on-quick-shield={this.quickShieldChange}
             on-strategy-detail={this.toStrategyDetail}
             onAlarmDispatch={this.handleAlarmDispatch}
-          />
-          <div class='basicinfo-bottom-border' />
+          ></BasicInfo>
+          <div class='basicinfo-bottom-border'></div>
           <TabContainer
             actions={this.actions}
             activeTab={this.activeTab}
@@ -639,7 +638,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
             sceneName={this.sceneName}
             show={this.tabShow}
             traceIds={this.traceIds}
-          />
+          ></TabContainer>
         </div>
         {this.getDialogComponent()}
         <ChatGroup

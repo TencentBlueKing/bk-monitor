@@ -48,7 +48,7 @@
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import type { CheckType, CheckValue, IMenu } from '../types/selector-type';
+import { CheckType, CheckValue, IMenu } from '../types/selector-type';
 
 import Menu from './menu.vue';
 
@@ -71,9 +71,9 @@ export default class SelectionColumn extends Vue {
     active: CheckType;
     list: IMenu[];
   } = {
-    active: this.defaultActive,
-    list: [],
-  };
+      active: this.defaultActive,
+      list: []
+    };
   private isDropDownShow = false;
 
   // 取消勾选时重置checkType
@@ -91,12 +91,12 @@ export default class SelectionColumn extends Vue {
     this.checkType.list = [
       {
         id: 'current',
-        label: this.$t('本页全选'),
+        label: this.$t('本页全选')
       },
       {
         id: 'all',
-        label: this.$t('跨页全选'),
-      },
+        label: this.$t('跨页全选')
+      }
     ];
   }
 
@@ -117,7 +117,7 @@ export default class SelectionColumn extends Vue {
     this.handleUpdateValue(2);
     return {
       value: 2,
-      type,
+      type
     };
   }
   /**
@@ -131,7 +131,7 @@ export default class SelectionColumn extends Vue {
     this.handleUpdateValue(value ? 2 : 0);
     return {
       value: value ? 2 : 0,
-      type: this.checkType.active,
+      type: this.checkType.active
     };
   }
 
@@ -171,7 +171,7 @@ export default class SelectionColumn extends Vue {
         },
         onShow: () => {
           this.isDropDownShow = true;
-        },
+        }
       });
     }
 

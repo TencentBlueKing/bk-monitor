@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type traceIcons from '../../utls/icons';
-import type { HierarchyNode } from 'd3-hierarchy';
+import { HierarchyNode } from 'd3-hierarchy';
+
+import traceIcons from '../../utls/icons';
 
 export const ColorTypes = {
   http: '#aea2e0',

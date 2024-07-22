@@ -26,7 +26,7 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CMDBInfoList, applicationList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
+import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
   serviceConfig,
@@ -36,10 +36,7 @@ import {
 import ChangeRcord from 'monitor-pc/components/change-record/change-record';
 
 import PanelItem from '../../../components/panel-item/panel-item';
-import * as authorityMap from '../../home/authority-map';
-import DebuggerDialog from './debugger-dialog';
-
-import type {
+import {
   IAppInfoItem,
   IBaseParams,
   ICmdbInfoItem,
@@ -49,6 +46,8 @@ import type {
   ILogInfoItem,
   IServiceInfo,
 } from '../../../typings';
+import * as authorityMap from '../../home/authority-map';
+import DebuggerDialog from './debugger-dialog';
 
 import './basic-info.scss';
 
@@ -597,19 +596,19 @@ export default class BasicInfo extends tsc<object> {
                           id={option.id}
                           key={option.id}
                           name={option.name}
-                        />
+                        ></bk-option>
                       ))}
                     </bk-select>
                   </div>
                 )}
                 <div class='tag-list'>
                   <bk-tag class='relation-info-tag'>
-                    <span class='tag-label'>{this.$t('服务名称')}:</span>
+                    <span class='tag-label'>{this.$t('服务名称 :')}</span>
                     <span>{curCmdbRelationTagList?.template_name || '--'}</span>
                   </bk-tag>
                   <bk-tag class='relation-info-tag'>
                     <div class='category-tag'>
-                      <span class='tag-label'>{this.$t('一级分类')}:</span>
+                      <span class='tag-label'>{this.$t('一级分类 :')}</span>
                       {curCmdbRelationTagList?.first_category?.icon && (
                         <img
                           class='icon'
@@ -622,7 +621,7 @@ export default class BasicInfo extends tsc<object> {
                   </bk-tag>
                   <bk-tag class='relation-info-tag'>
                     <div class='category-tag'>
-                      <span class='tag-label'>{this.$t('二级分类')}:</span>
+                      <span class='tag-label'>{this.$t('二级分类 :')}</span>
                       {curCmdbRelationTagList?.second_category?.icon && (
                         <img
                           class='icon'
@@ -658,7 +657,7 @@ export default class BasicInfo extends tsc<object> {
                           id={option.id}
                           key={option.id}
                           name={option.name}
-                        />
+                        ></bk-option>
                       ))}
                     </bk-select>
                     <bk-form
@@ -681,7 +680,7 @@ export default class BasicInfo extends tsc<object> {
                               enable-virtual-scroll
                               searchable
                               onChange={v => this.handleLogBizChange(v)}
-                            />
+                            ></bk-select>
                           </bk-form-item>
                           <bk-form-item property='logValue'>
                             <bk-select
@@ -693,7 +692,7 @@ export default class BasicInfo extends tsc<object> {
                                   id={option.id}
                                   key={option.id}
                                   name={option.name}
-                                />
+                                ></bk-option>
                               ))}
                             </bk-select>
                           </bk-form-item>
@@ -718,7 +717,7 @@ export default class BasicInfo extends tsc<object> {
                               <span>{`${logRelation.log_type_alias} : ${logRelation.related_bk_biz_name}`}</span>
                             </bk-tag>
                             <bk-tag class='relation-info-tag'>
-                              <span>{`${this.$t('索引集')}:${logRelation.value_alias}`}</span>
+                              <span>{`${this.$t('索引集 : ')}${logRelation.value_alias}`}</span>
                             </bk-tag>
                           </section>
                         ) : (
@@ -748,7 +747,7 @@ export default class BasicInfo extends tsc<object> {
                       enable-virtual-scroll
                       searchable
                       onChange={v => this.handleBizChange(v)}
-                    />
+                    ></bk-select>
                     <bk-form
                       ref='appForm'
                       {...{
@@ -769,7 +768,7 @@ export default class BasicInfo extends tsc<object> {
                               id={option.id}
                               key={option.id}
                               name={option.name}
-                            />
+                            ></bk-option>
                           ))}
                         </bk-select>
                       </bk-form-item>
@@ -894,7 +893,7 @@ export default class BasicInfo extends tsc<object> {
                 slot='headerTool'
                 onClick={this.getUriSourceData}
               >
-                <i class='icon-monitor icon-shuaxin' />
+                <i class='icon-monitor icon-shuaxin'></i>
                 {this.$t('button-刷新')}
               </span>
             </div>
@@ -926,7 +925,7 @@ export default class BasicInfo extends tsc<object> {
                   onDragstart={evt => this.handleDragStart(evt, index)}
                   onDrop={this.handleDrop}
                 >
-                  {this.isEditing && <i class='icon-monitor icon-mc-tuozhuai' />}
+                  {this.isEditing && <i class='icon-monitor icon-mc-tuozhuai'></i>}
                   <label class='label'>{`URI${index + 1}`}</label>
                   <div class='content'>
                     {this.isEditing ? (
@@ -1016,7 +1015,7 @@ export default class BasicInfo extends tsc<object> {
             v-bk-tooltips={{ content: this.$t('变更记录') }}
             onClick={() => (this.record.show = true)}
           >
-            <i class='icon-monitor icon-lishijilu' />
+            <i class='icon-monitor icon-lishijilu'></i>
           </div>
         </div>
         {this.isEditing ? (
@@ -1032,7 +1031,7 @@ export default class BasicInfo extends tsc<object> {
             <bk-button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</bk-button>
           </div>
         ) : (
-          <div />
+          <div></div>
         )}
         <ChangeRcord
           recordData={this.record.data}

@@ -43,37 +43,36 @@ import {
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
+import { ISpaceItem } from '../../../types';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { handleSetTargetDesc } from '../common';
 import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
+import { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/alarm-handling';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
+import { ChartType } from '../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
+import { IModelData } from '../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
+import { IFunctionsValue } from '../strategy-config-set-new/monitor-data/function-select';
 import {
-  type INoticeValue,
   hasExcludeNoticeWayOptions,
+  INoticeValue,
   intervalModeNames,
 } from '../strategy-config-set-new/notice-config/notice-config';
 import { levelList, noticeMethod } from '../strategy-config-set-new/type';
 import {
-  type IDetectionConfig,
-  type IScenarioItem,
+  dataModeType,
+  IDetectionConfig,
+  IScenarioItem,
   MetricDetail,
   MetricType,
-  type dataModeType,
 } from '../strategy-config-set-new/typings';
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
 import { transformLogMetricId } from './utils';
-
-import type { ISpaceItem } from '../../../types';
-import type { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/alarm-handling';
-import type { ChartType } from '../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
-import type { IModelData } from '../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
-import type { IFunctionsValue } from '../strategy-config-set-new/monitor-data/function-select';
 
 import './strategy-config-detail-common.scss';
 
@@ -1063,7 +1062,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     readonly={true}
                     onMetricChange={this.handleSceneConfigMetricChange}
                     onModelChange={val => this.handleModelChange(val[0])}
-                  />
+                  ></AiopsMonitorData>
                 ) : (
                   <div class='query-configs-main'>
                     <div>
@@ -1118,7 +1117,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                       content: this.$t('数据步长'),
                                       placements: ['top'],
                                     }}
-                                  />
+                                  ></span>
                                 </div>
                               </bk-input>
                             </div>
@@ -1129,7 +1128,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     {this.targetsDesc.message || this.targetsDesc.subMessage ? (
                       <div class='targets-desc'>
                         <span onClick={this.handleShowTargetTable}>
-                          <i class='icon-monitor icon-mc-tv' />
+                          <i class='icon-monitor icon-mc-tv'></i>
                           <span class='targets-desc-text'>
                             {this.targetsDesc.message}
                             {this.targetsDesc.subMessage}
@@ -1149,7 +1148,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                               this.currentAlertLevel.icon,
                               `level-icon-${this.currentAlertLevel.id}`,
                             ]}
-                          />
+                          ></i>
                           <span class='level-text'>{this.currentAlertLevel.name}</span>
                         </span>
                       </div>
@@ -1208,7 +1207,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             : '{0}当数据连续丢失{1}个周期时，触发告警通知，告警级别{2}'
                         }
                       >
-                        <span />
+                        <span></span>
                         <span class='bold-span'>{noDataConfig.continuous}</span>
                         {noDataConfig.dimensions.length ? (
                           <span class='bold-span'>
@@ -1389,7 +1388,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                       {this.getAlarmGroupByID(alarm)}
                                     </span>
                                   ) : (
-                                    <div class='skeleton-element alarm-group-skeleton' />
+                                    <div class='skeleton-element alarm-group-skeleton'></div>
                                   )
                                 )}
                               </div>,
@@ -1448,7 +1447,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         panels={this.templateTypes}
                         type={'text'}
                         onChange={this.handleChangeTemplate}
-                      />
+                      ></CustomTab>
                     </div>
                     <div class='wrap-bottom'>
                       <div class='template-title'>
@@ -1472,14 +1471,14 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             class={'template-btn-wrap'}
                             onClick={this.handleShowVariateList}
                           >
-                            <i class='icon-monitor icon-audit' />
+                            <i class='icon-monitor icon-audit'></i>
                             <span class='template-btn-text'>{this.$t('变量列表')}</span>
                           </div>
                           <div
                             class={['template-btn-wrap', { 'template-btn-disabled': !this.templateData.message_tmpl }]}
                             onClick={this.handleShowTemplate}
                           >
-                            <i class='icon-monitor icon-audit' />
+                            <i class='icon-monitor icon-audit'></i>
                             <span class='template-btn-text'>{this.$t('模板预览')}</span>
                           </div>
                         </div>
@@ -1491,12 +1490,12 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         dialogShow={this.isShowTemplate}
                         template={this.templateData.message_tmpl}
                         {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
-                      />
+                      ></StrategyTemplatePreview>
                       <StrategyVariateList
                         dialogShow={this.variateListShow}
                         {...{ on: { 'update:dialogShow': val => (this.variateListShow = val) } }}
                         variate-list={this.variateList}
-                      />
+                      ></StrategyVariateList>
                     </div>
                   </div>
                   <AlarmGroupDetail
@@ -1505,11 +1504,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     customEdit
                     onEditGroup={this.handleEditAlarmGroup}
                     onShowChange={val => !val && (this.alarmGroupDetail.id = 0)}
-                  />
+                  ></AlarmGroupDetail>
                 </div>
               )}
             </div>
-            <div style='padding-top: 16px;' />
+            <div style='padding-top: 16px;'></div>
           </div>
           <div
             style={{ width: this.rightWidth }}
@@ -1522,7 +1521,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
               <div
                 class={['drag', { active: this.strategyView.isActive }]}
                 on-mousedown={this.handleMouseDown}
-              />
+              ></div>
               <StrategyView
                 aiopsChartType={this.localAiopsChartType}
                 aiopsModelMdList={this.aiopsModelDescMdGetter}

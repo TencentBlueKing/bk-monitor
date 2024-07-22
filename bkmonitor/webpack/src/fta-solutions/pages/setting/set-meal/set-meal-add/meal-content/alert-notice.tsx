@@ -35,17 +35,17 @@ import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import AutoInput from '../../../components/auto-input';
 import TipMsg from '../../../components/tip-msg';
 import CommonItem from '../components/common-item';
-import CustomTab, { type IPanels } from '../components/custom-tab';
-import NoticeModeNew, { type INoticeWayValue, robot } from '../components/notice-mode';
+import CustomTab, { IPanels } from '../components/custom-tab';
+import NoticeModeNew, { INoticeWayValue, robot } from '../components/notice-mode';
 import {
-  type IExecution,
-  type INotice,
-  type INoticeAlert,
-  type INoticeTemplate,
   defaultAddTimeRange,
   executionName,
   executionNotifyConfigChange,
   executionTips,
+  IExecution,
+  INotice,
+  INoticeAlert,
+  INoticeTemplate,
   intervalModeTips,
   templateSignalName,
   timeRangeValidate,
@@ -283,7 +283,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
       <div class='alert-notice-new'>
         <div class='header-title'>{this.$t('告警阶段')}</div>
         <div class='content-wrap-key1'>
-          <div class='wrap-top' />
+          <div class='wrap-top'></div>
           <CustomTab
             active={this.alertActive}
             newKey={this.alertNewkey}
@@ -293,7 +293,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
             onChange={this.handleChangeTimeRang}
             onDel={this.handleDelTimeRang}
             onTimeChange={this.handleEditTimeRang}
-          />
+          ></CustomTab>
           <div class='wrap-bottom'>
             <div class='label-wrap'>
               <span class='label'>{this.$t('通知间隔')}：</span>
@@ -315,7 +315,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                         id={item.id}
                         key={item.id}
                         name={item.name}
-                      />
+                      ></bk-option>
                     ))}
                   </bk-select>
                   <bk-input
@@ -325,13 +325,13 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                     behavior='simplicity'
                     type='number'
                     onInput={this.handleChange}
-                  />
+                  ></bk-input>
                 </i18n>
                 <span
                   style={{ color: '#979ba5', marginTop: '-3px' }}
                   class='icon-monitor icon-hint'
                   v-bk-tooltips={{ content: intervalModeTips[this.alertData.intervalNotifyMode], allowHTML: false }}
-                />
+                ></span>
               </span>
             </div>
             <NoticeModeNew
@@ -341,7 +341,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
               notifyConfig={this.alertData.notifyConfig}
               showlevelMark={true}
               onChange={this.noticeConfigChange}
-            />
+            ></NoticeModeNew>
           </div>
         </div>
         <div class='content-wrap-key1'>
@@ -351,7 +351,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
               panels={this.templateTypes}
               type={'text'}
               onChange={this.handleChangeTemplate}
-            />
+            ></CustomTab>
           </div>
           <div class='wrap-bottom'>
             <CommonItem
@@ -363,7 +363,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                 v-model={this.templateData.titleTmpl}
                 tipsData={this.getMessageTemplateList}
                 onChange={this.handleChange}
-              />
+              ></AutoInput>
               {/* <bk-input
                 behavior='simplicity'
                 ext-cls="template-title"
@@ -380,7 +380,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                 class={['template-btn-wrap', { 'template-btn-disabled': !this.templateData.messageTmpl }]}
                 onClick={this.handleShowTemplate}
               >
-                <i class='icon-monitor icon-audit' />
+                <i class='icon-monitor icon-audit'></i>
                 <span class='template-btn-text'>{this.$t('模板预览')}</span>
               </div>
             </div>
@@ -395,7 +395,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                 default-value={this.templateData.messageTmpl}
                 trigger-list={this.getMessageTemplateList}
                 onChange={this.noticeTemplateChange}
-              />
+              ></TemplateInput>
             </ResizeContainer>
           </div>
           {/* <bk-button class="debug-btn" theme="primary" outline={true} onClick={() => (this.showTestDialog = true)}>
@@ -405,7 +405,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
             dialogShow={this.isShowTemplate}
             template={this.templateData.messageTmpl}
             {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
-          />
+          ></StrategyTemplatePreview>
         </div>
         <div class='header-title execution'>{this.$t('执行通知')}</div>
         <TipMsg
@@ -414,7 +414,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
           msg={`${this.$t(
             '除了通知套餐外其他都是可以设置套餐的敏感度，通知套餐基于不同的敏感度可以配置不同的通知方式。'
           )}`}
-        />
+        ></TipMsg>
         <div
           style={{ marginTop: '10px' }}
           class='content-wrap-key1'
@@ -425,19 +425,19 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
               panels={this.executionTypes}
               type={'text'}
               onChange={this.handleChangeExecution}
-            />
+            ></CustomTab>
           </div>
           <div class='wrap-bottom execution'>
             <TipMsg
               class='storm-item-msg'
               msg={executionTips[this.executionActive]}
-            />
+            ></TipMsg>
             <NoticeModeNew
               noticeWay={this.noticeWayList}
               notifyConfig={executionNotifyConfigChange(this.executionData?.notifyConfig)}
               type={1}
               onChange={this.executionNoticeConfigChange}
-            />
+            ></NoticeModeNew>
           </div>
         </div>
       </div>

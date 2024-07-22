@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { RouteConfig } from 'vue-router';
+
 import CollectRoutes from './collector-config';
 import CustomRoutes from './custom-escalation';
 import CustomEvent from './custom-event';
@@ -30,8 +32,6 @@ import CustomMetric from './custom-metric';
 import ExportImportRoutes from './export-import';
 import Fta from './fta';
 import PluginRoutes from './plugin-manager';
-
-import type { RouteConfig } from 'vue-router';
 
 export default [
   ...PluginRoutes,

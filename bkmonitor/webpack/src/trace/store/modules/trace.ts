@@ -30,6 +30,7 @@ import { deepClone } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
+import { Span, TraceData } from '../../components/trace-view/typings';
 import { formatDuration } from '../../components/trace-view/utils/date';
 import { handleToggleCollapse, handleTraceTreeGroup } from '../../components/trace-view/utils/group';
 import { mergeTraceTree, transformTraceInfo } from '../../components/trace-view/utils/info';
@@ -39,10 +40,7 @@ import {
   spanListSetting,
   traceListSetting,
 } from '../../pages/main/inquire-content/table-settings';
-import { DEFAULT_TRACE_DATA } from '../constant';
-
-import type { Span, TraceData } from '../../components/trace-view/typings';
-import type {
+import {
   DirectionType,
   IServiceSpanListItem,
   ISpanDetail,
@@ -52,6 +50,7 @@ import type {
   ITraceTree,
   OriginCrossAppSpanMap,
 } from '../../typings';
+import { DEFAULT_TRACE_DATA } from '../constant';
 
 export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
 export type TraceListMode = 'origin' | 'pre_calculation';

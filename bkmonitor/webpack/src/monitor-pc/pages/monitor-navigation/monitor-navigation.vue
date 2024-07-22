@@ -226,7 +226,7 @@ import Vue from 'vue';
 
 import BkPaasLogin from '@blueking/paas-login';
 import { getFooter } from 'monitor-api/modules/commons';
-import { LOCAL_BIZ_STORE_KEY, copyText, deleteCookie, getUrlParam } from 'monitor-common/utils/utils';
+import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
 import { createNamespacedHelpers } from 'vuex';
 

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteConfig } from 'vue-router';
+import { RouteConfig } from 'vue-router';
 
 const Application = () => import(/* webpackChunkName: "application" */ '../../pages/application/application');
 const ApplicationDetail = () =>

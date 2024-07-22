@@ -28,12 +28,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
+import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import CorrelationNav from './correlation-nav';
 import MetricsCollapse from './metrics-collapse';
-
-import type { IInfo } from './types';
-import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { IInfo } from './types';
 
 import './metrics-view.scss';
 
@@ -168,7 +167,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             isSplitPanel={false}
             needOverviewBtn={false}
             panels={item.panels}
-          />
+          ></DashboardPanel>
         ) : (
           ''
         )}
@@ -205,7 +204,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             default: this.renderDashboardPanel.bind(this, item),
           },
         }}
-      />
+      ></MetricsCollapse>
     );
   }
 
@@ -258,7 +257,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       >
         {this.panelMap.recommendedMetricPanels.length > 0 ? (
           [
-            <div class='correlation-metric-nav-wrap-bg' />,
+            <div class='correlation-metric-nav-wrap-bg'></div>,
             <div
               style={this.isFixed ? { top: this.isDetailRoute ? '52px' : '60px' } : {}}
               class={['correlation-metric-nav-wrap', this.isFixed && 'correlation-metric-fixed']}
@@ -267,7 +266,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
                 ref='correlationNav'
                 list={this.panelMap.recommendedMetricPanels}
                 onActive={this.handleActive}
-              />
+              ></CorrelationNav>
             </div>,
             <div class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}>
               {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
@@ -303,7 +302,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         isSplitPanel={false}
         needOverviewBtn={false}
         panels={this.panelMap.dimensionPanels}
-      />
+      ></DashboardPanel>
     ) : (
       ''
     );

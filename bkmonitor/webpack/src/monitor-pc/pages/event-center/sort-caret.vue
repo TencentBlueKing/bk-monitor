@@ -50,43 +50,38 @@ export default class SortCaret extends Vue {
       id: 'normal';
       name: 'normal';
       next: 'asc';
-    },
+    }
   ];
 }
 </script>
 <style lang="scss" scoped>
 .sort-wrapper {
   position: relative;
+  height: 20px;
+  width: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
   cursor: pointer;
-
-  .sort-caret {
-    position: absolute;
-    width: 0;
-    height: 0;
-    border: 5px solid transparent;
-
-    &.ascending {
-      top: -1px;
-      border-bottom-color: #c0c4cc;
-    }
-
-    &.descending {
-      bottom: -1px;
-      border-top-color: #c0c4cc;
-    }
-  }
-
   &.asc .sort-caret.ascending {
     border-bottom-color: #63656e;
   }
-
   &.desc .sort-caret.descending {
     border-top-color: #63656e;
+  }
+  .sort-caret {
+    width: 0;
+    height: 0;
+    border: 5px solid transparent;
+    position: absolute;
+    &.ascending {
+      border-bottom-color: #c0c4cc;
+      top: -1px;
+    }
+    &.descending {
+      border-top-color: #c0c4cc;
+      bottom: -1px;
+    }
   }
 }
 </style>

@@ -25,9 +25,9 @@
  */
 import dayjs from 'dayjs';
 import { getUnitInfo } from 'monitor-api/modules/strategies';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
-import type { IViewOptions } from '../typings';
-import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { IViewOptions } from '../typings';
 
 export const isEqualObject = (v: Record<string, any>, o: Record<string, any>, keys: string[] = []): boolean => {
   if (v === o) return true;
@@ -508,7 +508,7 @@ export const recheckInterval = (interval: 'auto' | number | string, timeRange: n
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
     const maxInterval = (timeRange / (step || 60) / MIN_PONIT_COUNT) * 60;
-    let minStep = Number.POSITIVE_INFINITY;
+    let minStep = Infinity;
     let val: number;
     INTERVAL_CONTANT_LIST.forEach(v => {
       const step1 = Math.abs(v - minInterval);

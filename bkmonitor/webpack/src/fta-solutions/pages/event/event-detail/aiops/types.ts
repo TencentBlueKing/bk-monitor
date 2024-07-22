@@ -69,7 +69,7 @@ export interface IAnomalyDimensions {
 }
 
 export enum EventReportType {
-  Click = 'event_detail_click',
-  Tips = 'event_detail_tips',
-  View = 'event_detail_view',
+  'Click' = 'event_detail_click',
+  'Tips' = 'event_detail_tips',
+  'View' = 'event_detail_view',
 }

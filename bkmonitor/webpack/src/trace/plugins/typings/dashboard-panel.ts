@@ -25,7 +25,8 @@
  */
 import { typeTools } from 'monitor-common/utils/utils';
 
-import type { TimeSeriesType } from './time-series';
+import { TimeSeriesType } from './time-series';
+
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 // 图例呈现模式
 export type LegendDisplayMode = 'hidden' | 'list' | 'table';
@@ -501,30 +502,4 @@ export interface ILogUrlParams {
   addition: IAddition[]; // 搜索条件 即监控的汇聚条件
   start_time?: string; // 起始时间
   end_time?: string; // 终止时间
-}
-export interface IViewOptions {
-  // 对比数据 如 目标对比 集成等
-  compares?: Record<'targets', any>;
-  // filter 数据 视图最侧栏定位数据使用
-  filters?: Record<string, any>;
-  // 变量数据 视图变量
-  variables?: Record<string, any>;
-  // 汇聚方法
-  method?: string;
-  // 汇聚周期
-  interval?: 'auto' | number | string;
-  // 数据组 维度 指标组
-  groups?: string[];
-  // 特殊数据组  主机监控使用 主机ip 云区域id
-  group_by?: string[];
-  // 当前选中的目标 主机和容器监控特殊使用
-  current_target?: Record<string, any>;
-  // 对比目标 主机监控特殊使用
-  compare_targets?: Record<string, any>[];
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  // 用于动态判断panel是否显示
-  matchFields?: Record<string, any>;
-  // 策略id 用于hostIntelligenAnomalyRange接口
-  strategy_id?: number | string;
 }

@@ -74,8 +74,12 @@ export default class SideSlider extends tsc<IEvent> {
   }
 
   handleMousedown(evt) {
-    document.onselectstart = () => false;
-    document.ondragstart = () => false;
+    document.onselectstart = function () {
+      return false;
+    };
+    document.ondragstart = function () {
+      return false;
+    };
     this.enableAnimation = false;
     this.startClientX = evt.clientX;
     this.handleAddMouseMove();
@@ -112,13 +116,13 @@ export default class SideSlider extends tsc<IEvent> {
         <span
           class='slider-drag-btn'
           onMousedown={this.handleMousedown}
-        />
+        ></span>
         <span
           class={['side-slider-btn', { 'is-hidden': !this.isShowSideSlider }]}
           onClick={this.handleShowSideSlider}
         >
           <span class='side-slider-btn-text'>{this.$t('插件说明')}</span>
-          <i class='icon-monitor icon-arrow-right' />
+          <i class='icon-monitor icon-arrow-right'></i>
         </span>
         <div class='side-slider-content'>{this.$slots.default}</div>
       </div>

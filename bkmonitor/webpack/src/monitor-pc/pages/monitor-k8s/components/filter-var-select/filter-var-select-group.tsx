@@ -28,12 +28,11 @@ import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
+import { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { handleGetReferenceKeyList } from '../../utils';
-import FilterVarSelect, { type CustomParamsType, type FilterDictType } from './filter-var-select';
-
-import type { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import FilterVarSelect, { CustomParamsType, FilterDictType } from './filter-var-select';
 
 import './filter-var-select-group.scss';
 
@@ -352,7 +351,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
               class='filter-add-btn'
               onClick={this.handleAddFilter}
             >
-              <i class='icon-monitor icon-mc-add' />
+              <i class='icon-monitor icon-mc-add'></i>
             </span>
           )}
           {this.editable && (

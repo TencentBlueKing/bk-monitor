@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, ref } from 'vue';
+import { defineComponent, PropType, ref } from 'vue';
 
-import { Popover, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Popover } from 'bkui-vue';
 
 import ViewParam from './view-param';
 
@@ -83,7 +83,7 @@ export default defineComponent({
           class='history-container'
           onClick={this.handleHistoryClick}
         >
-          <span class='icon-monitor icon-lishijilu icon' />
+          <span class='icon-monitor icon-lishijilu icon'></span>
           <ViewParam
             list={this.list}
             title={this.title}

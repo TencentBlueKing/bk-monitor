@@ -1356,7 +1356,7 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(UnionSearchFieldsSerializer)
         return Response(UnionSearchHandler().union_search_fields(data))
 
-    @list_route(methods=["POST"], url_path="union_search/export")
+    @list_route(methods=["GET"], url_path="union_search/export")
     def union_search_export(self, request, *args, **kwargs):
         """
         @api {post} /search/index_set/union_search/export/ 14_联合检索-导出日志

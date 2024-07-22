@@ -211,7 +211,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
               v-bk-tooltips={this.$tc('切换视角')}
               onClick={this.handleToggleBefore}
             >
-              <i class='icon-monitor icon-switch' />
+              <i class='icon-monitor icon-switch'></i>
             </span>
           )}
         </div>

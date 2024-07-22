@@ -31,8 +31,7 @@ import { getVariableValue } from 'monitor-api/modules/grafana';
 import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../constant/constant';
 import { getPopoverWidth } from '../../../../utils';
 import SelectMenu from '../components/select-menu';
-
-import type { ICommonItem } from '../typings';
+import { ICommonItem } from '../typings';
 
 import './condition-input.scss';
 
@@ -376,7 +375,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
               slot='extension'
               on-click={() => this.handleDeleteKey(index)}
             >
-              <i class='icon-monitor icon-chahao' />
+              <i class='icon-monitor icon-chahao'></i>
               <span>{this.$t('删除')}</span>
             </div>
           </bk-select>,
@@ -400,7 +399,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
               allow-create
               has-delete-icon
               on-change={(v: string[]) => this.handleValueChange(item, v)}
-            />,
+            ></bk-tag-input>,
           ],
         ])}
         <span
@@ -408,7 +407,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
           class='condition-item condition-add'
           on-click={() => this.handleAddCondition()}
         >
-          <i class='bk-icon icon-plus' />
+          <i class='bk-icon icon-plus'></i>
         </span>
         <SelectMenu
           list={this.menuList}
@@ -418,8 +417,8 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
           on-on-delete={() => this.handleMenuDelete()}
           on-on-hidden={() => this.handleMenuHidden()}
           on-on-select={item => this.handelMenuSelect(item)}
-        />
-        <slot />
+        ></SelectMenu>
+        <slot></slot>
       </span>
     );
   }

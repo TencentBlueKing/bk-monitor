@@ -34,10 +34,9 @@ import bus from 'monitor-common/utils/event-bus';
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import { ETagsType } from '../../components/biz-select/list';
 import EmptyStatus from '../../components/empty-status/empty-status';
-import CommonStatus from '../monitor-k8s/components/common-status/common-status';
-
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import type { ISpaceItem } from '../../types'; /** 监听空间置顶列表数据事件key */
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import { ISpaceItem } from '../../types';
+import CommonStatus from '../monitor-k8s/components/common-status/common-status'; /** 监听空间置顶列表数据事件key */
 
 import SpaceAddList from './space-add-list/space-add-list';
 
@@ -84,8 +83,8 @@ const SPACE_FEATURE_LIST = [
   // },
 ];
 enum SpaceType {
-  all = 1 /** 全部空间 */,
-  mine = 0 /** 我的空间 */,
+  mine /** 我的空间 */,
+  all /** 全部空间 */,
 }
 /** 空间状态 */
 enum SpaceStatus {
@@ -445,7 +444,7 @@ export default class SpaceManage extends tsc<object> {
               right-icon='bk-icon icon-search'
               value={this.keyword}
               onInput={this.handleSearch}
-            />
+            ></bk-input>
           </div>
           <bk-table
             key={this.refreshTable}
@@ -501,7 +500,7 @@ export default class SpaceManage extends tsc<object> {
                 <CommonStatus
                   text={row.statusText}
                   type={row.status}
-                />
+                ></CommonStatus>
               )}
               filters={this.statusFilterOptions}
               label={this.$t('状态')}
@@ -567,7 +566,7 @@ export default class SpaceManage extends tsc<object> {
           show={this.showAdd}
           onSaveSuccess={this.handleSaveSuccess}
           onShowChange={this.handleShowChange}
-        />
+        ></SpaceAddList>
       </div>
     );
   }

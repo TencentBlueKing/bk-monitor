@@ -50,7 +50,6 @@ from bkmonitor.models import (
 )
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.casting import force_float
-from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.kubernetes import (
     BcsClusterType,
     KubernetesServiceJsonParser,
@@ -2659,9 +2658,7 @@ class GetKubernetesNetworkTimeSeries(Resource):
                 {
                     "key": "instance",
                     "method": "reg",
-                    "value": [
-                        fr"^\[{node.ip}\]:" if is_v6(node.ip) else f"{node.ip}:" for node in node_list if node.ip
-                    ],
+                    "value": [f"^{node.ip}:" for node in node_list if node.ip],
                 }
             )
         else:

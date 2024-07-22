@@ -45,9 +45,10 @@ import { copyText, typeTools } from 'monitor-common/utils/utils';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
-import StatisticsTable, { type IFilterItem } from '../../../components/statistics-table/statistics-table';
+import StatisticsTable, { IFilterItem } from '../../../components/statistics-table/statistics-table';
 import TraceView from '../../../components/trace-view';
 import SearchBar from '../../../components/trace-view/search-bar';
+import { Span } from '../../../components/trace-view/typings';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
@@ -60,18 +61,10 @@ import {
   VIRTUAL_SPAN,
 } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-import {
-  type DirectionType,
-  ETopoType,
-  type ISpanClassifyItem,
-  type ITraceData,
-  type ITraceTree,
-} from '../../../typings';
+import { DirectionType, ISpanClassifyItem, ITraceData, ITraceTree, ETopoType } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
 import NodeTopo from './node-topo';
-
-import type { Span } from '../../../components/trace-view/typings';
 
 import './trace-detail.scss';
 
@@ -817,7 +810,7 @@ export default defineComponent({
             class='fullscreen-btn toggle-full-screen'
             onClick={() => this.$emit('close')}
           >
-            <div class='circle' />
+            <div class='circle'></div>
             <span class='icon-monitor icon-mc-close icon-page-close' />
           </div>
         )}
@@ -860,7 +853,7 @@ export default defineComponent({
                 content={this.$t('时间经过校准，注意服务所在时钟是否同步')}
                 placement='top'
               >
-                <span class='icon-monitor icon-tips' />
+                <span class='icon-monitor icon-tips'></span>
               </Popover>
             )}
           </div>
@@ -915,7 +908,7 @@ export default defineComponent({
                   ''
                 )
               ) : (
-                <span class={`card-icon icon-monitor icon-${card.icon}`} />
+                <span class={`card-icon icon-monitor icon-${card.icon}`}></span>
               )}
               <span class='card-text'>{card.name}</span>
               {card.type !== 'max_duration' && <span class='card-count'>{card.count}</span>}
@@ -996,7 +989,7 @@ export default defineComponent({
                 v-slots={{
                   label: () => (
                     <span class='tab-label'>
-                      <i class={`icon-monitor icon-${item.icon}`} />
+                      <i class={`icon-monitor icon-${item.icon}`}></i>
                       {item.name}
                     </span>
                   ),
@@ -1152,7 +1145,7 @@ export default defineComponent({
                 onResizing={this.handleSpanListResizing}
               >
                 {{
-                  main: () => <div />,
+                  main: () => <div></div>,
                   aside: () => (
                     <TopoSpanList
                       compareSpanList={this.compareSpanList}
@@ -1174,7 +1167,7 @@ export default defineComponent({
             class='back-top'
             onClick={this.handleBackTop}
           >
-            <i class='icon-monitor icon-back-up' />
+            <i class='icon-monitor icon-back-up'></i>
           </div>
         )}
         <SpanDetails

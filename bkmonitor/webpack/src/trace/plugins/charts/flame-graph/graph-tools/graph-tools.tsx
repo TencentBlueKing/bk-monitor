@@ -95,30 +95,30 @@ export default defineComponent({
             <i
               class={`icon-monitor icon-minimap item-store ${this.thumbnailActive ? 'is-active' : ''}`}
               onClick={this.handleShowThumbnail}
-            />
+            ></i>
           )}
           {this.showLegend && (
             <i
               class={`icon-monitor icon-legend ${this.legendActive ? 'is-active' : ''}`}
               onClick={this.handleShowLegend}
-            />
+            ></i>
           )}
           <i
             class='icon-monitor icon-xiazai1 item-store'
             onClick={this.handleStoreImg}
-          />
+          ></i>
         </div>
         {
           <div class='tools-scale'>
             <i
               class='icon-monitor icon-plus-line item-icon'
               onClick={this.handlePlus}
-            />
+            ></i>
             <span class='scale-text'>{this.scaleValue}%</span>
             <i
               class='icon-monitor icon-minus-line item-icon'
               onClick={this.handleMinus}
-            />
+            ></i>
           </div>
         }
       </div>

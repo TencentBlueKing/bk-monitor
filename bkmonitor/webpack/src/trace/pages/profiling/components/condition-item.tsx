@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, onMounted, reactive, ref, watch } from 'vue';
+import { defineComponent, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
 import { debounce } from 'lodash';
 import { queryLabelValues } from 'monitor-api/modules/apm_profile';
 
-import type { IConditionItem } from '../typings';
+import { IConditionItem } from '../typings';
 
 import './condition-item.scss';
 
@@ -167,7 +167,7 @@ export default defineComponent({
                     id={option}
                     key={option}
                     name={option}
-                  />
+                  ></Select.Option>
                 ))}
               </Select>
             </div>
@@ -176,7 +176,7 @@ export default defineComponent({
           <i
             class='icon-monitor icon-mc-delete-line'
             onClick={this.handleDelete}
-          />
+          ></i>
         </div>
         <div class='content'>
           <Select
@@ -191,7 +191,7 @@ export default defineComponent({
                 id={option}
                 key={option}
                 name={option}
-              />
+              ></Select.Option>
             ))}
           </Select>
         </div>

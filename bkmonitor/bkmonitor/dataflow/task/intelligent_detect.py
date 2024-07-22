@@ -342,40 +342,20 @@ class MetricRecommendTask(BaseTask):
 class HostAnomalyIntelligentDetectTask(BaseTask):
     FLOW_NAME_KEY = "主机异常检测结果评级"
 
-    def __init__(
-        self,
-        strategy_id,
-        access_bk_biz_id,
-        rt_id,
-        strategy_sql,
-        scene_id,
-        plan_id,
-        metric_field,
-        agg_dimensions,
-        plan_args,
-    ):
+    def __init__(self, strategy_id, access_bk_biz_id, scene_id, plan_id, metric_field, agg_dimensions, plan_args):
         self.strategy_id = strategy_id
         self.access_bk_biz_id = access_bk_biz_id
         self.node_list = []
 
-        stream_source_node = StreamSourceNode(rt_id)
-
-        strategy_process_node = BusinessSceneNode(
-            access_bk_biz_id=self.access_bk_biz_id,
-            bk_biz_id=settings.BK_DATA_BK_BIZ_ID,
-            scene_name=SceneSet.HOST,
-            source_rt_id=rt_id,
-            sql=strategy_sql,
-            parent=stream_source_node,
-            strategy_id=strategy_id,
-        )
+        source_rt_id = self.get_stream_source_from_host_scene_flow(access_bk_biz_id)
+        system_stream_source_node = StreamSourceNode(source_rt_id)
 
         plan_args.update({"$ignore_periodic": 1})
         scene_service_node = HostAnomalySceneServiceNode(
-            source_rt_id=strategy_process_node.output_table_name,
+            source_rt_id=system_stream_source_node.output_table_name,
             metric_field=metric_field,
             agg_dimensions=agg_dimensions,
-            parent=strategy_process_node,
+            parent=system_stream_source_node,
             plan_args=plan_args,
             plan_id=plan_id,
             scene_id=scene_id,
@@ -389,8 +369,7 @@ class HostAnomalyIntelligentDetectTask(BaseTask):
         )
 
         self.node_list = [
-            stream_source_node,
-            strategy_process_node,
+            system_stream_source_node,
             scene_service_node,
             scene_service_node_storage_node,
         ]

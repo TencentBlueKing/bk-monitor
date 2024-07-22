@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
-import { ofType, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc, ofType } from 'vue-tsx-support';
 
 interface IProps {
   label: any;

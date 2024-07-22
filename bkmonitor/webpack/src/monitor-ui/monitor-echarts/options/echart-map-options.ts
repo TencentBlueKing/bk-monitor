@@ -26,8 +26,7 @@
 import deepMerge from 'deepmerge';
 
 import MonitorBaseSeries from './base-chart-option';
-
-import type { IChartInstance } from './type-interface';
+import { IChartInstance } from './type-interface';
 
 export default class MonitorPieSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;

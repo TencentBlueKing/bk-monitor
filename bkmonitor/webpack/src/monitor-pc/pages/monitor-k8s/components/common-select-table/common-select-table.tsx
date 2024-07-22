@@ -30,9 +30,12 @@ import { Component as tsc } from 'vue-tsx-support';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
@@ -40,14 +43,11 @@ import {
   transformQueryDataSearch,
   updateBkSearchSelectName,
 } from '../../utils';
+import { type ShowModeType } from '../common-page-new';
 import CommonTable from '../common-table';
 import SortTool from '../sort-tool/sort-tool';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
-import type { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
-import type { ShowModeType } from '../common-page-new';
-import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
-import type { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 
 import './common-select-table.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -120,7 +120,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
   @Ref() tableRef: CommonTable;
 
   /** 概览 icon */
-  overviewIcon = require('../../../../static/images/svg/overview.svg'); // eslint-disable-line
+  overviewIcon = require('../../../../static/images/svg/overview.svg') // eslint-disable-line
   /** 面板 loading */
   loading = false;
   /** 滚动加载loading */
@@ -587,7 +587,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               class='reflesh-btn'
               onClick={this.handleRefresh}
             >
-              <i class='icon-monitor icon-shuaxin' />
+              <i class='icon-monitor icon-shuaxin'></i>
             </bk-button>
           </div>
           <div class='tools-bar'>
@@ -643,7 +643,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
             onScrollEnd={this.handleScrollEnd}
             onSortChange={this.handleSortChange}
             onSwitchOverview={this.handleOverviewChange}
-          />
+          ></CommonTable>
         </div>
         {this.showScrollLoadBar && <div class='scroll-load-bar'>{handleLoadBarText()}</div>}
       </div>

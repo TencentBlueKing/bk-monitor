@@ -37,8 +37,7 @@ import debounce from '../common/debounce-decorator';
 import { createRouteConfig } from '../router/router-config';
 import appStoreModule from '../store/modules/app';
 import authorityStore from '../store/modules/authority';
-
-import type { ISpaceItem } from '../typings';
+import { ISpaceItem } from '../typings';
 
 import './app.scss';
 
@@ -294,7 +293,7 @@ export default class App extends tsc<object> {
           <span
             class='app-logo'
             slot='side-icon'
-          />
+          ></span>
           {this.menuList?.length ? (
             <div
               key='menu'
@@ -343,7 +342,7 @@ export default class App extends tsc<object> {
               needBack={this.needBack}
               needCopyLink={this.needCopyLink}
               routeList={this.navRouteList}
-            />
+            ></CommonNavBar>
           )}
           <div
             class={[
@@ -355,14 +354,14 @@ export default class App extends tsc<object> {
             ]}
           >
             <keep-alive>
-              <router-view class='page-wrapper' />
+              <router-view class='page-wrapper'></router-view>
             </keep-alive>
             <router-view
               key='noCache'
               class='page-wrapper'
               name='noCache'
-            />
-            <AuthorityModal />
+            ></router-view>
+            <AuthorityModal></AuthorityModal>
           </div>
         </bk-navigation>
       </div>

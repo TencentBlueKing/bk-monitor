@@ -106,7 +106,7 @@
 <script lang="ts">
 import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { type ResizeCallback, addListener, removeListener } from '@blueking/fork-resize-detector';
+import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import { toBlob, toPng } from 'html-to-image';
@@ -117,7 +117,7 @@ import ChartLegend from './components/chart-legend.vue';
 import ChartTitle from './components/chart-title.vue';
 import ChartTools from './components/chart-tools.vue';
 import EchartOptions from './options/echart-options';
-import type {
+import {
   ChartType,
   IAnnotation,
   ILegendItem,
@@ -127,7 +127,7 @@ import type {
   ITextChartOption,
   ITextSeries,
 } from './options/type-interface';
-import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
+import { echarts, MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 import ChartInView from './utils/chart-in-view';
 import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
@@ -194,7 +194,7 @@ export default class MonitorEcharts extends Vue {
       return `url('${watermarkMaker(window.user_name || window.username)}')`;
     },
   })
-  backgroundUrl: string;
+  backgroundUrl: String;
 
   // 获取图标数据
   @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;

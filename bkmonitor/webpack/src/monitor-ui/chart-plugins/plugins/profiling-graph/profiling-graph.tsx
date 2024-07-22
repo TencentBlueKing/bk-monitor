@@ -39,11 +39,11 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
 
 import {
-  type BaseDataType,
-  type DataTypeItem,
-  type IQueryParams,
+  BaseDataType,
+  DataTypeItem,
+  IQueryParams,
   PanelModel,
-  type ProfilingTableItem,
+  ProfilingTableItem,
   TextDirectionType,
   ViewModeType,
 } from '../../typings';
@@ -54,8 +54,7 @@ import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 import TrendChart from './trend-chart/trend-chart';
-
-import type { ProfileDataUnit } from './utils';
+import { ProfileDataUnit } from './utils';
 
 import './profiling-graph.scss';
 
@@ -173,9 +172,6 @@ class ProfilingChart extends CommonSimpleChart {
           } else {
             this.emptyText = '';
           }
-        })
-        .catch(() => {
-          this.emptyText = '';
         })
         .finally(() => {
           this.isFirstLoad = false;
@@ -415,7 +411,7 @@ class ProfilingChart extends CommonSimpleChart {
                   </div>
                 </div>
                 <div class='link-tips'>
-                  <i class='icon-monitor icon-tishi' />
+                  <i class='icon-monitor icon-tishi'></i>
                   <i18n
                     class='flex-center'
                     path='更多功能，请前往 {0}'
@@ -429,7 +425,7 @@ class ProfilingChart extends CommonSimpleChart {
                   </i18n>
                 </div>
               </div>
-              <TrendChart queryParams={this.queryParams} />
+              <TrendChart queryParams={this.queryParams}></TrendChart>
               <div
                 class='profiling-graph'
                 v-bkloading={{ isLoading: this.isGraphLoading }}

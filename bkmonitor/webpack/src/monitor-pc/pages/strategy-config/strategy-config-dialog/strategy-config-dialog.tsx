@@ -41,20 +41,19 @@ import MultiLabelSelect from '../../../components/multi-label-select/multi-label
 import TimePickerMultiple from '../../../components/time-picker-multiple/time-picker-multiple';
 import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input.vue';
 import {
-  type IValue as IAlarmItem,
-  type IAllDefense,
   actionConfigGroupList,
+  IAllDefense,
+  IValue as IAlarmItem,
 } from '../strategy-config-set-new/alarm-handling/alarm-handling';
 import AlarmHandlingList from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
 import AlarmGroup from '../strategy-config-set-new/components/alarm-group';
 import CommonItem from '../strategy-config-set-new/components/common-form-item';
+import { IGroupItem } from '../strategy-config-set-new/components/group-select';
 import VerifyItem from '../strategy-config-set-new/components/verify-item';
 import DetectionRules from '../strategy-config-set-new/detection-rules/detection-rules';
 import { DEFAULT_TIME_RANGES } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { actionOption, intervalModeList, noticeOptions } from '../strategy-config-set-new/notice-config/notice-config';
-
-import type { IGroupItem } from '../strategy-config-set-new/components/group-select';
-import type { MetricDetail } from '../strategy-config-set-new/typings';
+import { MetricDetail } from '../strategy-config-set-new/typings';
 
 import './strategy-config-dialog.scss';
 
@@ -347,7 +346,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     if (num) {
       let inputVal = num.toString();
       inputVal = inputVal.replace(/\./gi, '');
-      this.data[type][prop] = Number.parseInt(inputVal, 10);
+      this.data[type][prop] = parseInt(inputVal, 10);
     }
   }
 
@@ -375,14 +374,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           ? false
           : {
               trigger_config: {
-                count: Number.parseInt(String(this.data.triggerCondition.count), 10),
-                check_window: Number.parseInt(String(this.data.triggerCondition.cycleOne) as unknown as string, 10),
+                count: parseInt(String(this.data.triggerCondition.count), 10),
+                check_window: parseInt(String(this.data.triggerCondition.cycleOne) as unknown as string, 10),
               },
             },
       2: () =>
-        this.validateRecoveAlarmCondition()
-          ? false
-          : { alarm_interval: Number.parseInt(String(this.data.notice.val), 10) },
+        this.validateRecoveAlarmCondition() ? false : { alarm_interval: parseInt(String(this.data.notice.val), 10) },
       3: () => {
         if (this.data.openAlarmNoData && this.validateNoDataAlarmCycle()) {
           return false;
@@ -390,7 +387,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         return this.data.openAlarmNoData
           ? {
               no_data_config: {
-                continuous: Number.parseInt(String(this.data.noDataAlarm.cycle), 10),
+                continuous: parseInt(String(this.data.noDataAlarm.cycle), 10),
                 is_enabled: this.data.openAlarmNoData,
               },
             }
@@ -503,8 +500,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         return true;
       }
     }
-    const cycleOne = Number.parseInt(String(this.data.triggerCondition.cycleOne), 10);
-    const count = Number.parseInt(String(this.data.triggerCondition.count), 10);
+    const cycleOne = parseInt(String(this.data.triggerCondition.cycleOne), 10);
+    const count = parseInt(String(this.data.triggerCondition.count), 10);
     if (cycleOne < count) {
       this.data.triggerError = true;
     } else {
@@ -604,7 +601,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
 
   /** 通知升级时间间隔 */
   handleUpgradeIntervalChange(val: string) {
-    const num = Number.parseInt(val, 10);
+    const num = parseInt(val, 10);
     this.data.upgrade_config.upgrade_interval = isNaN(num) ? 1 : num;
   }
 
@@ -634,7 +631,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 showControls={false}
                 type='number'
                 onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'cycleOne')}
-              />
+              ></bk-input>
               <bk-select
                 style='width: 64px'
                 v-model={this.data.triggerCondition.type}
@@ -646,7 +643,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                     id={item.id}
                     key={index}
                     name={item.name}
-                  />
+                  ></bk-option>
                 ))}
               </bk-select>
               <bk-input
@@ -658,11 +655,11 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 showControls={false}
                 type='number'
                 onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'count')}
-              />
+              ></bk-input>
             </i18n>
             {this.data.triggerError ? (
               <span class='trigger-condition-tips'>
-                <i class='icon-monitor icon-mind-fill item-icon' /> {this.$t('要求: 满足次数&lt;=周期数')}
+                <i class='icon-monitor icon-mind-fill item-icon'></i> {this.$t('要求: 满足次数&lt;=周期数')}
               </span>
             ) : undefined}
           </div>
@@ -679,7 +676,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 v-model={this.data.openAlarmNoData}
                 size='small'
                 theme='primary'
-              />
+              ></bk-switcher>
               <bk-input
                 class='number-input'
                 v-model={this.data.noDataAlarm.cycle}
@@ -689,7 +686,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 showControls={false}
                 type='number'
                 onChange={(v: number) => this.handleFormatNumber(v, 'noDataAlarm', 'cycle')}
-              />
+              ></bk-input>
             </i18n>
           </div>,
           this.data.noDataCycleError ? (
@@ -708,7 +705,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 showControls={false}
                 type='number'
                 onChange={(v: number) => this.handleFormatNumber(v, 'recover', 'val')}
-              />
+              ></bk-input>
             </i18n>
           </div>,
           this.data.recoverCycleError ? (
@@ -749,7 +746,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               mode='select'
               on-checkedChange={v => (this.data.labels = v)}
               on-loading={v => (this.isLoading = v)}
-            />
+            ></MultiLabelSelect>
             {this.data.labelsError ? (
               <span class='notice-error-msg error-msg-font'> {this.$t('选择标签')} </span>
             ) : undefined}
@@ -773,7 +770,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             value={this.data.alarmItems}
             onAddMeal={() => this.handleHideDialog(false)}
             onChange={v => (this.data.alarmItems = v)}
-          />
+          ></AlarmHandlingList>
         );
       case 14 /* 修改告警组 */:
         return (
@@ -787,7 +784,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               value={this.data.userGroups}
               onAddGroup={() => this.handleHideDialog(false)}
               onChange={data => this.handleUserGroupChange(data)}
-            />
+            ></AlarmGroup>
             {this.data.userGroupsErr ? (
               <span class='alarm-groups-err-msg error-msg-font'> {this.$t('必填项')} </span>
             ) : undefined}
@@ -845,7 +842,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                       id={item.id}
                       key={item.id}
                       name={item.name}
-                    />
+                    ></bk-option>
                   ))}
                 </bk-select>
                 <bk-input
@@ -856,13 +853,13 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   size='small'
                   type='number'
                   onFocus={() => (this.data.noticeIntervalError = false)}
-                />
+                ></bk-input>
               </i18n>
               <span
                 style={{ color: '#979ba5', marginTop: '-3px' }}
                 class='icon-monitor icon-hint'
                 v-bk-tooltips={{ content: intervalModeTips[this.data.noticeInterval.interval_notify_mode] }}
-              />
+              ></span>
             </span>
             {this.data.noticeIntervalError ? (
               <span class='notice-interval-err-msg error-msg-font'> {this.$t('必填项')} </span>
@@ -878,7 +875,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 panels={templateList}
                 type={'text'}
                 onChange={this.handleChangeTemplate}
-              />
+              ></CustomTab>
             </div>
             <div class='wrap-bottom'>
               <CommonItem
@@ -895,7 +892,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                     v-model={this.data.templateData.title_tmpl}
                     tipsList={this.messageTemplateList}
                     on-change={this.templateChange}
-                  />
+                  ></AutoInput>
                 </VerifyItem>
               </CommonItem>
               <div
@@ -916,7 +913,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   defaultValue={this.data.templateData.message_tmpl}
                   triggerList={this.messageTemplateList}
                   onChange={this.noticeTemplateChange}
-                />
+                ></TemplateInput>
               </ResizeContainer>
             </div>
           </div>
@@ -930,8 +927,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 v-model={this.data.needBizConverge}
                 size='small'
                 theme='primary'
-              />
-              <i class='icon-monitor icon-hint' />
+              ></bk-switcher>
+              <i class='icon-monitor icon-hint'></i>
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
               </span>
@@ -947,7 +944,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 v-model={this.data.upgrade_config.is_enabled}
                 size='small'
                 theme='primary'
-              />
+              ></bk-switcher>
 
               {this.data.upgrade_config.is_enabled && (
                 <i18n
@@ -993,7 +990,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   list={this.alarmGroupList}
                   showAddTip={false}
                   onAddGroup={() => this.handleHideDialog(false)}
-                />
+                ></AlarmGroup>
               )}
               {this.data.upgradeError ? (
                 <span class='notice-error-msg error-msg-font'> {this.data.upgradeError} </span>
@@ -1015,7 +1012,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               unit={this.data.detectionConfig.unit}
               unitType={this.data.detectionConfig.unitType}
               onChange={this.handleDetectionRulesChange}
-            />
+            ></DetectionRules>
           </div>
         );
       default:

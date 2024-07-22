@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { COMMON_SETTINGS_LIST, type IMenuItem } from '../typings';
+import { COMMON_SETTINGS_LIST, IMenuItem } from '../typings';
 
 import './list-menu.scss';
 
