@@ -1384,7 +1384,7 @@ class GetBeatDataResource(Resource):
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
         if data.get("bk_host_ids"):
             condition_statement = f'''bk_host_id=~"{'|'.join(data.get('bk_host_ids'))}"'''
-            promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}[1m]"
+            promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}"
         else:
             ips = data.get("ips")
             transformd_ips = self.transform_ips(ips)
@@ -1396,9 +1396,7 @@ class GetBeatDataResource(Resource):
                     condition_statement = f'ip="{ips[0]}", bk_cloud_id="{bk_cloud_id}"'
                 else:
                     condition_statement = f'''ip=~"{'|'.join(ips)}", bk_cloud_id="{bk_cloud_id}"'''
-                promql_statement_list.append(
-                    f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}[1m]"
-                )
+                promql_statement_list.append(f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}")
             promql_statement = "(" + " or ".join(promql_statement_list) + ")"
 
         query_config = {

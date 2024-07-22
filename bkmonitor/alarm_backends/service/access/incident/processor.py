@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import json
 import logging
 from typing import Dict
@@ -94,7 +95,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             # 补充快照记录并写入ES
             incident_document.snapshot = snapshot
-            snapshot_model = IncidentSnapshot(snapshot.content.to_dict())
+            snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
             incident_document.generate_labels(snapshot_model)
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.CREATE)
             logger.info(f"[CREATE]Success to access incident[{sync_info['incident_id']}] as document")
@@ -153,7 +154,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
                 # 补充快照记录并写入ES
                 incident_document.snapshot = snapshot
-                snapshot_model = IncidentSnapshot(snapshot.content.to_dict())
+                snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
                 incident_document.generate_labels(snapshot_model)
 
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)

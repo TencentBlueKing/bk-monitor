@@ -478,6 +478,11 @@ class UserIndexSetSearchHistoryNotExistException(BaseException):
     MESSAGE = _("历史记录不存在")
 
 
+class GetMultiResultFailException(BaseException):
+    ERROR_CODE = "445"
+    MESSAGE = _("字段数量[{field_name}]查询失败 原因: {e}")
+
+
 # =================================================
 # 导出
 # =================================================

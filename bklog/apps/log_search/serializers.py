@@ -41,7 +41,8 @@ from apps.log_search.constants import (
     TagColor,
     TemplateType,
 )
-from apps.log_search.models import ProjectInfo, Scenario
+from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
+from apps.log_unifyquery.constants import FIELD_TYPE_MAP
 from apps.utils.drf import DateTimeFieldWithEpoch
 from apps.utils.local import get_local_param
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -824,3 +825,70 @@ class ESRouterListSerializer(serializers.Serializer):
     scenario_id = serializers.CharField(required=False, label="数据源类型")
     page = serializers.IntegerField(label=_("分页"), required=True)
     pagesize = serializers.IntegerField(label=_("分页大小"), required=True)
+
+
+class QueryFieldBaseSerializer(serializers.Serializer):
+    """
+    字段分析查询序列化
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())
+    result_table_ids = serializers.ListField(
+        label=_("结果表ID列表"), required=False, child=serializers.CharField(), default=list
+    )
+    agg_field = serializers.CharField(label=_("字段名"), required=False)
+
+    # filter条件，span选择器等
+    addition = serializers.ListField(allow_empty=True, required=False, default="")
+    host_scopes = serializers.DictField(default={}, required=False)
+    ip_chooser = serializers.DictField(default={}, required=False)
+
+    # 时间选择器字段
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
+    time_range = serializers.CharField(required=False, default=None)
+
+    # 关键字填充条
+    keyword = serializers.CharField(allow_null=True, allow_blank=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["result_table_ids"] = []
+        result_table_ids = list(
+            LogIndexSetData.objects.filter(index_set_id__in=attrs["index_set_ids"]).values_list(
+                "result_table_id", flat=True
+            )
+        )
+        if result_table_ids:
+            attrs["result_table_ids"] = result_table_ids
+        return attrs
+
+
+class FetchTopkListSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段topk计数列表序列化
+    """
+
+    limit = serializers.IntegerField(label=_("topk限制条数"), required=False, default=5)
+
+
+class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段统计信息
+    """
+
+    field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
+
+
+class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段统计图表
+    """
+
+    field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
+    max = serializers.IntegerField(label=_("最大值"), required=False)
+    min = serializers.IntegerField(label=_("最小值"), required=False)
+    threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
+    limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
+    distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
