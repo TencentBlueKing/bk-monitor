@@ -29,6 +29,7 @@ from django.utils.translation import ugettext as _
 from requests.auth import to_native_string
 from yaml import SafeDumper
 
+from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
@@ -1172,7 +1173,16 @@ class UptimeCheckBeatResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        class HostObjectField(serializers.Field):
+            def to_internal_value(self, data):
+                if isinstance(data, Host):
+                    return data
+                else:
+                    raise serializers.ValidationError("Expected a Host object.")
+
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        id_hosts = serializers.ListSerializer(child=HostObjectField(allow_null=True, required=False), required=False)
+        ip_hosts = serializers.ListSerializer(child=HostObjectField(allow_null=True, required=False), required=False)
 
     @classmethod
     def node_to_host(cls, node, ip_to_host, id_to_host):
@@ -1210,6 +1220,8 @@ class UptimeCheckBeatResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data.get("bk_biz_id")
+        id_hosts = validated_request_data.get("id_hosts", None)
+        ip_hosts = validated_request_data.get("ip_hosts", None)
 
         if bk_biz_id:
             # 过滤业务下所有节点时，同时还应该加上通用节点
@@ -1220,32 +1232,32 @@ class UptimeCheckBeatResource(Resource):
             nodes = UptimeCheckNode.objects.all()
         result = {}
 
-        # 按是否开启IPV6划分节点列表
-        biz_to_node = defaultdict(list)
         biz_to_host = defaultdict(list)
         heartbeats = []
         heartbeats_lock = threading.Lock()
         ip_to_host = {}
         id_to_host = {}
         biz_to_all_hosts = defaultdict(list)
-        for node in nodes:
-            biz_to_node[node.bk_biz_id].append(node)
 
-        for biz, node_list in biz_to_node.items():
-            bk_host_ids = [node.bk_host_id for node in node_list if node.bk_host_id]
-            origin_ips = [node.ip for node in node_list if not node.bk_host_id]
+        if id_hosts is None:
+            bk_host_ids = [node.bk_host_id for node in nodes if node.bk_host_id]
+            id_hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        if ip_hosts is None:
+            origin_ips = [node.ip for node in nodes if not node.bk_host_id]
             ip_hosts = api.cmdb.get_host_without_biz(ips=origin_ips)["hosts"]
-            hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
-            all_hosts = ip_hosts + hosts
-            biz_to_all_hosts[biz].extend(all_hosts)
-            ip_to_host.update(
-                {
-                    host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
-                    for host in all_hosts
-                    if host.bk_host_innerip
-                }
-            )
-            id_to_host.update({host.bk_host_id: host for host in all_hosts})
+
+        id_to_host.update({host.bk_host_id: host for host in id_hosts})
+        ip_to_host.update(
+            {
+                host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
+                for host in ip_hosts
+                if host.bk_host_innerip
+            }
+        )
+        all_hosts = ip_hosts + id_hosts
+        for host in all_hosts:
+            bk_biz_id = host["_extra_attr"]["bk_biz_id"]
+            biz_to_all_hosts[bk_biz_id].append(host)
 
         for node in nodes:
             node_host = self.node_to_host(node, ip_to_host, id_to_host)
