@@ -55,7 +55,7 @@ class KafkaScenario(CollectorScenario):
 
         kafka_ssl_params = params.get("kafka_ssl_params", {})
 
-        if params.get("kafka_username", "") and params.get("kafka_password", ""):
+        if kafka_ssl_params:
             kafka_ssl_params.update({"enabled": True})
         else:
             kafka_ssl_params.update({"enabled": False})
