@@ -59,7 +59,7 @@ export default class ExpandWrapper extends tsc<IProps> {
           onClick={this.handleExpan}
         >
           <div class='expan-btn'>
-            <span class={['icon-monitor icon-mc-triangle-down', { active: this.isExpan }]}></span>
+            <span class={['icon-monitor icon-mc-triangle-down', { active: this.isExpan }]} />
           </div>
           <div class='wrap-header-slot'>{this.$slots?.header}</div>
         </div>

@@ -177,7 +177,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
               e.stopPropagation();
               this.handleDelItem(key);
             }}
-          ></span>
+          />
         ) : undefined}
         <div class='time-title'>{this.$tc('生效时段')}</div>
         <bk-time-picker
@@ -192,7 +192,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           transfer={true}
           type='timerange'
           on-open-change={state => this.handleOpenChange(state, item)}
-        ></bk-time-picker>
+        />
       </div>
     );
   }
@@ -232,7 +232,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
                 key={item.key}
                 name={item.key}
                 renderLabel={(h, name) => this.renderLabel(name, item)}
-              ></bk-tab-panel>
+              />
             ))}
           </bk-tab>
         </div>
@@ -249,7 +249,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
               key={item.key}
               label={item.label}
               name={item.key}
-            ></bk-tab-panel>
+            />
           ))}
         </bk-tab>
       );

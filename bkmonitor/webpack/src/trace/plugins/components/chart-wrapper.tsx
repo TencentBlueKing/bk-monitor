@@ -23,20 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, provide, ref } from 'vue';
 
 import { bkTooltips } from 'bkui-vue';
-import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
+import FailureAlarmChart from '../charts/failure-chart/failure-alarm-chart';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';
 import TimeSeries from '../charts/time-series/time-series';
-import { useReadonlyInject } from '../hooks';
+import { chartDetailProvideKey, useReadonlyInject } from '../hooks';
 
 import type * as PanelModelTraceVersion from '../typings';
+import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-wrapper.scss';
 
@@ -51,9 +52,13 @@ export default defineComponent({
     detectionConfig: { default: () => {}, type: Object as PropType<IDetectionConfig> },
     /* 是否可选中图表 */
     needCheck: { type: Boolean, default: false },
+    /** 是否显示告警视图图表 */
+    isAlarmView: { type: Boolean, default: false },
   },
-  emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries'],
+  emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries', 'successLoad'],
   setup(props, { emit }) {
+    provide(chartDetailProvideKey, props.panel);
+
     // TODO: 该注入还没设置 provide 调用，后期需要补上
     const readonly = useReadonlyInject();
 
@@ -114,8 +119,22 @@ export default defineComponent({
     function handleCollapsed() {
       emit('collapse', !props.panel.collapsed);
     }
+    const handleSuccessLoad = () => {
+      emit('successLoad');
+    };
 
     function handlePanel2Chart() {
+      if (props.isAlarmView) {
+        return (
+          <FailureAlarmChart
+            clearErrorMsg={handleClearErrorMsg}
+            detail={props.panel}
+            onErrorMsg={handleErrorMsgChange}
+            onLoading={handleChangeLoading}
+            onSuccessLoad={handleSuccessLoad}
+          />
+        );
+      }
       switch (props.panel.type) {
         case 'row':
           return (
@@ -178,13 +197,21 @@ export default defineComponent({
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
+        {!!window.graph_watermark && (
+          <div
+            class='wm'
+            v-watermark={{
+              text: window.user_name || window.username,
+            }}
+          />
+        )}
         {this.handlePanel2Chart()}
         {this.loading ? (
           <img
             class='loading-icon'
             alt=''
             src={loadingIcon}
-          ></img>
+          />
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
           <span
@@ -198,7 +225,7 @@ export default defineComponent({
             v-watermark={{
               text: window.user_name || window.username,
             }}
-          ></div>
+          />
         )}
         {!!this.errorMsg && (
           <span
@@ -208,7 +235,7 @@ export default defineComponent({
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start',
             }}
-          ></span>
+          />
         )}
       </div>
     );

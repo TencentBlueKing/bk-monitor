@@ -56,7 +56,7 @@ export default defineComponent({
       <div class='trace-view-legend'>
         {this.legendList.map(item => (
           <div class='length-item'>
-            <i class={`icon-monitor icon-${item.id} legend-icon`}></i>
+            <i class={`icon-monitor icon-${item.id} legend-icon`} />
             <span class='legend-label'>{item.label}</span>
           </div>
         ))}

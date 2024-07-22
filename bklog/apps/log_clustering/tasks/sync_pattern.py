@@ -112,7 +112,9 @@ def get_pattern(content) -> list:
     - log_signature: 聚类模型signature
     """
     patterns = []
-    for _, sensitive_patterns in content[CONTENT_PATTERN_INDEX].items():
+    if isinstance(content, list):
+        content = content[CONTENT_PATTERN_INDEX]
+    for _, sensitive_patterns in content.items():
         for sensitive_pattern in sensitive_patterns:
             signature = sensitive_pattern[PATTERN_SIGNATURE_INDEX]
             if not sensitive_pattern[ORIGIN_LOG_INDEX]:
@@ -138,6 +140,9 @@ def get_pattern(content) -> list:
                 if hasattr(pattern, "name"):
                     value = pattern.value
                     name = f"#{pattern.name}#"
+                elif isinstance(pattern, (tuple, list)):
+                    value = pattern[-1]
+                    name = f"#{pattern[-2]}#"
                 else:
                     value = pattern
                     name = pattern

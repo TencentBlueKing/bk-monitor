@@ -23,18 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// import Vue from 'vue';
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+// import Vue from 'vue';
+import type { TranslateResult } from 'vue-i18n';
 
 //
 // import MonitorDateRange from '../../../components/monitor-date-range';
 import MonitorDropdown from '../../../components/monitor-dropdown';
-import TimeRange, { TimeRangeType } from '../../../components/time-range/time-range';
+import TimeRange, { type TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../constant/constant';
-import { COMMON_SETTINGS_LIST, IMenuItem } from '../typings';
+import { COMMON_SETTINGS_LIST, type IMenuItem } from '../typings';
 import ListMenu from './list-menu';
 
 import './dashboard-tools.scss';
@@ -428,7 +429,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
               onTimezoneChange={this.handleTimezoneChange}
             />
           ))}
-        {<span></span>}
+        {<span />}
         <MonitorDropdown
           class={`dashboard-tools-interval ${this.readonly ? 'is-readonly' : ''}`}
           v-model={this.refleshIntervalValue}

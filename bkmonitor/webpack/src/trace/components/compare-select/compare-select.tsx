@@ -323,7 +323,7 @@ export default defineComponent({
                 <Input
                   v-model={this.formData.name}
                   maxlength={16}
-                ></Input>
+                />
               </Form.FormItem>
               <Form.FormItem class='submit-form-item'>
                 <Button
@@ -360,7 +360,7 @@ export default defineComponent({
           <i
             class='icon-monitor icon-bianji'
             onClick={e => e.stopPropagation()}
-          ></i>
+          />
         ) : (
           <span class='common-used'>{this.$t('设为常用')}</span>
         )}
@@ -424,7 +424,7 @@ export default defineComponent({
                         class='tools'
                         onClick={this.handleClearTemporary}
                       >
-                        <i class='icon-monitor icon-mc-clear-query'></i>
+                        <i class='icon-monitor icon-mc-clear-query' />
                         <span>{this.$t('清空')}</span>
                       </div>
                     </div>
@@ -523,7 +523,7 @@ export default defineComponent({
                             <i
                               class='icon-monitor icon-mc-delete-line delete-btn'
                               onClick={e => e.stopPropagation()}
-                            ></i>
+                            />
                           </Popover>
                         ) : (
                           ''

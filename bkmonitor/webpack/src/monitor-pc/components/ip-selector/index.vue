@@ -83,7 +83,7 @@ import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import SelectorContent from './selector/selector-content.vue';
 import SelectorPreview from './selector/selector-preview.vue';
 import SelectorTab from './selector/selector-tab.vue';
-import { IEventsMap, IMenu, IPanel, IPerateFunc, IPreviewData } from './types/selector-type';
+import type { IEventsMap, IMenu, IPanel, IPerateFunc, IPreviewData } from './types/selector-type';
 
 @Component({
   name: 'ip-selector',
@@ -91,8 +91,8 @@ import { IEventsMap, IMenu, IPanel, IPerateFunc, IPreviewData } from './types/se
   components: {
     SelectorTab,
     SelectorContent,
-    SelectorPreview
-  }
+    SelectorPreview,
+  },
 })
 export default class IpSelector extends Vue {
   @Prop({ default: '', type: String }) private readonly active!: string;
@@ -156,7 +156,7 @@ export default class IpSelector extends Vue {
   private handlePreviewMenuClick({ menu, item }: { menu: IMenu; item: IPreviewData }) {
     return {
       menu,
-      item
+      item,
     };
   }
   // 移除预览面板节点
@@ -164,7 +164,7 @@ export default class IpSelector extends Vue {
   private handleRemoveNode({ child, item }: { child: any; item: IPreviewData }) {
     return {
       child,
-      item
+      item,
     };
   }
   // eslint-disable-next-line @typescript-eslint/member-ordering

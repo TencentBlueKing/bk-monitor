@@ -35,11 +35,11 @@ export default {
           return value > 0;
         }
         return true;
-      }
+      },
     },
     treeData: {
       type: Array,
-      required: true
+      required: true,
     },
     // 单选项
     checkedData: {
@@ -49,36 +49,34 @@ export default {
       },
       validator(value) {
         return value.length <= 1;
-      }
+      },
     },
     disabledData: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     filterMethod: {
       type: Function,
-      default: () => () => {}
+      default: () => () => {},
     },
     keyword: {
       type: String,
-      default: ''
+      default: '',
     },
     isSearchNoData: Boolean,
-    height: Number
+    height: Number,
   },
   methods: {
     handleGetExpandNodeByDeep(deep = 1, treeData = []) {
       return treeData.reduce((pre, node) => {
         (deep => {
           if (deep > 1 && Array.isArray(node.children) && node.children.length > 0) {
-            // eslint-disable-next-line no-param-reassign
             deep -= 1;
-            // eslint-disable-next-line no-param-reassign
+
             pre = pre.concat(this.handleGetExpandNodeByDeep(deep, node.children));
           } else {
-            // eslint-disable-next-line no-param-reassign
             pre = pre.concat(node.id);
           }
         })(deep);
@@ -87,6 +85,6 @@ export default {
     },
     resize() {
       this.$refs.tree?.resize();
-    }
-  }
+    },
+  },
 };

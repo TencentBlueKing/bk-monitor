@@ -29,10 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 import { alertStatus, updateAlertUserGroups } from 'monitor-api/modules/datalink';
 import { Debounce } from 'monitor-common/utils';
 
-// import { isEnFn } from '../../../../utils/index';
-import { TCollectorAlertStage } from '../typings/detail';
-import AlarmGroup, { IAlarmGroupList } from './alarm-group';
+import AlarmGroup, { type IAlarmGroupList } from './alarm-group';
 import AlertHistogram from './alert-histogram';
+
+// import { isEnFn } from '../../../../utils/index';
+import type { TCollectorAlertStage } from '../typings/detail';
 
 import './alert-topic.scss';
 
@@ -112,13 +113,13 @@ export default class AlertTopic extends tsc<IProps> {
           <span class='left-wrap'>
             <span class='cur-alert'>
               {this.hasAlert
-                ? [<span class='icon-monitor icon-danger'></span>, <span class='ml-8'>{this.$t('当前有告警')}</span>]
+                ? [<span class='icon-monitor icon-danger' />, <span class='ml-8'>{this.$t('当前有告警')}</span>]
                 : [
-                    <span class='icon-monitor icon-mc-check-fill'></span>,
+                    <span class='icon-monitor icon-mc-check-fill' />,
                     <span class='ml-8'>{this.$t('当前暂无告警')}</span>,
                   ]}
             </span>
-            <span class='split-line'></span>
+            <span class='split-line' />
             <span class='alert-histogram'>
               <span class='alert-msg mr-8'>
                 <span>{this.$t('总告警')}</span>
@@ -131,13 +132,13 @@ export default class AlertTopic extends tsc<IProps> {
                 <AlertHistogram
                   defaultInterval={2}
                   value={this.alertHistogram}
-                ></AlertHistogram>
+                />
               </span>
             </span>
           </span>
           <span class='right-wrap'>
             <span class='receive-msg'>
-              <span class='icon-monitor icon-mc-alarm-create mr-6'></span>
+              <span class='icon-monitor icon-mc-alarm-create mr-6' />
               <bk-popover
                 ext-cls='alert-topic-component-pop-alert'
                 theme='light'
@@ -156,10 +157,10 @@ export default class AlertTopic extends tsc<IProps> {
                 </div>
               </bk-popover>
             </span>
-            <span class='split-line'></span>
+            <span class='split-line' />
             <span class='group-wrap'>
               <span class='group-title mr-8'>
-                <span class='icon-monitor icon-mc-add-strategy mr-6'></span>
+                <span class='icon-monitor icon-mc-add-strategy mr-6' />
                 <span>{this.$t('告警组')}: </span>
               </span>
               <AlarmGroup
@@ -170,7 +171,7 @@ export default class AlertTopic extends tsc<IProps> {
                 value={this.userGroupList}
                 onChange={this.handleAlarmGroupChange}
                 onRefresh={this.handleAlarmGroupListRefresh}
-              ></AlarmGroup>
+              />
             </span>
           </span>
         </div>

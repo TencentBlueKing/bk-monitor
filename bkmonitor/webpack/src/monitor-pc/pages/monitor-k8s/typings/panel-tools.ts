@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
-
-import { IOption } from '.';
-import { IFavList } from '../components/panel-header/favorites-list/favorites-list';
+import type { IOption } from '.';
+import type { IFavList } from '../components/panel-header/favorites-list/favorites-list';
+import type { TranslateResult } from 'vue-i18n';
 
 /** 面板工具的类型 */
 export declare namespace PanelToolsType {

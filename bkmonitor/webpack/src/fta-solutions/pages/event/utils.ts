@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
 /**
  * @description 在关注人里面但不在通知人则禁用操作

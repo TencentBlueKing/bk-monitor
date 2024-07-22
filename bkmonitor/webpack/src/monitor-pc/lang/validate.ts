@@ -168,8 +168,6 @@ export default {
 
   检测到你的多个主机监控指标未配置告警策略:
     'It has been detected that you have not configured an alarm rule for multiple host monitoring metrics',
-  '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
-    'There is no solution available under the current business, please go to the {0} page to configure',
   '退出当前窗口可前往{0}查看结果': 'Exit the current window to view the results on {0}',
   '未选择采集目标，但并不影响本次操作': 'No collection target selected, but it does not affect this operation',
   未选择任何内容: 'No Selection Made',
@@ -283,4 +281,6 @@ export default {
   至少选择2个指标: 'Select at least 2 metrics',
   策略名已存在: 'Strategy name already exists',
   配置名称不能为空: 'Configuration name cannot be empty',
+  必填: 'Required',
+  当前未配置URI信息: 'Currently unconfigured URI information',
 };

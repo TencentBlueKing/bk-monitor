@@ -357,6 +357,7 @@ OTLP_GRPC_HOST = os.getenv("BKAPP_OTLP_GRPC_HOST", "http://localhost:4317")
 OTLP_BK_DATA_ID = int(os.getenv("BKAPP_OTLP_BK_DATA_ID", -1))
 OTLP_BK_DATA_TOKEN = os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", "")
 OTLP_BK_LOG_TOKEN = os.getenv("BKAPP_OTLP_BK_LOG_TOKEN", "")
+
 # ===============================================================================
 # 项目配置
 # ===============================================================================
@@ -1009,12 +1010,19 @@ if REDIS_MODE == "single" and BKAPP_IS_BKLOG_API:
     REDIS_PORT = int(os.getenv("BK_BKLOG_REDIS_PORT", os.getenv("REDIS_PORT", 6379)))
     REDIS_PASSWD = os.getenv("BK_BKLOG_REDIS_PASSWORD", os.getenv("REDIS_PASSWORD", ""))
 
-if REDIS_MODE == "sentinel":
+if REDIS_MODE == "sentinel" and BKAPP_IS_BKLOG_API:
     REDIS_PASSWD = os.getenv("BK_BKLOG_REDIS_PASSWORD", os.getenv("REDIS_PASSWORD", ""))
     REDIS_SENTINEL_HOST = os.getenv("BK_BKLOG_REDIS_SENTINEL_HOST", "")
     REDIS_SENTINEL_PORT = int(os.getenv("BK_BKLOG_REDIS_SENTINEL_PORT", 26379))
     REDIS_SENTINEL_MASTER_NAME = os.getenv("BK_BKLOG_REDIS_SENTINEL_MASTER_NAME", "mymaster")
     REDIS_SENTINEL_PASSWORD = os.getenv("BK_BKLOG_REDIS_SENTINEL_MASTER_PASSWORD", "")
+
+if REDIS_MODE == "sentinel" and not BKAPP_IS_BKLOG_API:
+    REDIS_PASSWD = os.getenv("BKAPP_REDIS_PASSWORD", os.getenv("REDIS_PASSWORD", ""))
+    REDIS_SENTINEL_HOST = os.getenv("BKAPP_REDIS_SENTINEL_HOST", "")
+    REDIS_SENTINEL_PORT = int(os.getenv("BKAPP_REDIS_SENTINEL_PORT", 26379))
+    REDIS_SENTINEL_MASTER_NAME = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_NAME", "mymaster")
+    REDIS_SENTINEL_PASSWORD = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_PASSWORD", "")
 
 # BKLOG 后台QOS配置
 BKLOG_QOS_USE = os.getenv("BKAPP_QOS_USE", "on") == "on"
@@ -1149,7 +1157,7 @@ if USE_REDIS:
     CACHES["default"] = CACHES["redis"]
     CACHES["login_db"] = CACHES["redis"]
 
-if BKAPP_IS_BKLOG_API and REDIS_MODE == "sentinel" and USE_REDIS:
+if REDIS_MODE == "sentinel" and USE_REDIS:
     DJANGO_REDIS_CONNECTION_FACTORY = "apps.utils.sentinel.SentinelConnectionFactory"
     CACHES["redis_sentinel"] = {
         "BACKEND": "django_prometheus.cache.backends.redis.RedisCache",
@@ -1169,6 +1177,7 @@ if BKAPP_IS_BKLOG_API and REDIS_MODE == "sentinel" and USE_REDIS:
     }
     CACHES["default"] = CACHES["redis_sentinel"]
     CACHES["login_db"] = CACHES["redis_sentinel"]
+    CACHES["redis"] = CACHES["redis_sentinel"]
 
 # ==============================================================================
 # Prometheus metrics token

@@ -24,23 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
 
 import { Exception, Loading } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
-import { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import { BaseDataType, ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
+import { type BaseDataType, type ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
 import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { SearchType, ToolsFormData } from '../../../pages/profiling/typings';
-import { DirectionType, IQueryParams } from '../../../typings';
+import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
+
+import type { DirectionType, IQueryParams } from '../../../typings';
+import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
 import './profiling-graph.scss';
 

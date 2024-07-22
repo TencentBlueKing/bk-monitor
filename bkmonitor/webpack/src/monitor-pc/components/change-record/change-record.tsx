@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 /*
  * @Date: 2021-06-10 17:44:25
  * @LastEditTime: 2021-06-24 11:45:29
  * @Description:
  */
-import { TranslateResult } from 'vue-i18n';
-import { Component, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import type { TranslateResult } from 'vue-i18n';
 
 import './change-record.scss';
 

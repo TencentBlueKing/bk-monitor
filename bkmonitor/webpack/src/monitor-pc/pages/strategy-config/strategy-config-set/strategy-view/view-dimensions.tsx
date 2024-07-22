@@ -115,7 +115,7 @@ export default class ViewDimensions extends tsc<IProps> {
                       id={l.id}
                       key={l.id}
                       name={l.id}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </div>

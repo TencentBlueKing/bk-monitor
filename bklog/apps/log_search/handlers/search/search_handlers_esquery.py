@@ -1819,6 +1819,18 @@ class SearchHandler(object):
                     # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
                     if _export_field in log:
                         new_origin_log[_export_field] = log[_export_field]
+                    # 处理a.b.c的情况
+                    elif "." in _export_field:
+                        # 在log中找不到时,去log的子级查找
+                        key, *field_list = _export_field.split(".")
+                        _result = log.get(key, {})
+                        for _field in field_list:
+                            if isinstance(_result, dict) and _field in _result:
+                                _result = _result[_field]
+                            else:
+                                _result = ""
+                                break
+                        new_origin_log[_export_field] = _result
                     else:
                         new_origin_log[_export_field] = log.get(_export_field, "")
                 origin_log = new_origin_log
@@ -2255,6 +2267,24 @@ class UnionSearchHandler(object):
             "is_union_search": True,
         }
 
+        # 数据排序处理  兼容第三方ES检索排序
+        time_fields = set()
+        time_fields_type = set()
+        time_fields_unit = set()
+        for index_set_obj in index_set_objs:
+            if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
+                raise SearchUnKnowTimeField()
+            time_fields.add(index_set_obj.time_field)
+            time_fields_type.add(index_set_obj.time_field_type)
+            time_fields_unit.add(index_set_obj.time_field_unit)
+
+        diff_fields = set()
+        export_fields = self.search_dict.get("export_fields")
+        # 在做导出操作时,记录time_fields比export_fields多的字段
+        if export_fields:
+            diff_fields = time_fields - set(export_fields)
+            self.search_dict["export_fields"].extend(diff_fields)
+
         multi_execute_func = MultiExecuteFunc()
         if is_export:
             for index_set_id in self.index_set_ids:
@@ -2307,17 +2337,6 @@ class UnionSearchHandler(object):
                 else:
                     fields[key]["max_length"] = max(fields[key].get("max_length", 0), value.get("max_length", 0))
 
-        # 数据排序处理  兼容第三方ES检索排序
-        time_fields = set()
-        time_fields_type = set()
-        time_fields_unit = set()
-        for index_set_obj in index_set_objs:
-            if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
-                raise SearchUnKnowTimeField()
-            time_fields.add(index_set_obj.time_field)
-            time_fields_type.add(index_set_obj.time_field_type)
-            time_fields_unit.add(index_set_obj.time_field_unit)
-
         is_use_custom_time_field = False
 
         if len(time_fields) != 1 or len(time_fields_type) != 1 or len(time_fields_unit) != 1:
@@ -2356,7 +2375,12 @@ class UnionSearchHandler(object):
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
             result_origin_log_list = sort_func(data=result_origin_log_list, sort_list=self.sort_list)
-
+        # 在导出结果中删除查询时补充的字段
+        if diff_fields:
+            tmp_list = []
+            for dic in result_origin_log_list:
+                tmp_list.append({k: v for k, v in dic.items() if k not in diff_fields})
+            result_origin_log_list = tmp_list
         # 处理分页
         result_log_list = result_log_list[: self.search_dict.get("size")]
         result_origin_log_list = result_origin_log_list[: self.search_dict.get("size")]

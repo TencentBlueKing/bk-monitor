@@ -25,8 +25,9 @@
  */
 // 自定义事件视图设置处理
 import { COLLECT_CHART_TYPE } from '../../constant/constant';
-import { hideOptions } from '../collector-config/collector-view/log-handle';
-import { metric } from '../collector-config/collector-view/type';
+
+import type { hideOptions } from '../collector-config/collector-view/log-handle';
+import type { metric } from '../collector-config/collector-view/type';
 
 interface IMetricDimension {
   variableParams?: any; // 查询预览值api参数
@@ -90,4 +91,4 @@ const eventInit = (): hideOptions => {
   };
 };
 
-export { eventDimensions, eventInit, IMetricDimension };
+export { eventDimensions, eventInit, type IMetricDimension };

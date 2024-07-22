@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, TransitionGroup, watch } from 'vue';
+import {
+  type PropType,
+  TransitionGroup,
+  computed,
+  defineComponent,
+  nextTick,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Loading, Popover } from 'bkui-vue';
@@ -220,7 +230,7 @@ export default defineComponent({
     /** 渲染用户logo */
     function renderUserLogo(tag: TagItemModel) {
       if (tag?.type === 'group') {
-        return <span class='icon-monitor icon-mc-user-group'></span>;
+        return <span class='icon-monitor icon-mc-user-group' />;
       }
       if (tag?.logo && typeof tag.logo === 'string' && /^(https?|HTTPS?):\/\/[^\s/$.?#].[^\s]*$/.test(tag.logo)) {
         return (
@@ -228,10 +238,10 @@ export default defineComponent({
             class='user-logo'
             alt=''
             src={tag.logo}
-          ></img>
+          />
         );
       }
-      return <span class='icon-monitor icon-mc-user-one'></span>;
+      return <span class='icon-monitor icon-mc-user-one' />;
     }
     /** 根据不同的显示方式类型渲染tag */
     function renderTagItemContent(name: string, ind: number) {
@@ -241,12 +251,12 @@ export default defineComponent({
         return [renderUserLogo(tag), <span class='user-name'>{tag?.username}</span>];
       }
       return [
-        <span class='icon-monitor icon-mc-tuozhuai'></span>,
+        <span class='icon-monitor icon-mc-tuozhuai' />,
         <span class='user-name'>{tag?.username}</span>,
         <span
           class='icon-monitor icon-mc-close'
           onClick={e => handleCloseTag(e, ind)}
-        ></span>,
+        />,
       ];
     }
 
@@ -409,7 +419,7 @@ export default defineComponent({
                   {renderUserLogo(item)}
                   <span class='name'>{item.username}</span>
                 </div>
-                {tags.some(tag => tag.id === item.id) && <span class='icon-monitor icon-mc-check-small'></span>}
+                {tags.some(tag => tag.id === item.id) && <span class='icon-monitor icon-mc-check-small' />}
               </div>
             ))}
             {!selectList.value.length && (

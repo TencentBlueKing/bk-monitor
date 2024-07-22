@@ -23,24 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, toRaw, watch } from 'vue';
+import { Teleport, computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
-import { HierarchyNode } from 'd3-hierarchy';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
-import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import {
-  BaseDataType,
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
+  type IAxisRect,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
   RootId,
 } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -49,6 +51,8 @@ import { debounce } from 'throttle-debounce';
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
+
+import type { HierarchyNode } from 'd3-hierarchy';
 
 import '../../flame-graph-v2/flame-graph.scss';
 import './flame-graph.scss';
@@ -567,7 +571,7 @@ export default defineComponent({
                     <table class='tips-table'>
                       {this.localIsCompared && (
                         <thead>
-                          <th></th>
+                          <th />
                           <th>{window.i18n.t('当前')}</th>
                           {this.tipDetail.id !== RootId && [
                             <th>{window.i18n.t('参照')}</th>,
@@ -600,7 +604,7 @@ export default defineComponent({
                       </tbody>
                     </table>,
                     <div class='tips-info'>
-                      <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
+                      <span class='icon-monitor icon-mc-mouse tips-info-icon' />
                       {window.i18n.t('鼠标右键有更多菜单')}
                     </div>,
                   ]}
@@ -643,7 +647,7 @@ export default defineComponent({
                   width: `${this.zoomRect?.width || 0}px`,
                 }}
                 class='flame-graph-zoom'
-              ></div>
+              />
               {/* <GraphTools
                 style={{
                   left: `${this.graphToolsRect.left}px`,

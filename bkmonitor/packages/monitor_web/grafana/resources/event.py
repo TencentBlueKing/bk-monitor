@@ -67,6 +67,7 @@ class GetDataSourceConfigResource(Resource):
                         "metrics": [],
                         "dimensions": metric.dimensions,
                         "time_field": "time",
+                        "is_platform": metric.bk_biz_id == 0,
                     }
                 else:
                     # 补全所有字段

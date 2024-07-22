@@ -26,7 +26,13 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { dutyDataConversion, getCalendarOfNum, getDutyPlansDetails, IDutyData, IDutyPlansItem } from './utils';
+import {
+  type IDutyData,
+  type IDutyPlansItem,
+  dutyDataConversion,
+  getCalendarOfNum,
+  getDutyPlansDetails,
+} from './utils';
 
 import './rotation-preview.scss';
 
@@ -215,7 +221,7 @@ export default class RotationPreview extends tsc<IProps> {
           class='header-wrap'
           onClick={this.handleExpan}
         >
-          <span class={['icon-monitor icon-mc-triangle-down', { expan: this.isExpan }]}></span>
+          <span class={['icon-monitor icon-mc-triangle-down', { expan: this.isExpan }]} />
           <span class='ml-8'>{this.$t('排班预览')}</span>
           <span
             onClick={(e: Event) => {
@@ -227,7 +233,7 @@ export default class RotationPreview extends tsc<IProps> {
               v-model={this.showNoData}
               size='small'
               theme='primary'
-            ></bk-switcher>
+            />
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
           <span
@@ -237,7 +243,7 @@ export default class RotationPreview extends tsc<IProps> {
               this.handleShowDetail(true, this.$t('排班明细'));
             }}
           >
-            <span class='icon-monitor icon-mc-detail mr-6'></span>
+            <span class='icon-monitor icon-mc-detail mr-6' />
             <span>{this.$t('排班明细')}</span>
           </span>
           <span
@@ -247,7 +253,7 @@ export default class RotationPreview extends tsc<IProps> {
               this.handleShowDetail(true, this.$t('轮值历史'), true);
             }}
           >
-            <span class='icon-monitor icon-lishijilu mr-6'></span>
+            <span class='icon-monitor icon-lishijilu mr-6' />
             <span>{this.$t('轮值历史')}</span>
           </span>
         </div>
@@ -283,13 +289,13 @@ export default class RotationPreview extends tsc<IProps> {
                 class='pre-btn'
                 onClick={this.handlePreChange}
               >
-                <span class='icon-monitor icon-arrow-left'></span>
+                <span class='icon-monitor icon-arrow-left' />
               </div>
               <div
                 class='next-btn'
                 onClick={this.handleNextChange}
               >
-                <span class='icon-monitor icon-arrow-right'></span>
+                <span class='icon-monitor icon-arrow-right' />
               </div>
             </div>
             <div class='right-content'>
@@ -305,7 +311,7 @@ export default class RotationPreview extends tsc<IProps> {
                     <div
                       key={`${rowIndex}_${colIndex}`}
                       class='col-content'
-                    ></div>
+                    />
                   ))}
                   {row.data
                     .filter(duty => duty.range[1] - duty.range[0] !== 0)
@@ -325,7 +331,7 @@ export default class RotationPreview extends tsc<IProps> {
                         <div
                           style={{ background: duty.color }}
                           class='user-header'
-                        ></div>
+                        />
                         <div
                           style={{ color: duty.color }}
                           class='user-content'
@@ -346,7 +352,7 @@ export default class RotationPreview extends tsc<IProps> {
                     }}
                     class='free-col'
                     onMouseenter={(event: Event) => this.handleMouseenter(event, { time: item.timeStr })}
-                  ></div>
+                  />
                 ))}
               {this.dutyData.overlapTimes.map((item, index) => (
                 <div
@@ -365,7 +371,7 @@ export default class RotationPreview extends tsc<IProps> {
                       users: this.$t('时间段冲突，优先执行节假日排班'),
                     })
                   }
-                ></div>
+                />
               ))}
             </div>
           </div>
