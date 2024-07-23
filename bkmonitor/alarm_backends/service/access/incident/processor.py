@@ -97,6 +97,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             incident_document.snapshot = snapshot
             snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
             incident_document.generate_labels(snapshot_model)
+            api.bkdata.update_incident_detail(incident_id=sync_info["incident_id"], labels=self.labels)
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.CREATE)
             logger.info(f"[CREATE]Success to access incident[{sync_info['incident_id']}] as document")
         except Exception as e:
@@ -156,6 +157,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 incident_document.snapshot = snapshot
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
                 incident_document.generate_labels(snapshot_model)
+                api.bkdata.update_incident_detail(incident_id=sync_info["incident_id"], labels=self.labels)
 
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
             logger.info(f"[UPDATE]Success to access incident[{sync_info['incident_id']}] as document")
@@ -169,7 +171,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 if update_info["from"]:
                     IncidentOperationManager.record_update_incident(
                         incident_id=sync_info["incident_id"],
-                        operate_time=incident_info["create_time"],
+                        operate_time=incident_info["update_time"],
                         incident_key=incident_key,
                         from_value=update_info["from"],
                         to_value=update_info["to"],
