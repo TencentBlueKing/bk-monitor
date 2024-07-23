@@ -164,7 +164,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 node = node.__dict__
             key = node["bk_host_id"]
             if not key:
-                key = host_key(node["ip"], node["plat_id"])
+                key = host_key(ip=node["ip"], bk_cloud_id=node["plat_id"])
             if key not in data_map:
                 return default
             return data_map[key]
