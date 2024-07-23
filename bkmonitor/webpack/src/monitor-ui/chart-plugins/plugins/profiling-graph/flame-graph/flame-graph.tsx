@@ -27,25 +27,29 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { HierarchyNode } from 'd3-hierarchy';
-import { copyText, Debounce } from 'monitor-common/utils/utils';
+import { Debounce, copyText } from 'monitor-common/utils/utils';
 import MonitorResizeLayout from 'monitor-pc/components/resize-layout/resize-layout';
-import { ProfileDataUnit, parseProfileDataTypeValue } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import {
-  BaseDataType,
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
+  type IAxisRect,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
   RootId,
 } from '../../../typings';
 import { FlameChart } from './use-flame';
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from './utils';
+
+import type { HierarchyNode } from 'd3-hierarchy';
 
 import './frame-graph.scss';
 
@@ -473,7 +477,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 <table class='tips-table'>
                   {this.localIsCompared && (
                     <thead>
-                      <th></th>
+                      <th />
                       <th>{window.i18n.t('当前')}</th>
                       {this.tipDetail.id !== RootId && [
                         <th>{window.i18n.t('参照')}</th>,
@@ -506,7 +510,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                   </tbody>
                 </table>,
                 <div class='tips-info'>
-                  <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
+                  <span class='icon-monitor icon-mc-mouse tips-info-icon' />
                   {window.i18n.t('鼠标右键有更多菜单')}
                 </div>,
               ]}
@@ -546,7 +550,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 width: `${this.zoomRect?.width || 0}px`,
               }}
               class='flame-graph-zoom'
-            ></div>
+            />
           </div>
         </div>
       </MonitorResizeLayout>

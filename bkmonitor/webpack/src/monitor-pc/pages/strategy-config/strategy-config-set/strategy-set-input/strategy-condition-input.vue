@@ -510,7 +510,9 @@ export default {
               data[type] =
                 data[type] ||
                 (Array.isArray(item.value)
-                  ? item.value.map(v => (valueType === 'number' ? Number(v) : String(v).trim())).filter(v => v !== NaN)
+                  ? item.value
+                      .map(v => (valueType === 'number' ? Number(v) : String(v).trim()))
+                      .filter(v => v !== Number.NaN)
                   : item.value);
             } else {
               data[type] = data[type] || item.value.id;

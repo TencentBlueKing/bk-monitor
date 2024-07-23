@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 import time
 from collections import Counter, defaultdict
-from dataclasses import asdict
 from typing import Any, Dict, List
 
 import arrow
@@ -63,6 +62,10 @@ class IncidentBaseResource(Resource):
             kwargs["conditions"].append({'key': 'id', 'value': alert_ids, 'method': 'eq'})
         else:
             kwargs["conditions"] = [{'key': 'id', 'value': alert_ids, 'method': 'eq'}]
+        if "bk_biz_ids" not in kwargs:
+            kwargs["bk_biz_ids"] = list(
+                map(lambda x: int(x), snapshot.incident_snapshot_content['rca_summary']['bk_biz_ids'])
+            )
         alerts = IncidentAlertQueryHandler(**kwargs).search()["alerts"]
         return alerts
 
@@ -106,7 +109,9 @@ class IncidentBaseResource(Resource):
                     "subComboId": entity.logic_key(),
                     "logic_content": entity.logic_content(),
                     "aggregated_nodes": self.generate_nodes_by_entites(incident, snapshot, entity.aggregated_entities),
-                    "entity": {key: value for key, value in asdict(entity).items() if key != "aggregated_entities"},
+                    "entity": {
+                        key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"
+                    },
                     "total_count": len(entity.aggregated_entities) + 1,
                     "anomaly_count": self.get_anomaly_entity_count(entity),
                     "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
@@ -667,7 +672,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
             }
 
         for alert in alerts:
-            alert["entity"] = asdict(snapshot.alert_entity_mapping[alert["id"]].entity)
+            alert["entity"] = snapshot.alert_entity_mapping[alert["id"]].entity.to_src_dict()
             is_root = alert["entity"]["is_root"]
             is_feedback_root = getattr(incident.feedback, "incident_root", None) == alert["entity"]["entity_id"]
 
@@ -982,7 +987,7 @@ class IncidentAlertListResource(IncidentBaseResource):
 
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
-            alert["entity"] = asdict(alert_entity.entity) if alert_entity else None
+            alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
             )
@@ -1019,7 +1024,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
 
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
-            alert["entity"] = asdict(alert_entity.entity) if alert_entity else None
+            alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
             )

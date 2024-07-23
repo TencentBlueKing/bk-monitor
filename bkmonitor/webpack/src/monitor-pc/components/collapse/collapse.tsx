@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { resize } from '../../components/ip-selector/common/observer-directive';
+
+import type { VNode } from 'vue';
 
 import './collapse.scss';
 
@@ -162,7 +163,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
       <i
         class={['monitor-collapse-close icon-monitor icon-mc-triangle-down', { 'is-expand': this.showContent }]}
         onClick={this.handleClickClose}
-      ></i>
+      />
     );
     if (this.renderContent) {
       return tpl;

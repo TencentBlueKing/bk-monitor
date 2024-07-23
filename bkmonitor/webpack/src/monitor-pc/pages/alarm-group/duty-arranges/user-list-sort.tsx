@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { random } from 'monitor-common/utils/utils';
 
 import { randomColor } from './color';
-import UserSelector, { IGroupListItem } from './user-selector';
+import UserSelector, { type IGroupListItem } from './user-selector';
 
 import './user-list-sort.scss';
 
@@ -204,14 +204,14 @@ export default class UserListSort extends tsc<IProps, IEvents> {
                   value={item.users}
                   onChange={v => this.handleUserChange(v as any, index)}
                   onDraggableChange={(v: boolean) => this.handleDraggableChange(v, index)}
-                ></UserSelector>
+                />
                 <div class='right-wrap'>
                   {this.userList.length > 1 && (
                     <div
                       class='delete-btn'
                       onClick={() => this.handleDeleteItem(index)}
                     >
-                      <span class='icon-monitor icon-mc-delete-line'></span>
+                      <span class='icon-monitor icon-mc-delete-line' />
                     </div>
                   )}
                 </div>

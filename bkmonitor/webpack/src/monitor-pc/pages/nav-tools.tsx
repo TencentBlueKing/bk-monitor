@@ -38,7 +38,7 @@ import DocumentLinkMixin from '../mixins/documentLinkMixin';
 import { GLOAB_FEATURE_LIST, setLocalStoreRoute } from '../router/router-config';
 import enIcon from '../static/images/svg/en.svg';
 import zhIcon from '../static/images/svg/zh.svg';
-import { IMenuItem } from '../types';
+import type { IMenuItem } from '../types';
 
 // #if APP !== 'external'
 import GlobalSearchModal from './global-search-modal-new';
@@ -265,16 +265,16 @@ class NavTools extends DocumentLinkMixin {
       return <migrate-dashboard class='migrate-dashboard' />;
     }
     if (this.activeSetting === 'calendar') {
-      return <global-calendar></global-calendar>;
+      return <global-calendar />;
     }
     if (this.activeSetting === 'space-manage') {
-      return <space-manage></space-manage>;
+      return <space-manage />;
     }
     if (this.activeSetting === 'resource-register') {
-      return <resource-register></resource-register>;
+      return <resource-register />;
     }
     if (this.activeSetting === 'data-pipeline') {
-      return <data-pipeline></data-pipeline>;
+      return <data-pipeline />;
     }
     return <health-z />;
   }
@@ -310,7 +310,7 @@ class NavTools extends DocumentLinkMixin {
             onClick={this.handleGlobalSearch}
           >
             <span class='search-text'>{this.globalSearchPlaceholder}</span>
-            <span class='bk-icon icon-search'></span>
+            <span class='bk-icon icon-search' />
           </div>
           // #endif
         }
@@ -327,7 +327,7 @@ class NavTools extends DocumentLinkMixin {
             theme='light common-monitor'
           >
             <div class='header-help'>
-              <span class='help-icon icon-monitor icon-menu-setting'></span>
+              <span class='help-icon icon-monitor icon-menu-setting' />
             </div>
             <template slot='content'>
               <ul class='monitor-navigation-help'>
@@ -361,13 +361,13 @@ class NavTools extends DocumentLinkMixin {
                 class='language-icon'
                 alt='english'
                 src={enIcon}
-              ></img>
+              />
             ) : (
               <img
                 class='language-icon'
                 alt='中文'
                 src={zhIcon}
-              ></img>
+              />
             )}
           </div>
           <template slot='content'>
@@ -382,7 +382,7 @@ class NavTools extends DocumentLinkMixin {
                     class='language-icon'
                     alt='language'
                     src={item.id === 'en' ? enIcon : zhIcon}
-                  ></img>
+                  />
                   {item.name}
                 </li>
               ))}
@@ -402,7 +402,7 @@ class NavTools extends DocumentLinkMixin {
             theme='light common-monitor'
           >
             <div class='header-help'>
-              <span class='help-icon icon-monitor icon-mc-help-fill'></span>
+              <span class='help-icon icon-monitor icon-mc-help-fill' />
             </div>
             <template slot='content'>
               <ul class='monitor-navigation-help'>
@@ -438,7 +438,7 @@ class NavTools extends DocumentLinkMixin {
             theme='light common-monitor'
           >
             <span class='header-user-text'>{window.user_name || window.username}</span>
-            <i class='bk-icon icon-down-shape'></i>
+            <i class='bk-icon icon-down-shape' />
             <div slot='content'>
               {process.env.APP !== 'external' && (
                 <ul class='monitor-navigation-help'>
@@ -480,7 +480,7 @@ class NavTools extends DocumentLinkMixin {
         <LogVersion
           dialogShow={this.logShow}
           on={{ 'update:dialogShow': v => (this.logShow = v) }}
-        ></LogVersion>
+        />
         {
           // #if APP !== 'external'
           [
@@ -501,7 +501,7 @@ class NavTools extends DocumentLinkMixin {
                   ref='globalSearchModal'
                   show={this.globalSearchShow}
                   onChange={this.handleGlobalSearchShowChange}
-                ></GlobalSearchModal>
+                />
               )}
             </keep-alive>,
           ]

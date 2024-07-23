@@ -150,23 +150,24 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, PropSync, Vue, Watch } from 'vue-property-decorator';
 import {
   collectTargetStatus,
   deleteCollectConfig,
   listRelatedStrategy,
-  toggleCollectConfigStatus } from 'monitor-api/modules/collecting';
+  toggleCollectConfigStatus,
+} from 'monitor-api/modules/collecting';
 import { deleteStrategyConfig } from 'monitor-api/modules/strategies';
 import monitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { Component, Prop, PropSync, Vue, Watch } from 'vue-property-decorator';
 
-import { ICollectorTaskData, IDeletingStepListItem } from '../collector-type';
+import type { ICollectorTaskData, IDeletingStepListItem } from '../collector-type';
 
 // 删除采集配置弹层
 @Component({
   name: 'collector-dialog-delete',
   components: {
-    monitorDialog
-  }
+    monitorDialog,
+  },
 })
 export default class DeleteCollector extends Vue {
   // 显示状态
@@ -265,7 +266,7 @@ export default class DeleteCollector extends Vue {
 
   // 轮训停用状态
   pollingStatus() {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const polling = () => {
         const timer = setTimeout(() => {
           clearTimeout(timer);
@@ -301,8 +302,8 @@ export default class DeleteCollector extends Vue {
         title: this.$tc('采集任务正在停用中…'),
         data: {
           total: 0,
-          node: 0
-        }
+          node: 0,
+        },
       });
     }
     // 有关联策略
@@ -310,7 +311,7 @@ export default class DeleteCollector extends Vue {
       this.deletingStepList.push({
         type: 'strategy',
         loading: false,
-        title: this.$tc('删除相关联的策略配置')
+        title: this.$tc('删除相关联的策略配置'),
       });
     }
   }
@@ -319,15 +320,17 @@ export default class DeleteCollector extends Vue {
   getHosts(id = this.collectorTaskData.id) {
     return new Promise((resolve, reject) => {
       collectTargetStatus({ id })
-        .then((data) => {
+        .then(data => {
           const collect = this.deletingStepList.find(item => item.type === 'collect');
-          const hasRunning = data.contents.some(item => item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING'));
+          const hasRunning = data.contents.some(item =>
+            item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING')
+          );
           if (collect) {
             collect.loading = hasRunning;
           }
           resolve(data);
         })
-        .catch((err) => {
+        .catch(err => {
           reject(err);
         });
     });
@@ -339,8 +342,8 @@ export default class DeleteCollector extends Vue {
         name: 'collect-config-operate-detail',
         params: {
           id: `${this.collectorTaskData.id}`,
-          title: this.collectorTaskData.name
-        }
+          title: this.collectorTaskData.name,
+        },
       });
     }
   }
@@ -352,9 +355,9 @@ export default class DeleteCollector extends Vue {
       params: {
         bkStrategyId: ids.map(item => ({
           id: `${item}`,
-          name: item
-        }))
-      }
+          name: item,
+        })),
+      },
     });
   }
 }

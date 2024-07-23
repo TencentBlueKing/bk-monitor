@@ -91,7 +91,7 @@ export default class FavList extends tsc<IProps, IEvents> {
               class='fav-list-header'
               onClick={() => this.handleExpend(item)}
             >
-              <i class={['icon-monitor icon-mc-triangle-down', { expend: item.expend }]}></i>
+              <i class={['icon-monitor icon-mc-triangle-down', { expend: item.expend }]} />
               <span>{item.name}</span>
             </div>
             <Collapse
@@ -112,7 +112,7 @@ export default class FavList extends tsc<IProps, IEvents> {
                         extCls: 'garfana-link-tips',
                       }}
                       onClick={() => this.handleUnstarred(child)}
-                    ></i>
+                    />
                     <span
                       class='fav-item-name'
                       v-bk-overflow-tips

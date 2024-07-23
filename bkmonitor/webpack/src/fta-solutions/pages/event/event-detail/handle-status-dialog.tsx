@@ -221,19 +221,19 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         <bk-table-column
           label={this.$t('套餐类型')}
           scopedSlots={typeSlot}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('执行对象')}
           scopedSlots={operateTargetStringSlot}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('负责人')}
           scopedSlots={operatorSlot}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('执行状态')}
           scopedSlots={checkSlot}
-        ></bk-table-column>
+        />
       </bk-table>
     );
   }
@@ -266,7 +266,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
                   id={item.id}
                   key={index}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </div>
@@ -276,7 +276,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
               hasColumns={this.noticeData.hasColumns}
               tableColumns={this.noticeData.tableColumns}
               tableData={this.noticeData.tableData}
-            ></NoticeStatusTable>
+            />
           ) : (
             this.getTableComponent()
           )}

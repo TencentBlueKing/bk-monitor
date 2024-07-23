@@ -2,123 +2,62 @@
     {
         "result_table_id": "system.cpu_detail",
         "access_metrics": [
-            "guest",
-            "idle",
-            "interrupt",
-            "iowait",
-            "nice",
-            "softirq",
-            "stolen",
-            "system",
-            "usage",
-            "user"
+            "usage"
         ]
     },
     {
         "result_table_id": "system.disk",
         "access_metrics": [
-            "free",
-            "in_use",
-            "total",
-            "used"
+            "in_use"
         ]
     },
     {
         "result_table_id": "system.env",
         "access_metrics": [
-            "login_user",
-            "maxfiles",
-            "procs",
-            "procs_blocked_current",
-            "procs_ctxt_total",
-            "procs_processes_total",
-            "proc_running_current",
-            "uptime"
+            "procs"
         ]
     },
     {
         "result_table_id": "system.io",
         "access_metrics": [
-            "avgqu_sz",
-            "avgrq_sz",
-            "await",
-            "rkb_s",
-            "r_s",
-            "svctm",
-            "util",
-            "wkb_s",
-            "w_s"
+            "util"
         ]
     },
     {
         "result_table_id": "system.load",
         "access_metrics": [
-            "load1",
-            "load15",
-            "load5",
-            "per_cpu_load"
+            "load5"
         ]
     },
     {
         "result_table_id": "system.mem",
         "access_metrics": [
-            "buffer",
-            "cached",
-            "free",
-            "pct_usable",
             "pct_used",
-            "psc_pct_used",
-            "psc_used",
-            "shared",
-            "total",
-            "usable",
-            "used"
+            "psc_pct_used"
         ]
     },
     {
         "result_table_id": "system.net",
         "access_metrics": [
-            "carrier",
-            "collisions",
-            "dropped",
-            "errors",
-            "overruns",
-            "speed_packets_recv",
-            "speed_packets_sent",
             "speed_recv",
-            "speed_recv_bit",
-            "speed_sent",
-            "speed_sent_bit"
+            "speed_sent"
         ]
     },
     {
         "result_table_id": "system.proc",
         "access_metrics": [
-            "cpu_usage_pct",
-            "fd_num",
-            "mem_res",
-            "mem_usage_pct",
-            "mem_virt",
-            "uptime"
+            "cpu_usage_pct"
         ]
     },
     {
         "result_table_id": "system.swap",
         "access_metrics": [
-            "free",
-            "pct_used",
-            "swap_in",
-            "swap_out",
-            "total",
-            "used"
+            "pct_used"
         ]
     },
     {
         "result_table_id": "system.inode",
         "access_metrics": [
-            "free",
-            "in_use",
-            "total",
             "used"
         ]
     }

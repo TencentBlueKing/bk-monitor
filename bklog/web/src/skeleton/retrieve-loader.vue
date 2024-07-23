@@ -96,12 +96,12 @@
           : this.visibleFields;
       },
     },
-    created() {
+    mounted() {
       if (this.isLoading) this.loaderLen = 12;
       const ele = document.querySelector('.result-scroll-container');
       if (ele) ele.addEventListener('scroll', this.handleScroll);
     },
-    beforeUnmount() {
+    beforeDestroy() {
       const ele = document.querySelector('.result-scroll-container');
       if (ele) ele.removeEventListener('scroll', this.handleScroll);
     },

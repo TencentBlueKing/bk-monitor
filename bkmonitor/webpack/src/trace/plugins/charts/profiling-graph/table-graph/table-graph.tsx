@@ -24,17 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
+import { type PropType, Teleport, defineComponent, ref, shallowRef, watch } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
-import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
-import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 
-import { DirectionType } from '../../../../typings';
+import type { DirectionType } from '../../../../typings';
+import type {
+  ITableTipsDetail,
+  ProfilingTableItem,
+  TableColumn,
+} from 'monitor-ui/chart-plugins/typings/profiling-graph';
 
 import './table-graph.scss';
 
@@ -269,8 +276,8 @@ export default defineComponent({
                       <div class='thead-content'>
                         <span>{col.name}</span>
                         <div class='sort-button'>
-                          <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`}></i>
-                          <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`}></i>
+                          <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`} />
+                          <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`} />
                         </div>
                       </div>
                     </th>
@@ -293,7 +300,7 @@ export default defineComponent({
                         <span
                           style={`background-color: ${!this.localIsCompared ? row.color : '#dcdee5'}`}
                           class='color-reference'
-                        ></span>
+                        />
                         <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                         {/* <div class='trace-mark'>Trace</div> */}
                       </div>
@@ -341,7 +348,7 @@ export default defineComponent({
                 {this.localIsCompared
                   ? [
                       <thead>
-                        <th></th>
+                        <th />
                         <th>{this.$t('当前')}</th>
                         <th>{this.$t('参照')}</th>
                         <th>{this.$t('差异')}</th>
@@ -349,7 +356,7 @@ export default defineComponent({
                     ]
                   : [
                       <thead>
-                        <th></th>
+                        <th />
                         <th>Self (% of total)</th>
                         <th>Total (% of total)</th>
                       </thead>,

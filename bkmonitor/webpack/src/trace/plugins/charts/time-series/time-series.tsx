@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, PropType, Ref, ref, watch } from 'vue';
+import {
+  type PropType,
+  type Ref,
+  computed,
+  defineComponent,
+  getCurrentInstance,
+  inject,
+  onBeforeUnmount,
+  ref,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { bkTooltips } from 'bkui-vue';
@@ -32,12 +42,11 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
-import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
-import { getValueFormat, ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
+import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { isShadowEqual, reviewInterval, VariablesService } from '../../../utils';
+import { VariablesService, isShadowEqual, reviewInterval } from '../../../utils';
 import BaseEchart from '../../base-echart';
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
@@ -52,6 +61,16 @@ import {
   useViewOptionsInject,
 } from '../../hooks';
 import {
+  downCsvFile,
+  handleAddStrategy,
+  handleExplore,
+  handleRelateAlert,
+  handleStoreImage,
+  transformSrcData,
+  transformTableDataToCsvStr,
+} from '../../utls/menu';
+
+import type {
   ChartTitleMenuType,
   DataQuery,
   IExtendMetricData,
@@ -62,15 +81,7 @@ import {
   ITitleAlarm,
   PanelModel,
 } from '../../typings';
-import {
-  downCsvFile,
-  handleAddStrategy,
-  handleExplore,
-  handleRelateAlert,
-  handleStoreImage,
-  transformSrcData,
-  transformTableDataToCsvStr,
-} from '../../utls/menu';
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './time-series.scss';
 
@@ -871,7 +882,7 @@ export default defineComponent({
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start',
             }}
-          ></span>
+          />
         )}
       </div>
     );

@@ -27,8 +27,9 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
+
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './task-list.scss';
 
@@ -194,12 +195,12 @@ export default class TaskList extends tsc<IProps, IEvents> {
               placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
               onInput={this.handleSearch}
-            ></bk-input>
+            />
             <bk-button
               class='refresh-btn'
               onClick={this.handleRefresh}
             >
-              <i class='icon-monitor icon-shuaxin'></i>
+              <i class='icon-monitor icon-shuaxin' />
             </bk-button>
           </div>
           {this.localTaskData.length ? (

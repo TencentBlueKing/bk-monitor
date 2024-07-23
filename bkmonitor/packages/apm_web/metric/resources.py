@@ -1030,8 +1030,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
         error_map = {}
 
-        has_event_trace_id = [i["trace_id"] for i in error_spans if i.get("events")]
-
         for span in error_spans:
             service = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
             if not service:
@@ -1050,8 +1048,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             else:
                 exception_type = self.UNKNOWN_EXCEPTION_TYPE
                 key = (service, endpoint, exception_type)
-                if span["trace_id"] not in has_event_trace_id:
-                    self.handle_error_map(error_map, key, service, endpoint, span)
+                self.handle_error_map(error_map, key, service, endpoint, span)
 
         return [
             self.combine_errors(bk_biz_id, service_mappings, **service_error_map)

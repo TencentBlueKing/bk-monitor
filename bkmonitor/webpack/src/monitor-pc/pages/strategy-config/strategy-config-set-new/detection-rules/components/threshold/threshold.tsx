@@ -27,8 +27,8 @@ import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorat
 import { Component as tsc } from 'vue-tsx-support';
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
-import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
-import ThresholdSelect, { IItem } from './threshold-select';
+import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
+import ThresholdSelect, { type IItem } from './threshold-select';
 
 import './threshold.scss';
 
@@ -178,7 +178,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
                   disabled={level.disabled}
                   name={level.name}
                 >
-                  <i class={`icon-monitor ${level.icon}`}></i>
+                  <i class={`icon-monitor ${level.icon}`} />
                   <span class='name'>{level.name}</span>
                 </bk-option>
               ))}

@@ -26,10 +26,6 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
-import { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
-import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 // import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
@@ -65,7 +61,12 @@ import TextUnit from '../plugins/text-unit/text-unit';
 import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
-import { PanelModel } from '../typings';
+
+import type { PanelModel } from '../typings';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
+import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './chart-wrapper.scss';
 
@@ -385,7 +386,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onErrorMsg={this.handleErrorMsgChange}
             onFullScreen={this.handleFullScreen}
             onLoading={this.handleChangeLoading}
-          ></AiopsDimensionLint>
+          />
         );
       case 'graphs':
         return (
@@ -394,7 +395,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             panels={this.panel.panels}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onErrorMsg={this.handleErrorMsgChange}
-          ></AiopsChart>
+          />
         );
       case 'event-log':
         return (
@@ -404,7 +405,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onChangeHeight={this.handleChangeHeight}
             onErrorMsg={this.handleErrorMsgChange}
             onLoading={this.handleChangeLoading}
-          ></EventLogChart>
+          />
         );
       case 'relation-graph':
         return (
@@ -529,7 +530,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             v-watermark={{
               text: window.user_name || window.username,
             }}
-          ></div>
+          />
         )}
         {this.handlePanel2Chart()}
         {this.loading ? (
@@ -537,7 +538,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             class='loading-icon'
             alt=''
             src={loadingIcon}
-          ></img>
+          />
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
           <span
@@ -562,7 +563,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
               placement: 'top-start',
               allowHTML: false,
             }}
-          ></span>
+          />
         )}
       </div>
     );

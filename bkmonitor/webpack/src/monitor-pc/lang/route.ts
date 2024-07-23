@@ -208,4 +208,5 @@ export default {
   新增集群: 'Add cluster',
   'route-订阅配置': 'Subscription configuration',
   'route-配置服务': 'Configuration Service',
+  智能: 'AI',
 };

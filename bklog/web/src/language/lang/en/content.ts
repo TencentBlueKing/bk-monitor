@@ -37,7 +37,7 @@ export default {
   搜索收藏名: 'Search collection name',
   收藏名重复: 'Collection name duplicated',
   收藏名排序: 'Sort by collection name',
-  未完成配置: 'Incomplete configuration',
+  请先完成采集接入: 'Please complete the collection first',
   查看调用链: 'View trace',
   保存待生效: 'Saved and will take effect in 1 hour',
   索引集管理: 'Index set management',
@@ -419,7 +419,7 @@ export default {
     'Note: if stored as another type after parsing, it will not be associated.',
   '不能跨集群添加多个索引，切换集群请先清空索引':
     'Multiple indexes cannot be added across clusters, please clear the indexes before switching clusters',
-  '{0}/{1}条记录中数量排名前 5 的数据值': 'Top 5 data values with the highest quantity ranking in {0}/{1} records',
+  '{0}/{1}条记录中数量排名前 {2} 的数据值': 'Top {2} data values with the highest quantity ranking in {0}/{1} records',
   '自定义输入格式: 如 1h 代表一小时 h小时': 'Custom input format: e.g. 1h represents one hour, h for hours',
   '支持拖拽更改顺序，排在上面的拥有更高的排序权重':
     'Supports drag and drop to change order, those above have a higher sorting weight',
@@ -501,8 +501,6 @@ export default {
     'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
   '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
-    "To reduce transmission and storage costs, some content can be filtered out, more complex filtering can be done in the 'parsing' function",
   '非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。':
     'Non-required fields, after filling in, will replace the field name; when the field name conflicts with the built-in field, it must be renamed.',
   '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
@@ -777,4 +775,45 @@ export default {
   '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
   '是否保存本次操作？': 'Do you want to save this operation?',
   '容量审核中，请等待': 'Capacity review is in progress, please wait.',
+  总行数: 'Total number of lines',
+  出现行数: 'Number of occurrences',
+  日志条数: 'Number of log entries',
+  次: 'Times',
+  去重后条数: 'Real after the number',
+  最大值: 'Maximum value',
+  最小值: 'Minimum value',
+  平均值: 'Average value',
+  中位数: 'Median value',
+  时序图: 'Related Pictures',
+  数值分布直方图: 'Numeric Distribution Histogram',
+  该字段暂无匹配日志: 'There is no matching log for this field yet.',
+  查询异常: 'Query abnormal',
+  图表分析: 'Chart analysis',
+  点击隐藏: 'Click to hide',
+  点击显示: 'Click to display',
+  暂不支持: 'Not supported',
+  查询时段: 'Query period',
+  字段在该事件范围内有数据的日志条数: 'The number of log entries whose fields have data within the event range.',
+  '计算规则：出现行数/总行数。若该值不为100%，该字段存在空值。':
+    'Calculation rule: number of rows/total number of rows. If the value is not 100%, there is a null value in the field.',
+  '当前采集项已配置基础清洗，无需重复配置':
+    'The current collection item has been configured with basic cleaning. Repeat the configuration.',
+  '自然语言分词，按照日常语法习惯进行分词':
+    'Natural language word segmentation, segmentation according to daily grammar habits.',
+  '支持自定义分词符，可按需自行配置符号进行分词':
+    'Supports custom word breakers, you can configure your own symbols for word breakers.',
+  '更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续':
+    'After changing the field type, an exception may occur when retrieving old and new data at the same time. Please confirm and continue.',
+  '第{n}组': 'Group {n}',
+  不等于: 'Not equal to',
+  正则不匹配: 'Regular expression mismatch',
+  路径黑名单: 'Path blacklist',
+  '设定排除路径，路径之间为或的关系': 'Set exclusion paths, the relationship between paths is OR',
+  '过滤器支持采集时过滤不符合的日志内容，需采集器版本 7.7.2及以上版本':
+    'The filter supports filtering non-conforming log content during collection, requires collector version 7.7.2 and above',
+  操作符: 'Operator',
+  新增过滤组: 'Add filter group',
+  请输入列数: 'Please enter the number of columns',
+  请输入日志样例: 'Please enter a log sample',
+  '第{n}行': '{n} line',
 };

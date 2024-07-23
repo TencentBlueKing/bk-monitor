@@ -383,7 +383,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
               class='collect-name'
               vModel={this.favoriteData.name}
               placeholder={this.$t('填写收藏名（长度30个字符）')}
-            ></bk-input>
+            />
           </bk-form-item>
 
           <bk-form-item
@@ -422,7 +422,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                   id={item.id}
                   key={item.id}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
               <div slot='extension'>
                 {this.isShowAddGroup ? (
@@ -431,7 +431,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                     onClick={() => (this.isShowAddGroup = false)}
                   >
                     <div>
-                      <i class='bk-icon icon-plus-circle'></i>
+                      <i class='bk-icon icon-plus-circle' />
                       {this.$t('新增')}
                     </div>
                   </div>
@@ -458,18 +458,18 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                           placeholder={this.$t('输入组名,30个字符')}
                           clearable
                           onEnter={this.handleCreateGroup}
-                        ></bk-input>
+                        />
                       </bk-form-item>
                     </bk-form>
                     <div class='operate-button'>
                       <span
                         class='bk-icon icon-check-line'
                         onClick={this.handleCreateGroup}
-                      ></span>
+                      />
                       <span
                         class='bk-icon icon-close-line-2'
                         onClick={this.handleCancelCreateGroup}
-                      ></span>
+                      />
                     </div>
                   </li>
                 )}

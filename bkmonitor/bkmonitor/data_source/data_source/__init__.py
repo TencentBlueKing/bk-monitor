@@ -939,7 +939,7 @@ class TimeSeriesDataSource(DataSource):
             interval=kwargs.get("interval"),
         )
         records = self._filter_by_advance_method(q.raw_data)
-        return [record[dimension_field] for record in records]
+        return [record[dimension_field.strip("`")] for record in records]
 
     @property
     def metric_display(self):
@@ -1127,6 +1127,29 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
         for record in records:
             record.pop(minute_field, None)
         return records
+
+    def query_dimensions(
+        self,
+        dimension_field: str,
+        start_time: int = None,
+        end_time: int = None,
+        limit: Optional[int] = None,
+        slimit: Optional[int] = None,
+        *args,
+        **kwargs,
+    ) -> List:
+        if not isinstance(dimension_field, list):
+            dimension_field = [dimension_field]
+        dimension_field = [dmf if dmf.startswith("`") else f"`{dmf}`" for dmf in dimension_field]
+        return super().query_dimensions(
+            dimension_field=dimension_field,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            slimit=slimit,
+            *args,
+            **kwargs,
+        )
 
 
 class CustomTimeSeriesDataSource(TimeSeriesDataSource):

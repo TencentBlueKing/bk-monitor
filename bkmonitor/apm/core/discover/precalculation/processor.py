@@ -20,8 +20,6 @@ import logging
 import operator
 
 import networkx
-from apm_web.handlers.span_infer import InferenceHandler
-from apm_web.utils import group_by
 from networkx import dag_longest_path_length
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -29,6 +27,8 @@ from opentelemetry.trace import StatusCode
 
 from apm.constants import KindCategory
 from apm.models import ApmApplication
+from apm_web.handlers.span_infer import InferenceHandler
+from apm_web.utils import group_by
 from bkm_space.api import SpaceApi
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
@@ -63,17 +63,18 @@ class PrecalculateProcessor:
         trace_mapping = group_by(all_span, operator.itemgetter(OtlpKey.TRACE_ID))
 
         logger.info(f"[PrecalculateProcessor] group by total {len(trace_mapping)} trace")
-        data = []
         pool = ThreadPool()
         params = [(k, v) for k, v in trace_mapping.items()]
 
         results = pool.map_ignore_exception(self.get_trace_info, params)
 
+        data = []
         for result in results:
             if not result:
                 continue
 
-            data.append(result)
+            # 指定 Id 字段
+            data.append({"_index": self.storage.save_index_name, "_id": result["trace_id"], "_source": result})
 
         # 存储数据
         self.storage.save(data)

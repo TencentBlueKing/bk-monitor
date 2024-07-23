@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
-import { type ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
+
+import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
 
@@ -87,8 +88,8 @@ export default defineComponent({
         class={['common-status-wrap status-tab-item', { active: value === item.id, 'is-last-item': isLastInex }]}
         onClick={() => this.handleClickItem(item)}
       >
-        {item.status && <span class={['common-status-icon', `status-${item.status}`]}></span>}
-        {item.icon && <i class={['icon-monitor', item.icon]}></i>}
+        {item.status && <span class={['common-status-icon', `status-${item.status}`]} />}
+        {item.icon && <i class={['icon-monitor', item.icon]} />}
         {(!!item.name || item.name === 0) && (
           <span class={['status-count', { 'plain-text': !item.icon }]}>{item.name}</span>
         )}

@@ -201,7 +201,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
               <i
                 style={{ marginRight: '5px' }}
                 class='bk-icon icon-plus-circle'
-              ></i>
+              />
               {window.i18n.tc('新建插件')}
             </div>
           </div>

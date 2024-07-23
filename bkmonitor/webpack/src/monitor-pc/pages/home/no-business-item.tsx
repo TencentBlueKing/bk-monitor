@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+// 20231205 代码还原，先保留原有部分
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,7 +27,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-// 20231205 代码还原，先保留原有部分
+
 // import { showAccessRequest } from '../../components/access-request-dialog';
 import { spaceTypeTexts } from 'fta-solutions/pages/home/business-item';
 import { getAuthorityDetail } from 'monitor-api/modules/iam';
@@ -101,6 +103,7 @@ export default class NoBusinessItem extends tsc<IProps> {
     const tags = spaceTypeTexts(item);
     return tags.map(tag => (
       <div
+        key={tag.name}
         style={{
           color: tag.light.color,
           backgroundColor: tag.light.backgroundColor,
@@ -187,10 +190,10 @@ export default class NoBusinessItem extends tsc<IProps> {
             <img
               alt=''
               src={require('../../static/images/svg/business-skeleton.svg')}
-            ></img>
+            />
           </div>
         </div>
-        <div class='line'></div>
+        <div class='line' />
         <div
           class='right'
           v-bkloading={{ isLoading: this.loading }}

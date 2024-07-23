@@ -128,7 +128,7 @@ export default class VariableList extends tsc<IVariableListProps> {
               <bk-tab-panel
                 {...{ props: item }}
                 key={index}
-              ></bk-tab-panel>
+              />
             ))}
           </bk-tab>
         ) : undefined}
@@ -146,7 +146,7 @@ export default class VariableList extends tsc<IVariableListProps> {
             <bk-table-column
               label={this.$t('变量名')}
               {...{ scopedSlots }}
-            ></bk-table-column>
+            />
             <bk-table-column
               {...{
                 props: {
@@ -154,7 +154,7 @@ export default class VariableList extends tsc<IVariableListProps> {
                   prop: 'desc',
                 },
               }}
-            ></bk-table-column>
+            />
           </bk-table>
         </div>
       </div>

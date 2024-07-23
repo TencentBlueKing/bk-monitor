@@ -35,7 +35,7 @@ export default class PageLoading extends tsc<object> {
       <div
         class='page-loading'
         v-bkloading={{ isLoading: true }}
-      ></div>
+      />
     );
   }
 }

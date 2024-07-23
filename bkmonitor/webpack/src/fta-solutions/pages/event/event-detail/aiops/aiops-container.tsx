@@ -30,14 +30,15 @@ import FuctionalDependency from '@blueking/functional-dependency/vue2';
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
-import { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { IDetail } from '../type';
 import DimensionTable from './dimension.table';
 import MetricsCollapse from './metrics-collapse';
 import MetricsView from './metrics-view';
 import TabTitle from './tab-title';
-import { ETabNames, EventReportType, IAnomalyDimensions, IInfo } from './types';
+import { ETabNames, EventReportType, type IAnomalyDimensions, type IInfo } from './types';
+
+import type { IDetail } from '../type';
+import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './aiops-container.scss';
 import '@blueking/functional-dependency/vue2/vue2.css';
@@ -433,14 +434,14 @@ export default class AiopsContainer extends tsc<IProps> {
                   tipsClick: this.handleTipsClick,
                 },
               }}
-            ></DimensionTable>,
+            />,
             <MetricsView
               ref='metricsView'
               info={this.tabData.index?.info || {}}
               metricRecommendationErr={this.metricRecommendationErr}
               metricRecommendationLoading={this.metricRecommendationLoading}
               panelMap={this.panelMap}
-            ></MetricsView>,
+            />,
           ]
         )}
       </div>

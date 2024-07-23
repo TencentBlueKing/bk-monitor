@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
 
-import { IInfluxdbChildData } from './type';
+import type { IInfluxdbChildData } from './type';
 
 import './influxdb-child.scss';
 
@@ -95,7 +95,7 @@ export default class InfluxdbChild extends tsc<IProps> {
     return (
       <div class='status-info'>
         <div class={['status-point']}>
-          <div></div>
+          <div />
         </div>
         <div>{status === 'normal' ? this.$t('正常') : this.$t('失败')}</div>
       </div>
@@ -125,7 +125,7 @@ export default class InfluxdbChild extends tsc<IProps> {
               class='item-header'
               onClick={() => this.handleExpand(index)}
             >
-              <span class={['icon-monitor icon-mc-triangle-down', { active: item.isExpand }]}></span>
+              <span class={['icon-monitor icon-mc-triangle-down', { active: item.isExpand }]} />
               <span class='name'>{item.name}</span>
               <span
                 class='icon-monitor icon-mc-copy'
@@ -133,14 +133,14 @@ export default class InfluxdbChild extends tsc<IProps> {
                   content: this.$t('克隆'),
                 }}
                 onClick={(e: Event) => this.handleCopy(e, index)}
-              ></span>
+              />
               <span
                 class='icon-monitor icon-bianji'
                 v-bk-tooltips={{
                   content: this.$t('编辑组'),
                 }}
                 onClick={(e: Event) => this.handleEdit(e, index)}
-              ></span>
+              />
             </div>
             <div class={['item-content', { active: item.isExpand }]}>
               <bk-table
@@ -161,7 +161,7 @@ export default class InfluxdbChild extends tsc<IProps> {
                       formatter={(row, _column, _cellValue, index) => this.handleSetFormatter(column.id, row, index)}
                       label={column.name}
                       prop={column.id}
-                    ></bk-table-column>
+                    />
                   );
                 })}
               </bk-table>

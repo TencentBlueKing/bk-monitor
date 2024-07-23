@@ -30,7 +30,8 @@ import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 
 import { isEnFn } from '../../../utils/index';
 import SimpleDayPick from '../duty-arranges/simple-day-pick';
-import { IDutyListItem } from './typing';
+
+import type { IDutyListItem } from './typing';
 
 import './duty-notice-config.scss';
 
@@ -171,7 +172,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             size='small'
             theme='primary'
             onChange={() => this.handleChange()}
-          ></bk-switcher>
+          />
         )}
         {formItem(
           this.$t('发送时间'),
@@ -187,7 +188,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                   id={item.value}
                   key={item.value}
                   name={item.label}
-                ></bk-option>
+                />
               ))}
             </bk-select>,
             this.formData.sendType === 'week' ? (
@@ -202,7 +203,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                     id={item.value}
                     key={item.value}
                     name={item.label}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             ) : (
@@ -214,7 +215,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                   this.formData.month = v as any;
                   this.handleChange();
                 }}
-              ></SimpleDayPick>
+              />
             ),
             <bk-time-picker
               class='width-200'
@@ -225,7 +226,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                   this.handleChange();
                 }, 100);
               }}
-            ></bk-time-picker>,
+            />,
           ],
           'mt-16',
           this.errrMsg.sendTime
@@ -259,7 +260,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               class='width-488 mr-12'
               v-model={this.formData.rtxId}
               onChange={() => this.handleChange()}
-            ></bk-input>,
+            />,
             <span
               class='icon-monitor icon-tips'
               v-bk-tooltips={{
@@ -271,7 +272,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                 placements: ['top'],
                 allowHTML: true,
               }}
-            ></span>,
+            />,
           ],
           'mt-16',
           this.errrMsg.sendChat
@@ -283,7 +284,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             size='small'
             theme='primary'
             onChange={() => this.handleChange()}
-          ></bk-switcher>,
+          />,
           'mt-24'
         )}
         {formItem(
@@ -310,7 +311,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                       id={item.value}
                       key={item.value}
                       name={item.label}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </div>

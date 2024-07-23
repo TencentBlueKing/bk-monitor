@@ -43,7 +43,7 @@ export default class LoadingBox extends tsc<ILoadingBoxProps> {
   render() {
     return (
       <div class='loading-box'>
-        <div class='spinner'></div>
+        <div class='spinner' />
         {this.label}
       </div>
     );
