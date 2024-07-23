@@ -626,12 +626,22 @@
                     </template>
                   </bk-table-column>
                   <!-- 空数据 -->
-                  <div
+                  <!-- <div
                     class="empty"
                     slot="empty"
                   >
                     <i class="icon-monitor icon-remind empty-icon" />
                     <div>{{ $t('暂无指标/维度') }}</div>
+                  </div> -->
+                  <div slot="empty">
+                    <empty-status
+                      :text-map="{
+                        empty: $t('暂无指标/维度'),
+                        'search-empty': $t('搜索结果为空'),
+                      }"
+                      :type="emptyType"
+                      @operation="handleEmptyOperation"
+                    ></empty-status>
                   </div>
                 </bk-table>
               </div>
@@ -908,6 +918,7 @@ import {
 } from 'monitor-api/modules/custom_report';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
+import EmptyStatus from '../../components/empty-status/empty-status';
 import MonitorExport from '../../components/monitor-export/monitor-export.vue';
 import MonitorImport from '../../components/monitor-import/monitor-import.vue';
 import TableFiter from '../../components/table-filter/table-filter-new.vue';
@@ -921,6 +932,7 @@ import GroupManageDialog, { matchRuleFn } from './group-manage-dialog';
 import GroupSelectMultiple from './group-select-multiple';
 import { csvToArr } from './utils';
 
+import type { EmptyStatusOperationType } from '../../components/empty-status/types';
 import type {
   IDetailData,
   IEditParams,
@@ -951,6 +963,7 @@ interface IGroupListItem {
     GroupManageDialog,
     GroupSelectMultiple,
     SearchSelect,
+    EmptyStatus,
   },
 })
 export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(customAuth)) {
@@ -1156,7 +1169,10 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
         (leng3
           ? this.unitFilterList.some(u => {
               if (u === 'none') {
-                return item.unit === 'none' || !item.unit;
+                return isMetric && (item.unit === 'none' || !item.unit);
+              }
+              if (u === '--') {
+                return !isMetric;
               }
               return item.unit === u;
             })
@@ -1207,6 +1223,20 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
 
   get isReadonly() {
     return !!this.detailData.is_readonly;
+  }
+
+  get emptyType() {
+    let emptyType = 'empty';
+    for (const key in this.metricSearchObj) {
+      if (this.metricSearchObj[key].length) {
+        emptyType = 'search-empty';
+        break;
+      }
+    }
+    if (this.groupFilterList.length || this.metricFilterList.length || this.unitFilterList.length) {
+      emptyType = 'search-empty';
+    }
+    return emptyType;
   }
 
   // @Watch('metricTable')
@@ -1491,7 +1521,11 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           ...tableAllUnitList,
           {
             id: 'none',
-            name: `-${this.$t('空')}-`,
+            name: 'none',
+          },
+          {
+            id: '--',
+            name: '--',
           },
         ];
 
@@ -2393,6 +2427,18 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     };
     toView[this.type]();
   }
+
+  handleEmptyOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      for (const key in this.metricSearchObj) {
+        this.metricSearchValue = [];
+        this.metricSearchObj[key] = [];
+        this.metricFilterList = [];
+        this.unitFilterList = [];
+        this.groupFilterList = [];
+      }
+    }
+  }
 }
 </script>
 
@@ -2572,7 +2618,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       :deep(.table-box) {
         display: flex;
-        overflow-y: hidden;
+        overflow: hidden;
         .bk-form-input,
         .bk-select {
           border: 1px solid #fff;
@@ -2705,6 +2751,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               }
             }
           }
+          .bk-table-empty-block {
+            min-height: 300px;
+            position: relative;
+            top: -90px;
+          }
         }
         .left-active {
           width: calc(100% - 420px);
@@ -2753,7 +2804,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             border-bottom: 1px solid #3b3c42;
           }
           .no-data-preview {
-            height: 93px;
+            height: 305px;
             width: 420px;
             background: #313238;
           }
