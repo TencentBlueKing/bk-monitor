@@ -318,7 +318,7 @@ class IncidentDetailResource(IncidentBaseResource):
                     "bk_biz_id": bk_biz_id,
                     "bk_biz_name": resource.cc.get_app_by_id(bk_biz_id).name,
                 }
-                for bk_biz_id in snapshot["bk_biz_id"]
+                for bk_biz_id in snapshot["bk_biz_ids"]
             ]
         return snapshots
 
