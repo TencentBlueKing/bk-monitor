@@ -90,14 +90,15 @@ class TreeConverter:
                         parent = None
                         continue
 
-                    key = FunctionNode.generate_id(line)
+                    pure_line = FunctionNode.replace_invalid_char(line)
+                    key = FunctionNode.generate_id(pure_line)
                     tree.lock.acquire()
                     if key not in tree.function_node_map:
                         node = FunctionNode(
                             id=key,
-                            name=line["function"]["name"],
-                            system_name=line["function"]["systemName"],
-                            filename=line["function"]["fileName"],
+                            name=pure_line["function"]["name"],
+                            system_name=pure_line["function"]["systemName"],
+                            filename=pure_line["function"]["fileName"],
                             values=[value],
                         )
                         if parent:
