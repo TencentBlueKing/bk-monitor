@@ -26,6 +26,9 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+
 import './details-side.scss';
 
 interface IProps {
@@ -37,18 +40,47 @@ interface IProps {
 export default class DetailsSide extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
 
+  timeRange: TimeRangeType = ['now-1d', 'now'];
+  timezone: string = getDefaultTimezone();
+
   handleClose() {
     this.$emit('close');
+  }
+
+  handleTimeRangeChange(date) {
+    this.timeRange = date;
+  }
+
+  handleTimezoneChange(timezone: string) {
+    updateTimezone(timezone);
+    this.timezone = timezone;
   }
 
   render() {
     return (
       <bk-sideslider
+        width={960}
+        extCls='apm-time-series-details-side'
         beforeClose={this.handleClose}
         isShow={this.show}
         quickClose={true}
         transfer={true}
-      />
+      >
+        <div
+          class='header-wrap'
+          slot='header'
+        >
+          <div class='left-title'>请求数详情</div>
+          <div class='right-time'>
+            <TimeRange
+              timezone={this.timezone}
+              value={this.timeRange}
+              onChange={this.handleTimeRangeChange}
+              onTimezoneChange={this.handleTimezoneChange}
+            />
+          </div>
+        </div>
+      </bk-sideslider>
     );
   }
 }
