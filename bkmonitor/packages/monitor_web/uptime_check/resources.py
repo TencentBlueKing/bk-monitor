@@ -82,7 +82,6 @@ from monitor_web.uptime_check.constants import (
 )
 from monitor_web.uptime_check.serializers import (
     ConfigSlz,
-    UptimeCheckNodeSerializer,
     UptimeCheckTaskBaseSerializer,
     UptimeCheckTaskSerializer,
 )
@@ -1213,7 +1212,6 @@ class UptimeCheckBeatResource(Resource):
 
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         hosts = serializers.ListSerializer(child=HostObjectField(allow_null=True, required=False), required=False)
-        nodes = serializers.ListSerializer(child=UptimeCheckNodeSerializer(), required=False, allow_null=True)
 
     @classmethod
     def node_to_host(cls, node, node_host_info):
@@ -1262,18 +1260,17 @@ class UptimeCheckBeatResource(Resource):
         validated_request_data = self.validate_request_data(request_data)
         bk_biz_id = validated_request_data.get("bk_biz_id")
         hosts = validated_request_data.get("hosts", None)
-        nodes = validated_request_data.get("nodes", None)
 
         # nodes -> hosts
         if not hosts:
-            if not nodes:
-                if bk_biz_id:
-                    # 过滤业务下所有节点时，同时还应该加上通用节点
-                    biz_nodes = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id)
-                    common_nodes = UptimeCheckNode.objects.filter(is_common=True)
-                    nodes = biz_nodes | common_nodes
-                else:
-                    nodes = UptimeCheckNode.objects.all()
+            if bk_biz_id:
+                # 过滤业务下所有节点时，同时还应该加上通用节点
+                biz_nodes = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id)
+                common_nodes = UptimeCheckNode.objects.filter(is_common=True)
+                nodes = biz_nodes | common_nodes
+            else:
+                nodes = UptimeCheckNode.objects.all()
+
             node_to_host_dict = resource.uptime_check.get_node_host_dict(nodes)
             bk_host_ids = {host.bk_host_id for host in node_to_host_dict.values()}
             hosts = [node_to_host_dict[host_id] for host_id in bk_host_ids]
@@ -1338,39 +1335,24 @@ class UptimeCheckBeatResource(Resource):
             result[bk_host_id] = node_status
             result[host_ip_key] = node_status
 
-        for node in nodes:
+        for host in hosts:
             # 补充缺省数据
+            bk_host_id = host.bk_host_id
+            host_ip_key = host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id))
 
-            node_key = bk_host_id = node.bk_host_id
-            if not node_key:
-                # 节点没有host_id， 则用节点的ip和cloud_id拼接 host_ip_key
-                node_key = host_ip_key = host_key(ip=node.ip, bk_cloud_id=str(node.plat_id))
-            else:
-                # 有host_id 直接获取cmdb的主机信息， 然后拼接 host_ip_key
-                host = node_to_host_dict.get(node_key)
-                host_ip_key = host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id))
-
-            if node_key in result:
-                # 上报数据已经包含了这个节点， 则不用走缺省补充
-                continue
-
-            default_status = {}
-            host_dict = {"ip": node.ip, "bk_cloud_id": node.plat_id, "bk_host_id": bk_host_id}
-            if node_key not in node_to_host_dict:
-                # 机器不再cmdb中
-                default_status = {"gse_status": BEAT_STATUS["INVALID"], "status": BEAT_STATUS["INVALID"]}
-            if node_key not in result:
+            if bk_host_id not in result:
+                # 未上报数据， 走缺省补充
+                host_dict = {"ip": host.bk_host_innerip, "bk_cloud_id": host.bk_cloud_id, "bk_host_id": bk_host_id}
                 # 机器没上报心跳
                 default_status = {"gse_status": BEAT_STATUS["RUNNING"], "status": BEAT_STATUS["DOWN"]}
-
-            if default_status:
                 host_dict.update(default_status)
                 result[bk_host_id] = host_dict
                 result[host_ip_key] = host_dict
-                # 处理 bad_agent
-                if bk_host_id in bad_agent:
-                    result[bk_host_id]["gse_status"] = BEAT_STATUS["DOWN"]
-                    result[host_ip_key]["gse_status"] = BEAT_STATUS["DOWN"]
+
+            # 处理 bad_agent
+            if bk_host_id in bad_agent:
+                result[bk_host_id]["gse_status"] = BEAT_STATUS["DOWN"]
+                result[host_ip_key]["gse_status"] = BEAT_STATUS["DOWN"]
         return result
 
 

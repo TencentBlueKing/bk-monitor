@@ -159,12 +159,14 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         重写list,简化节点部分数据并添加关联任务数等数据
         """
 
-        def get_by_node(node, data_map):
+        def get_by_node(node, data_map, default=None):
             if isinstance(node, UptimeCheckNode):
                 node = node.__dict__
             key = node["bk_host_id"]
             if not key:
                 key = host_key(node["ip"], node["plat_id"])
+            if key not in data_map:
+                return default
             return data_map[key]
 
         # 如用户传入业务，同时还应该加上通用节点
@@ -201,17 +203,15 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             all_beat_version = self.get_beat_version(bk_host_ids)
 
         # 获取采集器相关信息
-        all_node_status = []
+        all_node_status = {}
         try:
             all_node_status = (
-                resource.uptime_check.uptime_check_beat.return_with_dict(
-                    bk_biz_id=bk_biz_id, hosts=hosts, nodes=queryset
-                )
+                resource.uptime_check.uptime_check_beat.return_with_dict(bk_biz_id=bk_biz_id, hosts=hosts)
                 if bk_biz_id
-                else resource.uptime_check.uptime_check_beat.return_with_dict(hosts=hosts, nodes=queryset)
+                else resource.uptime_check.uptime_check_beat.return_with_dict(hosts=hosts)
             )
         except Exception as e:
-            print("Failed to get uptime check node status: {}".format(e))
+            logger.exception("Failed to get uptime check node status: {}".format(e))
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
         for node in serializer.data:
@@ -224,8 +224,11 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 display_name = node["ip"]
             else:
                 display_name = host_instance.display_name
-                node_status = get_by_node(node, all_node_status)
-                beat_version = get_by_node(node, all_beat_version)
+                # 未上报数据，默认给不可用状态
+                node_status = get_by_node(
+                    node, all_node_status, {"gse_status": BEAT_STATUS["DOWN"], "status": BEAT_STATUS["DOWN"]}
+                )
+                beat_version = get_by_node(node, all_beat_version, beat_version)
             result.append(
                 {
                     "id": node["id"],
