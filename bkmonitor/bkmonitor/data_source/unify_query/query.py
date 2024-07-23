@@ -258,7 +258,7 @@ class UnifyQuery:
         params.update(dict(down_sample_range=down_sample_range, timezone=timezone.get_current_timezone_name()))
 
         if instant:
-            params.update(dict(instant=instant))
+            params["instant"] = instant
 
         logger.info(f"UNIFY_QUERY: {json.dumps(params)}")
 
