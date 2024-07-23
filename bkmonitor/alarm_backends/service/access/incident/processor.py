@@ -65,7 +65,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         :param sync_info: 同步内容
         """
         # 生成故障归档记录
-        logger.info(f"[CREATE]Access incident[{sync_info['incident_id']}], sync_time: {sync_info['sync_time']}")
+        logger.info(f"[CREATE]Access incident[{sync_info['incident_id']}], sync_info: {json.dumps(sync_info)}")
         try:
             incident_info = sync_info["incident_info"]
             incident_info["incident_id"] = sync_info["incident_id"]
@@ -76,7 +76,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             snapshot = IncidentSnapshotDocument(
                 incident_id=sync_info["incident_id"],
-                bk_biz_id=sync_info["scope"]["bk_biz_ids"],
+                bk_biz_ids=sync_info["scope"]["bk_biz_ids"],
                 status=incident_info["status"],
                 alerts=sync_info["scope"]["alerts"],
                 events=sync_info["scope"]["events"],
@@ -121,7 +121,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
         :param sync_info: 同步内容
         """
-        logger.info(f"[UPDATE]Access incident[{sync_info['incident_id']}], sync_time: {sync_info['sync_time']}")
+        logger.info(f"[UPDATE]Access incident[{sync_info['incident_id']}], sync_info: {json.dumps(sync_info)}")
         snapshot = None
         # 更新故障归档记录
         try:
