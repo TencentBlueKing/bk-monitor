@@ -59,12 +59,6 @@ class SaveAiSettingResource(Resource):
 
         ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
-        # 需要接入的场景列
-        need_access_scenes = []
-
-        # 需要停止的flow
-        need_stop_scenes = []
-
         for scene, scene_config in multivariate_anomaly_detection_params.items():
             # 取参数中的is_enabled和数据库中的is_enabled进行比对
             params_scene_setting_is_enabled = scene_config.get("is_enabled", False)
@@ -78,10 +72,9 @@ class SaveAiSettingResource(Resource):
             # 参数is_enabled为True为需要接入，为False则需要关闭
             if params_scene_setting_is_enabled:
                 scene_config_intelligent_detect = scene_config.setdefault("intelligent_detect", {})
-                scene_config_intelligent_detect["status"] = AccessStatus.PENDING
-                need_access_scenes.append(scene)
-            else:
-                need_stop_scenes.append(scene)
+
+            # 不需要另外接入扫描任务，默认所有都成功
+            scene_config_intelligent_detect["status"] = AccessStatus.SUCCESS
 
         ai_setting.save(
             kpi_anomaly_detection=kpi_anomaly_detection,

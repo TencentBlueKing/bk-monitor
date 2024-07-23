@@ -180,7 +180,8 @@ class IncidentDocument(IncidentBaseDocument):
                 strategy_ids.add(incident_alert.strategy_id)
 
         labels = StrategyLabel.objects.filter(strategy_id__in=strategy_ids).values_list("label_name", flat=True)
-        self.labels = list(set(labels))
+        whole_labels = list(set(labels) | set(self.labels))
+        self.labels = whole_labels
 
     @classmethod
     def get(cls, id: str, fetch_remote: bool = True) -> "IncidentDocument":
