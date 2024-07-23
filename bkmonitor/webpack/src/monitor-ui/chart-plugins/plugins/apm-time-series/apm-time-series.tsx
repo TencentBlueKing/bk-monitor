@@ -41,19 +41,22 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
+import DetailsSide from './components/details-side';
 
 import './apm-time-series.scss';
 
-// const eventHasId = (event: Event, id: string) => {
-//   let target = event.target;
-//   while(target) {
-//     if(id) {
-//       if(target.id === id) {
-
-//       }
-//     }
-//   }
-// };
+const eventHasId = (event: Event | any, id: string) => {
+  let target = event.target;
+  let has = false;
+  while (target) {
+    if (target.id === id) {
+      has = true;
+      break;
+    }
+    target = target?.parentNode;
+  }
+  return has;
+};
 
 @Component
 export default class ApmTimeSeries extends TimeSeries {
@@ -66,6 +69,10 @@ export default class ApmTimeSeries extends TimeSeries {
       { id: 'topo', name: window.i18n.t('查看拓扑') },
     ],
     id: random(10),
+  };
+
+  detailsSideData = {
+    show: false,
   };
 
   /**
@@ -336,6 +343,7 @@ export default class ApmTimeSeries extends TimeSeries {
 
   handleContextmenu(params) {
     const { offsetX, offsetY } = params.event;
+    console.log(params);
     this.contextmenuInfo = {
       ...this.contextmenuInfo,
       x: offsetX + 4,
@@ -346,8 +354,28 @@ export default class ApmTimeSeries extends TimeSeries {
   }
 
   handleHideContextmenu(event: MouseEvent) {
-    console.log(event);
+    if (!eventHasId(event, this.contextmenuInfo.id)) {
+      this.hideContextmenu();
+    }
+  }
+
+  hideContextmenu() {
+    this.contextmenuInfo.show = false;
     document.removeEventListener('click', this.handleHideContextmenu);
+  }
+
+  handleClickMenuItem(id: string) {
+    if (id === 'details') {
+      // TODO 详情
+      this.detailsSideData.show = true;
+    } else if (id === 'topo') {
+      // TODO 拓扑图
+    }
+    this.hideContextmenu();
+  }
+
+  handleCloseDetails() {
+    this.detailsSideData.show = false;
   }
 
   render() {
@@ -411,6 +439,7 @@ export default class ApmTimeSeries extends TimeSeries {
                   <div
                     key={item.id}
                     class='contextmenu-list-item'
+                    onClick={() => this.handleClickMenuItem(item.id)}
                   >
                     {item.name}
                   </div>
@@ -436,6 +465,10 @@ export default class ApmTimeSeries extends TimeSeries {
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
         )}
+        <DetailsSide
+          show={this.detailsSideData.show}
+          onClose={this.handleCloseDetails}
+        />
       </div>
     );
   }
