@@ -40,8 +40,40 @@ interface IProps {
 export default class DetailsSide extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
 
+  /* 时间 */
   timeRange: TimeRangeType = ['now-1d', 'now'];
   timezone: string = getDefaultTimezone();
+  /*  */
+  selectOptions = [
+    { id: 'avg', name: '平均响应耗时' },
+    { id: 'error', name: '总错误数' },
+  ];
+  selected = 'avg';
+
+  typeOptions = [
+    { id: 'initiative', name: '主调' },
+    { id: 'passive', name: '被调' },
+  ];
+  curType = 'initiative';
+
+  compareTimeInfo = [
+    {
+      id: 'refer',
+      name: window.i18n.t('参照时间'),
+      time: '2024.1.1 00:00',
+      color: '#FF9C01',
+    },
+    {
+      id: 'compare',
+      name: window.i18n.t('对比时间'),
+      time: '2024.1.1 00:00',
+      color: '#7B29FF',
+    },
+  ];
+
+  isCompare = false;
+
+  searchValue = '';
 
   handleClose() {
     this.$emit('close');
@@ -55,6 +87,12 @@ export default class DetailsSide extends tsc<IProps> {
     updateTimezone(timezone);
     this.timezone = timezone;
   }
+
+  handleTypeChange(id: string) {
+    this.curType = id;
+  }
+
+  handleSearch() {}
 
   render() {
     return (
@@ -78,6 +116,78 @@ export default class DetailsSide extends tsc<IProps> {
               onChange={this.handleTimeRangeChange}
               onTimezoneChange={this.handleTimezoneChange}
             />
+          </div>
+        </div>
+        <div
+          class='content-wrap'
+          slot='content'
+        >
+          <div class='content-header-wrap'>
+            <div class='left-wrap'>
+              <bk-select
+                class='theme-select-wrap'
+                v-model={this.selected}
+                clearable={false}
+              >
+                {this.selectOptions.map(item => (
+                  <bk-option
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
+                  />
+                ))}
+              </bk-select>
+              <div class='bk-button-group'>
+                {this.typeOptions.map(item => (
+                  <bk-button
+                    key={item.id}
+                    class={this.curType === item.id ? 'is-selected' : ''}
+                    onClick={() => this.handleTypeChange(item.id)}
+                  >
+                    {item.name}
+                  </bk-button>
+                ))}
+              </div>
+              <div class='compare-switcher'>
+                <bk-switcher
+                  v-model={this.isCompare}
+                  theme='primary'
+                />
+                <span class='switcher-text'>{this.$t('对比')}</span>
+              </div>
+              {this.isCompare && (
+                <div class='compare-time-wrap'>
+                  {this.compareTimeInfo.map((item, index) => [
+                    index ? (
+                      <div
+                        key={`${item.id}${index}`}
+                        class='split-line'
+                      />
+                    ) : undefined,
+                    <div
+                      key={item.id}
+                      class='compare-time-item'
+                    >
+                      <span
+                        style={{ backgroundColor: item.color }}
+                        class='point'
+                      />
+                      <span class='time-text'>{`${item.name}: ${item.time}`}</span>
+                    </div>,
+                  ])}
+                </div>
+              )}
+            </div>
+            <div class='right-wrap'>
+              <bk-input
+                v-model={this.searchValue}
+                placeholder={this.$t('搜索服务名称')}
+                right-icon='bk-icon icon-search'
+                clearable
+                onChange={this.handleSearch}
+                onRightIconClick={this.handleSearch}
+              />
+            </div>
           </div>
         </div>
       </bk-sideslider>
