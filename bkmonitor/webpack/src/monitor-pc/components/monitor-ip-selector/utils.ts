@@ -106,9 +106,9 @@ export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) 
 }
 export function getPanelListByObjectType(objectType: TargetObjectType) {
   if (objectType === 'SERVICE') {
-    return ['dynamicTopo', 'serviceTemplate', 'setTemplate'];
+    return ['dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate'];
   }
-  return ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'];
+  return ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'];
 }
 
 /**

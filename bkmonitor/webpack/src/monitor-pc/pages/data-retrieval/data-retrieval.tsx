@@ -335,7 +335,9 @@ export default class DataRetrieval extends tsc<object> {
 
   @Watch('loading')
   loadingChange(val: boolean) {
-    setTimeout(() => (this.delayLoading = val ? this.loading : false), 200);
+    setTimeout(() => {
+      this.delayLoading = val ? this.loading : false;
+    }, 200);
   }
 
   @Watch('queryResult')
@@ -477,13 +479,13 @@ export default class DataRetrieval extends tsc<object> {
   get canToPromql() {
     if (this.editMode === 'UI') {
       return this.localValue
-        .filter(item => !!item.metric_id)
+        .filter(item => item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
   }
 
-  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false | void) => void) {
+  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
       let targetsList = [];
@@ -666,7 +668,7 @@ export default class DataRetrieval extends tsc<object> {
           const urlFavoriteID = this.$route.query.favorite_id;
           for (const gItem of res) {
             const favorite = gItem.favorites.find(item => String(item.id) === urlFavoriteID);
-            if (!!favorite) {
+            if (favorite) {
               this.handleSelectFavProxy(favorite);
               break;
             }
@@ -684,7 +686,7 @@ export default class DataRetrieval extends tsc<object> {
           let isFindCheckValue = false; // 是否从列表中找到匹配当前收藏的id
           for (const gItem of this.favList[this.tabActive]) {
             const findFavorites = gItem.favorites.find(item => item.id === this.favCheckedValue.id);
-            if (!!findFavorites) {
+            if (findFavorites) {
               isFindCheckValue = true; // 找到 中断循环
               break;
             }
@@ -978,7 +980,7 @@ export default class DataRetrieval extends tsc<object> {
   handleShowMetricSelector(val: boolean, index?: number) {
     if (val) {
       const curItem = this.localValue[index] as DataRetrievalQueryItem;
-      this.metricData = !!curItem.metric_id ? [curItem] : [];
+      this.metricData = curItem.metric_id ? [curItem] : [];
       this.curLocalValueIndex = index;
       this.metricSelectorMetricId = curItem.metric_id;
     }
@@ -1475,7 +1477,7 @@ export default class DataRetrieval extends tsc<object> {
   async handleSubmitFavorite({ value, hideCallback, isEdit }) {
     const type = this.tabActive === 'event' ? 'event' : 'metric';
     const { group_id, name, id } = value;
-    let config;
+    let config = undefined;
     // 若是当前是编辑收藏, 且非更新收藏config的情况下 不改变config
     if (this.isUpdateFavoriteConfig) {
       if (this.tabActive === 'event') {
@@ -1536,7 +1538,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   getFavoriteDialogKeywords(replaceData?: any) {
     let currentFavoriteKeywordsData: any;
-    if (!!replaceData) {
+    if (replaceData) {
       currentFavoriteKeywordsData = replaceData;
     } else {
       if (this.tabActive === 'event') {
@@ -3139,7 +3141,15 @@ export default class DataRetrieval extends tsc<object> {
               class='target-add-btn-content'
               onClick={this.handleShowTargetSelector}
             >
-              {this.target.desc ? this.target.desc : [<i class='icon-monitor icon-plus-line' />, this.$t('IP目标')]}
+              {this.target.desc
+                ? this.target.desc
+                : [
+                    <i
+                      key={1}
+                      class='icon-monitor icon-plus-line'
+                    />,
+                    this.$t('IP目标'),
+                  ]}
             </span>
           </div>
         )}
@@ -3147,6 +3157,7 @@ export default class DataRetrieval extends tsc<object> {
     );
     const metricRetrieval = () => [
       <bk-collapse
+        key={1}
         class='collapse-wrap collapse-wrap-data'
         vModel={this.expandedData}
       >
@@ -3178,7 +3189,10 @@ export default class DataRetrieval extends tsc<object> {
           ))}
         </transition-group>
       </bk-collapse>,
-      <div class='query-add-btn-wrap'>
+      <div
+        key={2}
+        class='query-add-btn-wrap'
+      >
         <span
           class='query-add-btn'
           onClick={this.handleAddQuery}
@@ -3195,6 +3209,7 @@ export default class DataRetrieval extends tsc<object> {
         </span>
       </div>,
       <HandleBtn
+        key={3}
         class='search-group'
         autoQuery={this.autoQuery}
         canQuery={this.canQuery && !this.loading}
