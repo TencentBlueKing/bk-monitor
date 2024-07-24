@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { Component, Ref } from 'vue-property-decorator';
-import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
@@ -32,14 +31,16 @@ import { SET_NAV_ROUTE_LIST } from 'monitor-pc/store/modules/app';
 
 import SetMealAddModule from '../../../../store/modules/set-meal-add';
 import MealBasicInfo from './meal-basic-info/meal-basic-info';
-import MealContentNew, { IMealTypeList } from './meal-content/meal-content';
+import MealContentNew, { type IMealTypeList } from './meal-content/meal-content';
 import {
-  IMealData,
+  type IMealData,
   mealContentDataBackfill,
   mealDataInit,
   transformMealContentParams,
 } from './meal-content/meal-content-data';
 import MealDesc from './meal-desc/meal-desc';
+
+import type { Route } from 'vue-router';
 
 import './set-meal-add.scss';
 
@@ -108,7 +109,7 @@ export default class SetMealAdd extends tsc<object> {
     // 套餐类型列表
     await this.getMealTypeList();
     if (this.$route.params.id) {
-      this.configId = parseInt(this.$route.params.id);
+      this.configId = Number.parseInt(this.$route.params.id);
 
       // 编辑
       this.type = 'edit';
@@ -288,8 +289,8 @@ export default class SetMealAdd extends tsc<object> {
             >
               <div class='set-warpper'>
                 <div
-                  class='set-title'
                   v-en-style='width: 120px'
+                  class='set-title'
                 >
                   {this.$t('基本信息')}
                 </div>
@@ -297,7 +298,7 @@ export default class SetMealAdd extends tsc<object> {
                   ref='basicInfoRef'
                   basicInfo={this.basicInfo}
                   type={this.type}
-                ></MealBasicInfo>
+                />
               </div>
               <MealContentNew
                 ref='mealContentRef'
@@ -307,7 +308,7 @@ export default class SetMealAdd extends tsc<object> {
                 refreshKey={this.refreshKey}
                 type={this.type}
                 onChange={data => (this.mealData = data)}
-              ></MealContentNew>
+              />
               <div class='operate-warpper'>
                 <bk-button
                   theme='primary'
@@ -327,7 +328,7 @@ export default class SetMealAdd extends tsc<object> {
                 pluginTypeId={this.getMealType}
                 show={this.rightShow}
                 onChange={this.handleRightShow}
-              ></MealDesc>
+              />
             </div>
           </div>
         </div>

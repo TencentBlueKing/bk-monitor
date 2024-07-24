@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import { useTraceStore } from '../../../store/modules/trace';
-import { ITraceTree } from '../../../typings';
-import { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
 import CanvasSpanGraph from './canvas-span-graph';
 import TickLabels from './tick-labels';
 import ViewingLayer from './viewing-layer';
+
+import type { ITraceTree } from '../../../typings';
+import type { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
 
 interface ComplexMessage {
   valueWidth: number;

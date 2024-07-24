@@ -29,12 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
-import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 
-import { DashboardColumnType, IGridPos, IPanelModel, PanelModel } from '../typings';
+import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
+
+import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
@@ -563,7 +564,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           <div class='single-chart-content'>
             <div class={['single-chart-main', { 'has-btn': !!this.backToType }]}>
               <div class='single-chart-wrap'>
-                <ChartWrapper panel={this.singleChartPanel}></ChartWrapper>
+                <ChartWrapper panel={this.singleChartPanel} />
               </div>
             </div>
           </div>
@@ -622,7 +623,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                 onCheckAll={() => this.handleCheckAll()}
                 onCheckClose={() => this.handleCheckAll(false)}
                 onShowCollect={(v: boolean) => this.handleShowCollect(v)}
-              ></ChartCollect>
+              />
             ) : undefined,
           ]
         )}

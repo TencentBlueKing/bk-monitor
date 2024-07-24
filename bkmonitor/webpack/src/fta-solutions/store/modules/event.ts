@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import store from '@store/store';
 import {
   actionDateHistogram,
   alertDateHistogram,
@@ -43,7 +42,10 @@ import {
   listSearchFavorite,
   partialUpdateSearchFavorite,
 } from 'monitor-api/modules/model';
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, VuexModule, getModule } from 'vuex-module-decorators';
+
+import { exportIncident } from '../../../monitor-api/modules/incident';
+import store from '@store/store';
 // const sleep = async (timer = 1000) => await new Promise(resolve => setTimeout(resolve, timer))
 @Module({ name: 'event', dynamic: true, namespaced: true, store })
 class Event extends VuexModule {
@@ -67,6 +69,11 @@ class Event extends VuexModule {
   // 导出告警数据
   async exportAlertData(params) {
     return await exportAlert(params, { needCancel: true }).catch(() => ({ download_path: '', download_name: '' }));
+  }
+  @Action
+  // 导出故障数据
+  async exportIncidentData(params) {
+    return await exportIncident(params, { needCancel: true }).catch(() => ({ download_path: '', download_name: '' }));
   }
   @Action
   // 获取执行趋势图数据

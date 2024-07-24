@@ -89,8 +89,9 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
   render() {
     return (
       <div class='table-operate-options-component'>
-        {this.options?.outside.map(item => (
+        {this.options?.outside.map((item, index) => (
           <span
+            key={index}
             v-bk-tooltips={{
               content: item?.tip,
               placement: 'top',
@@ -118,7 +119,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
             class='option-more'
             onClick={this.handleShowPopover}
           >
-            <span class='bk-icon icon-more'></span>
+            <span class='bk-icon icon-more' />
           </div>
         ) : undefined}
         <div style={{ display: 'none' }}>
@@ -128,6 +129,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           >
             {this.options?.popover?.map(item => (
               <span
+                key={item.id}
                 class='more-item'
                 v-authority={{ active: !item.authority }}
                 onClick={() =>

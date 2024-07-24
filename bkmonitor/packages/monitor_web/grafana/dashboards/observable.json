@@ -174,7 +174,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:mtta{time_range=~\"^(7d)$\"}[5m]))",
+          "source": "sum by(time_range) (sum_over_time(bkm_statistics:base:mtta{time_range=~\"^(7d)$\"}[5m]))",
           "step": "",
           "type": "range"
         }
@@ -278,7 +278,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:mttr{time_range=~\"^(7d)$\"}[5m]))",
+          "source": "sum by(time_range) (sum_over_time(bkm_statistics:base:mttr{time_range=~\"^(7d)$\"}[5m]))",
           "step": "",
           "type": "range"
         }
@@ -391,7 +391,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:noise_reduction_ratio{time_range=~\"^(7d)$\"}[5m])) * 100",
+          "source": "sum by(time_range) (sum_over_time(bkm_statistics:base:noise_reduction_ratio{time_range=~\"^(7d)$\"}[5m])) * 100",
           "step": "",
           "type": "range"
         }
@@ -522,7 +522,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:auto_recovery_ratio{time_range=~\"^(7d)$\"}[5m]))",
+          "source": "sum by(time_range) (sum_over_time(bkm_statistics:base:auto_recovery_ratio{time_range=~\"^(7d)$\"}[5m]))",
           "step": "",
           "type": "range"
         }
@@ -634,7 +634,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum(bkmonitor:bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
+          "source": "sum(bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
           "step": "",
           "type": "range"
         }
@@ -742,7 +742,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum(bkmonitor:bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
+          "source": "sum(bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
           "step": "",
           "type": "range"
         }
@@ -851,7 +851,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum(bkmonitor:bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
+          "source": "sum(bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
           "step": "",
           "type": "range"
         }
@@ -972,7 +972,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum(sum_over_time(custom:bkm_statistics:base:collect_plugin_count[5m]))",
+          "source": "sum(sum_over_time(bkm_statistics:base:collect_plugin_count[5m]))",
           "step": "",
           "type": "range"
         }
@@ -1091,7 +1091,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum  (sum_over_time(bkmonitor:bkm_statistics:base:observation_scene_count[5m]))",
+          "source": "sum  (sum_over_time(bkm_statistics:base:observation_scene_count[5m]))",
           "step": "",
           "type": "range"
         }
@@ -1210,7 +1210,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum  (sum_over_time(bkmonitor:bkm_statistics:base:observation_scene_count[5m]))",
+          "source": "sum  (sum_over_time(bkm_statistics:base:observation_scene_count[5m]))",
           "step": "",
           "type": "range"
         }
@@ -1334,7 +1334,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum(bkmonitor:bkm_statistics:base:host_report_count{data_status=\"NORMAL\"})",
+          "source": "sum(bkm_statistics:base:host_report_count{data_status=\"NORMAL\"})",
           "step": "",
           "type": "range"
         }
@@ -1444,7 +1444,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum(sum_over_time(custom:bkm_statistics:base:k8s_cluster_count[5m]))",
+          "source": "sum(sum_over_time(bkm_statistics:base:k8s_cluster_count[5m]))",
           "step": "",
           "type": "range"
         }
@@ -1655,7 +1655,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum by (bk_biz_id)(sum_over_time(bkmonitor:bkm_statistics:base:es_cluster_node_disk_total[5m]))",
+          "source": "sum by (bk_biz_id)(sum_over_time(bkm_statistics:base:es_cluster_node_disk_total[5m]))",
           "step": "",
           "type": "range"
         }
@@ -1984,7 +1984,7 @@
             }
           ],
           "refId": "A",
-          "source": "sum(bkmonitor:bkm_statistics:base:strategy_count{status=\"enabled\"})",
+          "source": "sum(bkm_statistics:base:strategy_count{status=\"enabled\"})",
           "step": "",
           "type": "range"
         }

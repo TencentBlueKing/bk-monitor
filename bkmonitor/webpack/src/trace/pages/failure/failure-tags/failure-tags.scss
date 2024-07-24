@@ -1,0 +1,114 @@
+.failure-tags {
+  position: relative;
+  min-height: 40px;
+
+  .failure-tags-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .failure-tags-main {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 16px 8px 40px;
+    background: #F0F1F5;
+    box-shadow: 0 1px 2px 0 #0000001f;
+  }
+
+  &.failure-tags-full {
+    min-height: 40px;
+  }
+
+  .failure-tags-icon {
+    font-size: 22px;
+    font-weight: 500;
+    color: #979ba5;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff; 
+    }
+  }
+
+  .failure-tags-item {
+    display: flex;
+    // align-items: center;
+    width: 33.33%;
+    height: 100%;
+    margin-right: 28px;
+    color: #63656e;
+
+    .empty-text {
+      display: inline-block;
+      line-height: 24px;
+    }
+
+    &:last-child {
+      margin-right: 0;
+    }
+
+    .item-label {
+      display: inline-block;
+      height: 100%;
+      line-height: 25px;
+      color: #313238;
+    }
+
+    .item-info {
+      display: inline-block;
+      width: 100%;
+      overflow: hidden;
+      line-height: 25px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &.over {
+        display: -webkit-box;
+        height: 40px;
+        line-height: 23px;
+        white-space: normal;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+    }
+
+    .item-main {
+      display: inline-block;
+      width: calc(100% - 72px);
+      height: 100%;
+      line-height: 25px;
+    }
+  }
+
+  .name-target {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .business-tag,
+  .principal-tag {
+    padding: 0 5px;
+    margin-right: 5px;
+    margin-bottom: 3px;
+    background-color: #FAFBFD;
+  }
+
+  .business-tag {
+    color: #3a84ff;
+    &:hover {
+      background-color: #FAFBFD;
+    }
+  }
+}

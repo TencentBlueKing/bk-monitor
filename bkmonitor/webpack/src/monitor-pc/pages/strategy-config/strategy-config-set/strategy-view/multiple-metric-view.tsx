@@ -33,7 +33,8 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
 
 import { LETTERS } from '../../../../constant/constant';
-import { IMetricDetail, MetricDetail } from '../../strategy-config-set-new/typings';
+
+import type { IMetricDetail, MetricDetail } from '../../strategy-config-set-new/typings';
 
 import './multiple-metric-view.scss';
 
@@ -175,7 +176,7 @@ export default class MultipleMetricView extends tsc<IProps> {
               needCheck={false}
               needHoverStryle={false}
               panel={panel}
-            ></ChartWrapper>
+            />
           </div>
         ))}
       </div>

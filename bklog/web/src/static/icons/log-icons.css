@@ -2,7 +2,8 @@
   font-family: 'log';
   font-style: normal;
   font-weight: normal;
-  src: url('iconcool.svg#iconcool') format('svg'),
+  src:
+    url('iconcool.svg#iconcool') format('svg'),
     url('iconcool.ttf') format('truetype'),
     url('iconcool.woff') format('woff'),
     url('iconcool.eot?#iefix') format('embedded-opentype');
@@ -414,9 +415,9 @@
 }
 
 .icon-log-plus-circle-shape:before {
-	content: '\e18b';
+  content: '\e18b';
 }
 
 .icon-log-trend:before {
-	content: '\e18c';
+  content: '\e18c';
 }

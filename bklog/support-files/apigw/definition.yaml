@@ -69,6 +69,10 @@ grant_permissions:
     #   - resource_name_2
   - bk_app_code: bk_monitorv3
     grant_dimension: "gateway"
+  - bk_app_code: bkmonitorv3
+    grant_dimension: "gateway"
+  - bk_app_code: bk_bkmonitorv3
+    grant_dimension: "gateway"
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`

@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { DateRange } from '@blueking/date-picker';
-import { type DateValue } from '@blueking/date-picker/vue3';
-import { type Dayjs } from 'dayjs';
+
+import type { DateValue } from '@blueking/date-picker/vue3';
+import type { Dayjs } from 'dayjs';
 
 export type TimeRangeType = string[];
 /** 相对时间范围格式正则 */
@@ -60,7 +61,7 @@ export class TimeRange {
 /** 字符串的时间戳(毫秒)转为数字类型 */
 export const intTimestampStr = (str): null | number => {
   const isTimestamp = /^\d{1}$|^([1-9]\d{1,12})$/.test(str);
-  return isTimestamp ? parseInt(str, 10) : str;
+  return isTimestamp ? Number.parseInt(str, 10) : str;
 };
 
 /** 将格式为 ['now-1d', 'now'] 转换为 ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm:ss'] */

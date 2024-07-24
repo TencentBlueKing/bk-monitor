@@ -113,7 +113,7 @@ export default class AppSelect extends tsc<IProps, IEvents> {
                   <img
                     alt=''
                     src={opt.icon}
-                  ></img>
+                  />
                 </span>
                 <span class='app-select-content'>
                   <span class='app-select-name'>{opt.name}</span>

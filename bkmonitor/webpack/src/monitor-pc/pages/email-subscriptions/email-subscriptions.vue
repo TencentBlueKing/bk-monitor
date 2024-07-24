@@ -201,31 +201,39 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
 import {
   groupList,
   reportClone,
   // statusList,
   reportCreateOrUpdate,
   reportDelete,
-  reportList } from 'monitor-api/modules/report';
+  reportList,
+} from 'monitor-api/modules/report';
 import { deepClone, getCookie, transformDataKey } from 'monitor-common/utils/utils';
+import { Component, Vue } from 'vue-property-decorator';
 
 import { isEn } from '../../i18n/i18n';
 
 import ListCollapse from './components/list-collapse.vue';
 // import { getReceiver } from 'monitor-api/modules/notice_group'
 import ReceiverList from './components/receiver-list.vue';
-import { ITableColumnItem } from './types';
+import type { ITableColumnItem } from './types';
 
 const { i18n } = window;
-const frequencyMap: string[] = [, i18n.tc('仅一次'), i18n.tc('每天'), i18n.tc('每周'), i18n.tc('每月'), i18n.tc('按小时')];
+const frequencyMap: string[] = [
+  ,
+  i18n.tc('仅一次'),
+  i18n.tc('每天'),
+  i18n.tc('每周'),
+  i18n.tc('每月'),
+  i18n.tc('按小时'),
+];
 const hourTextMap = {
   0.5: i18n.tc('每个小时整点,半点发送'),
   1: i18n.tc('每个小时整点发送'),
   2: i18n.tc('从0点开始,每隔2小时整点发送'),
   6: i18n.tc('从0点开始,每隔6小时整点发送'),
-  12: i18n.tc('每天9:00,21:00发送')
+  12: i18n.tc('每天9:00,21:00发送'),
 };
 // let groupList: any = []
 /**
@@ -235,8 +243,8 @@ const hourTextMap = {
   name: 'email-subscriptions',
   components: {
     ListCollapse,
-    ReceiverList
-  }
+    ReceiverList,
+  },
 })
 export default class EmailSubscriptions extends Vue {
   private subscribedLoading = false;
@@ -247,7 +255,7 @@ export default class EmailSubscriptions extends Vue {
   private subscribedPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
 
   private isEn = false;
@@ -258,7 +266,7 @@ export default class EmailSubscriptions extends Vue {
   private sendPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
 
   // 已经订阅表格列数据
@@ -271,7 +279,7 @@ export default class EmailSubscriptions extends Vue {
       key: 'lastSendTime',
       width: 300,
       overflow: true,
-      formatter: (row) => {
+      formatter: row => {
         const weekMap = [
           i18n.t('周一'),
           i18n.t('周二'),
@@ -279,7 +287,7 @@ export default class EmailSubscriptions extends Vue {
           i18n.t('周四'),
           i18n.t('周五'),
           i18n.t('周六'),
-          i18n.t('周日')
+          i18n.t('周日'),
         ];
         let str = '';
         switch (row.frequency.type) {
@@ -304,20 +312,20 @@ export default class EmailSubscriptions extends Vue {
             break;
         }
         return str;
-      }
+      },
     },
     {
       label: i18n.t('管理员'),
       key: 'createUser',
       width: 340,
       overflow: true,
-      formatter: row => this.managerFormatter(row)
+      formatter: row => this.managerFormatter(row),
     },
     {
       label: i18n.t('订阅状态'),
-      key: 'receivers'
+      key: 'receivers',
     },
-    { label: i18n.t('启/停'), key: 'isEnabled' }
+    { label: i18n.t('启/停'), key: 'isEnabled' },
   ];
 
   // private sendListColumnsMap: ITableColumnItem[] = [
@@ -339,7 +347,7 @@ export default class EmailSubscriptions extends Vue {
   // 接收人数据
   private receiverList: any = {
     show: false,
-    tableData: []
+    tableData: [],
   };
   private receiverTarget = null;
   private groupList = [];
@@ -354,9 +362,11 @@ export default class EmailSubscriptions extends Vue {
   private managerFormatter(row) {
     return row.managers
       .filter(item => !item.group)
-      .map(item => (item.type === 'group'
-          ? this.groupList.find((me) => me.id === item.id)?.display_name // eslint-disable-line
-        : item.id))
+      .map(item =>
+        item.type === 'group'
+          ? this.groupList.find(me => me.id === item.id)?.display_name // eslint-disable-line
+          : item.id
+      )
       .join(',');
   }
 
@@ -391,7 +401,7 @@ export default class EmailSubscriptions extends Vue {
   private getSubscribedList(needLoading = true) {
     needLoading && (this.subscribedLoading = true);
     return reportList()
-      .then((res) => {
+      .then(res => {
         this.subscribedAllData = transformDataKey(res);
         this.subscribedPagination.count = res.length;
         this.changelistPage(1, 'subscribed');
@@ -417,7 +427,7 @@ export default class EmailSubscriptions extends Vue {
    * 人员信息
    */
   private getReceiver() {
-    return groupList({ bk_biz_id: this.$store.getters.bizId || +window.cc_biz_id }).then((res) => {
+    return groupList({ bk_biz_id: this.$store.getters.bizId || +window.cc_biz_id }).then(res => {
       this.groupList = res;
     });
   }
@@ -428,7 +438,7 @@ export default class EmailSubscriptions extends Vue {
 
   private handleRouterTo(name: string) {
     this.$router.push({
-      name
+      name,
     });
   }
 
@@ -465,12 +475,12 @@ export default class EmailSubscriptions extends Vue {
     let params = {
       reportItemId: row.id,
       receivers: curReceivers
-        ? row.receivers.map((item) => {
-          const temp = deepClone(item);
-          if (temp.id === curReceivers.id) temp.isEnabled = !temp.isEnabled;
-          return temp;
-        })
-        : [...row.receivers, { id: userName, name: userName, isEnabled: bool, type: 'user' }]
+        ? row.receivers.map(item => {
+            const temp = deepClone(item);
+            if (temp.id === curReceivers.id) temp.isEnabled = !temp.isEnabled;
+            return temp;
+          })
+        : [...row.receivers, { id: userName, name: userName, isEnabled: bool, type: 'user' }],
     };
     params = transformDataKey(params, true);
     this.$bkInfo({
@@ -496,7 +506,7 @@ export default class EmailSubscriptions extends Vue {
           console.warn(e);
           return false;
         }
-      }
+      },
     });
   }
 
@@ -506,7 +516,7 @@ export default class EmailSubscriptions extends Vue {
   private handleSwitchChange(row: any) {
     const params = {
       report_item_id: row.id,
-      is_enabled: row.isEnabled
+      is_enabled: row.isEnabled,
     };
     reportCreateOrUpdate(params).catch(() => {
       row.isEnabled = !row.isEnabled;
@@ -520,8 +530,8 @@ export default class EmailSubscriptions extends Vue {
     this.$router.push({
       name: 'email-subscriptions-edit',
       params: {
-        id: row.id
-      }
+        id: row.id,
+      },
     });
   }
 
@@ -550,7 +560,7 @@ export default class EmailSubscriptions extends Vue {
           console.warn(e);
           return false;
         }
-      }
+      },
     });
   }
   /**
@@ -568,12 +578,12 @@ export default class EmailSubscriptions extends Vue {
 
   private handleReceiversList(event, row) {
     let tableData = [];
-    row.receivers.forEach((item) => {
+    row.receivers.forEach(item => {
       if (item.type !== 'group') {
         tableData.push(item);
       }
     });
-    tableData = tableData.map((item) => {
+    tableData = tableData.map(item => {
       item.name = item.name || item.id;
       return item;
     });

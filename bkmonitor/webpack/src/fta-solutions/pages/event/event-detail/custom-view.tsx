@@ -76,7 +76,7 @@ export default class CustomView extends tsc<IProps> {
           class='view-content-wrap'
         >
           <div class='viewer-wrap'>
-            <Viewer value={this.value}></Viewer>
+            <Viewer value={this.value} />
           </div>
         </div>
         {this.isExceed && (

@@ -31,7 +31,8 @@ import GuidePage from '../../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../../i18n/dayjs';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import CommonPage from '../../monitor-k8s/components/common-page';
-import { IMenuItem, INavItem, IViewOptions } from '../../monitor-k8s/typings';
+
+import type { IMenuItem, INavItem, IViewOptions } from '../../monitor-k8s/typings';
 
 import './collector-view.scss';
 
@@ -130,7 +131,7 @@ export default class CollectorView extends tsc<object> {
               needShadow={true}
               routeList={this.routeList}
               needCopyLink
-            ></CommonNavBar>
+            />
           </CommonPage>
         )}
       </div>

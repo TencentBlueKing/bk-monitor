@@ -25,9 +25,8 @@
  */
 import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
-import { TimeSeriesType } from './time-series';
-
 import type { MonitorEchartOptions } from './index';
+import type { TimeSeriesType } from './time-series';
 
 // 图例呈现模式
 export type LegendDisplayMode = 'hidden' | 'list' | 'table';

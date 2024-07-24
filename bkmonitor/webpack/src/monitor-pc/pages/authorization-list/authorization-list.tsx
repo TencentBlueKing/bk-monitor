@@ -40,10 +40,11 @@ import { Debounce } from 'monitor-common/utils';
 
 import BizSelect from '../../components/biz-select/biz-select';
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
-import { ISpaceItem } from '../../types';
 import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
 import AuthorizationDialog from './authorization-dialog';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { ISpaceItem } from '../../types';
 
 import './authorization-list.scss';
 
@@ -119,7 +120,7 @@ export const ACTION_MAP = {
 };
 @Component
 // export default class AuthorizationList extends Mixins(authorityMixinCreate(ruleAuth)) {
-export default class AuthorizationList extends tsc<{}, {}> {
+export default class AuthorizationList extends tsc<object> {
   bizId = window.cc_biz_id;
   bizCMDBRoleList: string[] = []; // 该业务下的cmdb运维角色列表
   memberSelect = ''; // 展示的授权人
@@ -277,6 +278,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
             {
               space_name: this.$t('全部'),
               py_text: 'all',
+              pyf_text: 'qb',
               id: 0,
               space_id: 0,
               bk_biz_id: 0,
@@ -510,7 +512,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
   // 列表各字段的筛选项
   columnFilter() {
-    this.tableColumns[this.angleType].forEach(item => {
+    for (const item of this.tableColumns[this.angleType]) {
       if (item.props.filters) {
         const set = new Set();
         const { prop } = item;
@@ -533,7 +535,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
           item.props.filters = Array.from(set).map(item => ({ text: item, value: item }));
         }
       }
-    });
+    }
   }
 
   // 列表表头筛选
@@ -562,7 +564,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map(item => <bk-tag>{item}</bk-tag>)}
+                {row.authorized_users?.map((item, index) => <bk-tag key={index}>{item}</bk-tag>)}
               </div>
             ),
           }}
@@ -585,7 +587,12 @@ export default class AuthorizationList extends tsc<{}, {}> {
                   <div v-bkloading={{ isLoading: this.resourcesLoading }}>
                     {row.resources?.map((id, ind) =>
                       ind < 3 || row.isExpand ? (
-                        <div class='resource-item'>{this.resourceList.find(item => item.uid === id)?.text}</div>
+                        <div
+                          key={id}
+                          class='resource-item'
+                        >
+                          {this.resourceList.find(item => item.uid === id)?.text}
+                        </div>
                       ) : undefined
                     )}
                     {row.resources?.length > 3 && (
@@ -643,7 +650,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
         <div
           style={{ background: color1 }}
           class='point'
-        ></div>
+        />
       </div>
     );
   }
@@ -746,8 +753,9 @@ export default class AuthorizationList extends tsc<{}, {}> {
                   {this.bizCMDBRoleList.map(item => (
                     <bk-option
                       id={item}
+                      key={item}
                       name={item}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
                 <bk-button
@@ -762,7 +770,9 @@ export default class AuthorizationList extends tsc<{}, {}> {
                   class='member-btn'
                   title='primary'
                   text
-                  onClick={() => (this.isEditMember = false)}
+                  onClick={() => {
+                    this.isEditMember = false;
+                  }}
                 >
                   {this.$t('取消')}
                 </bk-button>
@@ -783,7 +793,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
               </div>
             )}
             <p class='hint'>
-              <i class='icon-monitor icon-tixing'></i>
+              <i class='icon-monitor icon-tixing' />
               <span>
                 {this.$t('授权人的空间权限会影响被授权人，被授权人的权限范围<=授权人的权限范围，请谨慎变更。')}
               </span>
@@ -853,7 +863,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                   right-icon='bk-icon icon-search'
                   value={this.searchValue}
                   onInput={this.handleSearchBlur}
-                ></bk-input>
+                />
               </div>
             </div>
 
@@ -893,6 +903,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                         ) : (
                           [
                             <bk-button
+                              key='1'
                               style='margin-right: 16px'
                               text
                               onClick={() => this.showDialog(row)}
@@ -900,6 +911,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                               {this.$t('编辑')}
                             </bk-button>,
                             <bk-button
+                              key='2'
                               text
                               onClick={() => this.handleDelete(row)}
                             >
@@ -919,14 +931,14 @@ export default class AuthorizationList extends tsc<{}, {}> {
                     selected={this.currentColumns}
                     value-key='prop'
                     on-setting-change={this.handleSettingChange}
-                  ></bk-table-setting-content>
+                  />
                 </bk-table-column>
 
                 <EmptyStatus
                   slot='empty'
                   type={this.emptyStatusType}
                   onOperation={this.emptyOperation}
-                ></EmptyStatus>
+                />
               </bk-table>
             </div>
           </div>

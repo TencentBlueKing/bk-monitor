@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import * as IntegratedAuth from '../../pages/integrated/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const Integrated = () => import(/* webpackChunkName: "integrated" */ '../../pages/integrated/integrated');
 export default [

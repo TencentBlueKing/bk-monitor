@@ -1582,7 +1582,6 @@ OPERATORS = {
     ],
 }
 
-
 DEFAULT_INDEX_OBJECT_FIELDS_PRIORITY = ["__ext.io_kubernetes_pod", "serverIp", "ip"]
 
 # 默认索引集字段配置名称

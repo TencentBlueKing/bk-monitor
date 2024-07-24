@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import tNil from './TNil';
+import type tNil from './TNil';
 
 export type TNil = tNil;
 

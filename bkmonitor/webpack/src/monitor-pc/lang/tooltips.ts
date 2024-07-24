@@ -257,7 +257,7 @@ export default {
   离群检测和其他算法互斥: 'Outlier detection and other algorithms are mutually exclusive.',
   一个策略不能同时添加两个相同的智能检测:
     'One rule cannot have two identical intelligent detections added simultaneously.',
-  只支持监控平台和计算平台的单指标数据: 'Only supports single indicator data for monitoring and computing platforms',
+  只支持计算平台的单指标数据: 'Only supports single indicator data for bk base',
   常规算法不同等级只能各添加一种:
     'For regular detections of different levels, only one type can be added for each level.',
   变量示例: 'Example',

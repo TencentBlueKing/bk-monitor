@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { CheckedboxListEvents, CheckedboxListProps, CheckedboxListVlaue, ICheckedboxList } from './typings';
+import type { CheckedboxListEvents, CheckedboxListProps, CheckedboxListVlaue, ICheckedboxList } from './typings';
 
 import './checkedbox-list.scss';
 

@@ -167,7 +167,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                   behavior={'simplicity'}
                   type={'number'}
                   onChange={v => this.clearError('timeout', v)}
-                ></bk-input>
+                />
               </VerifyItem>
             </div>
           </i18n>
@@ -200,7 +200,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                     id={option.key}
                     key={option.key}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             </div>
@@ -215,7 +215,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                   behavior={'simplicity'}
                   type={'number'}
                   onChange={v => this.clearError('timedelta', v)}
-                ></bk-input>
+                />
               </VerifyItem>
             </div>
             <div class='input-wrapper-small'>
@@ -229,7 +229,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                   behavior={'simplicity'}
                   type={'number'}
                   onChange={v => this.clearError('count', v)}
-                ></bk-input>
+                />
               </VerifyItem>
             </div>
             <div class='select-wrapper-small'>
@@ -246,7 +246,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                     id={option.key}
                     key={option.key}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             </div>
@@ -266,7 +266,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
               noticeWay={this.noticeWayList}
               notifyConfig={this.notifyConfig}
               on-notice-change={this.onNoticeChange}
-            ></NoticeMode>
+            />
           </VerifyItem>
         ) : undefined}
         {this.handleFail()}
