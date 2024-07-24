@@ -92,7 +92,11 @@ class RelationDiscover(DiscoverBase):
             match_rule = next((r for r in component_rules if exists_field(r.predicate_key, from_span)), None)
             if match_rule:
                 to_key = get_topo_instance_key(
-                    match_rule.instance_keys, match_rule.topo_kind, match_rule.category_id, from_span
+                    match_rule.instance_keys,
+                    match_rule.topo_kind,
+                    match_rule.category_id,
+                    from_span,
+                    component_predicate_key=match_rule.predicate_key,
                 )
                 found_keys.add(
                     (
@@ -119,7 +123,11 @@ class RelationDiscover(DiscoverBase):
 
         # find if exists middleware
         middleware_to_key = get_topo_instance_key(
-            match_rule.instance_keys, match_rule.topo_kind, match_rule.category_id, from_span
+            match_rule.instance_keys,
+            match_rule.topo_kind,
+            match_rule.category_id,
+            from_span,
+            component_predicate_key=match_rule.predicate_key,
         )
         found_keys.add(
             (
@@ -134,7 +142,11 @@ class RelationDiscover(DiscoverBase):
         for t in to_spans:
             to_span_match_rule = self.get_match_rule(t, rules, other_rules)
             middleware_key = get_topo_instance_key(
-                to_span_match_rule.instance_keys, to_span_match_rule.topo_kind, to_span_match_rule.category_id, t
+                to_span_match_rule.instance_keys,
+                to_span_match_rule.topo_kind,
+                to_span_match_rule.category_id,
+                t,
+                component_predicate_key=to_span_match_rule.predicate_key,
             )
             if middleware_to_key == middleware_key:
                 messaging_service_name = self.get_service_name(t)
@@ -146,7 +158,9 @@ class RelationDiscover(DiscoverBase):
                 # topo_node 存在则更新
                 if topo_node:
                     messaging_service_category = topo_node.extra_data.get("category", ApmTopoDiscoverRule.TOPO_SERVICE)
-                    messaging_service_kind = topo_node.extra_data.get("kind", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP)
+                    messaging_service_kind = topo_node.extra_data.get(
+                        "kind", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
+                    )
                 # 针对异步调用中消息队列，messaging --> 服务时， 目标节点类型为service， 目标节点分类为 http
                 found_keys.add(
                     (
@@ -183,6 +197,7 @@ class RelationDiscover(DiscoverBase):
                         to_span_match_rule.topo_kind,
                         to_span_match_rule.category_id,
                         t,
+                        component_predicate_key=to_span_match_rule.predicate_key,
                     ),
                     kind,
                     to_span_match_rule.topo_kind,

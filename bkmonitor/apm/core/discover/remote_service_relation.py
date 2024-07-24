@@ -59,6 +59,7 @@ class RemoteServiceRelationDiscover(DiscoverBase):
                 ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE,
                 match_rule.category_id,
                 span,
+                component_predicate_key=match_rule.predicate_key,
             )
             category, endpoint_name = self.get_parent_endpoint(rules, other_rule, without_peer_mapping[parent_span_id])
 

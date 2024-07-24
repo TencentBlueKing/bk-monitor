@@ -171,7 +171,8 @@ class InstanceDiscover(DiscoverBase):
                         match_component_rule.topo_kind,
                         match_component_rule.category_id,
                         span,
-                        skip_component_prefix=True,
+                        simple_component_instance=False,
+                        component_predicate_key=match_component_rule.predicate_key,
                     )
                     found_keys.append(
                         (

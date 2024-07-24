@@ -32,15 +32,24 @@ from constants.apm import OtlpKey, SpanKind
 logger = logging.getLogger("apm")
 
 
-def get_topo_instance_key(keys: List[Tuple[str, str]], kind: str, category: str, item, skip_component_prefix=False):
+def get_topo_instance_key(
+    keys: List[Tuple[str, str]],
+    kind: str,
+    category: str,
+    item,
+    simple_component_instance=True,
+    component_predicate_key=None,
+):
     if item is None:
         return OtlpKey.UNKNOWN_SERVICE
+
     instance_keys = []
-    if (
-        kind in [ApmTopoDiscoverRule.TOPO_COMPONENT, ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE]
-        and not skip_component_prefix
-    ):
+    if kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+        if simple_component_instance and component_predicate_key:
+            return item.get(component_predicate_key[0], item).get(component_predicate_key[1], OtlpKey.UNKNOWN_COMPONENT)
+    elif kind == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE:
         instance_keys = [category]
+
     for first_key, second_key in keys:
         key = item.get(first_key, item).get(second_key, "")
         instance_keys.append(str(key))
