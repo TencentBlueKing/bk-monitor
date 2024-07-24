@@ -1,0 +1,44 @@
+
+/* stylelint-disable declaration-no-important */
+
+$header-height: 52px;
+
+.apm-time-series-details-side {
+  .bk-sideslider-header {
+    height: $header-height;
+
+    .bk-sideslider-closer {
+      height: $header-height;
+      line-height: $header-height;
+    }
+
+    .bk-sideslider-title {
+      height: $header-height;
+      padding: 0px 0px 0px 46px !important;
+
+      .header-wrap {
+        display: flex;
+        align-items: center;
+        height: $header-height;
+        line-height: $header-height;
+
+        .left-title {
+          height: $header-height;
+          font-size: 16px;
+          line-height: $header-height;
+          color: #313238;
+        }
+
+        .right-time {
+          height: $header-height;
+          margin: 0 0 0 auto;
+
+          .__bk_date_picker__ {
+            position: relative;
+            top: 4px;
+          }
+        }
+      }
+    }
+  }
+}
