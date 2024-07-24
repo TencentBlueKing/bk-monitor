@@ -49,10 +49,6 @@ export default defineComponent({
   },
   setup(props) {
     useIncidentProvider(computed(() => props.id));
-    const tagDomHeight = ref<number>(40);
-    const collapseTagHandle = (val: boolean, height: number) => {
-      tagDomHeight.value = height;
-    };
     const operations = ref([]);
     const incidentDetailData = ref<IIncident>({});
     const tagInfo = ref<ITagInfoType>({});
@@ -161,8 +157,6 @@ export default defineComponent({
       topoNodeId.value = nodeId;
     };
     return {
-      tagDomHeight,
-      collapseTagHandle,
       incidentDetailData,
       getIncidentDetail,
       handleChooseTag,
@@ -186,15 +180,16 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='failure-wrapper'>
+      <div
+        class='failure-wrapper'
+        tabindex='0'
+      >
         <FailureHeader onEditSuccess={this.getIncidentDetail} />
         <FailureTags
           onChooseNode={this.nodeClick}
           onChooseTag={this.handleChooseTag}
-          onCollapse={this.collapseTagHandle}
         />
         <ResizeLayout
-          style={{ height: `calc(100vh - ${160 + Number(this.tagDomHeight)}px)` }}
           class='failure-content-layout'
           v-slots={{
             aside: () => (
