@@ -3,17 +3,20 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #F5F7FA;
+  background-color: #f5f7fa;
 
   .failure-tags {
     display: flex;
     align-items: center;
-    background: #F0F1F5;
+    background: #f0f1f5;
     box-shadow: 0 1px 2px 0 #0000001f;
   }
 
   .failure-content-layout {
+    position: relative;
     margin-top: 56px;
-    background: #F5F7FA;
+    flex: 1;
+    min-height: 0;
+    background: #f5f7fa;
   }
 }
