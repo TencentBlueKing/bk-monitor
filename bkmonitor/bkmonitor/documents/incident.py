@@ -75,7 +75,7 @@ class IncidentItemsMixin:
         else:
             search = cls.search(all_indices=True)
         search = search.filter("term", incident_id=incident_id)
-        search = search.sort("create_time").params(size=limit)
+        search = search.sort("-create_time").params(size=limit)
         hits = search.execute().hits
         return [cls(**hit.to_dict()) for hit in hits]
 
