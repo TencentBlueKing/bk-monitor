@@ -1474,6 +1474,7 @@ class SearchHandler(object):
 
                 body: Dict = DslCreateSearchTailBodyCustomField(
                     start=self.start,
+                    size=self.size,
                     zero=self.zero,
                     time_field=self.time_field,
                     target_fields=target_fields,
