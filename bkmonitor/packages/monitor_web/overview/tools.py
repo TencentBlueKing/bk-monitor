@@ -16,7 +16,6 @@ from django.db.models import Q
 from django.utils.translation import ugettext as _
 
 from bkm_space.errors import NoRelatedResourceError
-from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.common_utils import host_key
@@ -436,61 +435,33 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
 
         node_list = UptimeCheckNode.objects.filter(Q(bk_biz_id=self.bk_biz_id) | Q(is_common=True))
         abnormal_node = []
-        id_to_host = {}
-        ip_to_host = {}
         bk_host_ids = [node.bk_host_id for node in node_list if node.bk_host_id]
         origin_ips = [node.ip for node in node_list if not node.bk_host_id]
         ip_hosts = api.cmdb.get_host_without_biz(ips=origin_ips)["hosts"]
         id_hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
         all_hosts = ip_hosts + id_hosts
-        ip_to_host.update(
-            {
-                host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
-                for host in all_hosts
-                if host.bk_host_innerip
-            }
-        )
-        id_to_host.update({host.bk_host_id: host for host in all_hosts})
 
-        all_node_status = resource.uptime_check.uptime_check_beat(
-            bk_biz_id=self.bk_biz_id, id_hosts=id_hosts, ip_hosts=ip_hosts
+        node_status_mapping = resource.uptime_check.uptime_check_beat.return_with_dict(
+            bk_biz_id=self.bk_biz_id, hosts=all_hosts
         )
-        node_status_mapping = {}
-        for node_status in all_node_status:
-            if is_ipv6_biz(self.bk_biz_id):
-                node_status_mapping[str(node_status["bk_host_id"])] = node_status
-            else:
-                node_status_mapping[
-                    host_key(ip=node_status["ip"], bk_cloud_id=str(node_status["bk_cloud_id"]))
-                ] = node_status
 
         for node in node_list:
+            status = int(BEAT_STATUS["INVALID"])
             if node.bk_host_id:
-                host_instance = id_to_host.get(node.bk_host_id, None)
+                status = node_status_mapping.get(node.bk_host_id, {}).get("status", status)
             else:
-                host_instance = ip_to_host.get(host_key(ip=node.ip, bk_cloud_id=str(node.plat_id)), None)
-            if not host_instance:
-                # host_id/ip失效，无法找到对应主机实例，拨测节点标记为失效状态
-                status = int(BEAT_STATUS["INVALID"])
-            else:
-                if is_ipv6_biz(self.bk_biz_id):
-                    status = int(node_status_mapping.get(str(host_instance.bk_host_id), {}).get("status"))
-                else:
-                    status = int(
-                        node_status_mapping.get(
-                            host_key(ip=host_instance.bk_host_innerip, bk_cloud_id=str(host_instance.bk_cloud_id)), {}
-                        ).get("status")
-                    )
-            if status is not None and status != 0:
-                abnormal_node.append(
-                    {
-                        "ip": node.ip,
-                        "bk_cloud_id": node.plat_id,
-                        "name": node.name,
-                        "status": status,
-                        "isp": node.carrieroperator,
-                    }
+                status = node_status_mapping.get(host_key(ip=node.ip, bk_cloud_id=node.plat_id), {}).get(
+                    "status", status
                 )
+            abnormal_node.append(
+                {
+                    "ip": node.ip,
+                    "bk_cloud_id": node.plat_id,
+                    "name": node.name,
+                    "status": status,
+                    "isp": node.carrieroperator,
+                }
+            )
 
         return {
             "task": {"abnormal_events": list(abnormal_events_dick.values()), "operations": operations},
