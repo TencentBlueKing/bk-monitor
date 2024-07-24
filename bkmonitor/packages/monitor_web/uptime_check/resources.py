@@ -1248,7 +1248,7 @@ class UptimeCheckBeatResource(Resource):
             lock.release()
 
     def perform_request(self, validated_request_data):
-        result = self.return_with_dict(validated_request_data)
+        result = self.return_with_dict(**validated_request_data)
         beat_status_list = []
         for key, host_status in result.items():
             # 取bk_host_id的数据返回即可
