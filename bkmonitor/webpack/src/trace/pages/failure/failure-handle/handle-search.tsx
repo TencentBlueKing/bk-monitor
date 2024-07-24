@@ -149,7 +149,7 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => (listLoading.value = false));
+        .finally(() => {listLoading.value = false});
     };
     /** 节点icon映射 */
     const treeShowIcon = {
@@ -263,7 +263,7 @@ export default defineComponent({
               let title = '';
               if (level_name !== 'status') {
                 const curNode = aggregateBysList.filter(item => item.key === level_name);
-                title = `${curNode[0]!.name}: ${name}`;
+                title = `${curNode[0]?.name}: ${name}`;
               }
               return <span title={title}>{name}</span>;
             },
@@ -297,10 +297,10 @@ export default defineComponent({
       );
     };
     const showName = () => {
-      if (['all', 'admin'].includes(props.username.id)) {
+      if (['all', window.user_name, window.username].includes(props.username.id)) {
         return `${props.username.name}的告警`;
       }
-      return `${props.username.name}负责的告警`;
+      return `${props.username.name}处理的告警`;
     };
     const scrollChange = e => {
       const scrollTop = e.target?.scrollTop;
@@ -350,6 +350,7 @@ export default defineComponent({
                     >
                       {this.aggregateBysList.map(item => (
                         <Checkbox
+                          key={item.key}
                           class='drop-item drop-item-checkbox'
                           disabled={this.aggregateBys.length === 1 && this.aggregateBys.includes(item.key)}
                           label={item.key}

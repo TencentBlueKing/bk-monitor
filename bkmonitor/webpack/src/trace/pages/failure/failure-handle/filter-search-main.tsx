@@ -102,12 +102,12 @@ export default defineComponent({
       () => incidentDetail.value,
       val => {
         const { current_snapshot } = val;
-        spaceFilter.value = current_snapshot?.bk_biz_id || [];
+        spaceFilter.value = (current_snapshot?.bk_biz_ids || []).map(item => item.bk_biz_id);
       }
     );
     const currentBizList = computed(() => {
       const { current_snapshot } = incidentDetail.value;
-      return current_snapshot?.bk_biz_id || [];
+      return (current_snapshot?.bk_biz_ids || []).map(item => item.bk_biz_id);
     });
     const spaceDataList = computed(() => {
       const list = (window.space_list || []).filter(item => currentBizList.value.includes(item.bk_biz_id));

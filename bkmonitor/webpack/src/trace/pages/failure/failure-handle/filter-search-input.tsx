@@ -27,7 +27,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Input, Message } from 'bkui-vue';
-import { BKPopover } from 'bkui-vue/lib/shared';
+import { $bkPopover } from 'bkui-vue/lib/popover';
 import { listSearchHistory } from 'monitor-api/modules/alert';
 import { createSearchFavorite, destroySearchFavorite, partialUpdateSearchFavorite } from 'monitor-api/modules/model';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
@@ -625,22 +625,41 @@ export default defineComponent({
         });
       return textList;
     };
-    const mountedPopInstance = (e, pop) => {
-      popoverInstance.value = new BKPopover(e, pop, {
-        trigger: 'manual',
-        theme: 'dark',
-        // boundary: 'window',
-        appendTo: 'body',
-        placement: 'bottom',
-      });
-      return popoverInstance.value;
-    };
     const handleMainPopoverShow = (onShown?: () => void) => {
       destroyMenuPopoverInstance();
       panelWidth.value = filterSearchRef.value.getBoundingClientRect().width - 64;
       if (!popoverInstance.value) {
-        const instance = mountedPopInstance(filterSearchRef.value, filterPanelRef.value);
-        instance.show();
+        popoverInstance.value = $bkPopover({
+          maxWidth: 800,
+          always: false,
+          target: filterSearchRef.value,
+          content: filterPanelRef.value,
+          arrow: false,
+          trigger: 'manual',
+          placement: 'bottom',
+          theme: 'light common-monitor',
+          isShow: false,
+          disabled: false,
+          width: 700,
+          height: 'auto',
+          maxHeight: '300',
+          allowHtml: true,
+          renderType: 'auto',
+          padding: 0,
+          offset: 0,
+          zIndex: 9999,
+          disableTeleport: false,
+          autoPlacement: false,
+          autoVisibility: false,
+          disableOutsideClick: false,
+          disableTransform: false,
+          modifiers: [],
+          popoverDelay: 0,
+          extCls: 'filter-search-input-popover',
+          componentEventDelay: 0,
+          forceClickoutside: false,
+          immediate: false,
+        });
         popoverInstance.value.onShow = () => {
           typeof onShown === 'function' && onShown();
         };
@@ -689,8 +708,37 @@ export default defineComponent({
         const offsetX = rect.width + 40;
         const offsetY = -2;
         if (!popoverMenuInstance.value) {
-          const instance = mountedPopInstance(filterSearchRef.value, menuPanelRef.value);
-          instance.show();
+          popoverInstance.value = $bkPopover({
+            maxWidth: 400,
+            always: false,
+            target: filterSearchRef.value,
+            content: menuPanelRef.value,
+            arrow: false,
+            trigger: 'manual',
+            placement: 'bottom',
+            theme: 'light common-monitor',
+            isShow: false,
+            disabled: false,
+            width: 300,
+            height: 'auto',
+            maxHeight: '300',
+            allowHtml: true,
+            renderType: 'auto',
+            padding: 0,
+            offset: { mainAxis: offsetX, crossAxis: offsetY },
+            zIndex: 9999,
+            disableTeleport: false,
+            autoPlacement: false,
+            autoVisibility: false,
+            disableOutsideClick: false,
+            disableTransform: false,
+            modifiers: [],
+            popoverDelay: 0,
+            extCls: 'filter-menu-popover',
+            componentEventDelay: 0,
+            forceClickoutside: false,
+            immediate: false,
+          });
         } else {
           popoverMenuInstance.value.set({
             offset: `${offsetX}, ${offsetY}`,
