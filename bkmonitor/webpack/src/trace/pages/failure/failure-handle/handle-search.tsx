@@ -140,7 +140,9 @@ export default defineComponent({
           alertAggregateData.value = list.filter(item => item.count !== 0);
           const isHasRoot = alertAggregateData.value.findIndex(item => item.is_root || item.is_feedback_root) !== -1;
           const isHasChildInd = alertAggregateData.value.findIndex(item => item.children?.length);
-          isHasRoot ? handleIsRoot(alertAggregateData.value) : (alertAggregateData.value[isHasChildInd].isOpen = true);
+          if (alertAggregateData.value.length !== 0) {
+            isHasRoot ? handleIsRoot(alertAggregateData.value) : (alertAggregateData.value[isHasChildInd].isOpen = true);
+          }
           emit('filterSearch', params);
           emit('nodeExpand', alertAggregateData.value);
         })
