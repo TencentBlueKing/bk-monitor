@@ -27,7 +27,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Input, Message } from 'bkui-vue';
-import { $bkPopover } from 'bkui-vue/lib/popover';
+import { BKPopover } from 'bkui-vue/lib/shared';
 import { listSearchHistory } from 'monitor-api/modules/alert';
 import { createSearchFavorite, destroySearchFavorite, partialUpdateSearchFavorite } from 'monitor-api/modules/model';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
@@ -114,7 +114,7 @@ export default defineComponent({
     },
     inputStatus: {
       type: String,
-      default: 'success',
+      default: '',
     },
     valueMap: {
       type: Object,
@@ -422,7 +422,7 @@ export default defineComponent({
       },
     ]);
     const favoriteDisable = computed(() => {
-      return !Boolean(inputValue.value.length);
+      return Boolean(!inputValue.value.length);
     });
     const fieldList = computed(() => {
       let list = [];
@@ -625,41 +625,22 @@ export default defineComponent({
         });
       return textList;
     };
+    const mountedPopInstance = (e, pop) => {
+      popoverInstance.value = new BKPopover(e, pop, {
+        trigger: 'manual',
+        theme: 'dark',
+        // boundary: 'window',
+        appendTo: 'body',
+        placement: 'bottom',
+      });
+      return popoverInstance.value;
+    };
     const handleMainPopoverShow = (onShown?: () => void) => {
       destroyMenuPopoverInstance();
       panelWidth.value = filterSearchRef.value.getBoundingClientRect().width - 64;
       if (!popoverInstance.value) {
-        popoverInstance.value = $bkPopover({
-          maxWidth: 800,
-          always: false,
-          target: filterSearchRef.value,
-          content: filterPanelRef.value,
-          arrow: false,
-          trigger: 'manual',
-          placement: 'bottom',
-          theme: 'light common-monitor',
-          isShow: false,
-          disabled: false,
-          width: 700,
-          height: 'auto',
-          maxHeight: '300',
-          allowHtml: true,
-          renderType: 'auto',
-          padding: 0,
-          offset: 0,
-          zIndex: 9999,
-          disableTeleport: false,
-          autoPlacement: false,
-          autoVisibility: false,
-          disableOutsideClick: false,
-          disableTransform: false,
-          modifiers: [],
-          popoverDelay: 0,
-          extCls: 'filter-search-input-popover',
-          componentEventDelay: 0,
-          forceClickoutside: false,
-          immediate: false,
-        });
+        const instance = mountedPopInstance(filterSearchRef.value, filterPanelRef.value);
+        instance.show();
         popoverInstance.value.onShow = () => {
           typeof onShown === 'function' && onShown();
         };
@@ -708,37 +689,8 @@ export default defineComponent({
         const offsetX = rect.width + 40;
         const offsetY = -2;
         if (!popoverMenuInstance.value) {
-          popoverInstance.value = $bkPopover({
-            maxWidth: 400,
-            always: false,
-            target: filterSearchRef.value,
-            content: menuPanelRef.value,
-            arrow: false,
-            trigger: 'manual',
-            placement: 'bottom',
-            theme: 'light common-monitor',
-            isShow: false,
-            disabled: false,
-            width: 300,
-            height: 'auto',
-            maxHeight: '300',
-            allowHtml: true,
-            renderType: 'auto',
-            padding: 0,
-            offset: { mainAxis: offsetX, crossAxis: offsetY },
-            zIndex: 9999,
-            disableTeleport: false,
-            autoPlacement: false,
-            autoVisibility: false,
-            disableOutsideClick: false,
-            disableTransform: false,
-            modifiers: [],
-            popoverDelay: 0,
-            extCls: 'filter-menu-popover',
-            componentEventDelay: 0,
-            forceClickoutside: false,
-            immediate: false,
-          });
+          const instance = mountedPopInstance(filterSearchRef.value, menuPanelRef.value);
+          instance.show();
         } else {
           popoverMenuInstance.value.set({
             offset: `${offsetX}, ${offsetY}`,
@@ -748,8 +700,8 @@ export default defineComponent({
         popoverMenuInstance.value?.show?.(100);
       }, 20);
     };
-    const handleInput = (e: any) => {
-      inputValue.value = e.target.value;
+    const handleInput = (val: string) => {
+      inputValue.value = val;
     };
     /**
      * @description: 搜索条件变更时触发
@@ -971,19 +923,20 @@ export default defineComponent({
             >
               {!item.edit && <span>{item.name}</span>}
               {id === 'field' && !item.edit && !isEn.value && <span class='item-id'>({item.id})</span>}
-              {id === 'favorite' &&
-                !item.edit && [
+              {id === 'favorite' && !item.edit && (
+                <span>
                   <i
                     class='icon-monitor icon-bianji edit-icon'
                     onMousedown={e => handleEidtFavorite(e, item)}
-                  />,
+                  />
                   <i
                     class='icon-monitor icon-mc-close close-icon'
                     onMousedown={e => handleDeleteFavorite(e, item, index)}
-                  />,
-                ]}
-              {id === 'favorite' &&
-                item.edit && [
+                  />
+                </span>
+              )}
+              {id === 'favorite' && item.edit && (
+                <span>
                   <Input
                     ref={`favorite-input-${item.id}`}
                     class='favorite-input'
@@ -991,15 +944,17 @@ export default defineComponent({
                     placeholder={t('输入收藏名称')}
                     type='text'
                     on-blur={e => handleFavoriteInputBlur(e, item)}
-                  />,
+                  />
                   <i
                     class={[
                       'icon-monitor icon-mc-check-small check-icon',
                       { 'is-diabled': !item?.fakeName?.trim?.().length },
                     ]}
                     onMousedown={e => handleUpdateFavorite(e, item)}
-                  />,
-                ]}
+                  />
+                  ,
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -1038,7 +993,7 @@ export default defineComponent({
             edit: true,
           });
         favoriteList.value.forEach(item => {
-          if (!!item.name) {
+          if (item.name) {
             item.edit = false;
             item.fakeName = String(item.name);
           }
@@ -1086,6 +1041,9 @@ export default defineComponent({
       },
       { immediate: true }
     );
+    const inputStatusVal = computed(() => {
+      return props.inputStatus;
+    });
     return {
       t,
       handleClear,
@@ -1114,6 +1072,7 @@ export default defineComponent({
       handleSetFavorite,
       preTextRef,
       menuPanelRef,
+      inputStatusVal,
     };
   },
   render() {
@@ -1122,10 +1081,9 @@ export default defineComponent({
         ref='filterSearchRef'
         class='filter-input-wrap'
       >
-        <div class='filter-search'>
+        <div class={['filter-search', { error: this.inputStatusVal === 'error' }]}>
           <Input
             ref='inputRef'
-            style={{ borderColor: this.$props.inputStatus === 'error' ? '#ff5656' : '#c4c6cc' }}
             v-model={this.inputValue}
             v-slots={{
               prefix: () => <i class='icon-monitor icon-filter-fill filter-icon' />,

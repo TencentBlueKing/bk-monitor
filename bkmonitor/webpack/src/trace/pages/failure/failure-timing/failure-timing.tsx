@@ -46,7 +46,7 @@ export default defineComponent({
       default: 0,
     },
     chooseOperation: {
-      type: Object as () => IIncidentOperation,
+      type: Object as () => IIncidentOperation | any,
       default: () => ({}),
     },
   },
