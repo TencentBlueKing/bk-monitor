@@ -98,6 +98,9 @@ class RelationDiscover(DiscoverBase):
                     from_span,
                     component_predicate_key=match_rule.predicate_key,
                 )
+                if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+                    to_key = f"{self.get_service_name(from_span)}-{to_key}"
+
                 found_keys.add(
                     (
                         from_key,
@@ -129,6 +132,9 @@ class RelationDiscover(DiscoverBase):
             from_span,
             component_predicate_key=match_rule.predicate_key,
         )
+        if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+            middleware_to_key = f"{self.get_service_name(from_span)}-{middleware_to_key}"
+
         found_keys.add(
             (
                 from_key,
@@ -148,6 +154,9 @@ class RelationDiscover(DiscoverBase):
                 t,
                 component_predicate_key=to_span_match_rule.predicate_key,
             )
+            if to_span_match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+                middleware_key = f"{self.get_service_name(t)}-{middleware_key}"
+
             if middleware_to_key == middleware_key:
                 messaging_service_name = self.get_service_name(t)
                 messaging_service_kind = ApmTopoDiscoverRule.TOPO_SERVICE
@@ -189,16 +198,20 @@ class RelationDiscover(DiscoverBase):
 
         for t in to_spans:
             to_span_match_rule = self.get_match_rule(t, rules, other_rules)
+            topo_key = get_topo_instance_key(
+                to_span_match_rule.instance_keys,
+                to_span_match_rule.topo_kind,
+                to_span_match_rule.category_id,
+                t,
+                component_predicate_key=to_span_match_rule.predicate_key,
+            )
+            if to_span_match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+                topo_key = f"{self.get_service_name(t)}-{topo_key}"
+
             found_keys.add(
                 (
                     from_key,
-                    get_topo_instance_key(
-                        to_span_match_rule.instance_keys,
-                        to_span_match_rule.topo_kind,
-                        to_span_match_rule.category_id,
-                        t,
-                        component_predicate_key=to_span_match_rule.predicate_key,
-                    ),
+                    topo_key,
                     kind,
                     to_span_match_rule.topo_kind,
                     to_span_match_rule.category_id,

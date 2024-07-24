@@ -55,6 +55,10 @@ class NodeDiscover(DiscoverBase):
                 span,
                 component_predicate_key=match_rule.predicate_key,
             )
+            if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+                # 组件类型的节点名称需要添加上服务名称的前缀
+                topo_key = f"{self.get_service_name(span)}-{topo_key}"
+
             find_instances[topo_key]["category"] = match_rule.category_id
             find_instances[topo_key]["kind"] = match_rule.topo_kind
             find_instances[topo_key]["predicate_value"] = extract_field_value(match_rule.predicate_key, span)
@@ -69,7 +73,6 @@ class NodeDiscover(DiscoverBase):
                     other_rule.topo_kind,
                     other_rule.category_id,
                     span,
-                    component_predicate_key=other_rule.predicate_key,
                 )
                 further_instances[other_rule_topo_key] = {
                     "category": other_rule.category_id,
@@ -124,7 +127,6 @@ class NodeDiscover(DiscoverBase):
                 ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE,
                 rule.category_id,
                 span,
-                component_predicate_key=rule.predicate_key,
             )
             instance_map[instance_key]["category"] = rule.category_id
             # remote service found by span additionally

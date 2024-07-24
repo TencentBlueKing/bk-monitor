@@ -40,6 +40,11 @@ def get_topo_instance_key(
     simple_component_instance=True,
     component_predicate_key=None,
 ):
+    """
+    simple_component_instance / component_predicate_key
+    对于组件类型 topo
+    如果simple_component_instance为 True 则只会返回 predicate.value 的值 需要在外部进行额外处理(拼接服务名称)
+    """
     if item is None:
         return OtlpKey.UNKNOWN_SERVICE
 
