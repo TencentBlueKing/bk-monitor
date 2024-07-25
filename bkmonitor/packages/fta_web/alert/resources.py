@@ -15,6 +15,7 @@ import logging
 import time
 from abc import ABCMeta
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Dict, List
 
@@ -675,7 +676,10 @@ class AlertRelatedInfoResource(Resource):
             elif event.target_type == EventTargetType.SERVICE:
                 instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = event.bk_service_instance_id
 
-        for bk_biz_id, instances in instances_by_biz.items():
+        set_template = _("集群({}) ")
+        module_template = _("模块({})")
+
+        def enrich_related_infos(bk_biz_id, instances):
             ips = instances["ips"]
             service_instance_ids = instances["service_instance_ids"]
             host_ids = instances["host_ids"]
@@ -732,16 +736,20 @@ class AlertRelatedInfoResource(Resource):
                 ]
 
                 if bk_set_ids:
-                    topo_info += _("集群({}) ").format(
+                    topo_info += set_template.format(
                         ",".join([set_names[bk_set_id] for bk_set_id in bk_set_ids if bk_set_id in set_names])
                     )
 
-                topo_info += _("模块({})").format(
+                topo_info += module_template.format(
                     ",".join(
                         [module_names[bk_module_id] for bk_module_id in bk_module_ids if bk_module_id in module_names]
                     )
                 )
                 related_infos[alert_id]["topo_info"] = topo_info
+
+        # 多线程处理每个业务的主机和服务实例信息
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            executor.map(enrich_related_infos, instances_by_biz.items())
 
         return related_infos
 

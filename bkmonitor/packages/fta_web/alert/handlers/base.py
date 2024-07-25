@@ -240,12 +240,14 @@ class BaseQueryHandler:
         将数据导出，用于生成 csv 文件
         :return:
         """
+        # 字段名使用显示名，这里预先翻译
+        translated_fields = [(field.field, field.display) for field in self.query_transformer.query_fields]
+
         docs = []
         for hit in self.scan():
             doc = {}
-            for field in self.query_transformer.query_fields:
-                # 替换字段名为中文（表头）
-                doc[str(field.display)] = hit.get(field.field)
+            for field, display in translated_fields:
+                doc[display] = hit.get(field)
             docs.append(doc)
         return docs
 
