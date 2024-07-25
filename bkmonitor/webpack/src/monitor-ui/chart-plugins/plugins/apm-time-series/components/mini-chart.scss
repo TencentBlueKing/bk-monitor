@@ -1,0 +1,10 @@
+/* stylelint-disable declaration-no-important */
+.details-side-mini-chart {
+  width: 100%;
+  min-width: 111px;
+  min-height: 24px;
+
+  & > div {
+    cursor: crosshair !important;
+  }
+}
