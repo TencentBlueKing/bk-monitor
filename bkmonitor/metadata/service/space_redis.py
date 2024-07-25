@@ -86,7 +86,7 @@ def push_and_publish_es_aliases(data_label: str):
 
 
 def push_and_publish_es_table_id(
-    table_id: str, index_set: str, source_type: str, cluster_id: str, options: Optional[List] = None
+    table_id: str, index_set: str, source_type: str, cluster_id: int, options: Optional[List] = None
 ):
     """推送并发布es结果表
 
@@ -110,7 +110,13 @@ def push_and_publish_es_table_id(
         return
 
     # 组装values，包含 options 字段
-    values = {"storage_id": cluster_id, "db": table_id_db, "measurement": "__default__", "options": {}}
+    values = {
+        "source_type": source_type,
+        "storage_id": cluster_id,
+        "db": table_id_db,
+        "measurement": "__default__",
+        "options": {},
+    }
     if options:
         _options = {}
         for option in options:

@@ -40,7 +40,7 @@
     padding: 4px 0;
     background: #fff;
     border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, .1);
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
 
     li {
       padding: 6px 12px;
@@ -117,7 +117,7 @@
       align-items: center;
       justify-content: space-between;
     }
-  
+
     .new-page-input {
       display: flex;
       flex-wrap: nowrap;
@@ -126,21 +126,21 @@
       width: 100%;
       padding: 0;
     }
-  
+
     .operate-button {
       margin-left: 6px;
       font-size: 16px;
       color: #979ba5;
-  
+
       span {
         cursor: pointer;
       }
-  
+
       > :first-child {
         margin-right: 12px;
         color: #33d05c;
       }
-  
+
       > :last-child {
         color: #979ba5;
       }

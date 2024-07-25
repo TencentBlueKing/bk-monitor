@@ -29,7 +29,7 @@ import type { Edge, VirtaulNode } from './format-topo-data';
 
 let subCombosMap: Record<string, number> = {};
 const space = 30;
-const nodeWidth = 76;
+const nodeWidth = 92;
 const nodeHeight = 92;
 
 const setSubCombosMap = (val: any) => {
@@ -193,18 +193,12 @@ const fixNodeYOffset = (nodes, diff) => {
 const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const globalNodes = [];
   const groupByY = new Map<number, VirtaulNode[]>();
-
-  const topCombo = layouted.children[0];
-  const bottomComb = layouted.children[1];
-
-  const topYDiff = topCombo.y - topCombo.height / 2;
-  topCombo.y = topCombo.height / 2;
-  fixNodeYOffset(topCombo.children, topYDiff);
-
-  const bottomYDiff = bottomComb.y - bottomComb.height / 2 + topCombo.height;
-  bottomComb.y = bottomComb.height / 2 + topCombo.height;
-  fixNodeYOffset(bottomComb.children, bottomYDiff);
-
+  layouted.children.forEach((child, index) => {
+    const prevHeight = index > 0 ? layouted.children[index - 1].height : 0;
+    const diffY = child.y - child.height / 2 + prevHeight;
+    child.y = child.height / 2 + prevHeight;
+    fixNodeYOffset(child.children, diffY);
+  });
   const rootNode = data.nodes.find(node => node.entity.is_root);
   let rootBox = rootNode;
 
@@ -317,13 +311,17 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     };
 
     let diffValue = 0;
-
     const nodeSpace = nodeHeight + space * 2;
     for (let index = 0; index < yKeys.length; index++) {
       if (index > 0 && groupByY.get(yKeys[index])[0].comboId === groupByY.get(yKeys[index - 1])[0].comboId) {
         diffValue = yKeys[index] - yKeys[index - 1];
         if (diffValue < nodeSpace) {
-          const to = yKeys[index - 1] + nodeSpace;
+          /** nodeHeight 为固定节点高度，但如果是一个子combo高度是不确定的，求的这一层级的最大高度和nodeHeight做对比  */
+          const maxHeight = Math.max(...groupByY.get(yKeys[index - 1]).map(node => node.height));
+          /** height > 间距表示可能出现重叠或者间距过小 */
+          const diffY = maxHeight - nodeSpace;
+          const to = yKeys[index - 1] + nodeSpace + (diffY > 0 ? diffY : 0);
+
           updateNodeY(to, index);
         }
 
@@ -336,7 +334,6 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
 
     yKeys = [...groupByY.keys()];
     yKeys.sort((a, b) => b - a);
-
     let preLeveYVal = null;
     yKeys.forEach(key => {
       const nodes = groupByY.get(key);
@@ -358,7 +355,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
         }
       });
 
-      const rightNodes = nodes.filter(node => node.x > x);
+      const rightNodes = nodes.filter(node => node.x >= x);
       rightNodes.sort((a, b) => a.subNodes?.length - b.subNodes?.length);
       rightNodes.sort((a, b) => b.referenceRoot.length - a.referenceRoot.length);
 
@@ -427,7 +424,6 @@ const setRootComboStyle = (combos: Array<any>, width) => {
   rootCombos.forEach((combo, index) => {
     const prevCombo = rootCombos[index - 1];
     const y = index === 0 ? 0 : prevCombo.y + prevCombo.height + combo.height / 2 + 15 + 30;
-    console.log(combo);
     Object.assign(combo, { width: maxWidth, x: width / 2, y, fixSize: [maxWidth, combo.height + 30] });
   });
 };

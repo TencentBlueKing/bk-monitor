@@ -33,7 +33,7 @@
     <!-- 检索结果 -->
     <div class="result-text">
       <i18n path="检索结果（找到 {0} 条结果，用时{1}毫秒) {2}">
-        <span class="total-count">{{ totalCount }}</span>
+        <span class="total-count">{{ getShowTotalNum(totalCount) }}</span>
         <span>{{ tookTime }}</span>
         <template v-if="showAddMonitor">
           <span>
@@ -56,6 +56,7 @@
       <result-chart
         :date-picker-value="datePickerValue"
         :retrieve-params="retrieveParams"
+        :index-set-item="indexSetItem"
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount"
       />
@@ -73,6 +74,7 @@
         :retrieve-params="retrieveParams"
         :table-list="tableList"
         :total-count="totalCount"
+        :index-set-item="indexSetItem"
       />
     </div>
     <!-- 滚动到顶部 -->
@@ -87,7 +89,7 @@
 </template>
 
 <script>
-  import { setFieldsWidth, parseBigNumberList } from '@/common/util';
+  import { setFieldsWidth, parseBigNumberList, formatNumberWithRegex } from '@/common/util';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import { mapState, mapGetters } from 'vuex';
 
@@ -121,6 +123,10 @@
       datePickerValue: {
         type: Array,
         default: () => [],
+      },
+      indexSetItem: {
+        type: Object,
+        default: () => ({}),
       },
     },
     data() {
@@ -252,6 +258,9 @@
       },
       changeQueueRes(status) {
         this.queueStatus = status;
+      },
+      getShowTotalNum(num) {
+        return formatNumberWithRegex(num);
       },
     },
   };

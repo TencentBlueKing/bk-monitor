@@ -303,7 +303,8 @@ class ExportConfigResource(Resource):
             dashboards = dashboards.filter(uid__in=dashboard_uids)
 
         for dashboard in dashboards:
-            dashboard_config = dashboard.data
+            dashboard_config = json.loads(dashboard.data)
+
             # 是否按外部使用导出
             if external:
                 DashboardExporter(data_sources).make_exportable(dashboard_config, datasource_mapping)

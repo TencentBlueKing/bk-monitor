@@ -29,6 +29,7 @@ from django.utils.translation import ugettext as _
 from requests.auth import to_native_string
 from yaml import SafeDumper
 
+from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
@@ -1166,20 +1167,58 @@ class TaskGraphAndMapResource(Resource):
         return []
 
 
+def get_node_host_dict(nodes):
+    # 配置hostid的节点
+    bk_host_ids = []
+    # 配置ip的节点
+    ips = []
+    # 所有节点
+    hosts = []
+    for node in nodes:
+        if node.bk_host_id:
+            bk_host_ids.append(node.bk_host_id)
+        else:
+            ips.append(node.ip)
+    if bk_host_ids:
+        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        # 兼容bk_host_id不存在的拨测节点
+    if ips:
+        hosts += api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+
+    # 按id 和 host_key 记录节点主机信息
+    node_to_host = {host.bk_host_id: host for host in hosts}
+    node_to_host.update(
+        {
+            host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
+            for host in hosts
+            if host.bk_host_innerip
+        }
+    )
+    return node_to_host
+
+
 class UptimeCheckBeatResource(Resource):
     """
     采集器相关信息获取
     """
 
     class RequestSerializer(serializers.Serializer):
+        class HostObjectField(serializers.Field):
+            def to_internal_value(self, data):
+                if isinstance(data, Host):
+                    return data
+                else:
+                    raise serializers.ValidationError("Expected a Host object.")
+
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        hosts = serializers.ListSerializer(child=HostObjectField(allow_null=True, required=False), required=False)
 
     @classmethod
-    def node_to_host(cls, node, ip_to_host, id_to_host):
+    def node_to_host(cls, node, node_host_info):
         if node.bk_host_id:
-            return id_to_host.get(node.bk_host_id, None)
+            return node_host_info.get(node.bk_host_id, None)
         else:
-            return ip_to_host.get(host_key(ip=node.ip, bk_cloud_id=str(node.plat_id)), None)
+            return node_host_info.get(host_key(ip=node.ip, bk_cloud_id=str(node.plat_id)), None)
 
     def get_bad_agent(self, biz_to_host):
         # 分业务获取gse agent信息
@@ -1191,16 +1230,16 @@ class UptimeCheckBeatResource(Resource):
         gse_status = {}
         for item in gse_status_list:
             gse_status.update(item)
-        bad_agent = [host for (host, status) in gse_status.items() if status != 0]
+        bad_agent = [host_id for (host_id, status) in gse_status.items() if status != 0]
         return bad_agent
 
-    def get_beat_data(self, all_hosts_, biz, heartbeats, lock):
-        if is_ipv6_biz(biz):
-            bk_host_ids = [str(host.bk_host_id) for host in all_hosts_]
-            beat_data = resource.uptime_check.get_beat_data({"bk_host_ids": bk_host_ids, "bk_biz_id": biz})
+    def get_beat_data(self, biz_hosts, bk_biz_id, heartbeats, lock):
+        if is_ipv6_biz(bk_biz_id):
+            bk_host_ids = [str(host.bk_host_id) for host in biz_hosts]
+            beat_data = resource.uptime_check.get_beat_data({"bk_host_ids": bk_host_ids, "bk_biz_id": bk_biz_id})
         else:
-            ips = [{"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id)} for host in all_hosts_]
-            beat_data = resource.uptime_check.get_beat_data({"ips": ips, "bk_biz_id": biz})
+            ips = [{"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id)} for host in biz_hosts]
+            beat_data = resource.uptime_check.get_beat_data({"ips": ips, "bk_biz_id": bk_biz_id})
 
         lock.acquire()
         try:
@@ -1209,124 +1248,111 @@ class UptimeCheckBeatResource(Resource):
             lock.release()
 
     def perform_request(self, validated_request_data):
+        result = self.return_with_dict(validated_request_data)
+        beat_status_list = []
+        for key, host_status in result.items():
+            # 取bk_host_id的数据返回即可
+            if isinstance(key, int):
+                beat_status_list.append(host_status)
+        return beat_status_list
+
+    def return_with_dict(self, **request_data):
+        validated_request_data = self.validate_request_data(request_data)
         bk_biz_id = validated_request_data.get("bk_biz_id")
+        hosts = validated_request_data.get("hosts", None)
 
-        if bk_biz_id:
-            # 过滤业务下所有节点时，同时还应该加上通用节点
-            biz_nodes = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id)
-            common_nodes = UptimeCheckNode.objects.filter(is_common=True)
-            nodes = biz_nodes | common_nodes
+        # nodes -> hosts
+        if not hosts:
+            if bk_biz_id:
+                # 过滤业务下所有节点时，同时还应该加上通用节点
+                biz_nodes = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id)
+                common_nodes = UptimeCheckNode.objects.filter(is_common=True)
+                nodes = biz_nodes | common_nodes
+            else:
+                nodes = UptimeCheckNode.objects.all()
+
+            node_to_host_dict = resource.uptime_check.get_node_host_dict(nodes)
+            bk_host_ids = {host.bk_host_id for host in node_to_host_dict.values()}
+            hosts = [node_to_host_dict[host_id] for host_id in bk_host_ids]
+
         else:
-            nodes = UptimeCheckNode.objects.all()
-        result = {}
-
-        # 按是否开启IPV6划分节点列表
-        biz_to_node = defaultdict(list)
-        biz_to_host = defaultdict(list)
-        heartbeats = []
-        heartbeats_lock = threading.Lock()
-        ip_to_host = {}
-        id_to_host = {}
-        biz_to_all_hosts = defaultdict(list)
-        for node in nodes:
-            biz_to_node[node.bk_biz_id].append(node)
-
-        for biz, node_list in biz_to_node.items():
-            bk_host_ids = [node.bk_host_id for node in node_list if node.bk_host_id]
-            origin_ips = [node.ip for node in node_list if not node.bk_host_id]
-            ip_hosts = api.cmdb.get_host_without_biz(ips=origin_ips)["hosts"]
-            hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
-            all_hosts = ip_hosts + hosts
-            biz_to_all_hosts[biz].extend(all_hosts)
-            ip_to_host.update(
+            node_to_host_dict = {host.bk_host_id: host for host in hosts}
+            node_to_host_dict.update(
                 {
                     host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
-                    for host in all_hosts
+                    for host in hosts
                     if host.bk_host_innerip
                 }
             )
-            id_to_host.update({host.bk_host_id: host for host in all_hosts})
 
-        for node in nodes:
-            node_host = self.node_to_host(node, ip_to_host, id_to_host)
-            biz_to_host[node.bk_biz_id].append(node_host)
+        result = {}
+        # 按业务分组 cmdb主机列表
+        biz_hosts_dict = defaultdict(list)
+        heartbeats = []
+        heartbeats_lock = threading.Lock()
+
+        for host in hosts:
+            biz_hosts_dict[host.bk_biz_id].append(host)
 
         pool = ThreadPool()
-        for biz, all_hosts_ in biz_to_all_hosts.items():
+        for bk_biz_id, biz_hosts in biz_hosts_dict.items():
             pool.apply_async(
                 self.get_beat_data,
-                kwds={"all_hosts_": all_hosts_, "biz": biz, "heartbeats": heartbeats, "lock": heartbeats_lock},
+                kwds={
+                    "biz_hosts": biz_hosts,
+                    "bk_biz_id": bk_biz_id,
+                    "heartbeats": heartbeats,
+                    "lock": heartbeats_lock,
+                },
             )
-        futures = []
-        bad_agent_result = pool.apply_async(self.get_bad_agent, kwds={"biz_to_host": biz_to_host})
-        futures.append(bad_agent_result)
+        bad_agent_task = pool.apply_async(self.get_bad_agent, kwds={"biz_to_host": biz_hosts_dict})
         pool.close()
         pool.join()
-        bad_agent = []
-        for future in futures:
-            bad_agent.extend(future.get())
+        bad_agent = bad_agent_task.get()
 
         for i in heartbeats:
             if not i:
                 continue
-            if i.get("bk_host_id"):
-                node_status = {
-                    i["bk_host_id"]: {
-                        "bk_host_id": safe_int(i["bk_host_id"]),
-                        "status": i.get("status"),
-                        "version": i.get("version"),
-                        "gse_status": BEAT_STATUS["RUNNING"],
-                    }
-                }
-            else:
-                bk_host_id = ip_to_host[host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"])].bk_host_id
-                node_status = {
-                    host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"]): {
-                        "bk_host_id": bk_host_id,
-                        "ip": i["ip"],
-                        "bk_cloud_id": safe_int(i["bk_cloud_id"]),
-                        "status": i.get("status"),
-                        "version": i.get("version"),
-                        "gse_status": BEAT_STATUS["RUNNING"],
-                    }
-                }
-            result.update(node_status)
 
-        for node in nodes:
-            node_host = self.node_to_host(node, ip_to_host, id_to_host)
-            if not node_host:
+            host_ip_key = host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"])
+            if host_ip_key not in node_to_host_dict:
                 continue
-            if is_ipv6_biz(node.bk_biz_id):
-                host_name = str(node_host.bk_host_id)
-                host_dict = {"bk_host_id": node_host.bk_host_id}
-            else:
-                host_name = host_key(ip=node_host.bk_host_innerip, bk_cloud_id=str(node_host.bk_cloud_id))
-                host_dict = {
-                    "ip": node_host.bk_host_innerip,
-                    "bk_cloud_id": node_host.bk_cloud_id,
-                    "bk_host_id": node_host.bk_host_id,
-                }
-            if host_name not in result:
-                result[host_name] = {
-                    "status": BEAT_STATUS["DOWN"],
-                    "version": "",
-                    "gse_status": BEAT_STATUS["RUNNING"],
-                    **host_dict,
-                }
 
-        result = list(result.values())
+            bk_host_id = i.get("bk_host_id")
+            if not bk_host_id:
+                # 上报数据未带上bk_host_id， 则从cmdb数据中补充
+                bk_host_id = node_to_host_dict[host_ip_key].bk_host_id
 
-        for r in result:
-            if not r.get("bk_host_id"):
-                r_host = ip_to_host.get(host_key(ip=r["ip"], plat_id=r["bk_cloud_id"]), None)
-                if not r_host:
-                    continue
-                host_name = r_host.bk_host_id
-            else:
-                host_name = int(r["bk_host_id"])
-            if host_name in bad_agent:
-                r["gse_status"] = BEAT_STATUS["DOWN"]
+            node_status = {
+                "bk_host_id": bk_host_id,
+                "ip": i["ip"],
+                "bk_cloud_id": safe_int(i["bk_cloud_id"]),
+                "status": i.get("status"),
+                "version": i.get("version"),
+                "gse_status": BEAT_STATUS["RUNNING"],
+            }
 
+            result[bk_host_id] = node_status
+            result[host_ip_key] = node_status
+
+        for host in hosts:
+            # 补充缺省数据
+            bk_host_id = host.bk_host_id
+            host_ip_key = host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id))
+
+            if bk_host_id not in result:
+                # 未上报数据， 走缺省补充
+                host_dict = {"ip": host.bk_host_innerip, "bk_cloud_id": host.bk_cloud_id, "bk_host_id": bk_host_id}
+                # 机器没上报心跳
+                default_status = {"gse_status": BEAT_STATUS["RUNNING"], "status": BEAT_STATUS["DOWN"]}
+                host_dict.update(default_status)
+                result[bk_host_id] = host_dict
+                result[host_ip_key] = host_dict
+
+            # 处理 bad_agent
+            if bk_host_id in bad_agent:
+                result[bk_host_id]["gse_status"] = BEAT_STATUS["DOWN"]
+                result[host_ip_key]["gse_status"] = BEAT_STATUS["DOWN"]
         return result
 
 
@@ -1372,7 +1398,7 @@ class GetBeatDataResource(Resource):
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
         if data.get("bk_host_ids"):
             condition_statement = f'''bk_host_id=~"{'|'.join(data.get('bk_host_ids'))}"'''
-            promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}[1m]"
+            promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}"
         else:
             ips = data.get("ips")
             transformd_ips = self.transform_ips(ips)
@@ -1383,10 +1409,8 @@ class GetBeatDataResource(Resource):
                 if len(ips) == 1:
                     condition_statement = f'ip="{ips[0]}", bk_cloud_id="{bk_cloud_id}"'
                 else:
-                    condition_statement = f'''ip=~"{'|'.join(ips)}", bk_cloud_id="{bk_cloud_id}"'''
-                promql_statement_list.append(
-                    f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}[1m]"
-                )
+                    condition_statement = f'''ip=~"{'$|'.join(ips)}$", bk_cloud_id="{bk_cloud_id}"'''
+                promql_statement_list.append(f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}")
             promql_statement = "(" + " or ".join(promql_statement_list) + ")"
 
         query_config = {

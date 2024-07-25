@@ -88,7 +88,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   @Prop({ default: false, type: Boolean }) hasAiOpsDetect: boolean;
 
   hoverDeleteItemIndex = -1;
-  levelIconMap: string[] = [, 'icon-danger', 'icon-mind-fill', 'icon-tips'];
+  levelIconMap: string[] = ['', 'icon-danger', 'icon-mind-fill', 'icon-tips'];
   contentLoading = false;
   metricpopoerInstance: any = null;
   isShowExpress = false; // 此值用与单指标时可选填表达式
@@ -582,7 +582,10 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             {/* =======计算表达式====== */}
             {this.canSetExpress || this.isShowExpress
               ? [
-                  <div class='expression-left'>
+                  <div
+                    key='0'
+                    class='expression-left'
+                  >
                     <span class='item-key'>
                       <i class='icon-monitor icon-arrow-turn' />
                     </span>
@@ -609,6 +612,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                         content: this.$t('AIOps算法只支持单指标'),
                         disabled: !this.hasAiOpsDetect || this.readonly,
                       }}
+                      type='button'
                       on-click={this.handleAddMetricProxy}
                     >
                       <i class='bk-icon icon-plus' />
