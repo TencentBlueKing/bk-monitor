@@ -751,7 +751,7 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot)
+        alerts = self.get_snapshot_alerts(snapshot, status=[EventStatus.ABNORMAL])
         current_username = get_request_username()
 
         alert_agg_results = Counter()

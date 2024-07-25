@@ -136,8 +136,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             incident_document = IncidentDocument(**incident_info)
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"]:
                 snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
-                incident_document.generate_handlers(sync_info["scope"]["alerts"])
-                incident_document.generate_assignees(snapshot_info)
 
                 snapshot = IncidentSnapshotDocument(
                     incident_id=sync_info["incident_id"],
