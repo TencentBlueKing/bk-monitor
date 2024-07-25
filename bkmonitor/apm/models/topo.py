@@ -13,6 +13,7 @@ import datetime
 from django.db import models
 
 from bkmonitor.utils.db import JsonField
+from constants.apm import SpanKind
 
 
 class TopoBase(models.Model):
@@ -56,6 +57,13 @@ class TopoRelation(TopoBase):
     # 这个数据表是表达TopoNode表的关系
     RELATION_KIND_SYNC = "sync"
     RELATION_KIND_ASYNC = "async"
+
+    KIND_MAPPING = {
+        SpanKind.SPAN_KIND_CLIENT: RELATION_KIND_SYNC,
+        SpanKind.SPAN_KIND_SERVER: RELATION_KIND_SYNC,
+        SpanKind.SPAN_KIND_PRODUCER: RELATION_KIND_ASYNC,
+        SpanKind.SPAN_KIND_CONSUMER: RELATION_KIND_ASYNC,
+    }
 
     from_topo_key = models.CharField("topo节点key", max_length=255)
     to_topo_key = models.CharField("topo_key", max_length=255)
