@@ -43,4 +43,5 @@ router.register_module(report_views)
 
 urlpatterns = [
     url(r"^", include(router.urls)),
+    url(r"^llm/$", robot_views.llm),
 ]
