@@ -1064,3 +1064,35 @@ class ExecuteDynamicGroup(Resource):
             return [Host(instance) for instance in instances]
         else:
             return [Set(**instance) for instance in instances]
+
+
+class BatchExecuteDynamicGroup(Resource):
+    """
+    批量执行动态分组
+    """
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+        ids = serializers.ListField(label=_("动态分组ID列表"), child=serializers.IntegerField(), allow_empty=False)
+        bk_obj_id = serializers.ChoiceField(label=_("对象ID"), choices=["host", "set"])
+
+    MAX_CONCURRENCY_NUMBER = 3
+
+    def perform_request(self, params):
+        pool = ThreadPool(self.MAX_CONCURRENCY_NUMBER)
+        tasks: Dict[str, ApplyResult] = {}
+        for dg_id in params["ids"]:
+            tasks[dg_id] = pool.apply_async(
+                ExecuteDynamicGroup.request,
+                kwds={"bk_biz_id": params["bk_biz_id"], "id": dg_id, "bk_obj_id": params["bk_obj_id"]},
+            )
+        pool.close()
+        pool.join()
+
+        results = {}
+        for dg_id, task in tasks.items():
+            try:
+                results[task] = tasks[dg_id].get()
+            except Exception as e:
+                results[task] = []
+                logging.exception(f"execute dynamic group({dg_id}) failed, error: {e}")
+        return results
