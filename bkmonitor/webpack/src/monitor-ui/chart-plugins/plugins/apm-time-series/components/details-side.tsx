@@ -28,8 +28,24 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+
+import MiniChart from './mini-chart';
+
+import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './details-side.scss';
+
+enum EColumn {
+  Chart = 'chart',
+  CompareCount = 'compare-count',
+  DiffCount = 'diff-count',
+  InitiativeCount = 'initiative-count',
+  InitiativeService = 'initiative-service',
+  Operate = 'operate',
+  ReferCount = 'refer-count',
+  ServerName = 'service_name',
+}
 
 interface IProps {
   show: boolean;
@@ -43,19 +59,19 @@ export default class DetailsSide extends tsc<IProps> {
   /* 时间 */
   timeRange: TimeRangeType = ['now-1d', 'now'];
   timezone: string = getDefaultTimezone();
-  /*  */
+  /* 主体切换 */
   selectOptions = [
     { id: 'avg', name: '平均响应耗时' },
     { id: 'error', name: '总错误数' },
   ];
   selected = 'avg';
-
+  /* 类型切换 */
   typeOptions = [
     { id: 'initiative', name: '主调' },
     { id: 'passive', name: '被调' },
   ];
   curType = 'initiative';
-
+  /* 对比时间 */
   compareTimeInfo = [
     {
       id: 'refer',
@@ -70,10 +86,113 @@ export default class DetailsSide extends tsc<IProps> {
       color: '#7B29FF',
     },
   ];
-
+  /* 对比开关 */
   isCompare = false;
-
+  /* 搜索 */
   searchValue = '';
+
+  tableColumns: ITableColumn[] = [
+    {
+      type: 'link',
+      id: EColumn.ServerName,
+      name: window.i18n.tc('服务名称'),
+    },
+    {
+      type: 'string',
+      id: EColumn.InitiativeService,
+      name: window.i18n.tc('调用服务'),
+    },
+    {
+      type: 'number',
+      id: EColumn.InitiativeCount,
+      name: window.i18n.tc('调用数'),
+    },
+    {
+      id: EColumn.CompareCount,
+      type: 'number',
+      name: window.i18n.tc('对比'),
+    },
+    {
+      id: EColumn.ReferCount,
+      name: window.i18n.tc('参照'),
+      type: 'number',
+    },
+    {
+      id: EColumn.DiffCount,
+      name: window.i18n.tc('差异值'),
+      type: 'scoped_slots',
+    },
+    {
+      type: 'scoped_slots',
+      id: EColumn.Chart,
+      name: window.i18n.tc('缩略图'),
+    },
+    {
+      type: 'scoped_slots',
+      id: EColumn.Operate,
+      name: window.i18n.tc('操作'),
+    },
+  ];
+  tableData: TableRow[] = [
+    {
+      [EColumn.ServerName]: {
+        icon: '',
+        key: '',
+        target: 'null_event',
+        url: '',
+        value: 'test1',
+      },
+      [EColumn.InitiativeService]: {
+        icon: '',
+        type: '',
+        text: 'test01',
+      },
+      [EColumn.InitiativeCount]: 10,
+      [EColumn.CompareCount]: 10,
+      [EColumn.ReferCount]: 10,
+      [EColumn.DiffCount]: 0.45,
+      [EColumn.Chart]: null,
+      [EColumn.Operate]: null,
+    },
+    {
+      [EColumn.ServerName]: {
+        icon: '',
+        key: '',
+        target: 'null_event',
+        url: '',
+        value: 'test2',
+      },
+      [EColumn.InitiativeService]: {
+        icon: '',
+        type: '',
+        text: 'test02',
+      },
+      [EColumn.InitiativeCount]: 10,
+      [EColumn.CompareCount]: 20,
+      [EColumn.ReferCount]: 20,
+      [EColumn.DiffCount]: -0.45,
+      [EColumn.Chart]: null,
+      [EColumn.Operate]: null,
+    },
+  ];
+  /** 分页数据 */
+  pagination: ITablePagination = {
+    current: 1,
+    count: 2,
+    limit: 10,
+    showTotalCount: true,
+  };
+
+  get filterTableColumns() {
+    return this.tableColumns.filter(item => {
+      if (this.isCompare) {
+        return ![EColumn.InitiativeCount].includes(item.id as EColumn);
+      }
+      return [EColumn.ServerName, EColumn.InitiativeService, EColumn.InitiativeCount, EColumn.Chart].includes(
+        item.id as EColumn
+      );
+    });
+  }
 
   handleClose() {
     this.$emit('close');
@@ -188,6 +307,37 @@ export default class DetailsSide extends tsc<IProps> {
                 onRightIconClick={this.handleSearch}
               />
             </div>
+          </div>
+          <div class='content-table-wrap'>
+            <CommonTable
+              scopedSlots={{
+                [EColumn.DiffCount]: row => {
+                  return row[EColumn.DiffCount];
+                },
+                [EColumn.Chart]: _row => {
+                  return (
+                    <div class='chart-wrap'>
+                      <MiniChart />
+                    </div>
+                  );
+                },
+                [EColumn.Operate]: _row => {
+                  return (
+                    <bk-button
+                      type='primary'
+                      text
+                    >
+                      {this.$t('查看拓扑')}
+                    </bk-button>
+                  );
+                },
+              }}
+              checkable={false}
+              columns={this.filterTableColumns}
+              data={this.tableData}
+              pagination={this.pagination}
+              paginationType={'simple'}
+            />
           </div>
         </div>
       </bk-sideslider>

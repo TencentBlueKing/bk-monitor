@@ -108,5 +108,13 @@ $header-height: 52px;
         margin: 0 0 0 auto;
       }
     }
+
+    .content-table-wrap {
+      margin-top: 16px;
+
+      .chart-wrap {
+        position: relative;
+      }
+    }
   }
 }
