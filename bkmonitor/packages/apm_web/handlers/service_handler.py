@@ -86,9 +86,11 @@ class ServiceHandler:
         if isinstance(application, dict):
             bk_biz_id = application["bk_biz_id"]
             app_name = application["app_name"]
+            is_enabled_profiling = application.get("is_enabled_profiling", False)
         else:
             bk_biz_id = application.bk_biz_id
             app_name = application.app_name
+            is_enabled_profiling = application.is_enabled_profiling
 
         resp = api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": app_name})
 
@@ -125,7 +127,11 @@ class ServiceHandler:
         trace_services += cls.list_service_components(bk_biz_id, app_name, resp)
 
         # step4: 获取 Profile 服务
-        profile_services = api.apm_api.query_profile_services_detail(**{"bk_biz_id": bk_biz_id, "app_name": app_name})
+        profile_services = []
+        if is_enabled_profiling:
+            profile_services = api.apm_api.query_profile_services_detail(
+                **{"bk_biz_id": bk_biz_id, "app_name": app_name}
+            )
 
         # step5: 将 Profile 服务和 Trace 服务重名的结合
         return cls._combine_profile_trace_service(trace_services, profile_services)

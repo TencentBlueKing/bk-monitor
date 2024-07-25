@@ -293,6 +293,7 @@
         /** 索引集是否切换 */
         isIndexSetChange: false,
         isInitPage: true, // 是否是第一次进入数据指纹
+        scrollEl: null,
       };
     },
     computed: {
@@ -619,7 +620,7 @@
        */
       filterGroupList() {
         const filterList = this.totalFields
-          .filter(el => el.es_doc_values && !/^__dist/.test(el.field_name)) // 过滤__dist字段
+          .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
           .map(item => {
             const { field_name: id, field_alias: alias } = item;
             return { id, name: alias ? `${id}(${alias})` : id };

@@ -26,11 +26,12 @@
 import { type PropType, computed, defineComponent, nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Exception, Input, Loading, Popover, Radio, bkTooltips } from 'bkui-vue';
-import { getMetricListV2, getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { Input, Loading, Popover, Radio, bkTooltips } from 'bkui-vue';
+import { getMetricListV2, getStrategyListV2, promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
+import EmptyStatus from '../../../../components/empty-status/empty-status';
 
-import type { IDimensionItem } from '../typing';
+import type { IDimensionItem } from '../../typing';
 
 import './select-input.scss';
 
@@ -134,6 +135,12 @@ export default defineComponent({
     const debounceHandleChange = debounce(handleChange, 300, false);
     const debounceHandleStrategySearch = debounce(handleStrategySearch, 300, false);
     const debounceHandleOptionSearch = debounce(handleOptionSearch, 300, false);
+
+    const optionsFilter = computed(() => {
+      return selectData.options.filter(item => {
+        return item.id.indexOf(selectData.optionsSearch) >= 0 || item.name.indexOf(selectData.optionsSearch) >= 0;
+      });
+    });
 
     watch(
       () => props.list,
@@ -254,37 +261,81 @@ export default defineComponent({
           const {
             items: [{ query_configs: queryConfigs }],
           } = strategyItem;
-          if (queryConfigs?.length) {
-            const { metric_list: metricListTemp = [] } = await getMetricListV2({
-              page: 1,
-              page_size: queryConfigs.length,
-              // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
-              conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }],
-            }).catch(() => ({}));
-            const [metricItem] = metricListTemp;
-            if (metricItem) {
-              const metricMeta = {
-                dataSourceLabel: metricItem.data_source_label,
-                dataTypeLabel: metricItem.data_type_label,
-                metricField: metricItem.metric_field,
-                resultTableId: metricItem.result_table_id,
-                indexSetId: metricItem.index_set_id,
-              };
-              curMetricMeta.value = metricMeta;
-              props.metricMetaSet(v, metricMeta);
+          const isPrometheus = queryConfigs?.[0]?.data_source_label === 'prometheus';
+          if (isPrometheus) {
+            //
+            const promqlData = await promqlToQueryConfig('', {
+              promql: queryConfigs?.[0]?.promql || '',
+            }).catch(() => null);
+            if (promqlData) {
+              const metricItem = promqlData.query_configs?.[0];
+              if (metricItem) {
+                const metricMeta = {
+                  dataSourceLabel: metricItem.data_source_label,
+                  dataTypeLabel: metricItem.data_type_label,
+                  metricField: metricItem.metric_field,
+                  resultTableId: metricItem.result_table_id,
+                  indexSetId: metricItem.index_set_id,
+                };
+                curMetricMeta.value = metricMeta;
+                props.metricMetaSet(v, metricMeta);
+                const dimension = metricItem?.agg_dimension || [];
+                const dimensionList = dimension.map(d => ({ id: d, name: d }));
+                props.dimensionSet(v, dimensionList);
+                selectData.options = dimensionList;
+              }
             }
-            const dimensionList = !!metricListTemp.length
-              ? metricListTemp.reduce((pre, cur) => {
-                  const dimensionList = pre
-                    .concat(
-                      cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
-                    )
-                    .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
-                  return dimensionList;
-                }, [])
-              : [];
-            props.dimensionSet(v, dimensionList);
-            selectData.options = dimensionList;
+          } else {
+            if (queryConfigs?.length) {
+              const { metric_list: metricListTemp = [] } = await getMetricListV2({
+                page: 1,
+                page_size: queryConfigs.length,
+                // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
+                conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }],
+              }).catch(() => ({}));
+              const [metricItem] = metricListTemp;
+              if (metricItem) {
+                const metricMeta = {
+                  dataSourceLabel: metricItem.data_source_label,
+                  dataTypeLabel: metricItem.data_type_label,
+                  metricField: metricItem.metric_field,
+                  resultTableId: metricItem.result_table_id,
+                  indexSetId: metricItem.index_set_id,
+                };
+                curMetricMeta.value = metricMeta;
+                props.metricMetaSet(v, metricMeta);
+              }
+              const dimensionList = metricListTemp.length
+                ? metricListTemp.reduce((pre, cur) => {
+                    const dimensionList = pre
+                      .concat(
+                        cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
+                      )
+                      .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
+                    return dimensionList;
+                  }, [])
+                : [];
+              // 取策略各指标agg_dimension的交集
+              const getIntersection = (arrays: string[][]) => {
+                if (arrays.length === 0) {
+                  return [];
+                }
+                let intersection = arrays[0];
+                for (let i = 1; i < arrays.length; i++) {
+                  intersection = intersection.filter(item => arrays[i].includes(item));
+                }
+                return intersection;
+              };
+              const queryConfigDimensions = [];
+              queryConfigs.forEach(q => {
+                const temp = q?.agg_dimension || [];
+                queryConfigDimensions.push(temp);
+              });
+              const strategyDimensionSet = new Set(getIntersection(queryConfigDimensions));
+              const dimensionListFilter = dimensionList.filter(item => strategyDimensionSet.has(item.id));
+              props.dimensionSet(v, dimensionListFilter);
+              selectData.options = dimensionListFilter;
+            }
           }
         }
         selectData.rightLoading = false;
@@ -374,6 +425,13 @@ export default defineComponent({
       selectData.optionsSearch = v;
     }
 
+    /**
+     * @description 清除筛选条件
+     */
+    function handleNoDataOperation() {
+      handleOptionSearch('');
+    }
+
     return {
       localList,
       searchList,
@@ -381,6 +439,7 @@ export default defineComponent({
       localValue,
       selectData,
       strategySearchRef,
+      optionsFilter,
       t,
       handleInput,
       handleSelect,
@@ -395,6 +454,7 @@ export default defineComponent({
       handleSearchClear,
       handleOptionSearch,
       debounceHandleOptionSearch,
+      handleNoDataOperation,
     };
   },
   render() {
@@ -476,7 +536,12 @@ export default defineComponent({
                                   key={item.id}
                                   label={item.id}
                                 >
-                                  {item.name}
+                                  <span
+                                    class='radio-label'
+                                    v-overflowText={{ text: item.name, placement: 'right' }}
+                                  >
+                                    {item.name}
+                                  </span>
                                 </Radio>
                               ))}
                             </Radio.Group>
@@ -503,36 +568,29 @@ export default defineComponent({
                       </div>
                       <Loading loading={this.selectData.rightLoading}>
                         <div class='list-wrap-02'>
-                          {this.selectData.options.length ? (
-                            this.selectData.options
-                              .filter(item => {
-                                return (
-                                  item.id.indexOf(this.selectData.optionsSearch) >= 0 ||
-                                  item.name.indexOf(this.selectData.optionsSearch) >= 0
-                                );
-                              })
-                              .map(item => (
-                                <Popover
-                                  key={item.id}
-                                  content={item.id}
-                                  placement={'right'}
-                                  popoverDelay={[300, 0]}
+                          {this.optionsFilter.length ? (
+                            this.optionsFilter.map(item => (
+                              <Popover
+                                key={item.id}
+                                content={item.id}
+                                placement={'right'}
+                                popoverDelay={[300, 0]}
+                              >
+                                <div
+                                  class='list-item'
+                                  onClick={() => this.handleSelectDimension(item)}
                                 >
-                                  <div
-                                    class='list-item'
-                                    onClick={() => this.handleSelectDimension(item)}
-                                  >
-                                    {item.name}
-                                  </div>
-                                </Popover>
-                              ))
+                                  {item.name}
+                                </div>
+                              </Popover>
+                            ))
                           ) : (
                             <div class='no-data'>
-                              <Exception
-                                description={this.$t('暂无数据')}
+                              <EmptyStatus
                                 scene='part'
-                                type='empty'
-                              />
+                                type={!!this.selectData.optionsSearch ? 'search-empty' : 'empty'}
+                                onOperation={this.handleNoDataOperation}
+                              ></EmptyStatus>
                             </div>
                           )}
                         </div>

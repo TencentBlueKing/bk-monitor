@@ -63,8 +63,8 @@ export const handleFun = data => {
 /** 点击跳转到告警tab */
 export const handleDetail = (e, {}, id, bizId) => {
   e.stopPropagation();
-  const routeUrl = `incident/detail/${id}?tab=FailureView`;
-  const url = `${location.origin}${location.pathname}?bizId=${bizId}#${routeUrl}`;
+  const routeUrl = `${location.hash}?tab=FailureView`;
+  const url = `${location.origin}${location.pathname}?bizId=${bizId}${routeUrl}`;
   window.location.href = url;
 };
 /** 修改故障属性的渲染函数 */

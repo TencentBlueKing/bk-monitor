@@ -48,6 +48,6 @@ export const NODE_TYPE_ICON = {
   BkNodeHost: 'icon-mc-bcs-node',
   BcsNode: 'icon-mc-bcs-node',
   BcsPod: 'icon-mc-pod',
-  BCSService: 'icon-mc-bcs-service',
+  BcsService: 'icon-mc-bcs-service',
   Unknown: 'icon-mc-bcs-service',
 };

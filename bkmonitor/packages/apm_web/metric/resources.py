@@ -25,6 +25,7 @@ from apm_web.constants import (
     APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
     COLUMN_KEY_PROFILING_DATA_COUNT,
+    COLUMN_KEY_PROFILING_DATA_STATUS,
     DEFAULT_EMPTY_NUMBER,
     AlertLevel,
     AlertStatus,
@@ -278,7 +279,7 @@ class ServiceListResource(PageListResource):
                 name=_lazy("Profiling 状态"),
                 checked=True,
                 status_map_cls=DataStatus,
-                filterable=True,
+                asyncable=True,
             ),
             NumberTableFormat(
                 id="profiling_data_count",
@@ -351,8 +352,6 @@ class ServiceListResource(PageListResource):
         strategy_service_map: dict,
         strategy_alert_map: dict,
         request_count_info: dict,
-        is_enabled_profiling: bool,
-        profiling_count_info: dict,
     ):
         return [
             {
@@ -373,13 +372,6 @@ class ServiceListResource(PageListResource):
                 "status": DataStatus.NORMAL
                 if request_count_info.get(service["topo_key"], {}).get("request_count")
                 else DataStatus.NO_DATA,
-                "profiling_data_status": (
-                    DataStatus.NORMAL
-                    if profiling_count_info.get(service["topo_key"], {}).get("profiling_data_count")
-                    else DataStatus.NO_DATA
-                )
-                if is_enabled_profiling
-                else DataStatus.DISABLED,
             }
             for service in services
         ]
@@ -451,7 +443,7 @@ class ServiceListResource(PageListResource):
         services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
         # 获取服务的收藏信息
         config_res = pool.apply_async(CollectServiceResource.get_collect_config, args=(app,))
-        # # 获取策略信息
+        # 获取策略信息
         strategy_map_res = pool.apply_async(self.combine_strategy_with_alert, args=(app, start_time, end_time))
         # 仅获取状态列
         service_data_status_res = pool.apply_async(
@@ -501,14 +493,6 @@ class ServiceListResource(PageListResource):
                     if strategy_alert_map[name] > strategy.get("severity", ServiceStatus.NORMAL):
                         strategy_alert_map[name] = strategy.get("severity", ServiceStatus.NORMAL)
 
-        # 获取 profile 服务指标
-        if app.is_enabled_profiling:
-            profiling_request_info = QueryTemplate(
-                validate_data["bk_biz_id"], validate_data["app_name"]
-            ).list_services_request_info(validate_data["start_time"] * 1000, validate_data["end_time"] * 1000)
-        else:
-            profiling_request_info = {}
-
         # 处理响应数据
         raw_data = self.combine_data(
             services,
@@ -517,8 +501,6 @@ class ServiceListResource(PageListResource):
             strategy_service_map,
             strategy_alert_map,
             request_count_info,
-            app.is_enabled_profiling,
-            profiling_request_info,
         )
 
         filtered_data = self.keyword_filter(raw_data, validate_data["keyword"], validate_data["filter"])
@@ -553,7 +535,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         获取指标数据及服务数据
         只查单个指标
         """
-        if column == COLUMN_KEY_PROFILING_DATA_COUNT:
+        if column in [COLUMN_KEY_PROFILING_DATA_COUNT, COLUMN_KEY_PROFILING_DATA_STATUS]:
             services = ServiceHandler.list_services(app)
             return {}, {}, services
 
@@ -606,7 +588,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         column = validated_data["column"]
         service_metric_info, component_metric_info, services = self.get_metric_service_data(validated_data, app, column)
 
-        if app.is_enabled_profiling and column == COLUMN_KEY_PROFILING_DATA_COUNT:
+        if app.is_enabled_profiling and column in [COLUMN_KEY_PROFILING_DATA_COUNT, COLUMN_KEY_PROFILING_DATA_STATUS]:
             profiling_metric_info = QueryTemplate(
                 validated_data["bk_biz_id"], validated_data["app_name"]
             ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
@@ -631,6 +613,19 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             if service["topo_key"] in profiling_metric_info:
                 # 补充 profiling 数据
                 metric_info.update(profiling_metric_info[service["topo_key"]])
+
+            # profiling_data_status
+            metric_info.update(
+                {
+                    "profiling_data_status": (
+                        DataStatus.NORMAL
+                        if profiling_metric_info.get(service["topo_key"], {}).get("profiling_data_count")
+                        else DataStatus.NO_DATA
+                    )
+                    if app.is_enabled_profiling
+                    else DataStatus.DISABLED,
+                }
+            )
 
             res.append({"service_name": service_name, **self.get_async_column_item(metric_info, column)})
 
@@ -853,7 +848,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                         name=_lazy("调用链"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&conditionList={{"resource.service.name": '
                         '{{"selectedCondition": {{"label": "=","value": "equal"}},'
                         '"selectedConditionValue": ["{service}"]}},'
@@ -1030,8 +1025,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
         error_map = {}
 
-        has_event_trace_id = [i["trace_id"] for i in error_spans if i.get("events")]
-
         for span in error_spans:
             service = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
             if not service:
@@ -1050,8 +1043,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             else:
                 exception_type = self.UNKNOWN_EXCEPTION_TYPE
                 key = (service, endpoint, exception_type)
-                if span["trace_id"] not in has_event_trace_id:
-                    self.handle_error_map(error_map, key, service, endpoint, span)
+                self.handle_error_map(error_map, key, service, endpoint, span)
 
         return [
             self.combine_errors(bk_biz_id, service_mappings, **service_error_map)
@@ -1547,7 +1539,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                         name=_lazy("调用链"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&conditionList={{"resource.service.name": {{'
                         '"selectedCondition": {{"label": "=","value": "equal"}},'
                         '"selectedConditionValue": ["{service_name}"]}},'
@@ -2091,7 +2083,7 @@ class ServiceQueryExceptionResource(PageListResource):
                 url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                 + '&search_type=scope'
                 + '&listType=trace'
-                + '&start_tiem={start_time}&end_tiem={end_time}'
+                + '&start_time={start_time}&end_time={end_time}'
                 + '&query=status.code:+2+'
                 + '&conditionList={{"resource.service.name": '
                 + '{{"selectedCondition": {{"label": "=","value": "equal"}},'

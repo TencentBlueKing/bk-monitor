@@ -33,7 +33,7 @@ import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { deepClone, random } from 'monitor-common/utils';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
-import DimensionConditionInput from './components/dimension-input';
+import DimensionConditionInput from './components/dimension-input/dimension-input';
 import FormItem from './components/form-item';
 import WhereDisplay from './components/where-display';
 
@@ -106,10 +106,10 @@ export default defineComponent({
       () => props.show,
       async show => {
         if (show) {
-          strategyList.value = [];
+          // strategyList.value = [];
           getDimensionList();
-          strategyList.value = await getStrategyList();
-          allStrategy.list = [...strategyList.value];
+          // strategyList.value = await getStrategyList();
+          // allStrategy.list = [...strategyList.value];
         }
       },
       {

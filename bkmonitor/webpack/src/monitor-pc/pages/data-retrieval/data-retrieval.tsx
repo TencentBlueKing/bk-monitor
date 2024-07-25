@@ -537,13 +537,8 @@ export default class DataRetrieval extends tsc<object> {
   }
   /** 非路由组件无法触发 BeforeRouteEnter 钩子 在其父组件触发后跳用此方法 */
   handleBeforeRouteEnter(to: Route, from: Route) {
-    const {
-      targets,
-      type,
-      from: fromTime,
-      to: toTime,
-      timezone,
-    } = this.$route.query.targets ? this.$route.query : this.$route.params;
+    const { targets, type, timezone } = this.$route.query.targets ? this.$route.query : this.$route.params;
+    const { from: fromTime, to: toTime } = this.$route.query.from ? this.$route.query : this.$route.params;
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
     this.compareValue.tools.timezone = getDefaultTimezone();

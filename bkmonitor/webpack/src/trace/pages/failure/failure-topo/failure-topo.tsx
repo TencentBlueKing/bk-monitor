@@ -162,7 +162,6 @@ export default defineComponent({
     const accumulatedWidth = (text, maxWidth = 80) => {
       const context = graph.get('canvas').get('context'); // 获取canvas上下文用于测量文本
       const textWidth = context.measureText(text).width;
-
       if (textWidth > maxWidth) {
         let truncatedText = '';
         let accumulatedWidth = 0;
@@ -519,9 +518,10 @@ export default defineComponent({
         {
           afterDraw(cfg, group) {
             const shape = group.get('children')[0];
-            const { is_anomaly, anomaly_score } = cfg;
+            const { is_anomaly, anomaly_score, events } = cfg;
             const lineDash = anomaly_score === 0 ? [6] : [10];
             if (is_anomaly) {
+              const { direction } = events[0];
               let index = 0;
               // 这里改为定时器执行，自带的动画流动速度控制不了
               edgeInterval.push(
@@ -533,7 +533,7 @@ export default defineComponent({
                     }
                     const res = {
                       lineDash,
-                      lineDashOffset: -index,
+                      lineDashOffset: direction === 'reverse' ? index : -index,
                     };
                     return res;
                   });
@@ -940,7 +940,7 @@ export default defineComponent({
             // nodeEntityId.value = tooltipsModel.value.entity.entity_id;
           }
           tooltipsType.value = type;
-          return tooltipsRef.value.$el;
+          return tooltipsRef.value.$el as HTMLDivElement;
         },
       });
     };
@@ -961,7 +961,8 @@ export default defineComponent({
       graph.render();
       /** 将红线置顶 */
       setTimeout(toFrontAnomalyEdge, 500);
-      ElkjsUtils.setRootComboStyle(topoRawDataCache.value.complete.combos, graph.getWidth());
+      const combos = graph.getCombos().map(combo => combo.getModel());
+      ElkjsUtils.setRootComboStyle(combos, graph.getWidth());
       const zoom = localStorage.getItem('failure-topo-zoom');
       if (zoom) {
         handleZoomChange(zoom);
@@ -993,11 +994,10 @@ export default defineComponent({
       const { combos = [], nodes = [], sub_combos = [] } = data || {};
       nodes.forEach(node =>
         Object.assign(node, {
-          width: 76,
+          width: 90,
           height: 92,
           comboId: ElkjsUtils.getComboId(node.comboId),
           subComboId: ElkjsUtils.getComboId(node.subComboId),
-          isCombo: false,
         })
       );
       combos.forEach(formatComboOption);
@@ -1324,6 +1324,16 @@ export default defineComponent({
       // 监听鼠标离开节点
       graph.on('node:mouseleave', e => {
         const nodeItem = e.item;
+        /** 移出隐藏名称 */
+        const model = nodeItem.getModel() as ITopoNode;
+        if (model.subComboId) {
+          const combo = graph.findById(model.subComboId);
+          if (!combo) return;
+          const label = combo.getContainer().find(element => element.get('type') === 'text');
+          if (label) {
+            label.attr('opacity', 0);
+          }
+        }
         graph.setItemState(nodeItem, 'hover', false);
       });
       /** resize之后的render 调用一次缓存的函数 通知可以播放 */
@@ -1490,7 +1500,8 @@ export default defineComponent({
         if (!isShow) {
           if (node) {
             next = true;
-            graph.updateItem(node, { ...node, ...item });
+            /** diff中的节点 comboId没有经过布局处理，延用node之前已设置过的id即可 */
+            graph.updateItem(node, { ...node, ...item, comboId: node.getModel().comboId });
             graph.setItemState(node, 'show-animate', randomStr);
             const edges = (node as any).getEdges();
             edges.forEach(edge => {
@@ -1503,7 +1514,8 @@ export default defineComponent({
             });
           }
         } else {
-          graph.updateItem(node, item);
+          /** diff中的节点 comboId没有经过布局处理，延用node之前已设置过的id即可 */
+          graph.updateItem(node, { ...item, comboId: node.getModel().comboId });
         }
       });
       const combos = graph.getCombos().filter(combo => combo.getModel().parentId);

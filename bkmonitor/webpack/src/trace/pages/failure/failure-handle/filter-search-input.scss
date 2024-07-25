@@ -16,6 +16,11 @@
     background-color: white;
     // border: 1px solid #c4c6cc;
     border-radius: 2px;
+    &.error {
+      .bk-input {
+        border: 1px solid #ff5656;
+      }
+    }
 
     .filter-icon {
       width: 24px !important;
@@ -110,7 +115,7 @@
   z-index: 9999;
   display: flex;
 
-  width: 100% !important;
+  width: 70% !important;
   height: 280px; 
   overflow: auto;
   font-size: 12px;

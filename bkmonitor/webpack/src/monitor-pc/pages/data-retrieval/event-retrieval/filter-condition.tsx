@@ -74,14 +74,14 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
   noNeedValueConditonMap = ['exists', 'does not exists'];
 
   /** 不同数据类型的维度所需的method不同 */
-  @Watch('currentValue.key')
+  @Watch('currentValue.key', { immediate: true })
   getMethodList() {
     const type = this.curGroupByType;
     const methodMap = {
       number: NUMBER_CONDITION_METHOD_LIST,
       string: STRING_CONDITION_METHOD_LIST,
     };
-    this.conditionOption = methodMap[type] ?? [];
+    this.conditionOption = methodMap[type] ?? STRING_CONDITION_METHOD_LIST;
   }
 
   /** 维度的数据类型 */
@@ -112,7 +112,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
 
   @Watch('value', { immediate: true })
   valueChange() {
-    this.localValue = deepClone(this.value);
+    this.localValue = deepClone(this.value?.filter(item => item.key));
   }
   @Emit('change')
   emitLocalValue() {
@@ -147,7 +147,9 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
       zIndex: 1000,
       animation: 'slide-toggle',
       followCursor: false,
-      onHidden: () => (this.curTarget = null),
+      onHidden: () => {
+        this.curTarget = null;
+      },
     });
     this.curTarget = target;
   }
@@ -176,10 +178,11 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
    */
   async handleShowAddCondition(evt: Event, type: IFilterCondition.AddType, index?: number) {
     evt.stopPropagation();
+    const val = this.localValue[index];
     this.curAddType = type;
     type === 'add' && this.initCurValue();
     if (type === 'edit') {
-      this.currentValue = deepClone(this.localValue[index]);
+      this.currentValue = deepClone(val);
       this.currentIndex = index;
     }
     this.handleGetVarList();
@@ -198,7 +201,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
   initCurValue() {
     this.currentValue = {
       key: this.groupBy[0]?.id,
-      method: this.conditionOption[0]?.id as string,
+      method: (this.conditionOption[0]?.id as string) || 'eq',
       value: [],
       condition: 'and',
     };
@@ -258,7 +261,6 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
     if (valueCache) {
       this.valueOption = valueCache;
     } else {
-      this.currentValue.value = [];
       this.loading = true;
       getVariableValue(this.handleVarParams)
         .then(res => {
@@ -267,12 +269,35 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
               id: item.value,
               name: item.label,
             })) || [];
+          this.valueOption.push({
+            id: '',
+            name: this.$t('- 空 -'),
+          });
           this.varListCache.set(key, this.valueOption);
         })
-        .finally(() => (this.loading = false));
+        .finally(() => {
+          this.loading = false;
+        });
     }
   }
 
+  handleFieldSelected() {
+    this.currentValue.value = [];
+    this.handleGetVarList();
+  }
+  // value变化时触发
+  async handleValueChange(values: string[]) {
+    const hasEmpty = values?.length > 1 && values.some(v => v === '');
+    if (hasEmpty) {
+      if (this.currentValue.value?.some(v => v === '')) {
+        this.currentValue.value = values.filter(Boolean);
+        return;
+      }
+      this.currentValue.value = [''];
+      return;
+    }
+    this.currentValue.value = values;
+  }
   render() {
     return (
       <div class='filter-condition-wrapper'>
@@ -288,6 +313,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
         <ul class='selected-condition-list'>
           {this.localValue.map((item, index) => (
             <li
+              key={index}
               class='selected-condition-item'
               onClick={evt => this.handleShowAddCondition(evt, 'edit', index)}
             >
@@ -307,7 +333,19 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                 class='selected-condition-value'
                 v-bk-overflow-tips
               >
-                {item.value.map(val => this.findOptionName(val, this.valueOption)).join(',')}
+                {item.value
+                  .map(val =>
+                    this.findOptionName(
+                      val,
+                      this.varListCache.get(val) || [
+                        {
+                          id: '',
+                          name: this.$t(' - 空 -'),
+                        },
+                      ]
+                    )
+                  )
+                  .join(',')}
               </span>
               <i
                 class='icon-monitor icon-mc-close'
@@ -332,11 +370,12 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                     vModel={this.currentValue.key}
                     clearable={false}
                     allow-create
-                    onSelected={this.handleGetVarList}
+                    onSelected={this.handleFieldSelected}
                   >
                     {this.groupBy.map(item => (
                       <bk-option
                         id={item.id}
+                        key={item.id}
                         name={item.name}
                       />
                     ))}
@@ -351,6 +390,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                     {this.conditionOption.map(item => (
                       <bk-option
                         id={item.id}
+                        key={item.id}
                         name={item.name}
                       />
                     ))}
@@ -360,13 +400,27 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                   <span class='filter-select filter-select-value'>
                     <div class='select-label'>{this.$t('值')}</div>
                     <bk-tag-input
-                      vModel={this.currentValue.value}
                       list={this.valueOption}
                       placeholder={this.valuePlaceholder}
                       trigger='focus'
+                      value={this.currentValue.value}
                       allow-auto-match
                       allow-create
+                      on-change={this.handleValueChange}
                     />
+                    {/* <bk-tag-input
+              key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
+              class='condition-item condition-item-value'
+              content-width={getPopoverWidth(this.getValueOptions(item), 20, 190)}
+              list={this.getValueOptions(item)}
+              paste-fn={v => this.handlePaste(v, item)}
+              trigger='focus'
+              value={item.value}
+              allow-auto-match
+              allow-create
+              has-delete-icon
+              on-change={(v: string[]) => this.handleValueChange(item, v)}
+            />, */}
                   </span>
                 ) : undefined}
               </div>
