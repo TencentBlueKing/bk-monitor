@@ -373,7 +373,10 @@ export default defineComponent({
           : false,
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => [
           cell ? (
-            <div class='link-column'>
+            <div
+              key={cell}
+              class='link-column'
+            >
               <span
                 class='link-text link-server'
                 onClick={() => handleOpenService(cell)}
@@ -410,7 +413,10 @@ export default defineComponent({
           : false,
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => [
           cell ? (
-            <div class='link-column'>
+            <div
+              key={cell}
+              class='link-column'
+            >
               <span
                 class='link-text link-server'
                 onClick={() => handleOpenEndpoint(cell, data?.root_service)}
