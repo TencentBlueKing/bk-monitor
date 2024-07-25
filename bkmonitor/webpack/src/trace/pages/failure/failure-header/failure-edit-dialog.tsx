@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue';
@@ -76,7 +76,8 @@ export default defineComponent({
       editDialogRef.value?.validate().then(() => {
         btnLoading.value = true;
         const { incident_name, level, assignees, labels, incident_reason, id, incident_id } = incidentDetailData.value;
-        editIncident({ incident_name, level, assignees, labels, incident_reason, incident_id, id })
+        const newLabels = labels.map(item => `/${item}/`);
+        editIncident({ incident_name, level, assignees, labels: newLabels, incident_reason, incident_id, id })
           .then(() => {
             Message({
               theme: 'success',
@@ -99,6 +100,15 @@ export default defineComponent({
     onMounted(() => {
       getLabelList();
     });
+    watch(
+      () => props.visible,
+      (val) => {
+        if (val) {
+          const labels = incidentDetailData.value.labels.map(item => item.replace(/\//g, ''));
+          incidentDetailData.value.labels = labels;
+        }
+      },
+    );
     return {
       t,
       incidentDetailData,
@@ -162,7 +172,7 @@ export default defineComponent({
           >
             <Radio.Group v-model={this.incidentDetailData.level}>
               {Object.values(this.$props.levelList || {}).map((item: any) => (
-                <Radio label={item.name}>
+                <Radio label={item.name} key={item.key}>
                   <i class={`icon-monitor icon-${item.key} radio-icon ${item.key}`} />
                   {this.t(item.label)}
                 </Radio>

@@ -89,11 +89,12 @@
 
     .business-tag,
     .principal-tag {
+      color: #3a84ff;
       background: transparent;
 
       .bk-select-tag {
         border: 0;
-        background: transparent;
+        background: transparent !important;
         height: auto;
         min-height: auto;
         padding-top: 1px;
@@ -110,9 +111,9 @@
         }
 
         .bk-tag--default {
-          background-color: #fafbfd;
+          background-color: #fafbfd !important;
           &:hover {
-            background-color: #fafbfd;
+            background-color: #fafbfd !important;
           }
         }
       }
@@ -122,6 +123,9 @@
       }
 
       .angle-up {
+        display: none !important;
+      }
+      .angle-down {
         display: none !important;
       }
     }
@@ -154,7 +158,7 @@
       position: absolute;
       top: 0;
       left: 0;
-      z-index: 9999;
+      z-index: 1002;
     }
   }
 
