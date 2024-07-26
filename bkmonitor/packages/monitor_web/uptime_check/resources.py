@@ -1322,7 +1322,7 @@ class UptimeCheckBeatResource(Resource):
             if not bk_host_id:
                 # 上报数据未带上bk_host_id， 则从cmdb数据中补充
                 bk_host_id = node_to_host_dict[host_ip_key].bk_host_id
-
+            bk_host_id = int(bk_host_id)
             node_status = {
                 "bk_host_id": bk_host_id,
                 "ip": i["ip"],
