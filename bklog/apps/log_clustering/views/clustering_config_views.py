@@ -21,20 +21,27 @@ the project delivered to anyone in the future.
 """
 import re
 
+from pipeline.service import task_service
+from rest_framework.response import Response
+
+from apps.api import MonitorApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.generic import APIViewSet
-from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
+from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT, StrategiesType
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
+from apps.log_clustering.models import SignatureStrategySettings
 from apps.log_clustering.serializers import (
     ClusteringConfigSerializer,
     ClusteringPreviewSerializer,
+    NewClsStrategySerializer,
+    NormalStrategySerializer,
+    UserGroupsSerializer,
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
-from pipeline.service import task_service
-from rest_framework.response import Response
 
 
 class ClusteringConfigViewSet(APIViewSet):
@@ -117,15 +124,6 @@ class ClusteringConfigViewSet(APIViewSet):
     def fail_pipeline(self, request, *args, **kwargs):
         action_result = task_service.forced_fail(request.query_params.get("node_id", ""))
         return Response({"result": action_result.result, "message": action_result.message})
-
-    @detail_route(methods=["GET"], url_path="create_new_cls_strategy")
-    def create_clustering_new_cls_strategy(self, request, *args, index_set_id=None, **kwargs):
-        from apps.log_clustering.handlers.clustering_monitor import (
-            ClusteringMonitorHandler,
-        )
-
-        strategy_id = ClusteringMonitorHandler(index_set_id=index_set_id).create_clustering_new_cls_strategy()
-        return Response({"strategy_id": strategy_id})
 
     @detail_route(methods=["POST"])
     def create_or_update(self, request, *args, **kwargs):
@@ -305,3 +303,224 @@ class ClusteringConfigViewSet(APIViewSet):
             logger.error("check regexp failed: %s", e)
             return Response(False)
         return Response(True)
+
+    @list_route(methods=["post"], url_path="search_user_groups")
+    def search_user_groups(self, request):
+        """
+        @api {get} clustering_config/search_user_groups/ 查询通知组
+        @apiName search user groups
+        @apiGroup log_clustering
+        @apiSuccessExample {json} 成功返回:
+        {
+        "result": true,
+        "data": [
+            {
+                "id": 12,
+                "name": "Kafka_1",
+                "bk_biz_id": 12,
+                "need_duty": false,
+                "channels": [
+                    "user"
+                ],
+                "desc": "",
+                "timezone": "Asia/Shanghai",
+                "update_user": "admin",
+                "update_time": "2024-07-22 11:05:28+0800",
+                "create_user": "db",
+                "create_time": "2023-10-24 14:32:30+0800",
+                "duty_rules": [],
+                "mention_list": [],
+                "mention_type": 1,
+                "app": "",
+                "users": [
+                    {
+                        "id": "admin",
+                        "display_name": "admin",
+                        "type": "user"
+                    }
+                ],
+                "strategy_count": 0,
+                "rules_count": 1,
+                "delete_allowed": false,
+                "edit_allowed": true,
+                "config_source": "UI"
+                }
+            ]
+        }
+        """
+        params = self.params_valid(UserGroupsSerializer)
+        data = MonitorApi.search_user_groups({"bk_biz_ids": params["bk_biz_ids"], "ids": params["ids"]})
+        return Response(data)
+
+    @detail_route(methods=["get"], url_path="get_strategies")
+    def get_strategies(self, request, index_set_id=None):
+        """
+        @api {get} clustering_config/$index_set_id/get_strategies/ 获取新类和数量突增告警策略
+        @apiName get_strategies
+        @apiGroup log_clustering
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiSuccessExample {json} 成功返回:
+        {
+        "result": true,
+        "data": {
+            "new_cls": {
+             "interval": "7",
+             "threshold": null,
+             "level": "8",
+             "user_groups": [
+                {
+                   "id": 125,
+                   "name": "Kafka_DBA_3",
+                   "bk_biz_id": 4,
+                   "need_duty": false,
+                   "channels": [
+                      "user"
+                   ],
+                   "desc": "",
+                   "timezone": "Asia/Shanghai",
+                   "update_user": "admin",
+                   "update_time": "2024-07-23 22:51:32+0800",
+                   "create_user": "dba",
+                   "create_time": "2023-10-24 14:32:30+0800",
+                   "duty_rules": [],
+                   "mention_list": [],
+                   "mention_type": 1,
+                   "app": "",
+                   "users": [
+                      {
+                         "id": "admin",
+                         "display_name": "admin",
+                         "type": "user"
+                      },
+                      {
+                         "id": "hon",
+                         "display_name": "hon",
+                         "type": "user"
+                      }
+                   ],
+                   "strategy_count": 0,
+                   "rules_count": 1,
+                   "delete_allowed": false,
+                   "edit_allowed": true,
+                   "config_source": "UI"
+                },
+             ]
+          },
+          "normal": {
+             "sensitivity": null,
+             "level": null,
+             "user_groups": [
+                {
+                   "id": 125,
+                   "name": "Kafka_DBA_3",
+                   "bk_biz_id": 4,
+                   "need_duty": false,
+                   "channels": [
+                      "user"
+                   ],
+                   "desc": "",
+                   "timezone": "Asia/Shanghai",
+                   "update_user": "admin",
+                   "update_time": "2024-07-23 22:51:32+0800",
+                   "create_user": "dba",
+                   "create_time": "2023-10-24 14:32:30+0800",
+                   "duty_rules": [],
+                   "mention_list": [],
+                   "mention_type": 1,
+                   "app": "",
+                   "users": [
+                      {
+                         "id": "admin",
+                         "display_name": "admin",
+                         "type": "user"
+                      },
+                      {
+                         "id": "hong",
+                         "display_name": "hong",
+                         "type": "user"
+                      }
+                   ],
+                   "strategy_count": 0,
+                   "rules_count": 1,
+                   "delete_allowed": false,
+                   "edit_allowed": true,
+                   "config_source": "UI"
+                }
+             ]
+          }
+         },
+        "code": 0,
+        "message": ""
+        }
+        """
+        data = {"new_cls": {}, "normal": {}}
+        objs = SignatureStrategySettings.objects.filter(index_set_id=index_set_id).values(
+            "strategy_type", "interval", "threshold", "alarm_level", "user_groups", "sensitivity"
+        )
+        for obj in objs:
+            ids = obj["user_groups"].split(",") if obj["user_groups"] else []
+            if ids:
+                user_groups = MonitorApi.search_user_groups({"bk_biz_ids": [], "ids": ids})
+            else:
+                user_groups = []
+            if obj["strategy_type"] == "new_cls_strategy":
+                data["new_cls"] = {
+                    "interval": obj["interval"],
+                    "threshold": obj["threshold"],
+                    "level": obj["alarm_level"],
+                    "user_groups": user_groups,
+                }
+            elif obj["strategy_type"] == "normal_strategy":
+                data["normal"] = {
+                    "sensitivity": obj["sensitivity"],
+                    "level": obj["alarm_level"],
+                    "user_groups": user_groups,
+                }
+        return Response(data)
+
+    @detail_route(methods=["post"], url_path="new_cls_strategy")
+    def create_or_update_new_cls_strategy(self, request, index_set_id=None):
+        """
+        @api {get} clustering_config/$index_set_id/new_cls_strategy/ 更新或创建新类告警策略
+        @apiName new_cls_strategy
+        @apiGroup log_clustering
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": 12345
+            "code": 0,
+            "message": ""
+        }
+        """
+        strategy_type = StrategiesType.NEW_CLS_strategy
+        params = self.params_valid(NewClsStrategySerializer)
+        return Response(
+            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
+                params, strategy_type
+            )
+        )
+
+    @detail_route(methods=["post"], url_path="normal_strategy")
+    def create_or_update_normal_strategy(self, request, index_set_id=None):
+        """
+        @api {get} clustering_config/$index_set_id/new_cls_strategy/ 更新或创建数量突增告警策略
+        @apiName normal_strategy
+        @apiGroup log_clustering
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": 12345
+            "code": 0,
+            "message": ""
+        }
+        """
+        strategy_type = StrategiesType.NORMAL_STRATEGY
+        params = self.params_valid(NormalStrategySerializer)
+
+        return Response(
+            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
+                params, strategy_type
+            )
+        )

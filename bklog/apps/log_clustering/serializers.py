@@ -168,6 +168,25 @@ class UpdateNewClsStrategySerializer(serializers.Serializer):
         return attrs
 
 
+class UserGroupsSerializer(serializers.Serializer):
+    bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), label=_("业务ID"), required=False, default=[])
+    ids = serializers.ListField(child=serializers.IntegerField(), label=_("用户组ID"), required=False, default=[])
+
+
+class StrategySerializer(serializers.Serializer):
+    level = serializers.ChoiceField(label=_("告警级别"), choices=[1, 2, 3])
+    user_groups = serializers.ListField(child=serializers.IntegerField(), label=_("告警组"))
+
+
+class NewClsStrategySerializer(StrategySerializer):
+    interval = serializers.IntegerField(label=_("告警间隔"))
+    threshold = serializers.IntegerField(label=_("告警阈值"))
+
+
+class NormalStrategySerializer(StrategySerializer):
+    sensitivity = serializers.IntegerField(label=_("敏感度"))
+
+
 class SubscriberSerializer(serializers.Serializer):
     id = serializers.CharField()
     type = serializers.CharField(required=False)
