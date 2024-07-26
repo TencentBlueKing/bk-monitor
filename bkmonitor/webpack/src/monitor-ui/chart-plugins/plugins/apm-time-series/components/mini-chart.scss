@@ -1,10 +1,33 @@
 /* stylelint-disable declaration-no-important */
 .details-side-mini-chart {
+  position: relative;
   width: 100%;
-  min-width: 111px;
-  min-height: 24px;
-
+  height: 50px;
+  // height: 24px;
+  // height: calc(24px * 3);
+  // transform: scaleY(0.33);
+  
   & > div {
     cursor: crosshair !important;
+  }
+}
+
+.details-side-mini-chart-tooltip {
+  height: 54px !important;
+  padding: 6px 8px 6px 12px !important;
+  font-size: 12px !important;
+  line-height: 21px !important;
+  color: #fff !important;
+  background: #000000cc !important;
+  border-radius: 2px !important;
+
+  .left-compare-type {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    border-top-left-radius: 2px;
+    border-bottom-left-radius: 2px;
   }
 }
