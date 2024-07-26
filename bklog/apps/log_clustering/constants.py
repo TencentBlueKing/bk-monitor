@@ -130,19 +130,26 @@ DEFAULT_PATTERN_MONITOR_MSG = """{{content.level}}
 [更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
 """
 
-DEFAULT_PATTERN_RECOVER_MSG = """{{content.level}}
+DEFAULT_PATTERN_RECOVER_MSG = """
+{{content.level}}
 {{content.begin_time}}
 {{content.time}}
 {{content.duration}}
 {{content.target_type}}
 {{content.data_source}}
-{{content.content}}
 {{content.current_value}}
 {{content.biz}}
 {{content.target}}
 {{content.dimension}}
 {{content.detail}}
-日志示例: {{ json.loads(alarm.related_info)["__clustering_field__"] }}
+
+**内容:** 智能模型检测到异常, 异常类型: {{alarm.bkm_info.alert_msg}}, 近 {{ (strategy.items[0].query_configs[0]["agg_interval"]\
+ / 60) | int }} 分钟出现次数 ({{alarm.current_value | int }})
+**负责人:** {{ json.loads(alarm.related_info)["owners"] or '无' }}
+**备注:** {% if "remark_text" in json.loads(alarm.related_info) %}{{ json.loads(alarm.related_info)["remark_text"] }}\
+【{{ json.loads(alarm.related_info)["remark_time"] }}】({{ json.loads(alarm.related_info)["remark_user"] }} ){% else %}\
+ 无 {% endif %}
+**日志示例:** {{ json.loads(alarm.related_info)["log"] }}
 [更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
 """
 
@@ -150,6 +157,18 @@ DEFAULT_PATTERN_RECOVER_MSG = """{{content.level}}
 class StrategiesType(object):
     NEW_CLS_strategy = "new_cls_strategy"
     NORMAL_STRATEGY = "normal_strategy"
+
+
+class StrategiesAlarmLevelEnum(ChoicesEnum):
+    CRITICAL = 1
+    WARNING = 2
+    REMIND = 3
+
+    _choices_labels = (
+        (CRITICAL, _lazy("致命")),
+        (WARNING, _lazy("预警")),
+        (REMIND, _lazy("提醒")),
+    )
 
 
 class YearOnYearEnum(ChoicesEnum):
