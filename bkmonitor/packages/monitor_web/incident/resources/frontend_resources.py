@@ -15,6 +15,7 @@ from typing import Any, Dict, List
 import arrow
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import ugettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
@@ -155,7 +156,7 @@ class IncidentBaseResource(Resource):
         for incident_key, incident_value in incident_info.items():
             if (
                 hasattr(incident_document, incident_key)
-                and getattr(incident_document, incident_key)
+                and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
                 and incident_value
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
@@ -763,25 +764,25 @@ class IncidentHandlersResource(IncidentBaseResource):
         handlers = {
             "all": {
                 "id": "all",
-                "name": "全部",
+                "name": _("全部"),
                 "index": 1,
                 "alert_count": len(alerts),
             },
             "not_dispatch": {
                 "id": "not_dispatch",
-                "name": "未分派",
+                "name": _("未分派"),
                 "index": 2,
                 "alert_count": 0,
             },
             "mine": {
                 "id": current_username,
-                "name": "我负责",
+                "name": _("我处理"),
                 "index": 3,
                 "alert_count": alert_agg_results.get(current_username, 0),
             },
             "other": {
                 "id": "other",
-                "name": "其他",
+                "name": _("其他"),
                 "index": 4,
                 "children": [
                     {
@@ -817,6 +818,7 @@ class IncidentOperationsResource(IncidentBaseResource):
             validated_request_data["incident_id"],
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
+            order_by="-create_time",
         )
         operations = [operation.to_dict() for operation in operations]
         for operation in operations:
@@ -865,6 +867,7 @@ class IncidentOperationTypesResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         operations = IncidentOperationDocument.list_by_incident_id(
             validated_request_data["incident_id"],
+            order_by="-create_time",
         )
         incident_operation_types = {operation.operation_type for operation in operations}
 
