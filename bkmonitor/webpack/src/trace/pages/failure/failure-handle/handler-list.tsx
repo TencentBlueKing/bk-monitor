@@ -64,7 +64,7 @@ export default defineComponent({
     const sortRef = ref(null);
     const searchText = ref<string>('');
     const incidentId = useIncidentInject();
-    const activeId = ref<string>('admin');
+    const activeId = ref<string>(window.user_name || window.username);
     const getIncidentHandlers = () => {
       listLoading.value = true;
       incidentHandlers({

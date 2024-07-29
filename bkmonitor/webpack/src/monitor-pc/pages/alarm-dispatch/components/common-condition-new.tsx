@@ -285,7 +285,7 @@ export default class CommonCondition extends tsc<IProps> {
           id: keyItem?.id || condition.field,
           name: keyItem?.name || condition.field,
           type: TypeEnum.key,
-          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
+          alias: keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tempTags.push({
           id: methodItem?.id || METHODS[0].id,
@@ -372,7 +372,7 @@ export default class CommonCondition extends tsc<IProps> {
     if (this.canNotClick) {
       return;
     }
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
     }
   }
@@ -389,14 +389,14 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event?.stopPropagation?.();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
     if (!this.tagList[index].tags.some(item => item.type === TypeEnum.input)) {
       this.tagList[index].tags.push(inputTag);
     }
-    if (!!this.tagList[index].condition) {
+    if (this.tagList[index].condition) {
       const len = this.tagList[index].tags.length;
       const lastTag = this.tagList[index].tags[len - 2];
       if (lastTag.type === TypeEnum.key) {
@@ -459,7 +459,7 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event.stopPropagation();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
@@ -479,7 +479,7 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event.stopPropagation();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
@@ -497,7 +497,7 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event.stopPropagation();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
@@ -574,7 +574,7 @@ export default class CommonCondition extends tsc<IProps> {
         name: keyItem.name,
         type: TypeEnum.key,
       },
-      !!keyItem?.alias ? { alias: keyItem.alias } : {}
+      keyItem?.alias ? { alias: keyItem.alias } : {}
     );
     if (this.clickType === TypeEnum.key) {
       /* 通过点击keytag触发的 */
@@ -585,7 +585,7 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     this.tagList[this.curIndex[0]].tags.splice(this.curIndex[1], 0, tempItem);
-    if (!!this.tagList[this.curIndex[0]].condition) {
+    if (this.tagList[this.curIndex[0]].condition) {
       this.tagList[this.curIndex[0]].condition.field = keyItem.id;
     } else {
       this.tagList[this.curIndex[0]].condition = {
@@ -916,7 +916,7 @@ export default class CommonCondition extends tsc<IProps> {
       let keyList = [];
       if (item.id === 'dimensions') {
         const tempKeys = this.getDimensionKeys() as any;
-        if (!!tempKeys?.length) {
+        if (tempKeys?.length) {
           keyList = tempKeys;
         } else {
           keyList = this.groupKeys.get(item.id) || [];
@@ -925,11 +925,11 @@ export default class CommonCondition extends tsc<IProps> {
         keyList = this.groupKeys.get(item.id) || [];
       }
       const selectKeysSet = new Set();
-      this.tagList.forEach(t => {
-        if (!!t.condition?.field) {
+      for (const t of this.tagList) {
+        if (t.condition?.field) {
           selectKeysSet.add(t.condition.field);
         }
-      });
+      }
       this.keyListSecond = keyList.filter(k => !selectKeysSet.has(k.id));
       this.$nextTick(() => {
         this.showSecondPopfn(event);
@@ -1069,7 +1069,7 @@ export default class CommonCondition extends tsc<IProps> {
     };
     if (event.key === 'Enter') {
       if (this.selectType === TypeEnum.key) {
-        if (!!this.inputValue) {
+        if (this.inputValue) {
           const keyItem = this.keyList.find(kItem => kItem.name === this.inputValue);
           if (tagIndex === 0) {
             this.tagList[index].condition = {
@@ -1098,7 +1098,7 @@ export default class CommonCondition extends tsc<IProps> {
           }, 100);
         }
       } else if (this.selectType === TypeEnum.value) {
-        if (!!this.inputValue) {
+        if (this.inputValue) {
           const curValues = this.tagList[index].condition.value;
           if (!curValues.includes(this.inputValue)) {
             const key = this.tagList[index].condition.field;
@@ -1176,7 +1176,7 @@ export default class CommonCondition extends tsc<IProps> {
       const curCondition = JSON.parse(JSON.stringify(this.locaLValue?.[this.curIndex[0]]));
       let isIncluesSettings = false;
       curCondition.value = [...new Set(curCondition.value)];
-      if (!!curCondition) {
+      if (curCondition) {
         isIncluesSettings = conditionsInclues(curCondition, this.settingsValue);
       }
       if (isIncluesSettings) {

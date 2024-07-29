@@ -15,6 +15,7 @@ import logging
 import time
 from abc import ABCMeta
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Dict, List
 
@@ -626,7 +627,13 @@ class AlertRelatedInfoResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        ids = serializers.ListField(label="告警ID", child=AlertIDField())
+        ids = serializers.ListField(label="告警ID", child=AlertIDField(), required=False)
+        alerts = serializers.ListField(label="告警文档", required=False)
+
+        def validate(self, attrs):
+            if "ids" not in attrs and "alerts" not in attrs:
+                raise serializers.ValidationError("Either 'ids' or 'alerts' must be provided.")
+            return attrs
 
     @staticmethod
     def get_cmdb_related_info(alerts: List[AlertDocument]) -> Dict[str, Dict]:
@@ -675,7 +682,10 @@ class AlertRelatedInfoResource(Resource):
             elif event.target_type == EventTargetType.SERVICE:
                 instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = event.bk_service_instance_id
 
-        for bk_biz_id, instances in instances_by_biz.items():
+        set_template = _("集群({}) ")
+        module_template = _("模块({})")
+
+        def enrich_related_infos(bk_biz_id, instances):
             ips = instances["ips"]
             service_instance_ids = instances["service_instance_ids"]
             host_ids = instances["host_ids"]
@@ -732,16 +742,20 @@ class AlertRelatedInfoResource(Resource):
                 ]
 
                 if bk_set_ids:
-                    topo_info += _("集群({}) ").format(
+                    topo_info += set_template.format(
                         ",".join([set_names[bk_set_id] for bk_set_id in bk_set_ids if bk_set_id in set_names])
                     )
 
-                topo_info += _("模块({})").format(
+                topo_info += module_template.format(
                     ",".join(
                         [module_names[bk_module_id] for bk_module_id in bk_module_ids if bk_module_id in module_names]
                     )
                 )
                 related_infos[alert_id]["topo_info"] = topo_info
+
+        # 多线程处理每个业务的主机和服务实例信息
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            executor.map(enrich_related_infos, instances_by_biz.items())
 
         return related_infos
 
@@ -870,7 +884,11 @@ class AlertRelatedInfoResource(Resource):
         return related_infos
 
     def perform_request(self, validated_request_data):
-        alerts = AlertDocument.mget(validated_request_data["ids"])
+        if "ids" in validated_request_data:
+            alerts = AlertDocument.mget(validated_request_data["ids"])
+        else:
+            alerts = validated_request_data["alerts"]
+
         related_infos = defaultdict(dict)
 
         for func in [
@@ -1177,13 +1195,14 @@ class ExportAlertResource(Resource):
 
     def perform_request(self, validated_request_data):
         handler = AlertQueryHandler(**validated_request_data)
-        alerts = handler.export()
+        alert_docs, alerts = handler.export_with_docs()
+
+        related_infos = resource.alert.alert_related_info(alerts=alert_docs)
         id_key = AlertFieldDisplay.ID
-        ids = [item[id_key] for item in alerts]
-        related_infos = AlertRelatedInfoResource().perform_request({"ids": ids})
-        for alert_doc in alerts:
+        for alert in alerts:
             # 更新关联信息
-            alert_doc.update({AlertFieldDisplay.RELATED_INFO: related_infos.get(alert_doc[id_key], {})})
+            alert.update({AlertFieldDisplay.RELATED_INFO: related_infos.get(alert[id_key], {})})
+
         return resource.export_import.export_package(list_data=alerts)
 
 

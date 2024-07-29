@@ -37,8 +37,8 @@
       class="common-nav-bar-single"
       :need-back="true"
       :need-copy-link="true"
-      nav-mode="copy"
       :route-list="$store.getters.navRouteList"
+      nav-mode="copy"
     >
       <template slot="append">
         <span
@@ -91,10 +91,10 @@
             </div>
             <bk-input
               v-else
-              v-model="copyName"
-              style="width: 240px"
-              @blur="handleEditName"
               ref="nameInput"
+              style="width: 240px"
+              v-model="copyName"
+              @blur="handleEditName"
             />
           </div>
           <div class="detail-information-row">
@@ -112,10 +112,10 @@
             </div>
             <bk-input
               v-else
-              v-model="copyDataLabel"
-              style="width: 240px"
-              @blur="handleEditDataLabel"
               ref="dataLabelInput"
+              style="width: 240px"
+              v-model="copyDataLabel"
+              @blur="handleEditDataLabel"
             />
           </div>
           <div class="detail-information-row">
@@ -123,13 +123,13 @@
             <span class="row-content">{{ scenario }}</span>
           </div>
           <div
-            class="detail-information-row"
             v-if="type !== 'customEvent'"
+            class="detail-information-row"
           >
             <span class="row-label">{{ $t('上报协议') }} : </span>
             <span
-              class="row-content"
               v-if="detailData.protocol"
+              class="row-content"
             >
               {{ detailData.protocol === 'json' ? 'JSON' : 'Prometheus' }}
             </span>
@@ -147,15 +147,15 @@
               @change="handleIsPlatformChange"
             />
             <span
-              class="row-content"
               v-else
+              class="row-content"
             >
               {{ copyIsPlatform === false ? $t('本业务') : $t('全平台') }}
             </span>
           </div>
           <div
-            class="detail-information-row last-row"
             v-if="type !== 'customEvent'"
+            class="detail-information-row last-row"
           >
             <span class="row-label">{{ $t('描述') }} : </span>
             <span class="row-content">{{ detailData.desc || '--' }}</span>
@@ -173,10 +173,10 @@
                 {{ $t('事件列表') }}
               </div>
               <bk-button
-                v-bk-tooltips="{
-                  content: $tc('刷新')
-                }"
                 class="list-header-immediately"
+                v-bk-tooltips="{
+                  content: $tc('刷新'),
+                }"
                 icon="icon-monitor icon-mc-alarm-recovered"
                 @click="() => handleRefreshNow(true)"
               />
@@ -188,23 +188,23 @@
               >
                 <bk-option
                   v-for="(opt, index) in refreshList.list"
+                  :id="opt.value"
                   :key="index"
                   :name="opt.name"
-                  :id="opt.value"
                 />
               </bk-select>
               <bk-select
-                :popover-min-width="110"
                 class="list-header-date"
                 v-model="shortcuts.value"
                 :clearable="false"
+                :popover-min-width="110"
                 @change="handleTimeChange"
               >
                 <bk-option
                   v-for="(opt, index) in shortcuts.list"
+                  :id="opt.value"
                   :key="index"
                   :name="opt.name"
-                  :id="opt.value"
                 />
               </bk-select>
             </div>
@@ -214,8 +214,8 @@
             >
               <bk-table-column
                 :label="$t('事件名称')"
-                prop="custom_event_name"
                 min-width="100"
+                prop="custom_event_name"
               />
               <bk-table-column
                 :label="$t('目标数量')"
@@ -291,18 +291,18 @@
             :width="656"
           >
             <div
-              slot="header"
               class="sideslider-title"
+              slot="header"
             >
               <span>{{ sideslider.title + $t(' - 原始数据') }}</span>
               <span class="title-explain">{{ $t('（仅支持查看当前事件中最近一条的原始数据信息）') }}</span>
             </div>
             <div slot="content">
               <monaco-editor
-                :language="'json'"
-                :value="JSON.stringify(sideslider.data, null, '\t')"
-                :options="{ readOnly: true }"
                 style="height: calc(100vh - 61px)"
+                :language="'json'"
+                :options="{ readOnly: true }"
+                :value="JSON.stringify(sideslider.data, null, '\t')"
               />
             </div>
           </bk-sideslider>
@@ -328,9 +328,9 @@
                 </bk-button>
                 <div class="search-select-wrap">
                   <search-select
-                    :value="metricSearchValue"
                     :clearable="false"
                     :data="metricSearchData"
+                    :model-value="metricSearchValue"
                     @change="handleMetricSearchValue"
                   />
                 </div>
@@ -360,9 +360,9 @@
               </div>
               <monitor-import
                 style="margin-right: 24px"
-                accept=".csv"
-                :return-text="true"
                 :base64="false"
+                :return-text="true"
+                accept=".csv"
                 @change="handleImportMetric"
               >
                 <span class="icon-monitor icon-xiazai2 link" />
@@ -402,8 +402,8 @@
                 >
                   <div
                     v-if="!!selectionLeng"
-                    slot="prepend"
                     class="table-prepend"
+                    slot="prepend"
                   >
                     <span class="add-msg">
                       <i18n path="当前已选择{0}条数据">
@@ -445,8 +445,8 @@
                     </group-select> -->
                   </div>
                   <bk-table-column
-                    :render-header="renderSelectionHeader"
                     width="80"
+                    :render-header="renderSelectionHeader"
                     align="center"
                   >
                     <template #default="{ row }">
@@ -459,9 +459,9 @@
                   </bk-table-column>
                   <!-- 指标/维度 -->
                   <bk-table-column
-                    :render-header="renderMetricHeader"
-                    :label="$t('指标/维度')"
                     width="150"
+                    :label="$t('指标/维度')"
+                    :render-header="renderMetricHeader"
                   >
                     <template slot-scope="scope">
                       {{ scope.row.monitor_type === 'metric' ? $t('指标') : $t('维度') }}
@@ -469,26 +469,26 @@
                   </bk-table-column>
                   <!-- 分组 -->
                   <bk-table-column
-                    :render-header="renderGroupHeader"
                     :label="$t('分组')"
+                    :render-header="renderGroupHeader"
                     min-width="160"
                   >
                     <template slot-scope="scope">
                       <div style="display: flex">
                         <template v-if="scope.row.monitor_type === 'metric'">
                           <group-select-multiple
-                            :list="groupSelectList"
-                            :value="scope.row.labels.map(item => item.name)"
                             :groups-map="groupsMap"
+                            :list="groupSelectList"
                             :metric-name="scope.row.name"
+                            :value="scope.row.labels.map(item => item.name)"
                             @change="v => handleSelectGroup(v, scope.$index)"
                             @toggle="handleGroupSelectToggle"
                           >
                             <template v-if="scope.row.labels && scope.row.labels.length">
                               <div class="table-group-tags">
                                 <span
-                                  class="table-group-tag"
                                   v-for="item in scope.row.labels.map(item => item.name)"
+                                  class="table-group-tag"
                                   :key="item"
                                   @mouseenter="e => handleGroupTagTip(e, item)"
                                   @mouseleave="handleRemoveGroupTip"
@@ -523,9 +523,7 @@
                             </div>
                           </group-select> -->
                         </template>
-                        <template v-else>
-                          --
-                        </template>
+                        <template v-else> -- </template>
                       </div>
                     </template>
                   </bk-table-column>
@@ -554,16 +552,16 @@
                       <div class="cell-margin name">
                         <bk-input
                           v-model="scope.row.description"
-                          size="small"
-                          :placeholder="scope.row.monitor_type === 'metric' ? $t('输入指标别名') : $t('输入维度别名')"
-                          @blur="handleCheckDescName(scope.row, scope.$index)"
                           :class="{ 'input-err': scope.row.descReValue }"
+                          :placeholder="scope.row.monitor_type === 'metric' ? $t('输入指标别名') : $t('输入维度别名')"
+                          size="small"
+                          @blur="handleCheckDescName(scope.row, scope.$index)"
                         />
                         <bk-popover
                           class="change-name"
+                          :tippy-options="{ a11y: false }"
                           placemnet="top-start"
                           trigger="mouseenter"
-                          :tippy-options="{ a11y: false }"
                         >
                           <i
                             v-if="scope.row.descReValue"
@@ -580,37 +578,39 @@
                   </bk-table-column>
                   <!-- 类型 -->
                   <bk-table-column
-                    :label="$t('类型')"
                     width="120"
+                    :label="$t('类型')"
                     prop="type"
                   />
                   <!-- 单位 -->
                   <bk-table-column
-                    :label="$t('单位')"
                     width="170"
+                    :label="$t('单位')"
+                    :render-header="renderUnitHeader"
                     prop="unit"
                   >
                     <template slot-scope="scope">
                       <div
-                        class="cell-margin"
                         v-if="unit.value && unit.index === scope.$index && scope.row.monitor_type === 'metric'"
+                        class="cell-margin"
                         @mouseleave="handleMouseLeave"
                       >
                         <bk-select
                           v-model="scope.row.unit"
                           :clearable="false"
                           :popover-width="180"
+                          searchable
                           @toggle="handleToggleChange"
                         >
                           <bk-option-group
                             v-for="(group, index) in unitList"
-                            :name="group.name"
                             :key="index"
+                            :name="group.name"
                           >
                             <bk-option
                               v-for="option in group.formats"
-                              :key="option.id"
                               :id="option.id"
+                              :key="option.id"
                               :name="option.name"
                             />
                           </bk-option-group>
@@ -626,12 +626,22 @@
                     </template>
                   </bk-table-column>
                   <!-- 空数据 -->
-                  <div
-                    slot="empty"
+                  <!-- <div
                     class="empty"
+                    slot="empty"
                   >
                     <i class="icon-monitor icon-remind empty-icon" />
                     <div>{{ $t('暂无指标/维度') }}</div>
+                  </div> -->
+                  <div slot="empty">
+                    <empty-status
+                      :text-map="{
+                        empty: $t('暂无指标/维度'),
+                        'search-empty': $t('搜索结果为空'),
+                      }"
+                      :type="emptyType"
+                      @operation="handleEmptyOperation"
+                    ></empty-status>
                   </div>
                 </bk-table>
               </div>
@@ -644,9 +654,7 @@
                   <li class="host-type">
                     {{ $t('数据') }}
                   </li>
-                  <li class="data-time">
-                    {{ $t('数据时间:') }}{{ detailData.last_time || $t('无数据') }}
-                  </li>
+                  <li class="data-time">{{ $t('数据时间:') }}{{ detailData.last_time || $t('无数据') }}</li>
                 </ul>
                 <template v-if="metricTable.length">
                   <div v-bkloading="{ isLoading: dataLoading }">
@@ -655,8 +663,8 @@
                       class="space-item"
                     />
                     <div
-                      class="data-preview"
                       v-for="(item, index) in metricTable"
+                      class="data-preview"
                       :key="index"
                     >
                       {{ allDataPreview[item.name] || $t('近5分钟无数据上报') }}
@@ -670,18 +678,18 @@
               </div>
             </div>
             <bk-pagination
-              v-show="metricTable.length"
               class="list-pagination"
-              align="right"
-              size="small"
-              show-total-count
-              pagination-able
-              @change="handlePageChange"
-              @limit-change="handleLimitChange"
+              v-show="metricTable.length"
+              :count="pagination.total"
               :current="pagination.page"
               :limit="pagination.pageSize"
-              :count="pagination.total"
               :limit-list="pagination.pageList"
+              align="right"
+              size="small"
+              pagination-able
+              show-total-count
+              @change="handlePageChange"
+              @limit-change="handleLimitChange"
             />
           </div>
         </template>
@@ -691,20 +699,20 @@
           v-bk-tooltips="{
             content: $tc('非当前业务，不允许操作'),
             placements: ['top'],
-            disabled: !isReadonly
+            disabled: !isReadonly,
           }"
         >
           <bk-button
             v-if="type === 'customTimeSeries'"
+            class="mc-btn-add"
+            v-authority="{ active: !authority.MANAGE_CUSTOM_METRIC }"
+            :disabled="isReadonly"
+            theme="primary"
             @click="
               authority.MANAGE_CUSTOM_METRIC
                 ? handleSubmit()
                 : handleShowAuthorityDetail(customAuthMap.MANAGE_CUSTOM_METRIC)
             "
-            v-authority="{ active: !authority.MANAGE_CUSTOM_METRIC }"
-            :disabled="isReadonly"
-            theme="primary"
-            class="mc-btn-add"
           >
             {{ $t('提交') }}
           </bk-button>
@@ -718,8 +726,8 @@
         <!-- 右边展开收起按钮 -->
         <div
           class="right-button"
-          @click="isShowRightWindow = !isShowRightWindow"
           :class="{ 'active-buttom': isShowRightWindow }"
+          @click="isShowRightWindow = !isShowRightWindow"
         >
           <i
             v-if="isShowRightWindow"
@@ -766,13 +774,11 @@
             </div>
           </div>
           <div
-            class="content-row"
             v-if="detailData.protocol !== 'prometheus'"
+            class="content-row"
           >
             <span>{{ $t('命令行直接调用样例') }}</span>
-            <div class="content-example">
-              curl -g -X POST http://${PROXY_IP}:10205/v2/push/ -d '${REPORT_DATA}'
-            </div>
+            <div class="content-example">curl -g -X POST http://${PROXY_IP}:10205/v2/push/ -d '${REPORT_DATA}'</div>
           </div>
           <div v-if="detailData.protocol === 'prometheus'">
             <div class="content-title content-interval">
@@ -804,9 +810,7 @@
 
             <div class="content-row mt10">
               <div>{{ $t('各语言接入示例') }} :</div>
-              <div class="mt5">
-                Golang
-              </div>
+              <div class="mt5">Golang</div>
               <div class="mt5">
                 {{
                   $t(
@@ -867,8 +871,8 @@
             </div>
           </div>
           <div
-            class="content-row"
             v-else
+            class="content-row"
           >
             <span>{{ $t('数据上报格式样例') }}</span>
             <pre class="content-example">
@@ -890,17 +894,19 @@
     </div>
     <group-manage-dialog
       v-if="type === 'customTimeSeries'"
-      :show="groupManage.show"
-      :metric-list="metricList"
       :groups="groupList"
       :id="detailData.time_series_group_id"
-      @show="handleShowGroupManage"
+      :metric-list="metricList"
+      :show="groupManage.show"
       @change="handleGroupListChange"
+      @show="handleShowGroupManage"
     />
   </div>
 </template>
 
 <script lang="ts">
+import { Component, Mixins, Ref } from 'vue-property-decorator';
+
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import {
@@ -910,15 +916,23 @@ import {
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
-import type { CreateElement } from 'vue';
-import { Component, Mixins, Ref } from 'vue-property-decorator';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
+import EmptyStatus from '../../components/empty-status/empty-status';
 import MonitorExport from '../../components/monitor-export/monitor-export.vue';
 import MonitorImport from '../../components/monitor-import/monitor-import.vue';
 import TableFiter from '../../components/table-filter/table-filter-new.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
+import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
+import ColumnCheck from '../performance/column-check/column-check.vue';
+import { downCsvFile } from '../view-detail/utils';
+import * as customAuth from './authority-map';
+import GroupManageDialog, { matchRuleFn } from './group-manage-dialog';
+import GroupSelectMultiple from './group-select-multiple';
+import { csvToArr } from './utils';
+
+import type { EmptyStatusOperationType } from '../../components/empty-status/types';
 import type {
   IDetailData,
   IEditParams,
@@ -927,14 +941,7 @@ import type {
   IShortcuts,
   ISideslider,
 } from '../../types/custom-escalation/custom-escalation-detail';
-import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
-import ColumnCheck from '../performance/column-check/column-check.vue';
-import { downCsvFile } from '../view-detail/utils';
-
-import * as customAuth from './authority-map';
-import GroupManageDialog, { matchRuleFn } from './group-manage-dialog';
-import GroupSelectMultiple from './group-select-multiple';
-import { csvToArr } from './utils';
+import type { CreateElement } from 'vue';
 
 import '@blueking/search-select-v3/vue2/vue2.css';
 
@@ -956,6 +963,7 @@ interface IGroupListItem {
     GroupManageDialog,
     GroupSelectMultiple,
     SearchSelect,
+    EmptyStatus,
   },
 })
 export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(customAuth)) {
@@ -1043,6 +1051,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   metricCheckList: any = [];
   groupFilterList: string[] = [];
   metricFilterList: string[] = [];
+  unitFilterList: string[] = [];
   groupManage = {
     show: false,
   };
@@ -1051,25 +1060,10 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   metricSearchObj = {
     type: [],
     name: [],
+    enName: [],
+    unit: [],
+    text: [],
   };
-  metricSearchData = [
-    {
-      name: window.i18n.t('匹配方式'),
-      id: 'type',
-      multiple: false,
-      children: [
-        { id: 'auto', name: window.i18n.t('自动') },
-        { id: 'manual', name: window.i18n.t('手动') },
-      ],
-    },
-    {
-      name: window.i18n.t('组名'),
-      id: 'name',
-      multiple: false,
-      children: [],
-    },
-  ];
-
   /* 分组管理列表 */
   groupList: IGroupListItem[] = [];
   /* 每个匹配规则包含指标 */
@@ -1089,6 +1083,43 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   allDataPreview = {};
 
   eventDataLoading = false;
+
+  /* 所有单位数据 */
+  allUnitList = [];
+  /* 列表中已选的单位数据 */
+  tableAllUnitList = [];
+
+  get metricSearchData() {
+    return [
+      {
+        name: window.i18n.t('匹配方式'),
+        id: 'type',
+        multiple: false,
+        children: [
+          { id: 'auto', name: window.i18n.t('自动') },
+          { id: 'manual', name: window.i18n.t('手动') },
+        ],
+      },
+      {
+        name: window.i18n.t('组名'),
+        id: 'name',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('英文名'),
+        id: 'enName',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('单位'),
+        id: 'unit',
+        multiple: false,
+        children: this.allUnitList,
+      },
+    ];
+  }
   //  指标数量
   get metricNum() {
     return this.metricData.filter(item => item.monitor_type === 'metric').length;
@@ -1106,40 +1137,76 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   get metricTable() {
     const labelsMatchTypes = labels => {
       let temp = [];
-      labels.forEach(item => {
+      for (const item of labels) {
         temp = temp.concat(item.match_type);
-      });
+      }
       temp = [...new Set(temp)];
       return temp;
     };
+    // 模糊匹配
+    const fuzzyMatch = (str: string, pattern: string) => {
+      const lowerStr = String(str).toLowerCase();
+      const lowerPattern = String(pattern).toLowerCase();
+      return lowerStr.includes(lowerPattern);
+    };
     const leng1 = this.groupFilterList.length;
     const leng2 = this.metricFilterList.length;
+    const leng3 = this.unitFilterList.length;
     const typeLeng = this.metricSearchObj.type.length;
     const nameLeng = this.metricSearchObj.name.length;
-    const fiterList = this.metricData
-      .filter(item =>
-        leng1
+    const enNameLeng = this.metricSearchObj.enName.length;
+    const unitLeng = this.metricSearchObj.unit.length;
+    const textleng = this.metricSearchObj.text.length;
+    const filterList = this.metricData.filter(item => {
+      const isMetric = item.monitor_type === 'metric';
+      return (
+        (leng1
           ? this.groupFilterList.some(
               g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-            ) && item.monitor_type === 'metric'
-          : true
-      )
-      .filter(item => (leng2 ? this.metricFilterList.includes(item.monitor_type) : true))
-      .filter(item =>
-        typeLeng
-          ? item.monitor_type === 'metric' &&
-            this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
-          : true
-      )
-      .filter(item =>
-        nameLeng
-          ? item.monitor_type === 'metric' &&
-            this.metricSearchObj.name.some(n => item.labels.map(l => l.name).includes(n))
-          : true
+            ) && isMetric
+          : true) &&
+        (leng2 ? this.metricFilterList.includes(item.monitor_type) : true) &&
+        (leng3
+          ? this.unitFilterList.some(u => {
+              if (u === 'none') {
+                return isMetric && (item.unit === 'none' || !item.unit);
+              }
+              if (u === '--') {
+                return !isMetric;
+              }
+              return item.unit === u;
+            })
+          : true) &&
+        (typeLeng
+          ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
+          : true) &&
+        (nameLeng
+          ? isMetric && this.metricSearchObj.name.some(n => item.labels.some(l => fuzzyMatch(l.name, n)))
+          : true) &&
+        (enNameLeng ? this.metricSearchObj.enName.some(n => fuzzyMatch(item.name, n)) : true) &&
+        (unitLeng
+          ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || (isMetric ? 'none' : ''), u))
+          : true) &&
+        (textleng
+          ? this.metricSearchObj.text.some(t => {
+              const monitorType = {
+                指标: 'metric',
+                维度: 'dimension',
+              };
+              return (
+                item.monitor_type === t ||
+                monitorType?.[t] === item.monitor_type ||
+                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+                fuzzyMatch(item.name, t) ||
+                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+              );
+            })
+          : true)
       );
-    this.changePageCount(fiterList.length);
+    });
+    this.changePageCount(filterList.length);
     // this.handleGroupList(fiterList);
-    return fiterList.slice(
+    return filterList.slice(
       this.pagination.pageSize * (this.pagination.page - 1),
       this.pagination.pageSize * this.pagination.page
     );
@@ -1156,6 +1223,20 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
 
   get isReadonly() {
     return !!this.detailData.is_readonly;
+  }
+
+  get emptyType() {
+    let emptyType = 'empty';
+    for (const key in this.metricSearchObj) {
+      if (this.metricSearchObj[key].length) {
+        emptyType = 'search-empty';
+        break;
+      }
+    }
+    if (this.groupFilterList.length || this.metricFilterList.length || this.unitFilterList.length) {
+      emptyType = 'search-empty';
+    }
+    return emptyType;
   }
 
   // @Watch('metricTable')
@@ -1278,6 +1359,25 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     });
   }
 
+  renderUnitHeader(h: CreateElement) {
+    return h(TableFiter, {
+      props: {
+        title: this.$t('单位'),
+        value: this.unitFilterList,
+        list: this.tableAllUnitList,
+      },
+      on: {
+        change: v => {
+          setTimeout(() => {
+            this.pagination.page = 1;
+            this.unitFilterList = v;
+            this.updateAllSelection();
+          }, 300);
+        },
+      },
+    });
+  }
+
   changePageCount(count: number) {
     this.pagination.total = count;
   }
@@ -1382,16 +1482,56 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       this.updateNavData(`${this.$t('查看')} ${this.detailData.name}`);
       if (this.type === 'customTimeSeries') {
         [, , this.unitList] = data; // 单位list
-        // eslint-disable-next-line vue/max-len
+        const allUnitList = [];
+        const allUnitListMap = new Map();
+        for (const groupItem of this.unitList) {
+          for (const unitItem of groupItem?.formats || []) {
+            if (unitItem.id) {
+              allUnitList.push({
+                id: unitItem.id,
+                name: unitItem.name,
+              });
+              allUnitListMap.set(unitItem.id, unitItem.name);
+            }
+          }
+        }
+        this.allUnitList = allUnitList;
         title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
           this.detailData.time_series_group_id
         } ${this.detailData.name}`;
         this.metricList =
           this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
+
+        // 获取表格内的单位数据
+        const tempSet = new Set();
+        const tableAllUnitList = [];
+        for (const metricItem of this.metricList) {
+          if (!tempSet.has(metricItem.unit)) {
+            const unitName = allUnitListMap.get(metricItem.unit);
+            if (unitName) {
+              tableAllUnitList.push({
+                id: metricItem.unit,
+                name: unitName,
+              });
+            }
+          }
+          tempSet.add(metricItem.unit);
+        }
+        this.tableAllUnitList = [
+          ...tableAllUnitList,
+          {
+            id: 'none',
+            name: 'none',
+          },
+          {
+            id: '--',
+            name: '--',
+          },
+        ];
+
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
-        // eslint-disable-next-line vue/max-len
         title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${
           this.detailData.name
         }`;
@@ -1620,7 +1760,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
 
   /* 获取所有数据预览数据 */
-  async getAllDataPreview(fields: { monitor_type: 'metric' | 'dimension'; name: string }[], tableId) {
+  async getAllDataPreview(fields: { monitor_type: 'dimension' | 'metric'; name: string }[], tableId) {
     const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
     const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
       result_table_id: tableId,
@@ -1794,7 +1934,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     if (value === 0) return;
     clearTimeout(this.timer);
     this.timer = null;
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     this.timer = setTimeout(async () => {
       await this.handleRefreshNow();
       this.handleRefreshChange(value);
@@ -2228,15 +2368,27 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const search = {
       type: [],
       name: [],
+      enName: [],
+      unit: [],
+      text: [],
     };
-    this.metricSearchValue.forEach(item => {
+    for (const item of this.metricSearchValue) {
       if (item.id === 'type') {
         search.type = [...new Set(search.type.concat(item.values.map(v => v.id)))];
       }
       if (item.id === 'name') {
         search.name = [...new Set(search.name.concat(item.values.map(v => v.id)))];
       }
-    });
+      if (item.id === 'enName') {
+        search.enName = [...new Set(search.enName.concat(item.values.map(v => v.id)))];
+      }
+      if (item.id === 'unit') {
+        search.unit = [...new Set(search.unit.concat(item.values.map(v => v.id)))];
+      }
+      if (item.type === 'text') {
+        search.text = [...new Set(search.text.concat([item.id]))];
+      }
+    }
     this.metricSearchObj = search;
   }
   /* 通过分组管理计算每个指标包含的组 */
@@ -2274,6 +2426,18 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       },
     };
     toView[this.type]();
+  }
+
+  handleEmptyOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      for (const key in this.metricSearchObj) {
+        this.metricSearchValue = [];
+        this.metricSearchObj[key] = [];
+        this.metricFilterList = [];
+        this.unitFilterList = [];
+        this.groupFilterList = [];
+      }
+    }
   }
 }
 </script>
@@ -2454,7 +2618,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       :deep(.table-box) {
         display: flex;
-        overflow-y: hidden;
+        overflow: hidden;
         .bk-form-input,
         .bk-select {
           border: 1px solid #fff;
@@ -2587,6 +2751,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               }
             }
           }
+          .bk-table-empty-block {
+            min-height: 300px;
+            position: relative;
+            top: -90px;
+          }
         }
         .left-active {
           width: calc(100% - 420px);
@@ -2635,7 +2804,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             border-bottom: 1px solid #3b3c42;
           }
           .no-data-preview {
-            height: 93px;
+            height: 305px;
             width: 420px;
             background: #313238;
           }
@@ -2660,9 +2829,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         font-size: 12px;
       }
     }
-    ::-webkit-scrollbar {
-      display: none;
-    }
+    // ::-webkit-scrollbar {
+    //   display: none;
+    // }
     .submit-div {
       display: inline-block;
     }

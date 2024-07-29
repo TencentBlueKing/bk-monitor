@@ -114,7 +114,7 @@ export default defineComponent({
     },
     inputStatus: {
       type: String,
-      default: 'success',
+      default: '',
     },
     valueMap: {
       type: Object,
@@ -422,7 +422,7 @@ export default defineComponent({
       },
     ]);
     const favoriteDisable = computed(() => {
-      return !Boolean(inputValue.value.length);
+      return Boolean(!inputValue.value.length);
     });
     const fieldList = computed(() => {
       let list = [];
@@ -748,8 +748,8 @@ export default defineComponent({
         popoverMenuInstance.value?.show?.(100);
       }, 20);
     };
-    const handleInput = (e: any) => {
-      inputValue.value = e.target.value;
+    const handleInput = (val: string) => {
+      inputValue.value = val;
     };
     /**
      * @description: 搜索条件变更时触发
@@ -971,19 +971,20 @@ export default defineComponent({
             >
               {!item.edit && <span>{item.name}</span>}
               {id === 'field' && !item.edit && !isEn.value && <span class='item-id'>({item.id})</span>}
-              {id === 'favorite' &&
-                !item.edit && [
+              {id === 'favorite' && !item.edit && (
+                <span>
                   <i
                     class='icon-monitor icon-bianji edit-icon'
                     onMousedown={e => handleEidtFavorite(e, item)}
-                  />,
+                  />
                   <i
                     class='icon-monitor icon-mc-close close-icon'
                     onMousedown={e => handleDeleteFavorite(e, item, index)}
-                  />,
-                ]}
-              {id === 'favorite' &&
-                item.edit && [
+                  />
+                </span>
+              )}
+              {id === 'favorite' && item.edit && (
+                <span>
                   <Input
                     ref={`favorite-input-${item.id}`}
                     class='favorite-input'
@@ -991,15 +992,17 @@ export default defineComponent({
                     placeholder={t('输入收藏名称')}
                     type='text'
                     on-blur={e => handleFavoriteInputBlur(e, item)}
-                  />,
+                  />
                   <i
                     class={[
                       'icon-monitor icon-mc-check-small check-icon',
                       { 'is-diabled': !item?.fakeName?.trim?.().length },
                     ]}
                     onMousedown={e => handleUpdateFavorite(e, item)}
-                  />,
-                ]}
+                  />
+                  ,
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -1038,7 +1041,7 @@ export default defineComponent({
             edit: true,
           });
         favoriteList.value.forEach(item => {
-          if (!!item.name) {
+          if (item.name) {
             item.edit = false;
             item.fakeName = String(item.name);
           }
@@ -1086,6 +1089,9 @@ export default defineComponent({
       },
       { immediate: true }
     );
+    const inputStatusVal = computed(() => {
+      return props.inputStatus;
+    });
     return {
       t,
       handleClear,
@@ -1114,6 +1120,7 @@ export default defineComponent({
       handleSetFavorite,
       preTextRef,
       menuPanelRef,
+      inputStatusVal,
     };
   },
   render() {
@@ -1122,10 +1129,9 @@ export default defineComponent({
         ref='filterSearchRef'
         class='filter-input-wrap'
       >
-        <div class='filter-search'>
+        <div class={['filter-search', { error: this.inputStatusVal === 'error' }]}>
           <Input
             ref='inputRef'
-            style={{ borderColor: this.$props.inputStatus === 'error' ? '#ff5656' : '#c4c6cc' }}
             v-model={this.inputValue}
             v-slots={{
               prefix: () => <i class='icon-monitor icon-filter-fill filter-icon' />,

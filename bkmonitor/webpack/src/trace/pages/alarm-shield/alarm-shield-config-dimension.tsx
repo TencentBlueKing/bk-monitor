@@ -24,15 +24,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive, ref, shallowReactive, shallowRef, watch } from 'vue';
+import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Table } from 'bkui-vue';
 import { listAlertTags } from 'monitor-api/modules/alert';
-import { getStrategyListV2 } from 'monitor-api/modules/strategies';
+// import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { deepClone, random } from 'monitor-common/utils';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
+import { useAppStore } from '../../store/modules/app';
 import DimensionConditionInput from './components/dimension-input/dimension-input';
 import FormItem from './components/form-item';
 import WhereDisplay from './components/where-display';
@@ -68,6 +69,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const localValue = shallowRef(dimensionPropData());
+    const store = useAppStore();
     // 维度条件
     const dimensionCondition = reactive({
       conditionKey: random(8),
@@ -80,21 +82,21 @@ export default defineComponent({
     const tagsDimension = ref([]);
     /* 策略相关数据 */
     // const strategyId = ref('');
-    const strategyList = ref([]);
-    const allStrategy = shallowReactive({
-      list: [],
-      current: 1,
-      isEnd: false,
-    });
+    // const strategyList = ref([]);
+    // const allStrategy = shallowReactive({
+    //   list: [],
+    //   current: 1,
+    //   isEnd: false,
+    // });
     // const strategyLoading = ref(false);
     // const strategyScrollLoading = ref(false);
     // const strategyItem = ref(null);
     // const metricList = ref([]);
-    const strategyPagination = reactive({
-      current: 1,
-      limit: 10,
-      isEnd: false,
-    });
+    // const strategyPagination = reactive({
+    //   current: 1,
+    //   limit: 10,
+    //   isEnd: false,
+    // });
     /* 校验 */
     const errMsg = reactive({
       dimensionCondition: '',
@@ -155,24 +157,24 @@ export default defineComponent({
     }
 
     /* 获取策略列表数据 */
-    async function getStrategyList(serach = '') {
-      return await getStrategyListV2({
-        conditions: serach
-          ? [
-              {
-                key: 'strategy_name',
-                value: [serach],
-              },
-            ]
-          : [],
-        order_by: '-update_time',
-        page: strategyPagination.current,
-        page_size: strategyPagination.limit,
-        type: 'monitor',
-      })
-        .then(res => res.strategy_config_list)
-        .catch(() => []);
-    }
+    // async function getStrategyList(serach = '') {
+    //   return await getStrategyListV2({
+    //     conditions: serach
+    //       ? [
+    //           {
+    //             key: 'strategy_name',
+    //             value: [serach],
+    //           },
+    //         ]
+    //       : [],
+    //     order_by: '-update_time',
+    //     page: strategyPagination.current,
+    //     page_size: strategyPagination.limit,
+    //     type: 'monitor',
+    //   })
+    //     .then(res => res.strategy_config_list)
+    //     .catch(() => []);
+    // }
 
     /**
      * 策略搜索
@@ -275,6 +277,7 @@ export default defineComponent({
         status: [],
         start_time: startTime,
         end_time: endTime,
+        bk_biz_ids: [store.bizId || window.bk_biz_id],
       }).catch(() => []);
       const tagsDimensionTemp = tags.map(item => ({ ...item, type: 'tags' }));
       tagsDimension.value = tagsDimensionTemp;

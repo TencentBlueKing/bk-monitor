@@ -77,9 +77,9 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
           resolve(null);
         } else {
           this.errorsMsg = { defaultPlanId: '' };
-          errors.forEach(item => {
+          for (const item of errors) {
             this.errorsMsg[item.field] = item.message;
-          });
+          }
           this.handleFocusStrategyName();
           reject({ errors, fields });
         }
@@ -152,6 +152,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
                   {this.schemeList.map(item => (
                     <bk-option
                       id={item.id}
+                      key={item.id}
                       style='width: 100%;'
                       name={item.name}
                     >
@@ -197,12 +198,16 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
               {this.isEdit ? (
                 [
                   <bk-slider
+                    key={1}
                     v-model={this.baseConfig.default_sensitivity}
                     disable={!this.isEdit}
                     max-value={10}
                     on-change={this.handleBaseConfigChange}
                   />,
-                  <div class='sensitivity-tips'>
+                  <div
+                    key={2}
+                    class='sensitivity-tips'
+                  >
                     <span>{this.$t('较少告警')}</span>
                     <span>{this.$t('较多告警')}</span>
                   </div>,

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import time
 from abc import ABC
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
@@ -232,22 +232,26 @@ class BaseQueryHandler:
         search_object = self.add_query_string(search_object)
         search_object = self.add_ordering(search_object)
 
-        for hit in search_object.params(preserve_order=True).scan():
-            yield self.handle_hit(hit)
+        yield from search_object.params(preserve_order=True).scan()
 
-    def export(self):
+    def export(self) -> List[dict]:
         """
         将数据导出，用于生成 csv 文件
         :return:
         """
-        docs = []
-        for hit in self.scan():
-            doc = {}
-            for field in self.query_transformer.query_fields:
-                # 替换字段名为中文（表头）
-                doc[str(field.display)] = hit.get(field.field)
-            docs.append(doc)
-        return docs
+        cleaned_docs = (self.handle_hit(hit) for hit in self.scan())
+        return list(self.translate_field_names(cleaned_docs))
+
+    def translate_field_names(self, docs: Iterable[dict]) -> Iterable[dict]:
+        """将字段名转换为显示名。"""
+        # 预先翻译
+        translated_fields = [(field.field, str(field.display)) for field in self.query_transformer.query_fields]
+
+        for doc in docs:
+            translated_doc = {}
+            for field, display in translated_fields:
+                translated_doc[display] = doc.get(field)
+            yield translated_doc
 
     def get_search_object(self, *args, **kwargs) -> Search:
         """
