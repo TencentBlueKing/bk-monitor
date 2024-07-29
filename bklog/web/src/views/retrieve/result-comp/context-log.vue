@@ -437,7 +437,6 @@
             this.requestContentLog('down');
           }
         }, 200);
-        // }
       },
       handleFilter(field, value) {
         if (field === 'filterKey') {
