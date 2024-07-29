@@ -50,7 +50,8 @@
         <highlight-html
           :item="item"
           :is-show-key="showType === 'log'"
-          :light-list="getViewLightList" 
+          :light-list="getViewLightList"
+          :ignore-case="ignoreCase"
         />
       </div>
     </pre>
@@ -122,6 +123,7 @@
         oldIndex: null,
         newIndex: null,
         intervalTime: null,
+        realNewIndexTimer: null,
         resRangeIndexs: [],
         reverseResRangeIndexs: [],
       };
@@ -144,9 +146,7 @@
         if (!!this.filterKey) {
           list.push({ str: this.filterKey, style: 'background: yellow; color: #313238;', isUnique: true });
         }
-        list.push(
-          ...this.heightList.map(item => ({ str: item, style: this.getLineColor, isUnique: false })),
-        );
+        list.push(...this.heightList.map(item => ({ str: item, style: this.getLineColor, isUnique: false })));
         return list;
       },
     },
@@ -164,6 +164,10 @@
           if (val.length > this.maxLength) {
             this.oldIndex = this.oldIndex - this.shiftLength;
           }
+          clearTimeout(this.realNewIndexTimer);
+          this.realNewIndexTimer = setTimeout(() => {
+            this.newIndex = null;
+          }, 10000);
         }
       },
       escapedReverseLogList() {
@@ -212,7 +216,7 @@
       },
       lineMatch(item) {
         if (!this.filterKey) return false;
-        return this.handleMatch(item);
+        return this.handleMatch(item) && Object.values(this.interval).some(Boolean);
       },
       escapeString(item) {
         const map = {
@@ -300,7 +304,7 @@
 
   .log-view {
     min-height: 100%;
-    color: #C1C4CA;
+    color: #c1c4ca;
     background: #131313;
 
     #log-content {
@@ -320,11 +324,11 @@
         border-top: 1px solid transparent;
 
         &.log-init {
-          background: #1F2735;
+          background: #1f2735;
         }
 
         &.new-log-line {
-          background: #1F2735;
+          background: #1f2735;
         }
 
         &:hover {
@@ -342,7 +346,7 @@
         padding-right: 12px;
         margin-left: -37px;
         line-height: 24px;
-        color: #979BA5;
+        color: #979ba5;
         text-align: right;
         user-select: none;
       }
@@ -364,19 +368,19 @@
           border-top: 1px solid #dcdee5;
 
           &.log-init {
-            background: #F0F5FF;
+            background: #f0f5ff;
           }
 
           &.new-log-line {
-            background: #F0F5FF;
+            background: #f0f5ff;
           }
 
           &:hover {
-            background: #F5F7FA;
+            background: #f5f7fa;
           }
 
           &.filter-line {
-            background: #FFF3E1;
+            background: #fff3e1;
           }
         }
 

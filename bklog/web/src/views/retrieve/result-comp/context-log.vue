@@ -186,7 +186,8 @@
         firstLogEl: null,
         filterType: 'include',
         activeFilterKey: '',
-        throttle: false,
+        timer: null,
+        throttleTimer: null,
         ignoreCase: false,
         flipScreen: '',
         flipScreenList: [],
@@ -314,7 +315,7 @@
             } else {
               const zeroIndex = res.data.zero_index;
               if ((!zeroIndex && zeroIndex !== 0) || zeroIndex === -1) {
-                this.logList.splice(this.logList.length, 0, this.$t('无法定位上下文'));
+                this.logList.splice(this.logList.length, 0, { error: this.$t('无法定位上下文') });
               } else {
                 this.logList.push(...formatList.slice(zeroIndex, list.length));
                 this.rawList.push(...list.slice(zeroIndex, list.length));
@@ -416,51 +417,27 @@
         }, 64);
       },
       handleScroll() {
-        // if (this.filterKey.length) return
-
-        if (!this.throttle) {
-          this.throttle = true;
-          setTimeout(() => {
-            if (this.logLoading) {
-              this.throttle = false;
-              return;
-            }
-            const { scrollTop } = this.$refs.contextLog;
-            const { scrollHeight } = this.$refs.contextLog;
-            const { offsetHeight } = this.$refs.contextLog;
-            if (scrollTop === 0) {
-              // 滚动到顶部
-              this.requestContentLog('top').then(() => {
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => {
+          if (this.logLoading) return;
+          const { scrollTop } = this.$refs.contextLog;
+          const { scrollHeight } = this.$refs.contextLog;
+          const { offsetHeight } = this.$refs.contextLog;
+          if (scrollTop === 0) {
+            // 滚动到顶部
+            this.requestContentLog('top').then(() => {
+              this.$nextTick(() => {
                 // 记录刷新前滚动位置
                 const newScrollHeight = this.$refs.contextLog.scrollHeight;
                 this.$refs.contextLog.scrollTo({ top: newScrollHeight - scrollHeight });
               });
-            } else if (scrollHeight - scrollTop - offsetHeight === 0) {
-              // 滚动到底部
-              this.requestContentLog('down');
-            }
-            this.throttle = false;
-          }, 200);
-        }
-      },
-      scrollPage(direction) {
-        const { scrollTop } = this.$refs.contextLog;
-        const { offsetHeight } = this.$refs.contextLog;
-        const { scrollHeight } = this.$refs.contextLog;
-        if (direction === 'up' && scrollTop === 0) {
-          // 顶部边界滚动需要请求
-          this.requestContentLog('top');
-        } else if (direction === 'down' && scrollHeight - scrollTop - offsetHeight === 0) {
-          // 底部边界滚动需要请求
-          this.requestContentLog('down');
-        } else {
-          // 滚动动画
-          let top = direction === 'up' ? scrollTop - offsetHeight : scrollTop + offsetHeight;
-          if (top < 0) {
-            top = 0;
+            });
+          } else if (scrollHeight - scrollTop - offsetHeight === 0) {
+            // 滚动到底部
+            this.requestContentLog('down');
           }
-          this.$easeScroll(top, 200, this.$refs.contextLog);
-        }
+        }, 200);
+        // }
       },
       handleFilter(field, value) {
         if (field === 'filterKey') {
@@ -470,10 +447,14 @@
         }
       },
       filterLog(value) {
-        this.throttle = true;
         this.activeFilterKey = value;
-        setTimeout(() => {
-          this.throttle = false;
+        clearTimeout(this.throttleTimer);
+        this.throttleTimer = setTimeout(() => {
+          if (!value) {
+            this.$nextTick(() => {
+              this.initLogScrollPosition();
+            });
+          }
         }, 300);
       },
     },

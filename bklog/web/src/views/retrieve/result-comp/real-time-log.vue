@@ -99,6 +99,7 @@
       </div>
     </div>
     <div
+      ref="realTimeLog"
       class="dialog-log-markdown"
       tabindex="0"
     >
@@ -109,6 +110,7 @@
         :interval="interval"
         :is-real-time-log="true"
         :log-list="logList"
+        :reverse-log-list="reverseLogList"
         :max-length="maxLength"
         :shift-length="shiftLength"
         :height-list="heightLightList"
@@ -158,6 +160,7 @@
         timer: null,
         cloudAreaList: [],
         logList: [],
+        reverseLogList: [],
         // 日志最大长度
         maxLength: Number(window.REAL_TIME_LOG_MAX_LENGTH) || 20000,
         // 超过此长度删除部分日志
@@ -175,6 +178,8 @@
         showType: 'log',
         heightLightList: [],
         rowShowParams: {},
+        throttleTimer: null,
+        isInit: true,
       };
     },
     computed: {
@@ -243,7 +248,12 @@
                 logArr.push({ log });
               });
               this.deepClone(list[list.length - 1]);
-              this.logList.splice(this.logList.length, 0, ...logArr);
+              if (this.isInit) {
+                this.reverseLogList = logArr.slice(0, -1);
+                this.logList = logArr.slice(-1);
+              } else {
+                this.logList.splice(this.logList.length, 0, ...logArr);
+              }
               if (this.isScrollBottom) {
                 this.$nextTick(() => {
                   if (this.zero) {
@@ -262,6 +272,7 @@
             }
           })
           .finally(() => {
+            this.isInit = false;
             setTimeout(() => {
               this.loading = false;
             }, 300);
@@ -324,6 +335,34 @@
       },
       filterLog(value) {
         this.activeFilterKey = value;
+        clearTimeout(this.throttleTimer);
+        this.throttleTimer = setTimeout(() => {
+          if (!value) {
+            this.$nextTick(() => {
+              this.initLogScrollPosition();
+            });
+          }
+        }, 300);
+      },
+      initLogScrollPosition() {
+        // 确定第0条的位置
+        this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+        // 没有数据
+        if (!this.firstLogEl) return;
+        const logContentHeight = this.firstLogEl.scrollHeight;
+        const logOffsetTop = this.firstLogEl.offsetTop;
+
+        const wrapperOffsetHeight = this.$refs.realTimeLog.offsetHeight;
+
+        if (wrapperOffsetHeight <= logContentHeight) {
+          this.$refs.realTimeLog.scrollTop = logOffsetTop;
+        } else {
+          this.$refs.realTimeLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
+        }
+        // 避免重复请求
+        setTimeout(() => {
+          this.$refs.realTimeLog.addEventListener('scroll', this.handleScroll, { passive: true });
+        }, 64);
       },
       handleFilter(field, value) {
         if (field === 'filterKey') {
