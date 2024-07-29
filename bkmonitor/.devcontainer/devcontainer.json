@@ -21,7 +21,7 @@
 		8000
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "bash create_venv.sh",
+	"postCreateCommand": "bash /app/code/bkmonitor/.devcontainer/create_venv.sh",
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {

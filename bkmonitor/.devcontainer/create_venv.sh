@@ -10,13 +10,13 @@ pip install virtualenv
 cd /app/code/bkmonitor
 
 # Create virtual environment
-virtualenv venv
-source venv/bin/activate
+if [ ! -d "venv" ]; then
+  virtualenv venv
+fi
+
+# Set up environment variables
+source /app/code/bkmonitor/venv/bin/activate
 
 # Install dependencies
 grep -v "dataclasses" requirements.txt | grep -v "#" | xargs pip install
 pip install betterproto==2.0.0b5
-
-# Set up environment variables
-export VIRTUAL_ENV=/app/code/bkmonitor/venv
-export PATH="$VIRTUAL_ENV/bin:$PATH"

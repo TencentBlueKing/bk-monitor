@@ -15,13 +15,15 @@ RUN apt-get update && apt-get install -y curl wget git vim supervisor && git con
 
 #starship
 RUN curl -sS https://starship.rs/install.sh | sh -s -- -y && echo 'eval "$(starship init bash)"' > ~/.bashrc
-RUN echo 'eval "$(starship init bash)"' >> ~/.bashrc && echo "PATH=$PATH:/home/bkmonitor/.local/bin" >> ~/.bashrc
-RUN mkdir ~/.config && echo "command_timeout = 3000" > ~/.config/starship.toml
+RUN echo 'eval "$(starship init bash)"' >> ~/.bashrc && mkdir ~/.config && echo "command_timeout = 3000" > ~/.config/starship.toml
 
 # replace pip source
-ENV EXTRA_PIP_MIRROR=${EXTRA_PIP_MIRROR}
 RUN mkdir -p ~/.pip && echo "[global]\nindex-url = $PIP_MIRROR/\n" > ~/.pip/pip.conf && pip install --upgrade pip
 ENV PIP_ROOT_USER_ACTION=ignore
+
+# set python env
+ENV VIRTUAL_ENV=/app/code/bkmonitor/venv
+ENV PATH="/app/code/bkmonitor/venv/bin:${PATH}"
 
 # Mount your project into the container
 VOLUME /app/code
