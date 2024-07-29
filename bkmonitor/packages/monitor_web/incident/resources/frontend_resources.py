@@ -417,11 +417,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         for node in current["nodes"]:
             if node["id"] not in last_nodes or node["aggregated_nodes"] != last_nodes[node["id"]]["aggregated_nodes"]:
                 new_nodes.append(node)
+                complete_topologies["nodes"][node["id"]] = node
             elif self.check_node_diff(node, last_nodes[node["id"]]):
                 new_nodes.append(node)
-
-            if node["id"] not in complete_topologies["nodes"]:
                 complete_topologies["nodes"][node["id"]] = node
+            elif node["id"] not in complete_topologies["nodes"]:
+                complete_topologies["nodes"][node["id"]] = node
+
         for edge in current["edges"]:
             if edge["source"] not in last_nodes or edge["target"] not in last_nodes:
                 new_edges.append(edge)
@@ -435,7 +437,7 @@ class IncidentTopologyResource(IncidentBaseResource):
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""
-        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count"]:
+        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count", "alert_ids"]:
             if current_node[node_key] != last_node[node_key]:
                 return True
 
@@ -761,34 +763,48 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot, status=[EventStatus.ABNORMAL])
+        alerts = self.get_snapshot_alerts(snapshot)
         current_username = get_request_username()
 
-        alert_agg_results = Counter()
+        alert_abornomal_agg_results = Counter()
+        alert_total_agg_results = Counter()
         for alert in alerts:
             if not alert["assignee"]:
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results["__not_dispatch__"] += 1
+                alert_total_agg_results["__not_dispatch__"] += 1
                 continue
+
+            if alert["status"] == EventStatus.ABNORMAL:
+                alert_abornomal_agg_results["__total__"] += 1
+            alert_total_agg_results["__total__"] += 1
+
             for username in alert["assignee"]:
-                alert_agg_results[username] += 1
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results[username] += 1
+                alert_total_agg_results[username] += 1
 
         handlers = {
             "all": {
                 "id": "all",
                 "name": _("全部"),
                 "index": 1,
-                "alert_count": len(alerts),
+                "alert_count": alert_abornomal_agg_results["__total__"],
+                "total_count": len(alerts),
             },
             "not_dispatch": {
                 "id": "not_dispatch",
                 "name": _("未分派"),
                 "index": 2,
-                "alert_count": 0,
+                "alert_count": alert_abornomal_agg_results["__not_dispatch__"],
+                "total_count": alert_total_agg_results["__not_dispatch__"],
             },
             "mine": {
                 "id": current_username,
                 "name": _("我处理"),
                 "index": 3,
-                "alert_count": alert_agg_results.get(current_username, 0),
+                "alert_count": alert_abornomal_agg_results.get(current_username, 0),
+                "total_count": alert_total_agg_results.get(current_username, 0),
             },
             "other": {
                 "id": "other",
@@ -798,10 +814,11 @@ class IncidentHandlersResource(IncidentBaseResource):
                     {
                         "id": username,
                         "name": username,
-                        "alert_count": alert_count,
+                        "alert_count": alert_abornomal_agg_results.get(username, 0),
+                        "total_count": alert_count,
                     }
-                    for username, alert_count in alert_agg_results.items()
-                    if username != current_username
+                    for username, alert_count in alert_total_agg_results.items()
+                    if username not in (current_username, "__not_dispatch__", "__total__")
                 ],
             },
         }
