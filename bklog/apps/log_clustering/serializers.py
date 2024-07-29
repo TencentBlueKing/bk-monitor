@@ -30,6 +30,8 @@ from apps.log_clustering.constants import (
     OwnerConfigEnum,
     PatternEnum,
     RemarkConfigEnum,
+    StrategiesAlarmLevelEnum,
+    StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 
@@ -168,13 +170,18 @@ class UpdateNewClsStrategySerializer(serializers.Serializer):
         return attrs
 
 
+class StrategyConfigSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    strategy_type = serializers.ChoiceField(choices=[StrategiesType.NORMAL_STRATEGY, StrategiesType.NEW_CLS_strategy])
+
+
 class UserGroupsSerializer(serializers.Serializer):
     bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), label=_("业务ID"), required=False, default=[])
     ids = serializers.ListField(child=serializers.IntegerField(), label=_("用户组ID"), required=False, default=[])
 
 
 class StrategySerializer(serializers.Serializer):
-    level = serializers.ChoiceField(label=_("告警级别"), choices=[1, 2, 3])
+    level = serializers.ChoiceField(label=_("告警级别"), choices=StrategiesAlarmLevelEnum.get_choices())
     user_groups = serializers.ListField(child=serializers.IntegerField(), label=_("告警组"))
 
 

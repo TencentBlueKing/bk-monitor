@@ -19,6 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from rest_framework.response import Response
+
+from apps.api import MonitorApi
 from apps.generic import APIViewSet
 from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
@@ -26,9 +29,9 @@ from apps.log_clustering.models import SignatureStrategySettings
 from apps.log_clustering.serializers import (
     UpdateNewClsStrategySerializer,
     UpdateStrategiesSerializer,
+    UserGroupsSerializer,
 )
-from apps.utils.drf import detail_route
-from rest_framework.response import Response
+from apps.utils.drf import detail_route, list_route
 
 
 class ClusteringMonitorViewSet(APIViewSet):
@@ -158,3 +161,51 @@ class ClusteringMonitorViewSet(APIViewSet):
                 action=params["action"], strategy_id=params.get("strategy_id")
             )
         )
+
+    @list_route(methods=["post"], url_path="search_user_groups")
+    def search_user_groups(self, request):
+        """
+        @api {get} clustering_monitor/search_user_groups/ 查询通知组
+        @apiName search user groups
+        @apiGroup log_clustering
+        @apiSuccessExample {json} 成功返回:
+        {
+        "result": true,
+        "data": [
+            {
+                "id": 12,
+                "name": "Kafka_1",
+                "bk_biz_id": 12,
+                "need_duty": false,
+                "channels": [
+                    "user"
+                ],
+                "desc": "",
+                "timezone": "Asia/Shanghai",
+                "update_user": "admin",
+                "update_time": "2024-07-22 11:05:28+0800",
+                "create_user": "db",
+                "create_time": "2023-10-24 14:32:30+0800",
+                "duty_rules": [],
+                "mention_list": [],
+                "mention_type": 1,
+                "app": "",
+                "users": [
+                    {
+                        "id": "admin",
+                        "display_name": "admin",
+                        "type": "user"
+                    }
+                ],
+                "strategy_count": 0,
+                "rules_count": 1,
+                "delete_allowed": false,
+                "edit_allowed": true,
+                "config_source": "UI"
+                }
+            ]
+        }
+        """
+        params = self.params_valid(UserGroupsSerializer)
+        data = MonitorApi.search_user_groups({"bk_biz_ids": params["bk_biz_ids"], "ids": params["ids"]})
+        return Response(data)

@@ -166,11 +166,6 @@ class SignatureStrategySettings(SoftDeleteModel):
     strategy_type = models.CharField(
         _("策略类型"), max_length=64, null=True, blank=True, default=StrategiesType.NORMAL_STRATEGY
     )
-    sensitivity = models.IntegerField(_("敏感度"), null=True, blank=True)
-    interval = models.IntegerField(_("告警间隔"), null=True, blank=True)
-    threshold = models.IntegerField(_("告警阈值"), null=True, blank=True)
-    alarm_level = models.IntegerField(_("告警级别"), null=True, blank=True)
-    user_groups = models.CharField(_("告警组"), max_length=256, null=True, blank=True)
 
     @classmethod
     def get_monitor_config(cls, signature, index_set_id, pattern_level):

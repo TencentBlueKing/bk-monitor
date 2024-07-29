@@ -159,6 +159,18 @@ class StrategiesType(object):
     NORMAL_STRATEGY = "normal_strategy"
 
 
+class StrategiesAlarmLevelEnum(ChoicesEnum):
+    CRITICAL = 1
+    WARNING = 2
+    REMIND = 3
+
+    _choices_labels = (
+        (CRITICAL, _lazy("致命")),
+        (WARNING, _lazy("预警")),
+        (REMIND, _lazy("提醒")),
+    )
+
+
 class YearOnYearEnum(ChoicesEnum):
     NOT = 0
     ONE_HOUR = 1

@@ -211,23 +211,16 @@ class ClusteringMonitorHandler(object):
         params=None,
     ):
         params = params or {}
-        signature_strategy_settings = SignatureStrategySettings.objects.filter(
-            index_set_id=self.index_set_id, strategy_type=strategy_type
-        ).first()
-        if not signature_strategy_settings:
-            # 创建
-            signature_strategy_settings = SignatureStrategySettings.objects.create(
-                **{
-                    "signature": signature,
-                    "index_set_id": self.index_set_id,
-                    "strategy_id": None,
-                    "bk_biz_id": self.bk_biz_id,
-                    "pattern_level": pattern_level,
-                    "strategy_type": strategy_type,
-                    "alarm_level": params["level"],
-                    "user_groups": ",".join(map(str, params["user_groups"])),
-                }
-            )
+        signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
+            index_set_id=self.index_set_id,
+            strategy_type=strategy_type,
+            defaults={
+                "signature": signature,
+                "strategy_id": None,
+                "bk_biz_id": self.bk_biz_id,
+                "pattern_level": pattern_level,
+            },
+        )
         anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
             "__clustering_field__", self.clustering_config.clustering_fields
         )
@@ -341,15 +334,9 @@ class ClusteringMonitorHandler(object):
             "actions": [],
             "notice": notice,
         }
-        if signature_strategy_settings.strategy_id:
+        if not created:
             # 更新告警策略
             request_params["id"] = signature_strategy_settings.strategy_id
-            signature_strategy_settings.alarm_level = params["level"]
-            signature_strategy_settings.user_groups = ",".join(map(str, params["user_groups"]))
-            if strategy_type == StrategiesType.NORMAL_STRATEGY:
-                signature_strategy_settings.sensitivity = params["sensitivity"]
-            else:
-                signature_strategy_settings.interval = params["interval"]
         strategy = MonitorApi.save_alarm_strategy_v3(params=request_params)
         strategy_id = strategy["id"]
         signature_strategy_settings.strategy_id = strategy_id
