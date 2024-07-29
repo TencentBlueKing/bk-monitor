@@ -317,7 +317,7 @@ class IndexSetViewSet(ModelViewSet):
             if not index_set.get("indexes", []):
                 continue
             origin_index_set = ",".join([index["result_table_id"] for index in index_set["indexes"]])
-            if index_set["scenario_id"] == Scenario.ES:
+            if index_set["scenario_id"] == Scenario.LOG:
                 origin_index_set = origin_index_set.replace(".", "_")
             router_list.append(
                 {
