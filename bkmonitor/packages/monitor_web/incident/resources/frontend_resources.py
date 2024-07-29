@@ -157,7 +157,7 @@ class IncidentBaseResource(Resource):
             if (
                 hasattr(incident_document, incident_key)
                 and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
-                and incident_value
+                and (incident_value or incident_key == "incident_reason")
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
                 if incident_key == "status":
@@ -1007,7 +1007,9 @@ class IncidentAlertListResource(IncidentBaseResource):
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
-        alerts[0]["is_incident_root"] = True
+
+        if len(alerts) > 0:
+            alerts[0]["is_incident_root"] = True
 
         return incident_alerts
 

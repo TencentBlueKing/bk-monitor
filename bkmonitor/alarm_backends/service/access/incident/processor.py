@@ -139,7 +139,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
                 snapshot = IncidentSnapshotDocument(
                     incident_id=sync_info["incident_id"],
-                    bk_biz_id=sync_info["scope"]["bk_biz_ids"],
+                    bk_biz_ids=sync_info["scope"]["bk_biz_ids"],
                     status=incident_info["status"],
                     alerts=sync_info["scope"]["alerts"],
                     events=sync_info["scope"]["events"],
@@ -189,8 +189,12 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                         from_value=update_info["from"],
                         to_value=update_info["to"],
                     )
-                    if incident_key == "status" and update_info["to"] == IncidentStatus.RECOVERING.value:
+                    if incident_key == "status" and update_info["to"] == IncidentStatus.RECOVERED.value:
                         incident_document.end_time = int(time.time())
+                        api.bkdata.update_incident_detail(
+                            incident_id=sync_info["incident_id"],
+                            end_time=incident_document.end_time,
+                        )
                         IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
