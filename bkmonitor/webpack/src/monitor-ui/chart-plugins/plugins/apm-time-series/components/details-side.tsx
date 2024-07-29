@@ -26,11 +26,13 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { connect, disconnect } from 'echarts/core';
+import { random } from 'monitor-common/utils';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
-import MiniChart from './mini-chart';
+import MiniChart, { EPointType, type IPointPosition } from './mini-chart';
 
 import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
@@ -135,6 +137,7 @@ export default class DetailsSide extends tsc<IProps> {
   ];
   tableData: TableRow[] = [
     {
+      id: 1,
       [EColumn.ServerName]: {
         icon: '',
         key: '',
@@ -155,6 +158,7 @@ export default class DetailsSide extends tsc<IProps> {
       [EColumn.Operate]: null,
     },
     {
+      id: 2,
       [EColumn.ServerName]: {
         icon: '',
         key: '',
@@ -183,6 +187,20 @@ export default class DetailsSide extends tsc<IProps> {
     showTotalCount: true,
   };
 
+  /* 对比点 */
+  comparePoint: IPointPosition = {
+    x: 0,
+    y: 0,
+  };
+  /* 参照点 */
+  referPoint: IPointPosition = {
+    x: 0,
+    y: 0,
+  };
+  pointType: EPointType = EPointType.compare;
+
+  chartGroupId = random(8);
+
   get filterTableColumns() {
     return this.tableColumns.filter(item => {
       if (this.isCompare) {
@@ -192,6 +210,14 @@ export default class DetailsSide extends tsc<IProps> {
         item.id as EColumn
       );
     });
+  }
+
+  created() {
+    connect(this.chartGroupId);
+  }
+
+  destroyed() {
+    disconnect(this.chartGroupId);
   }
 
   handleClose() {
@@ -212,6 +238,16 @@ export default class DetailsSide extends tsc<IProps> {
   }
 
   handleSearch() {}
+
+  handlePointTypeChange(value: EPointType) {
+    this.pointType = value;
+  }
+  handleComparePointChange(value: IPointPosition) {
+    this.comparePoint = value;
+  }
+  handleReferPointChange(value: IPointPosition) {
+    this.referPoint = value;
+  }
 
   render() {
     return (
@@ -316,8 +352,16 @@ export default class DetailsSide extends tsc<IProps> {
                 },
                 [EColumn.Chart]: _row => {
                   return (
-                    <div class='chart-wrap'>
-                      <MiniChart />
+                    <div
+                      key={_row.id}
+                      class='chart-wrap'
+                    >
+                      <MiniChart
+                        groupId={this.chartGroupId}
+                        onComparePointChange={this.handleComparePointChange}
+                        onPointTypeChange={this.handlePointTypeChange}
+                        onReferPointChange={this.handleReferPointChange}
+                      />
                     </div>
                   );
                 },

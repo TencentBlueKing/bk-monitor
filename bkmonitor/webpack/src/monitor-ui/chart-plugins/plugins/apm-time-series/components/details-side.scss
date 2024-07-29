@@ -114,6 +114,10 @@ $header-height: 52px;
 
       .chart-wrap {
         position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 100%;
       }
     }
   }

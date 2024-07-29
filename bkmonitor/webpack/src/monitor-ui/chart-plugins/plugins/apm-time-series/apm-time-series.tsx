@@ -343,7 +343,6 @@ export default class ApmTimeSeries extends TimeSeries {
 
   handleContextmenu(params) {
     const { offsetX, offsetY } = params.event;
-    console.log(params);
     this.contextmenuInfo = {
       ...this.contextmenuInfo,
       x: offsetX + 4,
