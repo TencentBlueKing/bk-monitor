@@ -1203,7 +1203,6 @@ class UpdateIncidentDetail(DataAccessAPIResource):
         feedback = serializers.DictField(required=False, label="故障反馈内容")
 
     def perform_request(self, params):
-        params["incident_reason"] = params.get("incident_reason") or ""
         return super(UpdateIncidentDetail, self).perform_request(params)
 
 

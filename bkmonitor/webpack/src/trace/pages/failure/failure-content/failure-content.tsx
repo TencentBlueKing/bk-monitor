@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
+import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -40,6 +40,25 @@ import { useIncidentInject } from '../utils';
 import type { IAlert, IAlertObj, IFilterSearch, IIncident, IIncidentOperation } from '../types';
 
 import './failure-content.scss';
+
+/**
+ * @enum {'FailureTiming' | 'FailureTopo' | 'FailureView'}
+ * @description 一级 Tabs 常量，用于故障详情页面的不同视图切换
+ *  */
+enum FailureContentTabView {
+  /**
+   * @description 一级Tabs - 故障时序，展示故障发生的时间序列信息
+   *  */
+  FAILURE_TIMING = 'FailureTiming',
+  /**
+   *  @description 一级Tabs - 故障拓扑，展示故障相关的系统或网络拓扑信息
+   * */
+  FAILURE_TOPO = 'FailureTopo',
+  /**
+   *  @description 一级Tabs - 告警，展示与故障相关的告警信息
+   * */
+  FAILURE_VIEW = 'FailureView',
+}
 
 export default defineComponent({
   name: 'FailureContent',
@@ -68,23 +87,23 @@ export default defineComponent({
   emits: ['refresh', 'changeSelectNode'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const active = ref<string>('FailureView');
-    const alertIdsObject = ref<IAlertObj>();
+    const active = ref<string>(FailureContentTabView.FAILURE_TOPO);
+    const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');
     const incidentId = useIncidentInject();
     const searchValidate = ref<boolean>(true);
     const tabList = [
       {
-        name: 'FailureTopo',
+        name: FailureContentTabView.FAILURE_TOPO,
         label: t('故障拓扑'),
       },
       {
-        name: 'FailureTiming',
+        name: FailureContentTabView.FAILURE_TIMING,
         label: t('故障时序'),
       },
       {
-        name: 'FailureView',
+        name: FailureContentTabView.FAILURE_VIEW,
         label: t('告警'),
       },
     ];
@@ -101,7 +120,7 @@ export default defineComponent({
         icon: 'icon-mc-list',
       },
     ];
-    const chooseOperation = ref<IIncidentOperation>();
+    const chooseOperation = ref<IIncidentOperation | any>();
     const currentNodeData = computed(() => {
       return props.currentNode;
     });
@@ -116,6 +135,7 @@ export default defineComponent({
     const playingHandle = status => {
       playLoading.value = status;
     };
+
     /** 跳转到告警明细 */
     const goAlertDetail = (alertObj: IAlertObj) => {
       handleChangeActive('AlarmDetail');
@@ -125,8 +145,11 @@ export default defineComponent({
       emit('refresh');
     };
     const goFailureTiming = (id, data) => {
-      handleChangeActive('FailureTiming');
-      chooseOperation.value = data;
+      chooseOperation.value = {};
+      handleChangeActive(FailureContentTabView.FAILURE_TIMING);
+      nextTick(() => {
+        chooseOperation.value = data;
+      });
     };
     watch(
       () => route.query,
@@ -157,9 +180,9 @@ export default defineComponent({
       return validate;
     };
     const handleQueryStringChange = async (v: string) => {
-      const isChange = v !== alertIdsObject.value.ids;
+      const isChange = alertIdsObject.value?.ids ? v !== alertIdsObject.value.ids : true;
       if (isChange) {
-        alertIdsObject.value.ids = v;
+        alertIdsObject.value = v;
         searchValidate.value = await handleValidateQueryString();
       }
     };
@@ -192,7 +215,7 @@ export default defineComponent({
           onChange={this.handleChangeActive}
         />
         <KeepAlive>
-          {this.active === 'FailureTopo' && (
+          {this.active === FailureContentTabView.FAILURE_TOPO && (
             <FailureTopo
               selectNode={this.currentNodeData || []}
               onChangeSelectNode={this.handleChangeSelectNode}
@@ -200,7 +223,7 @@ export default defineComponent({
               onToDetailTab={this.goAlertDetail}
             />
           )}
-          {this.active === 'FailureTiming' && (
+          {this.active === FailureContentTabView.FAILURE_TIMING && (
             <FailureTiming
               alertAggregateData={this.$props.alertAggregateData}
               chooseOperation={this.chooseOperation}
@@ -209,12 +232,13 @@ export default defineComponent({
               onRefresh={this.refresh}
             />
           )}
-          {this.active === 'FailureView' && (
+          {this.active === FailureContentTabView.FAILURE_VIEW && (
             <div class='failure-view-content'>
               <div class='content-head'>
                 <div class='head-tab'>
                   {this.tabViewList.map(item => (
                     <span
+                      key={item.name}
                       class={['head-tab-item', { active: item.name === this.activeTab }]}
                       onClick={() => {
                         this.activeTab = item.name;
@@ -225,8 +249,8 @@ export default defineComponent({
                     </span>
                   ))}
                 </div>
+
                 <FilterSearchInput
-                  // valueMap={this.valueMap}
                   inputStatus={this.inputStatus}
                   searchType='incident'
                   value={this.alertIdsObject?.ids}

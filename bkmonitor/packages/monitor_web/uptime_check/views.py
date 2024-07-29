@@ -17,7 +17,6 @@ from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.common_utils import host_key, safe_int
@@ -127,10 +126,51 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         data["bk_host_id"] = bk_host_id
         return Response(data)
 
+    @staticmethod
+    def get_beat_version(bk_host_ids):
+        all_beat_version = {}
+        all_plugin = api.node_man.plugin_search(
+            {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
+        )["list"]
+        for plugin in all_plugin:
+            beat_plugin = list(filter(lambda x: x["name"] == "bkmonitorbeat", plugin["plugin_status"]))
+            # 过滤后，只剩下bkmonitorbeat插件
+            if beat_plugin:
+                bkmonitorbeat = beat_plugin[0]
+                # 兼容ipv4无bk_host_id的旧节点配置
+                if plugin["inner_ip"]:
+                    all_beat_version[
+                        host_key(ip=plugin["inner_ip"], bk_cloud_id=plugin["bk_cloud_id"])
+                    ] = bkmonitorbeat.get("version", "")
+                all_beat_version[plugin["bk_host_id"]] = bkmonitorbeat.get("version", "")
+            else:
+                logger.warning(
+                    "bkmonitorbeat plugin(host_id:{}, ip:{}, ipv6:{}, cloud_id:{}) doesn't exist. "
+                    "all plugin status info:{}".format(
+                        plugin["bk_host_id"],
+                        plugin["inner_ip"],
+                        plugin["inner_ipv6"],
+                        plugin["bk_cloud_id"],
+                        plugin["plugin_status"],
+                    )
+                )
+        return all_beat_version
+
     def list(self, request, *args, **kwargs):
         """
         重写list,简化节点部分数据并添加关联任务数等数据
         """
+
+        def get_by_node(node, data_map, default=None):
+            if isinstance(node, UptimeCheckNode):
+                node = node.__dict__
+            key = node["bk_host_id"]
+            if not key:
+                key = host_key(ip=node["ip"], bk_cloud_id=node["plat_id"])
+            if key not in data_map:
+                return default
+            return data_map[key]
+
         # 如用户传入业务，同时还应该加上通用节点
         id_list = get_business_id_list()
         # 使用business_id_list过滤掉业务已经不存在的公共节点
@@ -153,71 +193,32 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             .prefetch_related(Prefetch("tasks", queryset=UptimeCheckTask.objects.only("id")))
         )
         serializer = self.get_serializer(queryset, many=True)
+        # 将节点解析成cmdb主机，存放在以host_id 和 ip+cloud_id 为key 的 字典里
+        node_to_host = resource.uptime_check.get_node_host_dict(queryset)
 
         result = []
+        bk_host_ids = {host.bk_host_id for host in node_to_host.values()}
+        hosts = [node_to_host[host_id] for host_id in bk_host_ids]
         all_beat_version = {}
-        bk_host_ids = [data["bk_host_id"] for data in serializer.data if data["bk_host_id"]]
-        # 兼容bk_host_id不存在的拨测节点
-        ips = [data["ip"] for data in serializer.data if not data["bk_host_id"]]
-        id_hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
-        id_to_host = {host.bk_host_id: host for host in id_hosts}
-        ip_to_host = {}
-        ip_hosts = []
-        if ips:
-            ip_hosts = api.cmdb.get_host_without_biz(ips=ips)["hosts"]
-            ip_to_host.update(
-                {
-                    host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
-                    for host in ip_hosts + id_hosts
-                    if host.bk_host_innerip
-                }
-            )
-            bk_host_ids.extend([h.bk_host_id for h in ip_hosts])
-
         if bk_host_ids:
-            all_plugin = api.node_man.plugin_search(
-                {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
-            )["list"]
-            for plugin in all_plugin:
-                beat_plugin = list(filter(lambda x: x["name"] == "bkmonitorbeat", plugin["plugin_status"]))
-                if beat_plugin:
-                    # 兼容ipv4无bk_host_id的旧节点配置
-                    if plugin["inner_ip"]:
-                        all_beat_version[(plugin["inner_ip"], plugin["bk_cloud_id"])] = beat_plugin[0].get(
-                            "version", ""
-                        )
-                    all_beat_version[plugin["bk_host_id"]] = beat_plugin[0].get("version", "")
-                else:
-                    logger.warning(
-                        "bkmonitorbeat plugin(host_id:{}, ip:{}, ipv6:{}, cloud_id:{}) doesn't exist. "
-                        "all plugin status info:{}".format(
-                            plugin["bk_host_id"],
-                            plugin["inner_ip"],
-                            plugin["inner_ipv6"],
-                            plugin["bk_cloud_id"],
-                            plugin["plugin_status"],
-                        )
-                    )
+            # 去节点管理拿拨测采集器的版本信息
+            all_beat_version = self.get_beat_version(bk_host_ids)
 
         # 获取采集器相关信息
-        all_node_status = []
+        all_node_status = {}
         try:
             all_node_status = (
-                resource.uptime_check.uptime_check_beat(bk_biz_id=bk_biz_id, id_hosts=id_hosts, ip_hosts=ip_hosts)
+                resource.uptime_check.uptime_check_beat.return_with_dict(bk_biz_id=bk_biz_id, hosts=hosts)
                 if bk_biz_id
-                else resource.uptime_check.uptime_check_beat(id_hosts=id_hosts, ip_hosts=ip_hosts)
+                else resource.uptime_check.uptime_check_beat.return_with_dict(hosts=hosts)
             )
         except Exception as e:
-            print("Failed to get uptime check node status: {}".format(e))
+            logger.exception("Failed to get uptime check node status: {}".format(e))
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
         for node in serializer.data:
             task_num = node_task_counts.get(node["id"], 0)
-            if node.get("bk_host_id"):
-                host_instance = id_to_host.get(node["bk_host_id"], None)
-            else:
-                host_instance = ip_to_host.get(host_key(ip=node["ip"], bk_cloud_id=str(node["plat_id"])), None)
-
+            host_instance = get_by_node(node, node_to_host)
             beat_version = ""
             if not host_instance:
                 # host_id/ip失效，无法找到对应主机实例，拨测节点标记状态为失效
@@ -225,27 +226,11 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 display_name = node["ip"]
             else:
                 display_name = host_instance.display_name
-                if is_ipv6_biz(node["bk_biz_id"]):
-                    beat_version = all_beat_version.get(node["bk_host_id"], "")
-                    node_status_list = list(
-                        filter(
-                            lambda x: x.get("bk_host_id") == str(host_instance.bk_host_id),
-                            all_node_status,
-                        )
-                    )
-                else:
-                    beat_version = all_beat_version.get((host_instance.bk_host_innerip, host_instance.bk_cloud_id), "")
-                    node_status_list = list(
-                        filter(
-                            lambda x: x.get("ip") == host_instance.bk_host_innerip
-                            and x.get("bk_cloud_id") == host_instance.bk_cloud_id,
-                            all_node_status,
-                        )
-                    )
-                if len(node_status_list):
-                    node_status = node_status_list[0]
-                else:
-                    node_status = {}
+                # 未上报数据，默认给不可用状态
+                node_status = get_by_node(
+                    node, all_node_status, {"gse_status": BEAT_STATUS["DOWN"], "status": BEAT_STATUS["DOWN"]}
+                )
+                beat_version = get_by_node(node, all_beat_version, beat_version)
             result.append(
                 {
                     "id": node["id"],
