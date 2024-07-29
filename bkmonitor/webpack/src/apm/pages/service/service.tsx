@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
@@ -57,6 +57,7 @@ export default class Service extends tsc<object> {
 
   @Ref() commonPageRef: CommonPage;
   @InjectReactive('readonly') readonly readonly: boolean;
+
   viewOptions: IViewOptions = {};
   // 导航条设置
   routeList: INavItem[] = [];
@@ -106,6 +107,12 @@ export default class Service extends tsc<object> {
           : window.i18n.tc('概览')
         : this.subName;
     return `${label}：${value}`;
+  }
+
+  @Provide('linkSelfClick')
+  linkSelfClick() {
+    this.handleUpdateAppName(this.tabId);
+    this.pageKey += 1;
   }
 
   async beforeRouteEnter(to, from, next) {

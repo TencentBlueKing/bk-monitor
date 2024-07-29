@@ -38,6 +38,7 @@ from apps.log_databus.constants import (
     Environment,
     EsSourceType,
     EtlConfig,
+    KafkaInitialOffsetEnum,
     LabelSelectorOperator,
     PluginParamLogicOpEnum,
     PluginParamOpEnum,
@@ -242,6 +243,25 @@ class PluginParamSerializer(serializers.Serializer):
     syslog_monitor_host = serializers.CharField(label=_("syslog监听服务器IP"), required=False, allow_blank=True)
     syslog_conditions = serializers.ListSerializer(
         label=_("syslog过滤条件"), required=False, default=[], child=SyslogPluginConditionFiltersSerializer()
+    )
+
+    # kafka 采集配置相关参数
+    kafka_hosts = serializers.ListField(
+        label=_("kafka地址"), required=False, default=[], child=serializers.CharField(max_length=255)
+    )
+    kafka_username = serializers.CharField(label=_("kafka用户名"), required=False, allow_blank=True)
+    kafka_password = serializers.CharField(label=_("kafka密码"), required=False, allow_blank=True)
+    kafka_ssl_params = serializers.DictField(label=_("kafka ssl配置"), required=False, default=dict)
+    kafka_topics = serializers.ListField(
+        label=_("kafka topic"), required=False, default=[], child=serializers.CharField()
+    )
+    kafka_group_id = serializers.CharField(label=_("kafka 消费组"), required=False, allow_blank=True, default="")
+    kafka_initial_offset = serializers.ChoiceField(
+        label=_("初始偏移量"),
+        choices=KafkaInitialOffsetEnum.get_choices(),
+        required=False,
+        default=KafkaInitialOffsetEnum.NEWEST.value,
+        allow_blank=True,
     )
 
     def validate(self, attrs):
@@ -1338,6 +1358,9 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
 
     path = serializers.ListField(
         label=_("日志采集路径"), child=serializers.CharField(allow_blank=True), required=False, allow_empty=True
+    )
+    exclude_files = serializers.ListField(
+        label=_("日志采集路径黑名单"), child=serializers.CharField(allow_blank=True), required=False, allow_empty=True
     )
     encoding = serializers.ChoiceField(label=_("日志字符集"), choices=EncodingsEnum.get_choices(), default="utf-8")
     multiline = MultilineSerializer(label=_("段日志配置"), required=False)

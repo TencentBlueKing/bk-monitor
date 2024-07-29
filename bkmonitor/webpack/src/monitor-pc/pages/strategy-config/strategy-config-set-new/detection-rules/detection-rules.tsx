@@ -209,10 +209,16 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   /** 是否支持智能检测算法 时序预测条件一致 */
   get isCanSetAiops(): boolean {
-    const { data_source_label: dataSourceLabel, data_type_label: dataTypeLabel, functions } = this.metricData[0] || {};
+    const {
+      data_source_label: dataSourceLabel,
+      data_type_label: dataTypeLabel,
+      functions,
+      result_table_id,
+    } = this.metricData[0] || {};
     return (
       this.metricData.length === 1 &&
-      ['bk_data'].includes(dataSourceLabel) &&
+      (['bk_data'].includes(dataSourceLabel) ||
+        (['bk_monitor'].includes(dataSourceLabel) && result_table_id?.startsWith('system.'))) &&
       dataTypeLabel === 'time_series' &&
       !functions?.length
     );
@@ -539,6 +545,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         <div class='detection-list'>
           {this.addType.map((item, index) => (
             <div
+              key={index}
               class='detection-list-item'
               onClick={() => this.handleRuleClick(item)}
             >

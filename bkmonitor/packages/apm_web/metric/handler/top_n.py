@@ -12,6 +12,9 @@ import json
 import urllib.parse
 from collections import defaultdict
 
+from django.utils.translation import ugettext_lazy as _
+from opentelemetry.semconv.resource import ResourceAttributes
+
 from apm_web.calculation import ErrorRateCalculation
 from apm_web.constants import component_where_mapping
 from apm_web.handlers.component_handler import ComponentHandler
@@ -19,13 +22,10 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric_handler import AvgDurationInstance, MetricHandler
 from apm_web.models import Application
 from apm_web.utils import group_by
-from django.utils.translation import ugettext_lazy as _
-from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
-from opentelemetry.semconv.resource import ResourceAttributes
-
 from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.unit import load_unit
+from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
 
 TOP_N_HANDLERS = {}
 
@@ -45,6 +45,10 @@ def register(top_n):
 
 class TopNHandler:
     query_type = None
+    # 返回单条数据
+    instant = True
+
+    group_by_keys = []
 
     def __init__(
         self, application: Application, start_time: int, end_time: int, size: int, filter_dict=None, service_params=None
@@ -178,12 +182,34 @@ class TopNHandler:
 
         return url
 
+    def agg_data(self, series):
+        """数据聚合"""
+
+        aggregated_results = {}
+        for i in series:
+            result = i["_result_"]
+
+            unique_key = tuple(i.get(key) for key in self.group_by_keys)
+            if unique_key in aggregated_results:
+                aggregated_results[unique_key] += result
+            else:
+                aggregated_results[unique_key] = result
+        res = []
+        for k, v in aggregated_results.items():
+            res.append({"_result_": v, **{key: k[index] for index, key in enumerate(self.group_by_keys)}})
+        return res
+
 
 @register
 class EndpointCalledCountTopNHandler(TopNHandler):
     query_type = "endpoint_called_count"
 
     JOIN_CHAR = " | "
+
+    group_by_keys = [
+        OtlpKey.SPAN_NAME,
+        OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
+    ]
 
     def get_endpoint_split(self, item):
         return item["name"].split(self.JOIN_CHAR)[-1]
@@ -193,17 +219,14 @@ class EndpointCalledCountTopNHandler(TopNHandler):
         filter_dict, where_condition = self.get_condition(override_filter_dict)
 
         handler = MetricHandler(self.application, self.start_time, self.end_time)
-        group_by_keys = [
-            OtlpKey.SPAN_NAME,
-            OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
-        ]
+
         metrics = handler.instance_unify_query(
             {
                 "data_source_label": "custom",
                 "data_type_label": "time_series",
                 "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
                 "table": f"{database_name}.__default__",
-                "group_by": group_by_keys,
+                "group_by": self.group_by_keys,
                 "display": True,
                 "interval": self.end_time - self.start_time,
                 "interval_unit": "s",
@@ -211,13 +234,16 @@ class EndpointCalledCountTopNHandler(TopNHandler):
                 "filter_dict": filter_dict,
                 "functions": [],
                 "where": where_condition,
+                "instant": self.instant,
             }
         )
 
-        return self.collect_sum_metrics(metrics, group_by_keys)
+        return self.collect_sum_metrics(metrics, self.group_by_keys)
 
     def top_n(self, override_filter_dict=None):
         series = self._query_metric(override_filter_dict)
+
+        series = self.agg_data(series)
 
         sum_count = sum([serie["_result_"] for serie in series])
         result = []
@@ -252,6 +278,12 @@ class EndpointErrorRateTopNHandler(TopNHandler):
 
     JOIN_CHAR = " | "
 
+    group_by_keys = [
+        OtlpKey.SPAN_NAME,
+        OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE),
+        OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
+    ]
+
     def get_endpoint_split(self, item):
         return item["name"].split(self.JOIN_CHAR)[-1]
 
@@ -272,7 +304,7 @@ class EndpointErrorRateTopNHandler(TopNHandler):
                 "data_type_label": "time_series",
                 "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
                 "table": f"{database_name}.__default__",
-                "group_by": group_keys,
+                "group_by": self.group_by_keys,
                 "display": True,
                 "interval": self.end_time - self.start_time,
                 "interval_unit": "s",
@@ -280,6 +312,7 @@ class EndpointErrorRateTopNHandler(TopNHandler):
                 "filter_dict": filter_dict,
                 "functions": [],
                 "where": where_condition,
+                "instant": self.instant,
             }
         )
 
@@ -287,6 +320,7 @@ class EndpointErrorRateTopNHandler(TopNHandler):
 
     def top_n(self, override_filter_dict=None):
         series = self._query_metric(override_filter_dict)
+        series = self.agg_data(series)
         endpoint_map = defaultdict(list)
         for serie in series:
             if OtlpKey.SPAN_NAME not in serie:
@@ -392,6 +426,10 @@ class ServiceCalledCountTopNHandler(TopNHandler):
 
     query_type = "service_called_count"
 
+    group_by_keys = [
+        OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
+    ]
+
     def _query_metric(self, override_filter_dict):
         database_name, _ = self.application.metric_result_table_id.split(".")
         handler = MetricHandler(self.application, self.start_time, self.end_time)
@@ -401,9 +439,7 @@ class ServiceCalledCountTopNHandler(TopNHandler):
                 "data_type_label": "time_series",
                 "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
                 "table": f"{database_name}.__default__",
-                "group_by": [
-                    OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
-                ],
+                "group_by": self.group_by_keys,
                 "display": True,
                 "interval": self.end_time - self.start_time,
                 "interval_unit": "s",
@@ -411,11 +447,13 @@ class ServiceCalledCountTopNHandler(TopNHandler):
                 "filter_dict": self.filter_dict if not override_filter_dict else override_filter_dict,
                 "functions": [],
                 "where": [],
+                "instant": self.instant,
             }
         )
 
     def top_n(self, override_filter_dict=None):
         series = self._query_metric(override_filter_dict)
+        series = self.agg_data(series)
         sum_count = sum([i["_result_"] for i in series])
         result = []
 
@@ -447,6 +485,10 @@ class ServiceErrorCountTopNHandler(TopNHandler):
 
     query_type = "service_error_count"
 
+    group_by_keys = [
+        OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
+    ]
+
     def _query_metric(self, override_filter_dict):
         database_name, _ = self.application.metric_result_table_id.split(".")
         handler = MetricHandler(self.application, self.start_time, self.end_time)
@@ -456,9 +498,7 @@ class ServiceErrorCountTopNHandler(TopNHandler):
                 "data_type_label": "time_series",
                 "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
                 "table": f"{database_name}.__default__",
-                "group_by": [
-                    OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
-                ],
+                "group_by": self.group_by_keys,
                 "display": True,
                 "interval": self.end_time - self.start_time,
                 "interval_unit": "s",
@@ -466,11 +506,13 @@ class ServiceErrorCountTopNHandler(TopNHandler):
                 "filter_dict": self.filter_dict if not override_filter_dict else override_filter_dict,
                 "functions": [],
                 "where": [{"key": "status_code", "method": "eq", "value": ["2"]}],
+                "instant": self.instant,
             }
         )
 
     def top_n(self, override_filter_dict=None):
         series = self._query_metric(override_filter_dict)
+        series = self.agg_data(series)
         sum_count = sum([i["_result_"] for i in series])
         result = []
 

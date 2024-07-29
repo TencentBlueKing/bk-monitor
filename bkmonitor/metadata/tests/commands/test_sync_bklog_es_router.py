@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
 import pytest
 
 from metadata import models
@@ -65,6 +67,13 @@ def test_update_or_create_es_router():
             "data_label": "log_index_set_290",
             "table_id": "2_bklog.test20240611",
             "space_uid": f"{space_type}__{space_id}",
+            "options": [
+                {
+                    "name": "demo",
+                    "value_type": "dict",
+                    "value": json.dumps({"name": "test1", "type": "time", "unit": "millisecond"}),
+                }
+            ],
         },
         {
             "cluster_id": 22,
@@ -90,4 +99,10 @@ def test_update_or_create_es_router():
             table_id__in=["bklog_index_set_285.__default__", "2_bklog.test20240611"]
         ).count()
         == 2
+    )
+    assert (
+        models.ResultTableOption.objects.filter(
+            table_id__in=[["bklog_index_set_285.__default__", "2_bklog.test20240611"]]
+        ).count()
+        == 1
     )

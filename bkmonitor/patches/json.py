@@ -15,6 +15,11 @@ from json import load as json_load
 from json import loads as json_loads
 
 try:
+    from django.core.files import File
+except ImportError:
+    File = None
+
+try:
     import ujson
 except ImportError:
     __implements__ = []
@@ -63,6 +68,10 @@ def loads(*args, **kwargs):
 
 
 def dumps(*args, **kwargs):
+    # 当前文件为django的File对象时，不进行转换，避免segmentation fault错误
+    if args and File and isinstance(args[0], File):
+        return json_dumps(*args, **kwargs)
+
     if SAFE_OPTIONS.issuperset(kwargs.keys()):
         try:
             kwargs.setdefault("escape_forward_slashes", False)

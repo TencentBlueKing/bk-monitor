@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, nextTick, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Tag } from 'bkui-vue';
+import { Tag, Select } from 'bkui-vue';
+import { debounce } from 'lodash';
 
 import type { ICurrentISnapshot, IIncident } from '../types';
 
@@ -35,20 +36,35 @@ import './failure-tags.scss';
 
 export default defineComponent({
   name: 'FailureTags',
-  emits: ['collapse', 'chooseTag', 'chooseNode'],
+  emits: ['chooseTag', 'chooseNode'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const styleOptions = {
+      '--icon-size': '16px',
+      '--icon-padding-top': '11px',
+      '--icon-padding-right': '14px',
+      '--animation-timeline': 0.5,
+      '--animation-delay': 0.2,
+    };
     const isHover = ref<boolean>(false);
     const isShow = ref<boolean>(false);
+    const selectCollapseTagsStatus = ref<boolean>(!isHover.value);
+    let selectDelayTimer: any = null;
     const failureTags = ref<HTMLDivElement>();
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const playLoading = inject<Ref<boolean>>('playLoading');
     const incidentDetailData = computed(() => {
       return incidentDetail.value;
     });
+    const failureTagsShowStates = computed(() => (isHover.value ? 'failure-tags-show-all' : 'failure-tags-show-omit'));
+    const failureTagsPostionsStates = computed(() =>
+      isShow.value ? 'failure-tags-positons-relative' : 'failure-tags-positions-absolute'
+    );
+
     const handleCheckChange = (checked, tag) => {
       emit('chooseTag', tag, checked);
     };
+
     const renderList = [
       {
         label: t('影响空间'),
@@ -117,7 +133,7 @@ export default defineComponent({
             const tips = replacePlaceholders(template, { 0: elements[0][1], 1: elements[1] });
             return (
               <span
-                class={['item-info', { over: isHover.value }]}
+                class={['item-info']}
                 title={tips.join('')}
               >
                 {processedContentArray.map(part => (typeof part === 'string' ? part : <>{part}</>))}
@@ -131,60 +147,102 @@ export default defineComponent({
         label: t('故障负责人'),
         renderFn: () => {
           const list = incidentDetailData.value?.assignees || [];
-          // if (!isShow.value) {
-          //   return (
-          //     <TagShow
-          //       styleName={'principal-tag'}
-          //       data={principal}
-          //     />
-          //   );
-          // }
           return list.length === 0 ? (
             <span class='empty-text'>--</span>
           ) : (
-            list.map(item => <Tag class='principal-tag'>{item}</Tag>)
+            <Select
+              class='principal-tag'
+              clearable={false}
+              collapseTags={selectCollapseTagsStatus.value}
+              modelValue={list}
+              multipleMode='tag'
+              disabled
+            />
           );
         },
       },
     ];
     const expandCollapseHandle = () => {
-      isShow.value = !isShow.value;
-      nextTick(() => {
-        emit('collapse', isShow.value, failureTags?.value?.clientHeight);
-      });
+      if (isShow.value) {
+        isHover.value = !isShow.value;
+        setTimeout(
+          () => {
+            isShow.value = !isShow.value;
+          },
+          (styleOptions['--animation-timeline'] - styleOptions['--animation-delay']) * 1000
+        );
+      } else {
+        isShow.value = !isShow.value;
+        isHover.value = isShow.value;
+      }
     };
-    return { renderList, expandCollapseHandle, isShow, failureTags, incidentDetailData, playLoading, isHover };
+    const expandCollapseHandleDebounced = debounce(expandCollapseHandle, 300);
+    const expandIsHoverHandle = () => {
+      if (isShow.value) return;
+      isHover.value = !isHover.value;
+    };
+
+    // 由于使用了组件库中的下拉框，在进行动画效果无法使用css处理保证同步，
+    // 所以使用js 定时器来控制
+    watch(isHover, val => {
+      if (!val) {
+        clearTimeout(selectDelayTimer);
+        selectDelayTimer = setTimeout(
+          () => {
+            selectCollapseTagsStatus.value = !val;
+          },
+          (styleOptions['--animation-timeline'] - styleOptions['--animation-delay']) * 1000
+        );
+      } else {
+        selectCollapseTagsStatus.value = !val;
+      }
+    });
+    onUnmounted(() => {
+      clearTimeout(selectDelayTimer);
+      selectDelayTimer = null;
+    });
+    return {
+      styleOptions,
+      renderList,
+      expandCollapseHandleDebounced,
+      expandIsHoverHandle,
+      isShow,
+      failureTags,
+      incidentDetailData,
+      playLoading,
+      isHover,
+      failureTagsShowStates,
+      failureTagsPostionsStates,
+    };
   },
   render() {
     return (
       <div
         ref='failureTags'
-        class={['failure-tags', { 'failure-tags-full': this.isShow }]}
-        onMouseenter={() => {
-          this.isHover = true;
-        }}
-        onMouseleave={() => {
-          this.isHover = false;
-        }}
+        style={{ ...this.styleOptions }}
+        class={['failure-tags', [this.failureTagsShowStates, this.failureTagsPostionsStates]]}
       >
-        <div
-          style={{
-            height: `${this.isHover ? 60 : 40}px`,
-          }}
-          class='failure-tags-main'
-        >
-          {this.playLoading && <div class='failure-tags-loading' />}
-          {this.renderList.map(item => (
-            <div class='failure-tags-item'>
-              <span class='item-label'>{item.label}：</span>
-              <div class='item-main'>{item.renderFn()}</div>
-            </div>
-          ))}
+        <div class='failure-tags-container'>
+          <div
+            class='failure-tags-main'
+            onMouseenter={this.expandIsHoverHandle}
+            onMouseleave={this.expandIsHoverHandle}
+          >
+            {this.playLoading && <div class='failure-tags-loading' />}
+            {this.renderList.map(item => (
+              <div class='failure-tags-item'>
+                <span class='item-label'>{item.label}：</span>
+                <div class='item-main'>{item.renderFn()}</div>
+              </div>
+            ))}
+          </div>
+          <div class={`failure-tags-icon ${this.isShow ? 'failure-tags-icon-collapse' : ''} `}>
+            <i
+              class='icon-monitor icon-double-down'
+              onClick={this.expandCollapseHandleDebounced}
+            ></i>
+          </div>
         </div>
-        {/* <i
-          class={`icon-monitor icon-double-${this.isShow ? 'up' : 'down'} failure-tags-icon`}
-          onClick={this.expandCollapseHandle}
-        ></i> */}
       </div>
     );
   },

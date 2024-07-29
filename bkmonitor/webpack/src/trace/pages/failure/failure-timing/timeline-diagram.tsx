@@ -480,10 +480,12 @@ export default defineComponent({
         if (percentage.value !== 0) {
           nextTick(() => {
             const activeElements: any = processRef.value.querySelectorAll('.active');
-            const num = -activeElements[0].offsetLeft + 100;
-            const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
-            mainLeft.value = num > max ? num : max;
-            ratio.value = mainLeft.value / max;
+            if (activeElements.length > 0) {
+              const num = -activeElements[0].offsetLeft + 100;
+              const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
+              mainLeft.value = num > max ? num : max;
+              ratio.value = mainLeft.value / max;
+            }
           });
         }
       }
@@ -857,10 +859,29 @@ export default defineComponent({
         isDragging.value = false;
         timeLineMainRef.value.removeEventListener('mousemove', onMouseMove);
         timeLineMainRef.value.removeEventListener('mouseup', onMouseUp);
+        timeLineMainRef.value.removeEventListener('wheel', onMouseMove);
       };
-
+      timeLineMainRef.value.addEventListener('wheel', onMouseMove);
       timeLineMainRef.value.addEventListener('mousemove', onMouseMove);
       timeLineMainRef.value.addEventListener('mouseup', onMouseUp);
+    };
+    const handleWheel = e => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (percentage.value === 0) {
+        return;
+      }
+      const selection: any = timeLineMainRef.value;
+      const startTransform = getTransformX(selection);
+      const { deltaX } = e;
+      const sensitivity = 2; // 设置滚动灵敏度
+      let dx = -deltaX * sensitivity;
+      const newTransformX = startTransform + dx;
+      const maxTransformX = selection.offsetWidth - selection.parentNode.offsetWidth;
+      const newPos = Math.max(-maxTransformX, Math.min(maxTransformX, newTransformX));
+      const ratio = newPos / maxTransformX;
+      mainLeft.value = newPos > 0 ? 0 : newPos;
+      mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
     };
     return {
       t,
@@ -894,6 +915,7 @@ export default defineComponent({
       manualProcessShowChange,
       handleDebugStatus,
       handleMealInfo,
+      handleWheel,
       handleAlarmDispatchShowChange,
       alarmConfirmChange,
       tickPopoverRefs,
@@ -980,6 +1002,7 @@ export default defineComponent({
           style={{ width: `${this.mainWidth}px`, transform: `translateX(${this.mainLeft}px)` }}
           class='timeline-diagram-main'
           onMousedown={this.onTimeLineMainMouseDown}
+          onWheel={this.handleWheel}
         >
           <ul class='time-tick'>
             {(this.showTickArr || []).map(item => {

@@ -70,7 +70,7 @@ class PlatformConfigStore extends VuexModule {
     }
 
     const configData = await configPromise;
-    setShortcutIcon(configData.favIcon);
+    setShortcutIcon(configData.favicon);
     setDocumentTitle(configData.i18n);
     this.updatePlatformConfig(configData);
   }

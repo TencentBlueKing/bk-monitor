@@ -529,7 +529,7 @@ class CollectorViewSet(ModelViewSet):
         @apiDescription 创建采集项
         @apiGroup 10_Collector
         @apiParam {Int} bk_biz_id 所属业务
-        @apiParam {String} collector_scenario_id 日志类型 可选字段`row, section, win_event, syslog`
+        @apiParam {String} collector_scenario_id 日志类型 可选字段`row, section, win_event, syslog, kafka`
         @apiParam {String} collector_config_name 采集项名称
         @apiParam {Int} data_link_id 数据链路id
         @apiParam {String} category_id 数据分类 GlobalsConfig.category读取
@@ -613,7 +613,13 @@ class CollectorViewSet(ModelViewSet):
                 "winlog_source": ["Microsoft-Windows-Security-Auditing"],
                 "winlog_content": ["aaa", "bbb", "ccc"],
                 "syslog_protocol": "tcp",
-                "syslog_port": 514
+                "syslog_port": 514,
+                "kafka_hosts": ['127.0.0.1: 9092', '127.0.0.2: 9092'],
+                "kafka_username": "admin",
+                "kafka_password": "xxxxx",
+                "kafka_topics": ['topic_1', 'topic_2'],
+                "kafka_group_id": 'group_1',
+                "kafka_initial_offset": 'newest'
             },
         }
         @apiSuccess {Int} collector_config_id 采集配置ID

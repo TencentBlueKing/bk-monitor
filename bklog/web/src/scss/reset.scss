@@ -41,5 +41,5 @@ div,
 ul,
 section,
 article {
-  @include scroller
+  @include scroller;
 }

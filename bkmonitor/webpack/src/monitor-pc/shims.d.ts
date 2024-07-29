@@ -35,6 +35,7 @@ interface IBkInfoProps {
   zIndex: number;
   width: number | string;
   type: string;
+  container: Element | string;
   maskClose: boolean;
   confirmLoading: boolean;
   subHeader?: any;
@@ -49,9 +50,9 @@ interface IBkInfoProps {
 }
 declare module 'vue/types/vue' {
   interface Vue {
-    $bkInfo?: (p: Partial<IBkInfoProps>) => void;
+    $bkInfo?: (p: Partial<IBkInfoProps>) => { close: () => void };
     $bkMessage?: (p: Partial<object>) => void;
-    $bkPopover?: (...Object) => void;
+    $bkPopover?: (...object) => void;
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
     $bkLoading?: any;
     $api?: any;
