@@ -1072,7 +1072,7 @@ class BatchExecuteDynamicGroup(Resource):
     """
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-        ids = serializers.ListField(label=_("动态分组ID列表"), child=serializers.IntegerField(), allow_empty=False)
+        ids = serializers.ListField(label=_("动态分组ID列表"), child=serializers.CharField(), allow_empty=False)
         bk_obj_id = serializers.ChoiceField(label=_("对象ID"), choices=["host", "set"])
 
     MAX_CONCURRENCY_NUMBER = 3
