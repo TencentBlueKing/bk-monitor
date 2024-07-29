@@ -167,7 +167,7 @@
           clearTimeout(this.realNewIndexTimer);
           this.realNewIndexTimer = setTimeout(() => {
             this.newIndex = null;
-          }, 10000);
+          }, 5000);
         }
       },
       escapedReverseLogList() {
