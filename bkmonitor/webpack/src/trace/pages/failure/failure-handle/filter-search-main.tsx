@@ -228,7 +228,6 @@ export default defineComponent({
             inputStatus={this.inputStatus}
             searchType={this.searchType}
             value={this.queryString}
-            valueMap={this.valueMap}
             onChange={this.handleQueryStringChange}
             onClear={this.handleQueryStringChange}
           />

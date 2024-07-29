@@ -88,7 +88,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const active = ref<string>(FailureContentTabView.FAILURE_TOPO);
-    const alertIdsObject = ref<IAlertObj>();
+    const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');
     const incidentId = useIncidentInject();
@@ -135,6 +135,7 @@ export default defineComponent({
     const playingHandle = status => {
       playLoading.value = status;
     };
+
     /** 跳转到告警明细 */
     const goAlertDetail = (alertObj: IAlertObj) => {
       handleChangeActive('AlarmDetail');
@@ -179,9 +180,9 @@ export default defineComponent({
       return validate;
     };
     const handleQueryStringChange = async (v: string) => {
-      const isChange = v !== alertIdsObject.value.ids;
+      const isChange = alertIdsObject.value?.ids ? v !== alertIdsObject.value.ids : true;
       if (isChange) {
-        alertIdsObject.value.ids = v;
+        alertIdsObject.value = v;
         searchValidate.value = await handleValidateQueryString();
       }
     };
@@ -248,8 +249,8 @@ export default defineComponent({
                     </span>
                   ))}
                 </div>
+
                 <FilterSearchInput
-                  // valueMap={this.valueMap}
                   inputStatus={this.inputStatus}
                   searchType='incident'
                   value={this.alertIdsObject?.ids}
