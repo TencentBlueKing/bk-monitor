@@ -417,6 +417,8 @@ class IncidentTopologyResource(IncidentBaseResource):
         for node in current["nodes"]:
             if node["id"] not in last_nodes or node["aggregated_nodes"] != last_nodes[node["id"]]["aggregated_nodes"]:
                 new_nodes.append(node)
+            elif self.check_node_diff(node, last_nodes[node["id"]]):
+                new_nodes.append(node)
 
             if node["id"] not in complete_topologies["nodes"]:
                 complete_topologies["nodes"][node["id"]] = node
@@ -430,6 +432,14 @@ class IncidentTopologyResource(IncidentBaseResource):
             "nodes": new_nodes,
             "edges": new_edges,
         }
+
+    def check_node_diff(self, current_node: dict, last_node: dict):
+        """判断节点是否发生变化."""
+        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count"]:
+            if current_node[node_key] != last_node[node_key]:
+                return True
+
+        return False
 
     def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> Dict:
         """根据快照内容生成拓扑图数据
