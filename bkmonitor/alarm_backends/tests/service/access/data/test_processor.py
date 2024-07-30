@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import base64
 import copy
+import gzip
 import json
 import time
 from collections import defaultdict
@@ -103,11 +105,12 @@ class TestAccessDataProcess(object):
         data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
             strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.batch_timestamp}.2"
         )
-        result = c.lrange(data_key, 0, -1)
+        data = c.get(data_key)
+        result = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
         assert len(result) == 2
         assert (
-            result[0]
-            == '{"bk_target_ip":"127.0.0.3","load5":null,"bk_target_cloud_id":"0","_time_":1569246420,"_result_":null}'
+            json.dumps(result[0], sort_keys=True) == '{"_result_": 0, "_time_": 1569246420, "bk_target_cloud_id":'
+            ' "0", "bk_target_ip": "127.0.0.2", "load5": 0}'
         )
         assert len(acc_data.record_list) == 1
         assert mock_batch.delay.call_count == 1

@@ -129,19 +129,9 @@ class ShieldObj(object):
                     dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
 
                 bk_host_ids = set()
-                bk_set_ids = set()
                 for dynamic_group in dynamic_groups:
-                    if not dynamic_group:
-                        continue
-                    if dynamic_group.get("bk_obj_id") == "set":
-                        bk_set_ids.update(dynamic_group["bk_inst_ids"])
-                    elif dynamic_group.get("bk_obj_id") == "host":
+                    if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
                         bk_host_ids.update(dynamic_group["bk_inst_ids"])
-                if bk_set_ids:
-                    clean_dimension.setdefault("bk_topo_node", [])
-                    clean_dimension["bk_topo_node"].extend(
-                        [{"bk_obj_id": "set", "bk_inst_id": bk_set_id} for bk_set_id in bk_set_ids]
-                    )
                 if bk_host_ids:
                     clean_dimension["bk_host_id"] = list(bk_host_ids)
 
@@ -199,7 +189,6 @@ class ShieldObj(object):
             del_key.append("category")
 
         for key, value in list(dimension.items()):
-
             # 2. 找出value包含00的维度
             # 3. 找出key以下划线打头的维度
             if is_contains_00(value) or is_start_with__(key):
