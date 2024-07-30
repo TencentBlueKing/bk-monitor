@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.db import migrations
+from django.db.models import Q
 
 # 废弃的插件
 DISCARD_PLUGINS = [
@@ -41,39 +42,44 @@ def update_strategy_config(apps, schema_editor):
     strategy_model = apps.get_model("bkmonitor", "StrategyModel")
     query_config_model = apps.get_model("bkmonitor", "QueryConfigModel")
 
-    strategy = strategy_model.objects.filter(name="Gse进程托管事件告警(业务侧)").first()
-    if not strategy:
+    strategy_ids = strategy_model.objects.filter(
+        Q(name="Gse进程托管事件告警(业务侧)") | Q(name="GSE process hosting event alarm (business side)")
+    ).values_list("id", flat=True)
+    if not strategy_ids:
         return
-    query_config = query_config_model.objects.filter(strategy_id=strategy.id).first()
-    if not query_config:
+    query_configs = query_config_model.objects.filter(strategy_id__in=strategy_ids)
+    if not query_configs:
         return
 
-    config = query_config.config
-    agg_conditions = config.get("agg_condition", [])
-    for agg_condition in agg_conditions:
-        if agg_condition["key"] == "process_name" and agg_condition["method"] == "neq":
-            old_value_set = set(agg_condition["value"])
-            new_value_set = set(DISCARD_PLUGINS)
-            if new_value_set.issubset(old_value_set):
-                print("New agg_condition set is already a subset of old agg_condition set, no need to update.")
-                break
-            agg_condition["value"] = list(old_value_set.union(new_value_set))
-            query_config.config = config
-            query_config.save()
-            print("Query config updated and saved.")
-            break
-    else:
-        agg_condition = {
-            "key": "process_name",
-            "value": DISCARD_PLUGINS,
-            "method": "neq",
-            "condition": "and",
-            "dimension_name": "进程名称",
-        }
-        agg_conditions.append(agg_condition)
-        query_config.config = config
-        query_config.save()
-        print("New agg_condition added and query config saved.")
+    updated_query_configs = []
+    for qc in query_configs:
+        try:
+            config = qc.config
+            agg_conditions = config.get("agg_condition", [])
+            for agg_condition in agg_conditions:
+                if agg_condition["key"] == "process_name" and agg_condition["method"] == "neq":
+                    agg_condition["value"] = list(set(agg_condition["value"]) | set(DISCARD_PLUGINS))
+                    qc.config = config
+                    updated_query_configs.append(qc)
+                    break
+            else:
+                agg_condition = {
+                    "key": "process_name",
+                    "value": DISCARD_PLUGINS,
+                    "method": "neq",
+                    "condition": "and",
+                    "dimension_name": "进程名称",
+                }
+                agg_conditions.append(agg_condition)
+                qc.config = config
+                updated_query_configs.append(qc)
+            print(f"[done] process strategy config {qc.strategy_id}")
+        except Exception as exec:  # pylint: disable=broad-except
+            print(f"[X] process strategy config {qc.strategy_id} error: {exec}")
+            continue
+    print("准备执行批量更新QueryConfigModel操作")
+    query_config_model.objects.bulk_update(updated_query_configs, ["config"])
+    print(f"批量更新完成，共更新QueryConfigModel记录{len(updated_query_configs)}条.")
 
 
 class Migration(migrations.Migration):
