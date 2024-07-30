@@ -474,6 +474,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     return this.searchType === 'alert' ? this.analyzeFields : this.analyzeActionFields;
   }
 
+  get isIncident() {
+    return this.searchType === 'incident';
+  }
+
   // 是否拥有查询条件： 搜索条件或者高级筛选条件
   get hasSearchParams() {
     return !!(this.queryString || Object.values(this.condition).some(item => item.length));
@@ -2534,6 +2538,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 hasAuthApply={true}
                 spaceList={this.$store.getters.bizList}
                 value={this.bizIds}
+                needAlarmOption={!this.isIncident}
+                needIncidentOption={this.isIncident}
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
               />

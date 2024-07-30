@@ -94,6 +94,7 @@ export default defineComponent({
       incidentAlertAggregate({
         id: incidentId.value,
         aggregate_bys: [],
+        bk_biz_ids: [-1],
       })
         .then(res => {
           alertAggregateData.value = res;
@@ -383,6 +384,7 @@ export default defineComponent({
           alertIds={this.chatGroupDialog.alertIds}
           assignee={this.chatGroupDialog.assignee}
           data={this.incidentDetailData}
+          type={'incident'}
           show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />

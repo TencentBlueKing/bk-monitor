@@ -140,8 +140,8 @@ export default defineComponent({
           key: item.entity_type,
           children: item.aggregate_bys?.map(child => {
             const name = child.aggregate_key
-              ? `${t('按 {0} 聚合', [child.aggregate_key])} (${child.count})`
-              : `${`${t('聚合异常')}${item.entity_type}`}  (${child.count})`;
+              ? `${t('按 {0} 聚合', [child.aggregate_key])}`
+              : `${`${t('聚合异常')}${item.entity_type}`}`;
             return {
               ...child,
               parentId,
@@ -197,9 +197,11 @@ export default defineComponent({
       updateAggregationConfig();
     };
     /** 更新选中 */
-    const handleUpdateCheckedIds = (v: string[]) => {
+    const handleUpdateCheckedIds = (v: string[], parentNodes: string[]) => {
       checkedIds.value = v;
-      autoAggregate.value = v.join('|') === autoAggregateIdText;
+      /** 去除选中的父节点id */
+      const selectedData = v.filter(f => !parentNodes.includes(f));
+      autoAggregate.value = selectedData.join('|') === autoAggregateIdText;
       setTreeDataChecked();
       updateAggregationConfig();
     };
@@ -258,7 +260,6 @@ export default defineComponent({
   render() {
     return (
       <div class='topo-tools'>
-        {this.$t('故障拓扑')}
         <AggregationSelect
           class='topo-tools-agg'
           autoAggregate={this.autoAggregate}
