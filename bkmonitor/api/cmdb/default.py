@@ -1047,7 +1047,7 @@ class ExecuteDynamicGroup(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-        id = serializers.IntegerField(label=_("动态分组ID"))
+        id = serializers.CharField(label=_("动态分组ID"))
         bk_obj_id = serializers.ChoiceField(label=_("对象ID"), choices=["host", "set"])
 
     def perform_request(self, params):
@@ -1082,7 +1082,7 @@ class BatchExecuteDynamicGroup(Resource):
         tasks: Dict[str, ApplyResult] = {}
         for dg_id in params["ids"]:
             tasks[dg_id] = pool.apply_async(
-                ExecuteDynamicGroup.request,
+                ExecuteDynamicGroup().request,
                 kwds={"bk_biz_id": params["bk_biz_id"], "id": dg_id, "bk_obj_id": params["bk_obj_id"]},
             )
         pool.close()

@@ -568,9 +568,9 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
 
     # 根据动态分组查询主机
     if dynamic_group_ids and (is_ip or is_host_id):
-        results = api.cmdb.batch_execute_dynamic_group(bk_biz_id=bk_biz_id, ids=dynamic_group_ids)
-        for result in results.values():
-            instance_nodes.extend(result)
+        dynamic_group_hosts = api.cmdb.batch_execute_dynamic_group(bk_biz_id=bk_biz_id, ids=dynamic_group_ids, bk_obj_id="host")
+        for dynamic_group_host in dynamic_group_hosts.values():
+            instance_nodes.extend(dynamic_group_host)
 
     for node in instance_nodes:
         if is_service_instance:
