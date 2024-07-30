@@ -15,6 +15,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Q
 
 from metadata import models
+from metadata.models.constants import DataIdCreatedFromSystem
 
 
 class Command(BaseCommand):
@@ -31,7 +32,8 @@ class Command(BaseCommand):
 
         # 筛选出需要删除Consul配置的数据源(已停用/已迁移)
         data_sources_to_delete = models.DataSource.objects.filter(
-            Q(mq_cluster_id=obj.cluster_id) & (Q(is_enable=False) | Q(created_from='bkdata'))
+            Q(mq_cluster_id=obj.cluster_id)
+            & (Q(is_enable=False) | Q(created_from=DataIdCreatedFromSystem.BKDATA.value))
         )
 
         # 执行Consul删除操作
@@ -40,7 +42,7 @@ class Command(BaseCommand):
 
         # 筛选出剩余有效的数据源
         remaining_data_sources = models.DataSource.objects.filter(mq_cluster_id=obj.cluster_id).exclude(
-            Q(is_enable=False) | Q(created_from='bkdata')
+            Q(is_enable=False) | Q(created_from=DataIdCreatedFromSystem.BKDATA.value)
         )
 
         # 获取剩余数据源的ID列表
