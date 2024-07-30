@@ -357,7 +357,10 @@ export default class DetailsSide extends tsc<IProps> {
                       class='chart-wrap'
                     >
                       <MiniChart
+                        comparePoint={this.comparePoint}
                         groupId={this.chartGroupId}
+                        pointType={this.pointType}
+                        referPoint={this.referPoint}
                         onComparePointChange={this.handleComparePointChange}
                         onPointTypeChange={this.handlePointTypeChange}
                         onReferPointChange={this.handleReferPointChange}
