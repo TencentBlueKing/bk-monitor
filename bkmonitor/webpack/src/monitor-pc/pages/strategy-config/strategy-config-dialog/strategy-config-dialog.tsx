@@ -160,9 +160,9 @@ interface IProps {
   selectMetricData?: MetricDetail[];
 }
 interface IEvents {
-  onGetGroupList?: void;
-  onConfirm?: void;
-  onHideDialog?: void;
+  onGetGroupList?: () => void;
+  onConfirm?: () => void;
+  onHideDialog?: () => void;
 }
 
 @Component
@@ -327,8 +327,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     const data = await getVariables().catch(() => []);
     const list = data
       .reduce((total, cur) => {
-        total = total.concat(cur.items);
-        return total;
+        return total.concat(cur.items);
       }, [])
       .map(item => ({
         id: item.name,
@@ -461,10 +460,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       /* 修改告警通知模板 */
       17: () => {
         const templateValidate = this.data.template.some(template => {
-          if (!Boolean(template.title_tmpl)) {
+          if (!template.title_tmpl) {
             this.handleChangeTemplate(template.signal);
           }
-          return !Boolean(template.title_tmpl);
+          return !template.title_tmpl;
         });
         if (templateValidate) {
           this.data.templateError = window.i18n.tc('必填项');
@@ -605,7 +604,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   /** 通知升级时间间隔 */
   handleUpgradeIntervalChange(val: string) {
     const num = Number.parseInt(val, 10);
-    this.data.upgrade_config.upgrade_interval = isNaN(num) ? 1 : num;
+    this.data.upgrade_config.upgrade_interval = Number.isNaN(num) ? 1 : num;
   }
 
   // 检测算法值更新
@@ -669,7 +668,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         );
       case 3 /* 批量修改无数据告警 */:
         return [
-          <div class='no-data-alarm'>
+          <div
+            key='no-data-alarm'
+            class='no-data-alarm'
+          >
             <i18n
               class='i18n'
               path='{0}当数据连续丢失{1}个周期触发无数据告警'
@@ -693,12 +695,21 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             </i18n>
           </div>,
           this.data.noDataCycleError ? (
-            <span class='no-data-error-msg error-msg-font'> {this.$t('仅支持整数')} </span>
+            <span
+              key='no-data-error-msg'
+              class='no-data-error-msg error-msg-font'
+            >
+              {' '}
+              {this.$t('仅支持整数')}{' '}
+            </span>
           ) : undefined,
         ];
       case 5 /* 修改恢复条件 */:
         return [
-          <div class='modify-trigger-condition'>
+          <div
+            key='modify-trigger-condition'
+            class='modify-trigger-condition'
+          >
             <i18n path='连续{0}个周期内不满足触发条件表示恢复'>
               <bk-input
                 class='number-input'
@@ -712,7 +723,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             </i18n>
           </div>,
           this.data.recoverCycleError ? (
-            <span class='recover-cycle-error-msg error-msg-font'>{this.$t('仅支持整数')}</span>
+            <span
+              key='recover-cycle-error-msg'
+              class='recover-cycle-error-msg error-msg-font'
+            >
+              {this.$t('仅支持整数')}
+            </span>
           ) : undefined,
         ];
       case 6 /* 启停策略 */:
@@ -747,8 +763,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               behavior='simplicity'
               checkedNode={this.data.labels}
               mode='select'
-              on-checkedChange={v => (this.data.labels = v)}
-              on-loading={v => (this.isLoading = v)}
+              on-checkedChange={v => {
+                this.data.labels = v;
+              }}
+              on-loading={v => {
+                this.isLoading = v;
+              }}
             />
             {this.data.labelsError ? (
               <span class='notice-error-msg error-msg-font'> {this.$t('选择标签')} </span>
@@ -778,7 +798,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       case 14 /* 修改告警组 */:
         return (
           <div class='alarm-groups'>
-            <span class='title'>{this.$t('告警组')}：</span>
+            <span class='title'>{this.$t('替换为')}：</span>
             <AlarmGroup
               class='alarm-group'
               isSimple={true}
@@ -787,7 +807,18 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               value={this.data.userGroups}
               onAddGroup={() => this.handleHideDialog(false)}
               onChange={data => this.handleUserGroupChange(data)}
-            />
+            >
+              <span
+                key={1}
+                class='icon-monitor icon-mc-add'
+              />
+              <span
+                key={2}
+                class='add-tag-text'
+              >
+                {this.$t('选择告警组')}
+              </span>
+            </AlarmGroup>
             {this.data.userGroupsErr ? (
               <span class='alarm-groups-err-msg error-msg-font'> {this.$t('必填项')} </span>
             ) : undefined}
@@ -804,7 +835,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   on-change={v => this.handleSignalChange(v, 'notice')}
                 >
                   {noticeOptions.map(item => (
-                    <bk-checkbox value={item.key}>{item.text}</bk-checkbox>
+                    <bk-checkbox
+                      key={item.key}
+                      value={item.key}
+                    >
+                      {item.text}
+                    </bk-checkbox>
                   ))}
                 </bk-checkbox-group>
               </span>
@@ -817,7 +853,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   on-change={v => this.handleSignalChange(v, 'action')}
                 >
                   {actionOption.map(item => (
-                    <bk-checkbox value={item.key}>{item.text}</bk-checkbox>
+                    <bk-checkbox
+                      key={item.key}
+                      value={item.key}
+                    >
+                      {item.text}
+                    </bk-checkbox>
                   ))}
                 </bk-checkbox-group>
               </span>
