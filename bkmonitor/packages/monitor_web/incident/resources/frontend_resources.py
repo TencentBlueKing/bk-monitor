@@ -27,6 +27,7 @@ from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import (
+    MAX_INCIDENT_ALERT_SIZE,
     IncidentDocument,
     IncidentOperationDocument,
     IncidentSnapshotDocument,
@@ -763,7 +764,7 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot)
+        alerts = self.get_snapshot_alerts(snapshot, page_size=MAX_INCIDENT_ALERT_SIZE)
         current_username = get_request_username()
 
         alert_abornomal_agg_results = Counter()
@@ -1004,6 +1005,8 @@ class IncidentAlertListResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
@@ -1043,6 +1046,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))

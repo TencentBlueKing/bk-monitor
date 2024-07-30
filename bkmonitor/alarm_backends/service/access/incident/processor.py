@@ -217,7 +217,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             if item["id"] not in last_snapshot_alerts:
                 IncidentOperationManager.record_incident_alert_trigger(
                     last_snapshot.incident_id,
-                    item["alert_time"],
+                    int(int(item["alert_time"]) / 1000),
                     alert_doc.alert_name,
                     item["id"],
                 )
@@ -232,7 +232,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 if operation:
                     operation(
                         last_snapshot.incident_id,
-                        item["alert_time"],
+                        int(int(item["alert_time"]) / 1000),
                         alert_doc.alert_name,
                         item["id"],
                     )
