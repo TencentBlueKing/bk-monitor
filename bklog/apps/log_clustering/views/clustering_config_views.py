@@ -24,21 +24,15 @@ import re
 from pipeline.service import task_service
 from rest_framework.response import Response
 
-from apps.api import MonitorApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.generic import APIViewSet
-from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT, StrategiesType
+from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
-from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
-from apps.log_clustering.models import SignatureStrategySettings
 from apps.log_clustering.serializers import (
     ClusteringConfigSerializer,
     ClusteringPreviewSerializer,
-    NewClsStrategySerializer,
-    NormalStrategySerializer,
-    StrategyConfigSerializer,
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
@@ -303,97 +297,3 @@ class ClusteringConfigViewSet(APIViewSet):
             logger.error("check regexp failed: %s", e)
             return Response(False)
         return Response(True)
-
-    @detail_route(methods=["post"], url_path="get_strategy")
-    def get_strategy(self, request, index_set_id=None):
-        """
-        @api {get} clustering_config/$index_set_id/get_strategy 获取告警策略信息
-        @apiName get_strategies
-        @apiGroup log_clustering
-        @apiSuccess {Str} index_set_id 索引集ID
-        @apiSuccessExample {json} 成功返回:
-        {
-        "result": true,
-        "data": {
-             "strategy_id": 123,
-             "interval": "7",
-             "threshold": 1,
-             "level": "8",
-             "user_groups": [1,2]
-          }
-          }
-         },
-        "code": 0,
-        "message": ""
-        }
-        """
-        params = self.params_valid(StrategyConfigSerializer)
-        bk_biz_id = params["bk_biz_id"]
-        strategy_type = params["strategy_type"]
-        obj = SignatureStrategySettings.objects.filter(index_set_id=index_set_id, strategy_type=strategy_type).first()
-        data = {}
-        if obj and obj.strategy_id:
-            conditions = [{"key": "strategy_id", "value": [obj.strategy_id]}]
-            result_data = MonitorApi.search_alarm_strategy_v3({"bk_biz_id": bk_biz_id, "conditions": conditions})
-            if result_data["strategy_config_list"]:
-                strategy_config = result_data["strategy_config_list"][0]
-                algorithms_config = strategy_config["items"][0]["algorithms"][0]
-                strategy_id = strategy_config["id"]
-                level = algorithms_config["level"]
-                user_groups = strategy_config["notice"]["user_groups"]
-                data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups}
-                if params["strategy_type"] == StrategiesType.NEW_CLS_strategy:
-                    interval = algorithms_config["config"]["args"]["$new_class_interval"]
-                    threshold = algorithms_config["config"]["args"]["$new_class_alert_th"]
-                    data.update({"interval": interval, "threshold": threshold})
-                else:
-                    sensitivity = algorithms_config["config"]["args"]["$sensitivity"]
-                    data.update({"sensitivity": sensitivity})
-        return Response(data)
-
-    @detail_route(methods=["post"], url_path="new_cls_strategy")
-    def create_or_update_new_cls_strategy(self, request, index_set_id=None):
-        """
-        @api {get} clustering_config/$index_set_id/new_cls_strategy/ 更新或创建新类告警策略
-        @apiName new_cls_strategy
-        @apiGroup log_clustering
-        @apiSuccess {Str} index_set_id 索引集ID
-        @apiSuccessExample {json} 成功返回:
-        {
-            "result": true,
-            "data": 12345
-            "code": 0,
-            "message": ""
-        }
-        """
-        strategy_type = StrategiesType.NEW_CLS_strategy
-        params = self.params_valid(NewClsStrategySerializer)
-        return Response(
-            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
-                params, strategy_type
-            )
-        )
-
-    @detail_route(methods=["post"], url_path="normal_strategy")
-    def create_or_update_normal_strategy(self, request, index_set_id=None):
-        """
-        @api {get} clustering_config/$index_set_id/new_cls_strategy/ 更新或创建数量突增告警策略
-        @apiName normal_strategy
-        @apiGroup log_clustering
-        @apiSuccess {Str} index_set_id 索引集ID
-        @apiSuccessExample {json} 成功返回:
-        {
-            "result": true,
-            "data": 12345
-            "code": 0,
-            "message": ""
-        }
-        """
-        strategy_type = StrategiesType.NORMAL_STRATEGY
-        params = self.params_valid(NormalStrategySerializer)
-
-        return Response(
-            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
-                params, strategy_type
-            )
-        )

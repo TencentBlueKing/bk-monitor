@@ -31,7 +31,6 @@ from apps.log_clustering.constants import (
     PatternEnum,
     RemarkConfigEnum,
     StrategiesAlarmLevelEnum,
-    StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 
@@ -148,31 +147,12 @@ class UpdateStrategyAction(serializers.Serializer):
     operator = serializers.CharField(required=False)
     value = serializers.CharField(required=False)
 
-
-class UpdateStrategiesSerializer(serializers.Serializer):
-    pattern_level = serializers.ChoiceField(required=True, choices=PatternEnum.get_choices())
-    bk_biz_id = serializers.IntegerField()
-    actions = serializers.ListField(child=UpdateStrategyAction())
-
-
-class UpdateNewClsStrategySerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField()
-    action = serializers.ChoiceField(required=True, choices=ActionEnum.get_choices())
-    operator = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
-    strategy_id = serializers.IntegerField(required=False)
-
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
         if attrs["action"] == ActionEnum.DELETE.value and not attrs.get("strategy_id"):
             raise ValidationError(_("删除操作时需要提供对应strategy_id"))
         return attrs
-
-
-class StrategyConfigSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    strategy_type = serializers.ChoiceField(choices=[StrategiesType.NORMAL_STRATEGY, StrategiesType.NEW_CLS_strategy])
 
 
 class UserGroupsSerializer(serializers.Serializer):
