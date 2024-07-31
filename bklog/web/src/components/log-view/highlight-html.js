@@ -100,7 +100,7 @@ export default {
           const { str: searchStr, style } = highlight;
           let regexFlags = caseInsensitive ? 'g' : 'gi';
 
-          const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s\n]/g, '\\$&'), regexFlags);
+          const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), regexFlags);
           const tempResultArray = [];
 
           resultArray.forEach(segment => {
