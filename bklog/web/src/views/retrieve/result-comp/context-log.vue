@@ -109,7 +109,7 @@
         :log-list="logList"
         :reverse-log-list="reverseLogList"
         :show-type="showType"
-        :height-list="heightLightList"
+        :light-list="highlightList"
       />
     </div>
 
@@ -196,7 +196,7 @@
           next: 0,
         },
         showType: 'log',
-        heightLightList: [],
+        highlightList: [],
         currentConfigID: 0,
         isRowChange: false,
       };
