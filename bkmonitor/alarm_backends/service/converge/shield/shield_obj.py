@@ -16,6 +16,7 @@ import arrow
 from django.utils.translation import ugettext as _
 from six import string_types
 
+from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from alarm_backends.core.cache.key import NOTICE_SHIELD_KEY_LOCK
 from alarm_backends.core.context.utils import get_business_roles
 from alarm_backends.core.control.strategy import Strategy
@@ -121,6 +122,18 @@ class ShieldObj(object):
                 bk_topo_node = clean_dimension.pop("bk_topo_node", [])
                 if not self.is_biz_topo(bk_topo_node):
                     clean_dimension["bk_topo_node"] = bk_topo_node
+            elif self.config["scope_type"] == ScopeType.DYNAMIC_GROUP:
+                dynamic_group_ids = clean_dimension.pop("dynamic_group_ids", [])
+                dynamic_groups = []
+                if dynamic_group_ids:
+                    dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
+
+                bk_host_ids = set()
+                for dynamic_group in dynamic_groups:
+                    if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                        bk_host_ids.update(dynamic_group["bk_inst_ids"])
+                if bk_host_ids:
+                    clean_dimension["bk_host_id"] = list(bk_host_ids)
 
         for k, v in list(clean_dimension.items()):
             field = load_field_instance(k, v)
@@ -176,7 +189,6 @@ class ShieldObj(object):
             del_key.append("category")
 
         for key, value in list(dimension.items()):
-
             # 2. 找出value包含00的维度
             # 3. 找出key以下划线打头的维度
             if is_contains_00(value) or is_start_with__(key):
@@ -382,6 +394,7 @@ class AlertShieldObj(ShieldObj):
         dimension["bk_topo_node"] = dimension.get("bk_topo_node") or [
             node for node in alert.event_document.bk_topo_node
         ]
+        dimension["bk_host_id"] = dimension.get("bk_host_id") or alert.event_document.bk_host_id
         metric_ids = []
 
         if alert.strategy_id:

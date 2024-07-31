@@ -16,6 +16,7 @@ class ScopeType(object):
     IP = "ip"
     NODE = "node"
     BIZ = "biz"
+    DYNAMIC_GROUP = "dynamic_group"
 
 
 SCOPE_TYPE_NAME_MAPPING = {
