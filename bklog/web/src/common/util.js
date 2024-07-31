@@ -1110,7 +1110,7 @@ export const formatNumberWithRegex = number => {
   return parts.join('.');
 };
 /** 上下文，实时日志高亮颜色 */
-export const contextHeightLightColor = [
+export const contextHighlightColor = [
   {
     dark: '#FFB401',
     light: '#FFF6E1',

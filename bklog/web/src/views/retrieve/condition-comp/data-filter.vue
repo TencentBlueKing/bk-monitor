@@ -42,7 +42,7 @@
       ></bk-input>
       <span>{{ $t('label-高亮').replace('label-', '') }}</span>
       <bk-tag-input
-        v-model="heightLightList"
+        v-model="highlightList"
         allow-create
         has-delete-icon
         ref="tagInput"
@@ -100,7 +100,7 @@
 </template>
 
 <script>
-  import { deepClone, contextHeightLightColor } from '../../../common/util';
+  import { deepClone, contextHighlightColor } from '../../../common/util';
   export default {
     props: {
       isScreenFull: Boolean,
@@ -124,8 +124,8 @@
           next: 0,
         },
         /** 高亮list */
-        heightLightList: [],
-        colorHeightLightList: [],
+        highlightList: [],
+        colorHighlightList: [],
         /** 显示前-后行开关 */
         intervalSwitcher: true,
         /** 当前的展示类型 */
@@ -145,7 +145,7 @@
     },
     computed: {
       catchColorIndexList() {
-        return this.colorHeightLightList.map(item => item.colorIndex);
+        return this.colorHighlightList.map(item => item.colorIndex);
       },
     },
     methods: {
@@ -159,25 +159,25 @@
       },
       changeLightList() {
         // 找出未显示的颜色
-        const colorIndex = contextHeightLightColor.findIndex(
+        const colorIndex = contextHighlightColor.findIndex(
           (item, index) => !this.catchColorIndexList.includes(index),
         );
-        const catchCloneColorList = deepClone(this.colorHeightLightList);
+        const catchCloneColorList = deepClone(this.colorHighlightList);
         // 给高亮颜色重新赋值
-        this.colorHeightLightList = this.heightLightList.map(item => {
+        this.colorHighlightList = this.highlightList.map(item => {
           const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);
           if (notChangeItem) return notChangeItem;
           return {
             heightKey: item,
             colorIndex,
-            color: contextHeightLightColor[colorIndex],
+            color: contextHighlightColor[colorIndex],
           };
         });
         // 更新input输入框的颜色
         this.$nextTick(() => {
           this.initTagInputColor();
         });
-        this.$emit('handle-filter', 'heightLightList', this.colorHeightLightList);
+        this.$emit('handle-filter', 'highlightList', this.colorHighlightList);
       },
       handleFilterType(val) {
         this.$emit('handle-filter', 'filterType', val);
@@ -192,8 +192,8 @@
       // 粘贴过滤条件
       pasteFn(pasteValue) {
         const trimPasteValue = pasteValue.trim();
-        if (!this.heightLightList.includes(trimPasteValue) && this.heightLightList.length < 5) {
-          this.heightLightList.push(trimPasteValue);
+        if (!this.highlightList.includes(trimPasteValue) && this.highlightList.length < 5) {
+          this.highlightList.push(trimPasteValue);
           this.changeLightList();
         }
         return [];
@@ -203,7 +203,7 @@
         const childEl = this.$refs.tagInput.$el.querySelectorAll('.key-node');
         childEl.forEach(child => {
           const tag = child.querySelectorAll('.tag')[0];
-          const colorObj = this.colorHeightLightList.find(item => item.heightKey === tag.innerText);
+          const colorObj = this.colorHighlightList.find(item => item.heightKey === tag.innerText);
           [child, tag].forEach(item => {
             Object.assign(item.style, {
               backgroundColor: colorObj.color.light,

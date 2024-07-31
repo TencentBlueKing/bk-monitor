@@ -107,7 +107,7 @@
         type: Boolean,
         default: false,
       },
-      heightList: {
+      lightList: {
         type: Array,
         default() {
           return [];
@@ -144,7 +144,7 @@
           list.push({ str: this.filterKey, style: 'background: yellow; color: #313238;', isUnique: true });
         }
         list.push(
-          ...this.heightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false })),
+          ...this.lightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false })),
         );
         return list;
       },

@@ -63,7 +63,7 @@ export default {
         const { str: searchStr, style } = highlight;
         let regexFlags = caseInsensitive ? '' : 'i';
 
-        const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), regexFlags);
+        const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
         const tempResultArray = [];
 
         resultArray.forEach(segment => {
@@ -100,7 +100,7 @@ export default {
           const { str: searchStr, style } = highlight;
           let regexFlags = caseInsensitive ? 'g' : 'gi';
 
-          const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), regexFlags);
+          const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
           const tempResultArray = [];
 
           resultArray.forEach(segment => {
@@ -137,7 +137,7 @@ export default {
       val: highlightStringToArray(val, lightList, ignoreCase),
     }));
     return (
-      <span style='white-space: normal;word-break: break-all;'>
+      <span style='white-space: normal;word-break: break-all; white-space: pre-wrap;'>
         {parseList.map(item => (
           <span>
             {isShowKey && (

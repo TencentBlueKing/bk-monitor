@@ -113,7 +113,7 @@
         :reverse-log-list="reverseLogList"
         :max-length="maxLength"
         :shift-length="shiftLength"
-        :height-list="heightLightList"
+        :light-list="highlightList"
         :show-type="showType"
       />
     </div>
@@ -176,7 +176,7 @@
           next: 0,
         },
         showType: 'log',
-        heightLightList: [],
+        highlightList: [],
         rowShowParams: {},
         throttleTimer: null,
         isInit: true,
