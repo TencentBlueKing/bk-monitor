@@ -356,7 +356,7 @@ export class FlameChart<D extends BaseDataType> {
             return '#aaa';
           }
           if (highlightName) return d.data.name === highlightName ? defColor : '#aaa';
-          if (highlightId > -1) return d.data.id === highlightId ? defColor : '#aaa';
+          if (highlightId && highlightId !== -1) return d.data.id === highlightId ? defColor : '#aaa';
           return d.depth < clickDepth ? '#aaa' : defColor;
         };
         const getStrokeColor = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
@@ -452,6 +452,7 @@ export class FlameChart<D extends BaseDataType> {
             value: d.data.value,
             clickDepth: d.depth,
             highlightName: d.data.id === RootId ? '' : this.zoomData.highlightName || '',
+            highlightId: -1,
           };
           this.getInViewNode(d);
           this.zoomGraph(this.zoomData);
