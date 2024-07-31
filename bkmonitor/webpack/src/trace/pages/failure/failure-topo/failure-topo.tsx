@@ -108,6 +108,7 @@ export default defineComponent({
     const cacheResize = ref<boolean>(false);
     const wrapRef = ref<HTMLDivElement>();
     const refreshTime = ref<number>(30 * 1000);
+    const topoTools = ref(null);
     let refreshTimeout = null;
     const topoGraphRef = ref<HTMLDivElement>(null);
     const graphRef = ref<HTMLElement>(null);
@@ -958,11 +959,12 @@ export default defineComponent({
       tooltipsRef?.value?.hide?.();
       tooltips?.hide?.();
       graph.changeSize(width, height - 40);
-      graph.render();
       /** 将红线置顶 */
       setTimeout(toFrontAnomalyEdge, 500);
       const combos = graph.getCombos().map(combo => combo.getModel());
       ElkjsUtils.setRootComboStyle(combos, graph.getWidth());
+      graph.refresh();
+      graph.render();
       const zoom = localStorage.getItem('failure-topo-zoom');
       if (zoom) {
         handleZoomChange(zoom);
@@ -1048,7 +1050,8 @@ export default defineComponent({
           : incidentId.value.substr(0, 10),
       })
         .then(res => {
-          const { latest, diff, complete } = res;
+          let { latest, diff, complete } = res;
+          diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
           complete.combos = latest.combos;
           complete.sub_combos = latest.sub_combos;
           formatResponseData(complete);
@@ -1548,6 +1551,7 @@ export default defineComponent({
       const { value, isStart = true } = playOption;
       if ('timeline' in playOption) {
         timelinePosition.value = 0;
+        topoTools.value.handleChangeTimeLine(timelinePosition.value);
       }
       isPlay.value = value;
       if (value) {
@@ -1566,6 +1570,9 @@ export default defineComponent({
         if (timelinePosition.value + 1 === topoRawDataCache.value.diff.length) {
           isPlay.value = false;
           emit('playing', false);
+          setTimeout(() => {
+            topoTools.value.handleChangeTimeLine(timelinePosition.value);
+          });
           handleChangeRefleshTime(refreshTime.value);
           return;
         }
@@ -1574,8 +1581,8 @@ export default defineComponent({
       }
     };
     /** 点击展示某一帧的图 */
-    const handleTimelineChange = value => {
-      if (value === timelinePosition.value || isPlay.value) return;
+    const handleTimelineChange = (value, init = false) => {
+      if (!init && (value === timelinePosition.value || isPlay.value)) return;
       timelinePosition.value = value;
       if (!isPlay.value && topoRawDataCache.value.diff[value]) {
         /** 切换帧时 */
@@ -1710,6 +1717,7 @@ export default defineComponent({
     return {
       isPlay,
       nodeEntityId,
+      topoTools,
       showResourceGraph,
       timelinePosition,
       topoGraphRef,
@@ -1753,6 +1761,7 @@ export default defineComponent({
         class={['failure-topo', this.isPlay && 'failure-topo-play']}
       >
         <TopoTools
+          ref='topoTools'
           timelinePlayPosition={this.timelinePosition}
           topoRawDataList={this.topoRawDataCache.diff}
           onChangeRefleshTime={this.handleChangeRefleshTime}

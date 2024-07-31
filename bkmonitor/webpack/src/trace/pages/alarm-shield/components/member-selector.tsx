@@ -103,22 +103,19 @@ export default defineComponent({
           noData.push(u);
         }
       });
-      noData.forEach(u => {
-        const curParams = JSON.parse(JSON.stringify(params));
-        curParams.fuzzy_lookups = u;
-        curParams.page = 1;
-        getUserList(curParams).then(data => {
-          const item = (data as any[]).find(d => d.username === u) || null;
-          if (item) {
-            const obj = {
-              ...item,
-              idd: item.id,
-              id: item.username,
-              name: item.display_name,
-            };
-            usersMap.set(obj.id, obj);
-            key.value = random(8);
-          }
+      const curParams = JSON.parse(JSON.stringify(params));
+      curParams.fuzzy_lookups = noData.join(',');
+      curParams.page = 1;
+      getUserList(curParams).then(data => {
+        (data as any[]).forEach(item => {
+          const obj = {
+            ...item,
+            idd: item.id,
+            id: item.username,
+            name: item.display_name,
+          };
+          usersMap.set(obj.id, obj);
+          key.value = random(8);
         });
       });
     }

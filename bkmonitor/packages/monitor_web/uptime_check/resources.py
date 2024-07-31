@@ -1248,7 +1248,7 @@ class UptimeCheckBeatResource(Resource):
             lock.release()
 
     def perform_request(self, validated_request_data):
-        result = self.return_with_dict(validated_request_data)
+        result = self.return_with_dict(**validated_request_data)
         beat_status_list = []
         for key, host_status in result.items():
             # 取bk_host_id的数据返回即可
@@ -1322,7 +1322,7 @@ class UptimeCheckBeatResource(Resource):
             if not bk_host_id:
                 # 上报数据未带上bk_host_id， 则从cmdb数据中补充
                 bk_host_id = node_to_host_dict[host_ip_key].bk_host_id
-
+            bk_host_id = int(bk_host_id)
             node_status = {
                 "bk_host_id": bk_host_id,
                 "ip": i["ip"],
