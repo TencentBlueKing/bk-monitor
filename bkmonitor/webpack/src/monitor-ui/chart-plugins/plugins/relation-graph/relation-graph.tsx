@@ -36,6 +36,7 @@ import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { transformConditionSearchList, transformConditionValueParams } from 'monitor-pc/pages/monitor-k8s/utils';
 
 import RatioLegend from '../../components/chart-legend/relation-legend';
+import CompareTopoFullscreen from '../../components/compare-topo-fullscreen/compare-topo-fullscreen';
 import RelationChartTitle from '../../components/relation-chart-title/relation-chart-title';
 import backIcon from '../../icons/back.svg';
 import bannerIcon from '../../icons/banner.svg';
@@ -165,6 +166,7 @@ export class RelationGraph extends CommonSimpleChart {
     nodesep: 30, // 节点的间距
     ranksep: 100, // 层间距
   };
+  show = false;
   // 表格列数据项过滤
   tableFilterDict: IFilterDict = {};
   legendStatusData: IRelationStatusItem[] = [];
@@ -510,7 +512,7 @@ export class RelationGraph extends CommonSimpleChart {
           default: [
             'drag-canvas', // 拖拽画布
             'zoom-canvas', // 缩放画布
-            !!this.serviceName ? '' : 'drag-node', // 拖拽节点 服务拓扑不可拖拽节点
+            this.serviceName ? '' : 'drag-node', // 拖拽节点 服务拓扑不可拖拽节点
           ],
         },
         /** 图布局 */
@@ -1286,6 +1288,12 @@ export class RelationGraph extends CommonSimpleChart {
   render() {
     return (
       <div class='relation-graph'>
+        <button
+          type='button'
+          onClick={() => (this.show = !this.show)}
+        >
+          全屏
+        </button>
         <RelationChartTitle
           ref='chartTitle'
           conditionOptions={this.conditionOptions}
@@ -1373,6 +1381,12 @@ export class RelationGraph extends CommonSimpleChart {
             onStatisticsChange={this.handleChangeStatistics}
           />
         ) : undefined}
+
+        <CompareTopoFullscreen
+          isService={true}
+          show={this.show}
+          onShowChange={val => (this.show = val)}
+        />
       </div>
     );
   }
