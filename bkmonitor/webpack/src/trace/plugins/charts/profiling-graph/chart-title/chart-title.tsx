@@ -108,6 +108,7 @@ export default defineComponent({
         <div class='view-mode button-group'>
           {this.viewModeList.map(mode => (
             <div
+              key={mode.id}
               class={`button-group-item ${this.activeMode === mode.id ? 'active' : ''}`}
               v-bk-tooltips={{
                 content: mode.label,
@@ -147,8 +148,9 @@ export default defineComponent({
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
-                {this.downloadTypeMaps.map(item => (
+                {this.downloadTypeMaps.map((item, index) => (
                   <Dropdown.DropdownItem
+                    key={index}
                     class='profiling-view-download-menu-item'
                     onClick={() => this.menuClick(item)}
                   >
