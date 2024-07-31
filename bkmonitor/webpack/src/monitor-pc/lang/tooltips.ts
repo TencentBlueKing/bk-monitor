@@ -283,4 +283,5 @@ export default {
     'If adding a process, please go to the configuration platform - business topology and add it under the corresponding module',
   请求数: 'Request count',
   对比时间: 'Comparison time',
+  参照时间: 'Reference time',
 };
