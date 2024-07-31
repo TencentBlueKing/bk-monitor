@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { defineComponent, nextTick, onMounted, inject, onUnmounted, provide, ref, watch, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Checkbox, Exception, Loading, PopConfirm, Tree } from 'bkui-vue';
@@ -53,9 +53,10 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll'],
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'changeSpace'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     const alertAggregateData = ref<IAggregationRoot[]>([]);
     const listLoading = ref(false);
     const isShowDropdown = ref(false);
@@ -108,6 +109,7 @@ export default defineComponent({
           onChangeSpace={(val: number[]) => {
             bkBizIds.value = val;
             getIncidentAlertAggregate();
+            emit('changeSpace', bkBizIds.value);
           }}
           onSearch={(val: string, validate: boolean) => {
             queryString.value = val;
@@ -130,7 +132,7 @@ export default defineComponent({
       const params = {
         id: incidentId.value,
         aggregate_bys: aggregateBys.value,
-        bk_biz_ids: bkBizIds.value,
+        bk_biz_ids: bkzIds.value,
         query_string: queryString.value,
       };
       props.username.id !== 'all' && Object.assign(params, { username: props.username.id });
@@ -141,7 +143,9 @@ export default defineComponent({
           const isHasRoot = alertAggregateData.value.findIndex(item => item.is_root || item.is_feedback_root) !== -1;
           const isHasChildInd = alertAggregateData.value.findIndex(item => item.children?.length);
           if (alertAggregateData.value.length !== 0) {
-            isHasRoot ? handleIsRoot(alertAggregateData.value) : (alertAggregateData.value[isHasChildInd].isOpen = true);
+            isHasRoot
+              ? handleIsRoot(alertAggregateData.value)
+              : (alertAggregateData.value[isHasChildInd].isOpen = true);
           }
           emit('filterSearch', params);
           emit('nodeExpand', alertAggregateData.value);
@@ -149,7 +153,9 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => {listLoading.value = false});
+        .finally(() => {
+          listLoading.value = false;
+        });
     };
     /** 节点icon映射 */
     const treeShowIcon = {
@@ -287,6 +293,7 @@ export default defineComponent({
           auto-open-parent-node={false}
           data={alertAggregateData.value}
           label='name'
+          nodeKey={'id'}
           prefix-icon={getPrefixIcon}
           level-line
           virtual-render

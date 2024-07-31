@@ -118,7 +118,7 @@ export default class ToolsMixin extends Vue {
       }
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-      }#/strategy-config/add/?data=${JSON.stringify(result)}&from=${this.toolTimeRange[0]}&to=${
+      }#/strategy-config/add/?${result?.query_configs?.length ? `data=${JSON.stringify(result)}&` : ''}from=${this.toolTimeRange[0]}&to=${
         this.toolTimeRange[1]
       }&timezone=${(this as any).timezone || window.timezone}`;
       window.open(url);
