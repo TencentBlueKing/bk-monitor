@@ -167,7 +167,7 @@ export default {
   日志路径: 'Log Path',
   日志字符集: 'Character Set',
   日志关键字: 'Log Keywords',
-  日志数据: 'Log Data',
+  日志数据: 'Log',
   日志: 'Log',
   源日志: 'Source Log',
   操作日志: 'Record',
