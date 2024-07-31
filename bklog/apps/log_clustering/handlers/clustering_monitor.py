@@ -68,7 +68,6 @@ class ClusteringMonitorHandler(object):
     def save_clustering_strategy(
         self,
         pattern_level="",
-        signature="",
         table_id=None,
         metric="",
         strategy_type=StrategiesType.NEW_CLS_strategy,  # 新类告警
@@ -78,8 +77,9 @@ class ClusteringMonitorHandler(object):
         signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
             index_set_id=self.index_set_id,
             strategy_type=strategy_type,
+            signature="",
+            is_deleted=0,
             defaults={
-                "signature": signature,
                 "strategy_id": None,
                 "bk_biz_id": self.bk_biz_id,
                 "pattern_level": pattern_level,
