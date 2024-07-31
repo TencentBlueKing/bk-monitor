@@ -5,11 +5,15 @@
         <bk-button
           @click="handleSelectShowType('log')"
           :class="{ 'is-selected': showType === 'log' }"
-          >{{ $t('日志') }}</bk-button>
+        >
+          {{ $t('日志') }}
+        </bk-button>
         <bk-button
           @click="handleSelectShowType('code')"
           :class="{ 'is-selected': showType === 'code' }"
-          >{{ $t('代码') }}</bk-button>
+        >
+          {{ $t('代码') }}
+        </bk-button>
       </div>
       <span>{{ $t('label-过滤内容').replace('label-', '') }}</span>
       <bk-select
@@ -34,13 +38,15 @@
         :placeholder="$t('输入关键字进行过滤')"
         @enter="filterLog"
         @clear="filterLog"
-        @blur="filterLog"
+        @blur="blurFilterLog"
       ></bk-input>
       <span>{{ $t('label-高亮').replace('label-', '') }}</span>
       <bk-tag-input
         v-model="heightLightList"
         allow-create
         has-delete-icon
+        ref="tagInput"
+        :max-data="5"
         :style="{ width: isScreenFull ? '400px' : '260px', margin: '0 10px' }"
         :paste-fn="pasteFn"
         @change="changeLightList"
@@ -94,6 +100,7 @@
 </template>
 
 <script>
+  import { deepClone, contextHeightLightColor } from '../../../common/util';
   export default {
     props: {
       isScreenFull: Boolean,
@@ -102,6 +109,7 @@
       return {
         filterType: 'include',
         filterKey: '',
+        catchFilterKey: '',
         ignoreCase: false,
         filterTypeList: [
           { id: 'include', name: this.$t('包含') },
@@ -117,6 +125,7 @@
         },
         /** 高亮list */
         heightLightList: [],
+        colorHeightLightList: [],
         /** 显示前-后行开关 */
         intervalSwitcher: true,
         /** 当前的展示类型 */
@@ -134,12 +143,41 @@
         },
       },
     },
+    computed: {
+      catchColorIndexList() {
+        return this.colorHeightLightList.map(item => item.colorIndex);
+      },
+    },
     methods: {
       filterLog() {
+        this.catchFilterKey = this.filterKey;
         this.$emit('handle-filter', 'filterKey', this.filterKey);
       },
+      blurFilterLog() {
+        if (!this.catchFilterKey && !this.filterKey) return;
+        this.filterLog();
+      },
       changeLightList() {
-        this.$emit('handle-filter', 'heightLightList', this.heightLightList);
+        // 找出未显示的颜色
+        const colorIndex = contextHeightLightColor.findIndex(
+          (item, index) => !this.catchColorIndexList.includes(index),
+        );
+        const catchCloneColorList = deepClone(this.colorHeightLightList);
+        // 给高亮颜色重新赋值
+        this.colorHeightLightList = this.heightLightList.map(item => {
+          const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);
+          if (notChangeItem) return notChangeItem;
+          return {
+            heightKey: item,
+            colorIndex,
+            color: contextHeightLightColor[colorIndex],
+          };
+        });
+        // 更新input输入框的颜色
+        this.$nextTick(() => {
+          this.initTagInputColor();
+        });
+        this.$emit('handle-filter', 'heightLightList', this.colorHeightLightList);
       },
       handleFilterType(val) {
         this.$emit('handle-filter', 'filterType', val);
@@ -154,11 +192,24 @@
       // 粘贴过滤条件
       pasteFn(pasteValue) {
         const trimPasteValue = pasteValue.trim();
-        if (!this.heightLightList.includes(trimPasteValue)) {
+        if (!this.heightLightList.includes(trimPasteValue) && this.heightLightList.length < 5) {
           this.heightLightList.push(trimPasteValue);
           this.changeLightList();
         }
         return [];
+      },
+      /** 更新taginput组件中的颜色 */
+      initTagInputColor() {
+        const childEl = this.$refs.tagInput.$el.querySelectorAll('.key-node');
+        childEl.forEach(child => {
+          const tag = child.querySelectorAll('.tag')[0];
+          const colorObj = this.colorHeightLightList.find(item => item.heightKey === tag.innerText);
+          [child, tag].forEach(item => {
+            Object.assign(item.style, {
+              backgroundColor: colorObj.color.light,
+            });
+          });
+        });
       },
     },
   };

@@ -138,15 +138,14 @@
       isIncludeFilter() {
         return this.filterType === 'include';
       },
-      getLineColor() {
-        return this.showType === 'log' ? 'background: #FFB946; color: #FFF;' : 'background: #E68D00; color: #1A1A1A';
-      },
       getViewLightList() {
         const list = [];
         if (!!this.filterKey) {
           list.push({ str: this.filterKey, style: 'background: yellow; color: #313238;', isUnique: true });
         }
-        list.push(...this.heightList.map(item => ({ str: item, style: this.getLineColor, isUnique: false })));
+        list.push(
+          ...this.heightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false })),
+        );
         return list;
       },
     },
@@ -231,7 +230,7 @@
             return [
               [key],
               typeof val !== 'string'
-                ? val.toString()
+                ? String(val ?? ' ')
                 : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]),
             ];
           }),
@@ -295,6 +294,9 @@
           }
         }
       },
+      getLineColor(item) {
+        return `background: ${item.color.dark}; color: #FFFFFF; padding: 0 4px; border-radius: 2px; height: 32px; display: inline-block; line-height: 32px; font-weight: 700;`;
+      },
     },
   };
 </script>
@@ -328,7 +330,7 @@
         }
 
         &.new-log-line {
-          background: #1f2735;
+          background: #1e3023;
         }
 
         &:hover {
@@ -372,7 +374,7 @@
           }
 
           &.new-log-line {
-            background: #f0f5ff;
+            background: #f2fff4;
           }
 
           &:hover {

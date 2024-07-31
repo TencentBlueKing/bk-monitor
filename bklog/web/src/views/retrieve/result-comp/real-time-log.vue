@@ -298,7 +298,7 @@
       },
       toggleScreenFull() {
         this.isScreenFull = !this.isScreenFull;
-        this.$emit('toggleScreenFull', this.isScreenFull);
+        this.$emit('toggle-screen-full', this.isScreenFull);
       },
       registerScrollEvent() {
         this.logWrapperEl = document.querySelector('.dialog-log-markdown');
@@ -315,7 +315,8 @@
       },
       copyLogText() {
         const el = document.createElement('textarea');
-        el.value = this.logList.join('\n');
+        const copyStrList = this.reverseLogList.concat(this.logList).map(item => item.log);
+        el.value = copyStrList.join('\n');
         el.setAttribute('readonly', '');
         el.style.position = 'absolute';
         el.style.left = '-9999px';
