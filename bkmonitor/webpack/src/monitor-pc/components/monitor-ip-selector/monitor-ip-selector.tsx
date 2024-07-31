@@ -42,6 +42,9 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
+  executeIpChooserDynamicGroup,
+  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
 import { PanelTargetMap } from './utils';
@@ -243,16 +246,33 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   }
   // 动态分组api
   async fetchDynamicGroups(p) {
-    console.info('fetchDynamicGroups', p);
-    return [];
+    const data = await groupsIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    return data;
   }
   async fetchHostsDynamicGroup(p) {
-    console.info('fetchHostsDynamicGroup', p);
-    return [];
+    const data = await executeIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    console.info('fetchHostsDynamicGroup', p, data);
+    return data;
   }
   async fetchHostAgentStatisticsDynamicGroups(p) {
-    console.info('fetchHostAgentStatisticsDynamicGroups', p);
-    return [];
+    const data = await agentStatisticsIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    console.info('fetchHostAgentStatisticsDynamicGroups', p, data);
+    return data;
   }
 
   // 拉取topology
