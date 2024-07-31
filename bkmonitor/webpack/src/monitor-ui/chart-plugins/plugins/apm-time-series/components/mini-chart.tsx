@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -33,29 +33,31 @@ import { type MonitorEchartOptions, echarts } from '../../../typings/index';
 
 import './mini-chart.scss';
 
-export interface IPointPosition {
-  x: number;
-  y: number;
-}
-
 export enum EPointType {
+  compare = 'compare',
+  end = 'end',
+  refer = 'refer',
+}
+export enum EDropType {
   compare = 'compare',
   end = 'end',
   refer = 'refer',
 }
 
 interface IProps {
-  data?: any;
+  data?: any; // todo: 待补充
   chartStyle?: {
     lineMaxHeight: number;
     chartWarpHeight: number;
   };
   groupId?: string;
-  comparePoint?: IPointPosition;
-  referPoint?: IPointPosition;
+  compareX?: number;
+  referX?: number;
+  pointType?: EPointType;
+  dropType?: EDropType;
   onPointTypeChange?: (type: EPointType) => void;
-  onComparePointChange?: (point: IPointPosition) => void;
-  onReferPointChange?: (point: IPointPosition) => void;
+  onCompareXChange?: (x: number) => void;
+  onReferXChange?: (x: number) => void;
 }
 
 @Component
@@ -66,11 +68,14 @@ export default class MiniChart extends tsc<IProps> {
   /* groupId */
   @Prop({ type: String, default: '' }) groupId: string;
   /* 对比点 */
-  @Prop({ type: Object, default: () => null }) comparePoint: IPointPosition;
+  @Prop({ type: Number, default: 0 }) compareX: number;
   /* 参照点 */
-  @Prop({ type: Object, default: () => null }) referPoint: IPointPosition;
+  @Prop({ type: Number, default: 0 }) referX: number;
   /* 当前标记点类型 */
   @Prop({ type: String, default: EPointType.compare }) pointType: EPointType;
+  /* 拖拽标记点时的状态 */
+  @Prop({ type: String, default: EDropType.end }) dropType: EDropType;
+  @Prop({ type: Array, default: () => [] }) data: any;
 
   /* 对比点 */
   localComparePoint = {
@@ -86,6 +91,9 @@ export default class MiniChart extends tsc<IProps> {
   localPointType: EPointType = EPointType.compare;
 
   options: MonitorEchartOptions = {
+    grid: {
+      left: 0,
+    },
     xAxis: {
       show: false,
       type: 'value',
@@ -100,106 +108,109 @@ export default class MiniChart extends tsc<IProps> {
       show: true,
       trigger: 'axis',
       appendToBody: true,
+      padding: [6, 8, 6, 12],
+      transitionDuration: 0,
     },
     series: [
       {
         type: 'line',
-        lineStyle: {
-          color: '#3A84FF',
-          width: 1,
-        },
         cursor: 'auto',
-        symbol: 'circle',
-        showSymbol: false,
-        symbolSize: 8,
-        itemStyle: {
-          color: '#7B29FF',
-          borderColor: '#DBC5FF',
-          borderWidth: 1,
-        },
         silent: false,
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            {
-              offset: 0,
-              color: '#A4C6FD',
-            },
-            {
-              offset: 1,
-              color: '#FFFFFF',
-            },
-          ]),
+        emphasis: {
+          disabled: true,
         },
-        data: [
-          [118, 1721616120000],
-          [120, 1721616180000],
-          [120, 1721616240000],
-          [120, 1721616300000],
-          [122, 1721616360000],
-          [120, 1721616420000],
-          [118, 1721616480000],
-          [120, 1721616540000],
-          [0, 1721616600000],
-          [122, 1721616660000],
-          [120, 1721616720000],
-          [120, 1721616780000],
-          [118, 1721616840000],
-          [120, 1721616900000],
-          [122, 1721616960000],
-          [120, 1721617020000],
-          [120, 1721617080000],
-          [120, 1721617140000],
-          [120, 1721617200000],
-          [120, 1721617260000],
-          [120, 1721617320000],
-          [120, 1721617380000],
-          [120, 1721617440000],
-          [120, 1721617500000],
-          [2, 1721617560000],
-          [120, 1721617620000],
-          [120, 1721617680000],
-          [120, 1721617740000],
-          [120, 1721617800000],
-          [122, 1721617860000],
-          [120, 1721617920000],
-          [118, 1721617980000],
-          [120, 1721618040000],
-          [120, 1721618100000],
-          [122, 1721618160000],
-          [120, 1721618220000],
-          [118, 1721618280000],
-          [4, 1721618340000],
-          [10, 1721618400000],
-          [20, 1721618460000],
-          [30, 1721618520000],
-          [50, 1721618580000],
-          [80, 1721618640000],
-          [100, 1721618700000],
-          [122, 1721618760000],
-          [120, 1721618820000],
-          [120, 1721618880000],
-          [120, 1721618940000],
-          [120, 1721619000000],
-          [120, 1721619060000],
-          [120, 1721619120000],
-          [120, 1721619180000],
-          [120, 1721619240000],
-          [120, 1721619300000],
-          [122, 1721619360000],
-          [118, 1721619420000],
-          [120, 1721619480000],
-          [120, 1721619540000],
-          [120, 1721619600000],
-          [122, 1721619660000],
-        ].map(item => ({
-          value: [item[1], item[0]],
-        })),
+        triggerLineEvent: true,
+        data: [],
       },
     ],
   };
 
   // 当前视图是否hover
   isMouseOver = false;
+  /* 当前hover的标记点信息 */
+  hoverPoint = {
+    isHover: false,
+    type: EPointType.end,
+    position: {
+      x: 0,
+      y: 0,
+    },
+    isMouseDown: false,
+  };
+  /* 是否开始拖拽 */
+  isDrop = false;
+
+  @Watch('pointType')
+  handleWatchPointType(type: EPointType) {
+    if (this.localPointType !== type) {
+      this.localPointType = type;
+      let comparePointY = null;
+      let referPointY = null;
+      for (const value of this.options.series[0].data) {
+        if (this.compareX === value.value[0]) {
+          comparePointY = value.value[1];
+        }
+        if (this.referX === value.value[0]) {
+          referPointY = value.value[1];
+        }
+        if (comparePointY !== null && referPointY !== null) {
+          break;
+        }
+      }
+      if (comparePointY !== null)
+        this.localComparePoint = {
+          x: this.compareX,
+          y: comparePointY,
+        };
+      if (referPointY !== null) {
+        this.localReferPoint = JSON.parse(
+          JSON.stringify({
+            x: this.referX,
+            y: referPointY,
+          })
+        );
+      }
+      this.setMarkPointData();
+    }
+  }
+  @Watch('compareX')
+  handleWatchComparePoint(compareX) {
+    if (compareX !== this.localComparePoint.x) {
+      let comparePointY = null;
+      for (const value of this.options.series[0].data) {
+        if (compareX === value.value[0]) {
+          comparePointY = value.value[1];
+        }
+        if (comparePointY !== null) {
+          this.localComparePoint = {
+            x: this.compareX,
+            y: comparePointY,
+          };
+          this.setMarkPointData();
+          break;
+        }
+      }
+    }
+  }
+  @Watch('referX')
+  handleWatchReferPoint(referX) {
+    if (referX !== this.localReferPoint.x) {
+      let referPointY = null;
+      for (const value of this.options.series[0].data) {
+        if (referX === value.value[0]) {
+          referPointY = value.value[1];
+        }
+        if (referPointY !== null) {
+          this.localReferPoint = {
+            x: referX,
+            y: referPointY,
+          };
+          this.setMarkPointData();
+          break;
+        }
+      }
+    }
+  }
 
   mounted() {
     this.initChart();
@@ -230,35 +241,77 @@ export default class MiniChart extends tsc<IProps> {
             ...this.options.tooltip,
             className: 'details-side-mini-chart-tooltip',
             formatter: params => {
-              if (!this.isMouseOver) {
-                return undefined;
-              }
-              const time = params[0].data.value[0];
-              const value = params[0].data.value[1];
-              if (this.localPointType === EPointType.compare) {
-                this.localComparePoint.x = time;
-                this.localComparePoint.y = value;
-                this.comparePointChange(this.localComparePoint);
-              }
-              if (this.localPointType === EPointType.refer) {
-                this.localReferPoint.x = time;
-                this.localReferPoint.y = value;
-                this.referPointChange(this.localReferPoint);
-              }
-              return `
+              if (this.isMouseOver) {
+                const time = params[0].value[0];
+                const value = params[0].value[1];
+                this.hoverPoint.position = {
+                  x: time,
+                  y: value,
+                };
+                if (this.localPointType === EPointType.compare) {
+                  this.localComparePoint.x = time;
+                  this.localComparePoint.y = value;
+                }
+                if (this.localPointType === EPointType.refer) {
+                  this.localReferPoint.x = time;
+                  this.localReferPoint.y = value;
+                }
+                let timeTitle = '';
+                const isSelectEnd = this.localPointType === EPointType.end;
+                if (this.localPointType === EPointType.compare) {
+                  timeTitle = this.$tc('对比时间');
+                } else if (this.localPointType === EPointType.refer) {
+                  timeTitle = this.$tc('参照时间');
+                }
+                /* 是否选择完对比点及参照点 */
+                if (isSelectEnd) {
+                  if (this.hoverPoint.type === EPointType.compare) {
+                    timeTitle = this.$tc('对比时间');
+                  } else if (this.hoverPoint.type === EPointType.refer) {
+                    timeTitle = this.$tc('参照时间');
+                  } else {
+                    return undefined;
+                  }
+                }
+                return `
               <div class="left-compare-type" style="background: #7B29FF;"></div>
               <div>
-                <div>${this.$t('对比时间')}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>${timeTitle}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
                 <div>${this.$t('请求数')}：${value}</div>
               </div>`;
+              }
+              return undefined;
             },
           },
+          series: [
+            {
+              ...this.options.series[0],
+              ...this.getSymbolItemStyle(),
+              ...this.getSeriesStyle(),
+              data: this.data.map(item => ({
+                value: [item[1], item[0]],
+              })),
+            },
+          ],
         };
         (this as any).instance = echarts.init(this.chartRef);
         (this as any).instance.setOption(this.options);
-        for (const event of ['click']) {
+        for (const event of ['mousemove', 'click']) {
           (this as any).instance.on(event, params => {
-            console.log(params);
+            if (event === 'mousemove') {
+              if (this.localPointType === EPointType.end && !this.hoverPoint.isMouseDown) {
+                this.hoverPoint.isHover = params.componentType === 'markPoint';
+                const { x: hoverX } = this.hoverPoint.position;
+                if (hoverX === this.compareX) {
+                  this.hoverPoint.type = EPointType.compare;
+                } else if (hoverX === this.referX) {
+                  this.hoverPoint.type = EPointType.refer;
+                } else {
+                  this.hoverPoint.type = EPointType.end;
+                }
+                this.setMarkPointData();
+              }
+            }
           });
         }
         if (this.groupId) {
@@ -268,25 +321,81 @@ export default class MiniChart extends tsc<IProps> {
     }
   }
 
+  /* 鼠标移动时标记点样式 */
+  getSymbolItemStyle() {
+    if (this.hoverPoint.isMouseDown) {
+      return {
+        symbol: 'circle',
+        symbolSize: 12,
+        showSymbol: false,
+        itemStyle: {
+          color: this.hoverPoint.type === EPointType.compare ? '#7B29FF' : '#FF9C01',
+          borderColor: this.hoverPoint.type === EPointType.compare ? '#DBC5FF' : '#FFD695',
+          borderWidth: 1,
+        },
+      };
+    }
+    return {
+      symbol: this.localPointType === EPointType.end ? 'none' : 'circle',
+      symbolSize: 8,
+      showSymbol: false,
+      itemStyle: {
+        color: this.localPointType === EPointType.compare ? '#7B29FF' : '#FF9C01',
+        borderColor: this.localPointType === EPointType.compare ? '#DBC5FF' : '#FFD695',
+        borderWidth: 1,
+      },
+    };
+  }
+
+  /* 面积颜色 */
+  getSeriesStyle() {
+    return {
+      lineStyle: {
+        color: this.localPointType === EPointType.end ? '#C4C6CC' : '#3A84FF',
+        width: 1,
+      },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          {
+            offset: 0,
+            color: this.localPointType === EPointType.end ? '#D5D6D9' : '#A4C6FD',
+          },
+          {
+            offset: 1,
+            color: '#FFFFFF',
+          },
+        ]),
+      },
+    };
+  }
+
   /**
    * @description 点击图表
    * @returns
    */
   handleClick() {
-    const markPointData = [];
-    if (this.localPointType === EPointType.compare) {
-      this.localPointType = EPointType.refer;
-    } else if (this.localPointType === EPointType.refer) {
-      this.localPointType = EPointType.end;
-    } else if (this.localPointType === EPointType.end) {
+    if (this.localPointType === EPointType.end) {
       return;
     }
+    if (this.localPointType === EPointType.compare) {
+      this.localPointType = EPointType.refer;
+      this.compareXChange(this.localComparePoint.x);
+    } else if (this.localPointType === EPointType.refer) {
+      this.localPointType = EPointType.end;
+      this.referXChange(this.localReferPoint.x);
+    }
     this.pointTypeChange(this.localPointType);
+    this.setMarkPointData();
+  }
+
+  setMarkPointData() {
+    const markPointData = [];
     if ([EPointType.refer, EPointType.end].includes(this.localPointType)) {
+      const isMouseDown = this.hoverPoint.isMouseDown && this.hoverPoint.type === EPointType.compare;
       markPointData.push({
         coord: [this.localComparePoint.x, this.localComparePoint.y],
-        symbol: 'circle',
-        symbolSize: 8,
+        symbol: isMouseDown ? 'none' : 'circle',
+        symbolSize: this.hoverPoint.isHover && this.hoverPoint.type === EPointType.compare ? 12 : 8,
         itemStyle: {
           color: '#7B29FF',
           borderColor: '#DBC5FF',
@@ -295,10 +404,11 @@ export default class MiniChart extends tsc<IProps> {
       });
     }
     if (this.localPointType === EPointType.end) {
+      const isMouseDown = this.hoverPoint.isMouseDown && this.hoverPoint.type === EPointType.refer;
       markPointData.push({
         coord: [this.localReferPoint.x, this.localReferPoint.y],
-        symbol: 'circle',
-        symbolSize: 8,
+        symbol: isMouseDown ? 'none' : 'circle',
+        symbolSize: this.hoverPoint.isHover && this.hoverPoint.type === EPointType.refer ? 12 : 8,
         itemStyle: {
           color: '#FF9C01',
           borderColor: '#FFD695',
@@ -311,7 +421,10 @@ export default class MiniChart extends tsc<IProps> {
       series: [
         {
           ...this.options.series[0],
+          ...this.getSymbolItemStyle(),
+          ...this.getSeriesStyle(),
           markPoint: {
+            animation: false,
             data: markPointData,
           },
         },
@@ -323,18 +436,59 @@ export default class MiniChart extends tsc<IProps> {
   pointTypeChange(type: EPointType) {
     this.$emit('pointTypeChange', type);
   }
-  comparePointChange(position: IPointPosition) {
-    this.$emit('comparePointChange', position);
+  compareXChange(x: number) {
+    this.$emit('compareXChange', x);
   }
-  referPointChange(position: IPointPosition) {
-    this.$emit('referPointChange', position);
+  referXChange(x: number) {
+    this.$emit('referXChange', x);
   }
 
+  /**
+   * @description 鼠标移入图表
+   */
   handleMouseover() {
     this.isMouseOver = true;
   }
+  /**
+   * @description 鼠标移出图表
+   */
   handleMouseleave() {
     this.isMouseOver = false;
+    this.dropEnd();
+  }
+  handleMouseDown() {
+    if (this.hoverPoint.type !== EPointType.end && this.hoverPoint.isHover) {
+      this.hoverPoint.isMouseDown = true;
+    }
+  }
+  handleMouseUp() {
+    this.dropEnd();
+  }
+  handleMouseMove() {
+    if (this.hoverPoint.isMouseDown && !this.isDrop) {
+      this.isDrop = true;
+      console.log('xxxxx');
+      this.setMarkPointData();
+    }
+  }
+  dropEnd() {
+    if (this.hoverPoint.isMouseDown) {
+      if (this.hoverPoint.type === EPointType.compare) {
+        this.localComparePoint = JSON.parse(JSON.stringify(this.hoverPoint.position));
+        this.compareXChange(this.localComparePoint.x);
+      } else if (this.hoverPoint.type === EPointType.refer) {
+        this.localReferPoint = JSON.parse(JSON.stringify(this.hoverPoint.position));
+        this.referXChange(this.localReferPoint.x);
+      }
+      this.hoverPoint = {
+        ...this.hoverPoint,
+        isMouseDown: false,
+        isHover: false,
+        type: EPointType.end,
+      };
+      this.isDrop = false;
+      this.setMarkPointData();
+    }
   }
 
   render() {
@@ -344,10 +498,13 @@ export default class MiniChart extends tsc<IProps> {
         style={{
           height: `${this.chartStyle.chartWarpHeight}px`,
         }}
-        class='details-side-mini-chart'
+        class={['details-side-mini-chart', { 'is-hover-point': this.hoverPoint.isHover }]}
         onClick={this.handleClick}
+        onMousedown={this.handleMouseDown}
         onMouseleave={this.handleMouseleave}
+        onMousemove={this.handleMouseMove}
         onMouseover={this.handleMouseover}
+        onMouseup={this.handleMouseUp}
       />
     );
   }

@@ -32,7 +32,7 @@ import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
-import MiniChart, { EPointType, type IPointPosition } from './mini-chart';
+import MiniChart, { EPointType } from './mini-chart';
 
 import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
@@ -156,6 +156,68 @@ export default class DetailsSide extends tsc<IProps> {
       [EColumn.DiffCount]: 0.45,
       [EColumn.Chart]: null,
       [EColumn.Operate]: null,
+      data: [
+        [118, 1721616120000],
+        [120, 1721616180000],
+        [120, 1721616240000],
+        [120, 1721616300000],
+        [122, 1721616360000],
+        [120, 1721616420000],
+        [118, 1721616480000],
+        [120, 1721616540000],
+        [0, 1721616600000],
+        [50, 1721616660000],
+        [50, 1721616720000],
+        [50, 1721616780000],
+        [50, 1721616840000],
+        [50, 1721616900000],
+        [50, 1721616960000],
+        [120, 1721617020000],
+        [120, 1721617080000],
+        [120, 1721617140000],
+        [120, 1721617200000],
+        [120, 1721617260000],
+        [120, 1721617320000],
+        [120, 1721617380000],
+        [120, 1721617440000],
+        [120, 1721617500000],
+        [2, 1721617560000],
+        [120, 1721617620000],
+        [120, 1721617680000],
+        [120, 1721617740000],
+        [120, 1721617800000],
+        [50, 1721617860000],
+        [50, 1721617920000],
+        [50, 1721617980000],
+        [50, 1721618040000],
+        [50, 1721618100000],
+        [50, 1721618160000],
+        [50, 1721618220000],
+        [50, 1721618280000],
+        [4, 1721618340000],
+        [10, 1721618400000],
+        [20, 1721618460000],
+        [30, 1721618520000],
+        [50, 1721618580000],
+        [80, 1721618640000],
+        [100, 1721618700000],
+        [122, 1721618760000],
+        [120, 1721618820000],
+        [120, 1721618880000],
+        [120, 1721618940000],
+        [120, 1721619000000],
+        [120, 1721619060000],
+        [120, 1721619120000],
+        [120, 1721619180000],
+        [120, 1721619240000],
+        [120, 1721619300000],
+        [122, 1721619360000],
+        [118, 1721619420000],
+        [120, 1721619480000],
+        [120, 1721619540000],
+        [120, 1721619600000],
+        [122, 1721619660000],
+      ] as any,
     },
     {
       id: 2,
@@ -177,6 +239,68 @@ export default class DetailsSide extends tsc<IProps> {
       [EColumn.DiffCount]: -0.45,
       [EColumn.Chart]: null,
       [EColumn.Operate]: null,
+      data: [
+        [118, 1721616120000],
+        [120, 1721616180000],
+        [120, 1721616240000],
+        [120, 1721616300000],
+        [122, 1721616360000],
+        [120, 1721616420000],
+        [118, 1721616480000],
+        [120, 1721616540000],
+        [0, 1721616600000],
+        [50, 1721616660000],
+        [50, 1721616720000],
+        [50, 1721616780000],
+        [50, 1721616840000],
+        [50, 1721616900000],
+        [50, 1721616960000],
+        [120, 1721617020000],
+        [120, 1721617080000],
+        [50, 1721617140000],
+        [50, 1721617200000],
+        [50, 1721617260000],
+        [50, 1721617320000],
+        [50, 1721617380000],
+        [50, 1721617440000],
+        [50, 1721617500000],
+        [2, 1721617560000],
+        [50, 1721617620000],
+        [50, 1721617680000],
+        [50, 1721617740000],
+        [50, 1721617800000],
+        [50, 1721617860000],
+        [50, 1721617920000],
+        [50, 1721617980000],
+        [50, 1721618040000],
+        [50, 1721618100000],
+        [50, 1721618160000],
+        [50, 1721618220000],
+        [50, 1721618280000],
+        [4, 1721618340000],
+        [10, 1721618400000],
+        [20, 1721618460000],
+        [30, 1721618520000],
+        [50, 1721618580000],
+        [80, 1721618640000],
+        [100, 1721618700000],
+        [80, 1721618760000],
+        [80, 1721618820000],
+        [80, 1721618880000],
+        [80, 1721618940000],
+        [80, 1721619000000],
+        [80, 1721619060000],
+        [80, 1721619120000],
+        [80, 1721619180000],
+        [80, 1721619240000],
+        [80, 1721619300000],
+        [80, 1721619360000],
+        [80, 1721619420000],
+        [80, 1721619480000],
+        [80, 1721619540000],
+        [80, 1721619600000],
+        [80, 1721619660000],
+      ] as any,
     },
   ];
   /** 分页数据 */
@@ -188,15 +312,9 @@ export default class DetailsSide extends tsc<IProps> {
   };
 
   /* 对比点 */
-  comparePoint: IPointPosition = {
-    x: 0,
-    y: 0,
-  };
+  compareX = 0;
   /* 参照点 */
-  referPoint: IPointPosition = {
-    x: 0,
-    y: 0,
-  };
+  referX = 0;
   pointType: EPointType = EPointType.compare;
 
   chartGroupId = random(8);
@@ -242,11 +360,11 @@ export default class DetailsSide extends tsc<IProps> {
   handlePointTypeChange(value: EPointType) {
     this.pointType = value;
   }
-  handleComparePointChange(value: IPointPosition) {
-    this.comparePoint = value;
+  handleCompareXChange(value: number) {
+    this.compareX = value;
   }
-  handleReferPointChange(value: IPointPosition) {
-    this.referPoint = value;
+  handleReferXChange(value: number) {
+    this.referX = value;
   }
 
   render() {
@@ -357,10 +475,14 @@ export default class DetailsSide extends tsc<IProps> {
                       class='chart-wrap'
                     >
                       <MiniChart
+                        compareX={this.compareX}
+                        data={_row.data}
                         groupId={this.chartGroupId}
-                        onComparePointChange={this.handleComparePointChange}
+                        pointType={this.pointType}
+                        referX={this.referX}
+                        onCompareXChange={this.handleCompareXChange}
                         onPointTypeChange={this.handlePointTypeChange}
-                        onReferPointChange={this.handleReferPointChange}
+                        onReferXChange={this.handleReferXChange}
                       />
                     </div>
                   );
