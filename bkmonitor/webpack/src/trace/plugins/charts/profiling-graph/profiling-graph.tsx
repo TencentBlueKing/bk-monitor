@@ -71,7 +71,7 @@ export default defineComponent({
     const frameGraphRef = ref(FrameGraph);
     const empty = ref(true);
     // 当前视图模式
-    const activeMode = ref<ViewModeType>(ViewModeType.Flame);
+    const activeMode = ref<ViewModeType>(ViewModeType.Combine);
     const textDirection = ref<DirectionType>('ltr');
     const isLoading = ref(false);
     const tableData = shallowRef<ProfilingTableItem[]>([]);
