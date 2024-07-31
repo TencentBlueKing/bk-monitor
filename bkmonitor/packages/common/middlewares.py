@@ -55,6 +55,8 @@ class TimeZoneMiddleware(MiddlewareMixin):
 
 class TrackSiteVisitMiddleware(MiddlewareMixin):
     def process_view(self, request, view_func, view_args, view_kwargs):
+        if settings.ENVIRONMENT == "development":
+            return
 
         track_site_visit: bool = getattr(view_func, "track_site_visit", False)
         if not track_site_visit:

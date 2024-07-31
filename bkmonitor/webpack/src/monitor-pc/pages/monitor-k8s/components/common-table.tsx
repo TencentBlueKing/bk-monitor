@@ -591,8 +591,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     });
     return this.filterDict;
   }
+
   @Emit('scrollEnd')
   handleScrollEnd() {}
+
   @Emit('switchOverview')
   handleSwitchOverview(val: boolean) {
     return val;

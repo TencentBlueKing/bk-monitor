@@ -15,6 +15,7 @@ from typing import Any, Dict, List
 import arrow
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import ugettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
@@ -155,8 +156,8 @@ class IncidentBaseResource(Resource):
         for incident_key, incident_value in incident_info.items():
             if (
                 hasattr(incident_document, incident_key)
-                and getattr(incident_document, incident_key)
-                and incident_value
+                and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
+                and (incident_value or incident_key == "incident_reason")
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
                 if incident_key == "status":
@@ -416,9 +417,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         for node in current["nodes"]:
             if node["id"] not in last_nodes or node["aggregated_nodes"] != last_nodes[node["id"]]["aggregated_nodes"]:
                 new_nodes.append(node)
-
-            if node["id"] not in complete_topologies["nodes"]:
                 complete_topologies["nodes"][node["id"]] = node
+            elif self.check_node_diff(node, last_nodes[node["id"]]):
+                new_nodes.append(node)
+                complete_topologies["nodes"][node["id"]] = node
+            elif node["id"] not in complete_topologies["nodes"]:
+                complete_topologies["nodes"][node["id"]] = node
+
         for edge in current["edges"]:
             if edge["source"] not in last_nodes or edge["target"] not in last_nodes:
                 new_edges.append(edge)
@@ -429,6 +434,14 @@ class IncidentTopologyResource(IncidentBaseResource):
             "nodes": new_nodes,
             "edges": new_edges,
         }
+
+    def check_node_diff(self, current_node: dict, last_node: dict):
+        """判断节点是否发生变化."""
+        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count", "alert_ids"]:
+            if current_node[node_key] != last_node[node_key]:
+                return True
+
+        return False
 
     def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> Dict:
         """根据快照内容生成拓扑图数据
@@ -753,44 +766,59 @@ class IncidentHandlersResource(IncidentBaseResource):
         alerts = self.get_snapshot_alerts(snapshot)
         current_username = get_request_username()
 
-        alert_agg_results = Counter()
+        alert_abornomal_agg_results = Counter()
+        alert_total_agg_results = Counter()
         for alert in alerts:
             if not alert["assignee"]:
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results["__not_dispatch__"] += 1
+                alert_total_agg_results["__not_dispatch__"] += 1
                 continue
+
+            if alert["status"] == EventStatus.ABNORMAL:
+                alert_abornomal_agg_results["__total__"] += 1
+            alert_total_agg_results["__total__"] += 1
+
             for username in alert["assignee"]:
-                alert_agg_results[username] += 1
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results[username] += 1
+                alert_total_agg_results[username] += 1
 
         handlers = {
             "all": {
                 "id": "all",
-                "name": "全部",
+                "name": _("全部"),
                 "index": 1,
-                "alert_count": len(alerts),
+                "alert_count": alert_abornomal_agg_results["__total__"],
+                "total_count": len(alerts),
             },
             "not_dispatch": {
                 "id": "not_dispatch",
-                "name": "未分派",
+                "name": _("未分派"),
                 "index": 2,
-                "alert_count": 0,
+                "alert_count": alert_abornomal_agg_results["__not_dispatch__"],
+                "total_count": alert_total_agg_results["__not_dispatch__"],
             },
             "mine": {
                 "id": current_username,
-                "name": "我负责",
+                "name": _("我处理"),
                 "index": 3,
-                "alert_count": alert_agg_results.get(current_username, 0),
+                "alert_count": alert_abornomal_agg_results.get(current_username, 0),
+                "total_count": alert_total_agg_results.get(current_username, 0),
             },
             "other": {
                 "id": "other",
-                "name": "其他",
+                "name": _("其他"),
                 "index": 4,
                 "children": [
                     {
                         "id": username,
                         "name": username,
-                        "alert_count": alert_count,
+                        "alert_count": alert_abornomal_agg_results.get(username, 0),
+                        "total_count": alert_count,
                     }
-                    for username, alert_count in alert_agg_results.items()
-                    if username != current_username
+                    for username, alert_count in alert_total_agg_results.items()
+                    if username not in (current_username, "__not_dispatch__", "__total__")
                 ],
             },
         }
@@ -817,6 +845,7 @@ class IncidentOperationsResource(IncidentBaseResource):
             validated_request_data["incident_id"],
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
+            order_by="-create_time",
         )
         operations = [operation.to_dict() for operation in operations]
         for operation in operations:
@@ -865,6 +894,7 @@ class IncidentOperationTypesResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         operations = IncidentOperationDocument.list_by_incident_id(
             validated_request_data["incident_id"],
+            order_by="-create_time",
         )
         incident_operation_types = {operation.operation_type for operation in operations}
 
@@ -994,7 +1024,9 @@ class IncidentAlertListResource(IncidentBaseResource):
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
-        alerts[0]["is_incident_root"] = True
+
+        if len(alerts) > 0:
+            alerts[0]["is_incident_root"] = True
 
         return incident_alerts
 
