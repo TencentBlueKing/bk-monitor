@@ -2150,6 +2150,7 @@ class GetTargetDetail(Resource):
             TargetFieldType.service_set_template: TargetNodeType.SET_TEMPLATE,
             TargetFieldType.host_service_template: TargetNodeType.SERVICE_TEMPLATE,
             TargetFieldType.host_set_template: TargetNodeType.SET_TEMPLATE,
+            TargetFieldType.dynamic_group: TargetNodeType.DYNAMIC_GROUP,
         }
         obj_type_map = {
             TargetFieldType.host_target_ip: TargetObjectType.HOST,
@@ -2160,6 +2161,7 @@ class GetTargetDetail(Resource):
             TargetFieldType.service_set_template: TargetObjectType.SERVICE,
             TargetFieldType.host_service_template: TargetObjectType.HOST,
             TargetFieldType.host_set_template: TargetObjectType.HOST,
+            TargetFieldType.dynamic_group: TargetObjectType.HOST,
         }
         info_func_map = {
             TargetFieldType.host_target_ip: resource.commons.get_host_instance_by_ip,
@@ -2170,6 +2172,7 @@ class GetTargetDetail(Resource):
             TargetFieldType.service_set_template: resource.commons.get_nodes_by_template,
             TargetFieldType.host_service_template: resource.commons.get_nodes_by_template,
             TargetFieldType.host_set_template: resource.commons.get_nodes_by_template,
+            TargetFieldType.dynamic_group: resource.commons.get_dynamic_group_instance,
         }
 
         # 判断target格式是否符合预期
@@ -2204,6 +2207,8 @@ class GetTargetDetail(Resource):
             params["bk_obj_id"] = target_type_map[field]
             params["bk_inst_type"] = obj_type_map[field]
             params["bk_inst_ids"] = [inst["bk_inst_id"] for inst in target["value"]]
+        elif field == TargetFieldType.dynamic_group:
+            params["dynamic_group_ids"] = [x["dynamic_group_id"] for x in target["value"]]
         else:
             node_list = target.get("value")
             for target_item in node_list:

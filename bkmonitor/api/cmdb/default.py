@@ -985,57 +985,83 @@ class SearchDynamicGroup(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        bk_obj_id = serializers.CharField(label="模型ID")
-        with_count = serializers.BooleanField(label="是否返回分组数量")
+        bk_obj_id = serializers.ChoiceField(label="模型ID", choices=["host", "set"])
+        dynamic_group_ids = serializers.ListField(label="动态分组ID列表", required=False)
+        with_count = serializers.BooleanField(label="是否返回分组数量", default=False)
+        with_instance_id = serializers.BooleanField(label="是否返回分组实例ID", default=False)
 
     MAX_CONCURRENCY_NUMBER = 5
 
     def perform_request(self, params):
-        query_params = {"bk_biz_id": params["bk_biz_id"]}
-
-        # 查询条件
-        if params.get("bk_obj_id"):
-            query_params["condition"] = {"bk_obj_id": params["bk_obj_id"]}
+        query_params = {"bk_biz_id": params["bk_biz_id"], "condition": {"bk_obj_id": params["bk_obj_id"]}}
 
         # 分页查询动态分组
         dgs = batch_request(client.search_dynamic_group, params=query_params)
         dgs = [{"id": dg["id"], "name": dg["name"], "bk_obj_id": dg["bk_obj_id"]} for dg in dgs]
 
-        # 查询动态分组中的示例数量
-        if params.get("with_count"):
+        if params.get("dynamic_group_ids") is not None:
+            dgs = [dg for dg in dgs if dg["id"] in params["dynamic_group_ids"]]
+
+        if params["bk_obj_id"] == "host":
+            instance_field = "bk_host_id"
+        else:
+            instance_field = "bk_set_id"
+
+        # 查询动态分组中的实例信息
+        if params.get("with_count") or params.get("with_instance_id"):
             pool = ThreadPool(self.MAX_CONCURRENCY_NUMBER)
             tasks: Dict[str, ApplyResult] = {}
             for dg in dgs:
-                # 根据分组对象类型决定查询字段
-                if dg["bk_obj_id"] == "host":
-                    fields = ["bk_host_id"]
-                elif dg["bk_obj_id"] == "set":
-                    fields = ["bk_set_id"]
+                if params.get("with_instance_id"):
+                    tasks[dg["id"]] = pool.apply_async(
+                        batch_request,
+                        kwds={
+                            "func": client.execute_dynamic_group,
+                            "params": {
+                                "bk_biz_id": params["bk_biz_id"],
+                                "id": dg["id"],
+                                "fields": [instance_field],
+                            },
+                        },
+                    )
                 else:
-                    continue
-
-                tasks[dg["id"]] = pool.apply_async(
-                    client.execute_dynamic_group,
-                    kwds={
-                        "bk_biz_id": params["bk_biz_id"],
-                        "id": dg["id"],
-                        "fields": fields,
-                        "page": {"start": 0, "limit": 1},
-                    },
-                )
+                    tasks[dg["id"]] = pool.apply_async(
+                        client.execute_dynamic_group,
+                        kwds={
+                            "bk_biz_id": params["bk_biz_id"],
+                            "id": dg["id"],
+                            "fields": [instance_field],
+                            "page": {"start": 0, "limit": 1},
+                        },
+                    )
             pool.close()
             pool.join()
 
+            # 获取任务结果
             dg_counts = defaultdict(lambda: 0)
+            dg_instance_ids = defaultdict(list)
             for dg_id, task in tasks:
                 try:
                     result = task.get()
                 except BKAPIError:
                     continue
-                dg_counts[dg_id] = result["count"]
 
-            for dg in dgs:
-                dg["count"] = dg_counts[dg["id"]]
+                if params.get("with_instance_id"):
+                    dg_counts[dg_id] = len(result)
+                    for instance in result:
+                        dg_instance_ids[dg_id].append(instance[instance_field])
+                else:
+                    dg_counts[dg_id] = result["count"]
+
+            # 将分组实例数量添加到分组信息中
+            if params.get("with_count"):
+                for dg in dgs:
+                    dg["count"] = dg_counts[dg["id"]]
+
+            # 将分组实例ID添加到分组信息中
+            if params.get("with_instance_id"):
+                for dg in dgs:
+                    dg["instance_ids"] = dg_instance_ids[dg["id"]]
 
         return dgs
 
@@ -1070,6 +1096,7 @@ class BatchExecuteDynamicGroup(Resource):
     """
     批量执行动态分组
     """
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label=_("业务ID"))
         ids = serializers.ListField(label=_("动态分组ID列表"), child=serializers.CharField(), allow_empty=False)
