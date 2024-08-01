@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, type Ref, computed, defineComponent, inject, ref, watch, watchEffect } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Exception, Loading } from 'bkui-vue';
@@ -32,6 +32,7 @@ import { CancelToken } from 'monitor-api/index';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
 import { type BaseDataType, type ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
+import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
@@ -87,30 +88,20 @@ export default defineComponent({
 
     const flameFilterKeywords = computed(() => (filterKeyword.value?.trim?.().length ? [filterKeyword.value] : []));
     const isCompared = computed(() => (props.queryParams as IQueryParams)?.is_compared ?? false);
-    function initQueryData() {
-      if (isCompared.value) {
-        // 对比模式下不展示拓扑图
-        if (activeMode.value === ViewModeType.Topo) {
-          activeMode.value = ViewModeType.Combine;
-        }
+
+    watch(
+      () => props.queryParams,
+      debounce(16, async () => handleQuery()),
+      {
+        immediate: true,
+        deep: true,
       }
-      tableData.value = [];
-      flameData.value = {
-        name: '',
-        children: undefined,
-        id: '',
-      };
-      unit.value = 'nanoseconds';
-      topoSrc.value = '';
-    }
-    watch(() => props.queryParams, initQueryData, {
-      deep: true,
-    });
+    );
     watch(
       () => toolsFormData.value.timeRange,
       () => {
         if (searchType.value === SearchType.Profiling) {
-          initQueryData();
+          handleQuery();
         }
       },
       { deep: true }
@@ -123,10 +114,11 @@ export default defineComponent({
         }
         if (v <= 0) return;
         refleshIntervalInstance = window.setInterval(() => {
-          initQueryData();
+          handleQuery();
         }, toolsFormData.value.refreshInterval);
       }
     );
+
     const getParams = (args: Record<string, any> = {}) => {
       const { queryParams } = props;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
@@ -141,17 +133,24 @@ export default defineComponent({
           : {}),
       };
     };
+    const handleQuery = async () => {
+      getTableFlameData();
+      if (isCompared.value) {
+        // 对比模式下不展示拓扑图
+        if (activeMode.value === ViewModeType.Topo) {
+          activeMode.value = ViewModeType.Combine;
+        }
+      } else {
+        getTopoSrc();
+      }
+    };
     /** 获取表格和火焰图 */
     const getTableFlameData = async () => {
       isLoading.value = true;
       highlightId.value = -1;
       cancelTableFlameFn();
-      const params = getParams({
-        diagram_types:
-          activeMode.value === ViewModeType.Combine
-            ? ['table', 'flamegraph']
-            : [activeMode.value === ViewModeType.Flame ? 'flamegraph' : activeMode.value],
-      });
+
+      const params = getParams({ diagram_types: ['table', 'flamegraph'] });
       await query(params, {
         cancelToken: new CancelToken((c: () => void) => {
           cancelTableFlameFn = c;
@@ -160,14 +159,8 @@ export default defineComponent({
         .then(data => {
           if (data && Object.keys(data)?.length) {
             unit.value = data.unit || '';
-            if (activeMode.value === ViewModeType.Combine) {
-              tableData.value = data.table_data?.items ?? [];
-              flameData.value = data.flame_data || [];
-            } else if (activeMode.value === ViewModeType.Flame) {
-              flameData.value = data.flame_data || [];
-            } else {
-              tableData.value = data.table_data?.items ?? [];
-            }
+            tableData.value = data.table_data?.items ?? [];
+            flameData.value = data.flame_data;
             empty.value = false;
           } else {
             empty.value = true;
@@ -276,24 +269,6 @@ export default defineComponent({
         behavior: 'instant',
       });
     }
-    const needQuery = computed(() => {
-      if (activeMode.value === ViewModeType.Flame && flameData.value?.value) return false;
-      if (activeMode.value === ViewModeType.Table && tableData.value?.length) return false;
-      if (activeMode.value === ViewModeType.Combine && flameData.value?.value && tableData.value?.length) return false;
-      if (activeMode.value === ViewModeType.Topo && topoSrc.value) return false;
-      return true;
-    });
-    watchEffect(() => {
-      if (!needQuery.value) return;
-      if ([ViewModeType.Combine, ViewModeType.Flame, ViewModeType.Table].includes(activeMode.value)) {
-        getTableFlameData();
-        return;
-      }
-      if (activeMode.value === ViewModeType.Topo) {
-        getTopoSrc();
-        return;
-      }
-    });
     return {
       frameGraphRef,
       empty,
@@ -365,7 +340,7 @@ export default defineComponent({
                 style={{
                   width: ViewModeType.Combine ? '50%' : '100%',
                 }}
-                appName={this.queryParams.app_name}
+                appName={this.$props.queryParams.app_name}
                 data={this.flameData}
                 filterKeywords={this.flameFilterKeywords}
                 highlightId={this.highlightId}

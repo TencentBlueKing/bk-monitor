@@ -53,32 +53,30 @@ def init_es_storage_info(apps, *args, **kwargs):
 
     ClusterInfo = models["ClusterInfo"]
 
-    es_host = os.environ.get("BK_MONITOR_ES7_HOST", "")
-    es_port = int(os.environ.get("BK_MONITOR_ES7_REST_PORT", 0))
-    es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
-    es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
-
     # 创建集群信息
     ClusterInfo.objects.create(
         cluster_name="es_cluster1",
         cluster_type="elasticsearch",
         # 域名和端口屏蔽
-        domain_name=es_host,
-        port=es_port,
+        domain_name="",
+        port=0,
         description="init es cluster",
         is_default_cluster=True,
         # 用户名及密码配置
-        username=es_username,
-        password=es_password,
+        username="",
+        password="",
         # 注意：此处写死了是5.4的版本，后续如果有ES升级，需要调整
-        # 更新版本到7.2（2024-07-30）
-        version="7.2",
+        version="5.4",
     )
 
 
 class Migration(migrations.Migration):
+
     dependencies = [
         ("metadata", "0035_auto_20190924_1732"),
     ]
 
-    operations = [migrations.RunPython(init_es_storage_info)]
+    operations = [
+        # 新版本默认不安装 ES5，因此该逻辑可以去掉了
+        # migrations.RunPython(init_es_storage_info)
+    ]

@@ -58,8 +58,6 @@ def init_result_table_data_label(apps, *args, **kwargs):
                 if not re_custom_time_series.match(result_table_id):
                     data_label = result_table_id.split(".")[0]
                     print(f"自定义时序结果表{result_table_id}的data_label不存在，取前缀{data_label}")
-            except Exception:
-                continue
 
         if data_label:
             result_table.data_label = data_label
@@ -72,7 +70,6 @@ def init_result_table_data_label(apps, *args, **kwargs):
 DEPENDENCIES = [
     ("bkmonitor", "0140_merge_0139_auto_20230613_1211_0139_auto_20230619_1048"),
     ("metadata", "0171_resulttable_data_label"),
-    ("monitor_web", "0035_auto_20200506_1542"),
 ]
 
 if settings.ROLE == "web":

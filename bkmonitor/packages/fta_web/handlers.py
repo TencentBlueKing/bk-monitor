@@ -15,15 +15,15 @@ import traceback
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.translation import ugettext as _
-
-from bkmonitor.documents.tasks import rollover_indices
-from bkmonitor.models import EventPluginInstance, EventPluginV2
-from constants.action import GLOBAL_BIZ_ID
 from fta_web.event_plugin.handler import PackageHandler
 from fta_web.event_plugin.resources import (
     CreateEventPluginInstanceResource,
     UpdateEventPluginInstanceResource,
 )
+
+from bkmonitor.documents.tasks import rollover_indices
+from bkmonitor.models import EventPluginInstance, EventPluginV2
+from constants.action import GLOBAL_BIZ_ID
 
 
 def register_builtin_plugins(sender, **kwargs):
@@ -36,11 +36,7 @@ def register_builtin_plugins(sender, **kwargs):
 
     print("start to  register_builtin_plugin ")
     initial_file = os.path.join(settings.PROJECT_ROOT, "support-files/fta/action_plugin_initial.json")
-    try:
-        ActionPlugin.origin_objects.count()
-    except Exception:
-        # 首次部署，表未就绪
-        return
+
     with open(initial_file, "r", encoding="utf-8") as f:
         plugins = json.loads(f.read())
         for plugin in plugins:
@@ -254,7 +250,7 @@ def migrate_actions(sender, **kwargs):
                 add_notice_action(old_notice_group.notice_way, old_action, old_notice_group.wxwork_group)
             )
             strategy_id = old_action.strategy_id
-            for signal, new_action in new_actions:
+            for (signal, new_action) in new_actions:
                 strategy_action_relations.append(
                     StrategyActionConfigRelation(
                         config_id=new_action.id, user_groups=[new_user_group.id], strategy_id=strategy_id, signal=signal
@@ -435,13 +431,9 @@ def register_event_plugin(config_params=None, all_alarm_types=None):
                         plugin_info["alert_config"] = all_alarm_types[plugin_info["plugin_id"]]
                 plugin_info["bk_biz_id"] = 0
                 plugin_info["version"] = plugin_info.get("version") or "1.0.0"
-                if not (plugin_id == plugin_info["plugin_id"] and version == plugin_info["version"]):
-                    print(
-                        "[event plugin initial] match pluginId or version error, "
-                        "plugin:{}, plugin_id：{} version：{}".format(
-                            plugin_file, plugin_info["plugin_id"], plugin_info["version"]
-                        )
-                    )
+                if not(plugin_id == plugin_info["plugin_id"] and version == plugin_info["version"]):
+                    print("[event plugin initial] match pluginId or version error, plugin:{}, plugin_id：{} version：{}".
+                          format(plugin_file, plugin_info["plugin_id"], plugin_info["version"]))
                     continue
                 try:
                     plugin = CreateEventPluginResource().perform_request(plugin_info)
@@ -504,7 +496,6 @@ def migrate_fta_strategy(sender, **kwargs):
 
 def migrate_actions_and_strategies(**kwargs):
     from django.conf import settings
-
     from fta_web.fta_migrate.strategy import MigrateFTAStrategy
     from fta_web.models.old_fta import AlarmDef, Solution
 

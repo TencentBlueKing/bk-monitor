@@ -169,7 +169,6 @@
                 :clearable="false"
                 :disabled="!globalEditable"
                 :popover-min-width="150"
-                searchable
                 @blur="blurFilter"
                 @selected="fieldsName => handleFieldChange(fieldsName, index)"
               >

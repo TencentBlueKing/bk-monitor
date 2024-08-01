@@ -682,27 +682,12 @@ class IpchooserHostDetailResource(NodeManAPIGWResource):
                 scope_id = serializers.CharField(label="资源范围ID")
                 bk_biz_id = serializers.IntegerField(label="业务ID")
 
-                def validate(self, attrs):
-                    bk_biz_id = attrs["bk_biz_id"]
-                    if bk_biz_id < 0:
-                        attrs["bk_biz_id"] = validate_bk_biz_id(bk_biz_id)
-                    if attrs["scope_type"] == "biz":
-                        attrs["scope_id"] = str(attrs["bk_biz_id"])
-                    return attrs
-
             host_id = serializers.IntegerField(label="主机ID")
             meta = MetaSerializer()
 
         class ScopeListSerializer(serializers.Serializer):
             scope_type = serializers.CharField(label="资源范围类型")
             scope_id = serializers.CharField(label="资源范围ID")
-
-            def validate(self, attrs):
-                bk_biz_id = attrs["scope_id"]
-                if attrs["scope_type"] == "biz":
-                    if int(bk_biz_id) < 0:
-                        attrs["scope_id"] = str(validate_bk_biz_id(bk_biz_id))
-                return attrs
 
         host_list = serializers.ListField(child=HostSerializer(), required=True, label="主机列表")
         all_scope = serializers.BooleanField(required=False, label="是否获取所有资源范围的拓扑结构", default=False)
@@ -714,4 +699,4 @@ class IpchooserHostDetailResource(NodeManAPIGWResource):
             scope_list = attrs.get('scope_list', None)
             if all_scope is None and scope_list is None:
                 raise serializers.ValidationError("all_scope 和 scope_list 至少存在一个")
-            return super().validate(attrs)
+            return attrs

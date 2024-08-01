@@ -398,7 +398,6 @@ export default defineComponent({
       contextMenuRect.value.left = -1;
       if (item.id === 'copy') {
         copyText(contextMenuRect.value.spanName);
-        return;
       }
       if (item.id === 'reset') {
         initScale();
@@ -407,7 +406,6 @@ export default defineComponent({
       }
       if (item.id === 'highlight') {
         graphInstance.highlightNode(contextMenuRect.value.spanName);
-        emit('updateHighlightId', contextMenuRect.value.spanId);
       }
     }
     /**

@@ -109,7 +109,7 @@ def add_esstorage(table_id):
             storage_cluster_id=es_cluster.cluster_id,
             date_format="%Y%m%d",
             slice_gap=1440,
-            index_settings=json.dumps({"number_of_shards": 4, "number_of_replicas": 0}),
+            index_settings=json.dumps({"number_of_shards": 4, "number_of_replicas": 1}),
             mapping_settings=json.dumps(
                 {
                     "dynamic_templates": [

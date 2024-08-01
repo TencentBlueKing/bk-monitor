@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import AlarmGroupDetail, { type IAlarmGroupDetail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
+import AlarmGroupDetail, { type IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
 import * as ruleAuth from '../../authority-map';
 
 import './alarm-group.scss';
@@ -50,7 +50,7 @@ interface IAlarmList {
 }
 interface IEvent {
   onChange?: number[];
-  onAddGroup?: () => void;
+  onAddGroup?: void;
   onToggle?: (v: boolean) => void;
   onRefresh?: () => void;
 }
@@ -80,7 +80,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
 
   localValue: number[] = [];
 
-  detail: IAlarmGroupDetail = {
+  detail: IAlarmGroupDeatail = {
     id: 0,
     show: false,
   };
@@ -319,18 +319,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 class={['add-tag', { disabled: this.disabled }]}
                 onClick={!this.disabled && this.handleShowSelect}
               >
-                {this.$slots.default || [
-                  <span
-                    key={1}
-                    class='icon-monitor icon-mc-add'
-                  />,
-                  <span
-                    key={2}
-                    class='add-tag-text'
-                  >
-                    {this.$t('添加告警组')}
-                  </span>,
-                ]}
+                <span class='icon-monitor icon-mc-add' />
+                <span class='add-tag-text'>{this.$t('添加告警组')}</span>
               </span>
             </span>
           )}

@@ -161,6 +161,7 @@ export default defineComponent({
       nextTick(() => {
         renderTableData.value = tableData.value.slice(0, TABLE_PAGE_SIZE);
       });
+      console.info(tableData.value, tableData.value.length, hiddenLoading.value, renderTableData.value);
       localIsCompared.value = props.isCompared;
     }
     // Self 和 Total 值的展示

@@ -27,6 +27,7 @@ from typing import Any, Dict, List
 
 import arrow
 from django.conf import settings
+from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 
@@ -300,6 +301,7 @@ class MappingHandlers(object):
 
         return final_fields_list, default_config.display_fields
 
+    @atomic
     def get_or_create_default_config(self, scope=SearchScopeEnum.DEFAULT.value):
         """获取默认配置"""
         # 获取当前请求用户(兼容外部用户)

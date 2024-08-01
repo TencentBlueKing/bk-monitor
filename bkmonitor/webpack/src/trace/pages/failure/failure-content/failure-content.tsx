@@ -25,7 +25,7 @@
  */
 import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
 
@@ -35,6 +35,7 @@ import FailureMenu from '../failure-menu/failure-menu';
 import FailureTiming from '../failure-timing/failure-timing';
 import FailureTopo from '../failure-topo/failure-topo';
 import FailureView from '../failure-view/failure-view';
+import { useIncidentInject } from '../utils';
 
 import type { IAlert, IAlertObj, IFilterSearch, IIncident, IIncidentOperation } from '../types';
 
@@ -90,6 +91,7 @@ export default defineComponent({
     const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');
+    const incidentId = useIncidentInject();
     const searchValidate = ref<boolean>(true);
     const tabList = [
       {
@@ -123,10 +125,12 @@ export default defineComponent({
       return props.currentNode;
     });
     const route = useRoute();
+    const router = useRouter();
     const inputStatus = ref<string>('success');
 
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
+      router.push({ name: 'incident-detail', params: { id: incidentId.value }, query: {} });
     };
     const playingHandle = status => {
       playLoading.value = status;
@@ -134,8 +138,7 @@ export default defineComponent({
 
     /** 跳转到告警明细 */
     const goAlertDetail = (alertObj: IAlertObj) => {
-      handleChangeActive(FailureContentTabView.FAILURE_VIEW);
-      activeTab.value = 'AlarmDetail';
+      handleChangeActive('AlarmDetail');
       alertIdsObject.value = alertObj;
     };
     const refresh = () => {

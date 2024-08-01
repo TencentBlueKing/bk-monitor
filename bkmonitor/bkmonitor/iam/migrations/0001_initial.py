@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from iam.contrib.iam_migration.exceptions import MigrationFailError
 from iam.contrib.iam_migration.migrator import IAMMigrator
 from iam.exceptions import AuthAPIError
 
@@ -23,13 +22,13 @@ def migrate_iam(*args, **kwargs):
     try:
         pm.query_polices_by_action_id("view_business")
         IAMMigrator("0001_legacy.json").migrate()
-    except (AuthAPIError, MigrationFailError) as e:
+    except AuthAPIError as e:
         if "not found" not in str(e):
             raise e
 
     try:
         IAMMigrator("0001_initial.json").migrate()
-    except (AuthAPIError, MigrationFailError) as e:
+    except AuthAPIError as e:
         # 已存在更新的权限，不需要再次迁移
         if "conflict" not in str(e):
             raise e

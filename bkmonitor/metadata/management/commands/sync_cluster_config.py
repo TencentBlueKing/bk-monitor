@@ -103,37 +103,7 @@ def refresh_es7_config():
     if os.environ.get("BK_MONITOR_ES7_HOST", None) is None:
         message = "cannot found ES7 info nothing will insert."
         print(message)
-        return True
 
-    try:
-        es_host = os.environ["BK_MONITOR_ES7_HOST"]
-        es_port = os.environ["BK_MONITOR_ES7_REST_PORT"]
-        es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
-        es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
-
-    except KeyError as error:
-        message = "failed to get environ->[%s] for ES7 cluster maybe something go wrong on init?" % error
-        print(message)
-        return False
-
-    # 0. 判断是否已经存在了默认集群ES7，并确认是否初始化
-    default_es = models.ClusterInfo.objects.filter(
-        version__startswith="7.", cluster_type=models.ClusterInfo.TYPE_ES, is_default_cluster=True
-    ).first()
-    if default_es:
-        # 有默认集群，但未初始化, 刷新该集群
-        if default_es.domain_name:
-            message = "ES version 7 cluster is exists, nothing will do."
-            print(message)
-            return True
-
-        default_es.domain_name = es_host
-        default_es.es_port = es_port
-        default_es.username = es_username
-        default_es.password = es_password
-        default_es.save()
-        message = f"ES version 7 default cluster is init with {es_host}:{es_port}"
-        print(message)
         return True
 
     # 1. 判断默认的ES集群是ES7的，则直接返回
@@ -149,6 +119,18 @@ def refresh_es7_config():
     print(message)
 
     # 3. 需要创建一个新的ES7配置，写入ES7的域名密码等
+    try:
+        es_host = os.environ["BK_MONITOR_ES7_HOST"]
+        es_port = os.environ["BK_MONITOR_ES7_REST_PORT"]
+        es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
+        es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
+
+    except KeyError as error:
+        message = "failed to get environ->[%s] for ES7 cluster maybe something go wrong on init?" % error
+
+        print(message)
+        return False
+
     models.ClusterInfo.objects.create(
         cluster_name="es7_cluster",
         cluster_type=models.ClusterInfo.TYPE_ES,

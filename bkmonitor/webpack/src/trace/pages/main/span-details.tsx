@@ -640,7 +640,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string | undefined,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -662,7 +661,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -698,8 +696,8 @@ export default defineComponent({
     };
 
     const formatContent = (content?: string, isFormat?: boolean) => {
-      if (typeof content === 'string' || typeof content === 'number' || typeof content === 'undefined') return content;
-      if (!isJson(content)) return JSON.stringify(content);
+      if (!isJson(content)) return content;
+
       const data = JSON.parse(content || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
@@ -715,60 +713,54 @@ export default defineComponent({
     };
 
     /* kv 结构数据展示 */
-    const tagsTemplate = (data: ITagsItem['list']) => {
-      return (
-        <div class='tags-template'>
-          {data.map((item, index) => (
-            <div
-              key={index}
-              class={['tags-row', { grey: !(index % 2) }]}
-            >
-              <span class='left'>
-                {item.label}
-                <div class='operator'>
-                  <EnlargeLine
-                    class='icon-add-query'
-                    onClick={() => handleKvQuery(item)}
-                  />
-                  <span
-                    class='icon-monitor icon-mc-copy'
-                    onClick={() => handleCopy(item)}
-                  />
-                </div>
-              </span>
-              {item.type === 'error' ? (
-                <div class='right'>
-                  <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
-                  <span class='icon-monitor icon-mind-fill' />
-                </div>
-              ) : (
-                <div class='right'>{formatContent(item.content, item.isFormat)}</div>
-              )}
-              {isJson(item.content) && (
-                <Button
-                  class='format-button'
-                  outline={!item.isFormat}
-                  size='small'
-                  theme='primary'
-                  onClick={() => (item.isFormat = !item.isFormat)}
-                >
-                  <i class='icon-monitor icon-code' />
-                  {t('格式化')}
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-      );
-    };
+    const tagsTemplate = (data: ITagsItem['list']) => (
+      <div class='tags-template'>
+        {data.map((item, index) => (
+          <div class={['tags-row', { grey: !(index % 2) }]}>
+            <span class='left'>
+              {item.label}
+              <div class='operator'>
+                <EnlargeLine
+                  class='icon-add-query'
+                  onClick={() => handleKvQuery(item)}
+                />
+                <span
+                  class='icon-monitor icon-mc-copy'
+                  onClick={() => handleCopy(item)}
+                />
+              </div>
+            </span>
+            {item.type === 'error' ? (
+              <div class='right'>
+                <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
+                <span class='icon-monitor icon-mind-fill' />
+              </div>
+            ) : (
+              <div class='right'>{formatContent(item.content, item.isFormat)}</div>
+            )}
+            {isJson(item.content) && (
+              <Button
+                class='format-button'
+                outline={!item.isFormat}
+                size='small'
+                theme='primary'
+                onClick={() => (item.isFormat = !item.isFormat)}
+              >
+                <i class='icon-monitor icon-code' />
+                {t('格式化')}
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
 
     /* 阶段耗时 */
     const stageTimeTemplate = (active: string, list: IStageTimeItem['list'], content: IStageTimeItemContent[]) => (
       <div class='stage-time'>
         <div class='stage-time-list'>
-          {list.map((item, index) => (
+          {list.map(item => (
             <Popover
-              key={index}
               content={item.errorMsg}
               disabled={!item.error || !item.errorMsg}
               placement={'left'}
@@ -797,36 +789,14 @@ export default defineComponent({
                   <span class='center'>
                     {times.gap.type === 'toLeft'
                       ? [
-                          <span
-                            key={1}
-                            class='to-left'
-                          />,
-                          <span
-                            key={2}
-                            class='center-text'
-                          >
-                            {times.gap.value}
-                          </span>,
-                          <span
-                            key={3}
-                            class='line'
-                          />,
+                          <span class='to-left' />,
+                          <span class='center-text'>{times.gap.value}</span>,
+                          <span class='line' />,
                         ]
                       : [
-                          <span
-                            key={1}
-                            class='line'
-                          />,
-                          <span
-                            key={2}
-                            class='center-text'
-                          >
-                            {times.gap.value}
-                          </span>,
-                          <span
-                            key={3}
-                            class='to-right'
-                          />,
+                          <span class='line' />,
+                          <span class='center-text'>{times.gap.value}</span>,
+                          <span class='to-right' />,
                         ]}
                   </span>
                   <span class='right'>{times.tags[1]}</span>
@@ -969,7 +939,7 @@ export default defineComponent({
     }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
-      const halfHour = 18 * 10 ** 8;
+      const halfHour = 18 * Math.pow(10, 8);
       const profilingRerieveStartTime = originalData.value.start_time - halfHour;
       const profilingRerieveEndTime = originalData.value.start_time + halfHour;
       return (
@@ -1012,10 +982,7 @@ export default defineComponent({
                 </div>
               ) : (
                 [
-                  <div
-                    key='header'
-                    class='header'
-                  >
+                  <div class='header'>
                     {props.withSideSlider ? (
                       <div class='title'>
                         <span
@@ -1030,11 +997,8 @@ export default defineComponent({
                       titleInfoElem()
                     )}
                     <div class='others'>
-                      {info.header.others.map((item, index) => (
-                        <span
-                          key={index}
-                          class='other-item'
-                        >
+                      {info.header.others.map(item => (
+                        <span class='other-item'>
                           <span class='label'>{`${item.label}: `}</span>
                           <span
                             class='content'
@@ -1046,8 +1010,8 @@ export default defineComponent({
                       ))}
                     </div>
                   </div>,
+
                   <MonitorTab
-                    key='info-tab'
                     class='info-tab'
                     active={activeTab.value}
                     onTabChange={v => {
@@ -1055,9 +1019,8 @@ export default defineComponent({
                       handleActiveTabChange();
                     }}
                   >
-                    {tabList.map((item, index) => (
+                    {tabList.map(item => (
                       <Tab.TabPanel
-                        key={index}
                         v-slots={{
                           label: () => (
                             <div style='display: flex;'>
@@ -1081,8 +1044,8 @@ export default defineComponent({
                       />
                     ))}
                   </MonitorTab>,
+
                   <div
-                    key='content-list'
                     class={{
                       'content-list': true,
                       // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
@@ -1128,31 +1091,14 @@ export default defineComponent({
                                 handleSmallExpanChange(false, index, childIndex);
                               }
                               return (
-                                <div
-                                  key={childIndex}
-                                  style='margin-top: 16px;'
-                                >
+                                <div style='margin-top: 16px;'>
                                   {expanItemSmall(
                                     child.isExpan,
                                     child.header.name,
                                     tagsTemplate(child.content),
                                     [
-                                      <span
-                                        key='time'
-                                        class='time'
-                                      >
-                                        {child.header.date}
-                                      </span>,
-                                      child.header.duration ? (
-                                        <span
-                                          key='tag'
-                                          class='tag'
-                                        >
-                                          {child.header.duration}
-                                        </span>
-                                      ) : (
-                                        ''
-                                      ),
+                                      <span class='time'>{child.header.date}</span>,
+                                      child.header.duration ? <span class='tag'>{child.header.duration}</span> : '',
                                     ],
                                     isExpan => handleSmallExpanChange(isExpan, index, childIndex)
                                   )}

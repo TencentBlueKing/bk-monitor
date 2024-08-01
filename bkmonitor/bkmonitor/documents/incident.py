@@ -25,7 +25,6 @@ from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("action")
 MAX_INCIDENT_CONTENTS_SIZE = 10000
-MAX_INCIDENT_ALERT_SIZE = 10000
 
 
 class IncidentBaseDocument(BaseDocument):
@@ -82,7 +81,7 @@ class IncidentItemsMixin:
         else:
             search = cls.search(all_indices=True)
         search = search.filter("term", incident_id=incident_id)
-        search = search.sort(order_by).params(size=limit or MAX_INCIDENT_CONTENTS_SIZE)
+        search = search.sort(order_by).params(size=limit)
         hits = search.execute().hits
         return [cls(**hit.to_dict()) for hit in hits]
 

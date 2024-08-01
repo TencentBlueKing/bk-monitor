@@ -134,11 +134,7 @@ class Migrator:
             return
 
         # 检查是否已经迁移过
-        try:
-            migrated = set(MonitorMigration.objects.filter(app=self.app).values_list("name", flat=True))
-        except Exception:
-            # 无迁移记录表, 直接退出
-            return
+        migrated = set(MonitorMigration.objects.filter(app=self.app).values_list("name", flat=True))
 
         # 从0001_initial开始迁移
         queue = ["0001_initial"]
