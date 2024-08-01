@@ -70,6 +70,7 @@ class OtlpKey:
     RESOURCE = "resource"
     BK_INSTANCE_ID = "bk.instance.id"
     UNKNOWN_SERVICE = "unknown.service"
+    UNKNOWN_COMPONENT = "unknown.service-component"
 
     # apdex_type自身维度
     APDEX_TYPE = "apdex_type"

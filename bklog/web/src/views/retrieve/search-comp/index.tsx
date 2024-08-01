@@ -339,6 +339,7 @@ export default class SearchComp extends tsc<IProps> {
   // 改变条件时 更新路由参数
   setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null) {
     const { params, query } = this.$route;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
     Object.assign(filterQuery, retrieveParams);
@@ -436,12 +437,12 @@ export default class SearchComp extends tsc<IProps> {
         // 如果存在具有相同操作符和字段的条件，并且操作符是包含类型
         if (isExistCondition && isContainsType) {
           // 如果最后一个条件的字段与给定的匹配
-          if (lastCondition.id === field) {
+          if (lastCondition.id === field && lastCondition.isInclude) {
             // 则将输入值数组添加到最后一个条件的值中
             lastCondition.value = [...lastCondition.value, ...inputValueList];
             return;
           }
-          if (!lastCondition.value.length) {
+          if (!lastCondition.value.length && lastCondition.isInclude) {
             // 如果最后一个条件的值为空数组，则将输入值数组添加到当前条件的值中
             currentCondition.value = [...currentCondition.value, ...inputValueList];
             return;

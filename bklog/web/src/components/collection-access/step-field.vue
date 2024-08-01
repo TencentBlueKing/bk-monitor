@@ -157,7 +157,7 @@
           </template>
           <template #content>
             <div class="p20 json-text-style">
-              <VueJsonPretty
+              <JsonFormatWrapper
                 :data="jsonText"
                 :deep="5"
               />
@@ -324,8 +324,7 @@
               <div class="textarea-wrapper">
                 <pre class="mimic-textarea">
                 {{ params.etl_params.separator_regexp }}
-              </pre
-                >
+                </pre>
                 <bk-input
                   class="regex-textarea"
                   v-model="params.etl_params.separator_regexp"
@@ -1080,6 +1079,7 @@
         this.saveTempName = name;
 
         this.params.etl_config = clean_type;
+        this.catchEtlConfig = clean_type;
         Object.assign(this.params.etl_params, {
           separator_regexp: etlParams.separator_regexp || '',
           separator: etlParams.separator || '',

@@ -11,13 +11,15 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import uuid
-from typing import Dict, List
+from typing import List
 
 from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import InnerDoc, Search, field
 
+from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BaseDocument, Date
-from constants.incident import IncidentStatus
+from bkmonitor.models.strategy import StrategyLabel
+from constants.incident import IncidentGraphComponentType, IncidentStatus
 from core.drf_resource import api
 from core.errors.incident import IncidentNotFoundError
 
@@ -62,7 +64,12 @@ class IncidentBaseDocument(BaseDocument):
 class IncidentItemsMixin:
     @classmethod
     def list_by_incident_id(
-        cls, incident_id: int, start_time: int = None, end_time: int = None, limit: int = MAX_INCIDENT_CONTENTS_SIZE
+        cls,
+        incident_id: int,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int = MAX_INCIDENT_CONTENTS_SIZE,
+        order_by: str = "create_time",
     ) -> List:
         """根据故障ID获取故障关联的内容(故障根因结果快照、故障操作记录、故障通知记录)
 
@@ -74,7 +81,7 @@ class IncidentItemsMixin:
         else:
             search = cls.search(all_indices=True)
         search = search.filter("term", incident_id=incident_id)
-        search = search.sort("create_time").params(size=limit)
+        search = search.sort(order_by).params(size=limit)
         hits = search.execute().hits
         return [cls(**hit.to_dict()) for hit in hits]
 
@@ -154,19 +161,44 @@ class IncidentDocument(IncidentBaseDocument):
         if self.id is None:
             self.id = f"{self.create_time}{self.incident_id}"
 
-    def generate_assignees(self, snapshot_info: Dict) -> None:
+    def generate_assignees(self, snapshot) -> None:
         """生成故障负责人
 
-        :param snapshot_info: 故障分析结果图谱快照信息
+        :param snapshot: 故障分析结果图谱快照信息
         """
-        pass
+        assignees = set()
+        for incident_alert in snapshot.alert_entity_mapping.values():
+            if incident_alert.entity.is_root:
+                alert_doc = AlertDocument.get(incident_alert.id)
+                assignees = assignees | set(alert_doc.assignee)
 
-    def generate_handlers(self, alert_ids: List[int]) -> None:
+        self.assignees = list(assignees)
+
+    def generate_handlers(self, snapshot) -> None:
         """生成故障处理人
 
-        :param alert_ids: 告警ID列表
+        :param snapshot: 故障分析结果图谱快照信息
         """
-        pass
+        handlers = set()
+        for incident_alert in snapshot.alert_entity_mapping.values():
+            alert_doc = AlertDocument.get(incident_alert.id)
+            handlers = handlers | set(alert_doc.assignee)
+
+        self.handlers = list(handlers)
+
+    def generate_labels(self, snapshot) -> None:
+        """生成故障标签
+
+        :param snapshot: 故障分析结果图谱快照信息
+        """
+        strategy_ids = set()
+        for incident_alert in snapshot.alert_entity_mapping.values():
+            if incident_alert.entity.component_type == IncidentGraphComponentType.PRIMARY:
+                strategy_ids.add(incident_alert.strategy_id)
+
+        labels = StrategyLabel.objects.filter(strategy_id__in=strategy_ids).values_list("label_name", flat=True)
+        whole_labels = list(set(labels) | set(self.labels))
+        self.labels = whole_labels
 
     @classmethod
     def get(cls, id: str, fetch_remote: bool = True) -> "IncidentDocument":

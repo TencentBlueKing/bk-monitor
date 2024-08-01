@@ -61,7 +61,7 @@ export default defineComponent({
     const formRef = ref<HTMLDivElement>();
     const incidentDetail = inject<Ref<IncidentDetailData>>('incidentDetail');
     const incidentDetailData = computed<IncidentDetailData>(() => {
-      return incidentDetail.value;
+      return incidentDetail?.value;
     });
     function valueChange(v) {
       emit('update:isShow', v);

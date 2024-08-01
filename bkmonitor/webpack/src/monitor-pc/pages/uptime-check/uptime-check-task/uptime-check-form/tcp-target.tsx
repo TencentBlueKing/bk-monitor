@@ -308,7 +308,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         return;
       }
       this.ips = [];
-    } else if ('copy-all') {
+    } else if (id === 'copy-all') {
       const text = type === 'ip' ? this.ips.join('\n') : this.domains.join('\n');
       copyText(text);
       this.$bkMessage({
@@ -342,7 +342,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
       <div class='domain-item'>
         <span class='domain-item-title'>{this.$t('DNS查询模式')}</span>
         <div class='domain-item-content'>
-          <bk-radio-group vModel={this.domainRecord}>
+          <bk-radio-group vModel={this.defaultDomain.record}>
             {RecordList.map(item => (
               <bk-radio
                 key={item.id}
@@ -385,7 +385,9 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
             vModel={this.defaultDomain.value}
             placeholder={this.$tc('输入域名说明/校验规则，可通过回车区隔多个域名')}
             type='textarea'
-            onFocus={() => (this.showValidateDomainTips = false)}
+            onFocus={() => {
+              this.showValidateDomainTips = false;
+            }}
           />
           {this.showValidateDomainTips && <div class='validate-tips'>{this.$t('输入正确的域名')}</div>}
         </div>
@@ -407,7 +409,9 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
           />
           <AddBtn
             text={this.$t('基于CMDB添加')}
-            onClick={() => (this.showAddCmdbIp = true)}
+            onClick={() => {
+              this.showAddCmdbIp = true;
+            }}
           />
         </div>
         <div class='tcp-target-details'>
@@ -509,7 +513,9 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
           title={this.$t('添加/编辑IP')}
           validateTips={this.$t('输入正常的IP')}
           onConfirm={this.handleAddIp}
-          onFocus={() => (this.showIpValidateTips = false)}
+          onFocus={() => {
+            this.showIpValidateTips = false;
+          }}
           onShowChange={this.handleShowIpChange}
         />
         {/* 添加域名 */}

@@ -25,6 +25,7 @@
  */
 
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
+import { shallowRef } from 'vue';
 
 import { Exception, Loading } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
@@ -67,15 +68,15 @@ export default defineComponent({
 
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
-
+    const grahWrapperRef = ref<HTMLDivElement>();
     const frameGraphRef = ref(FrameGraph);
     const empty = ref(true);
     // 当前视图模式
     const activeMode = ref<ViewModeType>(ViewModeType.Combine);
     const textDirection = ref<DirectionType>('ltr');
     const isLoading = ref(false);
-    const tableData = ref<ProfilingTableItem[]>([]);
-    const flameData = ref<BaseDataType>({
+    const tableData = shallowRef<ProfilingTableItem[]>([]);
+    const flameData = shallowRef<BaseDataType>({
       name: '',
       children: undefined,
       id: '',
@@ -126,8 +127,8 @@ export default defineComponent({
         ...queryParams,
         ...(searchType.value === SearchType.Profiling
           ? {
-              start: start * Math.pow(10, 6),
-              end: end * Math.pow(10, 6),
+              start: start * 10 ** 6,
+              end: end * 10 ** 6,
             }
           : {}),
       };
@@ -151,7 +152,9 @@ export default defineComponent({
 
       const params = getParams({ diagram_types: ['table', 'flamegraph'] });
       await query(params, {
-        cancelToken: new CancelToken((c: () => void) => (cancelTableFlameFn = c)),
+        cancelToken: new CancelToken((c: () => void) => {
+          cancelTableFlameFn = c;
+        }),
       })
         .then(data => {
           if (data && Object.keys(data)?.length) {
@@ -180,7 +183,9 @@ export default defineComponent({
 
       const params = getParams({ diagram_types: ['callgraph'] });
       await query(params, {
-        cancelToken: new CancelToken((c: () => void) => (cancelTopoFn = c)),
+        cancelToken: new CancelToken((c: () => void) => {
+          cancelTopoFn = c;
+        }),
       })
         .then(data => {
           if (data) {
@@ -257,7 +262,13 @@ export default defineComponent({
       if (str.length) return `&${str}`;
       return '';
     }
-
+    function handleKeywordChange(v: string) {
+      filterKeyword.value = v;
+      grahWrapperRef.value?.scrollTo({
+        top: 0,
+        behavior: 'instant',
+      });
+    }
     return {
       frameGraphRef,
       empty,
@@ -274,8 +285,10 @@ export default defineComponent({
       flameFilterKeywords,
       handleSortChange,
       handleDownload,
+      handleKeywordChange,
       topoSrc,
       isCompared,
+      grahWrapperRef,
     };
   },
   render() {
@@ -289,7 +302,7 @@ export default defineComponent({
           isCompared={this.isCompared}
           textDirection={this.textDirection}
           onDownload={this.handleDownload}
-          onKeywordChange={val => (this.filterKeyword = val)}
+          onKeywordChange={this.handleKeywordChange}
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
         />
@@ -299,9 +312,15 @@ export default defineComponent({
             type='empty'
           />
         ) : (
-          <div class='profiling-graph-content'>
+          <div
+            ref='grahWrapperRef'
+            class='profiling-graph-content'
+          >
             {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
               <TableGraph
+                style={{
+                  width: ViewModeType.Combine ? '50%' : '100%',
+                }}
                 data={this.tableData}
                 dataType={this.queryParams.data_type}
                 filterKeyword={this.filterKeyword}
@@ -310,12 +329,17 @@ export default defineComponent({
                 textDirection={this.textDirection}
                 unit={this.unit}
                 onSortChange={this.handleSortChange}
-                onUpdateHighlightId={id => (this.highlightId = id)}
+                onUpdateHighlightId={id => {
+                  this.highlightId = id;
+                }}
               />
             )}
             {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
               <FrameGraph
                 ref='frameGraphRef'
+                style={{
+                  width: ViewModeType.Combine ? '50%' : '100%',
+                }}
                 appName={this.$props.queryParams.app_name}
                 data={this.flameData}
                 filterKeywords={this.flameFilterKeywords}
@@ -324,7 +348,9 @@ export default defineComponent({
                 showGraphTools={false}
                 textDirection={this.textDirection}
                 unit={this.unit}
-                onUpdateHighlightId={id => (this.highlightId = id)}
+                onUpdateHighlightId={id => {
+                  this.highlightId = id;
+                }}
               />
             )}
             {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}

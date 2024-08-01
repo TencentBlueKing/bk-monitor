@@ -73,18 +73,22 @@ class ApmTopoDiscoverRule(models.Model):
 
     COMMON_RULE = [
         {
-            "category_id": APM_TOPO_CATEGORY_HTTP,
+            "category_id": APM_TOPO_CATEGORY_DB,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
-            "predicate_key": HTTP_PREDICATE_KEY,
+            "instance_key": f"{DB_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
+            "topo_kind": TOPO_COMPONENT,
+            "predicate_key": DB_PREDICATE_KEY,
+            "sort": 0,
         },
         {
-            "category_id": APM_TOPO_CATEGORY_RPC,
+            # messaging 优先级比 异步任务高
+            # 因为 messaging.destination 字段会存在于消息队列和异步任务中
+            "category_id": APM_TOPO_CATEGORY_MESSAGING,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
-            "predicate_key": RPC_PREDICATE_KEY,
+            "instance_key": f"{MESSAGING_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
+            "topo_kind": TOPO_COMPONENT,
+            "predicate_key": MESSAGING_PREDICATE_KEY,
+            "sort": 1,
         },
         {
             "category_id": APM_TOPO_CATEGORY_ASYNC_BACKEND,
@@ -92,20 +96,23 @@ class ApmTopoDiscoverRule(models.Model):
             "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
             "topo_kind": TOPO_SERVICE,
             "predicate_key": ASYNC_BACKEND_PREDICATE_KEY,
+            "sort": 2,
         },
         {
-            "category_id": APM_TOPO_CATEGORY_DB,
+            "category_id": APM_TOPO_CATEGORY_RPC,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": f"{DB_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
-            "topo_kind": TOPO_COMPONENT,
-            "predicate_key": DB_PREDICATE_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": RPC_PREDICATE_KEY,
+            "sort": 3,
         },
         {
-            "category_id": APM_TOPO_CATEGORY_MESSAGING,
+            "category_id": APM_TOPO_CATEGORY_HTTP,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": f"{MESSAGING_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
-            "topo_kind": TOPO_COMPONENT,
-            "predicate_key": MESSAGING_PREDICATE_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": HTTP_PREDICATE_KEY,
+            "sort": 4,
         },
         {
             "category_id": APM_TOPO_CATEGORY_OTHER,
@@ -113,6 +120,7 @@ class ApmTopoDiscoverRule(models.Model):
             "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
             "topo_kind": TOPO_SERVICE,
             "predicate_key": "",
+            "sort": 5,
         },
     ]
     PREDICATE_OP_EXISTS = "exists"
@@ -130,6 +138,7 @@ class ApmTopoDiscoverRule(models.Model):
     instance_key = models.CharField("实例字段", max_length=255)
     topo_kind = models.CharField("topo发现类型", max_length=50)
     predicate_key = models.CharField("判断字段", max_length=128)
+    sort = models.IntegerField("排序", default=0)
 
     @classmethod
     def get_application_rule(cls, bk_biz_id, app_name, topo_kind=None):
@@ -138,16 +147,28 @@ class ApmTopoDiscoverRule(models.Model):
             filter_args["topo_kind"] = topo_kind
         return cls.objects.filter(
             (Q(bk_biz_id=bk_biz_id) & Q(app_name=app_name)) | (Q(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)), **filter_args
-        )
+        ).order_by("sort")
 
     @classmethod
     def init_builtin_config(cls):
-        objs = []
+        create_instances = []
+        update_instances = []
+
         for common_rule in cls.COMMON_RULE:
-            if cls.objects.filter(**common_rule, bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID).exists():
-                continue
-            objs.append(cls(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="", **common_rule))
-        cls.objects.bulk_create(objs)
+            exist_instance = cls.objects.filter(
+                category_id=common_rule["category_id"], bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID
+            ).first()
+            if exist_instance:
+                update_instances.append(
+                    cls(id=exist_instance.id, bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="", **common_rule)
+                )
+            else:
+                create_instances.append(cls(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="", **common_rule))
+
+        cls.objects.bulk_create(create_instances)
+        cls.objects.bulk_update(
+            update_instances, fields=["endpoint_key", "instance_key", "topo_kind", "predicate_key", "sort"]
+        )
 
 
 class ApmInstanceDiscover(models.Model):

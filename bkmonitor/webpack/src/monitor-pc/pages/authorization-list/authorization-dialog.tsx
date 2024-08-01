@@ -198,6 +198,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               {Object.entries(ACTION_MAP).map(item => (
                 <bk-option
                   id={item[0]}
+                  key={item[0]}
                   name={item[1]}
                 />
               ))}
@@ -217,6 +218,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               v-model={this.formData.resources}
               disabled={!!this.rowData && this.viewType === 'resource'}
               multiple
+              search-with-pinyin
+              searchable
             >
               {this.resourceList.map(item => (
                 <bk-option

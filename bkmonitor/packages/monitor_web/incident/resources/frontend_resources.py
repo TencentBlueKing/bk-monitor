@@ -10,12 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 import time
 from collections import Counter, defaultdict
-from dataclasses import asdict
 from typing import Any, Dict, List
 
 import arrow
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import ugettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
@@ -63,6 +63,10 @@ class IncidentBaseResource(Resource):
             kwargs["conditions"].append({'key': 'id', 'value': alert_ids, 'method': 'eq'})
         else:
             kwargs["conditions"] = [{'key': 'id', 'value': alert_ids, 'method': 'eq'}]
+        if "bk_biz_ids" not in kwargs:
+            kwargs["bk_biz_ids"] = list(
+                map(lambda x: int(x), snapshot.incident_snapshot_content['rca_summary']['bk_biz_ids'])
+            )
         alerts = IncidentAlertQueryHandler(**kwargs).search()["alerts"]
         return alerts
 
@@ -106,7 +110,9 @@ class IncidentBaseResource(Resource):
                     "subComboId": entity.logic_key(),
                     "logic_content": entity.logic_content(),
                     "aggregated_nodes": self.generate_nodes_by_entites(incident, snapshot, entity.aggregated_entities),
-                    "entity": {key: value for key, value in asdict(entity).items() if key != "aggregated_entities"},
+                    "entity": {
+                        key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"
+                    },
                     "total_count": len(entity.aggregated_entities) + 1,
                     "anomaly_count": self.get_anomaly_entity_count(entity),
                     "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
@@ -150,8 +156,8 @@ class IncidentBaseResource(Resource):
         for incident_key, incident_value in incident_info.items():
             if (
                 hasattr(incident_document, incident_key)
-                and getattr(incident_document, incident_key)
-                and incident_value
+                and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
+                and (incident_value or incident_key == "incident_reason")
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
                 if incident_key == "status":
@@ -313,7 +319,7 @@ class IncidentDetailResource(IncidentBaseResource):
                     "bk_biz_id": bk_biz_id,
                     "bk_biz_name": resource.cc.get_app_by_id(bk_biz_id).name,
                 }
-                for bk_biz_id in snapshot["bk_biz_id"]
+                for bk_biz_id in snapshot["bk_biz_ids"]
             ]
         return snapshots
 
@@ -411,6 +417,8 @@ class IncidentTopologyResource(IncidentBaseResource):
         for node in current["nodes"]:
             if node["id"] not in last_nodes or node["aggregated_nodes"] != last_nodes[node["id"]]["aggregated_nodes"]:
                 new_nodes.append(node)
+            elif self.check_node_diff(node, last_nodes[node["id"]]):
+                new_nodes.append(node)
 
             if node["id"] not in complete_topologies["nodes"]:
                 complete_topologies["nodes"][node["id"]] = node
@@ -424,6 +432,14 @@ class IncidentTopologyResource(IncidentBaseResource):
             "nodes": new_nodes,
             "edges": new_edges,
         }
+
+    def check_node_diff(self, current_node: dict, last_node: dict):
+        """判断节点是否发生变化."""
+        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count"]:
+            if current_node[node_key] != last_node[node_key]:
+                return True
+
+        return False
 
     def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> Dict:
         """根据快照内容生成拓扑图数据
@@ -667,7 +683,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
             }
 
         for alert in alerts:
-            alert["entity"] = asdict(snapshot.alert_entity_mapping[alert["id"]].entity)
+            alert["entity"] = snapshot.alert_entity_mapping[alert["id"]].entity.to_src_dict()
             is_root = alert["entity"]["is_root"]
             is_feedback_root = getattr(incident.feedback, "incident_root", None) == alert["entity"]["entity_id"]
 
@@ -745,7 +761,7 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot)
+        alerts = self.get_snapshot_alerts(snapshot, status=[EventStatus.ABNORMAL])
         current_username = get_request_username()
 
         alert_agg_results = Counter()
@@ -758,25 +774,25 @@ class IncidentHandlersResource(IncidentBaseResource):
         handlers = {
             "all": {
                 "id": "all",
-                "name": "全部",
+                "name": _("全部"),
                 "index": 1,
                 "alert_count": len(alerts),
             },
             "not_dispatch": {
                 "id": "not_dispatch",
-                "name": "未分派",
+                "name": _("未分派"),
                 "index": 2,
                 "alert_count": 0,
             },
             "mine": {
                 "id": current_username,
-                "name": "我负责",
+                "name": _("我处理"),
                 "index": 3,
                 "alert_count": alert_agg_results.get(current_username, 0),
             },
             "other": {
                 "id": "other",
-                "name": "其他",
+                "name": _("其他"),
                 "index": 4,
                 "children": [
                     {
@@ -812,6 +828,7 @@ class IncidentOperationsResource(IncidentBaseResource):
             validated_request_data["incident_id"],
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
+            order_by="-create_time",
         )
         operations = [operation.to_dict() for operation in operations]
         for operation in operations:
@@ -860,6 +877,7 @@ class IncidentOperationTypesResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         operations = IncidentOperationDocument.list_by_incident_id(
             validated_request_data["incident_id"],
+            order_by="-create_time",
         )
         incident_operation_types = {operation.operation_type for operation in operations}
 
@@ -982,14 +1000,16 @@ class IncidentAlertListResource(IncidentBaseResource):
 
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
-            alert["entity"] = asdict(alert_entity.entity) if alert_entity else None
+            alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
             )
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
-        alerts[0]["is_incident_root"] = True
+
+        if len(alerts) > 0:
+            alerts[0]["is_incident_root"] = True
 
         return incident_alerts
 
@@ -1019,7 +1039,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
 
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
-            alert["entity"] = asdict(alert_entity.entity) if alert_entity else None
+            alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
             )
