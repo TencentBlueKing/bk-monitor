@@ -82,7 +82,7 @@ class ClusteringMonitorViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UserGroupsSerializer)
-        data = MonitorApi.search_user_groups({"bk_biz_ids": params["bk_biz_ids"], "ids": params["ids"]})
+        data = MonitorApi.search_user_groups({"bk_biz_ids": [params["bk_biz_id"]], "ids": params["ids"]})
         return Response(data)
 
     @detail_route(methods=["get"], url_path="get_strategy")
