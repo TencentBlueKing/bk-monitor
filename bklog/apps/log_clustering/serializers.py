@@ -156,7 +156,7 @@ class UpdateStrategyAction(serializers.Serializer):
 
 
 class UserGroupsSerializer(serializers.Serializer):
-    bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), label=_("业务ID"), required=False, default=[])
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     ids = serializers.ListField(child=serializers.IntegerField(), label=_("用户组ID"), required=False, default=[])
 
 
