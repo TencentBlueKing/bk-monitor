@@ -43,15 +43,11 @@ type CompareTopoFullscreenEvent = {
 export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProps, CompareTopoFullscreenEvent> {
   @Prop({ default: false }) readonly show!: boolean;
   @Prop({ default: true }) readonly isServer!: boolean;
-
-  panelWidth = 320;
-
   filterTypeList = Object.freeze([
-    { label: '错误数', value: 'error' },
     { label: '请求数', value: 'request' },
+    { label: '错误数', value: 'error' },
     { label: '响应耗时', value: 'response' },
   ]);
-
   countList = Object.freeze([]);
 
   filterParam = {
@@ -214,11 +210,6 @@ export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProp
             class='topo-chart'
             slot='main'
           >
-            <CompareTopoGraph
-              activeNode={this.activeNode}
-              data={this.graphData}
-              onNodeClick={this.handleNodeClick}
-            />
             <div class='header-tools'>
               <div class='filter-wrap'>
                 <bk-select
@@ -277,22 +268,15 @@ export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProp
                 </div>
               </div>
             </div>
+            <CompareTopoGraph
+              activeNode={this.activeNode}
+              data={this.graphData}
+              onNodeClick={this.handleNodeClick}
+            />
           </div>
           <div
             class='service-overview-panel'
             slot='aside'
-            // v-monitor-drag={{
-            //   minWidth: 320,
-            //   maxWidth: 500,
-            //   defaultWidth: this.panelWidth,
-            //   theme: 'dotted',
-            //   isShow: true,
-            //   placement: 'right',
-            //   onWidthChange: width => {
-            //     console.log(width);
-            //     this.panelWidth = width;
-            //   },
-            // }}
           >
             <div class='panel-title title'>{this.$t(this.isServer ? '服务概览' : '接口概览')}</div>
             <div class='panel-content'>

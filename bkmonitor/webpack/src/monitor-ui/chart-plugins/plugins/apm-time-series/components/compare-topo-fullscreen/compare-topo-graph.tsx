@@ -29,6 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import dayjs from 'dayjs';
+
+import CompareGraphTools from './compare-graph-tools';
 
 import './compare-topo-graph.scss';
 type CompareTopoGraphProps = {
@@ -45,12 +48,28 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
   @Prop() data: any;
   @Prop() activeNode: string;
   @Ref('compareTopoGraph') compareTopoGraphRef: HTMLDivElement;
+  @Ref('graphToolsPanel') graphToolsPanelRef: HTMLDivElement;
+  @Ref('topoGraphContent') topoGraphContentRef: HTMLDivElement;
+  @Ref('thumbnailTool') thumbnailToolRef: HTMLDivElement;
 
   canvasWidth = 0; // 画布宽度
   canvasHeight = 0; // 画布高度
-  minZoomVal = 0.2; // 缩放滑动条最小值
-  maxZoomVal = 2; // 缩放滑动条最大值
+  minZoomVal = 0.1; // 缩放滑动条最小值
+  maxZoomVal = 1; // 缩放滑动条最大值
   graph: Graph = null; // 拓扑图实例
+  toolsPopoverInstance = null; // 工具栏弹窗实例
+
+  /** 图表缩放大小 */
+  scaleValue = 100;
+  /** 是否显示缩略图 */
+  showThumbnail = false;
+  /** 是否显示图例 */
+  showLegend = false;
+  /** 工具栏弹窗大小 */
+  graphToolsRect = {
+    width: 0,
+    height: 0,
+  };
 
   get graphLayout() {
     return {
@@ -68,6 +87,8 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
   }
 
   beforeDestroy() {
+    this.toolsPopoverInstance?.destroy?.();
+    this.toolsPopoverInstance = null;
     removeListener(this.$el as HTMLDivElement, this.handleResize);
   }
   mounted() {
@@ -144,6 +165,12 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         'quadratic'
       );
 
+      const minimap = new G6.Minimap({
+        container: this.thumbnailToolRef,
+        size: [236, 146],
+      });
+      const plugins = [minimap];
+
       this.graph = new G6.Graph({
         container: this.compareTopoGraphRef as HTMLElement, // 指定挂载容器
         width: this.canvasWidth,
@@ -174,7 +201,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
           // 节点配置
           type: 'compare-custom-node',
         },
-        plugins: [],
+        plugins,
       });
       this.bindListener(this.graph); // 图监听事件
       this.graph.data(this.data); // 读取数据源到图上
@@ -499,12 +526,101 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     return edges;
   }
 
+  handleDownloadImage() {
+    if (!this.graph) return;
+    const name = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
+    this.graph.downloadFullImage(name, 'image/png', {
+      backgroundColor: '#fff',
+      padding: 30,
+    });
+  }
+
+  handleScaleChange(ratio: number) {
+    if (!this.graph) return;
+    this.scaleValue = ratio;
+    // 以画布中心为圆心放大/缩小
+    this.graph.zoomTo(ratio / 100);
+    this.graph.fitCenter();
+  }
+
+  handleShowLegend() {}
+
+  handleShowThumbnail() {
+    if (!this.graph) return;
+    this.showThumbnail = !this.showThumbnail;
+    if (this.showThumbnail) {
+      this.graphToolsRect = {
+        width: 240,
+        height: 148,
+      };
+      this.initToolsPopover();
+    } else {
+      this.toolsPopoverInstance?.hide();
+    }
+    this.showLegend = false;
+  }
+
+  handleResetCenter() {
+    if (!this.graph) return;
+    this.graph.fitCenter();
+  }
+
+  initToolsPopover() {
+    if (!this.toolsPopoverInstance) {
+      this.toolsPopoverInstance = this.$bkPopover(this.graphToolsPanelRef, {
+        content: this.topoGraphContentRef,
+        arrow: false,
+        trigger: 'manual',
+        theme: 'light',
+        interactive: true,
+        hideOnClick: false,
+        placement: 'top-start',
+      });
+    }
+    this.toolsPopoverInstance.show();
+  }
+
   render() {
     return (
-      <div
-        ref='compareTopoGraph'
-        class='compare-topo-graph'
-      />
+      <div class='compare-topo-graph'>
+        <div
+          ref='compareTopoGraph'
+          class='graph-wrap'
+        />
+        <div
+          ref='graphToolsPanel'
+          class='graph-tools-panel'
+        >
+          <CompareGraphTools
+            scaleValue={this.scaleValue}
+            showLegend={this.showLegend}
+            showThumbnail={this.showThumbnail}
+            onDownloadImage={this.handleDownloadImage}
+            onResetCenter={this.handleResetCenter}
+            onScaleChange={this.handleScaleChange}
+            onShowLegend={this.handleShowLegend}
+            onShowThumbnail={this.handleShowThumbnail}
+          />
+          <div style='display: none;'>
+            <div
+              ref='topoGraphContent'
+              style={{
+                width: `${this.graphToolsRect.width}px`,
+                height: `${this.graphToolsRect.height}px`,
+              }}
+              class='topo-graph-content'
+            >
+              <div
+                ref='thumbnailTool'
+                style={{
+                  display: this.showThumbnail ? 'block' : 'none',
+                }}
+                class='topo-graph-thumbnail'
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 }
