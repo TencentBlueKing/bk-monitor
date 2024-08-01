@@ -1164,6 +1164,8 @@ export default class DataRetrieval extends tsc<object> {
         .filter(item => item);
       const str = list.map(item => `${item.count} ${item.name}`).join('、');
       targetDes = this.$t('已选择 {n}', { n: str }) as string;
+    } else if ('dynamic_group_id' in cloneTarget[0]) {
+      targetDes = this.$t('已选择 {n} 个动态分组', { n: cloneTarget.length }) as string;
     } else {
       // 静态目标
       targetDes = this.$t('已选择 {n} 个主机', { n: cloneTarget.length }) as string;
@@ -1923,19 +1925,27 @@ export default class DataRetrieval extends tsc<object> {
       TOPO: 'host_topo_node',
       SERVICE_TEMPLATE: 'host_template_node',
       SET_TEMPLATE: 'host_template_node',
+      DYNAMIC_GROUP: 'dynamic_group',
     };
-    const value =
-      this.target.targetType === 'INSTANCE'
-        ? this.target.value.map((item: any) => ({
-            ip: item.ip,
-            bk_cloud_id: item.bk_cloud_id,
-            bk_host_id: item.bk_host_id,
-            bk_supplier_id: item.bk_supplier_id,
-          }))
-        : this.target.value.map((item: any) => ({
-            bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id,
-          }));
+    let value = [];
+    if (this.target.targetType === 'DYNAMIC_GROUP') {
+      value = this.target.value.map((item: any) => ({
+        dynamic_group_id: item.dynamic_group_id || item.id,
+      }));
+    } else {
+      value =
+        this.target.targetType === 'INSTANCE'
+          ? this.target.value.map((item: any) => ({
+              ip: item.ip,
+              bk_cloud_id: item.bk_cloud_id,
+              bk_host_id: item.bk_host_id,
+              bk_supplier_id: item.bk_supplier_id,
+            }))
+          : this.target.value.map((item: any) => ({
+              bk_inst_id: item.bk_inst_id,
+              bk_obj_id: item.bk_obj_id,
+            }));
+    }
     // 监控目标格式转换
     const targets = [
       [
