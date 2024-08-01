@@ -366,7 +366,10 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
     def normal_info(self):
         # 按需取字段，在字段均命中索引时 DB 查询无需回表，同时数据行数多的情况下也能加速返回
         task_list: List[Dict[str, Any]] = list(
-            UptimeCheckTask.objects.filter(bk_biz_id=self.bk_biz_id).values("id", "name")
+            # 默认取100条拨测任务
+            UptimeCheckTask.objects.filter(bk_biz_id=self.bk_biz_id)
+            .values("id", "name")
+            .order_by("-id")[:100]
         )
 
         # bksql 不支持 __in lookup，考虑到单个请求耗时较短（< 30ms），此处采用多线程并发调用降低整体请求耗时
@@ -414,7 +417,10 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
                     "title": alert["extra_info"]["strategy"]["items"][0]["name"],
                 }
 
-        task_list = UptimeCheckTask.objects.filter(id__in=[e["task_id"] for e in list(abnormal_events_dick.values())])
+        # overview， 最多展示100个任务
+        task_list = UptimeCheckTask.objects.filter(id__in=[e["task_id"] for e in list(abnormal_events_dick.values())])[
+            :100
+        ]
         for task in task_list:
             title = abnormal_events_dick[task.id]["title"]
             title = "{}{}".format(task.name, title)
