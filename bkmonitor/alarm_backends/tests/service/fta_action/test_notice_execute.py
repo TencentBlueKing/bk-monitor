@@ -3760,7 +3760,7 @@ class TestActionProcessor(TransactionTestCase):
             "content": "",
             "begin_time": datetime.now(tz=timezone.utc),
             "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-            "dimension_config": {"level": [1], "dynamic_group_ids": ["xxx"]},
+            "dimension_config": {"level": [1], "dynamic_group": [{"dynamic_group_id": "xxx"}]},
             "cycle_config": {"type": 1, "week_list": [], "day_list": [], "begin_time": "", "end_time": ""},
         }
         shield_obj = AlertShieldObj(shield_config)
