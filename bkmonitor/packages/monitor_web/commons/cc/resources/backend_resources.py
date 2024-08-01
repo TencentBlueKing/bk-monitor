@@ -219,7 +219,11 @@ class GetHostInstanceByIpResource(CacheResource):
             host_list = api.cmdb.get_host_by_ip(ips=ip_list, bk_biz_id=data["bk_biz_id"], search_outer_ip=True)
 
         # 组合不同业务主机的agent状态
-        agent_status_dict = resource.cc.get_agent_status(data["bk_biz_id"], host_list)
+        try:
+            agent_status_dict = resource.cc.get_agent_status(data["bk_biz_id"], host_list)
+        except Exception as e:
+            logger.warning(f"get_agent_status error: {e}")
+            agent_status_dict = {}
 
         agent_status_display = {
             -1: "abnormal",  # 异常(未知)

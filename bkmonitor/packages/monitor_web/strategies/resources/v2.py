@@ -62,7 +62,6 @@ from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
 from monitor.models import ApplicationConfig
-from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.models import (
     CollectorPluginMeta,
     CustomEventGroup,
@@ -2246,7 +2245,7 @@ class GetTargetDetail(Resource):
         empty_strategy_ids = []
         result = {}
         for item in items:
-            info = CmdbUtil.get_target_detail(bk_biz_id, item.target)
+            info = self.get_target_detail(bk_biz_id, item.target)
 
             if info:
                 result[item.strategy_id] = info

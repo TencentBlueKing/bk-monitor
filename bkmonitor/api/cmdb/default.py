@@ -1015,8 +1015,8 @@ class SearchDynamicGroup(Resource):
                 if params.get("with_instance_id"):
                     tasks[dg["id"]] = pool.apply_async(
                         batch_request,
+                        args=(client.execute_dynamic_group,),
                         kwds={
-                            "func": client.execute_dynamic_group,
                             "params": {
                                 "bk_biz_id": params["bk_biz_id"],
                                 "id": dg["id"],
@@ -1040,7 +1040,7 @@ class SearchDynamicGroup(Resource):
             # 获取任务结果
             dg_counts = defaultdict(lambda: 0)
             dg_instance_ids = defaultdict(list)
-            for dg_id, task in tasks:
+            for dg_id, task in tasks.items():
                 try:
                     result = task.get()
                 except BKAPIError:

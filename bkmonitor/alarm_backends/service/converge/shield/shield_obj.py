@@ -123,7 +123,11 @@ class ShieldObj(object):
                 if not self.is_biz_topo(bk_topo_node):
                     clean_dimension["bk_topo_node"] = bk_topo_node
             elif self.config["scope_type"] == ScopeType.DYNAMIC_GROUP:
-                dynamic_group_ids = clean_dimension.pop("dynamic_group_ids", [])
+                dynamic_group_ids = []
+                for dg in clean_dimension.pop("dynamic_group", []):
+                    dynamic_group_ids.extend(dg["dynamic_group_id"])
+
+                # 查询动态分组所属的主机
                 dynamic_groups = []
                 if dynamic_group_ids:
                     dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
