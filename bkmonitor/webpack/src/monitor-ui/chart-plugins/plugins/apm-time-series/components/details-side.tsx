@@ -32,6 +32,7 @@ import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
+import CompareTopoFullscreen from './compare-topo-fullscreen/compare-topo-fullscreen';
 import MiniChart, { EPointType } from './mini-chart';
 
 import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/monitor-k8s/typings/table';
@@ -88,6 +89,8 @@ export default class DetailsSide extends tsc<IProps> {
       color: '#7B29FF',
     },
   ];
+  /** 对比拓扑弹窗 */
+  compareTopoShow = false;
   /* 对比开关 */
   isCompare = false;
   /* 搜索 */
@@ -367,6 +370,10 @@ export default class DetailsSide extends tsc<IProps> {
     this.referX = value;
   }
 
+  handleViewTopo() {
+    this.compareTopoShow = true;
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -492,6 +499,7 @@ export default class DetailsSide extends tsc<IProps> {
                     <bk-button
                       type='primary'
                       text
+                      onClick={this.handleViewTopo}
                     >
                       {this.$t('查看拓扑')}
                     </bk-button>
@@ -505,6 +513,14 @@ export default class DetailsSide extends tsc<IProps> {
               paginationType={'simple'}
             />
           </div>
+
+          <CompareTopoFullscreen
+            isService={true}
+            show={this.compareTopoShow}
+            onShowChange={val => {
+              this.compareTopoShow = val;
+            }}
+          />
         </div>
       </bk-sideslider>
     );
