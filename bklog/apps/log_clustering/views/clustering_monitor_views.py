@@ -110,7 +110,11 @@ class ClusteringMonitorViewSet(APIViewSet):
         }
         """
         strategy_type = request.query_params.get("strategy_type", "")
-        obj = SignatureStrategySettings.objects.filter(index_set_id=index_set_id, strategy_type=strategy_type).first()
+        obj = SignatureStrategySettings.objects.filter(
+            index_set_id=index_set_id,
+            strategy_type=strategy_type,
+            signature="",
+        ).first()
         if not obj or not obj.strategy_id:
             return Response({})
         strategy_id = obj.strategy_id
