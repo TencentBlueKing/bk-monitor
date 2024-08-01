@@ -78,7 +78,7 @@ class ClusteringMonitorHandler(object):
             index_set_id=self.index_set_id,
             strategy_type=strategy_type,
             signature="",
-            is_deleted=0,
+            is_deleted=False,
             defaults={
                 "strategy_id": None,
                 "bk_biz_id": self.bk_biz_id,
