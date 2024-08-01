@@ -25,6 +25,7 @@ from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("action")
 MAX_INCIDENT_CONTENTS_SIZE = 10000
+MAX_INCIDENT_ALERT_SIZE = 10000
 
 
 class IncidentBaseDocument(BaseDocument):
