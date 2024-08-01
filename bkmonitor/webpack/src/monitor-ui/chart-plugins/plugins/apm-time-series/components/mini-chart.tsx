@@ -260,24 +260,26 @@ export default class MiniChart extends tsc<IProps> {
                   this.localReferPoint.y = value;
                 }
                 let timeTitle = '';
+                const compareTitleText = this.$tc('对比时间');
+                const referTitleText = this.$tc('参照时间');
                 const isSelectEnd = this.localPointType === EPointType.end;
                 if (this.localPointType === EPointType.compare) {
-                  timeTitle = this.$tc('对比时间');
+                  timeTitle = compareTitleText;
                 } else if (this.localPointType === EPointType.refer) {
-                  timeTitle = this.$tc('参照时间');
+                  timeTitle = referTitleText;
                 }
                 /* 是否选择完对比点及参照点 */
                 if (isSelectEnd) {
                   if (this.hoverPoint.type === EPointType.compare) {
-                    timeTitle = this.$tc('对比时间');
+                    timeTitle = compareTitleText;
                   } else if (this.hoverPoint.type === EPointType.refer) {
-                    timeTitle = this.$tc('参照时间');
+                    timeTitle = referTitleText;
                   } else {
                     return undefined;
                   }
                 }
                 return `
-              <div class="left-compare-type" style="background: #7B29FF;"></div>
+              <div class="left-compare-type" style="background: ${timeTitle === compareTitleText ? '#7B29FF' : '#FFB848'};"></div>
               <div>
                 <div>${timeTitle}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
                 <div>${this.$t('请求数')}：${value}</div>
