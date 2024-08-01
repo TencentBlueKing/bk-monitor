@@ -578,10 +578,17 @@ def access_aiops_by_strategy_id(strategy_id):
         # 4.1 如果数据来源是监控采集器，数据需要接入到计算平台
         # 并将结果表ID转换为计算平台可识别的形式
         try:
+            # 4.1.1 数据成功接入到计算平台
             api.metadata.access_bk_data_by_result_table(table_id=rt_query_config.result_table_id, is_access_now=True)
         except Exception as e:  # noqa
-            err_msg = "access({}) to bkdata failed: {}".format(rt_query_config.result_table_id, e)
-            logger.exception(err_msg)
+            # 4.1.2 接入失败，抛出异常，记录错误信息，并更新算法接入状态为"失败"
+            err_msg = "access to bkdata failed: result_table_id: {} err_msg: {}".format(
+                rt_query_config.result_table_id, e
+            )
+            rt_query_config.intelligent_detect["status"] = AccessStatus.FAILED
+            rt_query_config.intelligent_detect["message"] = err_msg
+            rt_query_config.save()
+            raise Exception(err_msg)
         else:
             logger.info("access({}) to bkdata success.".format(rt_query_config.result_table_id))
         rt_scope = {"bk_biz_id": str(strategy.bk_biz_id)}
