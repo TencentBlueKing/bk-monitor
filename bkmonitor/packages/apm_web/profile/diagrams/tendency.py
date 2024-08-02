@@ -46,7 +46,7 @@ class TendencyDiagrammer:
                         if "time" in i
                     ],
                     "target": target,
-                    "type": "line",
+                    "type": "bar",
                     "unit": unit,
                 }
             ]
@@ -86,7 +86,7 @@ class TendencyDiagrammer:
                         if "time" in i
                     ],
                     "target": target,
-                    "type": "line",
+                    "type": "bar",
                     "unit": unit,
                     "dimensions": {"device_name": '查询项'},
                 },
@@ -102,7 +102,7 @@ class TendencyDiagrammer:
                         if "time" in i
                     ],
                     "target": target,
-                    "type": "line",
+                    "type": "bar",
                     "unit": unit,
                     "dimensions": {"device_name": '对比项'},
                 },
