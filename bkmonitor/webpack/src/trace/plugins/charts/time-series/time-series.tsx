@@ -364,6 +364,9 @@ export default defineComponent({
           if (onlyBeginEnd && v > minX && v < maxX) {
             return '';
           }
+          if (duration < 30 * 60) {
+            return dayjs.tz(v).format('HH:mm:ss');
+          }
           if (duration < 60 * 60 * 24 * 2) {
             return dayjs.tz(v).format('HH:mm');
           }
@@ -432,7 +435,7 @@ export default defineComponent({
         { value: 1e18, symbol: 'E' },
       ];
       const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
-      let i;
+      let i: number;
       for (i = si.length - 1; i > 0; i--) {
         if (num >= si[i].value) {
           break;
@@ -502,6 +505,7 @@ export default defineComponent({
           ...viewOptions?.value,
           interval,
         });
+        // biome-ignore lint/complexity/noForEach: <explanation>
         timeShiftList.forEach(time_shift => {
           const list =
             props.panel?.targets?.map?.(item => {
@@ -529,6 +533,7 @@ export default defineComponent({
                   needMessage: false,
                 })
                 .then((res: { metrics: any; series: any[] }) => {
+                  // biome-ignore lint/complexity/noForEach: <explanation>
                   res.metrics?.forEach((metric: { metric_id: string }) => {
                     if (!metricList.some(set => set.metric_id === metric.metric_id)) {
                       metricList.push(metric);
@@ -569,6 +574,7 @@ export default defineComponent({
             seriesResult.map(item => ({
               name: item.name,
               cursor: 'auto',
+              // biome-ignore lint/style/noCommaOperator: <explanation>
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
               unit: item.unit,
