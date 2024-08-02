@@ -124,6 +124,7 @@
 <script>
   import FieldsConfig from '@/components/common/fields-config';
   import logView from '@/components/log-view';
+  import { getFlatObjValues } from '@/common/util';
 
   import DataFilter from '../condition-comp/data-filter.vue';
 
@@ -350,13 +351,9 @@
         const filterDisplayList = [];
         list.forEach(listItem => {
           const displayObj = {};
+          const { newObject } = getFlatObjValues(listItem);
           displayFieldNames.forEach(field => {
-            const listValue = listItem[field];
-            if (listValue && typeof listValue === 'object') {
-              Object.assign(displayObj, { [field]: `${Object.values(listValue).join(' ')}` });
-            } else {
-              Object.assign(displayObj, { [field]: listValue });
-            }
+            Object.assign(displayObj, { [field]: newObject[field] });
           });
           filterDisplayList.push(displayObj);
         });

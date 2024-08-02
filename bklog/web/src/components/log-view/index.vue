@@ -141,7 +141,7 @@
       getViewLightList() {
         const list = [];
         if (!!this.filterKey) {
-          list.push({ str: this.filterKey, style: 'background: yellow; color: #313238;', isUnique: true });
+          list.push({ str: this.filterKey, style: 'color: #FF5656; font-size: 16px; font-weight: 700;', isUnique: true });
         }
         list.push(
           ...this.lightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false })),
