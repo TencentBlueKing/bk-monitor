@@ -9,10 +9,10 @@ from rest_framework.response import Response
 @api_view(["POST"])
 def chat(request):
     # LLM API URL 配置
-    if not settings.LLM_API_URL:
-        return Response({'error': 'LLM_API_URL is not configured'}, status=status.HTTP_501_NOT_IMPLEMENTED)
+    if not settings.BK_MONITOR_AI_API_URL:
+        return Response({'error': 'AI assistant is not configured'}, status=status.HTTP_501_NOT_IMPLEMENTED)
 
-    url = f"{settings.LLM_API_URL}/api/chat/"
+    url = f"{settings.BK_MONITOR_AI_API_URL}/api/chat/"
 
     try:
         response = requests.post(url, json=request.data, stream=True)
