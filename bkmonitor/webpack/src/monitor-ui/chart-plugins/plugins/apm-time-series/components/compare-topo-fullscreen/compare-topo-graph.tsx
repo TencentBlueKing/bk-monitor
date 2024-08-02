@@ -91,6 +91,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     this.toolsPopoverInstance = null;
     removeListener(this.$el as HTMLDivElement, this.handleResize);
   }
+
   mounted() {
     addListener(this.$el as HTMLDivElement, this.handleResize);
   }
@@ -170,7 +171,6 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         size: [236, 146],
       });
       const plugins = [minimap];
-
       this.graph = new G6.Graph({
         container: this.compareTopoGraphRef as HTMLElement, // 指定挂载容器
         width: this.canvasWidth,
@@ -179,6 +179,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         maxZoom: this.maxZoomVal, // 画布最大缩放比例
         fitCenter: true, // 图的中心将对齐到画布中心
         animate: false,
+        groupByTypes: false,
         modes: {
           // 设置画布的交互模式
           default: [
@@ -204,8 +205,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         plugins,
       });
       this.bindListener(this.graph); // 图监听事件
-      this.graph.data(this.data); // 读取数据源到图上
-      this.graph.render(); // 渲染图
+      this.graph.read(this.data); // 读取数据源并渲染
       this.graph.setItemState(this.activeNode, 'active', true);
       this.graph.setItemState(this.activeNode, 'active', true);
     }, 30);
@@ -419,6 +419,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     const group = item.get<IGroup>('group');
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
+      item.toBack();
       if (value) {
         hoverCircle.animate(
           radio => {
@@ -578,6 +579,12 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
       });
     }
     this.toolsPopoverInstance.show();
+  }
+
+  reset() {
+    this.showLegend = false;
+    this.showThumbnail = false;
+    this.toolsPopoverInstance?.hide();
   }
 
   render() {

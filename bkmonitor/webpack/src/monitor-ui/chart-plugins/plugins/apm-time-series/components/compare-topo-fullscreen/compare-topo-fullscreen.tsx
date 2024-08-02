@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CompareTopoGraph from './compare-topo-graph';
@@ -43,6 +43,7 @@ type CompareTopoFullscreenEvent = {
 export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProps, CompareTopoFullscreenEvent> {
   @Prop({ default: false }) readonly show!: boolean;
   @Prop({ default: true }) readonly isServer!: boolean;
+  @Ref('compareTopoGraph') compareTopoGraphRef!: CompareTopoGraph;
   filterTypeList = Object.freeze([
     { label: '请求数', value: 'request' },
     { label: '错误数', value: 'error' },
@@ -172,8 +173,9 @@ export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProp
   }
 
   @Emit('showChange')
-  handleShowChange(val?: boolean) {
-    return val ?? !this.show;
+  handleShowChange(show?: boolean) {
+    if (!show) this.compareTopoGraphRef.reset();
+    return show ?? !this.show;
   }
 
   handleNodeClick(val) {
@@ -269,6 +271,7 @@ export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProp
               </div>
             </div>
             <CompareTopoGraph
+              ref='compareTopoGraph'
               activeNode={this.activeNode}
               data={this.graphData}
               onNodeClick={this.handleNodeClick}
