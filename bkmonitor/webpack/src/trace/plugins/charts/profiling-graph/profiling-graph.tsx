@@ -344,7 +344,7 @@ export default defineComponent({
             {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
               <TableGraph
                 style={{
-                  width: ViewModeType.Combine ? '50%' : '100%',
+                  width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
                 }}
                 data={this.tableData}
                 dataType={this.queryParams.data_type}
@@ -363,7 +363,7 @@ export default defineComponent({
               <FrameGraph
                 ref='frameGraphRef'
                 style={{
-                  width: ViewModeType.Combine ? '50%' : '100%',
+                  width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
                 }}
                 appName={this.queryParams.app_name}
                 data={this.flameData}
