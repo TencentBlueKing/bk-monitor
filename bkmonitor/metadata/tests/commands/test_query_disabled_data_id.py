@@ -65,6 +65,7 @@ def create_and_delete_data(mocker):
     ).delete()
 
 
+@pytest.mark.django_db(databases=['default', 'monitor_api'])
 def test_query_data(create_and_delete_data):
     out = StringIO()
     call_command("query_disabled_data_id", "--all", stdout=out)

@@ -287,13 +287,15 @@ export default defineComponent({
     }
     function handleDataZoom(event: { batch: [any] }) {
       if (isMouseOver.value) {
+        const options: { series: { data: string[] }[] } = instance.value?.getOption?.();
+        if (options?.series?.length && options.series.every(item => item.data?.length < 2)) return;
         const [batch] = event.batch;
         if (instance.value && batch.startValue && batch.endValue) {
           instance.value.dispatchAction({
             type: 'restore',
           });
-          const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-          const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+          const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+          const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
           emit('dataZoom', timeFrom, timeTo);
         }
       } else {

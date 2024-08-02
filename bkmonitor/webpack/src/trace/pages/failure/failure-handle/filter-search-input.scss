@@ -16,6 +16,17 @@
     background-color: white;
     // border: 1px solid #c4c6cc;
     border-radius: 2px;
+    &.error {
+      .bk-input {
+        border: 1px solid #ff5656;
+      }
+    }
+
+    &.error {
+      .bk-input {
+        border: 1px solid #ff5656;
+      }
+    }
 
     .filter-icon {
       width: 24px !important;
@@ -87,6 +98,10 @@
     }
 
     &.is-disable {
+      color: #c4c6cc;
+      cursor: not-allowed;
+      background-color: #f5f6fa;
+
       &:hover {
         color: #c4c6cc;
         cursor: not-allowed;
@@ -110,7 +125,7 @@
   z-index: 9999;
   display: flex;
 
-  width: 100% !important;
+  width: 70% !important;
   height: 280px; 
   overflow: auto;
   font-size: 12px;
@@ -118,6 +133,11 @@
 //   border: 1px solid #dcdee5;
   border-radius: 2px;
   box-shadow: 0px 2px 6px 0px rgba(0,0,0,.10);
+
+  .flex {
+    display: flex;
+    align-items: center;
+  }
 
   .common-panel {
     display: flex;

@@ -442,8 +442,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
       let queryStr =
         viewArgs.query &&
         Object.keys(viewArgs.query).reduce((result, key) => {
-          result += `${key}=${String(viewArgs.query[key])}&`;
-          return result;
+          // result += `${key}=${String(viewArgs.query[key])}&`;
+          return `${result}${key}=${String(viewArgs.query[key])}&`;
         }, '');
       queryStr = queryStr.substring(0, queryStr.length - 1);
       const newHref = `${location.origin}${location.pathname}?bizId=${data.bk_biz_id}#/${routerNamePath}?${queryStr}`;
@@ -520,6 +520,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 <div class='history-list'>
                   {this.searchHistoryList.map(item => (
                     <span
+                      key={item}
                       class='search-tag'
                       title={item}
                       onClick={() => {
@@ -556,8 +557,9 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 {/* 超过一项分类出现分类tag 用于快速定位 */}
                 {this.searchResultList.length > 1 && (
                   <div class='scene-bar'>
-                    {this.searchResultList.map(item => (
+                    {this.searchResultList.map((item, index) => (
                       <div
+                        key={index}
                         class={['scene-tag', { active: item.scene === this.curSelectScene }]}
                         onClick={() => this.handleSelectCategory(item.scene)}
                       >
@@ -574,6 +576,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                   {this.searchResultList.map(list => (
                     <div
                       id={`${list.scene}__key__`}
+                      key={`${list.scene}__key__`}
                       class='main-content'
                     >
                       <div class='title'>
@@ -581,8 +584,9 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                         <span class='count'>({list.results.length})</span>
                       </div>
                       <div class='list-item'>
-                        {list.results.map(val => (
+                        {list.results.map((val, index) => (
                           <div
+                            key={index}
                             class={['val-item', { 'not-allow': !val.is_allowed }]}
                             onClick={() => this.handleViewToScene(val, list.scene)}
                           >

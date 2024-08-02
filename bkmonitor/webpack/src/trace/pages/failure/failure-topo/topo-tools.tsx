@@ -98,12 +98,16 @@ export default defineComponent({
     const isFullscreen = ref(false);
     const { t } = useI18n();
     const aggregateConfig = ref({});
+    const timeLine = ref(null);
     const incidentId = useIncidentInject();
     const handleChangeRefleshTime = (value: number) => {
       emit('changeRefleshTime', value);
     };
     const handleTimelineChange = (value: number) => {
       emit('timelineChange', value);
+    };
+    const handleChangeTimeLine = value => {
+      timeLine.value.changeTimeLine(value);
     };
     /** 缓存默认聚合id */
     const setAutoAggregated = data => {
@@ -239,9 +243,11 @@ export default defineComponent({
       isFullscreen,
       autoAggregateIdText,
       treeData,
+      timeLine,
       checkedIds,
       autoAggregate,
       handleFullscreen,
+      handleChangeTimeLine,
       handleUpdateAutoAggregate,
       handleUpdateCheckedIds,
       handleChangeRefleshTime,
@@ -262,6 +268,7 @@ export default defineComponent({
           onUpdate:checkedIds={this.handleUpdateCheckedIds}
         />
         <Timeline
+          ref='timeLine'
           timelinePlayPosition={this.timelinePlayPosition}
           topoRawDataList={this.topoRawDataList}
           onChangeRefleshTime={this.handleChangeRefleshTime}

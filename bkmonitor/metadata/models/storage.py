@@ -1942,7 +1942,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
-            SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_public=True)
+            SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
         except Exception as e:
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record

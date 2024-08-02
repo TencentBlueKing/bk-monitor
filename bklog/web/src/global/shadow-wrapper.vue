@@ -23,72 +23,65 @@
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 * IN THE SOFTWARE.
 -->
-
 <template>
-  <div class="favorite-popper-content">
-    <div class="title">{{ $t('是否替换当前收藏') }}({{ activeFavorite.name }})？</div>
-    <div class="content">
-      <bk-button
-        size="small"
-        text
-        @click="handleOperate('replace')"
-        >{{ $t('替换当前') }}</bk-button
-      >
-      <bk-button
-        size="small"
-        text
-        @click="handleOperate('add')"
-        >{{ $t('新建') }}</bk-button
-      >
-    </div>
+  <div ref="shadowHost">
+    <slot v-if="!shadowContent"></slot>
   </div>
 </template>
 
 <script>
+  import Vue from 'vue';
+
   export default {
+    name: 'ShadowWrapper',
     props: {
-      activeFavorite: {
-        type: Object,
-        required: true,
+      shadowContent: {
+        type: Boolean,
+        default: true,
       },
     },
-    data() {
-      return {
-        value: '',
-      };
+    mounted() {
+      this.setupShadowDom();
     },
-    computed: {},
+    updated() {
+      this.setupShadowDom();
+    },
     methods: {
-      handleOperate(type) {
-        if (type === 'add') {
-          this.$emit('favorite-tips-operate', 'add-new');
-        } else {
-          this.$emit('favorite-tips-operate', 'replace');
+      setupShadowDom() {
+        if (!this.shadowContent) {
+          return;
         }
+
+        if (!this.shadowRoot) {
+          this.shadowRoot = this.$refs.shadowHost.attachShadow({ mode: 'open' });
+        } else {
+          // 清理先前的内容
+          while (this.shadowRoot.firstChild) {
+            this.shadowRoot.firstChild.remove();
+          }
+        }
+
+        // 缓存插槽内容的 VNode
+        const slotContent = this.$slots.default;
+
+        // 延迟渲染插槽内容，通过 Vue 的 nextTick 确保 DOM 已经完全更新
+        this.$nextTick(() => {
+          new Vue({
+            parent: this.$parent,
+            render: h => h('div', { class: 'shadow-container' }, slotContent),
+          }).$mount(this.shadowRoot.appendChild(document.createElement('div')));
+        });
       },
     },
   };
 </script>
 
-<style lang="scss" scoped>
-  .favorite-popper-content {
-    min-width: 200px;
-    padding: 2px;
-    // word-wrap: ;
+<style scoped>
+  /* ShadowWrapper 组件自身的样式 */
+  .shadow-container {
+    all: initial;
 
-    .title {
-      margin-bottom: 10px;
-      font-size: 12px;
-      line-height: 20px;
-      color: #63656e;
-    }
-
-    .content {
-      text-align: right;
-
-      .bk-button-text {
-        padding: 0 6px;
-      }
-    }
+    /* 确保样式隔离 */
+    display: inline-block;
   }
 </style>

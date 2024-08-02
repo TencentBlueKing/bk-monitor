@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import json
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import FIELD_ANALYSIS_CONFIG
 
 
 def dictfetchall(cursor):
@@ -96,11 +98,22 @@ def array_chunk(data, size=100):
 
 def get_toggle_data():
     toggle_list = FeatureToggleObject.toggle_list(**{"is_viewed": True})
+    field_analysis_config, __ = FeatureToggle.objects.get_or_create(
+        name=FIELD_ANALYSIS_CONFIG,
+        defaults={
+            "status": "debug",
+            "is_viewed": True,
+            "feature_config": {"scenario_id_white_list": ["es", "log"]},
+            "biz_id_white_list": [],
+        },
+    )
     data = {
         # 实时日志最大长度
         "REAL_TIME_LOG_MAX_LENGTH": "20000",
         # 超过此长度删除部分日志
         "REAL_TIME_LOG_SHIFT_LENGTH": "10000",
+        # 字段分析白名单
+        "FIELD_ANALYSIS_CONFIG": json.dumps(field_analysis_config.feature_config),
         # 特性开关
         "FEATURE_TOGGLE": json.dumps({toggle.name: toggle.status for toggle in toggle_list}),
         "FEATURE_TOGGLE_WHITE_LIST": json.dumps(

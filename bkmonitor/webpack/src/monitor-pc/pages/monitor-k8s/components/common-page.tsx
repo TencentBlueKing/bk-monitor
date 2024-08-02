@@ -394,7 +394,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
               children: [],
             };
             total.push(item);
-          } else if (!!row.title) {
+          } else if (row.title) {
             const curGroup = total.find(group => group.id === curTagChartId);
             const child = {
               id: row.id,
@@ -491,7 +491,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     if (this.isMergeMenuList) {
       return [...this.sceneData.dasbordToolMenuList, ...this.menuList];
     }
-    return !!this.menuList.length ? this.menuList : this.sceneData.dasbordToolMenuList;
+    return this.menuList.length ? this.menuList : this.sceneData.dasbordToolMenuList;
   }
   // 派发到子孙组件内的一些视图配置变量
   // 数据时间间隔
@@ -585,7 +585,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         variables[key] = this.defaultViewOptions.variables[key];
       });
     this.groups = this.defaultViewOptions?.groups || [];
-    Object.keys(this.$route.query || {}).forEach(key => {
+    for (const key of Object.keys(this.$route.query || {})) {
       const val = this.$route.query[key];
       if (key.match(/^filter-/)) {
         let v = null;
@@ -603,7 +603,9 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         filters[key.replace('filter-', '')] = v;
         /** 处理主机详情 (主机、节点、服务实例) 互为冲突的字段 */
         if (['bk_inst_id', 'bk_target_service_instance_id'].some(item => key.includes(item))) {
+          // biome-ignore lint/performance/noDelete: <explanation>
           delete filters.bk_target_cloud_id;
+          // biome-ignore lint/performance/noDelete: <explanation>
           delete filters.bk_target_ip;
         }
       } else if (key.match(/^var-/)) {
@@ -662,7 +664,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
           this[key] = val;
         }
       }
-    });
+    }
     this.localSceneType = (this.$route.query.sceneType as any) ?? this.sceneType;
     this.method =
       this.defaultViewOptions.method || (this.$route.query.method as string) || this.defalutMethod || DEFAULT_METHOD;
@@ -1123,12 +1125,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 获取变量
   handleGetVariables(list: FilterDictType): Record<string, any> {
     return list.reduce((pre, cur) => {
-      const temp = Object.entries(cur).reduce((total, curItem) => {
-        const value = curItem[1];
-
-        return { ...total, [curItem[0]]: (Array.isArray(value) ? !!value.length : !!value) ? curItem[1] : undefined };
-      }, {});
-      return { ...pre, ...temp };
+      Object.entries(cur).reduce((total, [key, value]) => {
+        total[key] = (Array.isArray(value) ? !!value.length : !!value) ? value : undefined;
+        return total;
+      }, pre);
+      return pre;
     }, {});
   }
   /** 变量值更新 */
@@ -1169,7 +1170,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     let currentTarget = { ...this.filters };
     let compareTargets = this.compareType === 'target' ? targets : [];
     const selectortTarget = this.sceneData?.selectorPanel?.targets?.[0];
-    if (!!selectortTarget?.compareFieldsSort?.length) {
+    if (selectortTarget?.compareFieldsSort?.length) {
       currentTarget = selectortTarget?.handleCreateFilterDictValue(
         this.filters,
         true,
@@ -1204,7 +1205,10 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
       Object.keys(target).every(key => !window.host_data_fields.includes(key))
     )
       return target;
-    return window.host_data_fields.reduce((pre, cur) => ({ ...pre, [cur]: target[cur] }), {});
+    return window.host_data_fields.reduce((pre, cur) => {
+      pre[cur] = target[cur];
+      return pre;
+    }, {});
   }
   handleResetRouteQuery() {
     if ((this as any)._isBeingDestroyed || (this as any)._isDestroyed) return;
@@ -1492,7 +1496,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         type: this.localSceneType,
       }).catch(() => []);
       this.tabList.forEach(tab => {
-        if (!!tab.panel_count) {
+        if (tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
           tab.panel_count = count;
         }
@@ -1622,6 +1626,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
       >
         {this.sceneData && [
           <PageTitle
+            key={1}
             class='common-page-title'
             activeTab={this.dashboardId}
             bookMarkMode={this.sceneData.mode}
@@ -1731,6 +1736,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
             {this.selectorReady ? (
               [
                 <div
+                  key={2}
                   ref='dashboardPanelWrap'
                   class='dashboard-panel-wrap'
                 >
@@ -1873,6 +1879,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                     ))}
                 </div>,
                 <div
+                  key={3}
                   style={{
                     width: `${this.splitPanelWidth}px`,
                     display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
@@ -1891,11 +1898,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                     />
                   ) : undefined}
                 </div>,
-                <keep-alive>
+                <keep-alive key={7}>
                   {!this.showListAnimate && this.enableDetail && this.infoActive && (
                     <CommonDetail
-                      aiPanel={this.sceneData.aiPanel}
-                      allPanelId={this.sceneData.allPanelId}
+                      // aiPanel={this.sceneData.aiPanel}
+                      // allPanelId={this.sceneData.allPanelId}
                       needShrinkBtn={false}
                       panel={this.sceneData.detailPanel}
                       placement={'right'}
@@ -1921,6 +1928,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
           </div>,
           !this.readonly ? (
             <SettingModal
+              key={4}
               activeMenu={this.activeSettingId as string}
               beforeClose={this.handleBeforeCloseSettings}
               menuList={this.sceneData.settingMenuList as any}

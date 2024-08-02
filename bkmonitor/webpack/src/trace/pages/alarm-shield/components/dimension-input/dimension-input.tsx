@@ -26,16 +26,17 @@
  */
 import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 
-import { Message, Popover, TagInput } from 'bkui-vue';
+import { Message, TagInput } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert';
 import { getVariableValue } from 'monitor-api/modules/grafana';
-import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
 
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { useAppStore } from '../../../store/modules/app';
+import ConditionCondition from './condition';
+import ConditionMethod from './method';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { useAppStore } from '../../../../store/modules/app';
 import SelectInput, { ALL } from './select-input';
 
-import type { IConditionItem, IDimensionItem, IMetricMeta } from '../typing';
+import type { IConditionItem, IDimensionItem, IMetricMeta } from '../../typing';
 
 import './dimension-input.scss';
 
@@ -395,160 +396,6 @@ export default defineComponent({
           </span>
         )}
       </div>
-    );
-  },
-});
-
-const ConditionCondition = defineComponent({
-  name: 'ConditionCondition',
-  props: {
-    item: {
-      type: Object,
-      default: () => null,
-    },
-    onChange: {
-      type: Function as PropType<(v: string) => void>,
-      default: _v => {},
-    },
-  },
-  setup(props) {
-    const popoverRef = ref<InstanceType<typeof Popover>>(null);
-    const conditionList = ref(CONDITION);
-
-    function handleSelect(item) {
-      popoverRef.value?.hide();
-      props.onChange(item.id);
-    }
-    return () => (
-      <Popover
-        ref={popoverRef}
-        extCls='dimension-condition-input-condition-condition-component-pop'
-        arrow={false}
-        placement='bottom-start'
-        theme='light'
-        trigger='click'
-      >
-        {{
-          default: () => (
-            <input
-              style={{ display: props.item.condition ? 'block' : 'none' }}
-              class='condition-item condition-item-condition mb-8'
-              value={props.item.condition.toLocaleUpperCase()}
-              readonly
-            />
-          ),
-          content: () => (
-            <div>
-              <ul class='list-wrap'>
-                {conditionList.value.map((item, index) => (
-                  <li
-                    key={index}
-                    onClick={() => handleSelect(item)}
-                  >
-                    {item.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ),
-        }}
-      </Popover>
-    );
-  },
-});
-
-const ConditionMethod = defineComponent({
-  name: 'ConditionMethod',
-  props: {
-    value: {
-      type: String,
-      default: '',
-    },
-    dimensionKey: {
-      type: String,
-      default: '',
-    },
-    dimensionList: {
-      type: Array as PropType<any[]>,
-      default: () => [],
-    },
-    onChange: {
-      type: Function as PropType<(v: string) => void>,
-      default: () => {},
-    },
-  },
-  setup(props) {
-    const popoverRef = ref(null);
-    const methodList = ref([]);
-
-    const show = ref(false);
-
-    watch(
-      () => props.dimensionKey,
-      key => {
-        const { type } = props.dimensionList.find(item => item.id === key) || { type: 'string' };
-        methodList.value = handleGetMethodList(type);
-      },
-      {
-        immediate: true,
-      }
-    );
-
-    function getMethodNameById(id: string) {
-      return NUMBER_CONDITION_METHOD_LIST.find(item => item.id === id)?.name || '';
-    }
-    function handleGetMethodList(type: 'number' | 'string') {
-      if (type === 'number') {
-        return NUMBER_CONDITION_METHOD_LIST;
-      }
-      return STRING_CONDITION_METHOD_LIST;
-    }
-
-    function handleSelect(item) {
-      popoverRef.value?.hide();
-      props.onChange(item.id);
-    }
-
-    return () => (
-      <Popover
-        ref={popoverRef}
-        extCls='dimension-condition-input-condition-method-component-pop'
-        arrow={false}
-        placement='bottom-start'
-        theme='light'
-        trigger='click'
-        onAfterHidden={() => (show.value = false)}
-        onAfterShow={() => (show.value = true)}
-      >
-        {{
-          default: () => (
-            <span
-              class={[
-                'condition-item condition-item-method mb-8',
-                {
-                  active: show.value,
-                },
-              ]}
-            >
-              {getMethodNameById(props.value)}
-            </span>
-          ),
-          content: () => (
-            <div>
-              <ul class='list-wrap'>
-                {methodList.value.map((item, index) => (
-                  <li
-                    key={index}
-                    onClick={() => handleSelect(item)}
-                  >
-                    {item.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ),
-        }}
-      </Popover>
     );
   },
 });
