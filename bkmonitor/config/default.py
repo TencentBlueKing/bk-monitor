@@ -1383,3 +1383,6 @@ ENABLE_UPTIMECHECK_TEST = True
 
 # 检测结果缓存 TTL(小时)
 CHECK_RESULT_TTL_HOURS = 1
+
+# LLM 接口地址
+LLM_API_URL = os.environ.get("LLM_API_URL", "")
