@@ -238,6 +238,7 @@ export default defineComponent({
             const isPrometheus = queryConfig?.data_source_label === PROMETHEUS;
             // promql数据需要通过接口转换为metric数据
             if (isPrometheus) {
+              // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
               const getPromqlData = new Promise(async (resolve, _reject) => {
                 const promqlData = await promqlToQueryConfig('', {
                   promql: queryConfig.promql,
@@ -288,7 +289,7 @@ export default defineComponent({
           } else {
             dimensionCondition.metricMeta = null;
           }
-          dimensionList = !!metricList.length
+          dimensionList = metricList.length
             ? metricList.reduce((pre, cur) => {
                 const dimensionList = pre.concat(
                   cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
@@ -415,6 +416,7 @@ export default defineComponent({
             <div>
               <Select
                 class='width-940'
+                disabled={this.isEdit}
                 filterable={true}
                 modelValue={this.strategyId}
                 multiple={true}
