@@ -995,7 +995,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
    * @param {String} metricId（指标ID有可能从sessionStorage中来）
    */
   handleInitQueryParams(metricId) {
-    Object.keys(this.backDisplayMap).forEach(key => {
+    for (const key of Object.keys(this.backDisplayMap)) {
       // 判断props中是否存在该属性 指标id数组支持多指标
       if (metricId && key === 'metricId') {
         let metricIds = metricId;
@@ -1022,7 +1022,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           });
         }
       }
-    });
+    }
   }
   /**
    * @description:设置dashabord
@@ -1049,13 +1049,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       TOPO: '{0}个拓扑节点',
       SERVICE_TEMPLATE: '{0}个服务模板',
       SET_TEMPLATE: '{0}个集群模板',
+      DYNAMIC_GROUP: '{0}个动态分组',
     };
-    tableData.forEach(item => {
+    for (const item of tableData) {
       const target = targetMap[item.id];
       item.objectType = item.objectType || target.instance_type;
       item.targetNodeType = item.node_type;
       if (target.instance_type === 'HOST') {
-        if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(target.node_type)) {
+        if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO', 'DYNAMIC_GROUP'].includes(target.node_type)) {
           item.target = `${this.$t(textMap[target.node_type], [target.node_count])} （${this.$t('共{0}台主机', [target.instance_count])}）`;
         } else if (target.node_type === 'INSTANCE') {
           item.target = this.$t('{0}台主机', [target.node_count]);
@@ -1069,7 +1070,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       } else {
         item.target = '';
       }
-    });
+    }
     return tableData;
   }
   setTableFilterSelect(filterType) {
