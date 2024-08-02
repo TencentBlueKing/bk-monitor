@@ -113,7 +113,7 @@ class PercentageBarChart extends CommonSimpleChart {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
         end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
-      const interval = (this.viewOptions.interval, params.end_time - params.start_time, this.panel.collect_interval);
+      const interval = this.panel.collect_interval;
       const variablesService = new VariablesService({
         ...this.viewOptions,
         interval,
@@ -270,7 +270,10 @@ class PercentageBarChart extends CommonSimpleChart {
             >
               {this.inited &&
                 this.chartDataList.map((item, index) => (
-                  <tr class={['avr-chart-tr', { 'first-row': index === 0 }]}>
+                  <tr
+                    key={index}
+                    class={['avr-chart-tr', { 'first-row': index === 0 }]}
+                  >
                     <td class='avr-cell cell-label'>
                       <div class='avr-cell-content'>
                         <span class='num'>{item.value}</span>
@@ -302,7 +305,7 @@ class PercentageBarChart extends CommonSimpleChart {
                   class='more-data-btn'
                   onClick={this.handleShowMoreData}
                 >
-                  更多数据
+                  {window.i18n.tc('更多数据')}
                 </span>
               </div>
             )}

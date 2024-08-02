@@ -461,4 +461,5 @@ export default {
   观察中: 'Under observation',
   已解决: 'Resolved',
   暂无更多数据: 'No more data',
+  更多数据: 'More data',
 };
