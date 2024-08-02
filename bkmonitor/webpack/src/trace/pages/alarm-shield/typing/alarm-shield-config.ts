@@ -57,5 +57,5 @@ export const ShieldDetailTargetFieldMap = {
   ip: 'bk_target_ip',
   node: 'bk_topo_node',
   instance: 'service_instance_id',
-  dynamic_group: 'dynamic_group_id',
+  dynamic_group: 'dynamic_group',
 };

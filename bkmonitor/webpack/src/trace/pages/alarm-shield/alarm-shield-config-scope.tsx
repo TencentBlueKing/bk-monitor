@@ -48,7 +48,7 @@ export const scopeData = () => {
       ip: window.i18n.t('主机'),
       instance: window.i18n.t('服务实例'),
       node: window.i18n.t('节点名称'),
-      dynamci: window.i18n.t('动态分组'),
+      dynamic_group: window.i18n.t('动态分组'),
       biz: window.i18n.t('业务'),
     },
     shieldDesc: '',
