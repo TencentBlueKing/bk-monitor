@@ -1,18 +1,18 @@
 .common-legend {
   &-item {
-    float: left;
-    white-space: nowrap;
-    margin-left: 10px;
     display: flex;
     align-items: center;
-    line-height: 16px;
+    float: left;
+    margin-left: 10px;
     font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
 
     .legend-icon {
       width: 12px;
       height: 4px;
-      background-color: violet;
       margin-right: 6px;
+      background-color: violet;
     }
 
     &:hover {
@@ -32,12 +32,12 @@
         overflow: auto;
 
         li {
-          height: 32px;
-          line-height: 32px;
-          padding: 0 4px;
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
+          height: 32px;
+          padding: 0 4px;
+          line-height: 32px;
 
           .bk-option-icon {
             font-size: 20px;
@@ -53,5 +53,10 @@
         }
       }
     }
+  }
+
+  &.align-center {
+    display: flex;
+    justify-content: center;
   }
 }
