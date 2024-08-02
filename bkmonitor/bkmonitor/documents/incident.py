@@ -153,6 +153,9 @@ class IncidentDocument(IncidentBaseDocument):
     # 反馈根因的信息
     feedback = field.Object(enabled=False)
 
+    # 检索或者排序需要的字段
+    alert_count = field.Long()
+
     class Index:
         name = "bkmonitor_aiops_incident_info"
         settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}

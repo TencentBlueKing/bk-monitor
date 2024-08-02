@@ -96,6 +96,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             # 补充快照记录并写入ES
             incident_document.snapshot = snapshot
+            incident_document.alert_count = len(snapshot.alerts)
             snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
             incident_document.generate_labels(snapshot_model)
             incident_document.generate_handlers(snapshot_model)
@@ -165,6 +166,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 # 补充快照记录并写入ES
                 self.generate_alert_operations(incident_document.snapshot, snapshot)
                 incident_document.snapshot = snapshot
+                incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
                 incident_document.generate_labels(snapshot_model)
                 incident_document.generate_handlers(snapshot_model)
