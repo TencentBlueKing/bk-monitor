@@ -9,10 +9,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import url
+from django.conf.urls import include, url
 
-from .views import ChatView
+from core.drf_resource.routers import ResourceRouter
+
+from . import views
+
+router = ResourceRouter()
+router.register_module(views)
 
 urlpatterns = [
-    url(r"^chat/", ChatView.as_view(actions={"post": "chat"})),
+    url("", include(router.urls)),
 ]

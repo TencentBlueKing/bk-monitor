@@ -18,19 +18,17 @@ from rest_framework.response import Response
 
 class ChatSerializer(serializers.Serializer):
     session_id = serializers.CharField(required=False, allow_blank=True, default="")
-    message = serializers.CharField(required=True, allow_blank=False)
+    input = serializers.CharField(required=True, allow_blank=False)
 
 
-class ChatView(viewsets.GenericViewSet):
-    serializer_class = ChatSerializer
-
-    @action(methods=["POST"], detail=False)
-    def chat(self, request):
+class ChatViewSet(viewsets.GenericViewSet):
+    @action(methods=['post'], detail=False, url_path='chat')
+    def chat(self, request, *args, **kwargs):
         # 如果没有配置 AI 接口地址，则直接返回错误
         if not settings.BK_MONITOR_AI_API_URL:
             return Response({'error': 'AI assistant is not configured'}, status=status.HTTP_501_NOT_IMPLEMENTED)
 
-        serializer = self.get_serializer(data=request.data)
+        serializer = ChatSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -44,9 +42,11 @@ class ChatView(viewsets.GenericViewSet):
 
         def event_stream():
             for line in response.iter_lines(chunk_size=10):
-                if line:
-                    result = line.decode('utf-8') + '\n\n'
-                    yield result
+                if not line:
+                    continue
+
+                result = line.decode('utf-8') + '\n\n'
+                yield result
 
         # 返回 StreamingHttpResponse
         sr = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
