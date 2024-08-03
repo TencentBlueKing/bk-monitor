@@ -288,7 +288,6 @@ class CompositeProcessor:
         return False
 
     def match_query_config(self, query_config) -> bool:
-
         if not self.is_valid_datasource(query_config):
             return False
 
@@ -667,6 +666,7 @@ class CompositeProcessor:
                         )
                         if result:
                             # 只有第一次设置成功，才可以进行消息推送
+                            # todo 优化
                             self.add_action(
                                 strategy_id=strategy_id,
                                 signal=signal,
