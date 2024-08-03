@@ -8,17 +8,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from bkmonitor.iam.action import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
-from core.drf_resource import resource
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-
-
-class FetchRobotInfoViewSet(ResourceViewSet):
-    def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
-
-    resource_routes = [
-        ResourceRoute("GET", resource.commons.fetch_robot_info),
-    ]

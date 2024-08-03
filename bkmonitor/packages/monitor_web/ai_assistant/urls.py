@@ -9,16 +9,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from bkmonitor.iam.action import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
-from core.drf_resource import resource
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from django.conf.urls import include, url
 
+from core.drf_resource.routers import ResourceRouter
 
-class FetchRobotInfoViewSet(ResourceViewSet):
-    def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+from . import views
 
-    resource_routes = [
-        ResourceRoute("GET", resource.commons.fetch_robot_info),
-    ]
+router = ResourceRouter()
+router.register_module(views)
+
+urlpatterns = [
+    url("", include(router.urls)),
+]
