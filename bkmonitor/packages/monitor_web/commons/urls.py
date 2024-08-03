@@ -26,8 +26,6 @@ from monitor_web.commons.task import views as task_views
 from monitor_web.commons.token import views as token_views
 from monitor_web.commons.user import views as user_views
 
-from .ai_assistant import urls as ai_assistant_urls
-
 router = ResourceRouter()
 router.register_module(biz_views)
 router.register_module(cc_views)
@@ -45,5 +43,4 @@ router.register_module(report_views)
 
 urlpatterns = [
     url(r"^", include(router.urls)),
-    url(r"^ai_assistant/", include(ai_assistant_urls)),
 ]

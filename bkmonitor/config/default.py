@@ -337,6 +337,7 @@ ACTIVE_VIEWS = {
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
+        "ai_assistant": "monitor_web.ai_assistant.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {

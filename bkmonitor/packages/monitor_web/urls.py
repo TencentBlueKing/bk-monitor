@@ -43,4 +43,5 @@ urlpatterns = [
     url(r"^", include("monitor_web.datalink.urls")),
     url(r"^", include("monitor_web.new_report.urls")),
     url(r"^", include("monitor_web.incident.urls")),
+    url(r"^ai_assistant/", include("monitor_web.ai_assistant.urls")),
 ]

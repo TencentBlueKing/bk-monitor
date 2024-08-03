@@ -11,8 +11,8 @@ specific language governing permissions and limitations under the License.
 
 from django.conf.urls import url
 
-from .views import chat
+from .views import ChatView
 
 urlpatterns = [
-    url(r"^chat/$", chat),
+    url(r"^chat/", ChatView.as_view(actions={"post": "chat"})),
 ]
