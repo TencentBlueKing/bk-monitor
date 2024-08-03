@@ -254,12 +254,11 @@ ALERT_MANAGE_TIME = Histogram(
     name="bkmonitor_alert_manage_time",
     documentation="alert(manager) 模块处理耗时",
     labelnames=("status", "exception"),
-    buckets=(0.1, 1, 5, 10, 15, 20, 30, INF),
 )
 
 ALERT_MANAGE_COUNT = Counter(
     name="bkmonitor_alert_manage_count",
-    documentation="alert(manager) 模块处理次数",
+    documentation="alert(manager) 模块处理告警量",
     labelnames=("status", "exception"),
 )
 

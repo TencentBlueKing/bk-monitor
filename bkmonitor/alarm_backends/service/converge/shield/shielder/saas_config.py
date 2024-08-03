@@ -42,7 +42,7 @@ class AlertShieldConfigShielder(BaseShielder):
         try:
             self.configs = ShieldCacheManager.get_shields_by_biz_id(self.alert.event.bk_biz_id)
             config_ids = ",".join([str(config["id"]) for config in self.configs])
-            logger.info(
+            logger.debug(
                 "[load shield] alert(%s) strategy(%s) ids:(%s)",
                 self.alert.id,
                 self.alert.strategy_id,
@@ -59,6 +59,14 @@ class AlertShieldConfigShielder(BaseShielder):
             shield_obj = AlertShieldObj(config)
             if shield_obj.is_match(alert):
                 self.shield_objs.append(shield_obj)
+
+        if not self.shield_objs:
+            # 记录未匹配屏蔽的告警信息
+            detail = "%s 条屏蔽配置全部未匹配" % len(self.configs)
+            if len(self.configs) == 0:
+                detail = "无生效屏蔽配置"
+            logger.info("[shield skipped] alert(%s) strategy(%s) %s", alert.id, alert.strategy_id, detail)
+
         shield_config_ids = ",".join([str(shield_obj.id) for shield_obj in self.shield_objs])
         self.is_global_shielder = None
         self.is_host_shielder = None

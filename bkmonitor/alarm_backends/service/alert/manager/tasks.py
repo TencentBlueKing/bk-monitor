@@ -57,7 +57,8 @@ def check_abnormal_alert():
             continue
         alerts.append({"id": hit.id, "strategy_id": getattr(hit, "strategy_id", None)})
 
-    send_check_task(alerts)
+    if alerts:
+        send_check_task(alerts)
 
 
 def check_blocked_alert():
@@ -150,7 +151,9 @@ def send_check_task(alerts: List[Dict], run_immediately=True):
     :param alerts: 告警对象列表
     :param run_immediately: 是否立即发送一个检查任务
     """
-    alerts = alerts
+    if not alerts:
+        return
+
     alert_ids_with_interval = cal_alerts_check_interval(alerts)
 
     for check_interval, alerts in alert_ids_with_interval.items():
@@ -187,18 +190,28 @@ def handle_alerts(alert_keys: List[AlertKey]):
     处理告警（异步任务）
     """
     exc = None
+    if not alert_keys:
+        return
+    total = len(alert_keys)
     manager = AlertManager(alert_keys)
     start_time = time.time()
     try:
+        manager.logger.info("[alert.manager start] with total alerts(%s)", total)
         manager.process()
     except Exception as e:
-        manager.logger.exception("error when processing alert, reason: %s", e)
+        manager.logger.exception("[alert.manager ERROR] detail: %s", e)
         exc = e
+        cost = time.time() - start_time
+    else:
+        cost = time.time() - start_time
+        manager.logger.info("[alert.manager end] cost: %s", cost)
 
-    metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).observe(
-        time.time() - start_time
-    )
-    metrics.ALERT_MANAGE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).inc()
+    # 按单条告警进行统计耗时，因为这有两个入口：
+    # 1. 周期维护未恢复的告警， 按 total=200 分批跑
+    # 2. 产生新告警时，由alert.builder 立刻执行一次周期任务管理， total 较小。
+    # 因此会存在耗时跟随total值的变化抖动。所以这里算单条告警的处理平均耗时才能体现出实际情况
+    metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).observe(cost / total)
+    metrics.ALERT_MANAGE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).inc(total)
     metrics.report_all()
 
 
