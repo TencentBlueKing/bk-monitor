@@ -43,14 +43,16 @@ class AlertShieldConfigShielder(BaseShielder):
             self.configs = ShieldCacheManager.get_shields_by_biz_id(self.alert.event.bk_biz_id)
             config_ids = ",".join([str(config["id"]) for config in self.configs])
             logger.info(
-                "Get biz(%s) shield configs(%s) of alert(%s), ",
-                self.alert.event.bk_biz_id,
-                config_ids,
+                "[load shield] alert(%s) strategy(%s) ids:(%s)",
                 self.alert.id,
+                self.alert.strategy_id,
+                config_ids,
             )
         except BaseException as error:
             self.configs = []
-            logger.exception("failed to get shield configs: %s", str(error))
+            logger.exception(
+                "[load shield failed] alert(%s) strategy(%s) detail:(%s)", self.alert.id, self.alert.strategy_id, error
+            )
 
         self.shield_objs = []
         for config in self.configs:
@@ -169,7 +171,6 @@ class HostShielder(BaseShielder):
         self.detail = extended_json.dumps({"message": _("当前主机屏蔽未开启")})
 
     def is_matched(self):
-
         if getattr(self.alert.event, "target_type", None) == "HOST":
             using_api = False
             ip = self.alert.event.ip
@@ -194,13 +195,13 @@ class HostShielder(BaseShielder):
 
         if host and any([host.is_shielding, host.ignore_monitoring]):
             # 如果当前主机处于不监控（容器告警机器信息后期补全，所以在这里也进要行配置）或者不告警的状态，都统一屏蔽掉
-            logger.info("alert(%s) is shielded because of host state is shielding(%s)", self.alert.id, host.bk_state)
             self.detail = extended_json.dumps({"message": _("当前主机在配置平台中设置了无告警状态")})
             return True
         elif not host and using_api:
             logger.warning(
-                "alert(%s) is not shielded because of host(%s) not found",
-                self.alert,
+                "[host not shield] alert(%s) strategy(%s) because of host(%s) not found",
+                self.alert.id,
+                self.alert.strategy_id,
                 HostManager.key_to_internal_value(ip, bk_cloud_id),
             )
         return False
