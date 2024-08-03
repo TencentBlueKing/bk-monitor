@@ -231,7 +231,6 @@ class ExportIncidentResource(Resource):
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
         handler = serializers.ListField(required=False, label="故障处理人", default=[])
-        ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
 
     def perform_request(self, validated_request_data):
         handler = IncidentQueryHandler(**validated_request_data)
@@ -707,7 +706,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                         "count": 1,
                         "children": {},
                         "related_entities": [alert["entity"]["entity_id"]],
-                        "alert_ids": [alert["id"]],
+                        "alert_ids": [str(alert["id"])],
                         "is_root": is_root,
                         "is_feedback_root": is_feedback_root,
                         "begin_time": alert["begin_time"],
@@ -737,7 +736,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                     # 其他依赖配置
                     aggregate_layer_results[aggregate_by_value]["count"] += 1
                     aggregate_layer_results[aggregate_by_value]["related_entities"].append(alert["entity"]["entity_id"])
-                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(alert["id"])
+                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(str(alert["id"]))
                     aggregate_layer_results[aggregate_by_value]["is_root"] = (
                         aggregate_layer_results[aggregate_by_value]["is_root"] or is_root
                     )

@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone } from 'monitor-common/utils';
 import {
   type ProfileDataUnit,
   parseProfileDataTypeValue,
@@ -43,7 +42,7 @@ import { getHashVal } from '../flame-graph/utils';
 import { sortTableGraph } from './utils';
 
 import './table-graph.scss';
-
+const TABLE_PAGE_SIZE = 30;
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
 
 interface ITableChartProps {
@@ -70,7 +69,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   @Prop({ default: '', type: String }) filterKeyword: string;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
   @Prop({ default: '', type: String }) dataType: string;
-
+  @Ref() tabelLoadingRef: HTMLDivElement;
   maxItem: { self: number; total: number } = {
     self: 0,
     total: 0,
@@ -90,7 +89,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   localIsCompared = false;
   sortKey = '';
   sortType = '';
-
+  hiddenLoading = false;
+  renderTableData = [];
+  intersectionObserver = null;
   @Emit('updateHighlightId')
   handleHighlightIdChange(val: number) {
     return val;
@@ -101,7 +102,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     return sortKey;
   }
 
-  @Watch('data', { immediate: true, deep: true })
+  @Watch('data', { immediate: true })
   handleDataChange(val: ProfilingTableItem[]) {
     this.maxItem = {
       self: Math.max(...val.map(item => item.self)),
@@ -118,9 +119,10 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   }
 
   getTableData() {
-    const filterList = deepClone(this.data || [])
+    const copyData = structuredClone(this.data || []);
+    const filterList = copyData
       .filter(item =>
-        !!this.filterKeyword ? item.name.toLocaleLowerCase().includes(this.filterKeyword.toLocaleLowerCase()) : true
+        this.filterKeyword ? item.name.toLocaleLowerCase().includes(this.filterKeyword.toLocaleLowerCase()) : true
       )
       .map(item => {
         const palette = Object.values(ColorTypes);
@@ -131,7 +133,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
           color,
         };
       });
-    this.tableData = sortTableGraph(filterList, this.sortKey, this.sortType);
+    this.tableData = Object.freeze(sortTableGraph(filterList, this.sortKey, this.sortType));
+    this.renderTableData = this.tableData.slice(0, TABLE_PAGE_SIZE);
+    this.handleTriggerObserver();
     this.localIsCompared = this.isCompared;
   }
   // Self 和 Total 值的展示
@@ -192,8 +196,6 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     }
     if (axisTop + 120 > window.innerHeight) {
       axisTop = axisTop - 120;
-    } else {
-      axisTop = axisTop;
     }
 
     const { name, self, total, baseline, comparison, mark = '', diff = 0 } = row;
@@ -223,7 +225,45 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     }
     this.handleHighlightIdChange(hightlightId);
   }
+  isInViewport(element: Element) {
+    const rect = element.getBoundingClientRect();
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  }
+  handleTriggerObserver() {
+    this.hiddenLoading = true;
+    window.requestIdleCallback(() => {
+      this.hiddenLoading = false;
+    });
+  }
 
+  observerTableLoading() {
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.intersectionRatio <= 0) return;
+        if (this.renderTableData.length >= this.tableData.length) return;
+        this.renderTableData.push(
+          ...this.tableData.slice(this.renderTableData.length, this.renderTableData.length + TABLE_PAGE_SIZE)
+        );
+        this.$nextTick(() => {
+          if (this.isInViewport(this.tabelLoadingRef) && this.renderTableData.length < this.tableData.length) {
+            this.handleTriggerObserver();
+          }
+        });
+      }
+    });
+    this.intersectionObserver.observe(this.tabelLoadingRef);
+  }
+  mounted() {
+    this.observerTableLoading();
+  }
+  beforeDestroy() {
+    this.intersectionObserver?.unobserve(this.tabelLoadingRef);
+  }
   render() {
     const getDiffTpl = row => {
       if (['removed', 'added'].includes(row.mark)) {
@@ -261,8 +301,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
           <tbody>
             {this.tableData.length ? (
               [
-                this.tableData.map(row => (
+                this.renderTableData.map(row => (
                   <tr
+                    key={row.id}
                     class={row.id === this.highlightId ? 'hightlight' : ''}
                     onClick={() => this.handleHighlightClick(row.id)}
                     onMousemove={e => this.handleRowMouseMove(e, row)}
@@ -280,13 +321,23 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                     </td>
                     {this.localIsCompared
                       ? [
-                          <td>{this.formatColValue(row.baseline)}</td>,
-                          <td>{this.formatColValue(row.comparison)}</td>,
-                          <td>{getDiffTpl(row)}</td>,
+                          <td key={1}>{this.formatColValue(row.baseline)}</td>,
+                          <td key={2}>{this.formatColValue(row.comparison)}</td>,
+                          <td key={3}>{getDiffTpl(row)}</td>,
                         ]
                       : [
-                          <td style={this.getColStyle(row, 'self')}>{this.formatColValue(row.self)}</td>,
-                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>,
+                          <td
+                            key={1}
+                            style={this.getColStyle(row, 'self')}
+                          >
+                            {this.formatColValue(row.self)}
+                          </td>,
+                          <td
+                            key={2}
+                            style={this.getColStyle(row, 'total')}
+                          >
+                            {this.formatColValue(row.total)}
+                          </td>,
                         ]}
                   </tr>
                 )),
@@ -303,9 +354,22 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                 </td>
               </tr>
             )}
+            <tr>
+              <td colspan={3}>
+                <div
+                  ref='tabelLoadingRef'
+                  style={{
+                    display:
+                      this.hiddenLoading || this.tableData.length <= this.renderTableData.length ? 'none' : 'flex',
+                  }}
+                  class='table-loading'
+                >
+                  {this.$t('加载中...')}
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
-
         <div
           style={{
             left: `${this.tipDetail.left || 0}px`,
@@ -315,11 +379,19 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
           class='table-graph-row-tips'
         >
           {this.tipDetail.title && [
-            <div class='funtion-name'>{this.tipDetail.title}</div>,
-            <table class='tips-table'>
+            <div
+              key={1}
+              class='funtion-name'
+            >
+              {this.tipDetail.title}
+            </div>,
+            <table
+              key={2}
+              class='tips-table'
+            >
               {this.localIsCompared
                 ? [
-                    <thead>
+                    <thead key={1}>
                       <th />
                       <th>{this.$t('当前')}</th>
                       <th>{this.$t('参照')}</th>
@@ -327,7 +399,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                     </thead>,
                   ]
                 : [
-                    <thead>
+                    <thead key={1}>
                       <th />
                       <th>Self (% of total)</th>
                       <th>Total (% of total)</th>

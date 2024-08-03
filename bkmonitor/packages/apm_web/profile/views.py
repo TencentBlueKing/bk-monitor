@@ -435,6 +435,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     ):
         """获取时序表数据"""
 
+        if end - start <= 60000:
+            # 向秒取整
+            dimension = "FLOOR(dtEventTimeStamp / 1000) * 1000"
+        else:
+            # 向分钟取整
+            dimension = "FLOOR((dtEventTimeStamp / 1000) / 60) * 60000"
+
         tendency_data = self.query(
             api_type=APIType.SELECT_COUNT,
             bk_biz_id=essentials["bk_biz_id"],
@@ -446,10 +453,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             profile_id=profile_id,
             filter_labels=filter_labels,
             result_table_id=essentials["result_table_id"],
-            dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
+            dimension_fields=f"{dimension} AS time",
             extra_params={
                 "metric_fields": "sum(value)",
-                "order": {"expr": "(FLOOR((dtEventTimeStamp / 1000) / 60) * 60000)", "sort": "asc"},
+                "order": {"expr": f"({dimension})", "sort": "asc"},
             },
         )
 
@@ -466,10 +473,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 profile_id=diff_profile_id,
                 filter_labels=diff_filter_labels,
                 result_table_id=essentials["result_table_id"],
-                dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
+                dimension_fields=f"{dimension} AS time",
                 extra_params={
                     "metric_fields": "sum(value)",
-                    "order": {"expr": "(FLOOR((dtEventTimeStamp / 1000) / 60) * 60000)", "sort": "asc"},
+                    "order": {"expr": f"({dimension})", "sort": "asc"},
                 },
             )
             compare_tendency_result = get_diagrammer("tendency").diff(

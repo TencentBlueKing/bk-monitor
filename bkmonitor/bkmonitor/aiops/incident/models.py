@@ -296,7 +296,7 @@ class IncidentSnapshot(object):
 
         :return: 告警详情列表
         """
-        return [int(item["id"]) for item in self.incident_snapshot_content["incident_alerts"]]
+        return [str(item["id"]) for item in self.incident_snapshot_content["incident_alerts"]]
 
     def entity_alerts(self, entity_id) -> List[int]:
         """实体告警列表
@@ -305,7 +305,7 @@ class IncidentSnapshot(object):
         :return: 实体告警ID列表
         """
         return [
-            int(item["id"])
+            str(item["id"])
             for item in self.incident_snapshot_content["incident_alerts"]
             if item["entity_id"] == entity_id
         ]
