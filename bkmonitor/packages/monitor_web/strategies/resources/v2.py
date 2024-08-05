@@ -893,6 +893,92 @@ class GetStrategyListV2Resource(Resource):
             status["count"] = len(data)
         return status_list
 
+    def get_alert_level_list(self, strategy_ids: List[int]):
+        """
+        按告警级别统计策略数量
+        """
+        alert_level_list = []
+        count_records = (
+            DetectModel.objects.filter(strategy_id__in=strategy_ids)
+            .values("level")
+            .annotate(total=Count("strategy_id", distinct=True))
+            .order_by("level")
+        )
+
+        level_counts = {record["level"]: record["total"] for record in count_records}
+
+        all_level = {1: _("致命"), 2: _("预警"), 3: _("提醒")}
+        for level_id, level_name in all_level.items():
+            alert_level_list.append({"id": level_id, "name": level_name, "count": level_counts.get(level_id, 0)})
+        return alert_level_list
+
+    def get_invalid_type_list(self, strategy_ids: List[int]):
+        """
+        按策略失效类型统计策略数量
+        """
+        invalid_type_list = []
+        count_records = (
+            StrategyModel.objects.filter(is_invalid=True, id__in=strategy_ids)
+            .values("invalid_type")
+            .annotate(total=Count("id", distinct=True))
+        )
+
+        invalid_type_counts = {record["invalid_type"]: record["total"] for record in count_records}
+
+        all_invalid_type = {
+            StrategyModel.InvalidType.INVALID_RELATED_STRATEGY: _("关联的策略已失效"),
+            StrategyModel.InvalidType.DELETED_RELATED_STRATEGY: _("关联的策略已删除"),
+            StrategyModel.InvalidType.INVALID_UNIT: _("指标和检测算法的单位类型不一致"),
+            StrategyModel.InvalidType.INVALID_TARGET: _("监控目标全部失效"),
+            StrategyModel.InvalidType.INVALID_METRIC: _("监控指标不存在"),
+            StrategyModel.InvalidType.INVALID_BIZ: _("策略所属业务不存在"),
+        }
+        for invalid_type_id, invalid_type_name in all_invalid_type.items():
+            invalid_type_list.append(
+                {"id": invalid_type_id, "name": invalid_type_name, "count": invalid_type_counts.get(invalid_type_id, 0)}
+            )
+        return invalid_type_list
+
+    def get_algorithm_type_list(self, strategy_ids: List[int]):
+        """
+        按算法类型统计策略数量
+        """
+        algorithm_type_list = []
+        count_records = (
+            AlgorithmModel.objects.filter(strategy_id__in=strategy_ids)
+            .values("type")
+            .annotate(total=Count("strategy_id", distinct=True))
+        )
+
+        algorithm_type_counts = {record["type"]: record["total"] for record in count_records if record["type"]}
+
+        all_algorithm_type = {
+            AlgorithmModel.AlgorithmChoices.Threshold: _("静态阈值算法"),
+            AlgorithmModel.AlgorithmChoices.SimpleRingRatio: _("简易环比算法"),
+            AlgorithmModel.AlgorithmChoices.AdvancedRingRatio: _("高级环比算法"),
+            AlgorithmModel.AlgorithmChoices.SimpleYearRound: _("简易同比算法"),
+            AlgorithmModel.AlgorithmChoices.AdvancedYearRound: _("高级同比算法"),
+            AlgorithmModel.AlgorithmChoices.PartialNodes: _("部分节点数算法"),
+            AlgorithmModel.AlgorithmChoices.OsRestart: _("主机重启算法"),
+            AlgorithmModel.AlgorithmChoices.ProcPort: _("进程端口算法"),
+            AlgorithmModel.AlgorithmChoices.PingUnreachable: _("Ping不可达算法"),
+            AlgorithmModel.AlgorithmChoices.YearRoundAmplitude: _("同比振幅算法"),
+            AlgorithmModel.AlgorithmChoices.YearRoundRange: _("同比区间算法"),
+            AlgorithmModel.AlgorithmChoices.RingRatioAmplitude: _("环比振幅算法"),
+            AlgorithmModel.AlgorithmChoices.IntelligentDetect: _("智能异常检测算法"),
+            AlgorithmModel.AlgorithmChoices.TimeSeriesForecasting: _("时序预测算法"),
+            AlgorithmModel.AlgorithmChoices.AbnormalCluster: _("离群检测算法"),
+        }
+        for algorithm_type_id, algorithm_type_name in all_algorithm_type.items():
+            algorithm_type_list.append(
+                {
+                    "id": algorithm_type_id,
+                    "name": algorithm_type_name,
+                    "count": algorithm_type_counts.get(algorithm_type_id, 0),
+                }
+            )
+        return algorithm_type_list
+
     def fill_metric_info(self, bk_biz_id: int, strategies: List[Dict]):
         """
         补充策略相关指标信息
@@ -1067,6 +1153,9 @@ class GetStrategyListV2Resource(Resource):
         data_source_list = self.get_data_source_list(strategy_ids)
         strategy_label_list = self.get_strategy_label_list(strategy_ids, bk_biz_id)
         strategy_status_list = self.get_strategy_status_list(strategy_ids, bk_biz_id)
+        alert_level_list = self.get_alert_level_list(strategy_ids)
+        invalid_type_list = self.get_invalid_type_list(strategy_ids)
+        algorithm_type_list = self.get_algorithm_type_list(strategy_ids)
 
         # 排序
         strategies = strategies.order_by("-update_time")
@@ -1140,6 +1229,9 @@ class GetStrategyListV2Resource(Resource):
             "strategy_status_list": strategy_status_list,
             "user_group_list": user_group_list,
             "action_config_list": action_config_list,
+            "alert_level_list": alert_level_list,
+            "invalid_type_list": invalid_type_list,
+            "algorithm_type_list": algorithm_type_list,
         }
 
 
