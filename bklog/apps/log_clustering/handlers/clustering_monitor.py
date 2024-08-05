@@ -218,7 +218,6 @@ class ClusteringMonitorHandler(object):
             return {}
         strategy_config = result_data["strategy_config_list"][0]
         algorithms_config = strategy_config["items"][0]["algorithms"][0]
-        strategy_id = strategy_config["id"]
         level = algorithms_config["level"]
         user_groups = strategy_config["notice"]["user_groups"]
         data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups}
@@ -230,6 +229,20 @@ class ClusteringMonitorHandler(object):
             sensitivity = algorithms_config["config"]["args"].get("$sensitivity", "")
             data.update({"sensitivity": sensitivity})
         return data
+
+    @atomic
+    def delete_strategy(self, strategy_type):
+        obj = SignatureStrategySettings.objects.filter(
+            index_set_id=self.index_set_id,
+            strategy_type=strategy_type,
+            signature="",
+        ).first()
+        if not obj or not obj.strategy_id:
+            return ""
+        strategy_id = obj.strategy_id
+        obj.delete()
+        MonitorApi.delete_alarm_strategy_v3(params={"bk_biz_id": self.bk_biz_id, "ids": [strategy_id]})
+        return strategy_id
 
     def create_or_update_clustering_strategy(self, params, strategy_type):
         # 创建/更新 新类或数量突增报警
