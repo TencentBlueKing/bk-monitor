@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import functools
 import logging
 import time
 
@@ -19,6 +20,7 @@ from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
+from django.core.cache import caches
 from django.http import HttpResponseForbidden
 from rest_framework.authentication import SessionAuthentication
 
@@ -29,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 APP_CODE_TOKENS = {}
 APP_CODE_UPDATE_TIME = None
-APIGW_PUBLIC_KEY = None
 
 
 def is_match_api_token(request, app_code: str, token: str) -> bool:
@@ -93,15 +94,22 @@ class AppWhiteListModelBackend(ModelBackend):
 
 
 class AuthenticationMiddleware(LoginRequiredMiddleware):
-    @classmethod
-    def get_apigw_public_key(cls):
-        global APIGW_PUBLIC_KEY
-        if APIGW_PUBLIC_KEY:
-            return APIGW_PUBLIC_KEY
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def get_apigw_public_key():
+        cache = caches["login_db"]
+        # 从缓存中获取
+        public_key = cache.get("apigw_public_key")
+        if public_key:
+            return public_key
 
+        # 从apigw获取
         m = Fetcher(get_configuration(bk_app_code=settings.APP_CODE, bk_app_secret=settings.APP_TOKEN))
-        APIGW_PUBLIC_KEY = m.get_public_key()
-        return APIGW_PUBLIC_KEY
+        public_key = m.get_public_key(api_name=settings.BK_APIGW_NAME)["public_key"]
+
+        # 设置缓存
+        cache.set("apigw_public_key", public_key)
+        return public_key
 
     def process_view(self, request, view, *args, **kwargs):
         # 登录豁免
@@ -113,8 +121,8 @@ class AuthenticationMiddleware(LoginRequiredMiddleware):
             request.user = auth.authenticate(username="admin")
             return
 
-        token = request.GET.get("HTTP_X_BKMONITOR_TOKEN")
         if request.META.get(JWTClient.JWT_KEY_NAME):
+            request.META[JWTClient.JWT_PUBLIC_KEY_HEADER_NAME] = self.get_apigw_public_key()
             request.jwt = JWTClient(request)
             if not request.jwt.is_valid:
                 return HttpResponseForbidden()
@@ -126,6 +134,7 @@ class AuthenticationMiddleware(LoginRequiredMiddleware):
             username = request.META.get("HTTP_BK_USERNAME")
 
         # 校验app_code及token
+        token = request.GET.get("HTTP_X_BKMONITOR_TOKEN")
         if app_code and is_match_api_token(request, app_code, token):
             request.user = auth.authenticate(username=username)
             return
