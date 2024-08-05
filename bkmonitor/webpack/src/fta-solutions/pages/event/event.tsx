@@ -159,6 +159,24 @@ export const commonAlertFieldMap = {
       name: window.i18n.tc('提醒'),
     },
   ],
+  stage: [
+    {
+      id: isEn ? 'is_handled' : '已通知',
+      name: window.i18n.tc('已通知'),
+    },
+    {
+      id: isEn ? 'is_ack' : '已确认',
+      name: window.i18n.tc('已确认'),
+    },
+    {
+      id: isEn ? 'is_shielded' : '已屏蔽',
+      name: window.i18n.tc('已屏蔽'),
+    },
+    {
+      id: isEn ? 'is_blocked' : '已流控',
+      name: window.i18n.tc('已流控'),
+    },
+  ],
 };
 const commonActionFieldMap = {
   status: [
