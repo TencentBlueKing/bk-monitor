@@ -498,8 +498,9 @@
           const ruleList = JSON.parse(base64Decode(str));
           const ruleNewList = ruleList.reduce((pre, cur, index) => {
             const itemObj = {};
-            const key = cur.match(/[^:]*/)[0];
-            itemObj[key] = cur.split(`${key}:`)[1];
+            const matchVal = cur.match(/:(.*)/);
+            const key = cur.substring(0, matchVal.index);
+            itemObj[key] = matchVal[1];
             itemObj.__Index__ = index;
             itemObj._isHighlight_ = false;
             pre.push(itemObj);

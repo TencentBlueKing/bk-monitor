@@ -172,8 +172,9 @@ class AlertBuilder(BaseAlertProcessor):
             for alert in alerts
             if alert.is_new() and alert.strategy_id
         ]
-        send_check_task.delay(alerts=alerts, run_immediately=False)
-        self.logger.info("send periodic check task finished, total(%s)", len(alerts))
+        if alerts:
+            send_check_task.delay(alerts=alerts, run_immediately=False)
+            self.logger.info("[send_check_task] new alerts(%s)", ", ".join(map(str, [i["id"] for i in alerts])))
 
     def enrich_alerts(self, alerts: List[Alert]):
         """
@@ -320,7 +321,7 @@ class AlertBuilder(BaseAlertProcessor):
                             event_id=event.id,
                             description=event.description,
                             time=event.time,
-                            severity=event.severity
+                            severity=event.severity,
                         )
                         event.drop()
                     else:

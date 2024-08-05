@@ -28,9 +28,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce } from 'monitor-common/utils/utils';
-import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import StatusTab from '../../plugins/table-chart/status-tab';
+
+import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './relation-chart-title.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -131,7 +132,7 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                   size='small'
                   theme='primary'
                   onChange={(v: boolean) => this.handleShowNodata(v)}
-                ></bk-switcher>
+                />
                 <span class='switcher-text'>{window.i18n.t('无数据节点')}</span>
               </div>
             )}
@@ -162,13 +163,13 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                 class={['overview', { active: this.isOverview }]}
                 onClick={() => this.handleOverview(true)}
               >
-                <i class='icon-monitor icon-mc-overview option-icon'></i>
+                <i class='icon-monitor icon-mc-overview option-icon' />
               </span>
               <span
                 class={['list', { active: !this.isOverview }]}
                 onClick={() => this.handleOverview(false)}
               >
-                <i class='icon-monitor icon-mc-list option-icon'></i>
+                <i class='icon-monitor icon-mc-list option-icon' />
               </span>
               {this.isOverview && (
                 <span
@@ -176,7 +177,7 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                   v-bk-tooltips={window.i18n.t('回中')}
                   onClick={this.handlebackToCenter}
                 >
-                  <i class='bk-icon icon-circle'></i>
+                  <i class='bk-icon icon-circle' />
                 </span>
               )}
               <span
@@ -184,7 +185,7 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                 v-bk-tooltips={this.isFullScreen ? window.i18n.t('缩小') : window.i18n.t('全屏')}
                 onClick={this.handleFullScreen}
               >
-                <i class='bk-icon icon-full-screen'></i>
+                <i class='bk-icon icon-full-screen' />
               </span>
             </span>
           </div>

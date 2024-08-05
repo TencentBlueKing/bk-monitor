@@ -39,9 +39,9 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
+import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
 
@@ -55,7 +55,7 @@ interface IMessageEvent extends MessageEvent {
   };
 }
 @Component({
-  name: 'grafana'
+  name: 'grafana',
 })
 export default class Grafana extends Vue {
   @Prop({ default: '' }) url: string;
@@ -92,8 +92,8 @@ export default class Grafana extends Vue {
           this.$router.replace({
             name: 'favorite-dashboard',
             params: {
-              url: dashboardCacheId
-            }
+              url: dashboardCacheId,
+            },
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
@@ -116,10 +116,11 @@ export default class Grafana extends Vue {
     }
   }
   getUrlParamsString() {
-    const str =  Object.entries({
+    const str = Object.entries({
       ...(this.$route.query || {}),
-      ...Object.fromEntries(new URLSearchParams(location.search))
-    }).map(entry => entry.join('='))
+      ...Object.fromEntries(new URLSearchParams(location.search)),
+    })
+      .map(entry => entry.join('='))
       .join('&');
     if (str.length) return `&${str}`;
     return '';
@@ -147,7 +148,7 @@ export default class Grafana extends Vue {
     localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
   }
   handleLoad() {
-    setTimeout(() => this.loading = false, 100);
+    setTimeout(() => (this.loading = false), 100);
     this.$nextTick(() => {
       const iframeContent = this.iframeRef?.contentWindow;
       this.iframeRef?.focus();
@@ -159,7 +160,7 @@ export default class Grafana extends Vue {
     bus.$emit('handle-keyup-search', event);
   }
   isAllowedUrl(url: string) {
-  // 验证URL格式是否合法
+    // 验证URL格式是否合法
     let parsedUrl: string | URL;
     try {
       parsedUrl = new URL(url);
@@ -182,8 +183,8 @@ export default class Grafana extends Vue {
         this.$router.push({
           name: 'favorite-dashboard',
           params: {
-            url: dashboardId
-          }
+            url: dashboardId,
+          },
         });
         this.handleSetDashboardCache(dashboardId);
       }
@@ -210,7 +211,7 @@ export default class Grafana extends Vue {
         const url = new URL(e.data.login_url);
         const curl = url.searchParams.get('c_url').replace(/^http:/, location.protocol);
         url.searchParams.set('c_url', curl);
-        window.LoginModal.$props.loginUrl =  url.href;
+        window.LoginModal.$props.loginUrl = url.href;
         window.LoginModal.show();
       } else {
         location.reload();

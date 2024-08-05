@@ -23,24 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, toRaw, watch } from 'vue';
+import { Teleport, computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Popover, ResizeLayout } from 'bkui-vue';
-import { HierarchyNode } from 'd3-hierarchy';
+import { Exception, Popover } from 'bkui-vue';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
-import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import {
-  BaseDataType,
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
+  type IAxisRect,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
   RootId,
 } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -49,6 +51,8 @@ import { debounce } from 'throttle-debounce';
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
+
+import type { HierarchyNode } from 'd3-hierarchy';
 
 import '../../flame-graph-v2/flame-graph.scss';
 import './flame-graph.scss';
@@ -160,7 +164,7 @@ export default defineComponent({
         showException.value = false;
         try {
           const { bizId, appName, serviceName, start, end, profileId } = props;
-          const data = !!props.data
+          const data = props.data
             ? props.data
             : (
                 await query(
@@ -189,7 +193,7 @@ export default defineComponent({
             if (!chartRef.value?.clientWidth) return;
             localIsCompared.value = props.isCompared;
             graphInstance = new FlameChart(
-              initGraphData(!!props.data ? toRaw(data) : data),
+              initGraphData(props.data ? toRaw(data) : data),
               {
                 w: chartRef.value.clientWidth - paddingLeft * 2,
                 c: 20,
@@ -207,7 +211,8 @@ export default defineComponent({
                     tipDetail.value = {};
                     return;
                   }
-                  let detailsData, dataText;
+                  let detailsData = undefined;
+                  let dataText = undefined;
                   const { value: dataValue, text: profileText } = parseProfileDataTypeValue(
                     d.data.value,
                     props.unit,
@@ -216,7 +221,7 @@ export default defineComponent({
                   detailsData = dataValue;
                   dataText = profileText;
 
-                  let diffData;
+                  let diffData = undefined;
                   let diffValue = 0;
                   if (props.isCompared && d.data?.diff_info) {
                     const { value: diffProfileValue } = parseProfileDataTypeValue(
@@ -242,8 +247,6 @@ export default defineComponent({
                   }
                   if (axisTop + 180 > window.innerHeight) {
                     axisTop = axisTop - 180;
-                  } else {
-                    axisTop = axisTop;
                   }
                   tipDetail.value = {
                     left: axisLeft,
@@ -333,7 +336,7 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true, deep: true }
+      { immediate: true }
     );
     watch(
       () => props.filterKeywords,
@@ -395,6 +398,7 @@ export default defineComponent({
       contextMenuRect.value.left = -1;
       if (item.id === 'copy') {
         copyText(contextMenuRect.value.spanName);
+        return;
       }
       if (item.id === 'reset') {
         initScale();
@@ -403,6 +407,7 @@ export default defineComponent({
       }
       if (item.id === 'highlight') {
         graphInstance.highlightNode(contextMenuRect.value.spanName);
+        emit('updateHighlightId', contextMenuRect.value.spanId);
       }
     }
     /**
@@ -455,7 +460,7 @@ export default defineComponent({
       const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
 
       // 加载SVG图像
-      img.onload = function () {
+      img.onload = () => {
         // 在canvas上绘制SVG图像
         ctx.drawImage(img, 0, 0, width, height);
 
@@ -518,198 +523,192 @@ export default defineComponent({
     if (this.showException)
       return (
         <Exception
+          style='flex: 1'
           description={this.$t('暂无数据')}
           type='empty'
         />
       );
     return (
-      <ResizeLayout
-        style='height: 100%'
-        class={'hide-aside'}
-        initialDivide={'0px'}
-        placement='right'
-      >
-        {{
-          main: () => [
-            this.localIsCompared && (
-              <div class='profiling-compare-legend'>
-                <span class='tag tag-new'>added</span>
-                <div class='percent-queue'>
-                  {this.diffPercentList.map((item, index) => (
-                    <span class={`percent-tag tag-${index + 1}`}>{item}</span>
-                  ))}
-                </div>
-                <span class='tag tag-removed'>removed</span>
-              </div>
-            ),
+      <div style='height: fit-content; flex: 1'>
+        {this.localIsCompared && (
+          <div class='profiling-compare-legend'>
+            <span class='tag tag-new'>added</span>
+            <div class='percent-queue'>
+              {this.diffPercentList.map((item, index) => (
+                <span
+                  key={index}
+                  class={`percent-tag tag-${index + 1}`}
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+            <span class='tag tag-removed'>removed</span>
+          </div>
+        )}
+        <div
+          key='wrapperRef'
+          ref='wrapperRef'
+          class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
+          tabindex={1}
+          onBlur={this.handleClickWrapper}
+          onClick={this.handleClickWrapper}
+        >
+          <div
+            ref='chartRef'
+            class='flame-graph'
+          />
+          <Teleport to='body'>
             <div
-              ref='wrapperRef'
-              class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
-              tabindex={1}
-              onBlur={this.handleClickWrapper}
-              onClick={this.handleClickWrapper}
+              style={{
+                left: `${this.tipDetail.left}px`,
+                top: `${this.tipDetail.top + 16}px`,
+                display: this.tipDetail.title ? 'block' : 'none',
+              }}
+              class='flame-graph-tips'
             >
-              <div
-                ref='chartRef'
-                class='flame-graph'
-              />
-              <Teleport to='body'>
+              {this.tipDetail.title && [
                 <div
-                  style={{
-                    left: `${this.tipDetail.left}px`,
-                    top: `${this.tipDetail.top + 16}px`,
-                    display: this.tipDetail.title ? 'block' : 'none',
-                  }}
-                  class='flame-graph-tips'
+                  key='funtion-name'
+                  class='funtion-name'
                 >
-                  {this.tipDetail.title && [
-                    <div class='funtion-name'>{this.tipDetail.title}</div>,
-                    <table class='tips-table'>
-                      {this.localIsCompared && (
-                        <thead>
-                          <th></th>
-                          <th>{window.i18n.t('当前')}</th>
-                          {this.tipDetail.id !== RootId && [
-                            <th>{window.i18n.t('参照')}</th>,
-                            <th>{window.i18n.t('差异')}</th>,
-                          ]}
-                        </thead>
-                      )}
-                      <tbody>
-                        {!this.localIsCompared && (
-                          <tr>
-                            <td>{window.i18n.t('占比')}</td>
-                            <td>{this.tipDetail.proportion}%</td>
-                          </tr>
-                        )}
-                        <tr>
-                          <td>{this.tipDetail.dataText}</td>
-                          <td>{this.tipDetail.data}</td>
-                          {this.localIsCompared &&
-                            this.tipDetail.id !== RootId && [
-                              <td>{this.tipDetail.diffData ?? '--'}</td>,
-                              <td>
-                                {this.tipDetail.mark === 'added' ? (
-                                  <span class='tips-added'>{this.tipDetail.mark}</span>
-                                ) : (
-                                  `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
-                                )}
-                              </td>,
-                            ]}
-                        </tr>
-                      </tbody>
-                    </table>,
-                    <div class='tips-info'>
-                      <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
-                      {window.i18n.t('鼠标右键有更多菜单')}
-                    </div>,
-                  ]}
-                </div>
-              </Teleport>
-              <ul
-                style={{
-                  left: `${this.contextMenuRect.left}px`,
-                  top: `${this.contextMenuRect.top}px`,
-                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
-                }}
-                class='flame-graph-menu'
+                  {this.tipDetail.title}
+                </div>,
+                <table
+                  key='tips-table'
+                  class='tips-table'
+                >
+                  {this.localIsCompared && (
+                    <thead>
+                      <th />
+                      <th>{window.i18n.t('当前')}</th>
+                      {this.tipDetail.id !== RootId && [
+                        <th key='参照'>{window.i18n.t('参照')}</th>,
+                        <th key='差异'>{window.i18n.t('差异')}</th>,
+                      ]}
+                    </thead>
+                  )}
+                  <tbody>
+                    {!this.localIsCompared && (
+                      <tr>
+                        <td>{window.i18n.t('占比')}</td>
+                        <td>{this.tipDetail.proportion}%</td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td>{this.tipDetail.dataText}</td>
+                      <td>{this.tipDetail.data}</td>
+                      {this.localIsCompared &&
+                        this.tipDetail.id !== RootId && [
+                          <td key={1}>{this.tipDetail.diffData ?? '--'}</td>,
+                          <td key={2}>
+                            {this.tipDetail.mark === 'added' ? (
+                              <span class='tips-added'>{this.tipDetail.mark}</span>
+                            ) : (
+                              `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
+                            )}
+                          </td>,
+                        ]}
+                    </tr>
+                  </tbody>
+                </table>,
+                <div
+                  key='tips-info'
+                  class='tips-info'
+                >
+                  <span class='icon-monitor icon-mc-mouse tips-info-icon' />
+                  {window.i18n.t('鼠标右键有更多菜单')}
+                </div>,
+              ]}
+            </div>
+          </Teleport>
+          <ul
+            style={{
+              left: `${this.contextMenuRect.left}px`,
+              top: `${this.contextMenuRect.top}px`,
+              visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
+            }}
+            class='flame-graph-menu'
+          >
+            {CommonMenuList.map(item => (
+              <li
+                key={item.id}
+                class='menu-item'
+                onClick={() => this.handleContextMenuClick(item)}
               >
-                {CommonMenuList.map(item => (
-                  <li
-                    key={item.id}
-                    class='menu-item'
-                    onClick={() => this.handleContextMenuClick(item)}
+                <span class='menu-item-text'>{item.name}</span>
+              </li>
+            ))}
+          </ul>
+          <Teleport to='body'>
+            <div
+              style={{
+                left: `${this.axisRect.left || 0}px`,
+                top: `${this.axisRect.top || 0}px`,
+                bottom: `${this.axisRect.bottom || 0}px`,
+                visibility: this.axisRect.visibility,
+              }}
+              class='flame-graph-axis'
+            >
+              <span class='axis-label'>{this.axisRect.title}</span>
+            </div>
+          </Teleport>
+          <div
+            style={{
+              left: `${this.zoomRect?.left || 0}px`,
+              width: `${this.zoomRect?.width || 0}px`,
+            }}
+            class='flame-graph-zoom'
+          />
+          {this.showGraphTools && (
+            <Popover
+              width={this.graphToolsRect.width}
+              height={this.graphToolsRect.height}
+              extCls='flame-graph-tools-popover'
+              allowHtml={false}
+              arrow={false}
+              boundary={'parent'}
+              content={this.flameToolsPopoverContent}
+              isShow={this.showLegend}
+              placement='top-start'
+              renderType='auto'
+              theme='light'
+              trigger='manual'
+              zIndex={1001}
+            >
+              {{
+                default: () => (
+                  <GraphTools
+                    style={{
+                      left: `${this.graphToolsRect.left}px`,
+                      display: this.graphToolsRect.left > 0 ? 'flex' : 'none',
+                    }}
+                    class='topo-graph-tools'
+                    legendActive={this.showLegend}
+                    maxScale={MaxScale}
+                    minScale={MinScale}
+                    scaleStep={scaleStep}
+                    scaleValue={this.scaleValue}
+                    showLegend={false}
+                    showThumbnail={false}
+                    onScaleChange={this.handlesSaleValueChange}
+                    onShowLegend={this.handleShowLegend}
+                    onStoreImg={this.handleStoreImg}
+                  />
+                ),
+                content: () => (
+                  <div
+                    ref='flameToolsPopoverContent'
+                    class='flame-tools-popover-content'
                   >
-                    <span class='menu-item-text'>{item.name}</span>
-                  </li>
-                ))}
-              </ul>
-              <Teleport to='body'>
-                <div
-                  style={{
-                    left: `${this.axisRect.left || 0}px`,
-                    top: `${this.axisRect.top || 0}px`,
-                    bottom: `${this.axisRect.bottom || 0}px`,
-                    visibility: this.axisRect.visibility,
-                  }}
-                  class='flame-graph-axis'
-                >
-                  <span class='axis-label'>{this.axisRect.title}</span>
-                </div>
-              </Teleport>
-              <div
-                style={{
-                  left: `${this.zoomRect?.left || 0}px`,
-                  width: `${this.zoomRect?.width || 0}px`,
-                }}
-                class='flame-graph-zoom'
-              ></div>
-              {/* <GraphTools
-                style={{
-                  left: `${this.graphToolsRect.left}px`,
-                  display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
-                }}
-                scaleValue={this.scaleValue}
-                maxScale={MaxScale}
-                minScale={MinScale}
-                scaleStep={scaleStep}
-                showThumbnail={false}
-                onStoreImg={this.handleStoreImg}
-                onScaleChange={this.handlesSaleValueChange}
-              /> */}
-              {this.showGraphTools ? (
-                <Popover
-                  width={this.graphToolsRect.width}
-                  height={this.graphToolsRect.height}
-                  extCls='flame-graph-tools-popover'
-                  allowHtml={false}
-                  arrow={false}
-                  boundary={'parent'}
-                  content={this.flameToolsPopoverContent}
-                  isShow={this.showLegend}
-                  placement='top-start'
-                  renderType='auto'
-                  theme='light'
-                  trigger='manual'
-                  zIndex={1001}
-                >
-                  {{
-                    default: () => (
-                      <GraphTools
-                        style={{
-                          left: `${this.graphToolsRect.left}px`,
-                          display: this.graphToolsRect.left > 0 ? 'flex' : 'none',
-                        }}
-                        class='topo-graph-tools'
-                        legendActive={this.showLegend}
-                        maxScale={MaxScale}
-                        minScale={MinScale}
-                        scaleStep={scaleStep}
-                        scaleValue={this.scaleValue}
-                        showLegend={false}
-                        showThumbnail={false}
-                        onScaleChange={this.handlesSaleValueChange}
-                        onShowLegend={this.handleShowLegend}
-                        onStoreImg={this.handleStoreImg}
-                      />
-                    ),
-                    content: () => (
-                      <div
-                        ref='flameToolsPopoverContent'
-                        class='flame-tools-popover-content'
-                      >
-                        <ViewLegend />
-                      </div>
-                    ),
-                  }}
-                </Popover>
-              ) : (
-                ''
-              )}
-            </div>,
-          ],
-        }}
-      </ResizeLayout>
+                    <ViewLegend />
+                  </div>
+                ),
+              }}
+            </Popover>
+          )}
+        </div>
+      </div>
     );
   },
 });

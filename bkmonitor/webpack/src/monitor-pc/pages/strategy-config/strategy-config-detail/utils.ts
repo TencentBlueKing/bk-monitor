@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { MetricDetail } from '../strategy-config-set-new/typings';
+import type { MetricDetail } from '../strategy-config-set-new/typings';
 
 /**
  * @description: 日志指标重置指标id

@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { random } from 'monitor-common/utils/utils';
 
 import loadingIcon from '../../../icons/spinner.svg';
-import { IQueryParams, PanelModel } from '../../../typings';
+import { type IQueryParams, PanelModel, type TimeSeriesType } from '../../../typings';
 import TimeSeries from '../../time-series/time-series';
 import TraceChart from '../trace-chart/trace-chart';
 
@@ -67,11 +67,11 @@ export default class TrendChart extends tsc<ITrendChartProps> {
 
   @Watch('queryParams', { deep: true })
   handleQueryParamsChange() {
-    let type;
-    let targetApi;
-    let targetData;
+    let type: TimeSeriesType = 'bar';
+    let targetApi = undefined;
+    let targetData = undefined;
     if (this.chartType === 'all') {
-      type = 'line';
+      type = 'bar';
       targetApi = 'apm_profile.query';
       targetData = {
         ...this.queryParams,
@@ -151,8 +151,9 @@ export default class TrendChart extends tsc<ITrendChartProps> {
               {this.loading ? (
                 <img
                   class='chart-loading-icon'
+                  alt='loading'
                   src={loadingIcon}
-                ></img>
+                />
               ) : undefined}
             </div>
           </bk-collapse-item>

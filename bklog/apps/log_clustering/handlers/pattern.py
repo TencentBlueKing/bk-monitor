@@ -185,8 +185,14 @@ class PatternHandler:
         elif self._remark_config == RemarkConfigEnum.NO_REMARK.value:
             result = [pattern for pattern in result if not pattern["remark"]]
 
+        result_list = []
         if self._owner_config == OwnerConfigEnum.NO_OWNER.value:
-            result = [pattern for pattern in result if not pattern["owners"]]
+            for pattern in result:
+                if not pattern["owners"]:
+                    result_list.append(pattern)
+                elif set(self._owners) & set(pattern["owners"]):
+                    result_list.append(pattern)
+            result = result_list
         elif self._owner_config == OwnerConfigEnum.OWNER.value:
             if not self._owners:
                 return result
@@ -316,10 +322,12 @@ class PatternHandler:
         """
         日志聚类-数据指纹 页面展示信息修改
         """
+        condition = Q(signature=params["signature"])
+        if params.get("origin_pattern"):
+            condition |= Q(origin_pattern=params["origin_pattern"])
+
         remark_obj = (
-            ClusteringRemark.objects.filter(
-                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
-            )
+            ClusteringRemark.objects.filter(condition)
             .filter(
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
@@ -358,10 +366,12 @@ class PatternHandler:
         """
         日志聚类-数据指纹 页面展示信息修改
         """
+        condition = Q(signature=params["signature"])
+        if params.get("origin_pattern"):
+            condition |= Q(origin_pattern=params["origin_pattern"])
+
         remark_obj = (
-            ClusteringRemark.objects.filter(
-                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
-            )
+            ClusteringRemark.objects.filter(condition)
             .filter(
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),

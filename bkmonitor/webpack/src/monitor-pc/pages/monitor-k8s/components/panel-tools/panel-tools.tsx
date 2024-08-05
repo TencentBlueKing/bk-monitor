@@ -30,7 +30,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import { resize } from '../../../../components/ip-selector/common/observer-directive';
 import { DASHBOARD_PANEL_COLUMN_KEY } from '../../typings';
-import { COMPARE_LIST, PANEL_LAYOUT_LIST, PanelToolsType } from '../../typings/panel-tools';
+import { COMPARE_LIST, PANEL_LAYOUT_LIST, type PanelToolsType } from '../../typings/panel-tools';
 
 import './panel-tools.scss';
 
@@ -120,9 +120,9 @@ export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsTy
               disabled={this.disabledLayout}
             >
               <span
+                v-en-style='width: 120px'
                 class='panels-tools-layout right-item'
                 slot='dropdown-trigger'
-                v-en-style='width: 120px'
               >
                 <i
                   class='icon-monitor icon-mc-two-column'
@@ -133,7 +133,7 @@ export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsTy
                     appendTo: 'parent',
                     allowHTML: false,
                   }}
-                ></i>
+                />
                 {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
               </span>
               <ul

@@ -265,7 +265,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           <i
             class='icon-monitor icon-copy-link'
             onClick={this.handleToEventDetail}
-          ></i>
+          />
         </div>
       ),
       handleDetail: () => <div class='title-wrap'>{this.$t('处理记录详情')}</div>,
@@ -282,10 +282,10 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           class='event-detail-content'
           activeTab={this.activeTab}
           onCloseSlider={() => this.emitIsShow(false)}
-        ></EventDetail>
+        />
       ),
       // handleDetail: this.tplHandleDetailConent
-      handleDetail: () => <ActionDetail id={this.eventId}></ActionDetail>,
+      handleDetail: () => <ActionDetail id={this.eventId} />,
     };
     return tplMap[this.type]();
   }

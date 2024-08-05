@@ -38,23 +38,18 @@ import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import MonitorDivider from '../../../../components/divider/divider.vue';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
+import { type ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
-import { IViewOptions } from '../../../monitor-k8s/typings';
 import GroupPanel from '../../strategy-config-set-new/components/group-panel';
-import { ChartType } from '../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
-import { IModelData } from '../../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
-import { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
-import { IMultivariateAnomalyDetectionParams } from '../../strategy-config-set-new/type';
 import {
-  dataModeType,
-  EditModeType,
-  ICommonItem,
-  IDetectionConfig,
-  ISourceData,
-  IWhereItem,
-  MetricDetail,
+  type EditModeType,
+  type ICommonItem,
+  type IDetectionConfig,
+  type ISourceData,
+  type IWhereItem,
+  type MetricDetail,
   MetricType,
+  type dataModeType,
 } from '../../strategy-config-set-new/typings/index';
 import { allDescription } from './description';
 import MultipleMetricView from './multiple-metric-view';
@@ -68,6 +63,11 @@ import { EShortcutsType } from './typing';
 import ViewDimensions from './view-dimensions';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IViewOptions } from '../../../monitor-k8s/typings';
+import type { ChartType } from '../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
+import type { IModelData } from '../../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
+import type { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
+import type { IMultivariateAnomalyDetectionParams } from '../../strategy-config-set-new/type';
 
 import './strategy-view.scss';
 
@@ -950,7 +950,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 on-change={this.handleToolPanelChange}
                 on-on-immediate-reflesh={this.handleRefreshView}
                 onTimezoneChange={this.handleRefreshView}
-              ></strategy-view-tool>,
+              />,
               <div class='strategy-view-content'>
                 {(this.metricQueryData.length > 0 &&
                   !this.loading &&
@@ -971,7 +971,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       sourceData={this.sourceData}
                       strategyTarget={this.strategyTarget}
                       onLogQuery={this.handleLogQuery}
-                    ></StrategyChart>,
+                    />,
                     // 查看近20条数据
                     !!this.needNearRadio && (
                       <div class='radio-count-options'>
@@ -989,7 +989,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                                   <NumberSelect
                                     value={this.nearNum}
                                     onChange={v => (this.nearNum = v)}
-                                  ></NumberSelect>
+                                  />
                                 </i18n>
                               ) : (
                                 <span>{sh.name}</span>
@@ -1022,7 +1022,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                         dimensionData={this.dimensionData as any}
                         value={this.dimensions}
                         onChange={this.handleDimensionsChange}
-                      ></ViewDimensions>
+                      />
                     ) : undefined,
                   ]
                 ) : (
@@ -1042,13 +1042,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       class='mb10'
                       title={this.$t('默认展示最近20条')}
                       type='info'
-                    ></bk-alert>
+                    />
                     <strategy-view-log
                       v-bkloading={{ isLoading: this.isLoading }}
                       data={this.logData}
                       is-last={this.isLast}
                       on-load-more={this.handleLoadMore}
-                    ></strategy-view-log>
+                    />
                   </div>
                 )}
               </div>,
@@ -1109,7 +1109,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 total-count={this.collect.count}
                 is-single
                 on-close={this.handleCloseCollect}
-              ></collect-chart>,
+              />,
             ]
           : (() => {
               if (this.isMultivariateAnomalyDetection && !!this.multivariateAnomalyDetectionParams?.metrics?.length) {
@@ -1119,12 +1119,12 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     on-change={this.handleToolPanelChange}
                     on-on-immediate-reflesh={this.handleRefreshView}
                     onTimezoneChange={this.handleRefreshView}
-                  ></strategy-view-tool>,
+                  />,
                   <MultipleMetricView
                     metrics={this.multivariateAnomalyDetectionParams.metrics}
                     refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
                     strategyTarget={this.strategyTarget}
-                  ></MultipleMetricView>,
+                  />,
                   this.needDescContent && (
                     <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
                       <div class='desc-content'>

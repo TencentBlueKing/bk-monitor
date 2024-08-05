@@ -48,7 +48,7 @@ export default class FTA extends tsc<object> {
   get ftaData() {
     return JSON.stringify({
       host: this.ftaHost,
-      baseroute: '/fta/'
+      baseroute: '/fta/',
     });
   }
   beforeRouteLeave(to, from, next) {

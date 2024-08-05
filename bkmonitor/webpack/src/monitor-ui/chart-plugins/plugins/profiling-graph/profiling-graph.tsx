@@ -39,11 +39,11 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
 
 import {
-  BaseDataType,
-  DataTypeItem,
-  IQueryParams,
+  type BaseDataType,
+  type DataTypeItem,
+  type IQueryParams,
   PanelModel,
-  ProfilingTableItem,
+  type ProfilingTableItem,
   TextDirectionType,
   ViewModeType,
 } from '../../typings';
@@ -54,7 +54,8 @@ import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 import TrendChart from './trend-chart/trend-chart';
-import { ProfileDataUnit } from './utils';
+
+import type { ProfileDataUnit } from './utils';
 
 import './profiling-graph.scss';
 
@@ -64,7 +65,8 @@ interface IProfilingChartProps {
 
 @Component
 class ProfilingChart extends CommonSimpleChart {
-  @Ref() frameGraphRef: FrameGraph;
+  @Ref() frameGraphRef: InstanceType<typeof FrameGraph>;
+  @Ref() grahWrapperRef: HTMLDivElement;
 
   isGraphLoading = false;
   isFirstLoad = true;
@@ -134,8 +136,8 @@ class ProfilingChart extends CommonSimpleChart {
       ...this.queryParams,
       app_name,
       service_name,
-      start: (start_time ? dayjs.tz(start_time).unix() : startTime) * Math.pow(10, 6),
-      end: (end_time ? dayjs.tz(end_time).unix() : endTime) * Math.pow(10, 6),
+      start: (start_time ? dayjs.tz(start_time).unix() : startTime) * 10 ** 6,
+      end: (end_time ? dayjs.tz(end_time).unix() : endTime) * 10 ** 6,
       data_type: this.dataType,
     };
 
@@ -172,6 +174,9 @@ class ProfilingChart extends CommonSimpleChart {
           } else {
             this.emptyText = '';
           }
+        })
+        .catch(() => {
+          this.emptyText = '';
         })
         .finally(() => {
           this.isFirstLoad = false;
@@ -212,14 +217,18 @@ class ProfilingChart extends CommonSimpleChart {
         this.activeMode = ViewModeType.Combine;
       }
     } else {
-      this.getTopoSrc(start_time, end_time);
+      if (this.activeMode === ViewModeType.Topo) {
+        this.getTopoSrc(start_time, end_time);
+      }
     }
   }
   async handleModeChange(val: ViewModeType) {
     if (val === this.activeMode) return;
-
     this.highlightId = -1;
     this.activeMode = val;
+    if (val === ViewModeType.Topo && !this.topoSrc) {
+      this.getTopoSrc();
+    }
   }
   /** 获取表格和火焰图 */
   async getTableFlameData(start_time = '', end_time = '') {
@@ -378,13 +387,22 @@ class ProfilingChart extends CommonSimpleChart {
       handleGotoLink('profiling_docs');
     }
   }
-
+  handleKeywordChange(v: string) {
+    this.filterKeyword = v;
+    this.grahWrapperRef?.scrollTo({
+      top: 0,
+      behavior: 'instant',
+    });
+  }
   render() {
     return (
       <div class='profiling-retrieval-chart'>
         {this.enableProfiling && this.isProfilingDataNormal ? (
           [
-            <div class='main'>
+            <div
+              key={'main'}
+              class='main'
+            >
               <FilterSelect
                 appName={this.queryParams.app_name}
                 serviceName={this.queryParams.service_name}
@@ -411,7 +429,7 @@ class ProfilingChart extends CommonSimpleChart {
                   </div>
                 </div>
                 <div class='link-tips'>
-                  <i class='icon-monitor icon-tishi'></i>
+                  <i class='icon-monitor icon-tishi' />
                   <i18n
                     class='flex-center'
                     path='更多功能，请前往 {0}'
@@ -425,7 +443,7 @@ class ProfilingChart extends CommonSimpleChart {
                   </i18n>
                 </div>
               </div>
-              <TrendChart queryParams={this.queryParams}></TrendChart>
+              <TrendChart queryParams={this.queryParams} />
               <div
                 class='profiling-graph'
                 v-bkloading={{ isLoading: this.isGraphLoading }}
@@ -435,16 +453,22 @@ class ProfilingChart extends CommonSimpleChart {
                   isCompared={this.queryParams.is_compared}
                   textDirection={this.textDirection}
                   onDownload={this.handleDownload}
-                  onKeywordChange={val => (this.filterKeyword = val)}
+                  onKeywordChange={this.handleKeywordChange}
                   onModeChange={this.handleModeChange}
                   onTextDirectionChange={this.handleTextDirectionChange}
                 />
                 {this.empty ? (
                   <div class='empty-chart'>{this.emptyText}</div>
                 ) : (
-                  <div class='profiling-graph-content'>
+                  <div
+                    ref='grahWrapperRef'
+                    class='profiling-graph-content'
+                  >
                     {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
                       <TableGraph
+                        style={{
+                          width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
+                        }}
                         data={this.tableData}
                         dataType={this.queryParams.data_type}
                         filterKeyword={this.filterKeyword}
@@ -459,6 +483,9 @@ class ProfilingChart extends CommonSimpleChart {
                     {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
                       <FrameGraph
                         ref='frameGraphRef'
+                        style={{
+                          width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
+                        }}
                         appName={(this.viewOptions as any).app_name}
                         data={this.flameData}
                         filterKeywords={this.flameFilterKeywords}
@@ -475,7 +502,7 @@ class ProfilingChart extends CommonSimpleChart {
                 )}
               </div>
             </div>,
-            <keep-alive>
+            <keep-alive key={'keep-aliave'}>
               <CommonDetail
                 collapse={this.collapseInfo}
                 maxWidth={500}

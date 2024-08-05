@@ -117,12 +117,8 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
     const vm = this;
     if (this.isInPanelView && this.left) {
     }
-    document.onselectstart = function () {
-      return false;
-    };
-    document.ondragstart = function () {
-      return false;
-    };
+    document.onselectstart = () => false;
+    document.ondragstart = () => false;
     function handleMouseMove(event) {
       vm.isMoving = true;
       const swipeRight = event.clientX - mouseX >= 0;
@@ -191,7 +187,7 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
                         <span
                           key={i}
                           class={`line-round ${i === 3 ? `line-square line-round-${i}` : `line-round-${i}`}`}
-                        ></span>
+                        />
                       ))}
                     </div>
                   )}
@@ -203,7 +199,7 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
                   onClick={this.handleTrigger}
                 >
                   {!this.isShow && <span class='trigger-text'>{this.lineText}</span>}
-                  <i class='icon-monitor icon-arrow-left'></i>
+                  <i class='icon-monitor icon-arrow-left' />
                 </span>
               )}
             </div>

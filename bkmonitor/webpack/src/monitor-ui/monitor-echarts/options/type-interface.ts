@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MonitorEchartOptions } from '../types/monitor-echarts';
+import type { MonitorEchartOptions } from '../types/monitor-echarts';
 
 export interface ILegendItem {
   name: string;

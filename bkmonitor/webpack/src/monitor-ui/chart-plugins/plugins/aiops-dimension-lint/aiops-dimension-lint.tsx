@@ -37,10 +37,11 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
+
+import type { IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
 
 import './aiops-dimension-lint.scss';
 
@@ -550,14 +551,14 @@ export default class AiopsDimensionLine extends LineChart {
             class={{ active: activeGood }}
             onClick={this.handleActiveLink.bind(this, EEvaluation.good)}
           >
-            <i class={['icon-monitor', activeGood ? 'icon-mc-like-filled' : 'icon-mc-like']}></i>
+            <i class={['icon-monitor', activeGood ? 'icon-mc-like-filled' : 'icon-mc-like']} />
             {good || 0}
           </span>
           <span
             class={{ active: activeBad }}
             onClick={this.handleActiveLink.bind(this, EEvaluation.bad)}
           >
-            <i class={['icon-monitor', activeBad ? 'icon-mc-unlike-filled' : 'icon-mc-unlike']}></i>
+            <i class={['icon-monitor', activeBad ? 'icon-mc-unlike-filled' : 'icon-mc-unlike']} />
             {bad || 0}
           </span>
         </span>
@@ -606,7 +607,7 @@ export default class AiopsDimensionLine extends LineChart {
           />
         )}
         {!this.empty ? (
-          <div class={`aiops-dimension-lint-content time-series-content`}>
+          <div class={'aiops-dimension-lint-content time-series-content'}>
             <div
               ref='chart'
               class='chart-instance'

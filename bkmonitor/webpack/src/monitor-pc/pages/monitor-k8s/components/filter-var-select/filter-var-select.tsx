@@ -23,17 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone, random, typeTools } from 'monitor-common/utils/utils';
-import { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { IOption } from '../../typings';
 // import { getPopoverWidth } from '../../../../utils';
 import FilterVarTagInput from './filter-var-tag-input';
+
+import type { IOption } from '../../typings';
+import type { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './filter-var-select.scss';
 
@@ -355,7 +356,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
           multiple={this.multiple}
           value={this.localValue}
           onChange={this.handleTagInputChange}
-        ></FilterVarTagInput>
+        />
         {/* <bk-select
           class="bk-select-simplicity filter-var-select"
           behavior="simplicity"

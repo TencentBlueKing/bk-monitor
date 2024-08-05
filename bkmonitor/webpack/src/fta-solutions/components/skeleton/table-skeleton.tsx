@@ -41,7 +41,7 @@ function getWrapStyle(config) {
     };
   }
   return {
-    paddingRight: `40px`,
+    paddingRight: '40px',
   };
 }
 const config01 = {
@@ -134,7 +134,7 @@ export default class TableSkeleton extends tsc<IProps> {
                     ...getSkeStyle(pItem),
                   }}
                   class='skeleton-element'
-                ></div>
+                />
               </div>
             ))}
           </div>

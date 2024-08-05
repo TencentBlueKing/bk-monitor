@@ -10,6 +10,7 @@
     "preinstall": "npx only-allow pnpm",
     "install-build": "pnpm i",
     "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
+    "biome:check": "biome check --write ./src",
     "change:modules": "node ./webpack/change-modules-code.js",
     "prod": "pnpm i && run-s build",
     "trace:dev": "nodemon --exec \"bkmonitor-cli dev -t\"",
@@ -41,11 +42,12 @@
     "commit-msg": "node ./bkmonitor/webpack/webpack/verify-commit.js $1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
     "@blueking/bkmonitor-cli": "4.0.0-beta.3",
     "@blueking/stylelint-config": "0.0.3",
     "@types/throttle-debounce": "^5.0.2",
-    "@typescript-eslint/eslint-plugin": "^7.15.0",
-    "@typescript-eslint/parser": "^7.15.0",
+    "@typescript-eslint/eslint-plugin": "^7.16.0",
+    "@typescript-eslint/parser": "^7.16.0",
     "cross-env": "^7.0.3",
     "eslint": "^9.6.0",
     "eslint-config-prettier": "^9.1.0",
@@ -68,7 +70,7 @@
     "stylelint-config-recommended-vue": "1.5.0",
     "stylelint-config-standard": "^36.0.1",
     "stylelint-order": "^6.0.4",
-    "stylelint-scss": "^6.3.2",
+    "stylelint-scss": "^6.4.0",
     "typescript": "^5.5.3",
     "vue-eslint-parser": "^9.4.3",
     "vue-template-compiler": "^2.7.16"

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { PropType, computed, defineComponent, ref } from 'vue';
+import { type PropType, computed, defineComponent, ref } from 'vue';
 
 import RelationTopo from '../../../components/relation-topo/relation-topo';
 import ServiceTopo from '../../../components/relation-topo/service-topo';
@@ -154,7 +154,7 @@ export default defineComponent({
             onShowSpanDetail={(...arg) => this.$emit('showSpanDetail', ...arg)}
             onSpanListChange={(...arg) => this.$emit('spanListChange', ...arg)}
             onUpdate:loading={(...arg) => this.$emit('update:loading', ...arg)}
-          ></RelationTopo>
+          />
         )}
         {this.type === EType.service && (
           <ServiceTopo
@@ -162,7 +162,7 @@ export default defineComponent({
             isShowDuration={this.isShowDuration}
             serviceTopoData={this.serviceTopoData}
             onClickItem={keys => this.handleClickItem(keys)}
-          ></ServiceTopo>
+          />
         )}
       </div>
     );

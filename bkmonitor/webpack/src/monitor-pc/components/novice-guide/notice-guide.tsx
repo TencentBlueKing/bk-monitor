@@ -223,7 +223,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
                 <i
                   class='icon-monitor icon-mc-close'
                   onClick={this.handleFinish}
-                ></i>
+                />
               </div>
               <div class='step-content'>{this.currentStep.content}</div>
               <div class='step-action'>
@@ -250,7 +250,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
                   {this.$t('知道了!')}
                 </bk-button>
               </div>
-              <div class='target-arrow'></div>
+              <div class='target-arrow' />
             </div>
           </div>
         )}

@@ -350,7 +350,6 @@ export default {
 
   // 业务
   '-我有告警的业务-': '-Alarming Business-',
-  业务ID: 'Business ID',
   新业务接入详情: 'Access Details',
   业务拓扑: 'Business Topology',
   业务数: 'Businesses',
@@ -1850,9 +1849,13 @@ export default {
   系统恢复: 'System recovery',
   系统关闭: 'System closed',
   生成告警级别: 'Generate alarm levels',
+  // 故障
+  根因所属节点: 'Root Node',
+  标准提示: 'Type',
   屏蔽类型: 'Mute type',
   执行时间: 'Execution time',
   语言: 'Language',
   关联服务类型: 'Associated service type',
   Apdex阈值T: 'Apdex threshold T',
+  替换为: 'Replace with',
 };

@@ -41,15 +41,15 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
 // eslint-disable-next-line no-unused-vars
-import MonitorVue from '../../../../types';
+import type MonitorVue from '../../../../types';
 
 @Component({
-  name: 'StrategyAlarmGroup'
+  name: 'StrategyAlarmGroup',
 })
 export default class StrategyAlarmGroup extends Vue<MonitorVue> {
   @Prop(Array)
   // 告警组列表
-    alarmGroupList: Array<any>;
+  alarmGroupList: Array<any>;
 
   // tag渲览函数
   renderAlarmGroupTag(node: any): Vue.VNode {
@@ -57,8 +57,8 @@ export default class StrategyAlarmGroup extends Vue<MonitorVue> {
       'div',
       {
         class: {
-          tag: true
-        }
+          tag: true,
+        },
       },
       node.name
     );
@@ -70,22 +70,22 @@ export default class StrategyAlarmGroup extends Vue<MonitorVue> {
       {
         class: {
           'bk-selector-node': true,
-          'bk-selector-member': true
-        }
+          'bk-selector-member': true,
+        },
       },
       [
         this.$createElement(
           'span',
           {
             class: {
-              text: true
+              text: true,
             },
             domProps: {
-              domPropsInnerHTML: `${highlightKeyword(node.name)}`
-            }
+              domPropsInnerHTML: `${highlightKeyword(node.name)}`,
+            },
           },
           `${highlightKeyword(node.name)}`
-        )
+        ),
       ]
     );
   }

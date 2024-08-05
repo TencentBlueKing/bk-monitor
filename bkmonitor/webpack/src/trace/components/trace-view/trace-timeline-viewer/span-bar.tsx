@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref } from 'vue';
+import { type PropType, defineComponent, ref } from 'vue';
 
 import _groupBy from 'lodash/groupBy';
 
 // import AccordianLogs from './span-detail/accordian-logs';
 // import { ViewedBoundsFunctionType } from './utils';
-import { Span } from '../typings';
+import type { Span } from '../typings';
 
 import './span-bar.scss';
 
@@ -149,11 +149,11 @@ export default defineComponent({
         >
           <div class={`span-bar-label is-${hintSide}`}>
             {hintSide === 'right' && spanKindIcon && (
-              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-right`}></i>
+              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-right`} />
             )}
             {this.label}
             {hintSide === 'left' && spanKindIcon && (
-              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-left`}></i>
+              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-left`} />
             )}
           </div>
         </div>

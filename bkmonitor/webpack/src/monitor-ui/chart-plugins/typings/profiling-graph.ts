@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 
 export enum ViewModeType {
   Combine = 'combine',

@@ -32,7 +32,7 @@ import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import CommonItem from '../components/common-item';
 import AlertNotice from './alert-notice';
 import HttpCallBack from './http-callback';
-import { IMealData, INotice, IPeripheral, IWebhook, mealDataInit } from './meal-content-data';
+import { type IMealData, type INotice, type IPeripheral, type IWebhook, mealDataInit } from './meal-content-data';
 import MealDebugDialog from './meal-debug-dialog';
 import PeripheralSystem from './peripheral-system';
 import { setVariableToString } from './utils';
@@ -371,7 +371,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                               e.stopPropagation();
                               this.handleJumpToSurrounding(option?.newInfo?.url);
                             }}
-                          ></span>
+                          />
                         )}
                       </div>
                     </bk-option>
@@ -390,7 +390,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                     ref='alertNoticeRef'
                     noticeData={this.data.notice}
                     onChange={this.handleNoticeDataChange}
-                  ></AlertNotice>
+                  />
                 );
               }
               if (this.data.pluginType === mealType.callback) {
@@ -404,7 +404,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                     variableList={this.getMessageTemplateList}
                     onChange={data => this.handleHttpCallBackChange(data)}
                     onDebug={() => this.handleDebug('webhook')}
-                  ></HttpCallBack>
+                  />
                 );
               }
               if (this.data.pluginType !== '') {
@@ -418,7 +418,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                     onChange={data => this.handlePeripheralChange(data)}
                     onDebug={() => this.handleDebug('peripheral')}
                     onInit={(v: boolean) => (this.isInit = v)}
-                  ></PeripheralSystem>
+                  />
                 );
               }
             })()}
@@ -434,7 +434,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           onDebugPeripheralStop={() => (this.debugData.peripheral = deepClone(this.data.peripheral))}
           onDebugWebhookDataChange={v => this.handleDebugWebhookDataChange(v)}
           onShowChange={v => (this.isShowDebug = v)}
-        ></MealDebugDialog>
+        />
       </div>
     );
   }

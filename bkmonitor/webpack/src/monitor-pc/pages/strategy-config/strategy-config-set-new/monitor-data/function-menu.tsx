@@ -153,7 +153,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
           class='function-menu-anchor'
           on-click={this.handleClickMenuAnchor}
         >
-          {this.$slots.default || <span class='icon-monitor icon-mc-add menu-icon'></span>}
+          {this.$slots.default || <span class='icon-monitor icon-mc-add menu-icon' />}
         </div>
         <div style='display: none;'>
           <div
@@ -167,7 +167,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
               rightIcon='bk-icon icon-search'
               value={this.keyword}
               on-change={this.handleKeywordChange}
-            ></bk-input>
+            />
             <div class='panel-list'>
               {this.filterList?.length > 0 && (
                 <ul class='panel-item'>
@@ -178,7 +178,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
                       on-mouseenter={() => this.handleFuncTypeMouseenter(item)}
                     >
                       {item.name}
-                      <i class='icon-monitor icon-arrow-right arrow-icon'></i>
+                      <i class='icon-monitor icon-arrow-right arrow-icon' />
                     </li>
                   ))}
                 </ul>

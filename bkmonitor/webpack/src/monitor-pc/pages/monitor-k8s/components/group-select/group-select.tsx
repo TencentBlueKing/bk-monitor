@@ -26,11 +26,12 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
-import { IOption } from '../../typings';
+
+import type { IOption } from '../../typings';
+import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './group-select.scss';
 
@@ -150,7 +151,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
               <i
                 class='icon-monitor icon-mc-close'
                 onClick={() => this.handleDeleteItem(index)}
-              ></i>
+              />
             </span>
           ))}
           <CustomSelect

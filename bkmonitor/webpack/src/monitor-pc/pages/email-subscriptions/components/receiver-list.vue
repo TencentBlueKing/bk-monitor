@@ -74,7 +74,7 @@ const { i18n } = window;
  * 接收人列表
  */
 @Component({
-  name: 'receiver-list'
+  name: 'receiver-list',
 })
 export default class ReceiverList extends Vue {
   @PropSync('show', { default: false, type: Boolean }) localShow;
@@ -89,35 +89,35 @@ export default class ReceiverList extends Vue {
   private tipsPopoverInstance: any = null;
   private offsetMap = {
     'bottom-start': -10,
-    'bottom-end': 10
+    'bottom-end': 10,
   };
 
   private tableColumnsMap: any = [
     {
       label: i18n.t('订阅人'),
-      key: 'name'
+      key: 'name',
     },
     {
       label: i18n.t('订阅时间'),
       key: 'createTime',
       width: 150,
-      formatter: row => row.createTime || '--'
+      formatter: row => row.createTime || '--',
     },
     {
       label: i18n.t('订阅状态'),
       key: 'isEnabled',
-      formatter: row => (row.isEnabled === null ? '--' : row.isEnabled ? i18n.t('已订阅') : i18n.t('已取消'))
+      formatter: row => (row.isEnabled === null ? '--' : row.isEnabled ? i18n.t('已订阅') : i18n.t('已取消')),
     },
     {
       label: i18n.t('最后一次发送'),
       key: 'lastSendTime',
       width: 150,
-      formatter: row => row.lastSendTime || '--'
+      formatter: row => row.lastSendTime || '--',
     },
     {
       label: i18n.t('操作'),
-      key: 'handle'
-    }
+      key: 'handle',
+    },
   ];
 
   @Watch('localShow')
@@ -153,7 +153,7 @@ export default class ReceiverList extends Vue {
           this.tipsPopoverInstance?.destroy();
           this.tipsPopoverInstance = null;
           this.localShow = false;
-        }
+        },
       });
       this.tipsPopoverInstance?.show();
     }
@@ -168,8 +168,8 @@ export default class ReceiverList extends Vue {
 <style lang="scss">
 .receiver-list-wrap {
   position: relative;
-  padding: 16px;
   width: 640px;
+  padding: 16px;
   // height: 300px;
   background-color: #fff;
 
@@ -209,16 +209,16 @@ export default class ReceiverList extends Vue {
 }
 
 .receiver-list-theme {
-  color: #63656e;
   padding: 0px;
-  box-shadow: 0;
 
   /* stylelint-disable-next-line declaration-no-important */
   overflow: visible !important;
+  color: #63656e;
+  box-shadow: 0;
 
   .tippy-backdrop {
-    background: none;
     width: 0;
+    background: none;
   }
 }
 </style>

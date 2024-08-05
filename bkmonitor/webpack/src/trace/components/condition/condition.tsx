@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref, watch } from 'vue';
+import { type PropType, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Cascader, Dropdown, Select, Switcher } from 'bkui-vue';
@@ -162,7 +162,7 @@ export default defineComponent({
                 onMouseout={() => setLabelHoverStatus(false)}
                 onMouseover={() => setLabelHoverStatus(true)}
                 onToggle={v => cascaderToggle(v)}
-              ></Cascader>
+              />
             )}
             {/* <Select
             popoverMinWidth={240}
@@ -226,13 +226,13 @@ export default defineComponent({
           <i
             class='icon-monitor icon-mc-delete-line'
             onClick={() => emit('delete', props.labelValue)}
-          ></i>
+          />
           <Switcher
             size='small'
             theme='primary'
             value={props.isInclude}
             onChange={() => emit('IncludeChange')}
-          ></Switcher>
+          />
         </div>
 
         {/* 复选框 */}

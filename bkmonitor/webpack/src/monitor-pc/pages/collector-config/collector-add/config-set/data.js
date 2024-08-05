@@ -26,26 +26,26 @@
 export default [
   {
     id: 60,
-    name: '1min'
+    name: '1min',
   },
   {
     id: 120,
-    name: '2min'
+    name: '2min',
   },
   {
     id: 300,
-    name: '5min'
+    name: '5min',
   },
   {
     id: 600,
-    name: '10min'
+    name: '10min',
   },
   {
     id: 900,
-    name: '15min'
+    name: '15min',
   },
   {
     id: 1200,
-    name: '20min'
-  }
+    name: '20min',
+  },
 ];

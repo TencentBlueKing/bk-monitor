@@ -29,7 +29,7 @@ import Vue from 'vue';
 
 import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 import { getUrlParam, random } from 'monitor-common/utils/utils';
-import VueRouter, { Route, RouteConfig } from 'vue-router';
+import VueRouter, { type Route, type RouteConfig } from 'vue-router';
 
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
