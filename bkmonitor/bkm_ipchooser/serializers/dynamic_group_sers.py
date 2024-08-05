@@ -18,5 +18,5 @@ class ListDynamicGroupSer(base.ScopeSelectorBaseSer):
     dynamic_group_list = serializers.ListField(child=DynamicGroupSer(), required=False, default=[])
 
 
-class AgentStatistiscSer(base.ScopeSelectorBaseSer):
+class AgentStatisticsSer(base.ScopeSelectorBaseSer):
     dynamic_group_list = serializers.ListField(child=DynamicGroupSer(), required=True)

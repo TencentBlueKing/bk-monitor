@@ -13,6 +13,8 @@ import sys
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 
+import settings
+
 
 def migrate_apm_metric_dimension(sender, **kwargs):
     from apm.models import ApmMetricDimension
@@ -52,5 +54,5 @@ class ApmApiConfig(AppConfig):
 
         DiscoverContainers.register(ServiceDiscover)
 
-        if "migrate" in sys.argv:
+        if "migrate" in sys.argv and settings.ENVIRONMENT != "development":
             post_migrate.connect(migrate_apm_metric_dimension, sender=self)

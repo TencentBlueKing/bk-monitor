@@ -98,7 +98,10 @@ def get_agent_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, int]:
     pool.join()
     result = []
     for future in futures:
-        result.extend(future.get())
+        try:
+            result.extend(future.get())
+        except Exception as e:
+            logger.error("get_agent_status error: %s", e)
 
     for info in result:
         host_id = info["host_id"]
@@ -504,6 +507,7 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
     service_template_id = []
     set_template_id = []
     bk_host_ids = []
+    dynamic_group_ids = []
 
     for node in target:
         if "bk_inst_id" in node and "bk_obj_id" in node:
@@ -527,6 +531,8 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
             ip = node.get("bk_target_ip") or node["ip"]
             bk_cloud_id = str(node.get("bk_cloud_id") or node.get("bk_target_cloud_id", 0))
             result["ip"][str(bk_cloud_id)].add(ip)
+        elif "dynamic_group_id" in node:
+            dynamic_group_ids.append(node["dynamic_group_id"])
 
     # 处理主机ID
     if bk_host_ids:
@@ -562,6 +568,14 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
                 bk_biz_id=bk_biz_id, bk_obj_id=TargetNodeType.SERVICE_TEMPLATE, template_ids=service_template_id
             )
         )
+
+    # 根据动态分组查询主机
+    if dynamic_group_ids and (is_ip or is_host_id):
+        dynamic_group_hosts = api.cmdb.batch_execute_dynamic_group(
+            bk_biz_id=bk_biz_id, ids=dynamic_group_ids, bk_obj_id="host"
+        )
+        for dynamic_group_host in dynamic_group_hosts.values():
+            instance_nodes.extend(dynamic_group_host)
 
     for node in instance_nodes:
         if is_service_instance:

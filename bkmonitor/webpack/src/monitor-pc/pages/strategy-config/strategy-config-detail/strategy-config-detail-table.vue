@@ -25,22 +25,22 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: strategyTarget.loading }"
     class="strategy-detail-table detail-content"
+    v-bkloading="{ isLoading: strategyTarget.loading }"
   >
     <div v-if="tableData.length">
       <!-- 表格 -->
       <bk-table
         v-if="targetType === 'INSTANCE'"
-        :empty-text="$t('无数据')"
-        :outer-border="false"
-        :header-border="false"
         :data="tableData"
+        :empty-text="$t('无数据')"
+        :header-border="false"
+        :outer-border="false"
       >
         <bk-table-column
           label="IP"
-          prop="ip"
           min-width="120"
+          prop="ip"
         />
         <bk-table-column
           :label="$t('Agent状态')"
@@ -57,8 +57,8 @@
         </bk-table-column>
         <bk-table-column
           :label="$t('管控区域')"
-          prop="bkCloudName"
           min-width="250"
+          prop="bkCloudName"
         >
           <template slot-scope="scope">
             <span>{{ scope.row.bkCloudName || '--' }}</span>
@@ -66,14 +66,35 @@
         </bk-table-column>
       </bk-table>
       <bk-table
-        v-else-if="['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(targetType) || objType === 'SERVICE'"
-        :empty-text="$t('无数据')"
+        v-else-if="['DYNAMIC_GROUP'].includes(targetType)"
         :data="tableData"
+        :empty-text="$t('无数据')"
       >
         <bk-table-column
           :label="$t('节点名称')"
-          prop="nodePath"
           min-width="120"
+          prop="name"
+        />
+        <bk-table-column
+          :label="$t('主机数')"
+          min-width="100"
+        >
+          <template slot-scope="scope">
+            <div class="target-count">
+              {{ scope.row.count }}
+            </div>
+          </template>
+        </bk-table-column>
+      </bk-table>
+      <bk-table
+        v-else-if="['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(targetType) || objType === 'SERVICE'"
+        :data="tableData"
+        :empty-text="$t('无数据')"
+      >
+        <bk-table-column
+          :label="$t('节点名称')"
+          min-width="120"
+          prop="nodePath"
         />
         <bk-table-column
           v-if="objType === 'SERVICE'"
@@ -105,8 +126,8 @@
             <div class="monitoring-target">
               <div
                 v-for="(item, index) in scope.row.labels"
-                :key="index"
                 class="target-labels"
+                :key="index"
               >
                 <div class="label-first">
                   {{ item.first }}
@@ -195,6 +216,7 @@ export default {
   },
   methods: {
     // table数据变更事件
+    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
     handleTableData(needLoading = true, time) {
       this.strategyTarget.loading = needLoading;
       const { tableInstance } = this;

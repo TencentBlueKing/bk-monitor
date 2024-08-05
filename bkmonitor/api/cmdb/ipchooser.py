@@ -86,22 +86,12 @@ class IpChooserApi(AbstractBkApi):
     @staticmethod
     def search_dynamic_group(params: dict = None):
         """查询动态分组"""
-        raise NotImplementedError
-
-    @staticmethod
-    def bulk_search_dynamic_group(params: dict = None):
-        """批量查询动态分组"""
-        raise NotImplementedError
+        return client.search_dynamic_group(params)
 
     @staticmethod
     def execute_dynamic_group(params: dict = None):
         """执行动态分组"""
-        raise NotImplementedError
-
-    @staticmethod
-    def bulk_execute_dynamic_group(params: dict = None):
-        """批量执行动态分组"""
-        raise NotImplementedError
+        return client.execute_dynamic_group(params)
 
     @staticmethod
     def find_host_by_service_template(params: dict = None):

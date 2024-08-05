@@ -31,6 +31,7 @@ export const PanelTargetMap = {
   serviceTemplate: 'SERVICE_TEMPLATE',
   setTemplate: 'SET_TEMPLATE',
   manualInput: 'INSTANCE',
+  dynamicGroup: 'DYNAMIC_GROUP',
 };
 
 export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6Value | any {
@@ -70,6 +71,12 @@ export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6
           id: item.bk_inst_id,
         })),
       };
+    case 'DYNAMIC_GROUP':
+      return {
+        dynamic_group_list: data.map(item => ({
+          id: item.dynamic_group_id || item.id,
+        })),
+      };
     default:
       return [];
   }
@@ -100,15 +107,19 @@ export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) 
       }));
     case 'SERVICE_INSTANCE':
       return value.service_instance_list.map((item: INode) => item.service_instance_id);
+    case 'DYNAMIC_GROUP':
+      return value.dynamic_group_list.map((item: INode) => ({
+        dynamic_group_id: item.id,
+      }));
     default:
       return [];
   }
 }
 export function getPanelListByObjectType(objectType: TargetObjectType) {
   if (objectType === 'SERVICE') {
-    return ['dynamicTopo', 'serviceTemplate', 'setTemplate'];
+    return ['dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate'];
   }
-  return ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'];
+  return ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'];
 }
 
 /**
@@ -134,6 +145,10 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
     case 'SET_TEMPLATE':
       return nodes.map(item => ({
         id: item.bk_inst_id,
+      }));
+    case 'DYNAMIC_GROUP':
+      return nodes.map(item => ({
+        id: item.dynamic_group_id,
       }));
     default:
       return [];

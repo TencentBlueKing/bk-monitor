@@ -31,6 +31,9 @@ VOLUME /app/code
 # Set the default working directory as the project root
 WORKDIR /app/code
 
+# set git safe directory
+RUN git config --global --add safe.directory /app/code
+
 # Expose the port the app runs on
 EXPOSE 8000
 

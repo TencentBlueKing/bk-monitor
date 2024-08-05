@@ -1,5 +1,3 @@
-import type { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } from './typing';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,12 +23,15 @@ import type { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } f
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } from './typing';
+
 export const PanelTargetMap = {
   staticTopo: 'INSTANCE',
   dynamicTopo: 'TOPO',
   serviceTemplate: 'SERVICE_TEMPLATE',
   setTemplate: 'SET_TEMPLATE',
   manualInput: 'INSTANCE',
+  dynamicGroup: 'DYNAMIC_GROUP',
 };
 
 export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6Value | any {
@@ -70,6 +71,12 @@ export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6
           id: item.bk_inst_id,
         })),
       };
+    case 'DYNAMIC_GROUP':
+      return {
+        dynamic_group_list: data.map(item => ({
+          id: item.dynamic_group_id || item.id,
+        })),
+      };
     default:
       return [];
   }
@@ -100,6 +107,10 @@ export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) 
       }));
     case 'SERVICE_INSTANCE':
       return value.service_instance_list.map((item: INode) => item.service_instance_id);
+    case 'DYNAMIC_GROUP':
+      return value.dynamic_group_list.map((item: INode) => ({
+        dynamic_group_id: item.id,
+      }));
     default:
       return [];
   }
@@ -134,6 +145,10 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
     case 'SET_TEMPLATE':
       return nodes.map(item => ({
         id: item.bk_inst_id,
+      }));
+    case 'DYNAMIC_GROUP':
+      return nodes.map(item => ({
+        id: item.dynamic_group_id,
       }));
     default:
       return [];

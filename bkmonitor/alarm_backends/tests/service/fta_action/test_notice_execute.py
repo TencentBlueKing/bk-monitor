@@ -3721,6 +3721,53 @@ class TestActionProcessor(TransactionTestCase):
         shield_obj = AlertShieldObj(shield_config)
         self.assertFalse(shield_obj.is_match(test_strategy_alert))
 
+    def test_alert_shield_by_dynamic_group(self):
+        get_dynamic_group_patch = patch(
+            "alarm_backends.core.cache.cmdb.dynamic_group.DynamicGroupManager.multi_get",
+            return_value=[{"bk_obj_id": "host", "bk_inst_ids": [1, 2, 3], "id": "xxx"}],
+        )
+
+        get_dynamic_group_patch.start()
+
+        group = self.create_shield_group()
+        strategy_dict = get_strategy_dict(group.id)
+        test_strategy_alert = AlertDocument(
+            **{
+                "id": 1,
+                "severity": 1,
+                "begin_time": int(time.time()),
+                "create_time": int(time.time()),
+                "latest_time": int(time.time()),
+                "duration": 60,
+                "common_dimensions": {},
+                "dimensions": [
+                    AttrDict({"key": "bk_target_ip", "value": "127.0.0.1"}),
+                    AttrDict({"key": "bk_target_cloud_id", "value": "2"}),
+                    AttrDict({"key": "bk_host_id", "value": "1"}),
+                ],
+                "extra_info": {"strategy": strategy_dict},
+                "status": EventStatus.ABNORMAL,
+            }
+        )
+        # 策略屏蔽支持维度屏蔽
+        shield_config = {
+            "id": 123,
+            "is_enabled": True,
+            "is_deleted": False,
+            "bk_biz_id": 2,
+            "category": "strategy",
+            "scope_type": "dynamic_group",
+            "content": "",
+            "begin_time": datetime.now(tz=timezone.utc),
+            "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            "dimension_config": {"level": [1], "dynamic_group": [{"dynamic_group_id": "xxx"}]},
+            "cycle_config": {"type": 1, "week_list": [], "day_list": [], "begin_time": "", "end_time": ""},
+        }
+        shield_obj = AlertShieldObj(shield_config)
+        self.assertTrue(shield_obj.is_match(test_strategy_alert))
+
+        get_dynamic_group_patch.stop()
+
     def test_notice_global_shield(self):
         """
         测试通知屏蔽

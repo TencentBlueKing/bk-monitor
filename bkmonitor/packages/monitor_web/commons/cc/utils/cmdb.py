@@ -10,15 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from typing import Dict, List
-
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
 from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.local import local
-from constants.cmdb import TargetNodeType, TargetObjectType
-from constants.strategy import TargetFieldType
+from constants.cmdb import TargetNodeType
 from core.drf_resource import api, resource
 from monitor_web.commons.cc.utils import topo_tree_tools
 from utils import business
@@ -365,107 +362,3 @@ class CmdbUtil(object):
                             template_ids=serviec_template_ids,
                         )
         return hosts
-
-    @staticmethod
-    def get_target_detail(bk_biz_id: int, target: List[List[Dict]]):
-        """
-        target : [
-                    [
-                    {"field":"ip", "method":"eq", "value": [{"ip":"127.0.0.1","bk_supplier_id":0,"bk_cloud_id":0},]},
-                    {"field":"host_topo_node", "method":"eq", "value": [{"bk_obj_id":"test","bk_inst_id":2}]}
-                    ],
-                    [
-                    {"field":"ip", "method":"eq", "value": [{"ip":"127.0.0.1","bk_supplier_id":0,"bk_cloud_id":0},]},
-                    {"field":"host_topo_node", "method":"eq", "value": [{"bk_obj_id":"test","bk_inst_id":2}]}
-                    ]
-                ]
-        target理论上支持多个列表以或关系存在，列表内部亦存在多个对象以且关系存在，
-        由于目前产品形态只支持单对象的展示，因此若存在多对象，只取第一个对象返回给前端
-        """
-        target_type_map = {
-            TargetFieldType.host_target_ip: TargetNodeType.INSTANCE,
-            TargetFieldType.host_ip: TargetNodeType.INSTANCE,
-            TargetFieldType.host_topo: TargetNodeType.TOPO,
-            TargetFieldType.service_topo: TargetNodeType.TOPO,
-            TargetFieldType.service_service_template: TargetNodeType.SERVICE_TEMPLATE,
-            TargetFieldType.service_set_template: TargetNodeType.SET_TEMPLATE,
-            TargetFieldType.host_service_template: TargetNodeType.SERVICE_TEMPLATE,
-            TargetFieldType.host_set_template: TargetNodeType.SET_TEMPLATE,
-        }
-        obj_type_map = {
-            TargetFieldType.host_target_ip: TargetObjectType.HOST,
-            TargetFieldType.host_ip: TargetObjectType.HOST,
-            TargetFieldType.host_topo: TargetObjectType.HOST,
-            TargetFieldType.service_topo: TargetObjectType.SERVICE,
-            TargetFieldType.service_service_template: TargetObjectType.SERVICE,
-            TargetFieldType.service_set_template: TargetObjectType.SERVICE,
-            TargetFieldType.host_service_template: TargetObjectType.HOST,
-            TargetFieldType.host_set_template: TargetObjectType.HOST,
-        }
-        info_func_map = {
-            TargetFieldType.host_target_ip: resource.commons.get_host_instance_by_ip,
-            TargetFieldType.host_ip: resource.commons.get_host_instance_by_ip,
-            TargetFieldType.service_topo: resource.commons.get_service_instance_by_node,
-            TargetFieldType.host_topo: resource.commons.get_host_instance_by_node,
-            TargetFieldType.service_service_template: resource.commons.get_nodes_by_template,
-            TargetFieldType.service_set_template: resource.commons.get_nodes_by_template,
-            TargetFieldType.host_service_template: resource.commons.get_nodes_by_template,
-            TargetFieldType.host_set_template: resource.commons.get_nodes_by_template,
-        }
-
-        # 判断target格式是否符合预期
-        if not target or not target[0]:
-            return None
-        else:
-            target = target[0][0]
-
-        field = target.get("field")
-        if not field or not target.get("value"):
-            return None
-
-        params = {"bk_biz_id": bk_biz_id}
-        if field in [TargetFieldType.host_ip, TargetFieldType.host_target_ip]:
-            params["ip_list"] = []
-            for x in target["value"]:
-                if x.get("bk_host_id"):
-                    ip = {"bk_host_id": x["bk_host_id"]}
-                elif x.get("bk_target_ip"):
-                    ip = {"ip": x["bk_target_ip"], "bk_cloud_id": x["bk_target_cloud_id"]}
-                else:
-                    ip = {"ip": x["ip"], "bk_cloud_id": x["bk_cloud_id"]}
-                params["ip_list"].append(ip)
-            params["bk_biz_ids"] = [bk_biz_id]
-        elif field in [
-            TargetFieldType.host_set_template,
-            TargetFieldType.host_service_template,
-            TargetFieldType.service_set_template,
-            TargetFieldType.service_service_template,
-        ]:
-            params["bk_obj_id"] = target_type_map[field]
-            params["bk_inst_type"] = obj_type_map[field]
-            params["bk_inst_ids"] = [inst["bk_inst_id"] for inst in target["value"]]
-        else:
-            node_list = target.get("value")
-            for target_item in node_list:
-                if "bk_biz_id" not in target_item:
-                    target_item.update(bk_biz_id=bk_biz_id)
-            params["node_list"] = node_list
-
-        target_detail = info_func_map[field](params)
-
-        # 统计实例数量
-        if field in [TargetFieldType.host_ip, TargetFieldType.host_target_ip]:
-            instance_count = len(target_detail)
-        else:
-            instances = set()
-            for node in target_detail:
-                instances.update(node.get("all_host", []))
-            instance_count = len(instances)
-
-        return {
-            "node_type": target_type_map[field],
-            "node_count": len(target["value"]),
-            "instance_type": obj_type_map[field],
-            "instance_count": instance_count,
-            "target_detail": target_detail,
-        }
