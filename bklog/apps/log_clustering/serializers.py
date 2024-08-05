@@ -31,6 +31,7 @@ from apps.log_clustering.constants import (
     PatternEnum,
     RemarkConfigEnum,
     StrategiesAlarmLevelEnum,
+    StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 
@@ -168,6 +169,12 @@ class StrategySerializer(serializers.Serializer):
 class NewClsStrategySerializer(StrategySerializer):
     interval = serializers.IntegerField(label=_("告警间隔"))
     threshold = serializers.IntegerField(label=_("告警阈值"))
+
+
+class StrategyTypeSerializer(serializers.Serializer):
+    strategy_type = serializers.ChoiceField(
+        label=_("告警策略"), choices=[StrategiesType.NEW_CLS_strategy, StrategiesType.NORMAL_STRATEGY]
+    )
 
 
 class NormalStrategySerializer(StrategySerializer):

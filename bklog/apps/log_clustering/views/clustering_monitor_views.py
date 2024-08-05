@@ -29,6 +29,7 @@ from apps.log_clustering.models import SignatureStrategySettings
 from apps.log_clustering.serializers import (
     NewClsStrategySerializer,
     NormalStrategySerializer,
+    StrategyTypeSerializer,
     UserGroupsSerializer,
 )
 from apps.utils.drf import detail_route, list_route
@@ -166,3 +167,22 @@ class ClusteringMonitorViewSet(APIViewSet):
                 params, strategy_type
             )
         )
+
+    def destroy(self, request, index_set_id=None):
+        """
+        @api {delete} clustering_monitor/$index_set_id/ 删除告警策略
+        @apiName delete_strategy
+        @apiGroup log_clustering
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiParams {Str} strategy_type 策略类型
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "26",
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(StrategyTypeSerializer)
+        strategy_type = params["strategy_type"]
+        return Response(ClusteringMonitorHandler(index_set_id=index_set_id).delete_strategy(strategy_type))
