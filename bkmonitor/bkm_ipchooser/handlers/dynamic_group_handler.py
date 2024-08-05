@@ -51,7 +51,7 @@ class DynamicGroupHandler:
         ]
         return groups
 
-    def execute(self, dynamic_group_id: str, start: int, page_size: int) -> List[Dict]:
+    def execute(self, dynamic_group_id: str, start: int, page_size: int) -> Dict:
         """执行动态分组"""
         result = {"start": start, "page_size": page_size, "total": 0}
 

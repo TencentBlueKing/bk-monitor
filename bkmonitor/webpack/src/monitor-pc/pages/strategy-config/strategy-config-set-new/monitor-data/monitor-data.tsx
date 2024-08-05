@@ -71,7 +71,7 @@ interface IMonitorDataEvent {
   onModeChange: dataModeType;
   onSourceChange: string;
   onExpressionChange: string;
-  onDelete: void;
+  onDelete: () => void;
   onAddMetric: { type: MetricType };
   onAddNullMetric: { type: MetricType };
   onTargetChange: any;
@@ -82,7 +82,7 @@ interface IMonitorDataEvent {
   onEditModeChange: { mode: EditModeType; hasError: boolean };
   onPromqlEnter: boolean;
   onPromqlBlur: boolean;
-  onPromqlFocus: void;
+  onPromqlFocus: () => void;
   onExpFunctionsChange: IFunctionsValue[];
   onShowExpress: boolean;
   onSouceStepChange: number;
@@ -440,7 +440,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           objectType={objectType as TargetObjectType}
           showDialog={this.showTopoSelector}
           onChange={this.handleTopoCheckedChange}
-          onCloseDialog={v => (this.showTopoSelector = v)}
+          onCloseDialog={v => {
+            this.showTopoSelector = v;
+          }}
         />
       );
     }
@@ -452,7 +454,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         need-footer={false}
         title={this.$t('监控目标')}
         zIndex={1002}
-        on-change={v => (this.showTopoSelector = v)}
+        on-change={v => {
+          this.showTopoSelector = v;
+        }}
         on-on-cancel={this.handleTargetCancel}
       >
         <strategy-target-table
@@ -675,7 +679,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 />
               )}
               {/* <div class={['metric-source', { 'is-error': this.promqlError }]}>
-                
+
               </div> */}
               <div class='source-options-wrap'>
                 <bk-input
@@ -710,6 +714,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 ? [
                     !this.readonly ? (
                       <div
+                        key={1}
                         class='ip-wrapper-title'
                         on-click={this.handleAddTarget}
                       >
@@ -717,13 +722,20 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         {this.$t('添加监控目标')}
                       </div>
                     ) : (
-                      <span>{this.$t('未添加监控目标')}</span>
+                      <span key={2}>{this.$t('未添加监控目标')}</span>
                     ),
-                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
+                    <span
+                      key={3}
+                      class='subtitle ml5'
+                    >{`(${this.$t('默认为本业务')})`}</span>,
                   ]
                 : [
-                    <i class='icon-monitor icon-mc-tv' />,
+                    <i
+                      key={4}
+                      class='icon-monitor icon-mc-tv'
+                    />,
                     <span
+                      key={5}
                       style='color: #63656e;'
                       class='subtitle'
                     >
@@ -732,6 +744,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     </span>,
                     this.readonly ? (
                       <span
+                        key={6}
                         class='ip-wrapper-title'
                         onClick={this.handleAddTarget}
                       >
@@ -739,6 +752,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       </span>
                     ) : (
                       <span
+                        key={7}
                         class='icon-monitor icon-bianji'
                         onClick={this.handleAddTarget}
                       />
@@ -749,7 +763,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         <span>{this.$t('当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效')}</span>
                         <span
                           class='icon-monitor icon-mc-close'
-                          onClick={() => (this.showTargetMessageTip = false)}
+                          onClick={() => {
+                            this.showTargetMessageTip = false;
+                          }}
                         />
                       </span>
                     ),
@@ -771,6 +787,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 <bk-radio-group v-model={item.level}>
                   {this.levelList.map(radio => (
                     <bk-radio
+                      key={radio.id}
                       class='monitor-event-radio'
                       value={radio.id}
                     >

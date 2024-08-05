@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import typing
+
 from django.utils.translation import ugettext_lazy as _
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -69,7 +71,7 @@ class CommonViewSet(GenericViewSet):
         return dict(_serializer.data)
 
     @property
-    def validated_data(self):
+    def validated_data(self) -> typing.Dict:
         """
         校验的数据
         """
@@ -374,7 +376,7 @@ class IpChooserDynamicGroupViewSet(CommonViewSet):
             )
         )
 
-    @list_route(methods=["POST"], serializer_class=dynamic_group_sers.AgentStatistiscSer)
+    @list_route(methods=["POST"], serializer_class=dynamic_group_sers.AgentStatisticsSer)
     def agent_statistics(self, request, *args, **kwargs):
         return Response(
             dynamic_group_handler.DynamicGroupHandler(scope_list=self.validated_data["scope_list"]).agent_statistics(

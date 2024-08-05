@@ -154,7 +154,7 @@ export default defineComponent({
       const ways = await getNoticeWay({ bk_biz_id: formData.bizId }).catch(() => []);
       noticeWays.value = ways.filter(item => item.channel === 'user');
       await getReceiverGroup();
-      if (!!route.params?.id) {
+      if (route.params?.id) {
         isEdit.value = route.name === 'alarm-shield-edit';
         isClone.value = route.name === 'alarm-shield-clone';
         let api = null;

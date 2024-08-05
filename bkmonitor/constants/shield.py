@@ -16,6 +16,7 @@ class ScopeType(object):
     IP = "ip"
     NODE = "node"
     BIZ = "biz"
+    DYNAMIC_GROUP = "dynamic_group"
 
 
 SCOPE_TYPE_NAME_MAPPING = {
@@ -23,6 +24,7 @@ SCOPE_TYPE_NAME_MAPPING = {
     ScopeType.IP: _("主机"),
     ScopeType.NODE: _("节点"),
     ScopeType.BIZ: _("业务"),
+    ScopeType.DYNAMIC_GROUP: _("动态分组"),
 }
 
 

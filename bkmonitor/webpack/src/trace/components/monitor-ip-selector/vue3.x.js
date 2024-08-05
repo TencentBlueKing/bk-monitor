@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { h, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue';
 
-import { Component, Vue2, merge } from '@blueking/ip-selector/dist/vue2.6.x.esm';
+import { Component, merge, Vue2 } from '@blueking/ip-selector/dist/vue2.6.x.esm';
 
-export default options => {
+Component.props.mode.default = 'section';
+
+export default function (options) {
   merge(options);
 
   return {
@@ -37,109 +39,50 @@ export default options => {
     setup(props, context) {
       const rootRef = ref();
 
-      let app = new Vue2(Component);
-      const syncProps = () => {
-        Object.keys(props).forEach(propName => {
-          const newValue = props[propName];
-          if (Object.prototype.toString.call(newValue) === '[object Object]') {
-            const v = Object.keys(newValue).reduce(
-              (result, item) => ({
-                ...result,
-                [item]: Array.isArray(newValue[item]) ? [...newValue[item]] : newValue[item],
-              }),
-              {}
-            );
-
-            app._props[propName] = Object.freeze(v);
-          } else if (Object.prototype.toString.call(newValue) === '[object Array]') {
-            app._props[propName] = [...newValue];
-          } else {
-            app._props[propName] = newValue;
-          }
-        });
-      };
-
-      const propWatchStack = [];
-      Object.keys(props).forEach(propName => {
-        const unwatch = watch(
-          () => props[propName],
-          () => {
-            syncProps();
-          },
-          {
-            immediate: true,
-          }
-        );
-        propWatchStack.push(unwatch);
+      let app = new Vue2({
+        render: h => {
+          return h(Component, {
+            ref: 'componentRef',
+            props,
+          });
+        },
       });
-
-      Component.emits.forEach(eventName => {
-        app.$on(eventName, (...agrs) => {
-          context.emit(eventName, ...agrs);
-        });
-      });
-      syncProps();
-
+      function isPrimitive(value) {
+        const type = typeof value;
+        return value === null || (type !== 'object' && type !== 'function');
+      }
       onMounted(() => {
         app.$mount();
         rootRef.value.appendChild(app.$el);
+        for (const eventName of Component.emits) {
+          app.$refs.componentRef.$on(eventName, (...agrs) => {
+            context.emit(eventName, ...agrs);
+          });
+        }
+        onUpdated(() => {
+          for (const [key, value] of Object.entries(props)) {
+            if (!isPrimitive(value)) continue;
+            app.$refs.componentRef[key] = value;
+          }
+          app.$refs.componentRef.$forceUpdate();
+        });
       });
 
       onBeforeUnmount(() => {
-        propWatchStack.forEach(unwatch => unwatch());
         app.$el.parentNode.removeChild(app.$el);
         app.$destroy();
         app = null;
       });
-
-      context.expose({
-        getHostList() {
-          return app.getHostList();
-        },
-        // 获取所有主机的 ipv4 列表
-        getHostIpv4List() {
-          return app.getHostIpv4List();
-        },
-        // 获取所有主机的 ipv6 列表
-        getHostIpv6List() {
-          return app.getHostIpv6List();
-        },
-        // 获取所有 agent 异常主机的 ipv4 列表
-        getAbnormalHostIpv4List() {
-          return app.getAbnormalHostIpv4List();
-        },
-        // 获取所有 agent 异常主机的 ipv6 列表
-        getAbnormalHostIpv6List() {
-          return app.getAbnormalHostIpv6List();
-        },
-        resetValue() {
-          app.resetValue();
-        },
-        refresh() {
-          app.refresh();
-        },
-        collapseToggle(lastStatus) {
-          app.collapseToggle(lastStatus);
-        },
-        removeInvalidData() {
-          app.removeInvalidData();
-        },
-      });
-
       return {
         rootRef,
         app,
-        propWatchStack,
       };
     },
     render() {
       return h('div', {
         role: 'bk-ip-selector',
         ref: 'rootRef',
-        style: {
-          height: 'inherit',
-        },
       });
     },
   };
-};
+}

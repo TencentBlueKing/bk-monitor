@@ -229,6 +229,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
             ScopeType.INSTANCE: "service_instance_id",
             ScopeType.IP: "bk_target_ip",
             ScopeType.NODE: "bk_topo_node",
+            ScopeType.DYNAMIC_GROUP: "dynamic_group",
         }
         scope_type = data["dimension_config"]["scope_type"]
         dimension_config = {}
@@ -238,7 +239,6 @@ class AddShieldResource(Resource, EventDimensionMixin):
                 for t in target:
                     t["bk_target_ip"] = t.pop("ip")
                     t["bk_target_cloud_id"] = t.pop("bk_cloud_id")
-
             dimension_config = {scope_key_mapping.get(scope_type): target}
         if "metric_id" in data["dimension_config"]:
             dimension_config["metric_id"] = data["dimension_config"]["metric_id"]

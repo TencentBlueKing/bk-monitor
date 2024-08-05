@@ -143,6 +143,7 @@ export default defineComponent({
       ip: t('主机'),
       instance: t('服务实例'),
       node: t('节点名称'),
+      dynamic_group: t('动态分组'),
       biz: t('业务'),
     };
     const cycleMap = ['', t('单次'), t('每天'), t('每周'), t('每月')];
@@ -450,7 +451,7 @@ export default defineComponent({
                           </FormItem>
                         )}
                         <FormItem label={this.t('屏蔽范围')}>
-                          {!!this.strategyData.scope.tableData.length ? (
+                          {this.strategyData.scope.tableData.length ? (
                             <div class='scope-content'>
                               <div>
                                 <Table
@@ -584,7 +585,7 @@ export default defineComponent({
                             class='personnel-choice'
                           >
                             {(() => {
-                              if (!!item.logo) {
+                              if (item.logo) {
                                 return (
                                   <img
                                     alt=''

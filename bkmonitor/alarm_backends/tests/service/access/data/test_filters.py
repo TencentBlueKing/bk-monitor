@@ -18,6 +18,7 @@ import arrow
 from django.conf import settings
 
 from alarm_backends.core.cache.cmdb import HostManager
+from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.access.data.filters import (
@@ -108,6 +109,31 @@ class TestRangeFilter(object):
         record = DataRecord(strategy.items[0], raw_data_1)
         assert f.filter(record) is False
         assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is False
+
+    def test_dynamic_group_filter(self, mocker):
+        get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
+        get_strategy_by_id.return_value = copy.deepcopy(STRATEGY_CONFIG)
+
+        get_dynamic_group = mocker.patch.object(DynamicGroupManager, "multi_get")
+        get_dynamic_group.return_value = [{"bk_obj_id": "host", "bk_inst_ids": [1, 2, 3], "id": "xxx"}]
+
+        strategy_id = 1
+        strategy = Strategy(strategy_id)
+        strategy.items[0].target = [
+            [
+                {
+                    "field": "dynamic_group",
+                    "method": "eq",
+                    "value": [{"dynamic_group_id": "xxx"}],
+                }
+            ]
+        ]
+
+        f = RangeFilter()
+        record = DataRecord(strategy.items[0], copy.deepcopy(RAW_DATA))
+        record.dimensions["bk_host_id"] = "1"
+        assert f.filter(record) is False
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is True
 
     def test_topo_node_filter(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")

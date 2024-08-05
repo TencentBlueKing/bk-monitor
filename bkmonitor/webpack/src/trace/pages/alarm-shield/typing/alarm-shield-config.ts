@@ -44,15 +44,18 @@ export const Ipv6FieldMap = {
   ip: 'host_list',
   node: 'node_list',
   instance: 'service_instance_list',
+  dynamic_group: 'dynamic_group_list',
 };
 
 export const ShieldDimension2NodeType = {
   ip: 'INSTANCE',
   node: 'TOPO',
   instance: 'SERVICE_INSTANCE',
+  dynamic_group: 'DYNAMIC_GROUP',
 };
 export const ShieldDetailTargetFieldMap = {
   ip: 'bk_target_ip',
   node: 'bk_topo_node',
   instance: 'service_instance_id',
+  dynamic_group: 'dynamic_group',
 };
