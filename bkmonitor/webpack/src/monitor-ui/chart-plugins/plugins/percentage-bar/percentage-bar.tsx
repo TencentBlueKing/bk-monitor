@@ -305,7 +305,7 @@ class PercentageBarChart extends CommonSimpleChart {
                   class='more-data-btn'
                   onClick={this.handleShowMoreData}
                 >
-                  {window.i18n.tc('更多数据')}
+                  {this.$t('更多数据')}
                 </span>
               </div>
             )}
