@@ -8,9 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import binascii
 import logging
+import time
 
+from apigw_manager.apigw.utils import get_configuration
+from apigw_manager.core.fetch import Fetcher
+from bkoauth.jwt_client import JWTClient
 from blueapps.account.middlewares import LoginRequiredMiddleware
 from django.conf import settings
 from django.contrib import auth
@@ -19,11 +22,49 @@ from django.contrib.auth.backends import ModelBackend
 from django.http import HttpResponseForbidden
 from rest_framework.authentication import SessionAuthentication
 
-from bkmonitor.utils.cipher import AESCipher
+from bkmonitor.models import ApiAuthToken, AuthType
 
 logger = logging.getLogger(__name__)
 
-User = get_user_model()
+
+APP_CODE_TOKENS = {}
+APP_CODE_UPDATE_TIME = None
+APIGW_PUBLIC_KEY = None
+
+
+def is_match_api_token(request, app_code: str, token: str) -> bool:
+    """
+    校验API鉴权
+    """
+    global APP_CODE_TOKENS
+    global APP_CODE_UPDATE_TIME
+
+    # 更新缓存
+    if time.time() - APP_CODE_UPDATE_TIME > 300:
+        result = {}
+        records = ApiAuthToken.objects.filter(type=AuthType.API)
+        for record in records:
+            app_code = token.params.get("app_code")
+            if not app_code:
+                continue
+            result[app_code] = (record.token, record.namespaces)
+        APP_CODE_UPDATE_TIME = time.time()
+        APP_CODE_TOKENS = result
+
+    # 如果app_code不在缓存中，则直接返回True
+    if app_code not in APP_CODE_TOKENS:
+        return True
+
+    # 如果app_code在缓存中，则校验token
+    auth_token, namespaces = APP_CODE_TOKENS[app_code]
+    if token != auth_token:
+        return False
+
+    # 校验命名空间
+    if "biz#all" in namespaces or f"biz#{request.biz_id}" in namespaces:
+        return True
+
+    return False
 
 
 class KernelSessionAuthentication(SessionAuthentication):
@@ -51,113 +92,42 @@ class AppWhiteListModelBackend(ModelBackend):
         return is_active or is_active is None
 
 
-class TokenClient:
-    """
-    通过token校验
-    """
-
-    def __init__(self, request_path):
-        self.token = request_path.rstrip("/").split("/")[-1]
-
-    @property
-    def is_valid(self):
-        return True
-
-
-class AESVerification(object):
-    def __init__(self, query_params):
-        try:
-            self.signature = query_params.get("signature", "")
-            self.message = query_params.get("system", "")
-        except BaseException:
-            self.signature = ""
-            self.message = ""
-
-    @property
-    def is_valid(self):
-        return self.verify(self.message, self.signature)
-
+class AuthenticationMiddleware(LoginRequiredMiddleware):
     @classmethod
-    def cipher(cls):
-        # 需要判断是否有指定密钥，如有，优先级最高
-        aes_key = settings.AES_TOKEN_KEY
-        x_key = settings.APP_CODE + "_" + aes_key
-        return AESCipher(x_key)
+    def get_apigw_public_key(cls):
+        global APIGW_PUBLIC_KEY
+        if APIGW_PUBLIC_KEY:
+            return APIGW_PUBLIC_KEY
 
-    @classmethod
-    def gen_signature(cls, message):
-        signature = cls.cipher().encrypt(message)
-        return signature
+        m = Fetcher(get_configuration(bk_app_code=settings.APP_CODE, bk_app_secret=settings.APP_TOKEN))
+        APIGW_PUBLIC_KEY = m.get_public_key()
+        return APIGW_PUBLIC_KEY
 
-    @classmethod
-    def verify(cls, message, signature):
-        try:
-            return message == cls.cipher().decrypt(signature)
-        except (binascii.Error, ValueError):
-            return False
-
-
-class ESBAuthenticationMiddleware(LoginRequiredMiddleware):
     def process_view(self, request, view, *args, **kwargs):
         # 登录豁免
         if getattr(view, "login_exempt", False):
             return None
 
+        # 后台仪表盘渲染豁免
         if "/grafana/" in request.path:
-            app_code = settings.APP_CODE
-            username = "admin"
+            request.user = auth.authenticate(username="admin")
+            return
+
+        token = request.GET.get("HTTP_X_BKMONITOR_TOKEN")
+        if request.META.get(JWTClient.JWT_KEY_NAME):
+            request.jwt = JWTClient(request)
+            if not request.jwt.is_valid:
+                return HttpResponseForbidden()
+
+            app_code = request.jwt.app.app_code
+            username = request.jwt.user.username
         else:
             app_code = request.META.get("HTTP_BK_APP_CODE")
             username = request.META.get("HTTP_BK_USERNAME")
 
-        if app_code:
-            user = auth.authenticate(username=username)
-            if user:
-                request.user = user
-                return None
-        logger.info(
-            f"request path: {request.path}, app_code: {app_code}, username: {username}, "
-            f"request.GET: {request.GET}, request.POST: {request.POST}"
-        )
-        # 校验不成功，则通过token进行校验
-        request.token = AESVerification(request.GET)
-        if request.token.is_valid:
-            request.user = auth.authenticate(username="admin")
-            return None
-        return super(ESBAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
-
-
-class JWTAuthenticationMiddleware(LoginRequiredMiddleware):
-    def process_view(self, request, view, *args, **kwargs):
-        # 登录豁免
-        if getattr(view, "login_exempt", False):
-            return None
-
-        user = None
-        if "/grafana/" in request.path:
-            user = auth.authenticate(username="admin")
-        else:
-            from bkoauth.jwt_client import JWTClient
-
-            request.jwt = JWTClient(request)
-
-            if request.jwt.is_valid:
-                user = auth.authenticate(request=request, username=request.jwt.user.username)
-            else:
-                # jwt校验不成功，则通过token进行校验
-                request.token = AESVerification(request.GET)
-                if request.token.is_valid:
-                    user = auth.authenticate(username="admin")
-
-        if user:
-            request.user = user
+        # 校验app_code及token
+        if app_code and is_match_api_token(request, app_code, token):
+            request.user = auth.authenticate(username=username)
             return
 
         return HttpResponseForbidden()
-
-
-# 如无设置JWT则说明接入ESB
-if settings.APIGW_PUBLIC_KEY:
-    AuthenticationMiddleware = JWTAuthenticationMiddleware
-else:
-    AuthenticationMiddleware = ESBAuthenticationMiddleware
