@@ -61,7 +61,8 @@ def run_action(action_type, action_info):
     """
     # import action's call function
     module_name = "alarm_backends.service.fta_action.%s.processor" % action_type or action_info.get("module")
-    logger.info("$%s Action start, call back module name %s", action_info["id"], action_type)
+    # logger.info("$%s Action start, call back module name %s", action_info["id"], action_type)
+    logger.info(f"[run_action_worker] action({action_info['id']}) {action_type} begin import {module_name}")
     try:
         module = importlib.import_module(module_name)
     except ImportError as error:
@@ -75,7 +76,6 @@ def run_action(action_type, action_info):
     action_instance = None
     alert = None
     processor = None
-    func_name = ""
     is_finished = False
     start_time = time.time()
     try:
@@ -84,14 +84,20 @@ def run_action(action_type, action_info):
         func_name = action_info.get("function", "execute")
         func = getattr(processor, func_name)
         # call func
-        logger.info("$%s Action callback: module name %s function %s", action_info["id"], action_type, func_name)
+        # logger.info("$%s Action callback: module name %s function %s", action_info["id"], action_type, func_name)
+        logger.info(f"[run_action_worker] action({action_info['id']}) action_type({action_type}) call({func_name})")
         func(**action_info.get("kwargs", {}))
     except ActionAlreadyFinishedError as error:
-        logger.info("action(%s) already finished: %s", action_info["id"], str(error))
-    except LockError as error:
-        logger.info("action(%s) get execute lock error: %s", action_info["id"], str(error))
+        logger.info(
+            f"[run_action_worker] action({action_info['id']}) action_type({action_type}) already finished: %s",
+            str(error),
+        )
+    except LockError:
+        logger.info(f"[run_action_worker] action({action_info['id']}) action_type({action_type}) get lock error")
     except BaseException as error:  # NOCC:broad-except(设计如此:)
-        logger.exception("execute action(%s) error, %s", action_info["id"], str(error))
+        logger.exception(
+            f"[run_action_worker] action({action_info['id']}) action_type({action_type}) error, %s", str(error)
+        )
         ActionInstance.objects.filter(id=action_info["id"]).update(
             status=ActionStatus.FAILURE,
             failure_type=FailureType.FRAMEWORK_CODE,
@@ -104,14 +110,21 @@ def run_action(action_type, action_info):
     if processor:
         if getattr(processor, "is_finished", True):
             is_finished = True
-            logger.info("$%s Action %s finished", action_info["id"], func_name)
+            logger.info(f"[run_action_worker] action({action_info['id']}) action_type({action_type}) finished")
         else:
-            logger.info("$%s Action %s not finished: wait for callback", action_info["id"], func_name)
+            logger.info(
+                f"[run_action_worker] action({action_info['id']}) action_type({action_type}) "
+                f"not finished: wait for callback"
+            )
         try:
             action_instance = processor.action
             alert = processor.context.get("alert")
         except BaseException as error:
-            logger.exception("$%s(%s) get action context failed: %s", action_info["id"], func_name, str(error))
+            logger.exception(
+                f"[run_action_worker] action({action_info['id']}) action_type({action_type}) "
+                f"get action context failed: %s",
+                str(error),
+            )
 
     labels = {
         "bk_biz_id": action_instance.bk_biz_id if action_instance else 0,

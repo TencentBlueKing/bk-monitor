@@ -337,6 +337,7 @@ ACTIVE_VIEWS = {
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
+        "ai_assistant": "monitor_web.ai_assistant.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -1383,3 +1384,6 @@ ENABLE_UPTIMECHECK_TEST = True
 
 # 检测结果缓存 TTL(小时)
 CHECK_RESULT_TTL_HOURS = 1
+
+# LLM 接口地址
+BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")

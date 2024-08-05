@@ -520,8 +520,8 @@ class ActionContext(object):
 
     def get_dictionary(self):
         result = {}
-        action_id = self.action.id if self.action else "None"
-        logger.info("get context dictionary started for action(%s)", action_id)
+        # action_id = self.action.id if self.action else "None"
+        # logger.info("get context dictionary started for action(%s)", action_id)
         for field in self.Fields:
             try:
                 result[field] = getattr(self, field)
@@ -532,7 +532,7 @@ class ActionContext(object):
                 logger.debug(
                     "action({})|alert({}) create context field({}) error, {}".format(action_id, alert_id, field, e)
                 )
-        logger.info("get context dictionary finished for action(%s)", self.action.id if self.action else "None")
+        # logger.info("get context dictionary finished for action(%s)", self.action.id if self.action else "None")
         return result
 
     @staticmethod

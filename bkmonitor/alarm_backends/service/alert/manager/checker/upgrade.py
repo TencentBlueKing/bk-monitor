@@ -31,18 +31,8 @@ class UpgradeChecker(BaseChecker):
     """
 
     def check_all(self):
-        success = 0
-        failed = 0
-        for alert in self.alerts:
-            if self.is_enabled(alert):
-                try:
-                    self.check(alert)
-                    success += 1
-                except Exception as e:
-                    logger.exception("alert(%s) run checker(%s) failed: %s", alert.id, self.__class__.__name__, e)
-                    failed += 1
+        super().check_all()
         AssignCacheManager.clear()
-        logger.info("AlertChecker(%s) run finished, success(%s), failed(%s)", self.__class__.__name__, success, failed)
 
     @classmethod
     def need_origin_upgrade(cls, alert_doc, upgrade_config):
@@ -85,7 +75,9 @@ class UpgradeChecker(BaseChecker):
                 assign_manager = BackendAssignMatchManager(alert_doc, assign_mode=assign_mode)
             except BaseException as error:  # noqa
                 exc = error
-                logger.exception("[alert assign] alert(%s) assign failed, error info %s", alert_doc.id, str(error))
+                logger.exception(
+                    "[assign failed] alert(%s) strategy(%s) detail: %s", alert_doc.id, alert_doc.strategy_id, str(error)
+                )
             matched_rules = assign_manager.get_matched_rules()
             need_upgrade = False
             if not matched_rules and AssignMode.ONLY_NOTICE in assign_mode:
@@ -102,5 +94,5 @@ class UpgradeChecker(BaseChecker):
         metrics.ALERT_ASSIGN_PROCESS_COUNT.labels(**assign_labels).inc()
         if need_upgrade:
             # 如果有的话，直接发送升级通知任务
-            logger.info("push upgrade action for alert(%s)" % alert_doc.id)
+            logger.info("[push upgrade action]  alert(%s) strategy(%s)" % alert_doc.id, alert_doc.strategy_id)
             create_actions.delay(**upgrade_notice)
