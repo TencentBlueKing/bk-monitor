@@ -96,6 +96,7 @@ export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
   const leftValues = JSON.parse(JSON.stringify(left?.value || [])).sort();
   const rightValues = JSON.parse(JSON.stringify(right?.value || [])).sort();
   return (
+    // biome-ignore lint/suspicious/noSelfCompare: <explanation>
     (left.condition || CONDITIONS[0].id) === (left.condition || CONDITIONS[0].id) &&
     left.field === right.field &&
     left.method === right.method &&
@@ -452,6 +453,7 @@ export async function allKVOptions(
     status: [],
     start_time: startTime,
     end_time: endTime,
+    bk_biz_ids: bkBizIds,
   }).catch(() => []);
   setData('groupKeys', 'dimensions', tags);
   // topN数据

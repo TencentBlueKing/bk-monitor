@@ -252,6 +252,14 @@ export default defineComponent({
         dashboardId: 'pod',
         sceneId: 'kubernetes',
         sceneType: 'detail',
+        queryData: JSON.stringify({
+          page: 1,
+          selectorSearch: [
+            {
+              keyword: node.entity?.dimensions?.pod_name ?? '',
+            },
+          ],
+        }),
         'filter-pod_name': node.entity?.dimensions?.pod_name ?? '',
         'filter-namespace': node.entity?.dimensions?.namespace ?? '',
         'filter-bcs_cluster_id': node.entity?.dimensions?.cluster_id ?? '',

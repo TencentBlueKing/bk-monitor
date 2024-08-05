@@ -1,0 +1,35 @@
+/* stylelint-disable declaration-no-important */
+.details-side-mini-chart {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  
+  & > div {
+    cursor: crosshair !important;
+  }
+
+  &.is-hover-point {
+    & > div {
+      cursor: pointer !important;
+    }
+  }
+}
+
+.details-side-mini-chart-tooltip {
+  height: 54px !important;
+  font-size: 12px !important;
+  line-height: 21px !important;
+  color: #fff !important;
+  background: #000000cc !important;
+  border-radius: 2px !important;
+
+  .left-compare-type {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    border-top-left-radius: 2px;
+    border-bottom-left-radius: 2px;
+  }
+}

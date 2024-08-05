@@ -69,6 +69,10 @@ export default class ApmTimeSeries extends TimeSeries {
       { id: 'topo', name: window.i18n.t('查看拓扑') },
     ],
     id: random(10),
+    nearOutRight: false, // 鼠标右侧是否为页面边缘
+    nearOutBottom: false, // 鼠标下方是否为页面边缘
+    seriesIndex: -1, // 当前选中的seriesIndex
+    dataIndex: -1, // 当前选中的dataIndex
   };
 
   detailsSideData = {
@@ -341,29 +345,62 @@ export default class ApmTimeSeries extends TimeSeries {
     this.handleLoadingChange(false);
   }
 
+  /**
+   * @description: 处理上下文菜单点击事件
+   * @param params
+   */
   handleContextmenu(params) {
     const { offsetX, offsetY } = params.event;
-    console.log(params);
+    const { pageX, pageY } = params.event.event;
+    const { clientHeight, clientWidth } = document.documentElement;
     this.contextmenuInfo = {
       ...this.contextmenuInfo,
       x: offsetX + 4,
       y: offsetY + 4,
       show: true,
+      nearOutRight: pageX > clientWidth - 120,
+      nearOutBottom: pageY > clientHeight - 80,
+      seriesIndex: params.seriesIndex,
+      dataIndex: params.dataIndex,
     };
+    setTimeout(() => {
+      this.$refs.baseChart?.dispatchAction({
+        type: 'highlight',
+        seriesIndex: params.seriesIndex,
+        dataIndex: params.dataIndex,
+      });
+    }, 200);
+
     document.addEventListener('click', this.handleHideContextmenu);
   }
 
+  /**
+   * @description: 隐藏右键菜单事件
+   * @param event
+   */
   handleHideContextmenu(event: MouseEvent) {
     if (!eventHasId(event, this.contextmenuInfo.id)) {
       this.hideContextmenu();
     }
   }
 
+  /**
+   * @description: 隐藏右键菜单
+   */
   hideContextmenu() {
     this.contextmenuInfo.show = false;
     document.removeEventListener('click', this.handleHideContextmenu);
+    this.$refs.baseChart?.dispatchAction({
+      type: 'downplay',
+      seriesIndex: this.contextmenuInfo.seriesIndex,
+      dataIndex: this.contextmenuInfo.dataIndex,
+    });
   }
 
+  /**
+   * @description: 处理右键菜单点击事件
+   * @param id
+   */
   handleClickMenuItem(id: string) {
     if (id === 'details') {
       // TODO 详情
@@ -432,6 +469,7 @@ export default class ApmTimeSeries extends TimeSeries {
                   left: `${this.contextmenuInfo.x}px`,
                   top: `${this.contextmenuInfo.y}px`,
                   display: this.contextmenuInfo.show ? 'block' : 'none',
+                  transform: `translateX(${this.contextmenuInfo.nearOutRight ? '-100%' : '0'}) translateY(${this.contextmenuInfo.nearOutBottom ? '-100%' : '0'})`,
                 }}
                 class='contextmenu-list'
               >
@@ -455,6 +493,7 @@ export default class ApmTimeSeries extends TimeSeries {
                   />
                 ) : (
                   <ListLegend
+                    alignCenter={true}
                     legendData={this.legendData}
                     onSelectLegend={this.handleSelectLegend}
                   />
