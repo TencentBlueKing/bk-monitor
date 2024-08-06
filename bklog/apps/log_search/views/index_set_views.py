@@ -314,10 +314,15 @@ class IndexSetViewSet(ModelViewSet):
                     index_set["indexes"] = [index]
 
         for index_set_id, index_set in index_set_dict.items():
+            if not index_set.get("indexes", []):
+                continue
+            origin_index_set = ",".join([index["result_table_id"] for index in index_set["indexes"]])
+            if index_set["scenario_id"] == Scenario.LOG:
+                origin_index_set = origin_index_set.replace(".", "_")
             router_list.append(
                 {
                     "cluster_id": index_set["storage_cluster_id"],
-                    "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
+                    "index_set": origin_index_set,
                     "source_type": index_set["scenario_id"],
                     "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set_id),
                     "table_id": BaseIndexSetHandler.get_rt_id(
@@ -337,6 +342,10 @@ class IndexSetViewSet(ModelViewSet):
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
+                        }, {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
                         }
                     ],
                 }

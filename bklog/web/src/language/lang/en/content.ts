@@ -425,8 +425,8 @@ export default {
     'Supports drag and drop to change order, those above have a higher sorting weight',
   '只能设置一个数据时间，如果要更改请先取消原来的':
     'Only one data time can be set, if you want to change it, please cancel the previous one first',
-  '您当前没有业务--${n}的权限，请先申请吧！':
-    'You currently do not have permission for business--${n}, please apply first!',
+  '您当前没有业务--{n}的权限，请先申请吧！':
+    'You currently do not have permission for business--{n}, please apply first!',
   '平台默认的集群不允许编辑和删除，请联系管理员。':
     'Editing and deletion are not allowed for default clusters, please contact the administrator',
   '支持拖拽更改顺序，从上向下对应列表列从左到右顺序':
