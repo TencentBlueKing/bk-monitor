@@ -349,6 +349,7 @@ export default class LogFilter extends tsc<object> {
           ref={`value-${row.tableIndex}-${$index}`}
           v-model={row.word}
           active-type={this.activeType}
+          placeholder={['regex', 'nregex'].includes(row.op) ? this.$t('支持正则匹配，如18*123') : this.$t('请输入')}
           row-data={row}
         />
       ),

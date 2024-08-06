@@ -808,7 +808,7 @@ export default {
   不等于: 'Not equal to',
   正则不匹配: 'Regular expression mismatch',
   路径黑名单: 'Path blacklist',
-  '设定排除路径，路径之间为或的关系': 'Set exclusion paths, the relationship between paths is OR',
+  '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
   '过滤器支持采集时过滤不符合的日志内容，需采集器版本 7.7.2及以上版本':
     'The filter supports filtering non-conforming log content during collection, requires collector version 7.7.2 and above',
   操作符: 'Operator',
@@ -816,4 +816,5 @@ export default {
   请输入列数: 'Please enter the number of columns',
   请输入日志样例: 'Please enter a log sample',
   '第{n}行': '{n} line',
+  '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
 };
