@@ -227,8 +227,8 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "expect": """log: "lineno=1" AND number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """log:"r_e.cp|Add , root_id=0, item_id=20" and number < 83 and title: "The Way" AND log: OR""",
-        "expect": """log:"r_e.cp|Add , root_id=0, item_id=20" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
+        "keyword": """log:"r_e.cp|Add , root_id=0\n, item_id=20" and number < 83 and title: "The Way" AND log: OR""",
+        "expect": """log:"r_e.cp|Add , root_id=0\n, item_id=20" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
     },
     {
         "keyword": """log:"operateSm:fail:not supported" and number < 83 and title: "The Way" AND log: OR""",

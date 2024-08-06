@@ -690,11 +690,11 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
 
     def match(self) -> bool:
         # 替换字符串,避免干扰判断
-        check_query_string = re.sub(self.RE_STRING, "x", self.query_string)
+        check_query_string = re.sub(self.RE_STRING, "x", self.query_string, flags=re.DOTALL)
         pattern = re.compile(self.RE)
         split_strings = re.split(r'(:\s*\S+\s*)', check_query_string)
         for part in split_strings:
-            if ':' not in part and re.search(pattern, part):
+            if ':' not in part and pattern.search(part):
                 return True
         return False
 
@@ -704,7 +704,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         pattern = re.compile(self.RE)
         pattern1 = re.compile(r'(:\s*\S+\s*)')
         pattern2 = re.compile(r':\s*(and|or|not|to)')
-        split_strings = re.split(self.RE_STRING, self.query_string)
+        split_strings = re.split(self.RE_STRING, self.query_string, flags=re.DOTALL)
         # 调整列表，删除None值（由正则表达式分割位置的特殊性产生）
         split_strings = [s for s in split_strings if s is not None]
         for i, part in enumerate(split_strings):
@@ -754,7 +754,7 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
 
     def match(self):
         # 替换字符串,避免干扰判断
-        check_query_string = re.sub(self.RE_STRING, "x", self.query_string)
+        check_query_string = re.sub(self.RE_STRING, "x", self.query_string, flags=re.DOTALL)
         if re.search(self.RE, check_query_string):
             return True
         return False
@@ -762,15 +762,17 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     def transform(self) -> str:
         if not self.match():
             return self.query_string
-        query_string_list = re.split(self.RE_STRING, self.query_string)
+        query_string_list = re.split(self.RE_STRING, self.query_string, flags=re.DOTALL)
         # 调整列表，删除None值（由正则表达式分割位置的特殊性产生）
         query_string_list = [s for s in query_string_list if s is not None]
         result_string = ""
+        match_pattern = re.compile(self.RE_STRING, flags=re.DOTALL)
+        sub_pattern = re.compile(self.RE)
         for _query_string in query_string_list:
-            if re.match(self.RE_STRING, _query_string):
+            if match_pattern.match(_query_string):
                 result_string += _query_string
             else:
-                result_string += re.sub(self.RE, r'\1: \2\3', _query_string)
+                result_string += sub_pattern.sub(r'\1: \2\3', _query_string)
         return result_string
 
 
@@ -786,10 +788,10 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
     def match(self):
         query_string = copy.deepcopy(self.query_string)
         # 替换字符串,避免干扰判断
-        filter_matches = list(re.finditer(self.RE_STRING, query_string))
+        filter_matches = list(re.finditer(self.RE_STRING, query_string, flags=re.DOTALL))
         for match in filter_matches:
             start, end = match.span()
-            query_string = query_string[:start] + len(query_string[start:end]) * "x" + query_string[end:]
+            query_string = query_string[:start] + (end - start) * "x" + query_string[end:]
         matches = list(re.finditer(self.RE, query_string))
         if matches:
             for match in matches:
@@ -808,12 +810,12 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
             return self.query_string
         query_string = copy.deepcopy(self.query_string)
         # 替换不希望被正则匹配的数据,并记录下位置信息
-        filter_matches = list(re.finditer(self.RE_STRING, query_string))
+        filter_matches = list(re.finditer(self.RE_STRING, query_string, flags=re.DOTALL))
         filter_list = []
         for match in filter_matches:
             start, end = match.span()
             filter_string = query_string[start:end]
-            query_string = query_string[:start] + len(filter_string) * "x" + query_string[end:]
+            query_string = query_string[:start] + (end - start) * "x" + query_string[end:]
             filter_list.append(
                 {
                     "start": start,
