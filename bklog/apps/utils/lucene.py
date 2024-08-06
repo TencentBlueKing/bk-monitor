@@ -789,8 +789,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
         filter_matches = list(re.finditer(self.RE_STRING, query_string))
         for match in filter_matches:
             start, end = match.span()
-            filter_string = query_string[start:end]
-            query_string = query_string.replace(filter_string, len(filter_string) * "x")
+            query_string = query_string[:start] + len(query_string[start:end]) * "x" + query_string[end:]
         matches = list(re.finditer(self.RE, query_string))
         if matches:
             for match in matches:
@@ -814,7 +813,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
         for match in filter_matches:
             start, end = match.span()
             filter_string = query_string[start:end]
-            query_string = query_string.replace(filter_string, len(filter_string) * "x")
+            query_string = query_string[:start] + len(filter_string) * "x" + query_string[end:]
             filter_list.append(
                 {
                     "start": start,
@@ -841,9 +840,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
 
         # 还原上面替换的字符串
         for item in filter_list:
-            left_string = query_string[: item["start"]]
-            right_string = query_string[item["end"] :]
-            query_string = left_string + item["filter_string"] + right_string
+            query_string = query_string[: item["start"]] + item["filter_string"] + query_string[item["end"] :]
 
         # 将逻辑运算符替换为带引号的形式，保留原始大小写
         for item in records:
