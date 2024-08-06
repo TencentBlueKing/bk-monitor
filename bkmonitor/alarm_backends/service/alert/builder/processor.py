@@ -48,16 +48,15 @@ class AlertBuilder(BaseAlertProcessor):
             if event.is_dropped() or event.is_expired(expired_time):
                 # 如果事件已经被丢弃，或者已经过期，则不需要处理
                 expired_events.append(event)
-                self.logger.info("event(%s) is dropped or expired(%s), skip", event.id, expired_time)
+                self.logger.info(
+                    "[event drop] event(%s) strategy(%s) is dropped or expired(%s), skip build alert",
+                    event.event_id,
+                    event.strategy_id,
+                    expired_time,
+                )
                 continue
             unexpired_events.append(event)
 
-        if expired_events:
-            self.logger.info(
-                "%s alerts is expired, skip to build alert: %s",
-                len(expired_events),
-                " ".join([f"{event.event_id}" for event in expired_events]),
-            )
         return unexpired_events
 
     def get_current_alerts(self, events: List[Event]):
@@ -75,24 +74,9 @@ class AlertBuilder(BaseAlertProcessor):
         """
         将事件进行去重，生成告警并保存
         """
-        from alarm_backends.service.alert.builder.tasks import dedupe_events_to_alerts
 
-        events = self.get_unexpired_events(events)
-        if not events:
-            return []
-        lock_keys = [ALERT_UPDATE_LOCK.get_key(dedupe_md5=event.dedupe_md5) for event in events]
-
-        with multi_service_lock(ALERT_UPDATE_LOCK, lock_keys) as lock:
-            success_locked_events = []
-            fail_locked_events = []
-            # 区分出哪些告警加锁成功，哪些失败
-            for event in events:
-                if lock.is_locked(ALERT_UPDATE_LOCK.get_key(dedupe_md5=event.dedupe_md5)):
-                    success_locked_events.append(event)
-                else:
-                    fail_locked_events.append(event)
-
-            for event in success_locked_events:
+        def _report_latency(report_events):
+            for event in report_events:
                 latency = event.get_process_latency()
                 if not latency:
                     # 没有延迟数据，直接下一个
@@ -110,6 +94,23 @@ class AlertBuilder(BaseAlertProcessor):
                         strategy_id=metrics.TOTAL_TAG,
                     ).observe(latency["access_latency"])
 
+        events = self.get_unexpired_events(events)
+        if not events:
+            return []
+        lock_keys = [ALERT_UPDATE_LOCK.get_key(dedupe_md5=event.dedupe_md5) for event in events]
+
+        with multi_service_lock(ALERT_UPDATE_LOCK, lock_keys) as lock:
+            success_locked_events = []
+            fail_locked_events = []
+            # 区分出哪些告警加锁成功，哪些失败
+            for event in events:
+                if lock.is_locked(ALERT_UPDATE_LOCK.get_key(dedupe_md5=event.dedupe_md5)):
+                    success_locked_events.append(event)
+                else:
+                    fail_locked_events.append(event)
+
+            _report_latency(success_locked_events)
+
             # 对加锁成功的告警才能进行操作
             alerts = self.build_alerts(success_locked_events)
             alerts = self.enrich_alerts(alerts)
@@ -117,6 +118,10 @@ class AlertBuilder(BaseAlertProcessor):
             self.update_alert_snapshot(alerts)
 
             if fail_locked_events:
+                from alarm_backends.service.alert.builder.tasks import (
+                    dedupe_events_to_alerts,
+                )
+
                 # 对加锁失败的告警，丢到队列中，延后5s操作
                 dedupe_events_to_alerts.apply_async(
                     kwargs={
@@ -125,7 +130,7 @@ class AlertBuilder(BaseAlertProcessor):
                     countdown=5,
                 )
                 self.logger.info(
-                    "%s alerts is locked, will try later: %s",
+                    "[alert.builder locked] %s alerts is locked, retry in 5s: %s",
                     len(fail_locked_events),
                     ",".join([event.dedupe_md5 for event in fail_locked_events]),
                 )
@@ -173,7 +178,6 @@ class AlertBuilder(BaseAlertProcessor):
             if alert.is_new() and alert.strategy_id
         ]
         send_check_task.delay(alerts=alerts, run_immediately=False)
-        self.logger.info("send periodic check task finished, total(%s)", len(alerts))
 
     def enrich_alerts(self, alerts: List[Alert]):
         """
@@ -199,7 +203,7 @@ class AlertBuilder(BaseAlertProcessor):
         events = factory.enrich()
 
         self.logger.info(
-            "enrich events finished, dropped(%d/%d), elapsed(%.3f)",
+            "[alert.builder enrich event] finished, dropped(%d/%d), cost: (%.3f)",
             len([e for e in events if e.is_dropped()]),
             len(events),
             time.time() - start_time,
@@ -248,13 +252,13 @@ class AlertBuilder(BaseAlertProcessor):
                     conflict_error_events_count += 1
                 else:
                     # 其他的情况，一般是实际数据类型与es的 mapping 对不上，例如在 KeyWord 字段中存入了 Object
-                    self.logger.error("save event document error: %s", err)
+                    self.logger.error("[alert.builder save events ERROR] detail: %s", err)
                     other_error_events_count += 1
 
         created_events_count = len(event_documents) - len(error_uids)
 
         self.logger.info(
-            "save event document: total(%d), created(%d), duplicate(%d), failed(%d), elapsed(%.3f)",
+            "[alert.builder save events] finished: " "total(%d), created(%d), duplicate(%d), failed(%d), cost: %.3f",
             len(events),
             created_events_count,
             conflict_error_events_count,
@@ -275,7 +279,7 @@ class AlertBuilder(BaseAlertProcessor):
             return alert
         else:
             # 不满足熔断条件了，关闭当前告警，接下来直接产生一条新的告警
-            self.logger.info("alert(%s) will be closed because of QOS, detail: %s ", alert.id, qos_result["message"])
+            self.logger.info("[alert.builder qos] alert(%s) will be closed: %s ", alert.id, qos_result["message"])
             alert.set_end_status(
                 status=EventStatus.CLOSED,
                 op_type=AlertLog.OpType.CLOSE,
@@ -320,7 +324,7 @@ class AlertBuilder(BaseAlertProcessor):
                             event_id=event.id,
                             description=event.description,
                             time=event.time,
-                            severity=event.severity
+                            severity=event.severity,
                         )
                         event.drop()
                     else:
@@ -330,19 +334,12 @@ class AlertBuilder(BaseAlertProcessor):
                 # 如果当前无告警缓存，或者当前告警存在关闭时间，则创建一个新告警
                 if not event.is_abnormal():
                     # 如果当前没有正在产生的告警，且当前事件状态不是异常，则跳过处理
-                    self.logger.debug(
-                        "event(%s) with status(%s) will not build alert, skip",
-                        event.id,
-                        event.status,
-                    )
                     continue
                 alert = Alert.from_event(event=event)
                 self.logger.info(
-                    "event(%s) with event.extra_info(%s)  build alert(%s), alert.labels(%s)",
-                    event.id,
-                    event.extra_info,
+                    "[alert.builder] event(%s) -> new alert(%s)",
+                    event.event_id,
                     alert.id,
-                    alert.labels,
                 )
 
             # 回写到 current_alerts 用于后续遍历继续更新
@@ -358,7 +355,7 @@ class AlertBuilder(BaseAlertProcessor):
             alert.init_uid()
 
         self.logger.info(
-            "build alerts finished, new/total(%d/%d)",
+            "[alert.builder] build alerts finished, new/total(%d/%d)",
             len(alerts_to_init),
             len(alerts),
         )

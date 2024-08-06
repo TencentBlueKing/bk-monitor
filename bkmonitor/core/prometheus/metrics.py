@@ -232,24 +232,6 @@ ALERT_PROCESS_TIME = Histogram(
     labelnames=(),
 )
 
-ALERT_PROCESS_COUNT = Counter(
-    name="bkmonitor_alert_process_count",
-    documentation="alert(builder) 模块处理次数",
-    labelnames=("status", "exception"),
-)
-
-ALERT_POLLER_TIME = Histogram(
-    name="bkmonitor_alert_poller_time",
-    documentation="alert(builder) 模块拉取处理时间",
-    labelnames=("bk_data_id",),
-)
-
-ALERT_POLLER_COUNT = Counter(
-    name="bkmonitor_alert_poller_count",
-    documentation="alert(builder) 模块拉取次数",
-    labelnames=("bk_data_id", "status", "exception"),
-)
-
 ALERT_MANAGE_TIME = Histogram(
     name="bkmonitor_alert_manage_time",
     documentation="alert(manager) 模块处理耗时",
