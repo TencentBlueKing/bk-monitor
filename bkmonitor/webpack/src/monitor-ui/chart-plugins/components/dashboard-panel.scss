@@ -62,6 +62,9 @@
     height: 100%;
     padding: 16px;
     overflow: hidden;
+    &.no-padding {
+      padding: 0;
+    }
 
     .single-chart-main {
       height: 100%;

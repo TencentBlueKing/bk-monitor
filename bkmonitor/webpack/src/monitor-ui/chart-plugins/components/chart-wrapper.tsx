@@ -33,6 +33,7 @@ import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
 import ChartRow from '../plugins/chart-row/chart-row';
@@ -90,7 +91,7 @@ interface IChartWrapperEvent {
   onCollapse: boolean;
   onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
-  onDblClick?: void;
+  onDblClick?: () => void;
 }
 @Component
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -505,6 +506,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'apm-relation-graph':
+        return <ApmRelationGraph />;
       // 不需要报错显示
       // case 'graph':
       default:
