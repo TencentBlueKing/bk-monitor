@@ -172,7 +172,7 @@ class UpdateEsRouter(BaseEsRouter):
         if data.get("options"):
             self.create_or_update_options(table_id, data["options"])
             need_refresh_table_id_detail = True
-        options = list(models.ResultTableOption.objects.filter(table_id=table_id).values("name", "value"))
+        options = list(models.ResultTableOption.objects.filter(table_id=table_id).values("name", "value", "value_type"))
         # 如果别名或者索引集有变动，则需要通知到unify-query
         if need_refresh_data_label:
             push_and_publish_es_aliases(data_label=data["data_label"])

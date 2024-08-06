@@ -27,6 +27,7 @@ from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import (
+    MAX_INCIDENT_ALERT_SIZE,
     IncidentDocument,
     IncidentOperationDocument,
     IncidentSnapshotDocument,
@@ -230,7 +231,6 @@ class ExportIncidentResource(Resource):
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
         handler = serializers.ListField(required=False, label="故障处理人", default=[])
-        ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
 
     def perform_request(self, validated_request_data):
         handler = IncidentQueryHandler(**validated_request_data)
@@ -706,7 +706,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                         "count": 1,
                         "children": {},
                         "related_entities": [alert["entity"]["entity_id"]],
-                        "alert_ids": [alert["id"]],
+                        "alert_ids": [str(alert["id"])],
                         "is_root": is_root,
                         "is_feedback_root": is_feedback_root,
                         "begin_time": alert["begin_time"],
@@ -736,7 +736,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                     # 其他依赖配置
                     aggregate_layer_results[aggregate_by_value]["count"] += 1
                     aggregate_layer_results[aggregate_by_value]["related_entities"].append(alert["entity"]["entity_id"])
-                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(alert["id"])
+                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(str(alert["id"]))
                     aggregate_layer_results[aggregate_by_value]["is_root"] = (
                         aggregate_layer_results[aggregate_by_value]["is_root"] or is_root
                     )
@@ -763,7 +763,7 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot)
+        alerts = self.get_snapshot_alerts(snapshot, page_size=MAX_INCIDENT_ALERT_SIZE)
         current_username = get_request_username()
 
         alert_abornomal_agg_results = Counter()
@@ -1004,6 +1004,8 @@ class IncidentAlertListResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
@@ -1043,6 +1045,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))

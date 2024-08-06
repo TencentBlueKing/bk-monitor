@@ -252,6 +252,8 @@ def refresh_kafka_topic_info():
 
 @share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
+    es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+
     # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
     es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
     if es_cluster_wl:
@@ -262,7 +264,7 @@ def refresh_es_storage():
     start, step = 0, 100
     # 仅管理日志内建的集群索引
     es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value).exclude(
-        storage_cluster_id__in=es_cluster_wl
+        storage_cluster_id__in=(es_cluster_wl + es_blacklist)
     )
     # 添加一步过滤，用以减少任务的数量
     table_id_list = models.ResultTable.objects.filter(
