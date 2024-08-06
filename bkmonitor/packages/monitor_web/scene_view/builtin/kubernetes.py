@@ -548,6 +548,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                 # 添加新的面板，追加到之前的面板后面
                 panels = order_groups_map[group_id]["panels"]
                 old_panel_id_set = {panel["id"] for panel in panels}
+                panel_ids_set |= old_panel_id_set
                 new_panels = copy.deepcopy(panels)
                 for panel in group["panels"]:
                     if panel["id"] not in old_panel_id_set:
