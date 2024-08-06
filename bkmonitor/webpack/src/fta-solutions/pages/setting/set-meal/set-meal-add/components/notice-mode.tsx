@@ -301,7 +301,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                       <span class={[this.showlevelMark ? `level-title-${item.level}` : undefined]}>{item.title}</span>
                     </div>
                   </td>
-                  {item.list.map(notice => {
+                  {item.list.map(notice => (
                     <td
                       key={notice.name + item.level}
                       class={[
@@ -392,8 +392,8 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                           </div>
                         )}
                       </div>
-                    </td>;
-                  })}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
