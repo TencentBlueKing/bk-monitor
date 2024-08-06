@@ -39,6 +39,7 @@ from apps.log_clustering.models import (
     AiopsSignatureAndPattern,
     ClusteringConfig,
 )
+from apps.log_search.models import LogIndexSet
 from apps.utils.task import high_priority_task
 
 
@@ -48,8 +49,8 @@ def sync_pattern():
 
     for model_id in model_ids:
         sync.delay(model_id=model_id)
-
-    for clustering_config in ClusteringConfig.objects.all(signature_enable=True):
+    index_set_ids = LogIndexSet.objects.filter(is_active=True).values_list("index_set_id", flat=True)
+    for clustering_config in ClusteringConfig.objects.filter(signature_enable=True, index_set_id__in=index_set_ids):
         if clustering_config.model_output_rt:
             # 在线训练的flow，没有指定的模型，以模型输出的结果表作为唯一键
             sync.delay(model_output_rt=clustering_config.model_output_rt)
