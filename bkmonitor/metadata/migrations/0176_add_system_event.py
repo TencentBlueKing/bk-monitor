@@ -34,8 +34,9 @@ def add_gse_system_event_data_source(apps, *args, **kwargs):
     # 获取APP models
     for model_name in list(models.keys()):
         models[model_name] = apps.get_model("metadata", model_name)
-
+    print(f"add {1100000} gse_custom_string to es storage")
     add_event_data_source(models, 1100000, "gse_custom_string", "gse自定义字符串上报", "bk_gse_custom_string")
+    print(f"add {1000} bk_gse_system_event to es storage")
     add_event_data_source(models, 1000, "gse_system_event", "gse系统事件上报", "bk_gse_system_event")
 
 

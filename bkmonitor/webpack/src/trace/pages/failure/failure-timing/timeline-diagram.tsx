@@ -865,6 +865,24 @@ export default defineComponent({
       timeLineMainRef.value.addEventListener('mousemove', onMouseMove);
       timeLineMainRef.value.addEventListener('mouseup', onMouseUp);
     };
+    const handleWheel = e => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (percentage.value === 0) {
+        return;
+      }
+      const selection: any = timeLineMainRef.value;
+      const startTransform = getTransformX(selection);
+      const { deltaX } = e;
+      const sensitivity = 2; // 设置滚动灵敏度
+      let dx = -deltaX * sensitivity;
+      const newTransformX = startTransform + dx;
+      const maxTransformX = selection.offsetWidth - selection.parentNode.offsetWidth;
+      const newPos = Math.max(-maxTransformX, Math.min(maxTransformX, newTransformX));
+      const ratio = newPos / maxTransformX;
+      mainLeft.value = newPos > 0 ? 0 : newPos;
+      mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
+    };
     return {
       t,
       currentSpan,
@@ -897,6 +915,7 @@ export default defineComponent({
       manualProcessShowChange,
       handleDebugStatus,
       handleMealInfo,
+      handleWheel,
       handleAlarmDispatchShowChange,
       alarmConfirmChange,
       tickPopoverRefs,
@@ -983,6 +1002,7 @@ export default defineComponent({
           style={{ width: `${this.mainWidth}px`, transform: `translateX(${this.mainLeft}px)` }}
           class='timeline-diagram-main'
           onMousedown={this.onTimeLineMainMouseDown}
+          onWheel={this.handleWheel}
         >
           <ul class='time-tick'>
             {(this.showTickArr || []).map(item => {

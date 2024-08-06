@@ -52,7 +52,16 @@ export const typeTextMap = {
 };
 /** 渲染tag */
 export const renderHandlers = handles => {
-  return handles?.length ? handles.map(tag => <span key={tag} class='tag-item'>{tag}</span>) : '--';
+  return handles?.length
+    ? handles.map(tag => (
+        <span
+          key={tag}
+          class='tag-item'
+        >
+          {tag}
+        </span>
+      ))
+    : '--';
 };
 export const handleFun = data => {
   const node = JSON.parse(JSON.stringify({ ...data }));
@@ -75,8 +84,8 @@ const handleUpdate = ({ extra_info, operator }) => {
   const isIncidentName = incident_key === 'incident_name';
   const statusTag = val => {
     let info: any = {};
-    isLevel && (info =  LEVEL_LIST[val]);
-    isStatus && (info =  STATUS_LIST[val]);
+    isLevel && (info = LEVEL_LIST[val]);
+    isStatus && (info = STATUS_LIST[val]);
     return (
       <span
         style={{ background: info.bgColor, color: info?.color || '#fff' }}
@@ -88,16 +97,16 @@ const handleUpdate = ({ extra_info, operator }) => {
     );
   };
   const className = isIncidentName ? 'tag-txt' : 'tag-item';
-  const handleValue = (val) => {
-    return Array.isArray(val) ? val.map(item => item.replace(/\//g, '')).join('、') : val.replace(/\//g, '');
-  }
-  const toValue = (isLevel || isStatus) ? (
-    statusTag(to_value)
-  ) : (
-    <span class={className}>{handleValue(to_value)}</span>
-  );
+  const handleValue = val => {
+    return Array.isArray(val) ? val.map(item => item.replace(/\//g, '')).join('、') : val;
+  };
+  const toValue = isLevel || isStatus ? statusTag(to_value) : <span class={className}>{handleValue(to_value)}</span>;
   const fromValue =
-  (isLevel || isStatus) && !!from_value ? statusTag(from_value) : <span class={className}>{handleValue(from_value) || 'null'}</span>;
+    (isLevel || isStatus) && !!from_value ? (
+      statusTag(from_value)
+    ) : (
+      <span class={className}>{handleValue(from_value) || 'null'}</span>
+    );
   return (
     <i18n-t
       v-slots={{

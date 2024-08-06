@@ -27,6 +27,7 @@ from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import (
+    MAX_INCIDENT_ALERT_SIZE,
     IncidentDocument,
     IncidentOperationDocument,
     IncidentSnapshotDocument,
@@ -157,7 +158,7 @@ class IncidentBaseResource(Resource):
             if (
                 hasattr(incident_document, incident_key)
                 and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
-                and incident_value
+                and (incident_value or incident_key == "incident_reason")
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
                 if incident_key == "status":
@@ -230,7 +231,6 @@ class ExportIncidentResource(Resource):
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
         handler = serializers.ListField(required=False, label="故障处理人", default=[])
-        ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
 
     def perform_request(self, validated_request_data):
         handler = IncidentQueryHandler(**validated_request_data)
@@ -417,11 +417,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         for node in current["nodes"]:
             if node["id"] not in last_nodes or node["aggregated_nodes"] != last_nodes[node["id"]]["aggregated_nodes"]:
                 new_nodes.append(node)
+                complete_topologies["nodes"][node["id"]] = node
             elif self.check_node_diff(node, last_nodes[node["id"]]):
                 new_nodes.append(node)
-
-            if node["id"] not in complete_topologies["nodes"]:
                 complete_topologies["nodes"][node["id"]] = node
+            elif node["id"] not in complete_topologies["nodes"]:
+                complete_topologies["nodes"][node["id"]] = node
+
         for edge in current["edges"]:
             if edge["source"] not in last_nodes or edge["target"] not in last_nodes:
                 new_edges.append(edge)
@@ -435,7 +437,7 @@ class IncidentTopologyResource(IncidentBaseResource):
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""
-        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count"]:
+        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count", "alert_ids"]:
             if current_node[node_key] != last_node[node_key]:
                 return True
 
@@ -704,7 +706,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                         "count": 1,
                         "children": {},
                         "related_entities": [alert["entity"]["entity_id"]],
-                        "alert_ids": [alert["id"]],
+                        "alert_ids": [str(alert["id"])],
                         "is_root": is_root,
                         "is_feedback_root": is_feedback_root,
                         "begin_time": alert["begin_time"],
@@ -734,7 +736,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                     # 其他依赖配置
                     aggregate_layer_results[aggregate_by_value]["count"] += 1
                     aggregate_layer_results[aggregate_by_value]["related_entities"].append(alert["entity"]["entity_id"])
-                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(alert["id"])
+                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(str(alert["id"]))
                     aggregate_layer_results[aggregate_by_value]["is_root"] = (
                         aggregate_layer_results[aggregate_by_value]["is_root"] or is_root
                     )
@@ -761,34 +763,48 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot, status=[EventStatus.ABNORMAL])
+        alerts = self.get_snapshot_alerts(snapshot, page_size=MAX_INCIDENT_ALERT_SIZE)
         current_username = get_request_username()
 
-        alert_agg_results = Counter()
+        alert_abornomal_agg_results = Counter()
+        alert_total_agg_results = Counter()
         for alert in alerts:
             if not alert["assignee"]:
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results["__not_dispatch__"] += 1
+                alert_total_agg_results["__not_dispatch__"] += 1
                 continue
+
+            if alert["status"] == EventStatus.ABNORMAL:
+                alert_abornomal_agg_results["__total__"] += 1
+            alert_total_agg_results["__total__"] += 1
+
             for username in alert["assignee"]:
-                alert_agg_results[username] += 1
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results[username] += 1
+                alert_total_agg_results[username] += 1
 
         handlers = {
             "all": {
                 "id": "all",
                 "name": _("全部"),
                 "index": 1,
-                "alert_count": len(alerts),
+                "alert_count": alert_abornomal_agg_results["__total__"],
+                "total_count": len(alerts),
             },
             "not_dispatch": {
                 "id": "not_dispatch",
                 "name": _("未分派"),
                 "index": 2,
-                "alert_count": 0,
+                "alert_count": alert_abornomal_agg_results["__not_dispatch__"],
+                "total_count": alert_total_agg_results["__not_dispatch__"],
             },
             "mine": {
                 "id": current_username,
                 "name": _("我处理"),
                 "index": 3,
-                "alert_count": alert_agg_results.get(current_username, 0),
+                "alert_count": alert_abornomal_agg_results.get(current_username, 0),
+                "total_count": alert_total_agg_results.get(current_username, 0),
             },
             "other": {
                 "id": "other",
@@ -798,10 +814,11 @@ class IncidentHandlersResource(IncidentBaseResource):
                     {
                         "id": username,
                         "name": username,
-                        "alert_count": alert_count,
+                        "alert_count": alert_abornomal_agg_results.get(username, 0),
+                        "total_count": alert_count,
                     }
-                    for username, alert_count in alert_agg_results.items()
-                    if username != current_username
+                    for username, alert_count in alert_total_agg_results.items()
+                    if username not in (current_username, "__not_dispatch__", "__total__")
                 ],
             },
         }
@@ -987,6 +1004,8 @@ class IncidentAlertListResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
@@ -1007,7 +1026,9 @@ class IncidentAlertListResource(IncidentBaseResource):
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
-        alerts[0]["is_incident_root"] = True
+
+        if len(alerts) > 0:
+            alerts[0]["is_incident_root"] = True
 
         return incident_alerts
 
@@ -1024,6 +1045,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))

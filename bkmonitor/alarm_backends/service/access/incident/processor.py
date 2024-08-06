@@ -21,8 +21,10 @@ from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
 from bkmonitor.aiops.incident.models import IncidentSnapshot
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
+from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentDocument, IncidentSnapshotDocument
+from constants.alert import EventStatus
 from constants.incident import IncidentStatus, IncidentSyncType
 from core.drf_resource import api
 
@@ -94,6 +96,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             # 补充快照记录并写入ES
             incident_document.snapshot = snapshot
+            incident_document.alert_count = len(snapshot.alerts)
             snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
             incident_document.generate_labels(snapshot_model)
             incident_document.generate_handlers(snapshot_model)
@@ -133,13 +136,15 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         try:
             incident_info = sync_info["incident_info"]
             incident_info["incident_id"] = sync_info["incident_id"]
-            incident_document = IncidentDocument(**incident_info)
+            incident_document = IncidentDocument.get(
+                f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
+            )
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"]:
                 snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
 
                 snapshot = IncidentSnapshotDocument(
                     incident_id=sync_info["incident_id"],
-                    bk_biz_id=sync_info["scope"]["bk_biz_ids"],
+                    bk_biz_ids=sync_info["scope"]["bk_biz_ids"],
                     status=incident_info["status"],
                     alerts=sync_info["scope"]["alerts"],
                     events=sync_info["scope"]["events"],
@@ -159,7 +164,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
 
                 # 补充快照记录并写入ES
+                self.generate_alert_operations(incident_document.snapshot, snapshot)
                 incident_document.snapshot = snapshot
+                incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
                 incident_document.generate_labels(snapshot_model)
                 incident_document.generate_handlers(snapshot_model)
@@ -189,9 +196,45 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                         from_value=update_info["from"],
                         to_value=update_info["to"],
                     )
-                    if incident_key == "status" and update_info["to"] == IncidentStatus.RECOVERING.value:
+                    if incident_key == "status" and update_info["to"] == IncidentStatus.RECOVERED.value:
                         incident_document.end_time = int(time.time())
-                        IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
+                        api.bkdata.update_incident_detail(
+                            incident_id=sync_info["incident_id"],
+                            end_time=incident_document.end_time,
+                        )
+                setattr(incident_document, incident_key, update_info["to"])
+
+            IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
             return
+
+    def generate_alert_operations(
+        self, last_snapshot: IncidentSnapshotDocument, snapshot: IncidentSnapshotDocument
+    ) -> None:
+        """生成故障快照记录的告警操作记录."""
+        last_snapshot_alerts = {item["id"]: item for item in last_snapshot.content.incident_alerts}
+        for item in snapshot.content.incident_alerts:
+            alert_doc = AlertDocument.get(item["id"])
+            if item["id"] not in last_snapshot_alerts:
+                IncidentOperationManager.record_incident_alert_trigger(
+                    last_snapshot.incident_id,
+                    int(int(item["alert_time"]) / 1000),
+                    alert_doc.alert_name,
+                    item["id"],
+                )
+            elif (
+                item["id"] in last_snapshot_alerts
+                and last_snapshot_alerts[item["id"]]["alert_status"] != item["alert_status"]
+            ):
+                operation = {
+                    EventStatus.RECOVERED: IncidentOperationManager.record_incident_alert_recover,
+                    EventStatus.CLOSED: IncidentOperationManager.record_incident_alert_invalid,
+                }.get(item["alert_status"])
+                if operation:
+                    operation(
+                        last_snapshot.incident_id,
+                        int(int(item["alert_time"]) / 1000),
+                        alert_doc.alert_name,
+                        item["id"],
+                    )

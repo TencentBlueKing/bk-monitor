@@ -1857,4 +1857,5 @@ export default {
   语言: 'Language',
   关联服务类型: 'Associated service type',
   Apdex阈值T: 'Apdex threshold T',
+  替换为: 'Replace with',
 };

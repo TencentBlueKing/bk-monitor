@@ -25,6 +25,7 @@ from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("action")
 MAX_INCIDENT_CONTENTS_SIZE = 10000
+MAX_INCIDENT_ALERT_SIZE = 10000
 
 
 class IncidentBaseDocument(BaseDocument):
@@ -81,7 +82,7 @@ class IncidentItemsMixin:
         else:
             search = cls.search(all_indices=True)
         search = search.filter("term", incident_id=incident_id)
-        search = search.sort(order_by).params(size=limit)
+        search = search.sort(order_by).params(size=limit or MAX_INCIDENT_CONTENTS_SIZE)
         hits = search.execute().hits
         return [cls(**hit.to_dict()) for hit in hits]
 
@@ -151,6 +152,9 @@ class IncidentDocument(IncidentBaseDocument):
     extra_info = field.Object(enabled=False)
     # 反馈根因的信息
     feedback = field.Object(enabled=False)
+
+    # 检索或者排序需要的字段
+    alert_count = field.Long()
 
     class Index:
         name = "bkmonitor_aiops_incident_info"
