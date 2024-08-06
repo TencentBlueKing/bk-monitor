@@ -562,29 +562,55 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
         menu_data = {}
 
         for entity_type, entities in entity_types.items():
-            neighbors = Counter()
-            anomaly_count = 0
-            for entity in entities:
-                for target_entity_id in snapshot.entity_targets[entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]:
-                    neighbors[snapshot.incident_graph_entities[target_entity_id].entity_type] += 1
-                for source_entity_id in snapshot.entity_sources[entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]:
-                    neighbors[snapshot.incident_graph_entities[source_entity_id].entity_type] += 1
-                if entity.is_anomaly:
-                    anomaly_count += 1
+            has_anomaly = False
+            neighbors = set()
+            for i_entity in entities:
+                for j_entity in entities:
+                    if i_entity.entity_id == j_entity.entity_id or i_entity.is_root or j_entity.is_root:
+                        continue
 
-            aggregate_keys = [
-                {"count": value, "aggregate_key": key, "is_anomaly": False} for key, value in neighbors.items()
-            ]
-            aggregate_keys.append({"count": anomaly_count, "aggregate_key": None, "is_anomaly": True})
-            menu_data[entity_type] = {
-                "entity_type": entity_type,
-                "aggregate_bys": sorted(aggregate_keys, key=lambda x: -x["count"]),
-            }
-            menu_data[entity_type]["total_count"] = sum(
-                [item["count"] for item in menu_data[entity_type]["aggregate_bys"]]
-            )
+                    i_entity_targets = set(
+                        snapshot.entity_targets[i_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    j_entity_targets = set(
+                        snapshot.entity_targets[j_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    # 如果任意两个实体，他们的有同一个从属实体，则两个实体可以按照这个从属实体进行聚会，就把从属实体的实体类型加入到可聚合的实体类型中
+                    for target_entity_id in list(i_entity_targets & j_entity_targets):
+                        neighbors.add(snapshot.incident_graph_entities[target_entity_id].entity_type)
+                        if (
+                            (i_entity.is_anomaly or j_entity.is_anomaly)
+                            and not i_entity.is_root
+                            and not j_entity.is_root
+                        ):
+                            has_anomaly = True
 
-        return list(sorted(menu_data.values(), key=lambda x: -x["total_count"]))
+                    i_entity_sources = set(
+                        snapshot.entity_sources[i_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    j_entity_sources = set(
+                        snapshot.entity_sources[j_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    # 如果任意两个实体，他们的有同一个从属实体，则两个实体可以按照这个从属实体进行聚会，就把从属实体的实体类型加入到可聚合的实体类型中
+                    for source_entity_id in list(i_entity_sources & j_entity_sources):
+                        neighbors.add(snapshot.incident_graph_entities[source_entity_id].entity_type)
+                        if (
+                            (i_entity.is_anomaly or j_entity.is_anomaly)
+                            and not i_entity.is_root
+                            and not j_entity.is_root
+                        ):
+                            has_anomaly = True
+
+            aggregate_keys = [{"count": 0, "aggregate_key": key, "is_anomaly": False} for key in list(neighbors)]
+            if has_anomaly:
+                aggregate_keys.append({"count": 0, "aggregate_key": None, "is_anomaly": True})
+
+            if len(aggregate_keys) > 0:
+                menu_data[entity_type] = {
+                    "entity_type": entity_type,
+                    "aggregate_bys": aggregate_keys,
+                }
+        return list(menu_data.values())
 
 
 class IncidentTopologyUpstreamResource(IncidentBaseResource):
