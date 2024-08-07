@@ -816,4 +816,16 @@ export default {
   请输入列数: 'Please enter the number of columns',
   请输入日志样例: 'Please enter a log sample',
   '第{n}行': '{n} line',
+  '当前页面提供快速配置，如需完整配置，请前往{0}':
+    'The current page provides quick configuration. For complete configuration, please go to {0}',
+  新建完整策略: 'Create a new complete strategy',
+  低: 'Low',
+  高: 'High',
+  致命: 'Fatal',
+  预警: 'Warning',
+  提醒: 'Remind',
+  变化敏感度: 'Change sensitivity',
+  数量突增告警策略: 'Volume surge strategy',
+  '策略：': 'Strategy: ',
+  '是否删除该策略？': 'Has this policy been deleted?',
 };
