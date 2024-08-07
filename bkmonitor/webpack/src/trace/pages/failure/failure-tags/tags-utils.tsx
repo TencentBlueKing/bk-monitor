@@ -24,39 +24,58 @@
  * IN THE SOFTWARE.
  */
 
-window.localeChange = () => {};
+import { ref, watch } from 'vue';
 
-export const jsonp = (url, callback, shouldReload = false) => {
-  const scriptEl = document.createElement('script');
+interface TagsOverflowOptions {
+  targetRef: any;
+  collapseTagRef: any;
+  isOverflow: any;
+}
 
-  scriptEl.src = `${url}&callback=${callback}`;
-  document.body.appendChild(scriptEl);
-  const removeCallback = () => {
-    scriptEl.onload = null;
-    scriptEl.onerror = null;
-    document.body.removeChild(scriptEl);
-    shouldReload && window.location.reload();
+function useTagsOverflow(options: TagsOverflowOptions) {
+  const { targetRef, isOverflow, collapseTagRef } = options;
+  const overflowTagIndex = ref<null | number>(null);
+
+  const getTagDOM = (index?: number) => {
+    const tagDomList = targetRef.value.map(item => item?.$el).filter(item => !!item);
+    return typeof index === 'number' ? tagDomList[index] : tagDomList;
   };
-  scriptEl.onload = removeCallback;
-  scriptEl.onerror = removeCallback;
-};
 
-/**
- *
- * @param url jsonp url
- * @param options jsonp options
- * @returns Promise
- */
-export const useJSONP = (url, options) => {
-  return new Promise((resolve, reject) => {
-    jsonp(url, {
-      ...options,
-      callback: response => {
-        resolve(response);
-      },
-      onError: e => {
-        reject(e);
-      },
+  const calcOverflow = () => {
+    if (!isOverflow.value) return;
+
+    overflowTagIndex.value = null;
+    setTimeout(() => {
+      const tags = getTagDOM();
+      // 出现换行的Index位置
+      const tagIndexInSecondRow = tags.findIndex((currentTag, index) => {
+        if (!index) {
+          return false;
+        }
+        const previousTag = tags[index - 1];
+        return previousTag.offsetTop !== currentTag.offsetTop;
+      });
+      overflowTagIndex.value = tagIndexInSecondRow > 0 ? tagIndexInSecondRow : null;
+      // 剩余位置能否放下数字tag
+      if (tags[overflowTagIndex.value]?.offsetTop !== collapseTagRef.value?.offsetTop && overflowTagIndex.value > 1) {
+        overflowTagIndex.value -= 1;
+      }
     });
-  });
-};
+  };
+
+  watch(
+    isOverflow,
+    () => {
+      calcOverflow();
+    },
+    { immediate: true }
+  );
+
+  // 监听Dom元素变化
+  return {
+    canShowIndex: overflowTagIndex,
+    calcOverflow: calcOverflow,
+  };
+}
+
+export { useTagsOverflow };

@@ -359,13 +359,18 @@ class IncidentTopologyResource(IncidentBaseResource):
             )
             incident_snapshots = sorted(incident_snapshots, key=lambda x: x["create_time"])
 
+        # 根据实体加入的时间生成实体ID到时间的映射
+        entities_orders = self.generate_entities_orders(incident_snapshots)
+
         snapshots = {}
         for incident_snapshot in incident_snapshots:
             snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
             if validated_request_data["auto_aggregate"]:
-                snapshot.aggregate_graph(incident)
+                snapshot.aggregate_graph(incident, entities_orders=entities_orders)
             elif validated_request_data["aggregate_config"]:
-                snapshot.aggregate_graph(incident, validated_request_data["aggregate_config"])
+                snapshot.aggregate_graph(
+                    incident, validated_request_data["aggregate_config"], entities_orders=entities_orders
+                )
             snapshots[incident_snapshot.id] = snapshot
 
         latest_snapshot_content = self.generate_topology_data_from_snapshot(
@@ -403,6 +408,14 @@ class IncidentTopologyResource(IncidentBaseResource):
             },
         }
 
+    def generate_entities_orders(self, incident_snapshots: List[IncidentSnapshotDocument]) -> Dict:
+        entities_orders = {}
+        for incident_snapshot in incident_snapshots:
+            for entity in incident_snapshot.content["incident_propagation_graph"]["entities"]:
+                if entity["entity_id"] not in entities_orders:
+                    entities_orders[entity["entity_id"]] = incident_snapshot.create_time
+        return entities_orders
+
     def generate_topology_diff_from_snapshot(
         self,
         incident: IncidentDocument,
@@ -414,8 +427,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         new_edges = []
         current = self.generate_topology_data_from_snapshot(incident, snapshot)
         last_nodes = {node["id"]: node for node in last_snapshot_content["nodes"]} if last_snapshot_content else {}
+        last_edges = (
+            {(edge["source"], edge["target"], edge["edge_type"]): edge for edge in last_snapshot_content["edges"]}
+            if last_snapshot_content
+            else {}
+        )
         for node in current["nodes"]:
-            if node["id"] not in last_nodes or node["aggregated_nodes"] != last_nodes[node["id"]]["aggregated_nodes"]:
+            if node["id"] not in last_nodes:
                 new_nodes.append(node)
                 complete_topologies["nodes"][node["id"]] = node
             elif self.check_node_diff(node, last_nodes[node["id"]]):
@@ -425,11 +443,16 @@ class IncidentTopologyResource(IncidentBaseResource):
                 complete_topologies["nodes"][node["id"]] = node
 
         for edge in current["edges"]:
-            if edge["source"] not in last_nodes or edge["target"] not in last_nodes:
+            edge_id = (edge["source"], edge["target"], edge["edge_type"])
+            if edge_id not in last_edges:
                 new_edges.append(edge)
+                complete_topologies["edges"][edge_id] = edge
+            elif self.check_edge_diff(edge, last_edges[edge_id]):
+                new_edges.append(edge)
+                complete_topologies["edges"][edge_id] = edge
+            elif edge_id not in complete_topologies["edges"]:
+                complete_topologies["edges"][edge_id] = edge
 
-            if (edge["source"], edge["target"]) not in complete_topologies["edges"]:
-                complete_topologies["edges"][(edge["source"], edge["target"])] = edge
         return current, {
             "nodes": new_nodes,
             "edges": new_edges,
@@ -437,8 +460,25 @@ class IncidentTopologyResource(IncidentBaseResource):
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""
-        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count", "alert_ids"]:
+        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count", "alert_ids", "aggregated_nodes"]:
             if current_node[node_key] != last_node[node_key]:
+                return True
+
+        return False
+
+    def check_edge_diff(self, current_edge: dict, last_edge: dict):
+        """判断节点是否发生变化."""
+        for edge_key in [
+            "count",
+            "aggregated_edges",
+            "anomaly_score",
+            "is_anomaly",
+            "source_is_anomaly",
+            "target_is_anomaly",
+            "source_is_on_alert",
+            "target_is_on_alert",
+        ]:
+            if current_edge[edge_key] != last_edge[edge_key]:
                 return True
 
         return False
@@ -535,29 +575,55 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
         menu_data = {}
 
         for entity_type, entities in entity_types.items():
-            neighbors = Counter()
-            anomaly_count = 0
-            for entity in entities:
-                for target_entity_id in snapshot.entity_targets[entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]:
-                    neighbors[snapshot.incident_graph_entities[target_entity_id].entity_type] += 1
-                for source_entity_id in snapshot.entity_sources[entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]:
-                    neighbors[snapshot.incident_graph_entities[source_entity_id].entity_type] += 1
-                if entity.is_anomaly:
-                    anomaly_count += 1
+            has_anomaly = False
+            neighbors = set()
+            for i_entity in entities:
+                for j_entity in entities:
+                    if i_entity.entity_id == j_entity.entity_id or i_entity.is_root or j_entity.is_root:
+                        continue
 
-            aggregate_keys = [
-                {"count": value, "aggregate_key": key, "is_anomaly": False} for key, value in neighbors.items()
-            ]
-            aggregate_keys.append({"count": anomaly_count, "aggregate_key": None, "is_anomaly": True})
-            menu_data[entity_type] = {
-                "entity_type": entity_type,
-                "aggregate_bys": sorted(aggregate_keys, key=lambda x: -x["count"]),
-            }
-            menu_data[entity_type]["total_count"] = sum(
-                [item["count"] for item in menu_data[entity_type]["aggregate_bys"]]
-            )
+                    i_entity_targets = set(
+                        snapshot.entity_targets[i_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    j_entity_targets = set(
+                        snapshot.entity_targets[j_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    # 如果任意两个实体，他们的有同一个从属实体，则两个实体可以按照这个从属实体进行聚会，就把从属实体的实体类型加入到可聚合的实体类型中
+                    for target_entity_id in list(i_entity_targets & j_entity_targets):
+                        neighbors.add(snapshot.incident_graph_entities[target_entity_id].entity_type)
+                        if (
+                            (i_entity.is_anomaly or j_entity.is_anomaly)
+                            and not i_entity.is_root
+                            and not j_entity.is_root
+                        ):
+                            has_anomaly = True
 
-        return list(sorted(menu_data.values(), key=lambda x: -x["total_count"]))
+                    i_entity_sources = set(
+                        snapshot.entity_sources[i_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    j_entity_sources = set(
+                        snapshot.entity_sources[j_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    # 如果任意两个实体，他们的有同一个从属实体，则两个实体可以按照这个从属实体进行聚会，就把从属实体的实体类型加入到可聚合的实体类型中
+                    for source_entity_id in list(i_entity_sources & j_entity_sources):
+                        neighbors.add(snapshot.incident_graph_entities[source_entity_id].entity_type)
+                        if (
+                            (i_entity.is_anomaly or j_entity.is_anomaly)
+                            and not i_entity.is_root
+                            and not j_entity.is_root
+                        ):
+                            has_anomaly = True
+
+            aggregate_keys = [{"count": 0, "aggregate_key": key, "is_anomaly": False} for key in list(neighbors)]
+            if has_anomaly:
+                aggregate_keys.append({"count": 0, "aggregate_key": None, "is_anomaly": True})
+
+            if len(aggregate_keys) > 0:
+                menu_data[entity_type] = {
+                    "entity_type": entity_type,
+                    "aggregate_bys": aggregate_keys,
+                }
+        return list(menu_data.values())
 
 
 class IncidentTopologyUpstreamResource(IncidentBaseResource):

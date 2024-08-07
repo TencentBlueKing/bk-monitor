@@ -317,7 +317,7 @@ export default {
             // } else {
             //   headTitle = activeTopMenu.name;
             // }
-            // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('腾讯蓝鲸智云')}`;
+            // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('蓝鲸智云')}`;
           },
           {
             immediate: true,

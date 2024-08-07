@@ -59,9 +59,11 @@ export default defineComponent({
     const treeSearchValue = ref('');
     /** 聚合规则选择 */
     const handleNodeCheck = checkedData => {
+      const parentNodes = checkedData.filter(f => f.children).map(item => item.id);
       emit(
         'update:checkedIds',
-        checkedData.filter(item => !item.children).map(item => item.id)
+        checkedData.map(item => item.id),
+        parentNodes
       );
     };
 

@@ -110,6 +110,8 @@ export default class SpaceSelect extends tsc<
   @Prop({ default: false, type: Boolean }) hasAuthApply: boolean;
   /*  */
   @Prop({ default: true, type: Boolean }) isCommonStyle: boolean;
+  /* 是否包含我有故障的选项 */
+  @Prop({ default: false, type: Boolean }) needIncidentOption: boolean;
 
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('select') selectRef: HTMLDivElement;
@@ -198,7 +200,8 @@ export default class SpaceSelect extends tsc<
     return this.localValue;
   }
 
-  created() {
+  /** 初始化空间列表 */
+  initLocalSpaceList () {
     this.localSpaceList = this.getSpaceList(this.spaceList);
     const nullItem = {
       space_name: '',
@@ -216,6 +219,14 @@ export default class SpaceSelect extends tsc<
         bk_biz_id: hasDataBizId,
         id: hasDataBizId,
         name: this.$t('-我有告警的空间-'),
+      } as any);
+    }
+    if (this.needIncidentOption) {
+      this.localSpaceList.unshift({
+        ...nullItem,
+        bk_biz_id: hasDataBizId,
+        id: hasDataBizId,
+        name: this.$t('-我有故障的空间-'),
       } as any);
     }
     if (this.needAuthorityOption) {
@@ -237,6 +248,18 @@ export default class SpaceSelect extends tsc<
       }
       this.setPaginationData(true);
     }
+  }
+  @Watch('needAlarmOption')
+  handleWatchNeedAlarmOption(v: boolean) {
+    this.initLocalSpaceList();
+  }
+  @Watch('needIncidentOption')
+  handleWatchNeedIncidentOption(v: boolean) {
+    this.initLocalSpaceList();
+  }
+
+  created() {
+    this.initLocalSpaceList();
   }
 
   /* 获取权限信息 */
