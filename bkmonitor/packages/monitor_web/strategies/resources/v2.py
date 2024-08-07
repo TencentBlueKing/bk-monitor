@@ -925,15 +925,9 @@ class GetStrategyListV2Resource(Resource):
 
         invalid_type_counts = {record["invalid_type"]: record["total"] for record in count_records}
 
-        all_invalid_type = {
-            StrategyModel.InvalidType.INVALID_RELATED_STRATEGY: _("关联的策略已失效"),
-            StrategyModel.InvalidType.DELETED_RELATED_STRATEGY: _("关联的策略已删除"),
-            StrategyModel.InvalidType.INVALID_UNIT: _("指标和检测算法的单位类型不一致"),
-            StrategyModel.InvalidType.INVALID_TARGET: _("监控目标全部失效"),
-            StrategyModel.InvalidType.INVALID_METRIC: _("监控指标不存在"),
-            StrategyModel.InvalidType.INVALID_BIZ: _("策略所属业务不存在"),
-        }
-        for invalid_type_id, invalid_type_name in all_invalid_type.items():
+        for invalid_type_id, invalid_type_name in StrategyModel.InvalidType.Choices:
+            if not invalid_type_id:
+                continue
             invalid_type_list.append(
                 {"id": invalid_type_id, "name": invalid_type_name, "count": invalid_type_counts.get(invalid_type_id, 0)}
             )
@@ -952,24 +946,7 @@ class GetStrategyListV2Resource(Resource):
 
         algorithm_type_counts = {record["type"]: record["total"] for record in count_records if record["type"]}
 
-        all_algorithm_type = {
-            AlgorithmModel.AlgorithmChoices.Threshold: _("静态阈值算法"),
-            AlgorithmModel.AlgorithmChoices.SimpleRingRatio: _("简易环比算法"),
-            AlgorithmModel.AlgorithmChoices.AdvancedRingRatio: _("高级环比算法"),
-            AlgorithmModel.AlgorithmChoices.SimpleYearRound: _("简易同比算法"),
-            AlgorithmModel.AlgorithmChoices.AdvancedYearRound: _("高级同比算法"),
-            AlgorithmModel.AlgorithmChoices.PartialNodes: _("部分节点数算法"),
-            AlgorithmModel.AlgorithmChoices.OsRestart: _("主机重启算法"),
-            AlgorithmModel.AlgorithmChoices.ProcPort: _("进程端口算法"),
-            AlgorithmModel.AlgorithmChoices.PingUnreachable: _("Ping不可达算法"),
-            AlgorithmModel.AlgorithmChoices.YearRoundAmplitude: _("同比振幅算法"),
-            AlgorithmModel.AlgorithmChoices.YearRoundRange: _("同比区间算法"),
-            AlgorithmModel.AlgorithmChoices.RingRatioAmplitude: _("环比振幅算法"),
-            AlgorithmModel.AlgorithmChoices.IntelligentDetect: _("智能异常检测算法"),
-            AlgorithmModel.AlgorithmChoices.TimeSeriesForecasting: _("时序预测算法"),
-            AlgorithmModel.AlgorithmChoices.AbnormalCluster: _("离群检测算法"),
-        }
-        for algorithm_type_id, algorithm_type_name in all_algorithm_type.items():
+        for algorithm_type_id, algorithm_type_name in AlgorithmModel.ALGORITHM_CHOICES:
             algorithm_type_list.append(
                 {
                     "id": algorithm_type_id,
