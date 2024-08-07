@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import type { IGroupData } from '../strategy-config-list/group';
@@ -32,42 +32,60 @@ import type { IGroupData } from '../strategy-config-list/group';
 import './filter-panel-popover.scss';
 
 interface IProps {
-  showFiled: string[];
+  showFields: string[];
   list: IGroupData[];
 }
 
 interface IEmits {
-  onFilterFieldChange: (fields: string[]) => void;
-  onFilterFieldOrderChange: (originIndex: number, targetIndex: number) => void;
+  onFilterFieldChange: (fields: { showFields: string[]; order: number[] }) => void;
 }
 
 @Component
 export default class FilterPanelPopover extends tsc<IProps, IEmits> {
-  @Prop({ default: () => [] }) showFiled!: string[];
+  @Prop({ default: () => [] }) showFields!: string[];
   @Prop({ default: () => [] }) list!: IGroupData[];
 
   show = false;
   localShowFiled = [];
+  localList = [];
+
+  dragStartIndex = -1;
+  dragOverIndex = -1;
+
+  @Watch('list', { immediate: true })
+  handleListChange(newVal: IGroupData[]) {
+    this.localList = newVal.map((item, index) => ({ ...item, order: index }));
+  }
+
+  @Watch('showFields', { immediate: true })
+  handleShowFiledChange(newVal: string[]) {
+    this.localShowFiled = newVal;
+  }
 
   handleFilterPopoverChange(show: boolean) {
     if (!show) {
-      this.$emit('filterFieldChange', this.localShowFiled);
-    } else {
-      this.localShowFiled = this.showFiled;
+      this.$emit('filterFieldChange', {
+        showFields: this.localShowFiled,
+        order: this.localList.map(item => item.order),
+      });
     }
     this.show = show;
   }
 
-  handleDragstart(e: DragEvent, index: number) {
-    e.dataTransfer.setData('dragIndex', String(index));
+  handleDragstart(index: number) {
+    this.dragStartIndex = index;
   }
 
-  handleDrop(e: DragEvent, index: number) {
-    const dragIndex = e.dataTransfer.getData('dragIndex');
-    this.$emit('filterFieldOrderChange', dragIndex, index);
+  handleDrop(index: number) {
+    const origin = this.localList[this.dragStartIndex];
+    this.localList[this.dragStartIndex] = this.localList[index];
+    this.localList[index] = origin;
+    this.localList = [...this.localList];
+    this.dragOverIndex = -1;
   }
 
-  handleDragover(e: DragEvent) {
+  handleDragover(e: DragEvent, index: number) {
+    this.dragOverIndex = this.dragStartIndex === index ? -1 : index;
     e.preventDefault();
   }
 
@@ -99,16 +117,24 @@ export default class FilterPanelPopover extends tsc<IProps, IEmits> {
           <div class='title'>{this.$t('字段设置')}</div>
           <bk-checkbox-group v-model={this.localShowFiled}>
             <ul class='field-list'>
-              {this.list.map((item, index) => (
+              {this.localList.map((item, index) => (
                 <li
                   key={item.id}
-                  class='field-list-item'
+                  class={{
+                    'field-list-item': true,
+                    'drag-target-item': index === this.dragOverIndex,
+                  }}
                   draggable
-                  onDragover={e => this.handleDragover(e)}
-                  onDragstart={e => this.handleDragstart(e, index)}
-                  onDrop={e => this.handleDrop(e, index)}
+                  onDragover={e => this.handleDragover(e, index)}
+                  onDragstart={() => this.handleDragstart(index)}
+                  onDrop={() => this.handleDrop(index)}
                 >
-                  <bk-checkbox value={item.id}>{item.name}</bk-checkbox>
+                  <bk-checkbox
+                    disabled={this.localShowFiled.length === 1 && this.localShowFiled.includes(item.id)}
+                    value={item.id}
+                  >
+                    {item.name}
+                  </bk-checkbox>
                   <i class='icon-monitor icon-mc-tuozhuai' />
                 </li>
               ))}
