@@ -66,13 +66,13 @@ class PlatformConfigStore extends VuexModule {
     let configPromise: Promise<IPlatformConfig>;
     const initialConfig = {
       name: '监控平台',
-      nameEn: 'BK MONITOR',
-      brandName: '腾讯蓝鲸智云',
-      brandNameEn: 'BlueKing',
+      nameEn: 'Monitor',
+      brandName: '蓝鲸智云',
+      brandNameEn: 'Tencent BlueKing',
       favIcon: '/static/monitor/img/monitor-64.png',
       version: window.footer_version,
     };
-    if (window.bk_shared_res_url) {
+    if (!window.bk_shared_res_url) {
       configPromise = getPlatformConfig(
         `${window.bk_shared_res_url.replace(/\/$/, '')}/bk_monitorv3/base.js`,
         initialConfig
