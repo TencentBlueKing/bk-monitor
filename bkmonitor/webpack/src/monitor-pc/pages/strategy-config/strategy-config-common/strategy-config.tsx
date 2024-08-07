@@ -849,14 +849,14 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     ) {
       if (this.tableInstance.setDefaultStore) {
         this.tableInstance.setDefaultStore();
-        this.tableInstance.pageSize = commonPageSizeGet();
+        this.handleResetRoute('Get');
       }
       this.header.keyword = '';
     }
     this.checkColInit();
     this.handleSetDashboard();
     this.handleSearchBackDisplay();
-    this.handleGetListData(true, 1);
+    this.handleGetListData(true, this.tableInstance.page);
     this.getGroupList();
   }
   handleSearchChange(v) {
@@ -1226,10 +1226,11 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
           id: item.name,
           name: item.name,
         }));
-        this.backDisplayMap.level.list = data.alert_level_list;
-        this.backDisplayMap.algorithmType.list = data.algorithm_type_list;
-        this.backDisplayMap.invalidType.list = data.invalid_type_list;
+        this.backDisplayMap.level.list = data.alert_level_list || [];
+        this.backDisplayMap.algorithmType.list = data.algorithm_type_list || [];
+        this.backDisplayMap.invalidType.list = data.invalid_type_list || [];
         this.createdConditionList();
+        this.handleResetRoute('Set');
         // magic code  reflesh bk table
         this.$refs.strategyTable?.doLayout?.();
       })
@@ -1240,6 +1241,24 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
         this.loading = false;
         this.table.loading = false;
       });
+  }
+
+  handleResetRoute(type: 'Get' | 'Set') {
+    if (type === 'Get') {
+      const { page, pageSize, keywordObj } = this.$route.query;
+      this.tableInstance.page = Number(page) || 1;
+      this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
+      this.header.keywordObj = keywordObj ? JSON.parse(keywordObj as string) : [];
+    } else {
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          page: String(this.tableInstance.page),
+          pageSize: String(this.tableInstance.pageSize),
+          keywordObj: JSON.stringify(this.header.keywordObj),
+        },
+      });
+    }
   }
   /**
    * @description: 监控对象处理
