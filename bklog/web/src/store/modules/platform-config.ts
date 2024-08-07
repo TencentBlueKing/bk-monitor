@@ -43,7 +43,7 @@ interface IPlatformConfig {
 
 export const initialConfig = {
   name: '日志平台',
-  nameEn: 'LOG',
+  nameEn: 'Log',
   brandName: '蓝鲸智云',
   brandNameEn: 'BlueKing',
   version: window.VERSION,

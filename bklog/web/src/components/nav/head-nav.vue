@@ -304,8 +304,10 @@
       ...mapGetters('globals', ['globalsData']),
       platformData() {
         const { appLogo, i18n } = platformConfigStore.publicConfig;
+        const bkRepoUrl = window.BK_SHARED_RES_URL;
+        const publicConfigName = i18n?.name ?? this.$t('日志平台');
         return {
-          name: i18n?.name ?? window.TITLE_MENU,
+          name: !!bkRepoUrl ? publicConfigName : this.$t('日志平台'),
           logo: appLogo || logoImg,
         };
       },
