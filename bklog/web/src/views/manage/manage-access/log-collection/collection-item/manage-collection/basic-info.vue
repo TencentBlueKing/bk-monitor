@@ -318,7 +318,7 @@
 </template>
 
 <script>
-  import { utcFormatDate, copyMessage, deepClone } from '@/common/util';
+  import { utcFormatDate, copyMessage } from '@/common/util';
   import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
   import { mapState } from 'vuex';
 
@@ -397,13 +397,12 @@
         return this.splitFilters(filters ?? []);
       },
       showOperatorObj() {
-        const showOperatorObj = deepClone(operatorMappingObj);
-        const newObject = {};
-        Object.keys(showOperatorObj).forEach(key => {
-          let newKey = key;
-          if ((this.isMatchType && key === 'include') || (!this.isMatchType && key === 'eq')) newKey = '=';
-          newObject[newKey] = showOperatorObj[key];
-        });
+        const newObject = Object.keys(operatorMappingObj).reduce((pre, acc) => {
+          let newKey = acc;
+          if ((this.isMatchType && acc === 'include') || (!this.isMatchType && acc === 'eq')) newKey = '=';
+          pre[newKey] = operatorMappingObj[acc];
+          return pre;
+        }, {});
         return newObject;
       },
       groupKey() {

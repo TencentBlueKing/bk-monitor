@@ -317,7 +317,6 @@
 </template>
 
 <script>
-  import { deepClone } from '@/common/util';
   import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
 
   export default {
@@ -501,15 +500,13 @@
         }
       },
       showOperatorObj(params) {
-        const showOperatorObj = deepClone(operatorMappingObj);
-        const newObject = {};
-        Object.keys(showOperatorObj).forEach(key => {
-          let newKey = key;
-          if ((this.isMatchType(params) && key === 'include') || (!this.isMatchType(params) && key === 'eq')) {
+        const newObject = Object.keys(operatorMappingObj).reduce((pre, acc) => {
+          let newKey = acc;
+          if ((this.isMatchType(params) && acc === 'include') || (!this.isMatchType(params) && acc === 'eq'))
             newKey = '=';
-          }
-          newObject[newKey] = showOperatorObj[key];
-        });
+          pre[newKey] = operatorMappingObj[acc];
+          return pre;
+        }, {});
         return newObject;
       },
       isHaveFilter(params) {
