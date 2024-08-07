@@ -893,6 +893,69 @@ class GetStrategyListV2Resource(Resource):
             status["count"] = len(data)
         return status_list
 
+    def get_alert_level_list(self, strategy_ids: List[int]):
+        """
+        按告警级别统计策略数量
+        """
+        alert_level_list = []
+        count_records = (
+            DetectModel.objects.filter(strategy_id__in=strategy_ids)
+            .values("level")
+            .annotate(total=Count("strategy_id", distinct=True))
+            .order_by("level")
+        )
+
+        level_counts = {record["level"]: record["total"] for record in count_records}
+
+        all_level = {1: _("致命"), 2: _("预警"), 3: _("提醒")}
+        for level_id, level_name in all_level.items():
+            alert_level_list.append({"id": level_id, "name": level_name, "count": level_counts.get(level_id, 0)})
+        return alert_level_list
+
+    def get_invalid_type_list(self, strategy_ids: List[int]):
+        """
+        按策略失效类型统计策略数量
+        """
+        invalid_type_list = []
+        count_records = (
+            StrategyModel.objects.filter(is_invalid=True, id__in=strategy_ids)
+            .values("invalid_type")
+            .annotate(total=Count("id", distinct=True))
+        )
+
+        invalid_type_counts = {record["invalid_type"]: record["total"] for record in count_records}
+
+        for invalid_type_id, invalid_type_name in StrategyModel.InvalidType.Choices:
+            if not invalid_type_id:
+                continue
+            invalid_type_list.append(
+                {"id": invalid_type_id, "name": invalid_type_name, "count": invalid_type_counts.get(invalid_type_id, 0)}
+            )
+        return invalid_type_list
+
+    def get_algorithm_type_list(self, strategy_ids: List[int]):
+        """
+        按算法类型统计策略数量
+        """
+        algorithm_type_list = []
+        count_records = (
+            AlgorithmModel.objects.filter(strategy_id__in=strategy_ids)
+            .values("type")
+            .annotate(total=Count("strategy_id", distinct=True))
+        )
+
+        algorithm_type_counts = {record["type"]: record["total"] for record in count_records if record["type"]}
+
+        for algorithm_type_id, algorithm_type_name in AlgorithmModel.ALGORITHM_CHOICES:
+            algorithm_type_list.append(
+                {
+                    "id": algorithm_type_id,
+                    "name": algorithm_type_name,
+                    "count": algorithm_type_counts.get(algorithm_type_id, 0),
+                }
+            )
+        return algorithm_type_list
+
     def fill_metric_info(self, bk_biz_id: int, strategies: List[Dict]):
         """
         补充策略相关指标信息
@@ -1067,6 +1130,9 @@ class GetStrategyListV2Resource(Resource):
         data_source_list = self.get_data_source_list(strategy_ids)
         strategy_label_list = self.get_strategy_label_list(strategy_ids, bk_biz_id)
         strategy_status_list = self.get_strategy_status_list(strategy_ids, bk_biz_id)
+        alert_level_list = self.get_alert_level_list(strategy_ids)
+        invalid_type_list = self.get_invalid_type_list(strategy_ids)
+        algorithm_type_list = self.get_algorithm_type_list(strategy_ids)
 
         # 排序
         strategies = strategies.order_by("-update_time")
@@ -1140,6 +1206,9 @@ class GetStrategyListV2Resource(Resource):
             "strategy_status_list": strategy_status_list,
             "user_group_list": user_group_list,
             "action_config_list": action_config_list,
+            "alert_level_list": alert_level_list,
+            "invalid_type_list": invalid_type_list,
+            "algorithm_type_list": algorithm_type_list,
         }
 
 
