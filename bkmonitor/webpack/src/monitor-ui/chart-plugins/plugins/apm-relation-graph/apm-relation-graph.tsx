@@ -185,7 +185,10 @@ export default class ApmRelationGraph extends tsc<IProps> {
             </bk-select>
           </div>
           <div class='header-alarm-wrap'>
-            <BarAlarmChart />
+            <BarAlarmChart
+              activeItemHeight={24}
+              itemHeight={16}
+            />
           </div>
           <div class='header-search-wrap'>
             <StatusTab
@@ -257,7 +260,17 @@ export default class ApmRelationGraph extends tsc<IProps> {
                     <span class='icon-monitor icon-zhankai' />
                   </div>
                 </div>
-                <div class='content-wrap' />
+                <div class='content-wrap'>
+                  <BarAlarmChart
+                    activeItemHeight={32}
+                    itemHeight={24}
+                    showHeader={true}
+                    showXAxis={true}
+                  >
+                    <div slot='title'>告警</div>
+                    <div slot='more'>更多</div>
+                  </BarAlarmChart>
+                </div>
               </div>
             )}
           </div>

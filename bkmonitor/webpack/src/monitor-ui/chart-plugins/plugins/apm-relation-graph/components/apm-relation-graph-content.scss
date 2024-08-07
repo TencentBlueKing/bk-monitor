@@ -19,6 +19,7 @@
 
     .side-content {
       position: relative;
+      box-sizing: content-box;
       height: 100%;
       border-left: 1px solid #DCDEE5;
       transition: width .3s;
