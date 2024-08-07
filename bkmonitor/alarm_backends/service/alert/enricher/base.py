@@ -12,7 +12,7 @@ import abc
 import logging
 from typing import List
 
-from alarm_backends.core.alert import Event, Alert
+from alarm_backends.core.alert import Alert, Event
 
 logger = logging.getLogger("alert.enricher")
 
@@ -25,9 +25,16 @@ class BaseEventEnricher(metaclass=abc.ABCMeta):
         events = []
         for event in self.events:
             try:
+                if event.is_dropped():
+                    events.append(event)
+
                 event = self.enrich_event(event)
+                if event.is_dropped():
+                    logger.info(
+                        "[drop event] %s event(%s) strategy(%s)", self.__name__, event.event_id, event.strategy_id
+                    )
             except Exception as e:
-                logger.exception("event(%s) enrich failed: %s", event.id, e)
+                logger.exception("[event enricher ERROR] (%s), detail: %s", self.__name__, e)
             events.append(event)
         return events
 
@@ -50,7 +57,7 @@ class BaseAlertEnricher(metaclass=abc.ABCMeta):
                     # 新产生的告警才需要丰富
                     alert = self.enrich_alert(alert)
             except Exception as e:
-                logger.exception("alert(%s) enrich failed: %s", alert.id, e)
+                logger.exception("[alert enricher ERROR] (%s), detail: %s", self.__name__, e)
             alerts.append(alert)
         return alerts
 
