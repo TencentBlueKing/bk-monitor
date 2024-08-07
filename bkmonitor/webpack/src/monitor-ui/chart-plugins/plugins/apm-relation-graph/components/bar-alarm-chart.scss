@@ -1,0 +1,49 @@
+.bar-alarm-chart {
+  position: relative;
+
+  .alarm-header-wrap {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .header-left {
+      font-size: 12px;
+      color: #313238;
+    }
+
+    .header-right {
+      margin: 0 0 0 auto;
+      color: #3A84FF;
+    }
+  }
+
+  .alarm-chart-wrap {
+    display: flex;
+    align-items: center;
+
+    .time-cube {
+      width: 6px;
+      margin-right: 2px;
+      cursor: pointer;
+      background: #2DCB56;
+      transition: all .1s;
+
+      &:last-of-type {
+        margin-right: 0;
+      }
+    }
+  }
+
+  .alarm-footer-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+
+    .x-axis-item {
+      font-size: 12px;
+      color: #979BA5;
+      white-space: nowrap;
+    }
+  }
+}
