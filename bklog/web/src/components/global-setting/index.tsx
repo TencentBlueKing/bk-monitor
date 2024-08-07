@@ -100,7 +100,7 @@ export default class MaskingDialog extends tsc<IProps> {
                   key={item.id}
                   onClick={() => this.activeMenu !== item.id && this.$emit('menuChange', item)}
                 >
-                  {this.$t(item.name)}
+                  {item.name}
                 </div>
               ))}
             </div>
