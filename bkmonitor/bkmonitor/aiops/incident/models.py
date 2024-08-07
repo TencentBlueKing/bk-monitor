@@ -105,7 +105,7 @@ class IncidentGraphEntity:
 
     def logic_key(self):
         """用于块划分的逻辑Key"""
-        return (self.tags.get("BcsService", {}) or self.tags.get("BcsWorkload", {})).get("name", self.entity_id)
+        return (self.tags.get("BcsService", {}) or self.tags.get("BcsWorkload", {})).get("name", "")
 
     def logic_content(self):
         """用于块划分的逻辑Key的内容"""
@@ -470,10 +470,14 @@ class IncidentSnapshot(object):
         for next_entity_type in list(next_entity_types):
             self.find_entity_type_depths(next_entity_type, current_depth + 1, entity_type_depths)
 
-    def aggregate_graph(self, incident: IncidentDocument, aggregate_config: Dict = None) -> None:
+    def aggregate_graph(
+        self, incident: IncidentDocument, aggregate_config: Dict = None, entities_orders: Dict = None
+    ) -> None:
         """聚合图谱
 
+        :param incident: 故障详情
         :param aggregate_config: 聚合配置，没有则按照是否有同质化边，且被聚合节点数大于等于3进行聚合
+        :param entities_orders: 节点排序，默认用加入图谱的时间
         """
         group_by_entities = {}
 
@@ -508,7 +512,9 @@ class IncidentSnapshot(object):
         for entity_ids in group_by_entities.values():
             # 聚合相同维度超过两个的图谱实体
             if len(entity_ids) >= 2:
-                self.merge_entities(sorted(list(entity_ids)))
+                # 默认用entity_id字典序进行排序
+                sorted_entities = sorted(list(entity_ids), key=lambda x: entities_orders.get(x, x))
+                self.merge_entities(sorted_entities)
 
     def generate_aggregate_key(self, entity: IncidentGraphEntity, aggregate_config: Dict) -> frozenset:
         """根据聚合配置生成用于聚合的key
