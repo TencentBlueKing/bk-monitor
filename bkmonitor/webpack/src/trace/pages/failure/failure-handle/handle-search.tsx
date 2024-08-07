@@ -106,9 +106,9 @@ export default defineComponent({
       <div class='handle-search-top'>
         <FilterSearchMain
           tagInfo={props.tagInfo}
-          onChangeSpace={(val: number[]) => {
+          onChangeSpace={(val: number[], isErr: boolean) => {
             bkBizIds.value = val;
-            getIncidentAlertAggregate();
+            !isErr && getIncidentAlertAggregate();
             emit('changeSpace', bkBizIds.value);
           }}
           onSearch={(val: string, validate: boolean) => {
@@ -305,9 +305,9 @@ export default defineComponent({
     };
     const showName = () => {
       if (['all', window.user_name, window.username].includes(props.username.id)) {
-        return `${props.username.name}的告警`;
+        return `${props.username.name}${t('的告警')}`;
       }
-      return `${props.username.name}处理的告警`;
+      return `${props.username.name}${t('处理的告警')}`;
     };
     const scrollChange = e => {
       const scrollTop = e.target?.scrollTop;

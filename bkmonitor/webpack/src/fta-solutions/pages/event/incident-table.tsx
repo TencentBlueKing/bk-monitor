@@ -153,8 +153,8 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   metricPopoverIns = null;
   handleMetricMouseenter(e: MouseEvent, data: { key: string; value: string }[] | string[]) {
     this.metricPopoverIns?.hide?.(0);
-    const { clientWidth, scrollWidth } = e.target as HTMLDivElement;
-    if (scrollWidth > clientWidth) {
+    const { clientWidth, scrollWidth, scrollHeight, clientHeight } = e.target as HTMLDivElement;
+    if (scrollWidth > clientWidth || scrollHeight > clientHeight) {
       this.metricPopoverIns = this.$bkPopover(e.target, {
         content: `${data.map(item => `<div>${item}</div>`).join('')}`,
         interactive: true,
@@ -268,7 +268,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 100,
             minWidth: 100,
-            sortable: 'curstom',
+            // sortable: 'curstom',
             formatter: (row: IncidentItem) => {
               return row.duration || '--';
             },

@@ -643,8 +643,9 @@
     display: flex;
     align-items: center;
     color: #699df4;
+    white-space: nowrap;
     cursor: pointer;
-
+    
     .btn-icon {
       display: flex;
       align-items: center;
