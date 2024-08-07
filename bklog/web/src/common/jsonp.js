@@ -36,3 +36,23 @@ export const jsonp = (url, callback, shouldReload = false) => {
   scriptEl.onload = removeCallback;
   scriptEl.onerror = removeCallback;
 };
+
+/**
+ *
+ * @param url jsonp url
+ * @param options jsonp options
+ * @returns Promise
+ */
+export const useJSONP = (url, options) => {
+  return new Promise((resolve, reject) => {
+    jsonp(url, {
+      ...options,
+      callback: response => {
+        resolve(response);
+      },
+      onError: e => {
+        reject(e);
+      }
+    });
+  });
+};

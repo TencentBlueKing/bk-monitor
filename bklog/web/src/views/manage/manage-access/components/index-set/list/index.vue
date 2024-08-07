@@ -149,7 +149,7 @@
       <bk-table-column
         :label="$t('操作')"
         :render-header="$renderHeader"
-        width="190"
+        :width="operatorWidth"
       >
         <template slot-scope="props">
           <bk-button
@@ -265,6 +265,9 @@ export default {
         )
       };
       return textMap[this.scenarioId];
+    },
+    operatorWidth() {
+      return this.$store.state.isEnLanguage ? 300 : 190;
     }
   },
   created() {

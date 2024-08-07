@@ -255,7 +255,7 @@ import jsCookie from 'js-cookie';
 import LogVersion from './log-version';
 import { menuArr } from './complete-menu';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
-import { jsonp } from '@/common/jsonp';
+import { useJSONP } from '@/common/jsonp';
 import GlobalDialog from '@/components/global-dialog';
 import platformConfigStore from '@/store/modules/platform-config';
 import logoImg from '@/images/log-logo.png';
@@ -512,11 +512,27 @@ export default {
         expires: 3600,
         domain: this.envConfig.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')
       });
-      await jsonp(
-        `${this.envConfig.host}/api/c/compapi/v2/usermanage/fe_update_user_language/?language=${value}`,
-        'localeChange',
-        true
-      );
+      if (this.envConfig.host) {
+        try {
+          useJSONP(
+            `${this.envConfig.host
+              .replace(/\/$/, '')
+              .replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`,
+            {
+              data: {
+                language: value
+              }
+            }
+          );
+        } catch (error) {
+          console.warn(error);
+          location.reload();
+        } finally {
+          location.reload();
+        }
+        return;
+      }
+      location.reload();
     },
     dropdownLanguageShow() {
       this.isShowLanguageDropdown = true;

@@ -43,6 +43,7 @@
         >
           <bk-button class="king-button">{{ $t('业务接入') }}</bk-button>
           <svg
+            v-en-style="'left: 186px'"
             class="outside-link-icon"
             viewBox="0 0 1024 1024"
             xmlns="http://www.w3.org/2000/svg"
@@ -71,7 +72,7 @@
           <p class="card-detail">
             {{
               data.getAccess.businessName
-                ? $t('您当前没有业务--${n}的权限，请先申请吧！', { n: data.getAccess.businessName })
+                ? $t('您当前没有业务--{n}的权限，请先申请吧！', { n: data.getAccess.businessName })
                 : $t('您当前没有业务权限，请先申请吧！')
             }}
           </p>
