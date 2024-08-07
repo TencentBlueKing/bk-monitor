@@ -34,26 +34,32 @@ from apps.log_clustering.exceptions import ModelReleaseNotFoundException
 from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
     AiopsModelHandler,
 )
-from apps.log_clustering.models import (
-    AiopsModel,
-    AiopsSignatureAndPattern,
-    ClusteringConfig,
-)
+from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfig
 from apps.log_search.models import LogIndexSet
 from apps.utils.task import high_priority_task
 
 
 @periodic_task(run_every=crontab(minute="*/10"))
 def sync_pattern():
-    model_ids = AiopsModel.objects.all().values_list("model_id", flat=True)
+    clustering_configs = ClusteringConfig.objects.filter(signature_enable=True).values(
+        "model_id", "model_output_rt", "index_set_id"
+    )
+    index_set_ids = set()
+    for clustering_config in clustering_configs:
+        index_set_ids.add(clustering_config["index_set_id"])
 
-    for model_id in model_ids:
-        sync.delay(model_id=model_id)
-    index_set_ids = LogIndexSet.objects.filter(is_active=True).values_list("index_set_id", flat=True)
-    for clustering_config in ClusteringConfig.objects.filter(signature_enable=True, index_set_id__in=index_set_ids):
-        if clustering_config.model_output_rt:
-            # 在线训练的flow，没有指定的模型，以模型输出的结果表作为唯一键
-            sync.delay(model_output_rt=clustering_config.model_output_rt)
+    index_set_id_list = LogIndexSet.objects.filter(is_active=True, index_set_id__in=index_set_ids).values_list(
+        "index_set_id", flat=True
+    )
+    for clustering_config in clustering_configs:
+        if clustering_config["index_set_id"] not in index_set_id_list:
+            continue
+        model_id = clustering_config["model_id"]
+        if model_id:
+            sync.delay(model_id=model_id)
+        model_output_rt = clustering_config["model_output_rt"]
+        if model_output_rt:
+            sync.delay(model_output_rt=model_output_rt)
 
 
 @high_priority_task(ignore_result=True)
