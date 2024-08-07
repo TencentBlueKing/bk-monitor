@@ -385,7 +385,7 @@ export default defineComponent({
           }}
           always={this.showLegend}
           arrow={false}
-          boundary='parent'
+          boundary='body'
           isShow={this.showLegend}
           offset={{ crossAxis: 90, mainAxis: 10 }}
           placement='top'
@@ -435,7 +435,7 @@ export default defineComponent({
           }}
           always={this.showMinimap}
           arrow={false}
-          boundary='parent'
+          boundary='body'
           isShow={this.showMinimap}
           offset={{ crossAxis: 70, mainAxis: 10 }}
           placement='top'

@@ -23,7 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, onBeforeMount, onMounted, reactive, ref, watch } from 'vue';
+import {
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onBeforeMount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+  onUnmounted,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
@@ -564,7 +575,16 @@ export default defineComponent({
         </div>
       );
     };
-    const handleHideMoreOperate = () => {
+    const handleHideMoreOperate = (e?: Event) => {
+      if (!popoperOperateInstance.value) {
+        return;
+      }
+      if (e) {
+        const { classList } = e.target as HTMLElement;
+        if (classList.contains('icon-mc-more') || classList.contains('operate-more')) {
+          return;
+        }
+      }
       popoperOperateInstance.value.hide();
       popoperOperateInstance.value.close();
       popoperOperateInstance.value = null;
@@ -578,13 +598,13 @@ export default defineComponent({
           target: e.target,
           content: moreItems.value,
           arrow: false,
-          trigger: 'click',
+          trigger: 'manual',
           placement: 'bottom',
           theme: 'light common-monitor',
           width: 120,
           extCls: 'alarm-detail-table-more-popover',
           disabled: false,
-          isShow: false,
+          isShow: true,
           always: false,
           height: 'auto',
           maxWidth: '120',
@@ -604,14 +624,17 @@ export default defineComponent({
           componentEventDelay: 0,
           forceClickoutside: false,
           immediate: false,
-          onHide: () => {
-            popoperOperateInstance.value.close();
-            popoperOperateInstance.value = null;
-            popoperOperateIndex.value = -1;
-          },
+        });
+        popoperOperateInstance.value.install();
+        setTimeout(() => {
+          popoperOperateInstance.value?.vm?.show();
+        }, 100);
+      } else {
+        popoperOperateInstance.value.update(e.target, {
+          target: e.target,
+          content: moreItems.value,
         });
       }
-      setTimeout(popoperOperateInstance.value.show, 100);
     };
     const handleLoadData = () => {
       // scrollLoading.value = true;
@@ -677,6 +700,10 @@ export default defineComponent({
     };
     onMounted(() => {
       props.searchValidate && handleGetTable();
+      document.body.addEventListener('click', handleHideMoreOperate);
+    });
+    onUnmounted(() => {
+      document.body.removeEventListener('click', handleHideMoreOperate);
     });
     const handleAlarmDispatchSuccess = () => {};
     const handleChangeCollapse = ({ id, isCollapse }) => {
