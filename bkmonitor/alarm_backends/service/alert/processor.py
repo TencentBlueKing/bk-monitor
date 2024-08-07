@@ -146,7 +146,7 @@ class BaseAlertProcessor:
             errors = e.errors
 
         self.logger.info(
-            "[save alert document] action(%s): ignored(%d), saved(%d), failed(%d), elapsed(%.3f)",
+            "[save alert document] action(%s): ignored(%d), saved(%d), failed(%d), cost: %.3f",
             action,
             len(alerts) - len(alert_documents),
             len(alert_documents) - len(errors),
@@ -177,7 +177,7 @@ class BaseAlertProcessor:
             errors = e.errors
 
         self.logger.info(
-            "[save alert log document] saved(%d), failed(%d), elapsed(%.3f)",
+            "[save alert log document] saved(%d), failed(%d), cost: %.3f",
             len(log_documents) - len(errors),
             len(errors),
             time.time() - start_time,

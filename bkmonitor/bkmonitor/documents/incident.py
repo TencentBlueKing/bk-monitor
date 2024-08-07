@@ -18,8 +18,7 @@ from elasticsearch_dsl import InnerDoc, Search, field
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BaseDocument, Date
-from bkmonitor.models.strategy import StrategyLabel
-from constants.incident import IncidentGraphComponentType, IncidentStatus
+from constants.incident import IncidentStatus
 from core.drf_resource import api
 from core.errors.incident import IncidentNotFoundError
 
@@ -189,20 +188,6 @@ class IncidentDocument(IncidentBaseDocument):
             handlers = handlers | set(alert_doc.assignee)
 
         self.handlers = list(handlers)
-
-    def generate_labels(self, snapshot) -> None:
-        """生成故障标签
-
-        :param snapshot: 故障分析结果图谱快照信息
-        """
-        strategy_ids = set()
-        for incident_alert in snapshot.alert_entity_mapping.values():
-            if incident_alert.entity.component_type == IncidentGraphComponentType.PRIMARY:
-                strategy_ids.add(incident_alert.strategy_id)
-
-        labels = StrategyLabel.objects.filter(strategy_id__in=strategy_ids).values_list("label_name", flat=True)
-        whole_labels = list(set(labels) | set(self.labels))
-        self.labels = whole_labels
 
     @classmethod
     def get(cls, id: str, fetch_remote: bool = True) -> "IncidentDocument":
