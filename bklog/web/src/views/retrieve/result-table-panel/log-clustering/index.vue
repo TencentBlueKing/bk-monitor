@@ -35,16 +35,19 @@
         class="cluster-nav"
         data-test-id="cluster_div_fingerOperate"
       >
-        <div class="bk-button-group">
-          <bk-button
-            v-for="item of clusterNavList"
-            :class="active === item.id ? 'is-selected' : ''"
-            :key="item.id"
-            size="small"
-            @click="handleClickNav(item.id)"
-          >
-            {{ item.name }}
-          </bk-button>
+        <div class="left-container">
+          <div class="bk-button-group">
+            <bk-button
+              v-for="item of clusterNavList"
+              :class="active === item.id ? 'is-selected' : ''"
+              :key="item.id"
+              size="small"
+              @click="handleClickNav(item.id)"
+            >
+              {{ item.name }}
+            </bk-button>
+          </div>
+          <strategy style="margin-left: 20px;"></strategy>
         </div>
 
         <finger-operate
@@ -184,6 +187,7 @@
   import FingerOperate from './components/finger-operate';
   import DataFingerprint from './data-fingerprint';
   import IgnoreTable from './ignore-table';
+  import Strategy from './components/strategy';
 
   export default {
     components: {
@@ -192,6 +196,7 @@
       ClusteringLoader,
       FingerOperate,
       EmptyStatus,
+      Strategy,
     },
     inheritAttrs: false,
     props: {
@@ -660,6 +665,11 @@
       color: #63656e;
 
       @include flex-justify(space-between);
+
+      .left-container {
+        flex-wrap: nowrap;
+        @include flex-justify(space-between);
+      }
     }
 
     .bk-button-group {

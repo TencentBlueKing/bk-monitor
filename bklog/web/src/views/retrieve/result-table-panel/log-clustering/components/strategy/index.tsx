@@ -1,0 +1,446 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Component, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { From } from 'bk-magic-vue';
+
+import './index.scss';
+
+type FormType = 'alarm' | 'increase';
+type StrategyType = 'new_cls_strategy' | 'normal_strategy';
+import $http from '../../../../../../api';
+
+const { $i18n } = window.mainComponent;
+
+@Component
+export default class Strategy extends tsc<object> {
+  @Ref('strategyFrom') strategyFromRef: From;
+  isShowDialog = false;
+  formLoading = false;
+  /** 当前编辑的类型 */
+  activeType: FormType = 'alarm';
+  isEdit = false;
+  /** 新类提交数据 */
+  alarmFormData = {
+    interval: '',
+    threshold: '',
+    level: '',
+    user_groups: [],
+  };
+  /** 数据提交表单数据 */
+  increaseFormData = {
+    level: '',
+    sensitivity: 0,
+    user_groups: [],
+  };
+  /** 告警级别下拉框 */
+  levelSelectList = [
+    { id: 1, name: $i18n.t('致命') },
+    { id: 2, name: $i18n.t('预警') },
+    { id: 3, name: $i18n.t('提醒') },
+  ];
+  /** 告警组下拉框 */
+  groupSelectList = [];
+  /** 新类告警是否保存过 */
+  alarmIsSubmit = false;
+  /** 数量突增告警告警是否保存过 */
+  increaseIsSubmit = false;
+  rules = {
+    interval: [
+      {
+        required: true,
+        message: $i18n.t('必填项'),
+        trigger: 'blur',
+      },
+    ],
+    threshold: [
+      {
+        required: true,
+        message: $i18n.t('必填项'),
+        trigger: 'blur',
+      },
+    ],
+    level: [
+      {
+        required: true,
+        message: $i18n.t('必填项'),
+        trigger: 'blur',
+      },
+    ],
+    user_groups: [
+      {
+        required: true,
+        message: $i18n.t('必填项'),
+        trigger: 'blur',
+      },
+    ],
+  };
+
+  get isAlarmType() {
+    return this.activeType === 'alarm';
+  }
+
+  get bkBizId() {
+    return this.$store.state.bkBizId;
+  }
+
+  get formData(): any {
+    return this.isAlarmType ? this.alarmFormData : this.increaseFormData;
+  }
+
+  mounted() {
+    this.requestStrategyInfo('new_cls_strategy');
+    this.requestStrategyInfo('normal_strategy');
+  }
+
+  /** 给索引集添加标签 */
+  requestGetUserGroup() {
+    this.formLoading = true;
+    $http
+      .request('retrieve/userGroup', {
+        data: {
+          bk_biz_id: this.bkBizId,
+        },
+      })
+      .then(res => {
+        this.groupSelectList = res.data.map(item => ({
+          id: item.id,
+          name: item.name,
+        }));
+      })
+      .finally(() => {
+        this.formLoading = false;
+      });
+  }
+
+  /** 获取信息 */
+  async requestStrategyInfo(strategyType: StrategyType = 'new_cls_strategy') {
+    try {
+      const res = await $http.request('retrieve/getClusteringInfo', {
+        params: {
+          index_set_id: this.$route.params.indexId,
+          strategy_type: strategyType,
+        },
+      });
+      const isSubmit = JSON.stringify(res.data) !== '{}';
+      if (strategyType === 'new_cls_strategy') {
+        this.alarmIsSubmit = isSubmit;
+        Object.assign(this.alarmFormData, res.data);
+      }
+      if (strategyType === 'normal_strategy') {
+        this.increaseIsSubmit = isSubmit;
+        Object.assign(this.increaseFormData, res.data);
+      }
+    } catch (err) {}
+  }
+
+  handleSelectFromType(shotType: FormType) {
+    this.strategyFromRef.clearError();
+    this.activeType = shotType;
+  }
+  handleConfirmSubmit() {
+    this.strategyFromRef.validate().then(() => {
+      const submitPostStr = this.isAlarmType ? 'retrieve/newClsStrategy' : 'retrieve/normalStrategy';
+      const data = this.isAlarmType ? this.alarmFormData : this.increaseFormData;
+      $http
+        .request(submitPostStr, {
+          params: { index_set_id: this.$route.params.indexId },
+          data,
+        })
+        .then(res => {
+          if (res.code === 0) {
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('操作成功'),
+            });
+            this.initStrategyInfo();
+            this.isShowDialog = false;
+          }
+        });
+    });
+  }
+  handleOpenDialog(v: boolean) {
+    if (v) {
+      this.requestGetUserGroup();
+    } else {
+      this.isEdit = false;
+      this.strategyFromRef.clearError();
+    }
+  }
+  editStrategy(type: FormType) {
+    this.activeType = type;
+    this.isEdit = true;
+    this.isShowDialog = true;
+  }
+  deleteStrategy(type: FormType) {
+    const strategyType = type === 'alarm' ? 'new_cls_strategy' : 'normal_strategy';
+    const h = this.$createElement;
+    this.$bkInfo({
+      title: this.$t('是否删除该策略？'),
+      confirmLoading: true,
+      theme: 'danger',
+      okText: this.$t('删除'),
+      subHeader: h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            justifyContent: 'center',
+          },
+        },
+        [
+          h(
+            'span',
+            {
+              style: {
+                color: '#63656E',
+              },
+            },
+            [this.$t('策略：') as string],
+          ),
+          h('span', this.$t(type === 'alarm' ? '新类告警' : '数量突增告警策略') as string),
+        ],
+      ),
+      confirmFn: async () => {
+        try {
+          const res = $http.request('retrieve/deleteClusteringInfo', {
+            params: { index_set_id: this.$route.params.indexId },
+            data: { strategy_type: strategyType },
+          });
+          if (res.code === 0) {
+            this.isShowDialog = false;
+            this.initStrategyInfo();
+          }
+          return true;
+        } catch (e) {
+          console.warn(e);
+          return false;
+        }
+      },
+    });
+  }
+  initStrategyInfo() {
+    this.requestStrategyInfo('new_cls_strategy');
+    this.requestStrategyInfo('normal_strategy');
+  }
+  render() {
+    const strategyDialog = () => (
+      <bk-dialog
+        width='480'
+        ext-cls='strategy-dialog'
+        v-model={this.isShowDialog}
+        confirm-fn={this.handleConfirmSubmit}
+        header-position='left'
+        mask-close={false}
+        theme='primary'
+        title={$i18n.t(this.isEdit ? '编辑策略' : '新建策略')}
+        on-value-change={this.handleOpenDialog}
+      >
+        {/* <bk-alert type='info'>
+        <div slot='title'>
+          <i18n path='当前页面提供快速配置，如需完整配置，请前往{0}'>
+            <span class='info-btn'>
+              {$i18n.t('新建完整策略')} <i class='log-icon icon-jump'></i>
+            </span>
+          </i18n>
+        </div>
+      </bk-alert> */}
+        <div class={['select-group bk-button-group', { 'increase-group': !this.isAlarmType }]}>
+          <bk-button
+            class={{ 'is-selected': this.isAlarmType }}
+            disabled={this.alarmIsSubmit || this.isEdit}
+            onClick={() => this.handleSelectFromType('alarm')}
+          >
+            {$i18n.t('新类告警')}
+          </bk-button>
+          <bk-button
+            class={{ 'is-selected': !this.isAlarmType }}
+            disabled={this.increaseIsSubmit || this.isEdit}
+            onClick={() => this.handleSelectFromType('increase')}
+          >
+            {$i18n.t('数量突增告警')}
+          </bk-button>
+        </div>
+        <bk-form
+          ref='strategyFrom'
+          v-bkloading={{ isLoading: this.formLoading }}
+          form-type='vertical'
+          {...{
+            props: {
+              model: this.formData,
+              rules: this.rules,
+            },
+          }}
+        >
+          <bk-form-item
+            v-show={this.isAlarmType}
+            label={$i18n.t('新类告警间隔')}
+            property='interval'
+            required
+          >
+            <bk-input
+              v-model={this.formData.interval}
+              show-controls={false}
+              type='number'
+            ></bk-input>
+          </bk-form-item>
+          <bk-form-item
+            v-show={this.isAlarmType}
+            label={$i18n.t('新类告警阈值')}
+            property='threshold'
+            required
+          >
+            <bk-input
+              v-model={this.formData.threshold}
+              show-controls={false}
+              type='number'
+            ></bk-input>
+          </bk-form-item>
+          <bk-form-item
+            label={$i18n.t('告警级别')}
+            property='level'
+            required
+          >
+            <bk-select
+              v-model={this.formData.level}
+              searchable
+            >
+              {this.levelSelectList.map(item => (
+                <bk-option
+                  id={item.id}
+                  name={item.name}
+                ></bk-option>
+              ))}
+            </bk-select>
+          </bk-form-item>
+          <bk-form-item
+            v-show={!this.isAlarmType}
+            label={$i18n.t('变化敏感度')}
+            property='sensitivity'
+            required
+          >
+            <div class='level-box'>
+              <bk-slider
+                v-model={this.formData.sensitivity}
+                max-value={10}
+                min-value={0}
+              >
+                <span
+                  style='margin-right: 10px;'
+                  slot='start'
+                >
+                  {$i18n.t('低')}
+                </span>
+                <span
+                  style='margin-left: 10px;'
+                  slot='end'
+                >
+                  {$i18n.t('高')}
+                </span>
+              </bk-slider>
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            label={$i18n.t('告警组')}
+            property='user_groups'
+            required
+          >
+            <bk-select
+              v-model={this.formData.user_groups}
+              display-tag
+              multiple
+              searchable
+            >
+              {this.groupSelectList.map(item => (
+                <bk-option
+                  id={item.id}
+                  name={item.name}
+                ></bk-option>
+              ))}
+            </bk-select>
+          </bk-form-item>
+        </bk-form>
+      </bk-dialog>
+    );
+    const popoverSlot = (type: FormType = 'alarm') => (
+      <bk-popover
+        ext-cls='strategy-popover'
+        placement='top'
+        theme='light'
+      >
+        <div class={['edit-strategy-box', type]}>
+          <i class={['bk-icon log-icon', type === 'alarm' ? 'icon-new-alarm' : 'icon-sudden-increase']}></i>
+          <span class='num'>1</span>
+        </div>
+        <div slot='content'>
+          <span>{$i18n.t(type === 'alarm' ? '新类告警' : '数量突增告警策略')}</span>
+          <span
+            class='operator'
+            onClick={() => this.editStrategy(type)}
+          >
+            {$i18n.t('编辑')}
+          </span>
+          <span
+            class='operator'
+            onClick={() => this.deleteStrategy(type)}
+          >
+            {$i18n.t('删除')}
+          </span>
+        </div>
+      </bk-popover>
+    );
+    return (
+      <div class='strategy-container'>
+        {strategyDialog()}
+        <div class='new-built-container'>
+          <bk-button
+            disabled={this.alarmIsSubmit && this.increaseIsSubmit}
+            icon='plus'
+            size='small'
+            onClick={() => {
+              this.activeType = this.increaseIsSubmit ? 'alarm' : 'increase';
+              this.isShowDialog = true;
+            }}
+          >
+            {$i18n.t('新建策略')}
+          </bk-button>
+          {this.alarmIsSubmit && popoverSlot('alarm')}
+          {this.increaseIsSubmit && popoverSlot('increase')}
+        </div>
+        <bk-button
+          size='small'
+          text
+          // onClick={() => (this.isShowDialog = true)}
+        >
+          <span>{$i18n.t('查看策略')}</span>
+          <i class='log-icon icon-jump'></i>
+        </bk-button>
+      </div>
+    );
+  }
+}

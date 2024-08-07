@@ -651,4 +651,13 @@ export default {
   展开长字段: 'Expand long field',
   过滤参数: 'Filter parameter',
   日志过滤: 'Log Filtration',
+  新建策略: 'New Strategy',
+  编辑策略: 'Edit Strategy',
+  查看策略: 'View Strategy',
+  新类告警: 'New type of alarm',
+  数量突增告警: 'Alarm for sudden increase',
+  新类告警间隔: 'New alarm interval',
+  新类告警阈值: 'New alarm threshold',
+  告警级别: 'Alarm level',
+  告警组: 'Alarm group',
 };
