@@ -28,13 +28,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './apm-relation-graph-content.scss';
 
-interface IProps {
-  data?: any;
-}
-
+type IProps = any;
 @Component
 export default class ApmRelationGraphContent extends tsc<IProps> {
   /* 侧栏拖拽 */
+  minWidth = 720;
   width = 720;
   oldWidth = 720;
   isMouseenter = false;
@@ -61,13 +59,27 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
   }
   handleSideMousemove(event) {
     if (this.isDrop) {
-      this.width = this.oldWidth + (this.downPageX - event.pageX);
+      const width = this.oldWidth + (this.downPageX - event.pageX);
+      if (width < this.minWidth) {
+        this.width = this.minWidth;
+      } else {
+        this.width = this.oldWidth + (this.downPageX - event.pageX);
+      }
     }
   }
   handleSideMouseup() {
     this.isDrop = false;
+    this.isMouseenter = false;
     this.downPageX = 0;
   }
+
+  setWidth(width) {
+    this.width = width;
+  }
+  setMinWidth(width) {
+    this.minWidth = width;
+  }
+
   /* 侧栏拖转 ---end----- */
   render() {
     return (
@@ -79,29 +91,31 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
           onMouseup={this.handleSideMouseup}
         >
           <div class='main-content'>{this.$slots?.default}</div>
-          <div
-            style={{
-              width: `${this.width}px`,
-            }}
-            class={['side-content', { 'drop-active': this.isMouseenter }]}
-          >
+          {!!this.width && (
             <div
-              class='side-drop-wrap'
-              onMousedown={this.handleSideMouseDown}
-              onMouseenter={this.handleSideMouseenter}
-              onMouseleave={this.handleSideMouseleave}
+              style={{
+                width: `${this.width}px`,
+              }}
+              class={['side-content', { 'drop-active': this.isMouseenter }]}
             >
-              <div class='drop-point'>
-                {new Array(5).fill(null).map((_, index) => (
-                  <div
-                    key={index}
-                    class='point'
-                  />
-                ))}
+              <div
+                class='side-drop-wrap'
+                onMousedown={this.handleSideMouseDown}
+                onMouseenter={this.handleSideMouseenter}
+                onMouseleave={this.handleSideMouseleave}
+              >
+                <div class='drop-point'>
+                  {new Array(5).fill(null).map((_, index) => (
+                    <div
+                      key={index}
+                      class='point'
+                    />
+                  ))}
+                </div>
               </div>
+              {this.$slots?.side}
             </div>
-            {this.$slots?.side}
-          </div>
+          )}
         </div>
       </div>
     );
