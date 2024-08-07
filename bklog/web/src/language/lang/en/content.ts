@@ -103,7 +103,7 @@ export default {
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
   上次检测时间: 'Last time',
-  腾讯蓝鲸智云: 'Tencent BlueKing',
+  蓝鲸智云: 'BlueKing',
   业务DEMO: 'Demo',
   体验DEMO: 'Demo',
   最大字段长度: 'Maximum field length',

@@ -43,8 +43,8 @@ interface IPlatformConfig {
 
 export const initialConfig = {
   name: '日志平台',
-  nameEn: 'BK LOG SEARCH',
-  brandName: '腾讯蓝鲸智云',
+  nameEn: 'LOG',
+  brandName: '蓝鲸智云',
   brandNameEn: 'BlueKing',
   version: window.VERSION,
 };
