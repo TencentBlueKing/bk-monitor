@@ -114,8 +114,13 @@ class AlertBuilder(BaseAlertProcessor):
             # 对加锁成功的告警才能进行操作
             alerts = self.build_alerts(success_locked_events)
             alerts = self.enrich_alerts(alerts)
-            self.update_alert_cache(alerts)
-            self.update_alert_snapshot(alerts)
+            update_count, finished_count = self.update_alert_cache(alerts)
+            self.logger.info(
+                "[alert.builder update alert cache]: updated(%s), finished(%s)", update_count, finished_count
+            )
+
+            snapshot_count = self.update_alert_snapshot(alerts)
+            self.logger.info("[alert.builder update alert snapshot]: %s", snapshot_count)
 
             if fail_locked_events:
                 from alarm_backends.service.alert.builder.tasks import (
@@ -169,7 +174,7 @@ class AlertBuilder(BaseAlertProcessor):
         """
         对于新产生告警，立马触发一次状态检查。因为周期检测任务是1分钟跑一次，对于监控周期小于1分钟告警来说可能不够及时
         """
-        alerts = [
+        alerts_params = [
             {
                 "id": alert.id,
                 "strategy_id": alert.strategy_id,
@@ -177,7 +182,9 @@ class AlertBuilder(BaseAlertProcessor):
             for alert in alerts
             if alert.is_new() and alert.strategy_id
         ]
-        send_check_task.delay(alerts=alerts, run_immediately=False)
+        # 利用send_check_task 创建[alert.manager]延时任务
+        send_check_task(alerts=alerts_params, run_immediately=False)
+        self.logger.info("[alert.builder -> alert.manager] alerts: %s", ", ".join([str(alert.id) for alert in alerts]))
 
     def enrich_alerts(self, alerts: List[Alert]):
         """
@@ -189,7 +196,9 @@ class AlertBuilder(BaseAlertProcessor):
         factory = AlertEnrichFactory(alerts)
         alerts = factory.enrich()
 
-        self.logger.info("enrich alerts finished, total(%s), elapsed(%.3f)", len(alerts), time.time() - start_time)
+        self.logger.info(
+            "[alert.builder enrich alerts] finished, total(%s), elapsed(%.3f)", len(alerts), time.time() - start_time
+        )
         return alerts
 
     def enrich_events(self, events: List[Event]):
@@ -355,7 +364,7 @@ class AlertBuilder(BaseAlertProcessor):
             alert.init_uid()
 
         self.logger.info(
-            "[alert.builder] build alerts finished, new/total(%d/%d)",
+            "[alert.builder build alerts] finished, new/total(%d/%d)",
             len(alerts_to_init),
             len(alerts),
         )

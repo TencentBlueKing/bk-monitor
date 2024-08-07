@@ -174,6 +174,7 @@ class CMDBEnricher(BaseEventEnricher):
             event.set("bk_biz_id", instance.bk_biz_id)
         event.set("target", instance.service_instance_id)
         event.set("bk_service_instance_id", instance.service_instance_id)
+        event.set("bk_host_id", instance.bk_host_id)
         event.set("ip", instance.ip)
         event.set("bk_cloud_id", instance.bk_cloud_id)
         event.set("bk_topo_node", list({node.id for node in chain(*list(instance.topo_link.values()))}))
