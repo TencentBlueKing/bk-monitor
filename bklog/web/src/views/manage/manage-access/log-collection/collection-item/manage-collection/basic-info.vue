@@ -397,13 +397,12 @@
         return this.splitFilters(filters ?? []);
       },
       showOperatorObj() {
-        const newObject = Object.keys(operatorMappingObj).reduce((pre, acc) => {
+        return Object.keys(operatorMappingObj).reduce((pre, acc) => {
           let newKey = acc;
           if ((this.isMatchType && acc === 'include') || (!this.isMatchType && acc === 'eq')) newKey = '=';
           pre[newKey] = operatorMappingObj[acc];
           return pre;
         }, {});
-        return newObject;
       },
       groupKey() {
         return this.isMatchType ? this.groupList.slice(1) : this.groupList;

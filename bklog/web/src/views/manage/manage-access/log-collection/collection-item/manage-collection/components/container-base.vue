@@ -500,14 +500,13 @@
         }
       },
       showOperatorObj(params) {
-        const newObject = Object.keys(operatorMappingObj).reduce((pre, acc) => {
+        return Object.keys(operatorMappingObj).reduce((pre, acc) => {
           let newKey = acc;
           if ((this.isMatchType(params) && acc === 'include') || (!this.isMatchType(params) && acc === 'eq'))
             newKey = '=';
           pre[newKey] = operatorMappingObj[acc];
           return pre;
         }, {});
-        return newObject;
       },
       isHaveFilter(params) {
         if (params.type === 'none') return false;
