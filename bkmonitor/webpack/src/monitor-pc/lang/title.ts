@@ -140,6 +140,7 @@ export default {
   最后更新: 'Last update time',
   故障时序: 'Fault sequence',
   视图: 'View',
+  明细: 'Details',
   测试执行: 'Test execution',
   配置选择: 'Configuration selection',
   流程指引: 'Process guidance',

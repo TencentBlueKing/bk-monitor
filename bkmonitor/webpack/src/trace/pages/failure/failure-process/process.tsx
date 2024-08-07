@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { reactive } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { LEVEL_LIST, STATUS_LIST } from '../constant';
 
@@ -63,38 +64,55 @@ export const renderHandlers = handles => {
       ))
     : '--';
 };
-export const handleFun = data => {
+export const handleFun = (data, callback) => {
+  callback?.(data);
   const node = JSON.parse(JSON.stringify({ ...data }));
   node.id = data.alert_id;
   window.__BK_WEWEB_DATA__?.showDetailSlider?.(node);
 };
 
 /** 点击跳转到告警tab */
-export const handleDetail = (e, {}, id, bizId) => {
+export const handleDetail = (e, data, id, bizId) => {
   e.stopPropagation();
-  const word = `?tab=FailureView`;
+  const word = '?tab=FailureView';
   const key = location.hash.indexOf(word) === -1 ? word : '';
   const routeUrl = `${location.hash}${key}`;
   const url = `${location.origin}${location.pathname}?bizId=${bizId}${routeUrl}`;
   window.location.href = url;
 };
-/** 修改故障属性的渲染函数 */
+/** 点击告警名 */
+export const handleAlertName = (extra_info, callback) => {
+  return (
+    <span
+      class='link cursor'
+      onClick={() => handleFun(extra_info, callback)}
+    >
+      {extra_info.alert_name}
+    </span>
+  );
+};
+/** 修改故障属性的渲染函数  */
 const handleUpdate = ({ extra_info, operator }) => {
+  const { t } = useI18n();
   const { incident_key_alias, from_value, to_value, incident_key } = extra_info;
   const isLevel = incident_key === 'level';
   const isStatus = incident_key === 'status';
   const isIncidentName = incident_key === 'incident_name';
   const statusTag = val => {
     let info: any = {};
-    isLevel && (info = LEVEL_LIST[val]);
-    isStatus && (info = STATUS_LIST[val]);
+    if (isLevel) {
+      info = LEVEL_LIST[val];
+    }
+    if (isStatus) {
+      info = STATUS_LIST[val];
+    }
     return (
       <span
         style={{ background: info.bgColor, color: info?.color || '#fff' }}
         class='status-tag'
       >
         <i class={`icon-monitor icon-${info.icon} sign-icon`} />
-        {info.label}
+        {t(info.label)}
       </span>
     );
   };
@@ -113,7 +131,7 @@ const handleUpdate = ({ extra_info, operator }) => {
     <i18n-t
       v-slots={{
         operator: () => (operator ? <span class='tag-wrap'>{renderHandlers([operator])}</span> : ''),
-        incident_key_alias: () => <span class='tag-bold'>{incident_key_alias}</span>,
+        incident_key_alias: () => <span class='tag-bold'>{t(incident_key_alias)}</span>,
         from_value: () => fromValue,
         to_value: () => toValue,
       }}
@@ -175,89 +193,54 @@ export const renderMap = reactive({
     );
   },
   incident_update: handleUpdate,
-  alert_trigger: ({ extra_info }) => {
+  alert_trigger: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
-          alert_name: (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {extra_info.alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
         }}
         keypath={typeTextMap.alert_trigger}
       />
     );
   },
-  alert_recover: ({ extra_info }) => {
+  alert_recover: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
-          alert_name: (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {extra_info.alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
         }}
         keypath={typeTextMap.alert_recover}
       />
     );
   },
-  alert_invalid: ({ extra_info }) => {
+  alert_invalid: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
-          alert_name: (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {extra_info.alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
         }}
         keypath={typeTextMap.alert_invalid}
       />
     );
   },
-  alert_notice: ({ extra_info }) => {
-    const { receivers, alert_name } = extra_info;
+  alert_notice: ({ extra_info }, id, bizId, callback) => {
+    const { receivers } = extra_info;
     return (
       <i18n-t
         v-slots={{
-          alert_name: () => (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
           receivers: () => <span class='tag-wrap'>{renderHandlers(receivers)}</span>,
         }}
         keypath={typeTextMap.alert_notice}
       />
     );
   },
-  alert_convergence: ({ extra_info }) => {
-    const { alert_name, converged_count } = extra_info;
+  alert_convergence: ({ extra_info }, id, bizId, callback) => {
+    const { converged_count } = extra_info;
     return (
       <i18n-t
         v-slots={{
-          alert_name: () => (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
           converged_count: () => <span class='count'>{converged_count}</span>,
         }}
         keypath={typeTextMap.alert_convergence}
@@ -267,9 +250,10 @@ export const renderMap = reactive({
   // <-- 以下为人工事件  -->
   manual_update: handleUpdate,
   feedback: ({ extra_info }) => {
+    const { t } = useI18n();
     const { feedback_incident_root, content, is_cancel } = extra_info;
     if (is_cancel) {
-      return <span>取消反馈根因</span>;
+      return <span>{t('取消反馈根因')}</span>;
     }
     return (
       <i18n-t
@@ -293,94 +277,59 @@ export const renderMap = reactive({
     return (
       <i18n-t
         v-slots={{
-          group_name: () => <span class='tag-wrap'>{renderHandlers(extra_info.group_name )}</span>,
+          group_name: () => <span class='tag-wrap'>{renderHandlers(extra_info.group_name)}</span>,
         }}
         keypath={typeTextMap.group_gather}
       />
     );
   },
-  alert_confirm: ({ extra_info }) => {
+  alert_confirm: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
-          alert_name: () => (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {extra_info.alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
         }}
         keypath={typeTextMap.alert_confirm}
       />
     );
   },
-  alert_shield: ({ extra_info }) => {
+  alert_shield: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
-          alert_name: () => (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {extra_info.alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
         }}
         keypath={typeTextMap.alert_shield}
       />
     );
   },
-  alert_handle: ({ extra_info }) => {
+  alert_handle: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
-          alert_name: () => (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {extra_info.alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
         }}
         keypath={typeTextMap.alert_handle}
       />
     );
   },
   // 告警关闭
-  alert_close: ({ extra_info }) => {
+  alert_close: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
-          alert_name: () => (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {extra_info.alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
         }}
         keypath={typeTextMap.alert_close}
       />
     );
   },
-  alert_dispatch: ({ extra_info }) => {
-    const { alert_name, handlers } = extra_info;
+  alert_dispatch: ({ extra_info }, id, bizId, callback) => {
+    const { handlers } = extra_info;
     return (
       <i18n-t
         v-slots={{
-          alert_name: () => (
-            <span
-              class='link cursor'
-              onClick={() => handleFun(extra_info)}
-            >
-              {alert_name}
-            </span>
-          ),
+          alert_name: () => handleAlertName(extra_info, callback),
           handlers: () => <span class='tag-wrap'>{renderHandlers(handlers)}</span>,
         }}
         keypath={typeTextMap.alert_dispatch}
