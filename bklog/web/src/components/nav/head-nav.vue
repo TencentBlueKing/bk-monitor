@@ -251,7 +251,7 @@
 </template>
 
 <script>
-  import { jsonp } from '@/common/jsonp';
+  import { useJSONP } from '@/common/jsonp';
   import GlobalDialog from '@/components/global-dialog';
   import logoImg from '@/images/log-logo.png';
   import navMenuMixin from '@/mixins/nav-menu-mixin';
@@ -304,8 +304,10 @@
       ...mapGetters('globals', ['globalsData']),
       platformData() {
         const { appLogo, i18n } = platformConfigStore.publicConfig;
+        const bkRepoUrl = window.BK_SHARED_RES_URL;
+        const publicConfigName = i18n?.name ?? this.$t('日志平台');
         return {
-          name: i18n?.name ?? window.TITLE_MENU,
+          name: !!bkRepoUrl ? publicConfigName : this.$t('日志平台'),
           logo: appLogo || logoImg,
         };
       },
@@ -501,11 +503,27 @@
           domain:
             this.envConfig.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, ''),
         });
-        await jsonp(
-          `${this.envConfig.host}/api/c/compapi/v2/usermanage/fe_update_user_language/?language=${value}`,
-          'localeChange',
-          true,
-        );
+        if (this.envConfig.host) {
+          try {
+            useJSONP(
+              `${this.envConfig.host
+                .replace(/\/$/, '')
+                .replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`,
+              {
+                data: {
+                  language: value,
+                },
+              },
+            );
+          } catch (error) {
+            console.warn(error);
+            location.reload();
+          } finally {
+            location.reload();
+          }
+          return;
+        }
+        location.reload();
       },
       dropdownLanguageShow() {
         this.isShowLanguageDropdown = true;

@@ -72,11 +72,10 @@ def init_result_table_data_label(apps, *args, **kwargs):
 DEPENDENCIES = [
     ("bkmonitor", "0140_merge_0139_auto_20230613_1211_0139_auto_20230619_1048"),
     ("metadata", "0171_resulttable_data_label"),
-    ("monitor_web", "0035_auto_20200506_1542"),
 ]
 
 if settings.ROLE == "web":
-    DEPENDENCIES.append(("monitor_web", "0063_update_custom_ts_item_label"))
+    DEPENDENCIES.append(("monitor_web", "0035_auto_20200506_1542"))
 
 
 class Migration(migrations.Migration):

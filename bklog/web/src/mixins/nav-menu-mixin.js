@@ -77,19 +77,22 @@ export default {
         }
 
         const spaceList = res.data;
+        let isHaveViewBusiness = false;
 
         spaceList.forEach(item => {
           item.bk_biz_id = `${item.bk_biz_id}`;
           item.space_uid = `${item.space_uid}`;
           item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
+          item.permission.view_business_v2 && (isHaveViewBusiness = true);
         });
+
         const { bizId, spaceUid } = queryObj;
         const demoId = String(window.DEMO_BIZ_ID);
         const demoProject = spaceList.find(item => item.bk_biz_id === demoId);
         const demoProjectUrl = demoProject ? this.getDemoProjectUrl(demoProject.space_uid) : '';
         this.$store.commit('setDemoUid', demoProject ? demoProject.space_uid : '');
         const isOnlyDemo = demoProject && spaceList.length === 1;
-        if (!spaceList.length || isOnlyDemo) {
+        if (!isHaveViewBusiness || isOnlyDemo) {
           // 没有一个业务或只有一个demo业务显示欢迎页面
           const args = {
             newBusiness: { url: window.BIZ_ACCESS_URL },
@@ -314,7 +317,7 @@ export default {
             // } else {
             //   headTitle = activeTopMenu.name;
             // }
-            // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('腾讯蓝鲸智云')}`;
+            // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('蓝鲸智云')}`;
           },
           {
             immediate: true,

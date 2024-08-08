@@ -487,6 +487,9 @@ class Alert:
         """
         return self.status == EventStatus.ABNORMAL
 
+    def is_recovering(self) -> bool:
+        return self.is_abnormal and self.get_extra_info("is_recovering")
+
     def is_no_data(self):
         """
         是否为无数据告警

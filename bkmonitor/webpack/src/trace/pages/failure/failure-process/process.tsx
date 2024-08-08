@@ -72,7 +72,9 @@ export const handleFun = data => {
 /** 点击跳转到告警tab */
 export const handleDetail = (e, {}, id, bizId) => {
   e.stopPropagation();
-  const routeUrl = `${location.hash}?tab=FailureView`;
+  const word = `?tab=FailureView`;
+  const key = location.hash.indexOf(word) === -1 ? word : '';
+  const routeUrl = `${location.hash}${key}`;
   const url = `${location.origin}${location.pathname}?bizId=${bizId}${routeUrl}`;
   window.location.href = url;
 };
@@ -291,7 +293,7 @@ export const renderMap = reactive({
     return (
       <i18n-t
         v-slots={{
-          group_name: () => <span>{extra_info.group_name || '--'}</span>,
+          group_name: () => <span class='tag-wrap'>{renderHandlers(extra_info.group_name )}</span>,
         }}
         keypath={typeTextMap.group_gather}
       />

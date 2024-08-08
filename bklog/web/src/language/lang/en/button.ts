@@ -49,7 +49,7 @@ export default {
   分享: 'Share',
   启用: 'Enable',
   表格: 'Table',
-  取消: 'CANCEL',
+  取消: 'Cancel',
   创建: 'Create',
   删除: 'Delete',
   详情: 'Detail',

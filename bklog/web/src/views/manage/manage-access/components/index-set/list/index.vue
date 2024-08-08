@@ -151,7 +151,7 @@
         prop="created_by"
       ></bk-table-column>
       <bk-table-column
-        width="190"
+        :width="operatorWidth"
         :label="$t('操作')"
         :render-header="$renderHeader"
       >
@@ -272,6 +272,9 @@
           ),
         };
         return textMap[this.scenarioId];
+      },
+      operatorWidth() {
+        return this.$store.state.isEnLanguage ? 300 : 190;
       },
     },
     created() {

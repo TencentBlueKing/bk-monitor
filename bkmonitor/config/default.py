@@ -337,6 +337,7 @@ ACTIVE_VIEWS = {
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
+        "ai_assistant": "monitor_web.ai_assistant.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -1093,9 +1094,9 @@ BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
 BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", "{}/o/bk_itsm/".format(BK_PAAS_HOST))
 BK_SOPS_HOST = os.getenv("BK_SOPS_URL", "{}/o/bk_sops/".format(BK_PAAS_HOST))
-# todo  新增BK_CI_HOST 需要在bin/environ.sh 模板中定义
+# todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", "{}/o/bk_bcs_app/".format(BK_PAAS_HOST))
-BK_CI_HOST = os.getenv("BK_CI_HOST") or os.getenv("BKAPP_BK_CI_HOST", "")
+BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
 ACTION_DETAIL_URL = "%s?bizId={bk_biz_id}/#/event-center/action-detail/{action_id}" % BK_MONITOR_HOST
 EVENT_CENTER_URL = urljoin(
@@ -1320,6 +1321,7 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+ES_CLUSTER_BLACKLIST = []
 
 # BCS 数据合流配置， 默认为 不启用
 BCS_DATA_CONVERGENCE_CONFIG = {}
@@ -1382,3 +1384,6 @@ ENABLE_UPTIMECHECK_TEST = True
 
 # 检测结果缓存 TTL(小时)
 CHECK_RESULT_TTL_HOURS = 1
+
+# LLM 接口地址
+BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")

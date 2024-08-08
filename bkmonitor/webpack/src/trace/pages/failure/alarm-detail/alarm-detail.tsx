@@ -592,7 +592,7 @@ export default defineComponent({
           allowHtml: false,
           renderType: 'auto',
           padding: 0,
-          offset: 20,
+          offset: 0,
           zIndex: 10,
           disableTeleport: false,
           autoPlacement: false,
@@ -604,6 +604,11 @@ export default defineComponent({
           componentEventDelay: 0,
           forceClickoutside: false,
           immediate: false,
+          onHide: () => {
+            popoperOperateInstance.value.close();
+            popoperOperateInstance.value = null;
+            popoperOperateIndex.value = -1;
+          },
         });
       }
       setTimeout(popoperOperateInstance.value.show, 100);

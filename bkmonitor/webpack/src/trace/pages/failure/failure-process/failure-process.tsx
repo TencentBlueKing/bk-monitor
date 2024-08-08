@@ -261,10 +261,10 @@ export default defineComponent({
                       <i
                         class={[
                           'icon-monitor item-icon',
-                          operation.operation_class !== 'system'
-                            ? operation.operation_type.startsWith('alert')
+                          operation.operation_class === 'system'
+                            ? (operation.operation_type.startsWith('alert')
                               ? 'icon-gaojing1'
-                              : 'icon-mc-fault'
+                              : 'icon-mc-fault')
                             : 'icon-mc-user-one',
                         ]}
                       />
