@@ -291,5 +291,3 @@ def test_query_vm_rt_without_plugin(create_and_delete_records):
         resp = QueryVmRtBySpace().request(params)
         # 如果 request 没有抛出 ValidationError，assert 失败
         assert resp
-    # assert len(resp) == 3
-    # assert {DEFAULT_VM_RT_ID, DEFAULT_VM_RT_ID_ONE, DEFAULT_VM_RT_ID_TWO} == set(resp)

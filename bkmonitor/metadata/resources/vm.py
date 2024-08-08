@@ -32,9 +32,17 @@ from monitor_web.models import CollectorPluginMeta
 
 
 class QueryBizByBkBase(Resource):
+    """
+    根据计算平台相关信息（RT/data_id），查询对应业务信息
+    """
+
     class RequestSerializer(serializers.Serializer):
-        bk_base_data_id_list = serializers.ListField(child=serializers.IntegerField(), required=False, default=[])
-        bk_base_vm_table_id_list = serializers.ListField(child=serializers.CharField(), required=False, default=[])
+        bk_base_data_id_list = serializers.ListField(
+            label="计算平台data_id列表", child=serializers.IntegerField(), required=False, default=[]
+        )
+        bk_base_vm_table_id_list = serializers.ListField(
+            label="计算平台RT列表", child=serializers.CharField(), required=False, default=[]
+        )
 
         def validate(self, data: OrderedDict) -> OrderedDict:
             # 判断参数不能同时为空
@@ -116,28 +124,19 @@ class QueryBizByBkBase(Resource):
                 bk_biz_id = self.get_biz_id_from_collector_plugin_meta(table_id, data_id)
             bk_base_data_id_biz_id[bk_base_data_id] = bk_biz_id
 
-        return bk_base_data_id_biz_id
+        return bk_base_data_id_biz_id  # 最终返回一个字典{data_id: bk_biz_id} 数据类型均为int
 
-    def get_biz_id_from_collector_plugin_meta(self, table_id, data_id):
+    def get_biz_id_from_collector_plugin_meta(self, table_id):
         """
-        若在元数据中无法找到VM对应的业务ID，则去空间映射表和插件表中查询
+        @summary: 若在元数据中无法找到VM对应的业务ID，则去空间插件表中查询
+        @param table_id: 元数据中的RT
+        @return: 业务ID
         """
         # from monitor_web import CollectorPluginMeta
         try:
-            space_ins_list = models.SpaceDataSource.objects.filter(bk_data_id=data_id)
-
-            for space_ins in space_ins_list:
-                if (
-                    not space_ins.from_authorization
-                    and space_ins.space_type_id == SpaceTypes.BKCC.value
-                    and space_ins.space_id != '0'
-                ):
-                    return int(space_ins.space_id)
-
-            real_key = table_id.split('_', 1)[-1].rsplit('.', 1)[0]
+            real_key = table_id.split('_', 1)[-1].rsplit('.', 1)[0]  # 根据插件规则，将RT转换为对应的plugin_id
             plugin_meta = CollectorPluginMeta.objects.get(plugin_id=real_key)
-            return plugin_meta.bk_biz_id or 0
-
+            return plugin_meta.bk_biz_id
         except Exception:  # pylint: disable=broad-except
             return 0
 
