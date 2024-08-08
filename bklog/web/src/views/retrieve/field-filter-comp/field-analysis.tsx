@@ -157,7 +157,7 @@ export default class FieldAnalysis extends Vue {
   beforeDestroy() {
     this.getInfoCancelFn();
     this.getChartsCancelFn();
-    this.commonLegendRef?.removeAllListeners('wheel');
+    this.commonLegendRef?.removeEventListener('wheel', this.legendWheel);
   }
 
   async queryStatisticsInfo() {
