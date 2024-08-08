@@ -51,15 +51,19 @@ def sync_pattern():
     index_set_id_list = LogIndexSet.objects.filter(is_active=True, index_set_id__in=index_set_ids).values_list(
         "index_set_id", flat=True
     )
+    model_ids = set()
+    model_output_rts = set()
     for clustering_config in clustering_configs:
         if clustering_config["index_set_id"] not in index_set_id_list:
             continue
         model_id = clustering_config["model_id"]
-        if model_id:
-            sync.delay(model_id=model_id)
         model_output_rt = clustering_config["model_output_rt"]
-        if model_output_rt:
+        if model_output_rt and model_output_rt not in model_output_rts:
+            model_output_rts.add(model_output_rt)
             sync.delay(model_output_rt=model_output_rt)
+        elif not model_output_rt and model_id and model_id not in model_ids:
+            model_ids.add(model_id)
+            sync.delay(model_id=model_id)
 
 
 @high_priority_task(ignore_result=True)
