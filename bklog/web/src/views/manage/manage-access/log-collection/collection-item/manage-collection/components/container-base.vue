@@ -199,86 +199,62 @@
               </div>
               <!-- 过滤内容 -->
               <div
-                v-if="
-                  configItem.params.conditions &&
-                  configItem.params.conditions.type === 'match' &&
-                  configItem.params.conditions.match_content !== ''
-                "
-                class="content-style"
-              >
-                <span>{{ $t('过滤内容') }}</span>
-                <div>
-                  <p>{{ $t('字符串匹配') }}</p>
-                  <p v-if="configItem.params.conditions.match_content">
-                    {{ configItem.params.conditions.match_content }}
-                  </p>
-                  <p>
-                    {{ configItem.params.conditions.match_type }}/{{
-                      configItem.params.conditions.match_type === 'include'
-                        ? $t('保留匹配字符串')
-                        : $t('过滤匹配字符串')
-                    }}
-                  </p>
-                </div>
-              </div>
-              <div
-                v-else-if="
-                  configItem.params.conditions &&
-                  configItem.params.conditions.type === 'separator' &&
-                  configItem.params.conditions.separator_filters !== []
-                "
-                class="content-style"
-              >
-                <span>{{ $t('过滤内容') }}</span>
-                <div>
-                  <p>{{ $t('分隔符匹配') }}</p>
-                  <p v-if="configItem.params.conditions.separator">{{ configItem.params.conditions.separator }}</p>
-                  <div class="condition-stylex">
-                    <div>
-                      <div class="the-column">
-                        <div
-                          v-for="(val, key) in configItem.params.conditions.separator_filters"
-                          :key="key"
-                        >
-                          {{ $t('第 {n} 列', { n: val.fieldindex }) }}
-                        </div>
-                      </div>
-                      <div>
-                        <div
-                          v-for="(val, key) in configItem.params.conditions.separator_filters"
-                          :key="key"
-                        >
-                          <p
-                            @mouseenter="handleEnter"
-                            @mouseleave="handleLeave"
-                          >
-                            {{ val.word }}
-                          </p>
-                          <div
-                            v-if="configItem.params.conditions.separator_filters.length > 1"
-                            :class="key === 0 ? 'line-styy' : 'line-sty'"
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      v-if="configItem.params.conditions.separator_filters.length > 1"
-                      class="con-text"
-                    >
-                      <div class="line-styx"></div>
-                      <p>
-                        {{ configItem.params.conditions.separator_filters[0].logic_op === 'and' ? $t('并') : $t('或') }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div
-                v-else
+                v-if="configItem.params.conditions.type === 'none'"
                 class="content-style"
               >
                 <span>{{ $t('过滤内容') }}</span>
                 <div>--</div>
+              </div>
+              <div
+                v-else-if="isHaveFilter(configItem.params)"
+                class="content-style"
+              >
+                <span>{{ $t('过滤内容') }}</span>
+                <div>
+                  <p>{{ isMatchType(configItem.params) ? $t('字符串过滤') : $t('分隔符匹配') }}</p>
+                  <p v-if="!isMatchType(configItem.params) && configItem.params.conditions.separator">
+                    {{ configItem.params.conditions.separator }}
+                  </p>
+                  <div class="condition-stylex">
+                    <div
+                      v-for="(fItem, fIndex) in filterGroup(configItem.params)"
+                      :key="fIndex"
+                    >
+                      <span class="title">{{ $t('第{n}组', { n: fIndex + 1 }) }}</span>
+                      <div class="column-box">
+                        <div class="item-box">
+                          <div
+                            v-for="(gItem, gIndex) in groupKey(configItem.params)"
+                            :key="gIndex"
+                            class="item"
+                          >
+                            {{ gItem }}
+                          </div>
+                        </div>
+                        <div
+                          v-for="(item, index) in fItem"
+                          :key="index"
+                          class="item-box"
+                        >
+                          <div
+                            v-if="!isMatchType(configItem.params)"
+                            class="item the-column"
+                          >
+                            {{ $t('第{n}行', { n: item.fieldindex + 1 }) }}
+                          </div>
+                          <div class="item the-column">{{ showOperatorObj(configItem.params)[item.op] }}</div>
+                          <p
+                            class="value the-column"
+                            @mouseenter="handleEnter"
+                            @mouseleave="handleLeave"
+                          >
+                            {{ item.word }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <!-- 段日志 -->
               <template v-if="collectorData.collector_scenario_id === 'section'">
@@ -341,6 +317,8 @@
 </template>
 
 <script>
+  import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
+
   export default {
     props: {
       collectorData: {
@@ -368,6 +346,7 @@
         },
         dataLinkName: '--',
         bcsClusterName: '--', // 容器环境集群名
+        groupList: [this.$t('过滤参数'), this.$t('操作符'), 'Value'],
       };
     },
     computed: {},
@@ -389,7 +368,7 @@
         const sWidth = e.target.scrollWidth;
         if (sWidth > cWidth) {
           this.instance = this.$bkPopover(e.target, {
-            content: e.path[0].childNodes[0].data,
+            content: e.target.innerText,
             arrow: true,
             placement: 'right',
           });
@@ -519,6 +498,51 @@
         } catch (error) {
           return '--';
         }
+      },
+      showOperatorObj(params) {
+        return Object.keys(operatorMappingObj).reduce((pre, acc) => {
+          let newKey = acc;
+          if ((this.isMatchType(params) && acc === 'include') || (!this.isMatchType(params) && acc === 'eq'))
+            newKey = '=';
+          pre[newKey] = operatorMappingObj[acc];
+          return pre;
+        }, {});
+      },
+      isHaveFilter(params) {
+        if (params.type === 'none') return false;
+        return params.conditions && !!params.conditions?.separator_filters.length;
+      },
+      isMatchType(params) {
+        return params.conditions.type === 'match';
+      },
+      filterGroup(params) {
+        const filters = params.conditions?.separator_filters;
+        return this.splitFilters(filters ?? []);
+      },
+      groupKey(params) {
+        return this.isMatchType(params) ? this.groupList.slice(1) : this.groupList;
+      },
+      /** 设置过滤分组 */
+      splitFilters(filters) {
+        const groups = [];
+        let currentGroup = [];
+
+        filters.forEach((filter, index) => {
+          const mappingFilter = {
+            ...filter,
+            op: operatorMapping[filter.op] ?? filter.op, // 映射操作符
+          };
+          currentGroup.push(mappingFilter);
+          // 检查下一个 filter
+          if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
+            groups.push(currentGroup);
+            currentGroup = [];
+          }
+        });
+        if (currentGroup.length > 0) {
+          groups.push(currentGroup);
+        }
+        return groups;
       },
     },
   };

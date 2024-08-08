@@ -132,6 +132,7 @@ export default defineComponent({
     const currentBizIds = ref<number[]>([]);
     const isDragging = ref<boolean>(false);
     const mouseRatio = ref<number>();
+    const processPopoverRefs = ref<HTMLDivElement[]>([]);
     const actionList = ref([
       {
         id: 'alert_confirm',
@@ -477,13 +478,16 @@ export default defineComponent({
       () => props.chooseOperation,
       val => {
         circleOnClick([val]);
+        processPopoverRefs.value[`process${val.id}`]?.show();
         if (percentage.value !== 0) {
           nextTick(() => {
             const activeElements: any = processRef.value.querySelectorAll('.active');
-            const num = -activeElements[0].offsetLeft + 100;
-            const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
-            mainLeft.value = num > max ? num : max;
-            ratio.value = mainLeft.value / max;
+            if (activeElements.length > 0) {
+              const num = -activeElements[0].offsetLeft + 100;
+              const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
+              mainLeft.value = num > max ? num : max;
+              ratio.value = mainLeft.value / max;
+            }
           });
         }
       }
@@ -677,7 +681,11 @@ export default defineComponent({
       <div class='operations-tips'>
         <span class='tips-item'>{formatTime(ele.create_time * 1000)}</span>
         <span class='tips-type'>{operationTypeMapData.value[ele.operation_type] || '--'}</span>
-        <span class='tips-item'>{renderMap[ele.operation_type]?.(ele)}</span>
+        <span class='tips-item'>{renderMap[ele.operation_type]?.(
+          ele,
+          incidentId.value,
+          incidentDetail.value?.bk_biz_id
+        ) || '--'}</span>
       </div>
     );
     /** 绘制流转的圆 */
@@ -694,7 +702,7 @@ export default defineComponent({
         <i
           class={[
             'icon-monitor item-icon',
-            ele[0].operation_class !== 'system'
+            ele[0].operation_class === 'system'
               ? ele[0].operation_type.startsWith('alert')
                 ? 'icon-gaojing1'
                 : 'icon-mc-fault'
@@ -718,8 +726,12 @@ export default defineComponent({
     /** 绘制流转的圆popover */
     const renderPopover = (isMore = true, ele, index) => {
       const len = ele.length;
+      const setItemRef = (el, key) => {
+        el && (processPopoverRefs.value[key] = el);
+      };
       return (
         <Popover
+          ref={(el) => setItemRef(el, `process${ele[0].id}`)}
           extCls={`operations-popover${len > 1 ? '-more' : ''}`}
           v-slots={{
             content: () => {
@@ -833,24 +845,27 @@ export default defineComponent({
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
       return Number.parseFloat(values[4]);
     }
+    /** 时序图位置变化处理方法 */
+    const onTimeLineMouseHandle = (deltaX: number) => {
+      const selection: any = timeLineMainRef.value;
+      const startTransform = getTransformX(selection);
+      const newTransformX = startTransform + deltaX;
+      const maxTransformX = selection.offsetWidth - selection.parentNode.offsetWidth;
+      const newPos = Math.max(-maxTransformX, Math.min(maxTransformX, newTransformX));
+      const ratio = newPos / maxTransformX;
+      mainLeft.value = newPos > 0 ? 0 : newPos;
+      mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
+    }
     const onTimeLineMainMouseDown = (event: MouseEvent) => {
       if (percentage.value === 0) {
         return;
       }
       isDragging.value = true;
       const startX = event.clientX;
-      const selection: any = timeLineMainRef.value;
-      const startTransform = getTransformX(selection);
-
       const onMouseMove = (e: MouseEvent) => {
         if (!isDragging.value) return;
         const deltaX = e.clientX - startX;
-        const newTransformX = startTransform + deltaX;
-        const maxTransformX = selection.offsetWidth - selection.parentNode.offsetWidth;
-        const newPos = Math.max(-maxTransformX, Math.min(maxTransformX, newTransformX));
-        const ratio = newPos / maxTransformX;
-        mainLeft.value = newPos > 0 ? 0 : newPos;
-        mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
+        onTimeLineMouseHandle(deltaX);
       };
 
       const onMouseUp = () => {
@@ -858,9 +873,19 @@ export default defineComponent({
         timeLineMainRef.value.removeEventListener('mousemove', onMouseMove);
         timeLineMainRef.value.removeEventListener('mouseup', onMouseUp);
       };
-
       timeLineMainRef.value.addEventListener('mousemove', onMouseMove);
       timeLineMainRef.value.addEventListener('mouseup', onMouseUp);
+    };
+    const handleWheel = e => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (percentage.value === 0) {
+        return;
+      }
+      const { deltaX } = e;
+      const sensitivity = 2; // 设置滚动灵敏度
+      let dx = -deltaX * sensitivity;
+      onTimeLineMouseHandle(dx);
     };
     return {
       t,
@@ -894,6 +919,7 @@ export default defineComponent({
       manualProcessShowChange,
       handleDebugStatus,
       handleMealInfo,
+      handleWheel,
       handleAlarmDispatchShowChange,
       alarmConfirmChange,
       tickPopoverRefs,
@@ -980,6 +1006,7 @@ export default defineComponent({
           style={{ width: `${this.mainWidth}px`, transform: `translateX(${this.mainLeft}px)` }}
           class='timeline-diagram-main'
           onMousedown={this.onTimeLineMainMouseDown}
+          onWheel={this.handleWheel}
         >
           <ul class='time-tick'>
             {(this.showTickArr || []).map(item => {

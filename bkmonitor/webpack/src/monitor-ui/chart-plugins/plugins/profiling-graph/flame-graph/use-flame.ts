@@ -25,10 +25,9 @@
  */
 import { axisTop } from 'd3-axis';
 import { easeCubic } from 'd3-ease';
-import { type HierarchyNode, type HierarchyRectangularNode, hierarchy, partition } from 'd3-hierarchy';
+import { type HierarchyNode, type HierarchyRectangularNode, hierarchy } from 'd3-hierarchy';
 import { type NumberValue, scaleLinear } from 'd3-scale';
 import { type BaseType, type Selection, type ValueFn, select } from 'd3-selection';
-import { curveCatmullRom, line } from 'd3-shape';
 import {
   type ProfileDataUnit,
   parseProfileDataTypeValue,
@@ -56,7 +55,7 @@ export class FlameChart<D extends BaseDataType> {
   getFillColor?: (d: BaseDataType) => string;
   h = null;
   iconSize = 12;
-  isInviewNodeId = [];
+  isInviewNodeIdMap = {};
   keywords?: string[] = [];
 
   lineMap: Map<number | string, ILineData<D>> = new Map();
@@ -98,11 +97,13 @@ export class FlameChart<D extends BaseDataType> {
     return d.children as D[];
   }
   getInViewNode(d?: HierarchyNode<D>) {
-    if (!d) {
-      this.isInviewNodeId = findChildById([this.mainData], this.mainData.id).concat([this.mainData.id]);
-    } else {
-      this.isInviewNodeId = findRegionById([this.mainData], d.data.id).concat(findChildById([d.data], d.data.id));
-    }
+    const list = !d
+      ? findChildById([this.mainData], this.mainData.id).concat([this.mainData.id])
+      : findRegionById([this.mainData], d.data.id).concat(findChildById([d.data], d.data.id));
+    this.isInviewNodeIdMap = list.reduce((pre, id) => {
+      pre[id] = true;
+      return pre;
+    }, {});
   }
   getName(d: HierarchyNode<D> | HierarchyRectangularNode<D>, type: 'all' | 'name' | 'value' = 'all') {
     const value = this.getValue(d as HierarchyRectangularNode<D>);
@@ -119,7 +120,6 @@ export class FlameChart<D extends BaseDataType> {
     if ('data' in d) {
       return d.data.value;
     }
-
     return d.value;
   }
   /**
@@ -141,7 +141,7 @@ export class FlameChart<D extends BaseDataType> {
    */
   highlightNodeId(highlightId: number) {
     // 如果当前有高亮相似node 先取消
-    if (!!this.zoomData.highlightName) {
+    if (this.zoomData.highlightName) {
       this.zoomData.highlightName = '';
     }
     this.zoomData.highlightId = highlightId;
@@ -153,17 +153,17 @@ export class FlameChart<D extends BaseDataType> {
   initData(d: IFlameData<D>) {
     const { main, threads } = structuredClone(d);
     let maxDepth = 1;
-    let nodes = hierarchy(main, (d: D) => d.children).descendants();
+    const nodes = hierarchy(main, (d: D) => d.children).descendants();
     // const mergeList = [...nodes];
     // const fromSet = new Set(...nodes.filter(item => item.data.last_sibling_id).map(item => item.data.last_sibling_id));
     // const lineMap = new Map<string, ILineData<D>>();
     maxDepth += nodes.at(-1).depth;
-    threads.forEach(thread => {
-      nodes = hierarchy(thread, (d: D) => d.children).descendants();
-      // mergeList.push(...nodes);
-      // nodes.forEach(item => item.data.last_sibling_id && fromSet.add(item.data.last_sibling_id));
-      maxDepth += nodes.at(-1).depth + 2;
-    });
+    // threads.forEach(thread => {
+    //   nodes = hierarchy(thread, (d: D) => d.children).descendants();
+    //   // mergeList.push(...nodes);
+    //   // nodes.forEach(item => item.data.last_sibling_id && fromSet.add(item.data.last_sibling_id));
+    //   maxDepth += nodes.at(-1).depth + 2;
+    // });
     // fromSet.forEach(id => {
     //   const node = mergeList.find(item => item.data.id === id);
     //   if (node) {
@@ -180,7 +180,6 @@ export class FlameChart<D extends BaseDataType> {
       maxDepth,
     };
   }
-  initEvent() {}
   /**
    *
    * @param d 数据
@@ -210,9 +209,7 @@ export class FlameChart<D extends BaseDataType> {
     this.getInViewNode();
     // 坐标轴渲染
     // this.renderAxis({});
-    const preDepth = this.renderMainThread(main);
-    this.renderThreads(threads, preDepth!);
-    this.initEvent();
+    this.renderMainThread(main);
   }
   /**
    *
@@ -228,26 +225,6 @@ export class FlameChart<D extends BaseDataType> {
       .datum(data)
       .datum((d: D) => hierarchy<D>(d, this.getChildren));
     return this.updateSelection(mainThread, { preDepth: 1 });
-  }
-  /**
-   *
-   * @param threads 线程数据
-   * @param mainThreadDepth 主线程的depth
-   * @description 渲染线程
-   * @returns 线程的selection depth
-   */
-  renderThreads(threads: D[], mainThreadDepth: number) {
-    let preDepth = mainThreadDepth;
-    threads.forEach(thread => {
-      const threadSelection = select(this.chartDom)
-        .select('svg')
-        .append('svg:g')
-        .attr('class', `thread thread-${thread.id}`)
-        .attr('preDepth', preDepth)
-        .datum(thread)
-        .datum((d: D) => hierarchy<D>(d, d => this.getChildren(d)));
-      preDepth = this.updateSelection(threadSelection, { preDepth: preDepth + 1 });
-    });
   }
   /**
    * 重置图表
@@ -276,7 +253,6 @@ export class FlameChart<D extends BaseDataType> {
       .attr('width', this.w)
       .attr('height', Math.max(this.minHeight, this.c * this.maxDepth, height));
     this.zoomGraph(this.zoomData);
-    this.initEvent();
   }
   scaleGraph(scale: number) {
     const { value } = this.mainData;
@@ -324,21 +300,15 @@ export class FlameChart<D extends BaseDataType> {
    */
   updateSelection(
     selection: Selection<BaseType, HierarchyNode<D>, null, undefined>,
-    { preDepth, value = this.mainData.value, clickDepth = 0, highlightName = '', highlightId = -1 }: BaseRect
+    { value = this.mainData.value, clickDepth = 0, highlightName = '', highlightId = -1 }: BaseRect
   ) {
     const x = scaleLinear([0, this.w]).domain([0, value]);
     const y = (x: number) => x * this.c;
-    let currentDepth = preDepth;
-    const threadLine = line<ThreadPos>()
-      .x(d => d.x)
-      .y(d => d.y)
-      .curve(curveCatmullRom.alpha(0.88));
     selection
       .each((root: HierarchyNode<D>, index: number, groups: HTMLElement[]) => {
-        const newRoot = partition<D>()(root);
         const isInView = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           if (!clickDepth) return true;
-          return this.isInviewNodeId.includes(d.data.id);
+          return this.isInviewNodeIdMap[d.data.id];
         };
         const getLeft = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           let prevTotal = 0;
@@ -356,13 +326,11 @@ export class FlameChart<D extends BaseDataType> {
               return pre + cur.value;
             }, prevTotal);
           }
-
-          descendants.forEach(item => {
+          for (const item of descendants) {
             if (item.data.id === d.data.id) {
               item.left = prevTotal;
             }
-          });
-
+          }
           return Math.max(0, x(prevTotal));
         };
 
@@ -388,7 +356,7 @@ export class FlameChart<D extends BaseDataType> {
             return '#aaa';
           }
           if (highlightName) return d.data.name === highlightName ? defColor : '#aaa';
-          if (highlightId > -1) return d.data.id === highlightId ? defColor : '#aaa';
+          if (highlightId && highlightId !== -1) return d.data.id === highlightId ? defColor : '#aaa';
           return d.depth < clickDepth ? '#aaa' : defColor;
         };
         const getStrokeColor = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
@@ -408,34 +376,7 @@ export class FlameChart<D extends BaseDataType> {
 
         const descendants = root.descendants().filter(node => getWidth(node) > 0 && isInView(node));
         // const nodeLength = descendants.length;
-        currentDepth += descendants.length ? descendants[descendants.length - 1].depth + 1 : 0;
         const wrapper = select(groups[index]).attr('width', this.w);
-        wrapper.selectAll('path.split-line').remove();
-        if (preDepth > 1 && descendants.length > 0) {
-          wrapper
-            .append('path')
-            .transition()
-            .duration(this.transitionDuration)
-            .ease(this.transitionEase)
-            .attr('class', 'split-line')
-            .attr('stroke', '#ddd')
-            .attr('stroke-width', 1)
-            .attr('stroke-dasharray', '5,5')
-            .attr(
-              'd',
-              threadLine([
-                {
-                  x: 0,
-                  y: y(newRoot.depth + preDepth - 1 / 2),
-                },
-                {
-                  x: this.w,
-                  y: y(newRoot.depth + preDepth - 1 / 2),
-                },
-              ])
-            );
-        }
-
         let g = wrapper.selectAll('g.flame-item').data(descendants, (d: HierarchyRectangularNode<D>) => d?.data?.id);
         g.transition()
           .duration(this.transitionDuration)
@@ -459,15 +400,6 @@ export class FlameChart<D extends BaseDataType> {
           .transition()
           .delay(this.transitionDuration / 2)
           .attr('width', w => getWidth(w));
-
-        node
-          .append('svg:image')
-          .attr('class', 'flame-item-img')
-          .attr('transform', `translate(${(this.c - this.iconSize) / 2}, ${(this.c - this.iconSize) / 2})`)
-          .attr('width', 0)
-          .transition()
-          .delay(this.transitionDuration / 2);
-
         const foreignObject = node.append('foreignObject').append('xhtml:div').attr('class', 'flame-graph-text');
         foreignObject.append('xhtml:div').attr('class', 'text-name').attr('style', `line-height: ${this.c}px`);
         foreignObject.append('xhtml:div').attr('class', 'text-value').attr('style', `line-height: ${this.c}px`);
@@ -520,6 +452,7 @@ export class FlameChart<D extends BaseDataType> {
             value: d.data.value,
             clickDepth: d.depth,
             highlightName: d.data.id === RootId ? '' : this.zoomData.highlightName || '',
+            highlightId: -1,
           };
           this.getInViewNode(d);
           this.zoomGraph(this.zoomData);
@@ -540,7 +473,7 @@ export class FlameChart<D extends BaseDataType> {
             .on('mouseover', function () {
               select(this).select('rect').attr('opacity', '.5');
             })
-            .on('contextmenu', function (e, d) {
+            .on('contextmenu', (e, d) => {
               e.preventDefault();
               self.onContextMenu(e, d);
             });
@@ -548,27 +481,15 @@ export class FlameChart<D extends BaseDataType> {
       })
       .exit()
       .remove();
-    return currentDepth;
   }
 
   zoomGraph(options: BaseRect) {
     const { value, clickDepth, highlightName, highlightId } = options;
-    let preDepth = 1;
-    preDepth = this.updateSelection(
+    const preDepth = 1;
+    this.updateSelection(
       select(this.chartDom).select('g.main-thread') as Selection<BaseType, HierarchyNode<D>, null, undefined>,
       { preDepth, value, clickDepth, highlightName, highlightId }
     );
-    this.threadsData.forEach(thread => {
-      const threadPreDepth = this.updateSelection(
-        select(this.chartDom).select(`g.thread-${thread.id}`) as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-        { preDepth: preDepth + 1, value, clickDepth, highlightName, highlightId }
-      );
-      if (threadPreDepth === preDepth + 1) {
-        preDepth = threadPreDepth - 1;
-      } else {
-        preDepth = threadPreDepth;
-      }
-    });
     const x = scaleLinear([0, this.w]).domain([0, value]);
     select(this.chartDom)
       .select<SVGGElement>('g.x-axis')
@@ -581,6 +502,5 @@ export class FlameChart<D extends BaseDataType> {
             return text + suffix;
           })
       );
-    this.initEvent();
   }
 }

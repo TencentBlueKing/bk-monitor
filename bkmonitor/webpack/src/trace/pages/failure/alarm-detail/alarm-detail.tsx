@@ -74,7 +74,7 @@ export default defineComponent({
       default: () => ({}),
     },
     alertIdsObject: {
-      type: Object,
+      type: [Object, String],
       default: () => ({}),
     },
     searchValidate: {
@@ -85,6 +85,7 @@ export default defineComponent({
   emits: ['refresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     const setMealAddModule = SetMealAdd();
     onBeforeMount(async () => await setMealAddModule.getVariableDataList());
     const scrollLoading = ref(false);
@@ -591,7 +592,7 @@ export default defineComponent({
           allowHtml: false,
           renderType: 'auto',
           padding: 0,
-          offset: 20,
+          offset: 0,
           zIndex: 10,
           disableTeleport: false,
           autoPlacement: false,
@@ -603,6 +604,11 @@ export default defineComponent({
           componentEventDelay: 0,
           forceClickoutside: false,
           immediate: false,
+          onHide: () => {
+            popoperOperateInstance.value.close();
+            popoperOperateInstance.value = null;
+            popoperOperateIndex.value = -1;
+          },
         });
       }
       setTimeout(popoperOperateInstance.value.show, 100);
@@ -656,16 +662,18 @@ export default defineComponent({
     };
     const handleGetTable = async () => {
       tableLoading.value = true;
+      const queryString = typeof alertIdsData.value === 'object' ? alertIdsData.value?.ids || '' : alertIdsData.value;
       const params = {
+        bk_biz_ids: bkzIds.value || [],
         id: incidentId.value,
-        query_string: alertIdsData.value?.ids || '',
+        query_string: queryString,
       };
       const data = await incidentAlertList(params);
       // const data = await incidentAlertList(Object.assign(params, props.filterSearch));
       tableLoading.value = false;
       alertData.value = data;
       // const list = alertData.value.find(item => item.alerts.length > 0);
-      // collapseId.value = list ? list.id : '';
+      // collapseId.value = list ? list.id : '';n
     };
     onMounted(() => {
       props.searchValidate && handleGetTable();

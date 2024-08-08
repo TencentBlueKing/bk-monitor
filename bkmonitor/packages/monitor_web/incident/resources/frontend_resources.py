@@ -15,6 +15,7 @@ from typing import Any, Dict, List
 import arrow
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import ugettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
@@ -26,6 +27,7 @@ from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import (
+    MAX_INCIDENT_ALERT_SIZE,
     IncidentDocument,
     IncidentOperationDocument,
     IncidentSnapshotDocument,
@@ -155,8 +157,8 @@ class IncidentBaseResource(Resource):
         for incident_key, incident_value in incident_info.items():
             if (
                 hasattr(incident_document, incident_key)
-                and getattr(incident_document, incident_key)
-                and incident_value
+                and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
+                and (incident_value or incident_key == "incident_reason")
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
                 if incident_key == "status":
@@ -229,7 +231,6 @@ class ExportIncidentResource(Resource):
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
         handler = serializers.ListField(required=False, label="故障处理人", default=[])
-        ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
 
     def perform_request(self, validated_request_data):
         handler = IncidentQueryHandler(**validated_request_data)
@@ -318,7 +319,7 @@ class IncidentDetailResource(IncidentBaseResource):
                     "bk_biz_id": bk_biz_id,
                     "bk_biz_name": resource.cc.get_app_by_id(bk_biz_id).name,
                 }
-                for bk_biz_id in snapshot["bk_biz_id"]
+                for bk_biz_id in snapshot["bk_biz_ids"]
             ]
         return snapshots
 
@@ -358,13 +359,18 @@ class IncidentTopologyResource(IncidentBaseResource):
             )
             incident_snapshots = sorted(incident_snapshots, key=lambda x: x["create_time"])
 
+        # 根据实体加入的时间生成实体ID到时间的映射
+        entities_orders = self.generate_entities_orders(incident_snapshots)
+
         snapshots = {}
         for incident_snapshot in incident_snapshots:
             snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
             if validated_request_data["auto_aggregate"]:
-                snapshot.aggregate_graph(incident)
+                snapshot.aggregate_graph(incident, entities_orders=entities_orders)
             elif validated_request_data["aggregate_config"]:
-                snapshot.aggregate_graph(incident, validated_request_data["aggregate_config"])
+                snapshot.aggregate_graph(
+                    incident, validated_request_data["aggregate_config"], entities_orders=entities_orders
+                )
             snapshots[incident_snapshot.id] = snapshot
 
         latest_snapshot_content = self.generate_topology_data_from_snapshot(
@@ -402,6 +408,14 @@ class IncidentTopologyResource(IncidentBaseResource):
             },
         }
 
+    def generate_entities_orders(self, incident_snapshots: List[IncidentSnapshotDocument]) -> Dict:
+        entities_orders = {}
+        for incident_snapshot in incident_snapshots:
+            for entity in incident_snapshot.content["incident_propagation_graph"]["entities"]:
+                if entity["entity_id"] not in entities_orders:
+                    entities_orders[entity["entity_id"]] = incident_snapshot.create_time
+        return entities_orders
+
     def generate_topology_diff_from_snapshot(
         self,
         incident: IncidentDocument,
@@ -413,22 +427,61 @@ class IncidentTopologyResource(IncidentBaseResource):
         new_edges = []
         current = self.generate_topology_data_from_snapshot(incident, snapshot)
         last_nodes = {node["id"]: node for node in last_snapshot_content["nodes"]} if last_snapshot_content else {}
+        last_edges = (
+            {(edge["source"], edge["target"], edge["edge_type"]): edge for edge in last_snapshot_content["edges"]}
+            if last_snapshot_content
+            else {}
+        )
         for node in current["nodes"]:
-            if node["id"] not in last_nodes or node["aggregated_nodes"] != last_nodes[node["id"]]["aggregated_nodes"]:
+            if node["id"] not in last_nodes:
                 new_nodes.append(node)
-
-            if node["id"] not in complete_topologies["nodes"]:
                 complete_topologies["nodes"][node["id"]] = node
-        for edge in current["edges"]:
-            if edge["source"] not in last_nodes or edge["target"] not in last_nodes:
-                new_edges.append(edge)
+            elif self.check_node_diff(node, last_nodes[node["id"]]):
+                new_nodes.append(node)
+                complete_topologies["nodes"][node["id"]] = node
+            elif node["id"] not in complete_topologies["nodes"]:
+                complete_topologies["nodes"][node["id"]] = node
 
-            if (edge["source"], edge["target"]) not in complete_topologies["edges"]:
-                complete_topologies["edges"][(edge["source"], edge["target"])] = edge
+        for edge in current["edges"]:
+            edge_id = (edge["source"], edge["target"], edge["edge_type"])
+            if edge_id not in last_edges:
+                new_edges.append(edge)
+                complete_topologies["edges"][edge_id] = edge
+            elif self.check_edge_diff(edge, last_edges[edge_id]):
+                new_edges.append(edge)
+                complete_topologies["edges"][edge_id] = edge
+            elif edge_id not in complete_topologies["edges"]:
+                complete_topologies["edges"][edge_id] = edge
+
         return current, {
             "nodes": new_nodes,
             "edges": new_edges,
         }
+
+    def check_node_diff(self, current_node: dict, last_node: dict):
+        """判断节点是否发生变化."""
+        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count", "alert_ids", "aggregated_nodes"]:
+            if current_node[node_key] != last_node[node_key]:
+                return True
+
+        return False
+
+    def check_edge_diff(self, current_edge: dict, last_edge: dict):
+        """判断节点是否发生变化."""
+        for edge_key in [
+            "count",
+            "aggregated_edges",
+            "anomaly_score",
+            "is_anomaly",
+            "source_is_anomaly",
+            "target_is_anomaly",
+            "source_is_on_alert",
+            "target_is_on_alert",
+        ]:
+            if current_edge[edge_key] != last_edge[edge_key]:
+                return True
+
+        return False
 
     def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> Dict:
         """根据快照内容生成拓扑图数据
@@ -522,29 +575,55 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
         menu_data = {}
 
         for entity_type, entities in entity_types.items():
-            neighbors = Counter()
-            anomaly_count = 0
-            for entity in entities:
-                for target_entity_id in snapshot.entity_targets[entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]:
-                    neighbors[snapshot.incident_graph_entities[target_entity_id].entity_type] += 1
-                for source_entity_id in snapshot.entity_sources[entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]:
-                    neighbors[snapshot.incident_graph_entities[source_entity_id].entity_type] += 1
-                if entity.is_anomaly:
-                    anomaly_count += 1
+            has_anomaly = False
+            neighbors = set()
+            for i_entity in entities:
+                for j_entity in entities:
+                    if i_entity.entity_id == j_entity.entity_id or i_entity.is_root or j_entity.is_root:
+                        continue
 
-            aggregate_keys = [
-                {"count": value, "aggregate_key": key, "is_anomaly": False} for key, value in neighbors.items()
-            ]
-            aggregate_keys.append({"count": anomaly_count, "aggregate_key": None, "is_anomaly": True})
-            menu_data[entity_type] = {
-                "entity_type": entity_type,
-                "aggregate_bys": sorted(aggregate_keys, key=lambda x: -x["count"]),
-            }
-            menu_data[entity_type]["total_count"] = sum(
-                [item["count"] for item in menu_data[entity_type]["aggregate_bys"]]
-            )
+                    i_entity_targets = set(
+                        snapshot.entity_targets[i_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    j_entity_targets = set(
+                        snapshot.entity_targets[j_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    # 如果任意两个实体，他们的有同一个从属实体，则两个实体可以按照这个从属实体进行聚会，就把从属实体的实体类型加入到可聚合的实体类型中
+                    for target_entity_id in list(i_entity_targets & j_entity_targets):
+                        neighbors.add(snapshot.incident_graph_entities[target_entity_id].entity_type)
+                        if (
+                            (i_entity.is_anomaly or j_entity.is_anomaly)
+                            and not i_entity.is_root
+                            and not j_entity.is_root
+                        ):
+                            has_anomaly = True
 
-        return list(sorted(menu_data.values(), key=lambda x: -x["total_count"]))
+                    i_entity_sources = set(
+                        snapshot.entity_sources[i_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    j_entity_sources = set(
+                        snapshot.entity_sources[j_entity.entity_id][IncidentGraphEdgeType.DEPENDENCY]
+                    )
+                    # 如果任意两个实体，他们的有同一个从属实体，则两个实体可以按照这个从属实体进行聚会，就把从属实体的实体类型加入到可聚合的实体类型中
+                    for source_entity_id in list(i_entity_sources & j_entity_sources):
+                        neighbors.add(snapshot.incident_graph_entities[source_entity_id].entity_type)
+                        if (
+                            (i_entity.is_anomaly or j_entity.is_anomaly)
+                            and not i_entity.is_root
+                            and not j_entity.is_root
+                        ):
+                            has_anomaly = True
+
+            aggregate_keys = [{"count": 0, "aggregate_key": key, "is_anomaly": False} for key in list(neighbors)]
+            if has_anomaly:
+                aggregate_keys.append({"count": 0, "aggregate_key": None, "is_anomaly": True})
+
+            if len(aggregate_keys) > 0:
+                menu_data[entity_type] = {
+                    "entity_type": entity_type,
+                    "aggregate_bys": aggregate_keys,
+                }
+        return list(menu_data.values())
 
 
 class IncidentTopologyUpstreamResource(IncidentBaseResource):
@@ -693,7 +772,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                         "count": 1,
                         "children": {},
                         "related_entities": [alert["entity"]["entity_id"]],
-                        "alert_ids": [alert["id"]],
+                        "alert_ids": [str(alert["id"])],
                         "is_root": is_root,
                         "is_feedback_root": is_feedback_root,
                         "begin_time": alert["begin_time"],
@@ -723,7 +802,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                     # 其他依赖配置
                     aggregate_layer_results[aggregate_by_value]["count"] += 1
                     aggregate_layer_results[aggregate_by_value]["related_entities"].append(alert["entity"]["entity_id"])
-                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(alert["id"])
+                    aggregate_layer_results[aggregate_by_value]["alert_ids"].append(str(alert["id"]))
                     aggregate_layer_results[aggregate_by_value]["is_root"] = (
                         aggregate_layer_results[aggregate_by_value]["is_root"] or is_root
                     )
@@ -750,47 +829,62 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot)
+        alerts = self.get_snapshot_alerts(snapshot, page_size=MAX_INCIDENT_ALERT_SIZE)
         current_username = get_request_username()
 
-        alert_agg_results = Counter()
+        alert_abornomal_agg_results = Counter()
+        alert_total_agg_results = Counter()
         for alert in alerts:
             if not alert["assignee"]:
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results["__not_dispatch__"] += 1
+                alert_total_agg_results["__not_dispatch__"] += 1
                 continue
+
+            if alert["status"] == EventStatus.ABNORMAL:
+                alert_abornomal_agg_results["__total__"] += 1
+            alert_total_agg_results["__total__"] += 1
+
             for username in alert["assignee"]:
-                alert_agg_results[username] += 1
+                if alert["status"] == EventStatus.ABNORMAL:
+                    alert_abornomal_agg_results[username] += 1
+                alert_total_agg_results[username] += 1
 
         handlers = {
             "all": {
                 "id": "all",
-                "name": "全部",
+                "name": _("全部"),
                 "index": 1,
-                "alert_count": len(alerts),
+                "alert_count": alert_abornomal_agg_results["__total__"],
+                "total_count": len(alerts),
             },
             "not_dispatch": {
                 "id": "not_dispatch",
-                "name": "未分派",
+                "name": _("未分派"),
                 "index": 2,
-                "alert_count": 0,
+                "alert_count": alert_abornomal_agg_results["__not_dispatch__"],
+                "total_count": alert_total_agg_results["__not_dispatch__"],
             },
             "mine": {
                 "id": current_username,
-                "name": "我负责",
+                "name": _("我处理"),
                 "index": 3,
-                "alert_count": alert_agg_results.get(current_username, 0),
+                "alert_count": alert_abornomal_agg_results.get(current_username, 0),
+                "total_count": alert_total_agg_results.get(current_username, 0),
             },
             "other": {
                 "id": "other",
-                "name": "其他",
+                "name": _("其他"),
                 "index": 4,
                 "children": [
                     {
                         "id": username,
                         "name": username,
-                        "alert_count": alert_count,
+                        "alert_count": alert_abornomal_agg_results.get(username, 0),
+                        "total_count": alert_count,
                     }
-                    for username, alert_count in alert_agg_results.items()
-                    if username != current_username
+                    for username, alert_count in alert_total_agg_results.items()
+                    if username not in (current_username, "__not_dispatch__", "__total__")
                 ],
             },
         }
@@ -817,6 +911,7 @@ class IncidentOperationsResource(IncidentBaseResource):
             validated_request_data["incident_id"],
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
+            order_by="-create_time",
         )
         operations = [operation.to_dict() for operation in operations]
         for operation in operations:
@@ -865,6 +960,7 @@ class IncidentOperationTypesResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         operations = IncidentOperationDocument.list_by_incident_id(
             validated_request_data["incident_id"],
+            order_by="-create_time",
         )
         incident_operation_types = {operation.operation_type for operation in operations}
 
@@ -974,6 +1070,8 @@ class IncidentAlertListResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
@@ -994,7 +1092,9 @@ class IncidentAlertListResource(IncidentBaseResource):
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
-        alerts[0]["is_incident_root"] = True
+
+        if len(alerts) > 0:
+            alerts[0]["is_incident_root"] = True
 
         return incident_alerts
 
@@ -1011,6 +1111,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障UUID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
+        page = serializers.IntegerField(required=False, label="页码", default=1)
+        page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))

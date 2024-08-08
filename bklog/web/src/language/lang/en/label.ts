@@ -279,7 +279,7 @@ export default {
   问题反馈: 'Feedback',
   产品文档: 'Documentation',
   版本日志: 'Release note',
-  日志平台: 'Log platform',
+  日志平台: 'BK Log',
   有权限的: 'Has permission',
   暂无内容: 'No content available',
   接入指引: 'access guide',

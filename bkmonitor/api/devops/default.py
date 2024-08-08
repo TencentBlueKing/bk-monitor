@@ -37,7 +37,7 @@ class DevopsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return data
 
     def perform_request(self, validated_request_data):
-        if not settings.BK_CI_HOST:
+        if not settings.BK_CI_URL:
             self.report_api_failure_metric(
                 error_code=DevopsNotDeployedError.code, exception_type=DevopsNotDeployedError.__name__
             )
@@ -54,7 +54,7 @@ class ListUserProjectResource(DevopsBaseResource):
     method = "GET"
 
     def request(self, request_data=None, **kwargs):
-        if not settings.BK_CI_HOST:
+        if not settings.BK_CI_URL:
             return []
         return super(ListUserProjectResource, self).request(request_data, **kwargs)
 

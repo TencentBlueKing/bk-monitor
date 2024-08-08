@@ -42,7 +42,7 @@ import MonitorResizeLayout, {
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
 import IndexList, { type IIndexListItem } from '../../data-retrieval/index-list/index-list';
-import Aipanel from './ai-panel/ai-panel';
+// import Aipanel from './ai-panel/ai-panel';
 import HostDetailView from './host-detail-view/host-detail-view';
 import ShowModeButton, { type ShowModeButtonType } from './show-mode-button/show-mode-button';
 
@@ -119,7 +119,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   @Prop({ default: '', type: String }) readonly title: string;
   @Prop({ default: null, type: Object }) readonly panel: PanelModel;
   //
-  @Prop({ default: null, type: Object }) readonly aiPanel: PanelModel;
+  // @Prop({ default: null, type: Object }) readonly aiPanel: PanelModel;
   /** 是否需要开启监听内容区域的高度 */
   @Prop({ default: false, type: Boolean }) readonly enableResizeListener: boolean;
   /** 拖拽工具的位置 */
@@ -153,7 +153,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   // 默认宽度
   @Prop({ default: DEFAULT_WIDTH, type: Number }) defaultWidth: number;
   // 所有的图表id
-  @Prop({ default: () => [], type: Array }) allPanelId: string[];
+  // @Prop({ default: () => [], type: Array }) allPanelId: string[];
 
   @Ref() resizeLayoutRef: MonitorResizeLayout;
   @Ref() indexListRef: IndexList;
@@ -210,8 +210,8 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
           16
         );
       }
-      return this.maxWidth;
     }
+    return this.maxWidth;
   }
 
   /** 索引列表可拉伸最大高度 */
@@ -332,14 +332,14 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         }) || [];
       this.loading = false;
       const nameObj = data.find?.(item => item.key === 'name');
-      if (!!nameObj) {
+      if (nameObj) {
         /* k8s 导航subname 需要设置为名称加id */
         let id =
           this.selectorPanelType === 'list-cluster' ? data?.find?.(item => item.key.includes('id'))?.value || '' : '';
         if (id === (nameObj.value.value || nameObj.value)) {
           id = '';
         }
-        this.handleTitleChange(`${nameObj.value.value || nameObj.value}${!!id ? `(${id})` : ''}`);
+        this.handleTitleChange(`${nameObj.value.value || nameObj.value}${id ? `(${id})` : ''}`);
       }
     }
   }
@@ -446,7 +446,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   initIndexListHeight() {
     if (!!this.indexList.length && this.$el) {
       const data = this.storage.get(INDEX_LIST_DEFAULT_CONFIG_KEY);
-      if (!!data) {
+      if (data) {
         this.indexListHeight = data.height;
         this.indexListPlacement = data.placement;
         this.expandIndexList = data.expand;
@@ -461,7 +461,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
    */
   initContainerWidth() {
     const data = this.storage.get(this.localWidthKey);
-    if (!!data) {
+    if (data) {
       if (data.width >= this.maxWidthVal - 740) {
         this.width = Math.max(this.maxWidthVal - 740, 0);
         return;
@@ -568,12 +568,12 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               onLinkToDetail={v => this.$emit('linkToDetail', v)}
             />
           )}
-          {this.aiPanel && (
+          {/* {this.aiPanel && (
             <Aipanel
               allPanelId={this.allPanelId}
               panel={this.aiPanel}
             />
-          )}
+          )} */}
         </div>
       </div>
     );
@@ -600,7 +600,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
             // && !!this.indexList.length
             <MonitorResizeLayout
               ref='resizeLayoutRef'
-              default={!!this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
+              default={this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
               disabled={!this.expandIndexList}
               max={this.maxIndexListHeight}
               min={INDEX_LIST_MIN_HEIGHT}

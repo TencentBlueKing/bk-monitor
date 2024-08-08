@@ -24,10 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, Teleport, defineComponent, ref, shallowRef, watch } from 'vue';
+import {
+  type PropType,
+  Teleport,
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue';
 
 import { Exception } from 'bkui-vue';
-import { deepClone } from 'monitor-common/utils';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
 import {
@@ -46,7 +55,7 @@ import type {
 import './table-graph.scss';
 
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
-
+const TABLE_PAGE_SIZE = 30;
 export default defineComponent({
   name: 'ProfilingTableGraph',
   props: {
@@ -93,6 +102,7 @@ export default defineComponent({
       { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
       { id: 'diff', name: 'Diff', mode: 'diff', sort: '' },
     ]);
+    const tabelLoadingRef = ref<HTMLDivElement>();
     const maxItem = ref<{ self: number; total: number }>({
       self: 0,
       total: 0,
@@ -101,7 +111,9 @@ export default defineComponent({
     const localIsCompared = ref(false);
     const sortKey = ref('');
     const sortType = ref('');
-
+    let intersectionObserver: IntersectionObserver = null;
+    const renderTableData = shallowRef([]);
+    const hiddenLoading = ref(false);
     watch(
       () => props.data,
       (val: ProfilingTableItem[]) => {
@@ -115,7 +127,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-        deep: true,
+        // deep: true,
       }
     );
     watch(
@@ -126,25 +138,29 @@ export default defineComponent({
     );
 
     function getTableData() {
-      const filterList = deepClone(
-        props.data
-          .filter(item =>
-            !!props.filterKeyword
-              ? item.name.toLocaleLowerCase().includes(props.filterKeyword.toLocaleLowerCase())
-              : true
-          )
-          .map(item => {
-            const palette = Object.values(ColorTypes);
-            const colorIndex = getHashVal(item.name) % palette.length;
-            const color = palette[colorIndex];
-            return {
-              ...item,
-              color,
-            };
-          })
+      const filterList = JSON.parse(
+        JSON.stringify(
+          (props.data || [])
+            .filter(item =>
+              props.filterKeyword
+                ? item.name.toLocaleLowerCase().includes(props.filterKeyword.toLocaleLowerCase())
+                : true
+            )
+            .map(item => {
+              const palette = Object.values(ColorTypes);
+              const colorIndex = getHashVal(item.name) % palette.length;
+              const color = palette[colorIndex];
+              return {
+                ...item,
+                color,
+              };
+            })
+        )
       );
-
       tableData.value = sortTableGraph(filterList, sortKey.value, sortType.value);
+      nextTick(() => {
+        renderTableData.value = tableData.value.slice(0, TABLE_PAGE_SIZE);
+      });
       localIsCompared.value = props.isCompared;
     }
     // Self 和 Total 值的展示
@@ -204,8 +220,6 @@ export default defineComponent({
       }
       if (axisTop + 120 > window.innerHeight) {
         axisTop = axisTop - 120;
-      } else {
-        axisTop = axisTop;
       }
 
       const { name, self, total, baseline, comparison, mark = '', diff = 0 } = row;
@@ -235,7 +249,45 @@ export default defineComponent({
       }
       return emit('updateHighlightId', hightlightId);
     }
+    function isInViewport(element: Element) {
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+      );
+    }
+    function handleTriggerObserver() {
+      hiddenLoading.value = true;
+      window.requestIdleCallback(() => {
+        hiddenLoading.value = false;
+      });
+    }
 
+    function observerTableLoading() {
+      intersectionObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.intersectionRatio <= 0) return;
+          if (renderTableData.value.length >= tableData.value.length) return;
+          renderTableData.value.push(
+            ...tableData.value.slice(renderTableData.value.length, renderTableData.value.length + TABLE_PAGE_SIZE)
+          );
+          nextTick(() => {
+            if (isInViewport(tabelLoadingRef.value) && renderTableData.value.length < tableData.value.length) {
+              handleTriggerObserver();
+            }
+          });
+        }
+      });
+      intersectionObserver.observe(tabelLoadingRef.value);
+    }
+    onMounted(() => {
+      observerTableLoading();
+    });
+    onBeforeUnmount(() => {
+      intersectionObserver?.unobserve(tabelLoadingRef.value);
+    });
     return {
       tableData,
       tableColumns,
@@ -247,6 +299,9 @@ export default defineComponent({
       handleRowMouseMove,
       handleRowMouseout,
       handleHighlightClick,
+      tabelLoadingRef,
+      hiddenLoading,
+      renderTableData,
     };
   },
   render() {
@@ -288,8 +343,9 @@ export default defineComponent({
           <tbody>
             {this.tableData.length ? (
               <>
-                {this.tableData.map(row => (
+                {this.renderTableData.map(row => (
                   <tr
+                    key={row.id}
                     class={row.id === this.highlightId ? 'hightlight' : ''}
                     onClick={() => this.handleHighlightClick(row.id)}
                     onMousemove={e => this.handleRowMouseMove(e, row)}
@@ -307,13 +363,23 @@ export default defineComponent({
                     </td>
                     {this.localIsCompared
                       ? [
-                          <td>{this.formatColValue(row.baseline)}</td>,
-                          <td>{this.formatColValue(row.comparison)}</td>,
-                          <td>{getDiffTpl(row)}</td>,
+                          <td key={1}>{this.formatColValue(row.baseline)}</td>,
+                          <td key={2}>{this.formatColValue(row.comparison)}</td>,
+                          <td key={3}>{getDiffTpl(row)}</td>,
                         ]
                       : [
-                          <td style={this.getColStyle(row, 'self')}>{this.formatColValue(row.self)}</td>,
-                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>,
+                          <td
+                            key={4}
+                            style={this.getColStyle(row, 'self')}
+                          >
+                            {this.formatColValue(row.self)}
+                          </td>,
+                          <td
+                            key={5}
+                            style={this.getColStyle(row, 'total')}
+                          >
+                            {this.formatColValue(row.total)}
+                          </td>,
                         ]}
                   </tr>
                 ))}
@@ -330,9 +396,22 @@ export default defineComponent({
                 </td>
               </tr>
             )}
+            <tr key='tabelLoadingRef'>
+              <td colspan={3}>
+                <div
+                  ref='tabelLoadingRef'
+                  style={{
+                    display:
+                      this.hiddenLoading || this.tableData.length <= this.renderTableData.length ? 'none' : 'flex',
+                  }}
+                  class='table-loading'
+                >
+                  {this.$t('加载中...')}
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
-
         <Teleport to='body'>
           <div
             style={{
@@ -343,11 +422,19 @@ export default defineComponent({
             class='table-graph-row-tips'
           >
             {this.tipDetail.title && [
-              <div class='funtion-name'>{this.tipDetail.title}</div>,
-              <table class='tips-table'>
+              <div
+                key={1}
+                class='funtion-name'
+              >
+                {this.tipDetail.title}
+              </div>,
+              <table
+                key={2}
+                class='tips-table'
+              >
                 {this.localIsCompared
                   ? [
-                      <thead>
+                      <thead key={1}>
                         <th />
                         <th>{this.$t('当前')}</th>
                         <th>{this.$t('参照')}</th>
@@ -355,7 +442,7 @@ export default defineComponent({
                       </thead>,
                     ]
                   : [
-                      <thead>
+                      <thead key={2}>
                         <th />
                         <th>Self (% of total)</th>
                         <th>Total (% of total)</th>

@@ -118,9 +118,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
   render() {
     return (
       <div class='incident-detail-wrap'>
-        <div>
-          <custom-incident-detail ref='incidentDetailRef' />
-        </div>
+        <custom-incident-detail ref='incidentDetailRef' />
         <EventDetailSlider
           bizId={this.detailInfo.bizId}
           eventId={this.detailInfo.id}

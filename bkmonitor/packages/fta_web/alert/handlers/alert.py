@@ -828,6 +828,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
         }
         return result
 
+    def export_with_docs(self) -> Tuple[List[AlertDocument], List[dict]]:
+        """导出告警数据，并附带原始文档。"""
+        raw_docs = [AlertDocument(**hit.to_dict()) for hit in self.scan()]
+        cleaned_docs = (self.clean_document(doc, exclude=["extra_info"]) for doc in raw_docs)
+        return raw_docs, list(self.translate_field_names(cleaned_docs))
+
     @classmethod
     def handle_hit(cls, hit):
         return cls.clean_document(AlertDocument(**hit.to_dict()), exclude=["extra_info"])

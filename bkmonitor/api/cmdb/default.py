@@ -43,7 +43,7 @@ def split_inner_host(bk_host_innerip_str):
     return bk_host_innerip[0]
 
 
-@using_cache(CacheType.CC_CACHE_ALWAYS, is_cache_func=lambda res: res)
+@using_cache(CacheType.DEVOPS, is_cache_func=lambda res: res)
 def get_host_dict_by_biz(bk_biz_id, fields):
     """
     按业务查询主机（未实例化）

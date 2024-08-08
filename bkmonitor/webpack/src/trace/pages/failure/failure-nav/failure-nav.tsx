@@ -46,7 +46,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation'],
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
@@ -88,10 +88,14 @@ export default defineComponent({
       active.value === 'FailureHandle' && refNav.value?.refreshTree();
     };
 
+    const handleSpace = (value: string[]) => {
+      emit('changeSpace', value);
+    };
     return {
       active,
       tabList,
       handleChange,
+      handleSpace,
       nodeClick,
       filterSearch,
       nodeExpand,
@@ -120,6 +124,7 @@ export default defineComponent({
               ref='refNav'
               tagInfo={this.$props.tagInfo}
               topoNodeId={this.$props.topoNodeId}
+              onChangeSpace={this.handleSpace}
               onChooseOperation={this.chooseOperation}
               onFilterSearch={this.filterSearch}
               onNodeClick={this.nodeClick}

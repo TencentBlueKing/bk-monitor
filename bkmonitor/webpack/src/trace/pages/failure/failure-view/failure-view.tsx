@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, provide, ref, watch } from 'vue';
+import { defineComponent, onMounted, provide, ref, watch, inject, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading } from 'bkui-vue';
@@ -43,7 +43,7 @@ export default defineComponent({
       default: () => ({}),
     },
     alertIdsObject: {
-      type: Object,
+      type: [Object, String],
       default: () => ({}),
     },
     searchValidate: {
@@ -54,6 +54,7 @@ export default defineComponent({
   emits: ['refresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     const layoutActive = ref<number>(2);
     const incidentId = useIncidentInject();
     // 提供给子组件的键值
@@ -81,9 +82,12 @@ export default defineComponent({
     );
     const getIncidentAlertView = () => {
       loading.value = true;
+      const queryString =
+        typeof props.alertIdsObject === 'object' ? props.alertIdsObject?.ids || '' : props.alertIdsObject;
       incidentAlertView({
+        bk_biz_ids: bkzIds.value || [],
         id: incidentId.value,
-        query_string: props.alertIdsObject?.ids || '',
+        query_string: queryString,
       })
         .then(res => {
           loading.value = false;

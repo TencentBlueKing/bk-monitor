@@ -240,6 +240,7 @@
       display: inline-block;
       width: 16px;
       height: 16px;
+      text-align: center;
       background: #c5c5c533;
       border: 1px solid #979ba5;
       border-radius: 100%;
@@ -291,6 +292,7 @@
 
 .failure-topo-tooltips-popover,
 .g6-component-tooltip {
+  z-index: 999;
   border: 1px solid #454547 !important;
   border-radius: 2px !important;
   box-shadow: 0 2px 6px 0 #00000080 !important;
