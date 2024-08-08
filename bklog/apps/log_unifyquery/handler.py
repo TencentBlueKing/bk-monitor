@@ -54,7 +54,7 @@ class UnifyQueryHandler(object):
         self.order_by = self.search_params.get("sort_list", [])
 
         # 是否为联合查询
-        self.is_multi_rt: bool = len(params.get("result_table_ids", [])) > 1
+        self.is_multi_rt: bool = len(self.index_set_ids) > 1
 
         # 查询时间范围
         self.start_time = self.search_params["start_time"]
