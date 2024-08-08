@@ -959,11 +959,6 @@ class CacheRouter(Model):
         verbose_name_plural = "后台缓存路由"
         db_table = "alarm_cacherouter"
 
-    def list_router(self):
-        routers = list(self.objects.values("id", "strategy_score", "noe_id"))
-        for router in routers:
-            router["node_name"] = CacheNode.objects.get(id=router["node_id"]).node_alias
-
     @classmethod
     def list_router(cls):
         from alarm_backends.core.cluster import get_cluster
