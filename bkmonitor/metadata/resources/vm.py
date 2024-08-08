@@ -126,7 +126,7 @@ class QueryBizByBkBase(Resource):
 
         return bk_base_data_id_biz_id  # 最终返回一个字典{data_id: bk_biz_id} 数据类型均为int
 
-    def get_biz_id_from_collector_plugin_meta(self, table_id):
+    def get_biz_id_from_collector_plugin_meta(self, table_id: str) -> int:
         """
         @summary: 若在元数据中无法找到VM对应的业务ID，则去空间插件表中查询
         @param table_id: 元数据中的RT
