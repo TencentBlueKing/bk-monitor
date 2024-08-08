@@ -28,12 +28,21 @@ from metadata.service.vm_storage import (
     query_bcs_cluster_vm_rts,
     query_vm_datalink,
 )
+from monitor_web.models import CollectorPluginMeta
 
 
 class QueryBizByBkBase(Resource):
+    """
+    根据计算平台相关信息（RT/data_id），查询对应业务信息
+    """
+
     class RequestSerializer(serializers.Serializer):
-        bk_base_data_id_list = serializers.ListField(child=serializers.IntegerField(), required=False, default=[])
-        bk_base_vm_table_id_list = serializers.ListField(child=serializers.CharField(), required=False, default=[])
+        bk_base_data_id_list = serializers.ListField(
+            label="计算平台data_id列表", child=serializers.IntegerField(), required=False, default=[]
+        )
+        bk_base_vm_table_id_list = serializers.ListField(
+            label="计算平台RT列表", child=serializers.CharField(), required=False, default=[]
+        )
 
         def validate(self, data: OrderedDict) -> OrderedDict:
             # 判断参数不能同时为空
@@ -110,9 +119,26 @@ class QueryBizByBkBase(Resource):
             is_in_ts_group = data_id_ts_group_flag.get(data_id) or False
             is_in_event_group = data_id_event_group_flag.get(data_id) or False
             bk_biz_id = get_real_biz_id(data_name, is_in_ts_group, is_in_event_group, space_uid)
+            # 若业务ID仍然为0，则去SaaS侧CollectorPluginMeta查询插件业务ID
+            if bk_biz_id == 0:
+                bk_biz_id = self.get_biz_id_from_collector_plugin_meta(table_id, data_id)
             bk_base_data_id_biz_id[bk_base_data_id] = bk_biz_id
 
-        return bk_base_data_id_biz_id
+        return bk_base_data_id_biz_id  # 最终返回一个字典{data_id: bk_biz_id} 数据类型均为int
+
+    def get_biz_id_from_collector_plugin_meta(self, table_id: str) -> int:
+        """
+        @summary: 若在元数据中无法找到VM对应的业务ID，则去空间插件表中查询
+        @param table_id: 元数据中的RT
+        @return: 业务ID
+        """
+        # from monitor_web import CollectorPluginMeta
+        try:
+            real_key = table_id.split('_', 1)[-1].rsplit('.', 1)[0]  # 根据插件规则，将RT转换为对应的plugin_id
+            plugin_meta = CollectorPluginMeta.objects.get(plugin_id=real_key)
+            return plugin_meta.bk_biz_id
+        except Exception:  # pylint: disable=broad-except
+            return 0
 
 
 class CreateVmCluster(Resource):
