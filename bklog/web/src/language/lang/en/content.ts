@@ -378,7 +378,7 @@ export default {
   '当前仓库名称为{n}，确认要删除？': 'The current store name is {n}, confirm to delete?',
   '当前是否有数据源，如果没有请 {0}': 'Is there a data source currently? if not, please {0}',
   '无分词字段 请前往 {0} 调整清洗': 'No tokenization field. please go to {0} to adjust parsing',
-  '显示字段（已选 {0} / {1})': 'Display fields (selected {0} / {1})',
+  '显示字段（已选 {0} 条)': 'Display fields ({0} selected)',
   设置了时间格式后将替换默认的数据时间: 'Setting a time format will replace the default data time',
   '未部署基础计算平台，无法进行高级清洗': 'Advanced parsing cannot be performed without basic BK-Base deployment',
   '按行过滤: 从第{0}行到第{1}行': 'Filter by line: from line {0} to line {1}',
