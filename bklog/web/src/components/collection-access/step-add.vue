@@ -398,13 +398,9 @@
                     <template #title>
                       <div>
                         <i class="bk-icon icon-info"></i>
-                        <i18n path="采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。">
-                          <span
-                            class="tips-btn"
-                            @click="handleUpdateCollector"
-                            >{{ $t('升级') }}</span
-                          >
-                        </i18n>
+                        <span>
+                          {$t('采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本')}
+                        </span>
                       </div>
                     </template>
                   </bk-alert>
@@ -2283,12 +2279,6 @@
       isShowContainerTips(configItem) {
         const { containerExclude, namespacesExclude } = configItem.noQuestParams;
         return [containerExclude, namespacesExclude].includes('!=');
-      },
-      handleUpdateCollector() {
-        const projectItem = this.localClusterList.find(item => item.id === this.formData.bcs_cluster_id);
-        const findSpace = this.mySpaceList.find(item => item.space_code === projectItem.project_id);
-        const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_id}/log-collector`;
-        window.open(url, '_blank');
       },
       /** 判断除基本信息外是否有更改过值 */
       isUpdateIssuedShowValue() {

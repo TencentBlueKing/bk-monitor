@@ -662,8 +662,8 @@ export default {
   当前显示全部字段: 'Currently showing all fields',
   显示全部字段: 'Currently showing all fields',
   新开标签页: 'New tab',
-  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。':
-    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本':
+    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please ensure that the collector has been upgraded to the latest version.',
   '输入自定义同比，按 Enter 确认': 'Enter custom year-on-year and press enter to confirm',
   将分组作为列展示: 'Display groups as columns',
   '如需根据某些维度拆分聚类结果，可将字段设置为维度。':
@@ -809,8 +809,8 @@ export default {
   正则不匹配: 'Regular expression mismatch',
   路径黑名单: 'Path blacklist',
   '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
-  '过滤器支持采集时过滤不符合的日志内容，需采集器版本 7.7.2及以上版本':
-    'The filter supports filtering non-conforming log content during collection, requires collector version 7.7.2 and above',
+  '过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本':
+    'The filter supports filtering non-conforming log content during collection, please ensure that the collector has been upgraded to the latest version.',
   操作符: 'Operator',
   新增过滤组: 'Add filter group',
   请输入列数: 'Please enter the number of columns',
