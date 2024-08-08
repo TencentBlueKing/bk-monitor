@@ -58,6 +58,7 @@ class TransferEtlHandler(EtlHandler):
         *args,
         **kwargs,
     ):
+        etl_params = etl_params or {}
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
@@ -155,8 +156,9 @@ class TransferEtlHandler(EtlHandler):
         # 在前面序列化器校验时，对字符做了转义，这里需要转回来
         origin_etl_params = copy.deepcopy(etl_params)
         if origin_etl_params.get("original_text_tokenize_on_chars"):
-            origin_etl_params["original_text_tokenize_on_chars"] = (
-                unicode_str_encode(origin_etl_params["original_text_tokenize_on_chars"]))
+            origin_etl_params["original_text_tokenize_on_chars"] = unicode_str_encode(
+                origin_etl_params["original_text_tokenize_on_chars"]
+            )
 
         origin_fields = copy.deepcopy(fields)
         for field in origin_fields:

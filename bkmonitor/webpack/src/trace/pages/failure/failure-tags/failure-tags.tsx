@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, onUnmounted, ref, watch } from 'vue';
+import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tag, Select } from 'bkui-vue';
 import { debounce } from 'lodash';
+
+import { useTagsOverflow } from './tags-utils';
 
 import type { ICurrentISnapshot, IIncident } from '../types';
 
@@ -51,6 +53,9 @@ export default defineComponent({
     const selectCollapseTagsStatus = ref<boolean>(!isHover.value);
     let selectDelayTimer: any = null;
     const failureTags = ref<HTMLDivElement>();
+    const tagsRefs = ref([]);
+    const collapseTagRef = ref();
+    const itemMainRefs = ref([]);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const playLoading = inject<Ref<boolean>>('playLoading');
     const incidentDetailData = computed(() => {
@@ -60,6 +65,12 @@ export default defineComponent({
     const failureTagsPostionsStates = computed(() =>
       isShow.value ? 'failure-tags-positons-relative' : 'failure-tags-positions-absolute'
     );
+
+    const { canShowIndex, calcOverflow } = useTagsOverflow({
+      targetRef: tagsRefs,
+      collapseTagRef: collapseTagRef,
+      isOverflow: selectCollapseTagsStatus,
+    });
 
     const handleCheckChange = (checked, tag) => {
       emit('chooseTag', tag, checked);
@@ -73,15 +84,31 @@ export default defineComponent({
           return snapshots.length === 0 ? (
             <span class='empty-text'>--</span>
           ) : (
-            snapshots.map(item => (
+            [
+              ...snapshots.map((item, index) => (
+                <Tag
+                  ref={el => (tagsRefs.value[index] = el)}
+                  style={{
+                    display:
+                      selectCollapseTagsStatus.value && canShowIndex.value && index >= canShowIndex.value ? 'none' : '',
+                  }}
+                  class='business-tag'
+                  checkable
+                  onChange={checked => handleCheckChange(checked, item)}
+                >
+                  {`[${item.bk_biz_id}] ${item.bk_biz_name}`}
+                </Tag>
+              )),
               <Tag
-                class='business-tag'
-                checkable
-                onChange={checked => handleCheckChange(checked, item)}
+                ref='collapseTagRef'
+                style={{
+                  display: !!canShowIndex.value && selectCollapseTagsStatus.value ? '' : 'none',
+                }}
+                class='business-tag business-tag-collapse'
               >
-                {`[${item.bk_biz_id}] ${item.bk_biz_name}`}
-              </Tag>
-            ))
+                +{tagsRefs.value?.length - canShowIndex.value}
+              </Tag>,
+            ]
           );
         },
       },
@@ -89,8 +116,9 @@ export default defineComponent({
         label: t('故障根因'),
         renderFn: () => {
           const snapshots: ICurrentISnapshot = incidentDetailData.value?.current_snapshot;
-          const { incident_name_template } = snapshots?.content || {};
+          const { incident_name_template, incident_propagation_graph } = snapshots?.content || {};
           const { elements = [], template } = incident_name_template || {};
+          const { entities } = incident_propagation_graph || {};
           const replacePlaceholders = (template, replacements) => {
             const parts: Array<JSX.Element | string> = [];
             const regex = /{(.*?)}/g;
@@ -121,7 +149,8 @@ export default defineComponent({
               0: (
                 <label
                   onClick={() => {
-                    emit('chooseNode', [elements[0][1]]);
+                    const node = entities.filter(item => item.is_root) || [];
+                    node.length > 0 && emit('chooseNode', [node[0].entity_id]);
                   }}
                 >
                   (<label class='name-target'>{elements[0][1]}</label>)
@@ -197,11 +226,24 @@ export default defineComponent({
         selectCollapseTagsStatus.value = !val;
       }
     });
+
+    const debounceCalcOverflow = debounce(calcOverflow, 150);
+    const resizeObserver = new ResizeObserver(() => {
+      debounceCalcOverflow();
+    });
+    onMounted(() => {
+      itemMainRefs.value?.[0] && resizeObserver.observe(itemMainRefs.value?.[0]);
+    });
+
+    onBeforeUnmount(() => {
+      itemMainRefs.value?.[0] && resizeObserver.unobserve(itemMainRefs.value?.[0]);
+    });
     onUnmounted(() => {
       clearTimeout(selectDelayTimer);
       selectDelayTimer = null;
     });
     return {
+      itemMainRefs,
       styleOptions,
       renderList,
       expandCollapseHandleDebounced,
@@ -229,10 +271,15 @@ export default defineComponent({
             onMouseleave={this.expandIsHoverHandle}
           >
             {this.playLoading && <div class='failure-tags-loading' />}
-            {this.renderList.map(item => (
+            {this.renderList.map((item, index) => (
               <div class='failure-tags-item'>
                 <span class='item-label'>{item.label}：</span>
-                <div class='item-main'>{item.renderFn()}</div>
+                <div
+                  ref={el => (this.itemMainRefs[index] = el)}
+                  class='item-main'
+                >
+                  {item.renderFn()}
+                </div>
               </div>
             ))}
           </div>

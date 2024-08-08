@@ -8,8 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
+
 from alarm_backends.core.alert import Alert
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
+
+logger = logging.getLogger("alert.manager")
 
 
 class NextStatusChecker(BaseChecker):
@@ -20,4 +24,11 @@ class NextStatusChecker(BaseChecker):
         return super(NextStatusChecker, self).is_enabled(alert)
 
     def check(self, alert: Alert):
+        logger.info(
+            "[move next status] alert(%s) strategy(%s), next_status_time: %s, next_status",
+            alert.id,
+            alert.strategy_id,
+            alert.data.get("next_status_time"),
+            alert.data.get("next_status"),
+        )
         alert.move_to_next_status()

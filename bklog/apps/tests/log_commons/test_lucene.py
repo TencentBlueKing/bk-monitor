@@ -227,8 +227,24 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "expect": """log: "lineno=1" AND number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
     },
     {
+        "keyword": """log:"r_e.cp|Add , root_id=0\n, item_id=20" and number < 83 and title: "The Way" AND log: OR""",
+        "expect": """log:"r_e.cp|Add , root_id=0\n, item_id=20" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """log:"operateSm:fail:not supported" and number < 83 and title: "The Way" AND log: OR""",
+        "expect": """log:"operateSm:fail:not supported" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
+    },
+    {
         "keyword": """log: lineno=1 and title: "The Right Way" AND log: OR""",
         "expect": """log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """log: or or /x and x/ and log: lineno=1 and title: "The Right Way" AND log: OR""",
+        "expect": """log: \"or\" OR /x and x/ AND log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """/a and b or c, lo=1 xx:not/ and log: lineno=1 and title: "The Right Way" AND log: OR""",
+        "expect": """/a and b or c, lo=1 xx:not/ AND log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
     },
     {
         "keyword": """number >=83063 or levelname:\"a and b or c\" AND log: and""",

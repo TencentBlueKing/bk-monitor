@@ -81,6 +81,7 @@ class IncidentQueryTransformer(BaseQueryTransformer):
         QueryField("begin_time", _lazy("故障开始时间")),
         QueryField("end_time", _lazy("故障结束时间")),
         QueryField("snapshot", _lazy("故障图谱快照")),
+        QueryField("alert_count", _lazy("故障告警数")),
     ]
     doc_cls = IncidentDocument
 
@@ -204,7 +205,6 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         incident = super().handle_hit(hit)
         incident["status_alias"] = IncidentStatus(incident["status"].lower()).alias
         incident["level_alias"] = IncidentLevel(incident["level"]).alias
-        incident["alert_count"] = len(incident["snapshot"]["alerts"])
         if incident["end_time"]:
             incident["duration"] = hms_string(incident["end_time"] - incident["begin_time"])
         else:

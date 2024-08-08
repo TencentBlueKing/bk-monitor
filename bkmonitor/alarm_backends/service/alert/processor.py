@@ -110,16 +110,16 @@ class BaseAlertProcessor:
         更新告警信息到 redis 缓存
         """
         if not alerts:
-            return
+            return 0, 0
         update_count, finished_count = AlertCache.save_alert_to_cache(alerts)
-        self.logger.info("update alert cache: updated(%s), finished(%s)", update_count, finished_count)
+        return update_count, finished_count
 
     def update_alert_snapshot(self, alerts: List[Alert]):
         if not alerts:
-            return
+            return 0
 
         snapshot_count = AlertCache.save_alert_snapshot(alerts)
-        self.logger.info("update alert snapshot: %s", snapshot_count)
+        return snapshot_count
 
     def save_alerts(self, alerts: List[Alert], action=BulkActionType.INDEX, force_save=False) -> List[Alert]:
         """
@@ -134,9 +134,7 @@ class BaseAlertProcessor:
         ]
 
         if not alert_documents:
-            self.logger.info(
-                "save alert document with action(%s): ignored(%d), saved(0), failed(0)", action, len(alerts)
-            )
+            self.logger.info("[save alert document] action(%s): ignored(%d), saved(0), failed(0)", action, len(alerts))
             return alerts
 
         start_time = time.time()
@@ -148,7 +146,7 @@ class BaseAlertProcessor:
             errors = e.errors
 
         self.logger.info(
-            "save alert document with action(%s): ignored(%d), saved(%d), failed(%d), elapsed(%.3f)",
+            "[save alert document] action(%s): ignored(%d), saved(%d), failed(%d), cost: %.3f",
             action,
             len(alerts) - len(alert_documents),
             len(alert_documents) - len(errors),
@@ -175,11 +173,11 @@ class BaseAlertProcessor:
         try:
             AlertLog.bulk_create(log_documents)
         except BulkIndexError as e:
-            self.logger.error("save alert log document error: %s", e.errors)
+            self.logger.error("[save alert log document] error: %s", e.errors)
             errors = e.errors
 
         self.logger.info(
-            "save alert log document: saved(%d), failed(%d), elapsed(%.3f)",
+            "[save alert log document] saved(%d), failed(%d), cost: %.3f",
             len(log_documents) - len(errors),
             len(errors),
             time.time() - start_time,
@@ -190,10 +188,12 @@ class BaseAlertProcessor:
         if not alerts:
             return
 
+        blocked = 0
         for alert in alerts:
             if alert.is_blocked:
+                blocked += 1
                 # 如果告警被熔断，不发送composite事件
                 continue
             check_action_and_composite.delay(alert_key=alert.key, alert_status=alert.status)
 
-        self.logger.info("send alert signals: total(%d)", len(alerts))
+        self.logger.info("[send alert signals]: send(%d), blocked(%s)", len(alerts) - blocked, blocked)

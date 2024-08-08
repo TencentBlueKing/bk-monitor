@@ -17,6 +17,7 @@ from typing import Dict
 from pika.adapters.blocking_connection import BlockingChannel
 from pika.spec import Basic
 
+from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
 from bkmonitor.aiops.incident.models import IncidentSnapshot
@@ -25,8 +26,13 @@ from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentDocument, IncidentSnapshotDocument
 from constants.alert import EventStatus
-from constants.incident import IncidentStatus, IncidentSyncType
+from constants.incident import (
+    IncidentGraphComponentType,
+    IncidentStatus,
+    IncidentSyncType,
+)
 from core.drf_resource import api
+from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("access.incident")
 
@@ -96,8 +102,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             # 补充快照记录并写入ES
             incident_document.snapshot = snapshot
+            incident_document.alert_count = len(snapshot.alerts)
             snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
-            incident_document.generate_labels(snapshot_model)
+            self.generate_incident_labels(incident_document, snapshot_model)
             incident_document.generate_handlers(snapshot_model)
             incident_document.generate_assignees(snapshot_model)
             api.bkdata.update_incident_detail(
@@ -153,6 +160,10 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 )
 
             logger.info(f"[UPDATE]Success to init incident[{sync_info['incident_id']}] data")
+        except IncidentNotFoundError as e:
+            logger.warn(f"[UPDATE]Access incident error: {e}, CREATE IT", exc_info=True)
+            self.create_incident(sync_info)
+            return
         except Exception as e:
             logger.error(f"[UPDATE]Access incident error: {e}", exc_info=True)
             return
@@ -165,8 +176,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 # 补充快照记录并写入ES
                 self.generate_alert_operations(incident_document.snapshot, snapshot)
                 incident_document.snapshot = snapshot
+                incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
-                incident_document.generate_labels(snapshot_model)
+                self.generate_incident_labels(incident_document, snapshot_model)
                 incident_document.generate_handlers(snapshot_model)
                 incident_document.generate_assignees(snapshot_model)
                 api.bkdata.update_incident_detail(
@@ -206,6 +218,23 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
             return
+
+    def generate_incident_labels(self, incident, snapshot) -> None:
+        """生成故障标签
+
+        :param snapshot: 故障分析结果图谱快照信息
+        """
+        strategy_ids = set()
+        for incident_alert in snapshot.alert_entity_mapping.values():
+            if incident_alert.entity.component_type == IncidentGraphComponentType.PRIMARY:
+                strategy_ids.add(incident_alert.strategy_id)
+
+        strategies = StrategyCacheManager.get_strategy_by_ids(list(strategy_ids))
+        labels = []
+        for strategy in strategies:
+            labels.extend(strategy["labels"])
+        whole_labels = list(set(labels) | set(incident.labels))
+        incident.labels = whole_labels
 
     def generate_alert_operations(
         self, last_snapshot: IncidentSnapshotDocument, snapshot: IncidentSnapshotDocument
