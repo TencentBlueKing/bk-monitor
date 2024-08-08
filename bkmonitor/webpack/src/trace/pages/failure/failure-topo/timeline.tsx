@@ -121,7 +121,9 @@ export default defineComponent({
       isPlay.value = !isPlay.value;
       /** 当前停留在最后一帧，点击播放是应该从头开始 */
       const isStart = timelinePosition.value === props.topoRawDataList.length - 1;
-      emit('play', { value: isPlay.value, isStart, ...(isStart ? { timeline: 0 } : {}) });
+      const params = { value: isPlay.value, isStart, ...(isStart ? { timeline: 0 } : {}) };
+      emit('play', params);
+      /** 兼容只有一条diff情况，导致数据状态不更新 */
       setTimeout(() => {
         if (props.topoRawDataList.length - 1 === 0 && timelinePosition.value === 0) {
           isPlay.value = false;
@@ -129,6 +131,10 @@ export default defineComponent({
       });
     };
 
+    const changeTimeLine = value => {
+      timelinePosition.value = value;
+      changePlayStatus(value);
+    };
     const handleStop = () => {};
 
     const handleDisabledDate = (e: Date | number | string) => {
@@ -142,17 +148,21 @@ export default defineComponent({
       }
       return false;
     };
+    const changePlayStatus = value => {
+      if (value + 1 === props.topoRawDataList.length) {
+        isPlay.value = false;
+      }
+      timelinePosition.value = value;
+      /** 非播放状态下，该值变化可能是时间选择器变化导致的，这种情况保持原值 */
+      if (!isPlay.value) return;
+      time.value = new Date(props.topoRawDataList?.[timelinePosition.value]?.create_time * 1000);
+    };
     /** 监听外部传入的切片位置更新拖动轴 */
     watch(
       () => props.timelinePlayPosition,
-      value => {
-        if (value + 1 === props.topoRawDataList.length) {
-          isPlay.value = false;
-        }
-        timelinePosition.value = value;
-        /** 非播放状态下，该值变化可能是时间选择器变化导致的，这种情况保持原值 */
-        if (!isPlay.value) return;
-        time.value = new Date(props.topoRawDataList?.[timelinePosition.value]?.create_time * 1000);
+      value => changePlayStatus(value),
+      {
+        deep: true,
       }
     );
     watch(
@@ -174,6 +184,7 @@ export default defineComponent({
       refleshTime: refreshTime,
       handlePlay,
       handleStop,
+      changeTimeLine,
       handleRefreshChange,
       handleDisabledDate,
       handleTimelineChange,

@@ -139,7 +139,9 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 bkmonitorbeat = beat_plugin[0]
                 # 兼容ipv4无bk_host_id的旧节点配置
                 if plugin["inner_ip"]:
-                    all_beat_version[(plugin["inner_ip"], plugin["bk_cloud_id"])] = bkmonitorbeat.get("version", "")
+                    all_beat_version[
+                        host_key(ip=plugin["inner_ip"], bk_cloud_id=plugin["bk_cloud_id"])
+                    ] = bkmonitorbeat.get("version", "")
                 all_beat_version[plugin["bk_host_id"]] = bkmonitorbeat.get("version", "")
             else:
                 logger.warning(

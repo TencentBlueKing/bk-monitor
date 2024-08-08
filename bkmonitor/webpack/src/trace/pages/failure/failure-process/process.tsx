@@ -25,7 +25,7 @@
  */
 import { reactive } from 'vue';
 
-import { LEVEL_LIST } from '../constant';
+import { LEVEL_LIST, STATUS_LIST } from '../constant';
 
 /** 文案对应表 */
 export const typeTextMap = {
@@ -52,7 +52,16 @@ export const typeTextMap = {
 };
 /** 渲染tag */
 export const renderHandlers = handles => {
-  return handles?.length ? handles.map(tag => <span class='tag-item'>{tag}</span>) : '--';
+  return handles?.length
+    ? handles.map(tag => (
+        <span
+          key={tag}
+          class='tag-item'
+        >
+          {tag}
+        </span>
+      ))
+    : '--';
 };
 export const handleFun = data => {
   const node = JSON.parse(JSON.stringify({ ...data }));
@@ -63,7 +72,9 @@ export const handleFun = data => {
 /** 点击跳转到告警tab */
 export const handleDetail = (e, {}, id, bizId) => {
   e.stopPropagation();
-  const routeUrl = `${location.hash}?tab=FailureView`;
+  const word = `?tab=FailureView`;
+  const key = location.hash.indexOf(word) === -1 ? word : '';
+  const routeUrl = `${location.hash}${key}`;
   const url = `${location.origin}${location.pathname}?bizId=${bizId}${routeUrl}`;
   window.location.href = url;
 };
@@ -71,27 +82,33 @@ export const handleDetail = (e, {}, id, bizId) => {
 const handleUpdate = ({ extra_info, operator }) => {
   const { incident_key_alias, from_value, to_value, incident_key } = extra_info;
   const isLevel = incident_key === 'level';
+  const isStatus = incident_key === 'status';
   const isIncidentName = incident_key === 'incident_name';
   const statusTag = val => {
-    const info = LEVEL_LIST[val];
+    let info: any = {};
+    isLevel && (info = LEVEL_LIST[val]);
+    isStatus && (info = STATUS_LIST[val]);
     return (
       <span
-        style={{ background: info.color }}
+        style={{ background: info.bgColor, color: info?.color || '#fff' }}
         class='status-tag'
       >
-        <i class={`icon-monitor icon-${info.key} sign-icon`} />
+        <i class={`icon-monitor icon-${info.icon} sign-icon`} />
         {info.label}
       </span>
     );
   };
   const className = isIncidentName ? 'tag-txt' : 'tag-item';
-  const toValue = isLevel ? (
-    statusTag(to_value)
-  ) : (
-    <span class={className}>{Array.isArray(to_value) ? to_value.join('、') : to_value}</span>
-  );
+  const handleValue = val => {
+    return Array.isArray(val) ? val.map(item => item.replace(/\//g, '')).join('、') : val;
+  };
+  const toValue = isLevel || isStatus ? statusTag(to_value) : <span class={className}>{handleValue(to_value)}</span>;
   const fromValue =
-    isLevel && !!from_value ? statusTag(from_value) : <span class={className}>{from_value || 'null'}</span>;
+    (isLevel || isStatus) && !!from_value ? (
+      statusTag(from_value)
+    ) : (
+      <span class={className}>{handleValue(from_value) || 'null'}</span>
+    );
   return (
     <i18n-t
       v-slots={{
@@ -276,7 +293,7 @@ export const renderMap = reactive({
     return (
       <i18n-t
         v-slots={{
-          group_name: () => <span>{extra_info.group_name || '--'}</span>,
+          group_name: () => <span class='tag-wrap'>{renderHandlers(extra_info.group_name )}</span>,
         }}
         keypath={typeTextMap.group_gather}
       />

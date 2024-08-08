@@ -90,8 +90,8 @@ interface ITimeSeriesProps {
 }
 interface ITimeSeriesEvent {
   onFullScreen: PanelModel;
-  onDataZoom: void;
-  onDblClick: void;
+  onDataZoom: () => void;
+  onDblClick: () => void;
   onCollectChart?: () => void; // 保存到仪表盘
   onSelectLegend: ILegendItem[]; // 选择图例时
   onDimensionsOfSeries?: string[]; // 图表数据包含维度是派出
@@ -183,12 +183,12 @@ export class LineChart
 
   // 只需要一条_result_的数据
   get onlyOneResult() {
-    return !!this.panel.options?.time_series?.only_one_result;
+    return this.panel.options?.time_series?.only_one_result;
   }
 
   // 开启自定时间范围，选择时间范围和双击操作时生效
   get isCustomTimeRange() {
-    return !!this.panel.options?.time_series?.custom_timerange;
+    return this.panel.options?.time_series?.custom_timerange;
   }
 
   get yAxisNeedUnitGetter() {
@@ -200,7 +200,7 @@ export class LineChart
   }
   // 同时hover显示多个tooltip
   get hoverAllTooltips() {
-    return !!this.panel.options?.time_series?.hoverAllTooltips;
+    return this.panel.options?.time_series?.hoverAllTooltips;
   }
 
   // Y轴刻度标签文字占位宽度
@@ -210,7 +210,7 @@ export class LineChart
 
   // 是否展示所有告警区域数据
   get needAllAlertMarkArea() {
-    return !!this.panel.options?.time_series?.needAllAlertMarkArea;
+    return this.panel.options?.time_series?.needAllAlertMarkArea;
   }
 
   @Watch('viewOptions')
@@ -341,7 +341,7 @@ export class LineChart
     if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     if (!this.enableSelectionRestoreAll) {
-      this.showRestore = !!start_time;
+      this.showRestore = start_time;
     }
     try {
       this.unregisterOberver();
@@ -369,7 +369,7 @@ export class LineChart
         interval,
       });
       timeShiftList.forEach(time_shift => {
-        const noTransformVariables = !!this.panel?.options?.time_series?.noTransformVariables;
+        const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
           const newPrarams = {
             ...variablesService.transformVariables(
@@ -438,7 +438,7 @@ export class LineChart
             return pass;
           });
         }
-        if (!!this.nearSeriesNum) {
+        if (this.nearSeriesNum) {
           series = series.slice(0, this.nearSeriesNum);
         }
         const seriesResult = series
@@ -451,6 +451,7 @@ export class LineChart
           seriesResult.map((item, index) => ({
             name: item.name,
             cursor: 'auto',
+            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
@@ -464,7 +465,7 @@ export class LineChart
         const boundarySeries = seriesResult
           .map(item => this.handleBoundaryList(item, series))
           .flat(Number.POSITIVE_INFINITY);
-        if (!!boundarySeries) {
+        if (boundarySeries) {
           seriesList = [...seriesList.map((item: any) => ({ ...item, z: 6 })), ...boundarySeries];
         }
         seriesList = seriesList.map((item: any) => ({
@@ -685,14 +686,14 @@ export class LineChart
 
   /** 阈值线 */
   createMarkLine(index: number) {
-    if (!!index) return {};
+    if (index) return {};
     return this.panel.options?.time_series?.markLine || {};
   }
 
   /** 区域标记 */
   createMarkArea(item, index) {
     /** 阈值区域 */
-    const thresholdsMarkArea = !!index ? {} : this.panel.options?.time_series?.markArea || {};
+    const thresholdsMarkArea = index ? {} : this.panel.options?.time_series?.markArea || {};
     let alertMarkArea = {};
     /** 告警区域 */
     if (item.markTimeRange?.length) {
@@ -714,13 +715,13 @@ export class LineChart
       item => item.alias === 'is_anomaly' && currentDimStr === getDimStr(item.dimensions)
     );
     let markPointData = [];
-    if (!!currentIsAanomalyData) {
+    if (currentIsAanomalyData) {
       currentDataPoints.forEach(item => currentDataPointsMap.set(item[0], item[1]));
       const currentIsAanomalyPoints = currentIsAanomalyData.datapoints;
       markPointData = currentIsAanomalyPoints.reduce((total, cur) => {
         const key = cur[1];
         const val = currentDataPointsMap.get(key);
-        const isExit = currentDataPointsMap.has(key) && !!cur[0];
+        const isExit = currentDataPointsMap.has(key) && cur[0];
         /** 测试条件 */
         // const isExit = currentDataPointsMap.has(key) && val > 31.51;
         isExit && total.push([key, val]);
@@ -736,7 +737,7 @@ export class LineChart
       yAxis: item[1],
     }));
 
-    !!item.markPoints?.length &&
+    item.markPoints?.length &&
       data.push(
         ...item.markPoints.map(item => ({
           xAxis: item[1],
@@ -772,10 +773,14 @@ export class LineChart
     const maxX = Array.isArray(lastItem) ? getXVal(lastItem) : getXVal(lastItem?.value);
     minX &&
       maxX &&
+      // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
       (formatterFunc = (v: any) => {
         const duration = dayjs.tz(maxX).diff(dayjs.tz(minX), 'second');
         if (onlyBeginEnd && v > minX && v < maxX) {
           return '';
+        }
+        if (duration < 59 * 60) {
+          return dayjs.tz(v).format('mm:ss');
         }
         if (duration < 60 * 60 * 24 * 1) {
           return dayjs.tz(v).format('HH:mm');
@@ -806,7 +811,7 @@ export class LineChart
       { value: 1e18, symbol: 'E' },
     ];
     const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
-    let i;
+    let i: number;
     for (i = si.length - 1; i > 0; i--) {
       if (num >= si[i].value) {
         break;
@@ -1113,16 +1118,17 @@ export class LineChart
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
       case 2:
-        const eventTargetStr = alarmStatus.targetStr;
-
-        window.open(
-          location.href.replace(
-            location.hash,
-            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
-              eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-          )
-        );
+        {
+          const eventTargetStr = alarmStatus.targetStr;
+          window.open(
+            location.href.replace(
+              location.hash,
+              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+                eventTargetStr ? ` AND ${eventTargetStr}` : ''
+              }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+            )
+          );
+        }
         break;
     }
   }
@@ -1131,7 +1137,7 @@ export class LineChart
    * 根据图表接口响应数据下载csv文件
    */
   handleExportCsv() {
-    if (!!this.series?.length) {
+    if (this.series?.length) {
       const { tableThArr, tableTdArr } = transformSrcData(this.series);
       const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
       downCsvFile(csvString, this.panel.title);
@@ -1265,7 +1271,7 @@ export class LineChart
     this.$emit('dimensionsOfSeries', [...dimensionSet]);
   }
   handleRestore() {
-    if (!!this.enableSelectionRestoreAll) {
+    if (this.enableSelectionRestoreAll) {
       this.handleRestoreEvent();
     } else {
       this.dataZoom(undefined, undefined);

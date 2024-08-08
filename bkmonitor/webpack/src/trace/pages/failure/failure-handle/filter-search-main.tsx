@@ -84,6 +84,8 @@ export default defineComponent({
       return props.tagInfo || [];
     });
     const inputStatus = ref<string>('success');
+    const isErr = ref(false);
+    const selectRef = ref();
     const handleBiz = (data: any) => {
       const list = JSON.parse(JSON.stringify(spaceFilter.value));
       spaceFilter.value.push(data.bk_biz_id);
@@ -102,19 +104,20 @@ export default defineComponent({
       () => incidentDetail.value,
       val => {
         const { current_snapshot } = val;
-        spaceFilter.value = current_snapshot?.bk_biz_id || [];
+        spaceFilter.value = (current_snapshot?.bk_biz_ids || []).map(item => item.bk_biz_id);
       }
     );
     const currentBizList = computed(() => {
       const { current_snapshot } = incidentDetail.value;
-      return current_snapshot?.bk_biz_id || [];
+      return (current_snapshot?.bk_biz_ids || []).map(item => item.bk_biz_id);
     });
     const spaceDataList = computed(() => {
       const list = (window.space_list || []).filter(item => currentBizList.value.includes(item.bk_biz_id));
       return getSpaceList(list || []);
     });
-    const changeSpace = (space: string) => {
-      emit('changeSpace', space);
+    const changeSpace = (space: string) => {     
+      isErr.value = !space.length;
+      emit('changeSpace', space, isErr.value);
     };
     /* 整理space_list */
     const getSpaceList = spaceList => {
@@ -177,6 +180,8 @@ export default defineComponent({
       valueMap,
       spaceDataList,
       inputStatus,
+      isErr,
+      selectRef
     };
   },
   render() {
@@ -184,8 +189,12 @@ export default defineComponent({
       <div class='failure-search-main'>
         <div class='main-top'>
           <Select
+            ref="selectRef"
             selected-style='checkbox'
-            class='main-select'
+            class={[
+              'main-select',
+              { error: this.isErr }
+            ]}
             v-model={this.spaceFilter}
             clearable={false}
             inputSearch={false}
@@ -193,6 +202,9 @@ export default defineComponent({
             filterable
             multiple
             onChange={this.changeSpace}
+            onBlur={() => {
+              this.isErr && this.selectRef.showPopover();
+            }}
           >
             {this.spaceDataList.map((item, ind) => (
               <Select.Option
@@ -228,7 +240,6 @@ export default defineComponent({
             inputStatus={this.inputStatus}
             searchType={this.searchType}
             value={this.queryString}
-            valueMap={this.valueMap}
             onChange={this.handleQueryStringChange}
             onClear={this.handleQueryStringChange}
           />

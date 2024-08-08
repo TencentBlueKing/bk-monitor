@@ -1349,7 +1349,7 @@ class BaseIndexSetHandler(object):
             TransferApi.create_or_update_es_router(
                 {
                     "cluster_id": index_set.storage_cluster_id,
-                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
+                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
                     "source_type": index_set.scenario_id,
                     "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
                     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
@@ -1368,6 +1368,10 @@ class BaseIndexSetHandler(object):
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
+                        }, {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(index_set.scenario_id != Scenario.ES),
                         }
                     ],
                 }

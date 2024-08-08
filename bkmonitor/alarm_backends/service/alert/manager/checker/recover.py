@@ -167,9 +167,10 @@ class RecoverStatusChecker(BaseChecker):
             if not last_check_timestamp:
                 # key 已经过期，超时恢复
                 self.recover(alert, _("在恢复检测周期内无数据上报，告警已{handle}"), status_setter=status_setter)
+                check_result = ("do_close" if status_setter == "close" else "do_recover",)
                 logger.info(
-                    "[处理结果] (no_data) alert({}), strategy({}) 在恢复检测周期内无数据上报，进行事件{}".format(
-                        alert.id, alert.strategy_id, _("关闭") if status_setter == "close" else _("恢复")
+                    "[recover 处理结果] ({}) alert({}), strategy({}) 在恢复检测周期内无数据上报，进行事件{}".format(
+                        check_result, alert.id, alert.strategy_id, _("关闭") if status_setter == "close" else _("恢复")
                     )
                 )
                 return True
@@ -205,7 +206,7 @@ class RecoverStatusChecker(BaseChecker):
                 strategy_item=item,
             )
             logger.info(
-                "[处理结果] ({}) alert({}), strategy({}) 连续 {} 个周期内不满足触发条件，进行事件{}".format(
+                "[{}] alert({}), strategy({}) 连续 {} 个周期内不满足触发条件，进行事件{}".format(
                     "do_close" if status_setter == "close" else "do_recover",
                     alert.id,
                     alert.strategy_id,
@@ -215,9 +216,7 @@ class RecoverStatusChecker(BaseChecker):
             )
             return True
 
-        logger.info(
-            "[处理结果] (no_recover) alert({}), strategy({}) 在恢复检测周期内仍满足触发条件，不进行恢复".format(alert.id, alert.strategy_id)
-        )
+        logger.info("[no_recover] alert({}), strategy({}) 在恢复检测周期内仍满足触发条件，不进行恢复".format(alert.id, alert.strategy_id))
         return False
 
     def check_custom_event_recovery(self, alert: Alert, strategy):
@@ -282,7 +281,7 @@ class RecoverStatusChecker(BaseChecker):
 
         # 时序型无数据走关闭逻辑
         if not check_results and is_time_series:
-            logger.info("ignore recover process for alert(%s) because of no data", alert.id)
+            logger.info("[ignore recover] alert(%s) strategy(%s) no check result", alert.id, alert.strategy_id)
             return False, latest_normal_record
 
         # 取出包含异常数的个数，并排序
@@ -295,31 +294,16 @@ class RecoverStatusChecker(BaseChecker):
                 # 如果是异常的数据结构，记录异常之后直接做下一个数据的检测
                 anomaly_timestamps.append(int(score))
                 continue
-            try:
-                score, normal_value = label.split("|")
-            except Exception as error:
-                # 如果缓存数据结构不正确导致无法解析，直接做下一个数据的检测
-                logger.exception(
-                    "latest datapoint label(%s) of alert(%s) translate error %s",
-                    label,
-                    alert.id,
-                    str(error),
-                )
-                continue
+            score, normal_value = label.split("|")
             try:
                 # 对获取的数据点进行格式化，int > float > error
                 normal_value = int(normal_value)
             except ValueError:
                 try:
                     normal_value = float(normal_value)
-                except ValueError as error:
-                    # 当前数据非整形或者浮点型的情况，可能有异常，打个异常日志
-                    logger.info(
-                        "latest datapoint value(%s) of alert(%s) is not standard  %s",
-                        normal_value,
-                        alert.id,
-                        str(error),
-                    )
+                except ValueError:
+                    # 当前数据非整形或者浮点型的情况，可能有异常，用于后续流水日志，不影响大局
+                    pass
             if int(score) > latest_normal_record[0]:
                 # 记录时间戳最新的一个为最近正常数据点
                 latest_normal_record = (int(score), normal_value)
@@ -343,19 +327,25 @@ class RecoverStatusChecker(BaseChecker):
 
             if anomaly_count >= trigger_count:
                 # 当某个窗口的异常数量大于等于触发个数，即满足了触发条件，不恢复
-                if i == 0 and alert.get_extra_info("is_recovering"):
-                    # 如果当前是最近一次窗口有异常，表示不在恢复期间内
-                    logger.info("alert(%s) recover aborted because new abnormal data point", alert.id)
+                if i == 0 and alert.is_recovering():
+                    # 日志不国际化
+                    logger.info(
+                        "[recover aborted] alert(%s) strategy(%s) 最近一个检测周期内仍满足触发条件，告警处理抑制解除",
+                        alert.id,
+                        alert.strategy_id,
+                    )
                     alert.update_extra_info("is_recovering", False)
                     if alert.get_extra_info("ignore_unshield_notice"):
-                        # 如果屏蔽期间忽略过告警，在后面检测又出现异常的情况下, 需要重新发出，保证告警不丢失
-                        alert.update_extra_info("ignore_unshield_notice", False)
+                        # 如果恢复周期内抑制了 解除屏蔽告警，解除抑制后, 需要重新发出，保证告警不丢失
+                        # 这里删除抑制标记， 并重新设置 发送屏蔽告警 标记
+                        alert.extra_info.pop("ignore_unshield_notice", False)
                         alert.update_extra_info("need_unshield_notice", True)
                     alert.add_log(AlertLog.OpType.ABORT_RECOVER, description=_("最近一个检测周期内仍满足触发条件，告警处理抑制解除"))
                 return False, latest_normal_record
-            if i == 0 and not alert.get_extra_info("is_recovering"):
-                # 如果当前是最近一次窗口并且没有异常，表示正在恢复周期内
-                logger.info("alert(%s) is recovering", alert.id)
+            if i == 0 and not alert.is_recovering():
+                # 最近一次检测窗口没有异常，表示正在恢复周期内
+                logger.info("[start recovering] alert(%s) strategy(%s)", alert.id, alert.strategy_id)
+                # is_recovering 表示当前未恢复的告警开启恢复周期
                 alert.update_extra_info("is_recovering", True)
                 alert.add_log(AlertLog.OpType.RECOVERING, description=_("最近一个检测周期内不满足触发条件，当前告警处于恢复期内，告警异常时的处理将被抑制"))
 
@@ -388,9 +378,7 @@ class RecoverStatusChecker(BaseChecker):
         if latest_normal_record:
             record_value_display = cls.get_value_display(alert, latest_normal_record[1])
             # 如果是AIOPS多指标的智能异常检测，则不展示当前值(is_anomaly)，后续考虑从接口获取当前恢复时所以监控的多个指标的值
-            if record_value_display is not None and not (
-                strategy_item and cls.check_is_multi_indicator_strategy(strategy_item)
-            ):
+            if record_value_display and not (strategy_item and cls.check_is_multi_indicator_strategy(strategy_item)):
                 description = _("{description}，当前值为{record_value_display}").format(
                     description=description, record_value_display=record_value_display
                 )
@@ -407,8 +395,7 @@ class RecoverStatusChecker(BaseChecker):
             unit = load_unit(strategy.items[0].unit)
             value, suffix = unit.fn.auto_convert(value, decimal=settings.POINT_PRECISION)
             return "{}{}".format(value, suffix)
-        except Exception as error:
-            logger.info("load value unit for alert(%s) failed %s, current value(%s)", alert.id, str(error), value)
+        except Exception:
             return value
 
     @classmethod

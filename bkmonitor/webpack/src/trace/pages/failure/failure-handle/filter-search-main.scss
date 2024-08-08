@@ -21,6 +21,11 @@
                 color: #63656E;
                 background: #fff3e2;
             }
+            &.error {
+                .bk-input {
+                    border: 1px solid #ff5656; 
+                }
+            }
         }
     }
 }
@@ -65,7 +70,7 @@
 
     .space-tags {
         position: absolute;
-        right: 0;
+        right: 10px;
         display: flex;
 
         .space-tags-item {

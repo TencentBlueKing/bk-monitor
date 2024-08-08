@@ -114,12 +114,11 @@ class AlertAssigneeManager:
         if AssignMode.BY_RULE not in self.assign_mode:
             self.match_manager = None
             logger.info(
-                "ignore to run assign match for alert(%s) because of by_rule not in assign_mode(%s)",
+                "[ignore assign match] alert(%s) assign_mode(%s)",
                 self.alert.id,
                 self.assign_mode,
             )
             return
-        logger.info("start to run assign match for alert(%s)", self.alert.id)
 
         # 需要获取所有的通知人员信息，包含chatID
         manager = BackendAssignMatchManager(
@@ -133,10 +132,10 @@ class AlertAssigneeManager:
             self.is_matched = True
         self.matched_group = manager.matched_group_info.get("group_id")
         logger.info(
-            "end run assign match for alert(%s), matched_rule(%s), assign results(%s)",
+            "[assign match] finished: alert(%s), matched_rule(%s), assign results(%s)",
             self.alert.id,
             len(manager.matched_rules),
-            manager.matched_group_info.get("group_id"),
+            self.matched_group,
         )
         return manager
 
@@ -264,8 +263,7 @@ class AlertAssigneeManager:
         user_groups, current_group_index = self.upgrade_rule.get_upgrade_user_group(last_group_index, need_upgrade)
         if current_group_index != last_group_index:
             logger.info(
-                "alert(%s) upgraded by origin notice, current_group_index(%s), "
-                "last_group_index(%s), last_upgrade_time(%s)",
+                "[alert upgrade] alert(%s) current_group_index(%s), " "last_group_index(%s), last_upgrade_time(%s)",
                 self.alert.id,
                 current_group_index,
                 last_group_index,

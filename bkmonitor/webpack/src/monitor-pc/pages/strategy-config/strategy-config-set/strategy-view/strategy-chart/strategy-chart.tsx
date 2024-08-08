@@ -318,7 +318,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       this.yAxisNeedUnitGetter
     );
     const { data_source_label, data_type_label, result_table_id, custom_event_name, agg_condition } =
-      this.metricData[0];
+      this.metricData[0] || {};
     const type = `${data_source_label}_${data_type_label}`;
     /** 是否是事件 */
     const isEvent = type === 'custom_event' || type === 'bk_monitor_log';
