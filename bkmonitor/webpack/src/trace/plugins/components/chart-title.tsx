@@ -310,7 +310,7 @@ export default defineComponent({
             ) : undefined}
             <div style={{ display: 'flex', marginRight: '-18px' }}>
               {
-                this.$props.isShowAlarm && <AlertActionList
+                this.isShowAlarm && <AlertActionList
                   style={{
                     minWidth: '72px',
                     marginLeft: 'auto',
