@@ -324,8 +324,8 @@ export default class FieldAnalysis extends Vue {
             axisLabel: {
               color: '#979BA5',
               boundaryGap: false,
-              showMinLabel: false,
-              showMaxLabel: false,
+              // showMinLabel: false,
+              // showMaxLabel: false,
               fontSize: 12,
               formatter: value => {
                 return dayjs.tz(value).format(formatStr);
