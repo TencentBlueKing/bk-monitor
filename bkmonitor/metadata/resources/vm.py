@@ -28,6 +28,7 @@ from metadata.service.vm_storage import (
     query_bcs_cluster_vm_rts,
     query_vm_datalink,
 )
+from monitor_web.models import CollectorPluginMeta
 
 
 class QueryBizByBkBase(Resource):
@@ -110,9 +111,35 @@ class QueryBizByBkBase(Resource):
             is_in_ts_group = data_id_ts_group_flag.get(data_id) or False
             is_in_event_group = data_id_event_group_flag.get(data_id) or False
             bk_biz_id = get_real_biz_id(data_name, is_in_ts_group, is_in_event_group, space_uid)
+            # 若业务ID仍然为0，则去SaaS侧CollectorPluginMeta查询插件业务ID
+            if bk_biz_id == 0:
+                bk_biz_id = self.get_biz_id_from_collector_plugin_meta(table_id, data_id)
             bk_base_data_id_biz_id[bk_base_data_id] = bk_biz_id
 
         return bk_base_data_id_biz_id
+
+    def get_biz_id_from_collector_plugin_meta(self, table_id, data_id):
+        """
+        若在元数据中无法找到VM对应的业务ID，则去空间映射表和插件表中查询
+        """
+        # from monitor_web import CollectorPluginMeta
+        try:
+            space_ins_list = models.SpaceDataSource.objects.filter(bk_data_id=data_id)
+
+            for space_ins in space_ins_list:
+                if (
+                    not space_ins.from_authorization
+                    and space_ins.space_type_id == SpaceTypes.BKCC.value
+                    and space_ins.space_id != '0'
+                ):
+                    return int(space_ins.space_id)
+
+            real_key = table_id.split('_', 1)[-1].rsplit('.', 1)[0]
+            plugin_meta = CollectorPluginMeta.objects.get(plugin_id=real_key)
+            return plugin_meta.bk_biz_id or 0
+
+        except Exception:  # pylint: disable=broad-except
+            return 0
 
 
 class CreateVmCluster(Resource):
