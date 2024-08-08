@@ -173,19 +173,9 @@ class YearOnYearEnum(ChoicesEnum):
 
 
 class PatternEnum(ChoicesEnum):
-    LEVEL_01 = "01"
-    LEVEL_03 = "03"
     LEVEL_05 = "05"
-    LEVEL_07 = "07"
-    LEVEL_09 = "09"
 
-    _choices_labels = (
-        (LEVEL_01, "LEVEL_01"),
-        (LEVEL_03, "LEVEL_03"),
-        (LEVEL_05, "LEVEL_05"),
-        (LEVEL_07, "LEVEL_07"),
-        (LEVEL_09, "LEVEL_09"),
-    )
+    _choices_labels = ((LEVEL_05, "LEVEL_05"),)
 
 
 class ActionEnum(ChoicesEnum):

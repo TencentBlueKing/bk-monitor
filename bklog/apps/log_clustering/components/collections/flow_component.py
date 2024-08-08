@@ -19,6 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import ugettext_lazy as _
+from pipeline.builder import ServiceActivity, Var
+from pipeline.component_framework.component import Component
+from pipeline.core.flow.activity import Service, StaticIntervalGenerator
+
 from apps.api import CmsiApi
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
@@ -30,10 +35,6 @@ from apps.utils.function import ignored
 from apps.utils.local import activate_request
 from apps.utils.pipline import BaseService
 from apps.utils.thread import generate_request
-from django.utils.translation import ugettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
 
 class CreatePreTreatFlowService(BaseService):
@@ -250,17 +251,8 @@ class CreatePredictFlowService(BaseService):
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
         flow = DataFlowHandler().create_predict_flow(index_set_id=index_set_id)
-        is_collect_index_set = bool(data.get_one_of_inputs("collector_config_id"))
-        if is_collect_index_set:
-            # 添加索引集表标签
-            log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-            LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
-            # 采集项要继续消费，能跟历史数据无缝衔接，避免丢数据
-            consuming_mode = "continue"
-        else:
-            # 计算平台的索引由于是分开两个索引存储，因此无需关心历史数据，直接从最新数据开始消费能够避免追太多历史数据，加速样本构建速度
-            consuming_mode = "from_tail"
-        DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode=consuming_mode)
+        LogIndexSet.set_tag(index_set_id, InnerTag.CLUSTERING.value)
+        DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="from_tail")
         return True
 
     def _schedule(self, data, parent_data, callback_data=None):
@@ -307,8 +299,7 @@ class CreateLogCountAggregationFlowService(BaseService):
 
         DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="continue")
         # 添加索引集表标签
-        log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
+        LogIndexSet.set_tag(index_set_id, InnerTag.CLUSTERING.value)
         return True
 
     def _schedule(self, data, parent_data, callback_data=None):

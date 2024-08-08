@@ -933,12 +933,13 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         predict_change_args = {
             "min_members": clustering_config.min_members,
-            "max_dist_list": clustering_config.max_dist_list,
             # 单词不一致 注意
             "predefined_variables": clustering_config.predefined_varibles,
             "delimeter": clustering_config.delimeter,
             "max_log_length": clustering_config.max_log_length,
             "is_case_sensitive": clustering_config.is_case_sensitive,
+            "st_list": OnlineTaskTrainingArgs.ST_LIST,
+            "max_dist_list": clustering_config.max_dist_list,
         }
 
         flow_id = clustering_config.predict_flow_id  # 预测 flow_id
@@ -1402,7 +1403,7 @@ class DataFlowHandler(BaseAiopsHandler):
             "sampling_conditions": [{"field_name": "is_new", "value": OnlineTaskTrainingArgs.IS_NEW}],
             "training_args": [
                 {"field_name": "min_members", "value": clustering_config.min_members},
-                {"field_name": "max_dist_list", "value": clustering_config.max_dist_list},
+                {"field_name": "max_dist_list", "value": OnlineTaskTrainingArgs.MAX_DIST_LIST},
                 {"field_name": "st_list", "value": OnlineTaskTrainingArgs.ST_LIST},
                 {
                     "field_name": "predefined_variables",

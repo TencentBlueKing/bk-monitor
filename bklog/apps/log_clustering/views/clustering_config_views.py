@@ -21,6 +21,9 @@ the project delivered to anyone in the future.
 """
 import re
 
+from pipeline.service import task_service
+from rest_framework.response import Response
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.generic import APIViewSet
@@ -33,8 +36,6 @@ from apps.log_clustering.serializers import (
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
-from pipeline.service import task_service
-from rest_framework.response import Response
 
 
 class ClusteringConfigViewSet(APIViewSet):
@@ -265,7 +266,6 @@ class ClusteringConfigViewSet(APIViewSet):
             ClusteringConfigHandler().preview(
                 input_data=params["input_data"],
                 min_members=1,  # 这里是因为在调试的时候默认只有一条数据
-                max_dist_list=params["max_dist_list"],
                 predefined_varibles=params["predefined_varibles"],
                 delimeter=params["delimeter"],
                 max_log_length=params["max_log_length"],

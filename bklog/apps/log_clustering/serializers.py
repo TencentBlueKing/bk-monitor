@@ -77,7 +77,6 @@ class ClusteringConfigSerializer(serializers.Serializer):
     collector_config_name_en = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     index_set_id = serializers.IntegerField()
     min_members = serializers.IntegerField(required=False, default=1, allow_null=True)
-    max_dist_list = serializers.CharField(max_length=128, required=False, allow_null=True, allow_blank=True)
     predefined_varibles = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     delimeter = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     max_log_length = serializers.IntegerField(required=False, allow_null=True, default=100)
@@ -96,7 +95,6 @@ class InputDataSerializer(serializers.Serializer):
 class ClusteringPreviewSerializer(serializers.Serializer):
     input_data = serializers.ListField(child=InputDataSerializer())
     min_members = serializers.IntegerField()
-    max_dist_list = serializers.CharField()
     predefined_varibles = serializers.CharField()
     delimeter = serializers.CharField()
     max_log_length = serializers.IntegerField()
