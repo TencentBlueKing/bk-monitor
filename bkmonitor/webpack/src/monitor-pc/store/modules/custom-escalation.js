@@ -68,7 +68,6 @@ const actions = {
 
   // 编辑自定义指标描述信息
   async editCustomTimeSeriesDesc(_, params) {
-    console.log('params = = = = = >', params);
     await modifyCustomTimeSeriesDesc(params).catch(() => false);
   },
 
