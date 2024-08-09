@@ -26,7 +26,7 @@
 export interface ISideslider {
   isShow: boolean;
   title: string;
-  data: {};
+  data: Record<string, any>;
 }
 
 export interface IParams {
@@ -61,6 +61,7 @@ export interface IDetailData {
   is_platform?: boolean;
   is_readonly?: boolean;
   protocol?: string;
+  desc?: string;
 }
 
 export interface IShortcuts {

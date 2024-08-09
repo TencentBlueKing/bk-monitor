@@ -32,6 +32,7 @@ import {
   getCustomTimeSeriesLatestDataByFields,
   modifyCustomEventGroup,
   modifyCustomTimeSeries,
+  modifyCustomTimeSeriesDesc,
   proxyHostInfo,
   queryCustomEventGroup,
   validateCustomEventGroupName,
@@ -48,25 +49,31 @@ const actions = {
   },
 
   //  获取自定义指标列表
-  async getCustomTimeSeriesList({}, params) {
+  async getCustomTimeSeriesList(_, params) {
     const data = await customTimeSeriesList(params).catch(() => ({ list: [], total: 0 }));
     return transformDataKey(data);
   },
 
   //  获取自定义指标详情
-  async getCustomTimeSeriesDetail({}, params) {
+  async getCustomTimeSeriesDetail(_, params) {
     const data = await customTimeSeriesDetail(params).catch(() => ({}));
     return data;
   },
 
   //  编辑自定义指标配置
-  async editCustomTime({}, params) {
+  async editCustomTime(_, params) {
     const data = await modifyCustomTimeSeries(params).catch(() => false);
     return transformDataKey(data);
   },
 
+  // 编辑自定义指标描述信息
+  async editCustomTimeSeriesDesc(_, params) {
+    console.log('params = = = = = >', params);
+    await modifyCustomTimeSeriesDesc(params).catch(() => false);
+  },
+
   //  删除自定义指标
-  async deleteCustomTimeSeries({}, params) {
+  async deleteCustomTimeSeries(_, params) {
     const data = await deleteCustomTimeSeries(params)
       .then(() => true)
       .catch(() => false);
@@ -74,31 +81,31 @@ const actions = {
   },
 
   //  获取云区域proxy信息
-  async getProxyInfo({}) {
+  async getProxyInfo() {
     const data = await proxyHostInfo().catch(() => []);
     return transformDataKey(data);
   },
 
   //  获取自定义事件列表
-  async getCustomEventList({}, params) {
+  async getCustomEventList(_, params) {
     const data = await queryCustomEventGroup(params).catch(() => ({ list: [], total: 0 }));
     return transformDataKey(data);
   },
 
   //  获取自定义事件配置详情
-  async getCustomEventDetail({}, params) {
+  async getCustomEventDetail(_, params) {
     const data = await getCustomEventGroup(params).catch(() => ({ event_info_list: [] }));
     return data;
   },
 
   //  编辑自定义事件配置
-  async editCustomEvent({}, params) {
+  async editCustomEvent(_, params) {
     const data = await modifyCustomEventGroup(params).catch(() => false);
     return transformDataKey(data);
   },
 
   //  删除自定义事件配置
-  async deleteCustomEvent({}, params) {
+  async deleteCustomEvent(_, params) {
     const data = await deleteCustomEventGroup(params)
       .then(() => true)
       .catch(() => false);
@@ -106,15 +113,15 @@ const actions = {
   },
 
   //  校验事件名称
-  validateCustomEventName({}, { params, options }) {
+  validateCustomEventName(_, { params, options }) {
     return validateCustomEventGroupName(params, options).catch(err => err);
   },
 
   //  校验指标名称
-  validateCustomTimetName({}, { params, options }) {
+  validateCustomTimetName(_, { params, options }) {
     return validateCustomTsGroupName(params, options).catch(err => err);
   },
-  async getCustomTimeSeriesLatestDataByFields({}, params) {
+  async getCustomTimeSeriesLatestDataByFields(_, params) {
     const data = await getCustomTimeSeriesLatestDataByFields(params).catch(() => false);
     return data;
   },

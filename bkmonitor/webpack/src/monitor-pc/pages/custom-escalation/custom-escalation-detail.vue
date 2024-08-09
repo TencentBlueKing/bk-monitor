@@ -158,7 +158,24 @@
             class="detail-information-row last-row"
           >
             <span class="row-label">{{ $t('描述') }} : </span>
-            <span class="row-content">{{ detailData.desc || '--' }}</span>
+            <div
+              v-if="!isShowEditDesc"
+              style="display: flex"
+            >
+              <span class="row-content">{{ detailData.desc || '--' }}</span>
+              <i
+                v-if="!isShowEditDesc && !isReadonly"
+                class="icon-monitor icon-bianji edit-name"
+                @click="handleShowEditDes"
+              />
+            </div>
+            <bk-input
+              v-else
+              ref="describeInput"
+              style="width: 240px"
+              v-model="copyDescribe"
+              @blur="handleEditDescribe"
+            />
           </div>
         </div>
         <!-- 自定义事件展示 -->
@@ -969,6 +986,7 @@ interface IGroupListItem {
 export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(customAuth)) {
   @Ref('nameInput') readonly nameInput!: HTMLInputElement;
   @Ref() readonly dataLabelInput!: HTMLInputElement;
+  @Ref() readonly describeInput!: HTMLInputElement;
   @Ref('textCopy') readonly textCopy!: HTMLTextAreaElement;
   @Ref('golangCopy') readonly golangCopy!: HTMLTextAreaElement;
   @Ref('pythonCopy') readonly pythonCopy!: HTMLTextAreaElement;
@@ -978,11 +996,13 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   // type = 'customEvent' // 展示类型：customEvent 自定义事件 customTimeSeries 自定义指标
   copyName = ''; // 修改的名字
   copyDataLabel = ''; // 修改的英文名
+  copyDescribe = ''; // 修改的描述
   copyIsPlatform = false; // 是否为平台指标、事件
   isShowEditName = false; // 是否显示名字编辑框
   isShowRightWindow = true; // 是否显示右侧帮助栏
   isShowEditDataLabel = false; // 是否展示英文名编辑框
   isShowEditIsPlatform = false; // 是否展示平台师表
+  isShowEditDesc = false; //是否展示描述编辑框
   scenario = ''; // 分类
   protocol = ''; // 上报协议
   proxyInfo = []; // 云区域分类数据
@@ -1666,6 +1686,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     this.eventData = detailData.event_info_list;
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
+    this.copyDescribe = this.detailData.desc || '';
     this.copyIsPlatform = this.detailData.is_platform ?? false;
     const str =
       this.type === 'customEvent'
@@ -1787,6 +1808,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.dataLabelInput.focus();
     });
   }
+  /** 点击显示描述的编辑 */
+  handleShowEditDes() {
+    this.isShowEditDesc = true;
+    this.$nextTick(() => {
+      this.describeInput.focus();
+    });
+  }
   /** 编辑是否为平台指标、事件 */
   async handleIsPlatformChange() {
     if (this.type === 'customEvent') {
@@ -1876,6 +1904,16 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.detailData.name = this.copyName;
     this.isShowEditName = false;
     this.loading = false;
+  }
+
+  // 编辑描述
+  async handleEditDescribe() {
+    if (!this.copyDescribe || this.copyDescribe === this.detailData.desc) {
+      this.copyDescribe = this.detailData.desc;
+      this.isShowEditDesc = false;
+      return;
+    }
+    await this.$store.dispatch('custom-escalation/editCustomTimeSeriesDesc', {desc: this.copyDescribe});
   }
 
   /** 保存自定义事件编辑 */
