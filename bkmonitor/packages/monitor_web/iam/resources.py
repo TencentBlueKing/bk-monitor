@@ -21,10 +21,8 @@ from bk_dataview.permissions import GrafanaRole
 from bk_dataview.views import ProxyBaseView
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.iam.resource import ApmApplication
 from bkmonitor.models.external_iam import (
-    ACTION_ID_MAP,
     ExternalPermission,
     ExternalPermissionApplyRecord,
 )
@@ -266,9 +264,14 @@ class CreateOrUpdateExternalPermission(Resource):
             """
             验证授权人是否有对应操作ID权限
             """
+            from monitor_web.grafana.permissions import DashboardPermission
+
             authorizer = attrs.pop("authorizer", "")
-            action = get_action_by_id(ACTION_ID_MAP[attrs["action_id"]])
-            Permission(username=authorizer).is_allowed_by_biz(attrs["bk_biz_id"], action, raise_exception=True)
+            _, role, _ = DashboardPermission.get_user_permission(authorizer, str(attrs["bk_biz_id"]))
+            if (attrs["action_id"] == "view_grafana" and role < GrafanaRole.Viewer) or (
+                attrs["action_id"] == "manage_grafana" and role < GrafanaRole.Editor
+            ):
+                raise serializers.ValidationError(f"{authorizer}无此操作权限")
             return attrs
 
     def create_approval_ticket(self, authorized_users, params):
