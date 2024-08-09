@@ -57,8 +57,8 @@ export default defineComponent({
       return chartInfo?.is_feedback_root;
     });
     const currentData = computed(() => {
-      const { is_root } = chartInfo?.entity;
-      return { ...chartInfo, ...{ is_root, incident_id: incidentDetail.value?.incident_id } };
+      const { is_root } = chartInfo?.entity || { is_root: false };
+      return { ...chartInfo, ...{ is_root, incident_id: incidentDetail?.value?.incident_id } };
     });
     const actionClickFn = (e: MouseEvent, fn) => {
       e.stopImmediatePropagation();
@@ -70,7 +70,6 @@ export default defineComponent({
     };
 
     const afterCloseFn = () => {
-      isActionFocus.value = false;
       setTimeout(() => {
         emit('listHidden');
       });
@@ -155,7 +154,7 @@ export default defineComponent({
     });
 
     const incidentDetailData = computed(() => {
-      return incidentDetail.value;
+      return incidentDetail?.value;
     });
     const currentIds = ref([]);
     const currentBizIds = ref([]);
@@ -260,6 +259,7 @@ export default defineComponent({
     };
 
     const handleMouseEnter = () => {
+      isActionFocus.value = false;
       isShowList.value = !isShowList.value;
       if (isShowList.value || isActionFocus.value) {
         emit('listShown');
@@ -326,7 +326,6 @@ export default defineComponent({
     const handleConfirmAfter = () => {};
     const alarmConfirmChange = v => {
       dialog.alarmConfirm.show = v;
-      handleGetTable();
       if (!v) {
         afterCloseFn();
       }
@@ -347,7 +346,7 @@ export default defineComponent({
         <BkDropdown
           v-slots={{
             content: () => (
-              <BkDropdownMenu>
+              !isActionFocus.value && <BkDropdownMenu>
                 {actionList.map(item => (
                   <BkDropdownItem
                     style={`font-size: 12px;color: #63656E; ${getDisabled(item) ? style : ''}`}

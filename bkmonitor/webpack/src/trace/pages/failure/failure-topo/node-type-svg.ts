@@ -28,6 +28,7 @@ import NodeHost from '../../../static/img/failure/icon-BCSNode.svg';
 import BcsService from '../../../static/img/failure/icon-BCSService.svg';
 import PodSvg from '../../../static/img/failure/icon-Pod.svg';
 import RackSvg from '../../../static/img/failure/icon-Rack.svg';
+import Alert from '../../../static/img/failure/icon-alert.svg';
 import IdcSvg from '../../../static/img/failure/icon-mc-target-cloud.svg';
 
 export const NODE_TYPE_SVG = {
@@ -39,6 +40,7 @@ export const NODE_TYPE_SVG = {
   BkNodeHost: NodeHost,
   BcsNode: NodeHost,
   BcsPod: PodSvg,
+  Alert: Alert,
 };
 
 export const NODE_TYPE_ICON = {
@@ -48,6 +50,6 @@ export const NODE_TYPE_ICON = {
   BkNodeHost: 'icon-mc-bcs-node',
   BcsNode: 'icon-mc-bcs-node',
   BcsPod: 'icon-mc-pod',
-  BCSService: 'icon-mc-bcs-service',
+  BcsService: 'icon-mc-bcs-service',
   Unknown: 'icon-mc-bcs-service',
 };

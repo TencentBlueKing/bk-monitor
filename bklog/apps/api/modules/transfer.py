@@ -88,15 +88,16 @@ def parse_cluster_info(cluster_obj):
         cluster_obj["cluster_config"]["custom_option"] = (
             json.loads(custom_option) if custom_option else {"bk_biz_id": ""}
         )
-
-        cluster_obj["auth_info"] = json.loads(base64.b64decode(cluster_obj["auth_info"]))
-
         # bk_biz_id str to int
         biz_id = str(cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"])
         if biz_id.isdigit():
             cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"] = int(biz_id)
     except (ValueError, TypeError):
         cluster_obj["cluster_config"]["custom_option"] = {}
+
+    if cluster_obj["auth_info"] and isinstance(cluster_obj["auth_info"], str):
+        cluster_obj["auth_info"] = json.loads(base64.b64decode(cluster_obj["auth_info"]))
+    else:
         cluster_obj["auth_info"] = {}
     return cluster_obj
 

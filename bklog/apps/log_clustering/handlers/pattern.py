@@ -322,10 +322,12 @@ class PatternHandler:
         """
         日志聚类-数据指纹 页面展示信息修改
         """
+        condition = Q(signature=params["signature"])
+        if params.get("origin_pattern"):
+            condition |= Q(origin_pattern=params["origin_pattern"])
+
         remark_obj = (
-            ClusteringRemark.objects.filter(
-                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
-            )
+            ClusteringRemark.objects.filter(condition)
             .filter(
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
@@ -364,10 +366,12 @@ class PatternHandler:
         """
         日志聚类-数据指纹 页面展示信息修改
         """
+        condition = Q(signature=params["signature"])
+        if params.get("origin_pattern"):
+            condition |= Q(origin_pattern=params["origin_pattern"])
+
         remark_obj = (
-            ClusteringRemark.objects.filter(
-                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
-            )
+            ClusteringRemark.objects.filter(condition)
             .filter(
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),

@@ -21,6 +21,7 @@ urlpatterns = [
     url(r"^commons/", include("monitor_web.commons.urls")),
     url(r"^overview/", include("monitor_web.overview.urls")),
     url(r"^performance/", include("monitor_web.performance.urls")),
+    url(r"^ai_assistant/", include("monitor_web.ai_assistant.urls")),
     url(r"^", include("monitor_web.notice_group.urls")),
     url(r"^", include("monitor_web.user_group.urls")),
     url(r"^", include("monitor_web.strategies.urls")),

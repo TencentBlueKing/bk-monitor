@@ -124,6 +124,10 @@
         type: Array,
         default: () => [],
       },
+      indexSetItem: {
+        type: Object,
+        default: () => ({}),
+      },
     },
     data() {
       return {
@@ -171,6 +175,9 @@
         optionData: [],
         totalCount: 0,
         localAddition: [],
+        infoTotal: 0,
+        infoTotalNumLoading: false,
+        infoTotalNumError: false,
       };
     },
     computed: {
@@ -181,7 +188,35 @@
       ...mapGetters({
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
+        bkBizId: 'bkBizId',
+        indexId: 'indexId',
       }),
+      totalNumShow() {
+        if (!this.infoTotalNumLoading && !this.infoTotalNumError && this.infoTotal > 0) return this.infoTotal;
+        return this.totalCount;
+      },
+      /** 未开启白名单时 是否由前端来统计总数 */
+      isFrontStatistics() {
+        let isFront = true;
+        const { field_analysis_config: fieldAnalysisToggle } = window.FEATURE_TOGGLE;
+        switch (fieldAnalysisToggle) {
+          case 'on':
+            isFront = false;
+            break;
+          case 'off':
+            isFront = true;
+            break;
+          default:
+            const { scenario_id_white_list: scenarioIdWhiteList } = window.FIELD_ANALYSIS_CONFIG;
+            const { field_analysis_config: fieldAnalysisConfig } = window.FEATURE_TOGGLE_WHITE_LIST;
+            const scenarioID = this.indexSetItem?.scenario_id;
+            isFront = !(
+              scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId))
+            );
+            break;
+        }
+        return isFront;
+      },
       // chartInterval() {
       //   return this.retrieveParams.interval;
       // },
@@ -192,6 +227,7 @@
           this.handleLogChartCancel();
           this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();
+          !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           this.isRenderChart = true;
           this.isLoading = false;
@@ -199,7 +235,7 @@
           this.isStart = false;
         },
       },
-      totalCount(newVal) {
+      totalNumShow(newVal) {
         this.$emit('change-total-count', newVal);
       },
       finishPolling(newVal) {
@@ -222,6 +258,8 @@
     methods: {
       /** 图表请求中断函数 */
       logChartCancel() {},
+      /** info数据中断函数 */
+      infoTotalCancel() {},
       openChartLoading() {
         this.isLoading = true;
       },
@@ -244,6 +282,7 @@
           this.timeRange = [startTime, endTime];
           this.finishPolling = false;
           this.isStart = false;
+          !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           // 框选时间范围
           window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
@@ -366,6 +405,7 @@
             window.bus.$emit('changeTimeByChart', cacheDatePickerValue, cacheTimeRange);
             this.finishPolling = true;
             this.totalCount = 0;
+            !this.isFrontStatistics && this.getInfoTotalNum();
             this.$refs.chartRef.handleCloseTimer();
             setTimeout(() => {
               this.finishPolling = false;
@@ -385,6 +425,39 @@
       },
       handleChartLoading(isLoading) {
         this.isLoading = isLoading;
+      },
+      getInfoTotalNum() {
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => {
+          this.infoTotalNumLoading = true;
+          this.infoTotalNumError = false;
+          this.infoTotal = 0;
+          this.$http
+            .request(
+              'retrieve/fieldStatisticsTotal',
+              {
+                data: {
+                  ...this.retrieveParams,
+                  index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.indexId],
+                },
+              },
+              {
+                cancelToken: new CancelToken(c => {
+                  this.infoTotalCancel = c;
+                }),
+              },
+            )
+            .then(res => {
+              const { data, code } = res;
+              if (code === 0) this.infoTotal = data.total_count;
+            })
+            .catch(() => {
+              this.infoTotalNumError = true;
+            })
+            .finally(() => {
+              this.infoTotalNumLoading = false;
+            });
+        }, 0);
       },
     },
   };

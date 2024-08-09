@@ -27,6 +27,7 @@ import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules/model';
+import { commonPageSizeSet } from 'monitor-common/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import CommonTable from '../monitor-k8s/components/common-table';
@@ -49,7 +50,7 @@ import './uptime-check-node.scss';
 
 interface IUptimeCheckNodeEvents {
   refreshKey?: string;
-  onLoading?: (v: boolean) => {};
+  onLoading?: (v: boolean) => void;
   onNameChange?: (v: string) => void;
 }
 @Component({
@@ -200,6 +201,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     this.nodesTableData.data = nodesToTableData(
       paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData)
     );
+    commonPageSizeSet(v);
   }
 
   // loading

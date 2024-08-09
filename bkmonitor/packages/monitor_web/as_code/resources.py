@@ -303,7 +303,8 @@ class ExportConfigResource(Resource):
             dashboards = dashboards.filter(uid__in=dashboard_uids)
 
         for dashboard in dashboards:
-            dashboard_config = dashboard.data
+            dashboard_config = json.loads(dashboard.data)
+
             # 是否按外部使用导出
             if external:
                 DashboardExporter(data_sources).make_exportable(dashboard_config, datasource_mapping)
@@ -520,6 +521,7 @@ class ImportConfigFileResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         overwrite = serializers.BooleanField(default=False, label="是否覆盖其他分组配置")
         file = serializers.FileField(label="配置文件")
+        incremental = serializers.BooleanField(default=False)
 
         def validate(self, attrs):
             # 校验文件格式
@@ -572,12 +574,13 @@ class ImportConfigFileResource(Resource):
         return configs
 
     @step(state="IMPORT", message=_lazy("配置导入中..."))
-    def import_config(self, bk_biz_id: int, app: str, overwrite: bool, configs: dict):
+    def import_config(self, bk_biz_id: int, app: str, overwrite: bool, configs: dict, incremental: bool = False):
         return ImportConfigResource().request(
             bk_biz_id=bk_biz_id,
             app=app,
             overwrite=overwrite,
             configs=configs,
+            incremental=incremental,
         )
 
     def perform_request(self, params):
@@ -593,6 +596,7 @@ class ImportConfigFileResource(Resource):
             app=params["app"],
             overwrite=params["overwrite"],
             configs=configs,
+            incremental=params["incremental"],
         )
         task.result = result
         task.save()

@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
-import * as tsx from 'vue-tsx-support';
+import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -40,13 +40,13 @@ import {
   getTargetDetail,
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
-import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
 import { downFile } from '../../../utils';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -67,14 +67,14 @@ import type { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 import './strategy-config.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-const { i18n } = window;
+const { i18n: I18N } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
 const STRATEGY_CONFIG_SETTING = 'strategy_config_setting';
 
 @Component({
   name: 'StrategyConfig',
 })
-class StrategyConfig extends Mixins(commonPageSizeMixin) {
+export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('authorityMap') authorityMap;
@@ -102,28 +102,28 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     value: 0,
     dropdownShow: false,
     list: [
-      // { id: 0, name: i18n.t('修改告警组') },
-      { id: 1, name: i18n.t('修改触发条件') },
-      { id: 5, name: i18n.t('修改恢复条件') },
-      // { id: 2, name: i18n.t('修改通知间隔') },
-      { id: 3, name: i18n.t('修改无数据告警') },
-      // { id: 4, name: i18n.t('修改告警恢复通知') },
-      { id: 6, name: i18n.t('启/停策略') },
-      { id: 7, name: i18n.t('删除策略') },
-      // { id: 9, name: i18n.t('修改告警模版') },
-      { id: 8, name: i18n.t('增删目标') },
-      { id: 10, name: i18n.t('修改标签') },
-      // { id: 11, name: i18n.t('修改处理套餐') }
-      { id: 21, name: i18n.t('修改算法') },
-      { id: 12, name: i18n.t('修改生效时间段') },
-      { id: 13, name: i18n.t('修改处理套餐') },
-      { id: 14, name: i18n.t('修改告警组') },
-      { id: 15, name: i18n.t('修改通知场景') },
-      { id: 20, name: i18n.t('修改通知升级') },
-      { id: 16, name: i18n.t('修改通知间隔') },
-      { id: 17, name: i18n.t('修改通知模板') },
-      { id: 18, name: i18n.t('修改告警风暴开关') },
-      { id: 19, name: i18n.t('导出Yaml（As Code功能）') },
+      // { id: 0, name: I18N.t('修改告警组') },
+      { id: 1, name: I18N.t('修改触发条件') },
+      { id: 5, name: I18N.t('修改恢复条件') },
+      // { id: 2, name: I18N.t('修改通知间隔') },
+      { id: 3, name: I18N.t('修改无数据告警') },
+      // { id: 4, name: I18N.t('修改告警恢复通知') },
+      { id: 6, name: I18N.t('启/停策略') },
+      { id: 7, name: I18N.t('删除策略') },
+      // { id: 9, name: I18N.t('修改告警模版') },
+      { id: 8, name: I18N.t('增删目标') },
+      { id: 10, name: I18N.t('修改标签') },
+      // { id: 11, name: I18N.t('修改处理套餐') }
+      { id: 21, name: I18N.t('修改算法') },
+      { id: 12, name: I18N.t('修改生效时间段') },
+      { id: 13, name: I18N.t('修改处理套餐') },
+      { id: 14, name: I18N.t('修改告警组') },
+      { id: 15, name: I18N.t('修改通知场景') },
+      { id: 20, name: I18N.t('修改通知升级') },
+      { id: 16, name: I18N.t('修改通知间隔') },
+      { id: 17, name: I18N.t('修改通知模板') },
+      { id: 18, name: I18N.t('修改告警风暴开关') },
+      { id: 19, name: I18N.t('导出Yaml（As Code功能）') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -137,14 +137,14 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       id: 'bk_monitor',
       checked: 'bk_monitor',
       cancel: '',
-      name: i18n.t('监控采集'),
+      name: I18N.t('监控采集'),
     },
     {
       value: '',
       id: 'log',
       checked: 'bk_monitor',
       cancel: '',
-      name: i18n.t('日志采集'),
+      name: I18N.t('日志采集'),
     },
   ];
   label: ILabel = {
@@ -201,7 +201,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     strategyIds: [],
     bizId: '',
     objectType: '',
-    title: i18n.t('监控目标'),
+    title: I18N.t('监控目标'),
     nodeType: '',
   };
   strategyLabelList = []; // 标签筛选俩表
@@ -209,7 +209,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   sourceList = []; // 数据来源筛选列表
   typeList = []; // 分类可筛选列表
   filterType = 'checkbox'; // 筛选列表类型
-  curFilterType = i18n.t('数据来源'); // 当前筛选类型
+  curFilterType = I18N.t('数据来源'); // 当前筛选类型
   dialogLoading = false;
   groupList = []; // 告警组数据列表
   scenarioList = []; // 监控对象
@@ -806,6 +806,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     ) {
       if (this.tableInstance.setDefaultStore) {
         this.tableInstance.setDefaultStore();
+        this.tableInstance.pageSize = commonPageSizeGet();
       }
       this.header.keyword = '';
     }
@@ -920,7 +921,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         });
       }
     });
-    if (!!this.keywords?.length) {
+    if (this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
     }
@@ -1119,7 +1120,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.table.loading = !needLoading;
     this.table.data = [];
     const page = defPage || this.tableInstance.page || 1;
-    const pageSize = defPageSize || this.tableInstance.pageSize || this.handleGetCommonPageSize();
+    const pageSize = defPageSize || this.tableInstance.pageSize || commonPageSizeGet();
     const params = {
       type: this.strategyType,
       page,
@@ -1144,10 +1145,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         this.table.data = tableData;
         this.getTargetDetail(tableData);
         this.handleTableDataChange(this.table.data);
-        const total = await this.handelScenarioList(data, this.table.data);
-        // todo
-        this.pageCount = total;
-        // this.pageCount = this.tab.active > 0 ? this.tab.list[this.tab.active].count : total
+        this.pageCount = await this.handelScenarioList(data, this.table.data);
         this.strategyStatusOptions = data.strategy_status_list || [];
         this.sourceList = data.data_source_list
           .map(item => {
@@ -1213,24 +1211,24 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       return { name, id, sort: `${index}`, children, count: 0 };
     });
     const scenarioList = data.scenario_list;
-    scenarioFather.forEach(item => {
+    for (const item of scenarioFather) {
       let count = 0;
-      item.children.forEach(set => {
+      for (const set of item.children) {
         const res = scenarioList.find(child => child.id === set.id);
         count += res.count;
         // total += res.count;
         set.count = res.count;
-      });
+      }
       item.count = count;
-    });
+    }
     this.backDisplayMap.scenario.list = scenarioFather;
     this.handleUpdateScenarioListName();
-    tableData.forEach(item => {
+    for (const item of tableData) {
       const nameArr = this.getScenarioName(scenarioFather, item.strategyType);
       item.scenarioDisplayName = nameArr.join('-');
-    });
-    // 列表total设置为数据来源筛选项count总和
-    total = data.data_source_list.reduce((total, item) => total + item.count, 0);
+    }
+    // 列表total设置为监控对象筛选项count总和
+    total = data.scenario_list.reduce((total, item) => total + item.count, 0);
     return total;
   }
   /** 更新监控对象搜索框回显 */
@@ -1281,15 +1279,45 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.handleGetListData(false, page);
   }
   handleLimitChange(limit) {
-    this.handleSetCommonPageSize(limit);
+    commonPageSizeSet(limit);
     this.handleGetListData(false, 1, limit);
   }
   handleHeadSelectChange(v) {
     // 导出 Yaml 文件
     if (v === 19) {
-      this.$bkInfo({
+      const h = this.$createElement;
+      const bkInfoInstance = this.$bkInfo({
         title: this.$t('请确认是否导出'),
-        subTitle: this.$t('导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作'),
+        subHeader: h(
+          'i18n',
+          {
+            attrs: {
+              path: '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往{0}进行操作',
+            },
+            class: 'i18n-as-code',
+          },
+          [
+            h(
+              'bk-button',
+              {
+                class: 'i18n-link',
+                props: {
+                  text: true,
+                  theme: 'primary',
+                },
+                on: {
+                  click: () => {
+                    bkInfoInstance.close();
+                    this.$router.push({
+                      name: 'export-import',
+                    });
+                  },
+                },
+              },
+              [this.$t('route-集成').toString(), ' - ', this.$t('route-导入导出').toString()]
+            ),
+          ]
+        ),
         confirmLoading: true,
         confirmFn: async () => {
           await exportConfigFile({
@@ -1864,6 +1892,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             {[
               props.row.isInvalid ? (
                 <i
+                  key={1}
                   class='icon-monitor icon-shixiao'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1875,6 +1904,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               ) : undefined,
               props.row.abnormalAlertCount > 0 && !props.row.isInvalid ? (
                 <span
+                  key={2}
                   class='alert-tag red'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1882,7 +1912,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row))}
+                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row))}
                 >
                   <i class='icon-monitor icon-mc-chart-alert' />
                   <span class='alert-count'>{props.row.abnormalAlertCount}</span>
@@ -1890,6 +1920,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               ) : undefined,
               props.row.shieldAlertCount ? (
                 <span
+                  key={3}
                   class='alert-tag grey'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1897,7 +1928,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
+                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
                 >
                   <i class='icon-monitor icon-menu-shield' />
                   <span class='alert-count'>{props.row.shieldAlertCount}</span>
@@ -1905,6 +1936,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               ) : undefined,
               props.row.shieldInfo?.shield_ids?.length ? (
                 <span
+                  key={4}
                   class='alert-tag wuxian'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -2478,7 +2510,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
 
   getDialogComponent() {
     return [
-      <div style='display: none;'>
+      <div
+        key={1}
+        style='display: none;'
+      >
         <ul
           ref='operatorGroup'
           class='operator-group'
@@ -2546,6 +2581,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         </ul>
       </div>,
       <StrategyConfigDialog
+        key={2}
         checked-list={this.idList}
         dialog-show={this.dialog.show}
         group-list={this.groupList}
@@ -2556,11 +2592,19 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         onHideDialog={this.handleDialogChange}
       />,
       <AlarmShieldStrategy
+        key={3}
         is-show-strategy={this.isShowStrategy}
-        {...{ on: { 'update:isShowStrategy': val => (this.isShowStrategy = val) } }}
+        {...{
+          on: {
+            'update:isShowStrategy': val => {
+              this.isShowStrategy = val;
+            },
+          },
+        }}
         strategy-id={this.strategyId}
       />,
       <TableFilter
+        key={4}
         filter-type={this.filterType}
         menu-list={this.dataSourceList}
         radio-list={this.dataSourceList}
@@ -2588,6 +2632,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       //   ></StrategySetTarget>
       // ) : undefined,
       <StrategyIpv6
+        key={5}
         bizId={this.targetSet.bizId}
         nodeType={this.targetSet.nodeType as INodeType}
         objectType={this.targetSet.objectType as TargetObjectType}
@@ -2598,6 +2643,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       />,
       <AlarmGroupDetail
         id={this.alarmGroupDialog.id}
+        key={6}
         v-model={this.alarmGroupDialog.show}
         hasEditBtn={false}
       />,
@@ -2620,7 +2666,13 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             <FilterPanel
               class='content-left-filter'
               show={this.showFilterPanel}
-              {...{ on: { 'update:show': val => (this.showFilterPanel = val) } }}
+              {...{
+                on: {
+                  'update:show': val => {
+                    this.showFilterPanel = val;
+                  },
+                },
+              }}
               checkedData={this.header.keywordObj}
               data={this.filterPanelData}
               on-change={this.handleSearchSelectChange}
@@ -2792,5 +2844,3 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     );
   }
 }
-
-export default tsx.ofType<IStrategyConfigProps>().convert(StrategyConfig);

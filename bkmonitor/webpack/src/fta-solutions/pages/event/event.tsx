@@ -47,7 +47,7 @@ import {
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { commonPageSizeSet, commonPageSizeGet, LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
@@ -157,6 +157,24 @@ export const commonAlertFieldMap = {
     {
       id: isEn ? 3 : '提醒',
       name: window.i18n.tc('提醒'),
+    },
+  ],
+  stage: [
+    {
+      id: isEn ? 'is_handled' : '已通知',
+      name: window.i18n.tc('已通知'),
+    },
+    {
+      id: isEn ? 'is_ack' : '已确认',
+      name: window.i18n.tc('已确认'),
+    },
+    {
+      id: isEn ? 'is_shielded' : '已屏蔽',
+      name: window.i18n.tc('已屏蔽'),
+    },
+    {
+      id: isEn ? 'is_blocked' : '已流控',
+      name: window.i18n.tc('已流控'),
     },
   ],
 };
@@ -456,6 +474,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     return this.searchType === 'alert' ? this.analyzeFields : this.analyzeActionFields;
   }
 
+  get isIncident() {
+    return this.searchType === 'incident';
+  }
+
   // 是否拥有查询条件： 搜索条件或者高级筛选条件
   get hasSearchParams() {
     return !!(this.queryString || Object.values(this.condition).some(item => item.length));
@@ -523,7 +545,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     if (!localStorage.getItem(incidentAnalyzeStorageKey)) {
       localStorage.setItem(incidentAnalyzeStorageKey, JSON.stringify(this.incidentFieldList));
     }
-
+    this.pagination.limit = commonPageSizeGet();
     // 监控环境下侧栏宽度变小
     this.setFilterDefaultWidth();
     this.incidentFieldList = this.handleGetAnalyzeField(incidentAnalyzeStorageKey, this.incidentFieldList);
@@ -1669,6 +1691,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handleTableLimitChange(limit: number) {
     this.pagination.current = 1;
     this.pagination.limit = limit;
+    commonPageSizeSet(limit);
     await this.handleGetTableData(false, true, false);
   }
 
@@ -2515,6 +2538,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 hasAuthApply={true}
                 spaceList={this.$store.getters.bizList}
                 value={this.bizIds}
+                needAlarmOption={!this.isIncident}
+                needIncidentOption={this.isIncident}
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
               />

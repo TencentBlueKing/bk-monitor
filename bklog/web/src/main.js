@@ -27,43 +27,45 @@
 import './public-path';
 
 import Vue from 'vue';
-import VueJsonPretty from 'vue-json-pretty';
+// import VueJsonPretty from 'vue-json-pretty';
 
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-import { ZoneContextManager } from '@opentelemetry/context-zone';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
-// 接入OTLP
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+// import { ZoneContextManager } from '@opentelemetry/context-zone';
+// import { registerInstrumentations } from '@opentelemetry/instrumentation';
+// import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
+// // 接入OTLP
+// import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 
 import App from './App';
 import http from './api';
 import { bus } from './common/bus';
 import { renderHeader } from './common/util';
 import './directives/index';
+// import ShadowWrapper from './global/shadow-wrapper.vue';
+import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
 import router from './router';
 import store from './store';
 
 import './static/icons/log-icons.css';
-import 'vue-json-pretty/lib/styles.css';
+// import 'vue-json-pretty/lib/styles.css';
 
-const provider = new WebTracerProvider();
-provider.register({
-  contextManager: new ZoneContextManager(),
-});
-registerInstrumentations({
-  instrumentations: [
-    new XMLHttpRequestInstrumentation({
-      // propagateTraceHeaderCorsUrls: new RegExp('.*'),
-    }),
-  ],
-});
-const tracer = provider.getTracer('bk-log');
+// const provider = new WebTracerProvider();
+// provider.register({
+//   contextManager: new ZoneContextManager(),
+// });
+// registerInstrumentations({
+//   instrumentations: [
+//     new XMLHttpRequestInstrumentation({
+//       // propagateTraceHeaderCorsUrls: new RegExp('.*'),
+//     }),
+//   ],
+// });
+// const tracer = provider.getTracer('bk-log');
 Vue.prototype.$renderHeader = renderHeader;
-Vue.prototype.tracer = tracer;
+// Vue.prototype.tracer = tracer;
 
 try {
   const id = window.TAM_AEGIS_KEY;
@@ -92,8 +94,9 @@ router.onError(err => {
   }
 });
 
-Vue.component('VueJsonPretty', VueJsonPretty);
+Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
+// Vue.component('ShadowWrapper', ShadowWrapper);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 
@@ -105,6 +108,7 @@ if (process.env.NODE_ENV === 'development') {
     });
     window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
+    window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
     window.bus = bus;
     window.mainComponent = new Vue({
       el: '#app',

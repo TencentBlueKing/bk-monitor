@@ -126,13 +126,13 @@ class MonitorBaseEchart extends BaseEchart {
   handleDataZoom(event) {
     const [batch] = event.batch;
     if (batch.startValue && batch.endValue) {
-      window.requestAnimationFrame(() => {
-        (this as any).instance.dispatchAction({
-          type: 'restore',
-        });
+      const options: { series: { data: string[] }[] } = (this as any).instance?.getOption?.();
+      if (options?.series?.length && options.series.every(item => item.data?.length < 2)) return;
+      (this as any).instance.dispatchAction({
+        type: 'restore',
       });
-      const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-      let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+      const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+      let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
       if (!this.isMouseOver) {
         const seriesData = this.getMonitorEchartOptions()?.series?.[0]?.data || [];
         if (seriesData.length) {

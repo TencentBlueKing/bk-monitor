@@ -47,7 +47,7 @@ import StorageState from './components/storage-state';
 import { type DetailData, TCollectorAlertStage, TabEnum } from './typings/detail';
 
 import type { IAlarmGroupList } from './components/alarm-group';
-import type { Route } from 'vue-router';
+import type { Route, NavigationGuardNext } from 'vue-router';
 
 import './collector-detail.scss';
 
@@ -101,7 +101,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
 
   alarmGroupListLoading = false;
 
-  public beforeRouteEnter(to: Route, from: Route, next: Function) {
+  public beforeRouteEnter(to: Route, from: Route, next: NavigationGuardNext) {
     const { params } = to;
     next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
@@ -381,13 +381,14 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             slot='setting'
           >
             <span class='icon-monitor icon-tishi' />
-            <span>{this.$t('可对当前采集内容进行检索')},</span>
-            <span
-              class='link-btn'
-              onClick={() => this.handleToRetrieval()}
-            >
-              {this.$t('去检索')}
-            </span>
+            <i18n path='数据采集好了，去 {0}'>
+              <span
+                class='link-btn'
+                onClick={() => this.handleToRetrieval()}
+              >
+                {this.$t('查看数据')}
+              </span>
+            </i18n>
           </span>
         </MonitorTab>
       </div>

@@ -49,7 +49,7 @@ export default {
   分享: 'Share',
   启用: 'Enable',
   表格: 'Table',
-  取消: 'CANCEL',
+  取消: 'Cancel',
   创建: 'Create',
   删除: 'Delete',
   详情: 'Detail',
@@ -190,4 +190,5 @@ export default {
   取消收藏: 'Cancel',
   查看配置: 'View Configuration',
   测试发送: 'Test Send',
+  分隔符: 'Separator',
 };

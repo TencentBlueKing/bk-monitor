@@ -1474,6 +1474,7 @@ class SearchHandler(object):
 
                 body: Dict = DslCreateSearchTailBodyCustomField(
                     start=self.start,
+                    size=self.size,
                     zero=self.zero,
                     time_field=self.time_field,
                     target_fields=target_fields,
@@ -1819,6 +1820,18 @@ class SearchHandler(object):
                     # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
                     if _export_field in log:
                         new_origin_log[_export_field] = log[_export_field]
+                    # 处理a.b.c的情况
+                    elif "." in _export_field:
+                        # 在log中找不到时,去log的子级查找
+                        key, *field_list = _export_field.split(".")
+                        _result = log.get(key, {})
+                        for _field in field_list:
+                            if isinstance(_result, dict) and _field in _result:
+                                _result = _result[_field]
+                            else:
+                                _result = ""
+                                break
+                        new_origin_log[_export_field] = _result
                     else:
                         new_origin_log[_export_field] = log.get(_export_field, "")
                 origin_log = new_origin_log

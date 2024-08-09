@@ -62,7 +62,9 @@ def get_event_relation_info(event: Event):
         }
     )
 
-    content = get_data_source_log(data_source, query_config, int(event.latest_anomaly_record.source_time.timestamp()))
+    content = get_data_source_log(
+        event, data_source, query_config, int(event.latest_anomaly_record.source_time.timestamp())
+    )
     return content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
 
 
@@ -269,7 +271,7 @@ def get_alert_relation_info_for_log(alert: AlertDocument):
     )
     retry_interval = settings.DELAY_TO_GET_RELATED_INFO_INTERVAL
     try:
-        content = get_data_source_log(data_source, query_config, alert.event.time)
+        content = get_data_source_log(alert, data_source, query_config, alert.event.time)
         if content:
             return content
         logger.info("alert(%s) related info is empty, try again after %s ms", alert.id, retry_interval)
@@ -278,12 +280,13 @@ def get_alert_relation_info_for_log(alert: AlertDocument):
 
     # 当第一次获取失败之后，再重新获取一次
     time.sleep(retry_interval / 1000)
-    return get_data_source_log(data_source, query_config, alert.event.time)
+    return get_data_source_log(alert, data_source, query_config, alert.event.time)
 
 
-def get_data_source_log(data_source, query_config, source_time):
+def get_data_source_log(alert, data_source, query_config, source_time):
     """
     查询时间为事件开始到5个周期后
+    :param alert:
     :param data_source:
     :param query_config:
     :param source_time:
@@ -298,6 +301,28 @@ def get_data_source_log(data_source, query_config, source_time):
         return ""
 
     record = records[0]
+    if (
+        query_config["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH
+        and query_config["data_type_label"] == DataTypeLabel.LOG
+    ):
+        index_set_id = query_config["index_set_id"]
+        start_time_str = time_tools.utc2biz_str(start_time)
+        end_time_str = time_tools.utc2biz_str(end_time)
+        addition = [
+            {"field": dimension_field, "operator": "=", "value": dimension_value}
+            for dimension_field, dimension_value in alert.origin_alarm.get("data", {}).get("dimensions", {}).items()
+            if dimension_field in query_config.get("agg_dimension", [])
+        ]
+        params = {
+            "bizId": alert.event.bk_biz_id,
+            "addition": json.dumps(addition),
+            "start_time": start_time_str,
+            "end_time": end_time_str,
+            "keyword": query_config["query_string"],
+        }
+        # 拼接查询链接
+        bklog_link = f"{settings.BKLOGSEARCH_HOST}#/retrieve/{index_set_id}?{urlencode(params)}"
+        record["bklog_link"] = bklog_link
     if query_config["data_source_label"] in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]:
         content = record["event"]["content"]
     else:

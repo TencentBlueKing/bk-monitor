@@ -121,8 +121,8 @@ class IncidentOperationManager(object):
             IncidentOperationType.UPDATE,
             operate_time,
             incident_key=incident_key,
-            from_value=enum_class(from_value) if enum_class else from_value,
-            to_value=enum_class(to_value) if enum_class else to_value,
+            from_value=str(enum_class(from_value).alias) if enum_class else from_value,
+            to_value=str(enum_class(to_value).alias) if enum_class else to_value,
             incident_key_alias=INCIDENT_ATTRIBUTE_ALIAS_MAPPINGS.get(incident_key, incident_key),
         )
 

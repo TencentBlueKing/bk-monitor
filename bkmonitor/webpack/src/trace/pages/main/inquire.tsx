@@ -164,7 +164,6 @@ export default defineComponent({
             const defaultApp = appList.value.find(app => app.permission?.[authorityMap.VIEW_AUTH])?.app_name;
             state.app = defaultApp || '';
           }
-
           handleAppSelectChange(state.app);
         }
       }, 100);
@@ -287,7 +286,6 @@ export default defineComponent({
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
-      debugger;
       if (val) {
         if (!Object.keys(scopeSelects.value).length) {
           await getQueryOptions();
@@ -415,6 +413,20 @@ export default defineComponent({
         conditionFilter.forEach(item => {
           if (item.value.length) filters.push(item);
         });
+      } else {
+        const { conditionList: conditionListStringify } = route.query;
+        if (conditionListStringify) {
+          const result = JSON.parse(conditionListStringify as string);
+          for (const key in result) {
+            if (result[key]?.selectedConditionValue?.length) {
+              filters.push({
+                key,
+                operator: result[key].selectedCondition.value,
+                value: result[key].selectedConditionValue,
+              });
+            }
+          }
+        }
       }
 
       if (selectedListType.value === 'trace') {
@@ -520,7 +532,6 @@ export default defineComponent({
     }
     /* 范围查询 */
     async function handleQueryScope(isClickQueryBtn = false, needLoading = true) {
-      debugger;
       if ((!state.autoQuery && !isClickQueryBtn && state.isAlreadyScopeQuery) || !state.app) {
         return;
       }
@@ -549,7 +560,6 @@ export default defineComponent({
 
       setRouterQueryParams();
       collectCheckValue.value = params;
-      debugger;
       // Trace List 查询相关
       if (selectedListType.value === 'trace') {
         const listData = await listTrace(params).catch(() => []);
@@ -776,7 +786,7 @@ export default defineComponent({
     function handleSelectCollect(id: number) {
       state.searchType = 'scope';
       const collectItem = collectList.value.find(item => String(item.id) === String(id));
-      const { componentData } = collectItem?.config;
+      const { componentData } = collectItem.config;
       state.app = componentData.app;
       if (componentData.scopeSelects) {
         Object.keys(componentData.scopeSelects).forEach(key => {
@@ -1321,7 +1331,7 @@ export default defineComponent({
       selectedConditions.value.length = 0;
 
       // 添加条件列表
-      Object.keys(result).forEach(key => {
+      for (const key of Object.keys(result)) {
         const singleCondition = {
           selectedCondition: {
             label: '=',
@@ -1354,7 +1364,7 @@ export default defineComponent({
         };
         if (conditionListInQuery[key]) Object.assign(singleCondition, conditionListInQuery[key]);
         conditionList.push(singleCondition);
-      });
+      }
     };
 
     const handleConditionValueChange = (index, v) => {

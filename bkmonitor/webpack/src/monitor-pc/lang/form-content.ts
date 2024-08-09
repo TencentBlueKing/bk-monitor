@@ -150,4 +150,9 @@ export default {
   '故障聚集在{0}，影响{1}': 'Fault aggregated at {0}, affecting {1}',
   字符: 'Character',
   截断: 'Truncate',
+  '按 {0} 聚合': 'Aggregate by {0}',
+  '告警已失效（{alert_name}）': ' Alarm expired ({alert_name})',
+  '告警已恢复（{alert_name}）': 'Alarm restored ({alert_name})',
+  '告警已收敛（共包含{converged_count}个关联的告警事件）': 'Alarm converged (contains {converged_count} related alarm events)',
+  '一键拉群（{group_name}）': 'One-click group ({group_name})',
 };

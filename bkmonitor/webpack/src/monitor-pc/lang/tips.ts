@@ -249,10 +249,11 @@ export default {
   '注意，该功能会调实际套餐去执行，请确认测试变量后再进行测试执行。':
     'Note that this feature will execute the actual package, please confirm the test variable before testing execution.',
   请确认是否导出: 'Please confirm whether to export',
-  '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往集成-导入导出进行操作':
-    'The export YAML function is used for As Code. If you need to import and export policies, please go to Integration-Import and Export to perform operations.',
+  '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往{0}进行操作':
+    'The export YAML function is used for As Code. If you need to import and export policies, please go to {0} to perform operations.',
   // 故障
   节点图例: 'Node Legend',
+  标签图例: 'Tag Legend',
   反馈的根因: 'Feedback Root',
   边图例: 'Edge Legend',
   从属关系: 'Subordinate',
@@ -264,8 +265,10 @@ export default {
   不聚合: 'No',
   聚合异常: 'Error ',
   查看资源: 'View Resource',
+  查看从属: 'View Dependencies',
   反馈新根因: 'New Feedback',
   所属业务: 'Business',
+  '已恢复 / 已解决 / 已失效告警': 'Recovered / Resolved / Expired Alerts',
   包含告警: 'Alarm',
   '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
 

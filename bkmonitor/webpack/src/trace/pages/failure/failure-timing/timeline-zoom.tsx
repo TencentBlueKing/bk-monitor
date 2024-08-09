@@ -155,12 +155,19 @@ export default defineComponent({
     };
     const currentPopover = ref(popoverConfig.legend);
     const handleShowLegend = () => {
-      minimapRef.value?.hide();
+      if (showMinimap.value) {
+        minimapRef.value?.hide();
+        showMinimap.value = !showMinimap.value;
+      }
       showLegend.value = !showLegend.value;
       localStorage.setItem('showTimeLegend', String(showLegend.value));
     };
     const handleShowMinimap = () => {
-      legendRef.value?.hide();
+      if (showLegend.value) {
+        legendRef.value?.hide();
+        showLegend.value = !showLegend.value;
+        localStorage.setItem('showTimeLegend', String(showLegend.value));
+      }
       showMinimap.value = !showMinimap.value;
       drawCanvas();
     };
@@ -368,6 +375,7 @@ export default defineComponent({
                   content: this.$t('显示图例'),
                   disabled: this.showLegend,
                   boundary: 'parent',
+                  extCls: 'failure-topo-graph-tooltip',
                 }}
                 onClick={this.handleShowLegend}
               >
@@ -417,6 +425,7 @@ export default defineComponent({
                   disabled: this.showMinimap,
                   boundary: 'parent',
                   placement: 'bottom',
+                  extCls: 'failure-topo-graph-tooltip',
                 }}
                 onClick={this.handleShowMinimap}
               >
@@ -459,7 +468,7 @@ export default defineComponent({
         <span class='failure-topo-graph-line' />
         <div
           class='failure-topo-graph-proportion'
-          v-bk-tooltips={{ content: this.$t('重置比例'), boundary: 'parent' }}
+          v-bk-tooltips={{ content: this.$t('重置比例'), boundary: 'parent', extCls: 'failure-topo-graph-tooltip' }}
           onClick={this.handleResetZoom}
         >
           <i class='icon-monitor icon-mc-restoration-ratio' />

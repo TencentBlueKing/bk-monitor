@@ -327,7 +327,7 @@ class QueryTemplate:
             result_table_id=self.result_table_id,
         ).execute()
         if not res or not res.get("list", []):
-            return None
+            return []
         return [[i["count(*)"], int(i["time"])] for i in res["list"] if "time" in i]
 
     def list_labels(

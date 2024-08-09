@@ -169,6 +169,7 @@ class MetricHandler:
             limit=settings.SQL_MAX_LIMIT,
             slimit=settings.SQL_MAX_LIMIT,
             time_alignment=False,
+            instant=params.get("instant"),
         )
 
         return points

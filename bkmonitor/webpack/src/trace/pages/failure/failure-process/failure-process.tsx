@@ -82,6 +82,9 @@ export default defineComponent({
       if (checkedNodes.value.length > 0) {
         result = operations.value.filter(operation => checkedNodes.value.includes(operation.operation_type));
       }
+      if (checkedNodes.value.length === 0) {
+        result = [];
+      }
       if (queryString.value !== '') {
         result = operations.value.filter(
           operation => operation.str.toUpperCase().indexOf(queryString.value.toUpperCase()) > -1
@@ -108,6 +111,11 @@ export default defineComponent({
             isAddLineIndex > 0 && (item.operation_types[isAddLineIndex - 1].isAddLine = true);
           });
           operationTypes.value = res;
+          const defaultCheckNodeIds = [];
+          operationTypes.value.forEach(item => {
+            defaultCheckNodeIds.push(item.id, ...(item?.operation_types ?? []).map(child => child.id));
+          });
+          checkedNodes.value = defaultCheckNodeIds;
         })
         .catch(err => {
           console.log(err);
@@ -197,6 +205,7 @@ export default defineComponent({
               content: (
                 <div class='failure-process-search-setting-tree'>
                   <Tree
+                    checked={this.checkedNodes}
                     children='operation_types'
                     data={this.operationTypes}
                     expand-all={true}
@@ -252,10 +261,10 @@ export default defineComponent({
                       <i
                         class={[
                           'icon-monitor item-icon',
-                          operation.operation_class !== 'system'
-                            ? operation.operation_type.startsWith('alert')
+                          operation.operation_class === 'system'
+                            ? (operation.operation_type.startsWith('alert')
                               ? 'icon-gaojing1'
-                              : 'icon-mc-fault'
+                              : 'icon-mc-fault')
                             : 'icon-mc-user-one',
                         ]}
                       />
