@@ -27,7 +27,8 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AiBlueking from '@blueking/ai-blueking/vue2';
+import { ChatHelper } from '@blueking/ai-blueking/dist/chat-helper';
+import AiBlueking, { RoleType, type IMessage } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
@@ -135,10 +136,10 @@ export default class AiWhale extends tsc<object> {
   lastRecordTime = 0;
 
   /* AI Blueking */
-  messages = [
+  messages: IMessage[] = [
     {
       content: '你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。',
-      type: 'ai',
+      role: RoleType.Assistant,
     },
   ];
   prompts = [
@@ -169,7 +170,7 @@ export default class AiWhale extends tsc<object> {
     left: window.innerWidth - 342 - 4,
   };
   showAIBlueking = false;
-
+  chatHelper: ChatHelper = null;
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
@@ -191,6 +192,7 @@ export default class AiWhale extends tsc<object> {
     this.whalePosition.top = this.height - robotWidth - 20;
     this.whalePosition.left = this.width - robotWidth / 2;
     this.init();
+    this.initStearmChatHelper();
   }
 
   destroyed() {
@@ -200,7 +202,6 @@ export default class AiWhale extends tsc<object> {
     window.clearTimeout(this.hoverTimer);
     this.handlePopoverHidden();
   }
-
   handleWindowResize() {
     this.width = document.querySelector('.bk-monitor').clientWidth;
     this.height = document.querySelector('.bk-monitor').clientHeight;
@@ -432,18 +433,85 @@ export default class AiWhale extends tsc<object> {
     }#/strategy-config/add`;
     window.open(url);
   }
-  handleAiBluekingClear() {
-    console.log('trigger clear');
+  initStearmChatHelper() {
+    // 聊天开始
+    const handleStart = (id: number | string) => {
+      this.loading = true;
+      this.messages.push({
+        role: RoleType.Assistant,
+        content: '内容正在生成中...',
+        status: 'loading',
+      });
+    };
+    // 接收消息
+    const handleReceiveMessage = (message: string, id: number | string) => {
+      const currentMessage = this.messages.at(-1);
+      if (currentMessage.status === 'loading') {
+        // 如果是loading状态，直接覆盖
+        currentMessage.content = message;
+        currentMessage.status = 'success';
+      } else if (currentMessage.status === 'success') {
+        // 如果是后续消息，就追加消息
+        currentMessage.content += message;
+      }
+    };
+    // 聊天结束
+    const handleEnd = (id: number | string) => {
+      this.loading = false;
+      const currentMessage = this.messages.at(-1);
+      // loading 情况下终止
+      if (currentMessage.status === 'loading') {
+        currentMessage.content = '聊天内容已中断';
+      }
+    };
+    // 错误处理
+    const handleError = (message: string, code: string, id: number | string) => {
+      if (message.includes('user authentication failed')) {
+        // 未登录，跳转登录
+        const loginUrl = new URL(process.env.BK_LOGIN_URL);
+        loginUrl.searchParams.append('c_url', location.origin);
+        window.location.href = loginUrl.href;
+      } else {
+        // 处理错误消息
+        const currentMessage = this.messages.at(-1);
+        currentMessage.status = 'error';
+        currentMessage.content = message;
+        this.loading = false;
+      }
+    };
+    // 需要将 <网关名> 替换成插件部署后生成的网关名
+    const prefix = process.env.BK_API_URL_TMPL.replace('{api_name}', '<网关名>').replace('http', 'https');
+    this.chatHelper = new ChatHelper(
+      `${prefix}/prod/bk_plugin/plugin_api/assistant/`,
+      handleStart,
+      handleReceiveMessage,
+      handleEnd,
+      handleError
+    );
   }
-  handleAiBluekingSend(val: string) {
-    this.messages = [
-      ...this.messages,
+  handleAiBluekingClear() {
+    this.messages = [];
+  }
+  handleAiBluekingSend(message: string) {
+    // 记录当前消息记录
+    const chatHistory = [...this.messages];
+    // 添加一条消息
+    this.messages.push({
+      role: RoleType.User,
+      content: message,
+    });
+    // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
+    this.chatHelper.stream(
       {
-        type: 'user',
-        content: val,
+        inputs: {
+          input: message,
+          chat_history: chatHistory,
+        },
       },
-    ];
-    console.log('trigger send', val);
+      1,
+      {}
+    );
+    console.log('trigger send', message);
   }
   handleAiBluekingClose() {
     this.showAIBlueking = false;

@@ -344,8 +344,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.1.6-beta.1
+        version: 0.1.6-beta.1
       '@blueking/bk-weweb':
         specifier: 0.0.26-beta.6
         version: 0.0.26-beta.6
@@ -5174,6 +5174,11 @@ packages:
   /@vue/shared@3.5.7:
     resolution:
       { integrity: sha512-NBE1PBIvzIedxIc2RZiKXvGbJkrZ2/hLf3h8GlS4/sP9xcXEZMFWOazFkNd6aGeUCMaproe5MHVYB3/4AW9q9g== }
+
+  /@vue/shared@3.4.37:
+    resolution:
+      { integrity: sha512-nIh8P2fc3DflG8+5Uw8PT/1i17ccFn0xxN/5oE9RfV5SVnd7G0XEFRwakrnNFE/jlS95fpGXDVG5zDETS26nmg== }
+    dev: false
 
   /@vueuse/core@10.11.0(vue@3.4.31):
     resolution:
