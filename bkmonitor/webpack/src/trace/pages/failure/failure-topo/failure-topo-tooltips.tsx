@@ -250,6 +250,7 @@ export default defineComponent({
     };
     /** 跳转pod页面 */
     const handleToLink = node => {
+      console.log(node, '.....');
       if (node.entity.entity_type !== 'BcsPod') return;
       const query = {
         dashboardId: 'pod',
@@ -322,10 +323,17 @@ export default defineComponent({
               'node-source',
               node?.entity?.is_anomaly && 'node-source-anomaly',
               node?.entity?.is_on_alert && 'node-source-alert',
+              node?.entity?.alert_all_recorved && 'node-source-alert-recorved',
             ]}
           >
             <span class='node-item'>
               <span>
+                {(node?.entity?.is_on_alert || node?.entity?.alert_all_recorved) && (
+                  <span class='alert-wrap'>
+                    <i class='icon-monitor icon-menu-event' />
+                  </span>
+                )}
+
                 <i
                   style={{ color: '#fff' }}
                   class={[

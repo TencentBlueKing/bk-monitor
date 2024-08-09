@@ -154,6 +154,7 @@ export default defineComponent({
     const tooltipsEdge: Ref<IEdge> = shallowRef();
     const tooltipsType = ref<string>('node');
     const tooltipsRef = ref<InstanceType<typeof FailureTopoTooltips>>();
+    const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
     const aggregateConfig = ref({});
@@ -1197,7 +1198,7 @@ export default defineComponent({
         }
       } else {
         const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
-        const node = graph.findById(rootNode.id);
+        const node = graph.findById(resourceNodeId.value || rootNode.id);
         if (!isNodeOutOfCanvas(node)) {
           return;
         }
@@ -1244,7 +1245,7 @@ export default defineComponent({
         }
         isRenderComplete.value = renderComplete;
         // 默认渲染最后帧
-        handleTimelineChange(topoRawDataCache.value.diff.length - 1);
+        // handleTimelineChange(topoRawDataCache.value.diff.length - 1);
         /** 获取用户拖动设置后的zoom缩放级别 */
         const zoom = localStorage.getItem('failure-topo-zoom');
         if (zoom) {
@@ -1385,6 +1386,12 @@ export default defineComponent({
         };
       });
       renderGraph();
+      /** 点击tips时，关闭右侧资源打开的tips */
+      graph.on('tooltipchange', ({ action }) => {
+        if (action === 'show' && showResourceGraph.value) {
+          resourceGraphRef.value.hideToolTips();
+        }
+      });
       /** 点击非节点清楚高亮状态 */
       graph.on('click', e => {
         if (!e.item || e.item.getType() !== 'node') {
@@ -1608,8 +1615,18 @@ export default defineComponent({
       /** 对比node是否已经展示，已经展示还存在diff中说明只是状态变更以及对比每个展示的node都需要判断边关系的node是在展示状态 */
       const { showNodes } = topoRawDataCache.value.diff[timelinePosition.value];
       const currNodes = topoRawDataCache.value.diff[timelinePosition.value].content.nodes;
+      const currEdges = topoRawDataCache.value.diff[timelinePosition.value].content.edges;
       const randomStr = random(8);
       let next = false;
+      const edges = graph.getEdges();
+      edges.forEach(edge => {
+        const edgeModel = edge.getModel();
+        const targetEdge = currEdges.find(item => item.source === edgeModel.source && edgeModel.target === item.target);
+
+        if (targetEdge) {
+          graph.updateItem(edge, { ...edge, ...targetEdge });
+        }
+      });
       currNodes.forEach(item => {
         const node = graph.findById(item.id);
         const model = node?.getModel?.();
@@ -1720,6 +1737,16 @@ export default defineComponent({
             node && graph.updateItem(node, { ...diffNode, comboId: model.comboId, subComboId: model.subComboId });
           }
         });
+        const edges = graph.getEdges();
+        edges.forEach(edge => {
+          const edgeModel = edge.getModel();
+          const targetEdge = content.edges.find(
+            item => item.source === edgeModel.source && edgeModel.target === item.target
+          );
+          if (targetEdge) {
+            graph.updateItem(edge, { ...edge, ...targetEdge });
+          }
+        });
         /** 子combo需要根据节点时候有展示来决定 */
         const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
         combos.forEach(combo => {
@@ -1756,7 +1783,6 @@ export default defineComponent({
       }
       const value = Math.max(MIN_ZOOM, zoomValue.value + Number(val));
       zoomValue.value = zoomValue.value + Number(val);
-      console.log(zoomValue.value);
       handleZoomChange(value);
     };
     /** 图例展示 */
@@ -1772,6 +1798,11 @@ export default defineComponent({
     };
     const handleToDetail = node => {
       emit('toDetail', node);
+    };
+    /** 右侧资源图tips打开时，左侧tips关闭 */
+    const handleHideToolTips = () => {
+      tooltipsRef?.value?.hide?.();
+      tooltips?.hide?.();
     };
     /** 根据左侧选中节点组计算出画布高亮节点信息 */
     const navSelectNode = computed(() => {
@@ -1808,10 +1839,13 @@ export default defineComponent({
           });
           navSelectNode.value?.map?.((item, index) => {
             /** 多个节点只设置第一个节点会资源图节点 */
-            if (index === 0 && item.entityId !== nodeEntityId.value) {
-              showResourceGraph.value = false;
-              resourceNodeId.value = item.id;
-              nodeEntityId.value = item.entityId;
+            if (index === 0) {
+              if (item.entityId !== nodeEntityId.value) {
+                showResourceGraph.value = false;
+                resourceNodeId.value = item.id;
+                nodeEntityId.value = item.entityId;
+              }
+              moveRootNodeCenter();
             }
             graph.setItemState(graph.findById(item.id), 'running', true);
           });
@@ -1846,6 +1880,7 @@ export default defineComponent({
       graphRef,
       loading,
       zoomValue,
+      resourceGraphRef,
       tooltipsRef,
       wrapRef,
       showLegend,
@@ -1856,6 +1891,7 @@ export default defineComponent({
       topoRawDataCache,
       tooltipsType,
       handleToDetail,
+      handleHideToolTips,
       handleFeedBackChange,
       handleFeedBack,
       handleShowLegend,
@@ -1981,7 +2017,7 @@ export default defineComponent({
                   }}
                   always={true}
                   arrow={false}
-                  boundary='parent'
+                  boundary='body'
                   disabled={!this.showLegend}
                   isShow={this.showLegend}
                   offset={{ crossAxis: 90, mainAxis: 10 }}
@@ -2037,9 +2073,11 @@ export default defineComponent({
             </div>
             {this.showResourceGraph && !this.isPlay && (
               <ResourceGraph
+                ref='resourceGraphRef'
                 entityId={this.nodeEntityId}
                 modelData={this.topoRawDataCache.complete}
                 resourceNodeId={this.resourceNodeId}
+                onHideToolTips={this.handleHideToolTips}
                 onToDetail={this.handleToDetail}
               />
             )}
