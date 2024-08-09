@@ -479,6 +479,7 @@ class IncidentSnapshot(object):
         :param aggregate_config: 聚合配置，没有则按照是否有同质化边，且被聚合节点数大于等于3进行聚合
         :param entities_orders: 节点排序，默认用加入图谱的时间
         """
+        entities_orders = entities_orders or {}
         group_by_entities = {}
 
         for entity_id, entity in self.incident_graph_entities.items():
@@ -513,7 +514,7 @@ class IncidentSnapshot(object):
             # 聚合相同维度超过两个的图谱实体
             if len(entity_ids) >= 2:
                 # 默认用entity_id字典序进行排序
-                sorted_entities = sorted(list(entity_ids), key=lambda x: entities_orders.get(x, x))
+                sorted_entities = sorted(list(entity_ids), key=lambda x: (entities_orders.get(x, x), x))
                 self.merge_entities(sorted_entities)
 
     def generate_aggregate_key(self, entity: IncidentGraphEntity, aggregate_config: Dict) -> frozenset:

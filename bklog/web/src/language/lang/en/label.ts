@@ -168,7 +168,7 @@ export default {
   第几列: 'Column',
   '增/删': 'Add/delete',
   显示前: 'Before',
-  显示后: 'After',
+  ', 后': 'After',
   不包含: 'Exclude',
   个成功: 'Successes',
   个失败: 'Failures',
@@ -651,4 +651,6 @@ export default {
   展开长字段: 'Expand long field',
   过滤参数: 'Filter parameter',
   日志过滤: 'Log Filtration',
+  'label-高亮': 'Highlight',
+  代码: 'Code',
 };

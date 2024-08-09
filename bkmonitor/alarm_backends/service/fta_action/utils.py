@@ -624,11 +624,11 @@ class AlertAssignee:
                 "bk_bak_operator": [],
             }
         )
-        if not self.alert.event.target_type:
-            # 无监控对象， 不需要获取负责人
-            return group_users
-
         try:
+            if not self.alert.event.target_type:
+                # 无监控对象， 不需要获取负责人
+                return group_users
+
             host = HostManager.get_by_id(self.alert.event.bk_host_id)
             for operator_attr in ["operator", "bk_bak_operator"]:
                 group_users[operator_attr] = self.get_host_operator(host, operator_attr)
