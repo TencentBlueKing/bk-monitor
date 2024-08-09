@@ -260,11 +260,14 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @param event
    */
   handleMouseDown(event: MouseEvent) {
-    this.boxSelector.isMouseDown = true;
-    this.boxSelector.downClientX = event.clientX;
     const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');
-    this.boxSelector.boundingClientRect = target.getBoundingClientRect();
-    this.boxSelector.top = target.offsetTop - 7;
+    this.boxSelector = {
+      ...this.boxSelector,
+      isMouseDown: true,
+      downClientX: event.clientX,
+      boundingClientRect: target.getBoundingClientRect(),
+      top: target.offsetTop - 7,
+    };
     document.addEventListener('mousemove', this.handleMouseMove);
     document.addEventListener('mouseup', this.handleMouseUp);
   }
@@ -285,8 +288,7 @@ export default class BarAlarmChart extends tsc<IProps> {
       return downX;
     };
     if (this.boxSelector.start) {
-      this.boxSelector.moveClientX = event.clientX;
-      this.boxSelector.left = (() => {
+      const left = (() => {
         let left = 0;
         if (moveX < 0) {
           left = computedLeft(0, downX);
@@ -297,9 +299,9 @@ export default class BarAlarmChart extends tsc<IProps> {
         }
         return left;
       })();
-      this.boxSelector.width = (() => {
+      const width = (() => {
         const diffXAbs = Math.abs(diffX);
-        const residualWidth = this.boxSelector.boundingClientRect.width - this.boxSelector.left;
+        const residualWidth = this.boxSelector.boundingClientRect.width - left;
         if (event.clientX < this.boxSelector.boundingClientRect.left) {
           return downX;
         }
@@ -308,6 +310,12 @@ export default class BarAlarmChart extends tsc<IProps> {
         }
         return diffXAbs;
       })();
+      this.boxSelector = {
+        ...this.boxSelector,
+        left,
+        width,
+        moveClientX: event.clientX,
+      };
       return;
     }
     if (this.boxSelector.isMouseDown && Math.abs(diffX) > 6) {
