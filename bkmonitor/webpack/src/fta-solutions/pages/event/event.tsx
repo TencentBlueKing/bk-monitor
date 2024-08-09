@@ -2536,10 +2536,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 class='mr-16'
                 currentSpace={this.$store.getters.bizId}
                 hasAuthApply={true}
+                // needAlarmOption={!this.isIncident}
+                needIncidentOption={this.isIncident}
                 spaceList={this.$store.getters.bizList}
                 value={this.bizIds}
-                needAlarmOption={!this.isIncident}
-                needIncidentOption={this.isIncident}
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
               />
