@@ -14,7 +14,7 @@ import gzip
 import json
 import logging
 import time
-from typing import Dict
+from typing import Dict, List, Optional
 
 from django.conf import settings
 from django.db import models
@@ -252,59 +252,48 @@ class BCSCluster(BCSBase):
         return clusters
 
     @classmethod
-    def sync_resource_usage(cls, bk_biz_id: int, bcs_cluster_id: str) -> None:
-        """获取每个集群的cpu/memory/dist usage ."""
-        usage = cls.fetch_usage_ratio(bk_biz_id, bcs_cluster_id)
-        usage_dict = {}
-        for usage_type, value in usage.items():
-            usage_dict[f"{usage_type}_usage_ratio"] = value
-        value = usage_dict.get("cpu_usage_ratio")
-        usage_resource_map = {(bcs_cluster_id,): value}
-        # 获得采集器的指标上报状态
-        monitor_operator_status_up_map = {}
-        # 合并两个来源的状态
-        monitor_status_map = cls.merge_monitor_status(usage_resource_map, monitor_operator_status_up_map)
-        monitor_status = monitor_status_map.get((bcs_cluster_id,), cls.METRICS_STATE_FAILURE)
-        # 获得已存在的记录
-        old_unique_hash_map = {
-            item["unique_hash"]: (
-                item["cpu_usage_ratio"],
-                item["memory_usage_ratio"],
-                item["disk_usage_ratio"],
-                item["monitor_status"],
-            )
-            for item in cls.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id).values(
-                "unique_hash", "cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio", "monitor_status"
-            )
+    def sync_resource_usage(cls, bk_biz_id: int, bcs_cluster_id: Optional[str] = None) -> None:
+        """从线上同步指标数据。"""
+        # 线上指标值
+        usages_by_cluster = cls.bulk_fetch_usage_ratio(bk_biz_id)
+        usage_resource_map = {
+            (bcs_cluster_id,): usages.get("cpu_usage_ratio") for bcs_cluster_id, usages in usages_by_cluster.items()
         }
-        # 获得新的记录
-        unique_hash = cls.hash_unique_key(bk_biz_id, bcs_cluster_id)
-        new_unique_hash_map = {
-            unique_hash: (
-                usage_dict.get("cpu_usage_ratio"),
-                usage_dict.get("memory_usage_ratio"),
-                usage_dict.get("disk_usage_ratio"),
-                monitor_status,
-            )
-        }
-        # 更新资源使用量
-        unique_hash_set_for_update = set(old_unique_hash_map.keys()) & set(new_unique_hash_map.keys())
-        for unique_hash in unique_hash_set_for_update:
-            if new_unique_hash_map[unique_hash] == old_unique_hash_map[unique_hash]:
+        monitor_status_map = cls.merge_monitor_status(usage_resource_map, {})
+
+        # 更新现存集群资源使用量
+        usage_fields = ["cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio"]
+        clusters_for_update: List[cls] = []
+        current_time = timezone.now()
+        for cluster in cls.objects.filter(bk_biz_id=bk_biz_id):
+            new_usages = usages_by_cluster.get(cluster.bcs_cluster_id, {})
+            if all(getattr(cluster, field) == new_usages.get(field, 0) for field in usage_fields):
+                # 如果用量数据不变，不更新；new_usages 中可能没有相应键，所以用固定字段列表
                 continue
-            update_kwargs = new_unique_hash_map[unique_hash]
-            cpu_usage_ratio = update_kwargs[0]
-            memory_usage_ratio = update_kwargs[1]
-            disk_usage_ratio = update_kwargs[2]
-            monitor_status = update_kwargs[3]
-            cls.objects.filter(unique_hash=unique_hash).update(
-                **{
-                    "cpu_usage_ratio": cpu_usage_ratio,
-                    "memory_usage_ratio": memory_usage_ratio,
-                    "disk_usage_ratio": disk_usage_ratio,
-                    "monitor_status": monitor_status,
-                }
-            )
+
+            cluster.cpu_usage_ratio = new_usages.get("cpu_usage_ratio", 0)
+            cluster.memory_usage_ratio = new_usages.get("memory_usage_ratio", 0)
+            cluster.disk_usage_ratio = new_usages.get("disk_usage_ratio", 0)
+            cluster.monitor_status = monitor_status_map.get((cluster.bcs_cluster_id,), cls.METRICS_STATE_DISABLED)
+            cluster.updated_at = current_time
+            clusters_for_update.append(cluster)
+
+        cls.objects.bulk_update(
+            clusters_for_update,
+            batch_size=2000,
+            fields=usage_fields + ["monitor_status", "updated_at"],
+        )
+
+    @classmethod
+    def bulk_fetch_usage_ratio(cls, bk_biz_id: int) -> Dict[str, Dict[str, float]]:
+        """获得集群资源使用率 ."""
+        current_timestamp = int(time.time())
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "start_time": current_timestamp - 120,
+            "end_time": current_timestamp - 60,
+        }
+        return api.kubernetes.bulk_fetch_usage_ratios(params)
 
     @classmethod
     def fetch_usage_ratio(cls, bk_biz_id, bcs_cluster_id):
