@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import pytest
-from monitor_web.constants import OVERVIEW_ICON
 
 from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
+from monitor_web.constants import OVERVIEW_ICON
 
 FILTER = [
     {'id': 'success', 'name': 0, 'status': 'success', 'tips': '正常'},
@@ -93,8 +93,8 @@ SORT = [
 ]
 
 
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 class TestGetKubernetesPodList:
-    @pytest.mark.django_db
     def test_perform_request(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -196,6 +196,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_cpu_usage_ratio',
                     'min_width': 120,
                     'name': 'CPU使用率(limit)',
@@ -214,6 +215,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_memory_usage_ratio',
                     'min_width': 120,
                     'name': '内存使用率(limit) ',
@@ -459,7 +461,6 @@ class TestGetKubernetesPodList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__sort_by_restarts(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -562,6 +563,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_cpu_usage_ratio',
                     'min_width': 120,
                     'name': 'CPU使用率(limit)',
@@ -580,6 +582,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_memory_usage_ratio',
                     'min_width': 120,
                     'name': '内存使用率(limit) ',
@@ -826,7 +829,6 @@ class TestGetKubernetesPodList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__sort_by_limit_cpu_usage_ratio(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -856,6 +858,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_cpu_usage_ratio',
                     'min_width': 120,
                     'name': 'CPU使用率(limit)',
@@ -947,6 +950,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_memory_usage_ratio',
                     'min_width': 120,
                     'name': '内存使用率(limit) ',
@@ -1192,7 +1196,6 @@ class TestGetKubernetesPodList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__sort_by_resource_usage_cpu(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -1304,6 +1307,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_cpu_usage_ratio',
                     'min_width': 120,
                     'name': 'CPU使用率(limit)',
@@ -1322,6 +1326,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_memory_usage_ratio',
                     'min_width': 120,
                     'name': '内存使用率(limit) ',
@@ -1558,7 +1563,6 @@ class TestGetKubernetesPodList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__label_filter_found(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -1668,6 +1672,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_cpu_usage_ratio',
                     'min_width': 120,
                     'name': 'CPU使用率(limit)',
@@ -1686,6 +1691,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_memory_usage_ratio',
                     'min_width': 120,
                     'name': '内存使用率(limit) ',
@@ -1950,7 +1956,6 @@ class TestGetKubernetesPodList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__label_filter_not_found(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -2059,6 +2064,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_cpu_usage_ratio',
                     'min_width': 120,
                     'name': 'CPU使用率(limit)',
@@ -2077,6 +2083,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_memory_usage_ratio',
                     'min_width': 120,
                     'name': '内存使用率(limit) ',
@@ -2282,7 +2289,6 @@ class TestGetKubernetesPodList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__ci_space(
         self,
         monkeypatch_get_space_detail,
@@ -2396,6 +2402,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_cpu_usage_ratio',
                     'min_width': 120,
                     'name': 'CPU使用率(limit)',
@@ -2414,6 +2421,7 @@ class TestGetKubernetesPodList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'limit_memory_usage_ratio',
                     'min_width': 120,
                     'name': '内存使用率(limit) ',

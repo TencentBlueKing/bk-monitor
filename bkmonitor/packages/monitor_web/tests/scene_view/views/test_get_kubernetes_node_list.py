@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import pytest
-from monitor_web.constants import OVERVIEW_ICON
 
 from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
+from monitor_web.constants import OVERVIEW_ICON
 
 FILTER = [
     {'id': 'success', 'name': 1, 'status': 'success', 'tips': '正常'},
@@ -67,8 +67,8 @@ DATA = [
 ]
 
 
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 class TestGetKubernetesNodeList:
-    @pytest.mark.django_db
     def test_perform_request(
         self,
         monkeypatch_request_performance_data,
@@ -143,6 +143,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_cpu_summary_usage',
                     'min_width': 120,
                     'name': 'CPU使用率',
@@ -152,6 +153,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_mem_pct_used',
                     'min_width': 120,
                     'name': '应用内存使用率',
@@ -170,6 +172,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_disk_in_use',
                     'min_width': 120,
                     'name': '磁盘空间使用率',
@@ -252,7 +255,6 @@ class TestGetKubernetesNodeList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__order_by_system_load_load1(
         self,
         monkeypatch_request_performance_data,
@@ -337,6 +339,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_cpu_summary_usage',
                     'min_width': 120,
                     'name': 'CPU使用率',
@@ -346,6 +349,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_mem_pct_used',
                     'min_width': 120,
                     'name': '应用内存使用率',
@@ -364,6 +368,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_disk_in_use',
                     'min_width': 120,
                     'name': '磁盘空间使用率',
@@ -476,7 +481,6 @@ class TestGetKubernetesNodeList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__order_by_system_cpu_summary_usage(
         self,
         monkeypatch_request_performance_data,
@@ -506,6 +510,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_cpu_summary_usage',
                     'min_width': 120,
                     'name': 'CPU使用率',
@@ -561,6 +566,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_mem_pct_used',
                     'min_width': 120,
                     'name': '应用内存使用率',
@@ -579,6 +585,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_disk_in_use',
                     'min_width': 120,
                     'name': '磁盘空间使用率',
@@ -661,7 +668,6 @@ class TestGetKubernetesNodeList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__page_out(
         self,
         monkeypatch_request_performance_data,
@@ -691,6 +697,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_cpu_summary_usage',
                     'min_width': 120,
                     'name': 'CPU使用率',
@@ -746,6 +753,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_mem_pct_used',
                     'min_width': 120,
                     'name': '应用内存使用率',
@@ -764,6 +772,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_disk_in_use',
                     'min_width': 120,
                     'name': '磁盘空间使用率',
@@ -846,7 +855,6 @@ class TestGetKubernetesNodeList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__order_by_pod_count(
         self,
         monkeypatch_request_performance_data,
@@ -922,6 +930,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_cpu_summary_usage',
                     'min_width': 120,
                     'name': 'CPU使用率',
@@ -931,6 +940,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_mem_pct_used',
                     'min_width': 120,
                     'name': '应用内存使用率',
@@ -949,6 +959,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_disk_in_use',
                     'min_width': 120,
                     'name': '磁盘空间使用率',
@@ -1059,7 +1070,6 @@ class TestGetKubernetesNodeList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__filter_roles(
         self,
         monkeypatch_request_performance_data,
@@ -1095,7 +1105,6 @@ class TestGetKubernetesNodeList:
         assert len(results["data"]) == 1
         assert results["data"][0]['node_roles'] == []
 
-    @pytest.mark.django_db
     def test_perform_request__ci_space(
         self,
         monkeypatch_get_space_detail,
@@ -1177,6 +1186,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_cpu_summary_usage',
                     'min_width': 120,
                     'name': 'CPU使用率',
@@ -1186,6 +1196,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_mem_pct_used',
                     'min_width': 120,
                     'name': '应用内存使用率',
@@ -1204,6 +1215,7 @@ class TestGetKubernetesNodeList:
                 {
                     'checked': True,
                     'disabled': False,
+                    'header_pre_icon': 'icon-avg',
                     'id': 'system_disk_in_use',
                     'min_width': 120,
                     'name': '磁盘空间使用率',

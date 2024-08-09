@@ -12,12 +12,6 @@ specific language governing permissions and limitations under the License.
 import pytest
 from django.utils import timezone
 from kubernetes.client.api.custom_objects_api import CustomObjectsApi
-from monitor_web.scene_view.resources.kubernetes import (
-    GetKubernetesCpuAnalysis,
-    GetKubernetesDiskAnalysis,
-    GetKubernetesMemoryAnalysis,
-    GetKubernetesOverCommitAnalysis,
-)
 
 from api.bcs_cluster_manager.default import FetchClustersResource
 from api.bcs_storage.default import BcsStorageBaseResource, FetchResource
@@ -58,6 +52,12 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from metadata.models.bcs import BCSClusterInfo
+from monitor_web.scene_view.resources.kubernetes import (
+    GetKubernetesCpuAnalysis,
+    GetKubernetesDiskAnalysis,
+    GetKubernetesMemoryAnalysis,
+    GetKubernetesOverCommitAnalysis,
+)
 
 
 @pytest.fixture
@@ -4216,200 +4216,117 @@ def monkeypatch_request_performance_data(monkeypatch):
             (
                 'system_cpu_summary_usage',
                 False,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[9.075679523575623, 1669281660000]],
-                            'dimensions': {'instance': '1.1.1.1:9101'},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 9.075679523575623,
+                        "_time_": 1669281660000,
+                        "instance": "1.1.1.1:9101",
+                    }
+                ],
             ),
             (
                 'system_load_load15',
                 False,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[1.38, 1669281720000]],
-                            'dimensions': {'instance': '1.1.1.1:9101'},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 1.38,
+                        "_time_": 1669281720000,
+                        "instance": "1.1.1.1:9101",
+                    }
+                ],
             ),
             (
                 'system_io_util',
                 False,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[4.1202831312984495, 1669281720000]],
-                            'dimensions': {'instance': '1.1.1.1:9101'},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 4.1202831312984495,
+                        "_time_": 1669281720000,
+                        "instance": "1.1.1.1:9101",
+                    }
+                ],
             ),
             (
                 'system_disk_in_use',
                 False,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[15.570738330489176, 1669281660000]],
-                            'dimensions': {'instance': '1.1.1.1:9101'},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        },
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[15.570854758048107, 1669281720000]],
-                            'dimensions': {'instance': '2.2.2.2:9101'},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        },
-                    ],
-                },
+                [
+                    {
+                        "_result_": 15.570738330489176,
+                        "_time_": 1669281660000,
+                        "instance": "1.1.1.1:9101",
+                    },
+                    {
+                        "_result_": 15.570854758048107,
+                        "_time_": 1669281720000,
+                        "instance": "2.2.2.2:9101",
+                    },
+                ],
             ),
             (
                 'system_mem_pct_used',
                 False,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[52.49868644464842, 1669281660000]],
-                            'dimensions': {'instance': '1.1.1.1:9101'},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        },
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[52.502145105798235, 1669281720000]],
-                            'dimensions': {'instance': '2.2.2.2:9101'},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        },
-                    ],
-                },
+                [
+                    {
+                        "_result_": 52.49868644464842,
+                        "_time_": 1669281660000,
+                        "instance": "1.1.1.1:9101",
+                    },
+                    {
+                        "_result_": 52.502145105798235,
+                        "_time_": 1669281720000,
+                        "instance": "2.2.2.2:9101",
+                    },
+                ],
             ),
             (
                 'system_cpu_summary_usage',
                 True,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[10.545429644132964, 1669348200000]],
-                            'dimensions': {},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 10.545429644132964,
+                        "_time_": 1669348200000,
+                    }
+                ],
             ),
             (
                 'system_load_load15',
                 True,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[1.19, 1669348200000]],
-                            'dimensions': {},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 1.19,
+                        "_time_": 1669348200000,
+                    }
+                ],
             ),
             (
                 'system_io_util',
                 True,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[4.79581937143171, 1669348200000]],
-                            'dimensions': {},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 4.79581937143171,
+                        "_time_": 1669348200000,
+                    }
+                ],
             ),
             (
                 'system_disk_in_use',
                 True,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[16.898492020154194, 1669348200000]],
-                            'dimensions': {},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 16.898492020154194,
+                        "_time_": 1669348200000,
+                    }
+                ],
             ),
             (
                 'system_mem_pct_used',
                 True,
-                {
-                    'metrics': [],
-                    'series': [
-                        {
-                            'alias': '_result_',
-                            'datapoints': [[48.81595433782338, 1669348200000]],
-                            'dimensions': {},
-                            'metric_field': '_result_',
-                            'target': 'value',
-                            'type': 'line',
-                            'unit': '',
-                        }
-                    ],
-                },
+                [
+                    {
+                        "_result_": 48.81595433782338,
+                        "_time_": 1669348200000,
+                    }
+                ],
             ),
         ],
     )
@@ -4425,7 +4342,6 @@ def monkeypatch_kubernetes_fetch_k8s_event_log(monkeypatch):
 
 @pytest.fixture
 def monkeypatch_api_cmdb_get_host_by_topo_node(monkeypatch):
-
     mock_return_value = [
         Host(
             {
@@ -4496,7 +4412,6 @@ def monkeypatch_api_cmdb_get_host_by_topo_node(monkeypatch):
 
 @pytest.fixture
 def monkeypatch_api_cmdb_get_host_by_ip(monkeypatch):
-
     mock_return_value = [
         Host(
             {
