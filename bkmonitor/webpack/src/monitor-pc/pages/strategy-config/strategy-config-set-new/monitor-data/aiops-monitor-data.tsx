@@ -152,14 +152,16 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     }
     const metricsSet = new Set(this.metrics);
     const metrics = [];
-    this.scene?.metrics?.forEach(item => {
+    const metricFieldSet = new Set();
+    for (const item of this.scene?.metrics || []) {
       if (metricsSet.has(item.metric_id)) {
+        metricFieldSet.add(`${item.metric.result_table_id}.${item.metric.metric_field}`);
         metrics.push({
           ...item,
           metric: undefined,
         });
       }
-    });
+    }
     const algorithm = {
       // type: MetricType.MultivariateAnomalyDetection,
       type: MetricType.HostAnomalyDetection,
@@ -175,7 +177,17 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     return {
       ...this.scene,
       metrics,
-      query_configs: this.scene?.query_config ? [{ ...this.scene.query_config }] : [],
+      query_configs: (() => {
+        if (this.scene?.query_config) {
+          if (Array.isArray(this.scene.query_config)) {
+            return this.scene.query_config.filter(item =>
+              metricFieldSet.has(`${item.result_table_id}.${item.metric_field}`)
+            );
+          }
+          return [{ ...this.scene.query_config }];
+        }
+        return [];
+      })(),
       algorithms: [algorithm],
     };
   }
@@ -245,7 +257,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   /** 告警变化 */
   handleLevelChange(value) {
     this.formModel.level = value;
-    if (!!this.scene) {
+    if (this.scene) {
       this.handleChange();
     }
   }
@@ -398,8 +410,12 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   renderIpWrapper() {
     if (this.targetList.length || this.target.desc.message.length) {
       return [
-        <i class='icon-monitor icon-mc-tv' />,
+        <i
+          key={'01'}
+          class='icon-monitor icon-mc-tv'
+        />,
         <span
+          key={'02'}
           style='color: #63656e;'
           class='subtitle'
         >
@@ -408,6 +424,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
         </span>,
         this.readonly ? (
           <span
+            key={'03'}
             class='ip-wrapper-title'
             onClick={this.handleAddTarget}
           >
@@ -415,6 +432,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           </span>
         ) : (
           <span
+            key={'04'}
             class='icon-monitor icon-bianji'
             onClick={this.handleAddTarget}
           />
@@ -428,13 +446,17 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
 
     return [
       <div
+        key={'01'}
         class='ip-wrapper-title'
         on-click={this.handleAddTarget}
       >
         <i class='icon-monitor icon-mc-plus-fill' />
         {this.$t('添加监控目标')}
       </div>,
-      <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
+      <span
+        key={'02'}
+        class='subtitle ml5'
+      >{`(${this.$t('默认为本业务')})`}</span>,
     ];
   }
 
@@ -582,7 +604,10 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                 this.levelList
                   .filter(item => this.formModel.level.includes(item.id))
                   .map(item => (
-                    <span class='level-check'>
+                    <span
+                      key={item.id}
+                      class='level-check'
+                    >
                       <i class={['icon-monitor', item.icon, `status-${item.id}`]} />
                       <span>{item.name}</span>
                     </span>
@@ -594,6 +619,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                 >
                   {this.levelList.map(item => (
                     <bk-checkbox
+                      key={item.id}
                       class='level-check'
                       value={item.id}
                     >
