@@ -189,6 +189,13 @@ class CalculationMethod:
     # 健康度
     APDEX = "apdex"
 
+    # 服务间调用错误率
+    SERVICE_FLOW_ERROR_RATE = "service_flow_error_rate"
+    # 服务间请求数
+    SERVICE_FLOW_COUNT = "service_flow_request_count"
+    # 服务间耗时
+    SERVICE_FLOW_DURATION = "service_flow_duration"
+
 
 class ApdexColor:
     GRAY = 1
@@ -331,6 +338,14 @@ class AlertLevel:
     WARN = 2
     # 提醒
     INFO = 3
+
+    @classmethod
+    def get_label(cls, key):
+        return {
+            cls.ERROR: "error",
+            cls.WARN: "warn",
+            cls.INFO: "info",
+        }.get(key, key)
 
 
 class AlertStatus:
@@ -582,6 +597,9 @@ class TopoNodeKind:
     SERVICE = "service"
     COMPONENT = "component"
     REMOTE_SERVICE = "remote_service"
+
+    # 虚拟服务 (Flow 指标处)
+    VIRTUAL_SERVICE = "virtualService"
 
 
 class TraceFilterField:

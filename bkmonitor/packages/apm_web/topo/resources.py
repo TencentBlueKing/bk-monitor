@@ -8,91 +8,35 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.icon import get_icon
-from apm_web.models import Application
-from apm_web.topo.handle.topo import TopoHandler, TopoSizeCategory
-from django.utils.translation import gettext_lazy as _
-from monitor_web.scene_view.resources.base import PageListResource
-from monitor_web.scene_view.table_format import (
-    DictSearchColumnTableFormat,
-    LinkTableFormat,
-    NumberTableFormat,
-    StringTableFormat,
+
+from apm_web.topo.handle.bar_query import BarQuery
+from apm_web.topo.handle.graph_query import GraphQuery
+from apm_web.topo.serializers import (
+    DataTypeBarQueryRequestSerializer,
+    TopoQueryRequestSerializer,
 )
-from rest_framework import serializers
+from core.drf_resource import Resource
 
 
-class TopoViewResource(PageListResource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称")
-        start_time = serializers.IntegerField(required=True, label="数据开始时间")
-        end_time = serializers.IntegerField(required=True, label="数据结束时间")
-        keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
-        query_type = serializers.ChoiceField(required=True, label="查询类型", choices=["topo", "list"])
-        page = serializers.IntegerField(required=False, label="页码")
-        page_size = serializers.IntegerField(required=False, label="每页条数")
-        sort = serializers.CharField(required=False, label="排序方式", allow_blank=True)
-        filter = serializers.CharField(required=False, label="筛选条件", allow_blank=True)
-        filter_dict = serializers.DictField(required=False, label="筛选字典", default={})
-        size_category = serializers.ChoiceField(
-            required=False,
-            label="节点大小分类类型",
-            choices=[TopoSizeCategory.REQUEST_COUNT, TopoSizeCategory.DURATION],
-            default=TopoSizeCategory.REQUEST_COUNT,
-        )
-        service_name = serializers.CharField(required=False, label="服务名称", allow_blank=True)
+class DataTypeBarQueryResource(Resource):
+    """
+    获取不同数据视角下的柱状图
+    支持以下数据视角:
+    1. 告警事件
+    2. Apdex
+    3. 主调/被调错误率
+    """
 
-    def get_columns(self, column_type=None):
-        return [
-            LinkTableFormat(
-                id="service_name",
-                name=_("服务名称"),
-                url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
-                icon_get=lambda x: get_icon(x["category"]),
-                width=200,
-                sortable=True,
-            ),
-            DictSearchColumnTableFormat(
-                id="relation",
-                name=_("关系调用"),
-                column_type="relation",
-                get_filter_value=lambda d: "*".join(i["name"] for i in d),
-            ),
-            StringTableFormat(id="kind", name=_("调用类型"), width=100, filterable=True),
-            NumberTableFormat(id="request_count", name=_("调用次数"), width=100, sortable=True),
-            NumberTableFormat(id="error_rate", name=_("错误率"), unit="%", decimal=2, width=100, sortable=True),
-            NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), unit="ns", decimal=2, width=140, sortable=True),
-        ]
-
-    def get_filter_fields(self):
-        return ["service_name", "relation"]
-
-    def get_sort_fields(self):
-        return ["-error_rate", "-avg_duration", "-request_count"]
+    RequestSerializer = DataTypeBarQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        # 获取应用
-        app = Application.objects.filter(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        ).first()
-        if not app:
-            raise ValueError(_("应用不存在"))
+        return BarQuery(**validated_request_data).execute()
 
-        topo_handler = TopoHandler(
-            app,
-            validated_request_data["start_time"],
-            validated_request_data["end_time"],
-        )
 
-        if validated_request_data["query_type"] == "topo":
-            return topo_handler.get_topo_view(
-                validated_request_data.get("filter"),
-                validated_request_data.get("service_name"),
-                # validated_request_data.get("show_nodata", False),
-                validated_request_data.get("keyword", ""),
-                validated_request_data.get("size_category"),
-            )
+class TopoViewResource(Resource):
+    """获取节点拓扑图"""
 
-        data = topo_handler.get_topo_list(validated_request_data.get("filter"))
-        return self.get_pagination_data(data, validated_request_data)
+    RequestSerializer = TopoQueryRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        return GraphQuery(**validated_request_data).execute()

@@ -148,3 +148,18 @@ def divide_biscuit(iterator, interval):
     """分段"""
     for i in range(0, len(iterator), interval):
         yield iterator[i : i + interval]
+
+
+def merge_dicts(d1, d2):
+    """递归合并字典"""
+    merged = d1.copy()
+    for key, value in d2.items():
+        if key in merged:
+            if isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = merge_dicts(merged[key], value)
+            else:
+                # 如果不是字典 直接覆盖
+                merged[key] = value
+        else:
+            merged[key] = value
+    return merged
