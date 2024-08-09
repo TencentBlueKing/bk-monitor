@@ -27,10 +27,9 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ChatHelper } from '@blueking/ai-blueking/dist/chat-helper';
-import AiBlueking, { RoleType, type IMessage } from '@blueking/ai-blueking/vue2';
+import AiBlueking, { RoleType, type IMessage, ChatHelper } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
-import { copyText } from 'monitor-common/utils/utils';
+import { copyText, getCookie } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
 import { getEventPaths } from '../../utils';
@@ -439,7 +438,7 @@ export default class AiWhale extends tsc<object> {
       this.loading = true;
       this.messages.push({
         role: RoleType.Assistant,
-        content: '内容正在生成中...',
+        content: this.$tc('内容正在生成中...'),
         status: 'loading',
       });
     };
@@ -461,7 +460,7 @@ export default class AiWhale extends tsc<object> {
       const currentMessage = this.messages.at(-1);
       // loading 情况下终止
       if (currentMessage.status === 'loading') {
-        currentMessage.content = '聊天内容已中断';
+        currentMessage.content = this.$tc('聊天内容已中断');
       }
     };
     // 错误处理
@@ -480,9 +479,9 @@ export default class AiWhale extends tsc<object> {
       }
     };
     // 需要将 <网关名> 替换成插件部署后生成的网关名
-    const prefix = process.env.BK_API_URL_TMPL.replace('{api_name}', '<网关名>').replace('http', 'https');
+    // const prefix = process.env.BK_API_URL_TMPL.replace('{api_name}', '<网关名>').replace('http', 'https');
     this.chatHelper = new ChatHelper(
-      `${prefix}/prod/bk_plugin/plugin_api/assistant/`,
+      `${window.site_url}rest/v2/ai_assistant/chat/chat/`,
       handleStart,
       handleReceiveMessage,
       handleEnd,
@@ -500,16 +499,34 @@ export default class AiWhale extends tsc<object> {
       role: RoleType.User,
       content: message,
     });
+    // const source = new EventSource(`${process.env.proxyUrl}/rest/v2/ai_assistant/chat/chat/`, {
+    //   withCredentials: true,
+    // });
+    // debugger;
+    // source.onmessage = e => {
+    //   const data = e.data;
+    //   console.info(data, '============');
+    // };
+    // source.onerror = e => {
+    //   console.info(e, '++++============');
+    //   source.close();
+    // };
     // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
     this.chatHelper.stream(
       {
-        inputs: {
-          input: message,
-          chat_history: chatHistory,
-        },
+        input: message,
+        chat_history: chatHistory,
+        bk_biz_id: window.bk_biz_id,
       },
       1,
-      {}
+      {
+        'X-CSRFToken':
+          '3WhfxBmXhDym3iXKPRnx8GKTupd7Znob0oHO5ejePfYbKSbmDnGEfybNVE162AIK' ||
+          window.csrf_token ||
+          getCookie(window.csrf_cookie_name),
+        'X-Requested-With': 'XMLHttpRequest',
+        'Source-App': window.source_app,
+      }
     );
     console.log('trigger send', message);
   }

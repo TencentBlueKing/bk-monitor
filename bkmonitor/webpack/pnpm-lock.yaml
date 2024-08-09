@@ -336,8 +336,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: ^0.1.6-beta.1
-        version: 0.1.6-beta.1
+        specifier: ^0.1.6-beta.2
+        version: 0.1.6-beta.2(highlight.js@11.5.1)(vue@2.7.16)
       '@blueking/bk-weweb':
         specifier: 0.0.26-beta.1
         version: 0.0.26-beta.1
@@ -2376,11 +2376,15 @@ packages:
     dev: true
     optional: true
 
-  /@blueking/ai-blueking@0.1.6-beta.1:
-    resolution: {integrity: sha512-OJMlsmy7AwefPusaKrFwKccyEVMsKTFtYBVj2TPiFmIj4J5hWzFcDEe6sXeiRvDLsavB5ZWBH5fET8eAAg9Rfw==}
+  /@blueking/ai-blueking@0.1.6-beta.2(highlight.js@11.5.1)(vue@2.7.16):
+    resolution: {integrity: sha512-YngB0W9QsSIrnUlsVP5oRYRSlnwEGxHRUEL5IAv/t1MIwKYUcv84Yh1W2BWW5P2nM6EaEhSjr2Rpv5ruo6OM1g==}
     dependencies:
+      bkui-vue: 2.0.1-beta.47(highlight.js@11.5.1)(vue@2.7.16)
       dompurify: 3.1.5
       markdown-it: 13.0.2
+    transitivePeerDependencies:
+      - highlight.js
+      - vue
     dev: false
 
   /@blueking/bk-weweb@0.0.26-beta.1:
@@ -5338,6 +5342,24 @@ packages:
       tinycolor2: 1.6.0
       vue: 3.4.31(typescript@5.5.3)
       vue-types: 4.1.1(vue@3.4.31)
+    dev: false
+
+  /bkui-vue@2.0.1-beta.47(highlight.js@11.5.1)(vue@2.7.16):
+    resolution: {integrity: sha512-5262XDPOWVmFhE0qkYD9StbBLLqNk6bwZMahm0Yb7YiyjXgrG4uso704hrs5vGh5VptDpfvFEyRshCDk7gUBIw==}
+    peerDependencies:
+      highlight.js: ~11.5.0
+      vue: ^3.2.0
+    dependencies:
+      '@floating-ui/dom': 1.5.4
+      '@popperjs/core': 2.11.8
+      date-fns: 2.30.0
+      highlight.js: 11.5.1
+      js-calendar: 1.2.3
+      json-formatter-js: 2.3.4
+      lodash: 4.17.21
+      tinycolor2: 1.6.0
+      vue: 2.7.16
+      vue-types: 4.1.1(vue@2.7.16)
     dev: false
 
   /bluebird@3.7.2:
