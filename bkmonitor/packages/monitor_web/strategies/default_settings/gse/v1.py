@@ -11,6 +11,42 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import ugettext_lazy as _lazy
 
+# 废弃的插件
+DISCARD_PLUGINS = [
+    "basereport",
+    "processbeat",
+    "exceptionbeat",
+    "bkmonitorbeat",
+    "bkmonitorproxy",
+    "bkunifylogbeat",
+    "unifyTlogc",
+    "unifytlogc",
+    "gseAgent",
+    "bk-collector",
+    "gse_agent",
+    "dbcheck",
+    "dbbeat",
+    "httpbeat",
+    "bkmetricbeat",
+    "logbeat",
+    "uptimecheckbeat",
+    "bkfilebeat",
+]
+
+# 默认启用的插件
+ENABLED_PLUGINS = [
+    "basereport",
+    "processbeat",
+    "exceptionbeat",
+    "bkmonitorbeat",
+    "bkmonitorproxy",
+    "bkunifylogbeat",
+    "unifyTlogc",
+    "unifytlogc",
+    "gseAgent",
+    "gse_agent",
+]
+
 DEFAULT_GSE_PROCESS_EVENT_STRATEGIES = [
     {
         "type": "business",
@@ -28,19 +64,7 @@ DEFAULT_GSE_PROCESS_EVENT_STRATEGIES = [
             {
                 "key": "process_name",
                 "method": "neq",
-                "value": [
-                    "basereport",
-                    "processbeat",
-                    "exceptionbeat",
-                    "bkmonitorbeat",
-                    "bkmonitorproxy",
-                    "bkunifylogbeat",
-                    "unifyTlogc",
-                    "unifytlogc",
-                    "gseAgent",
-                    "bk-collector",
-                    "gse_agent",
-                ],
+                "value": DISCARD_PLUGINS,
             },
         ],
     },
@@ -60,18 +84,7 @@ DEFAULT_GSE_PROCESS_EVENT_STRATEGIES = [
             {
                 "key": "process_name",
                 "method": "eq",
-                "value": [
-                    "basereport",
-                    "processbeat",
-                    "exceptionbeat",
-                    "bkmonitorbeat",
-                    "bkmonitorproxy",
-                    "bkunifylogbeat",
-                    "unifyTlogc",
-                    "unifytlogc",
-                    "gseAgent",
-                    "gse_agent",
-                ],
+                "value": ENABLED_PLUGINS,
             },
         ],
     },
