@@ -42,6 +42,14 @@ class BKAPIError(Error):
         self.message = message_tpl.format(
             system_name=system_name, code=result.get("code"), url=url, message=result or _("空")
         )
+        # 设置返回错误详情信息，适配新版错误样式
+        self.set_details(
+            exc_type=type(self).__name__,
+            exc_code=result.get("code"),
+            overview=_("请求系统'{system_name}'错误，").format(system_name=system_name),
+            detail=result.get('message'),
+            popup_message="warn",
+        )
 
 
 class DevopsNotDeployedError(BKAPIError):
