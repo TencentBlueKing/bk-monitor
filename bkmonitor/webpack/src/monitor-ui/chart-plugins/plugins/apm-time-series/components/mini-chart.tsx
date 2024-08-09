@@ -55,6 +55,7 @@ interface IProps {
   referX?: number;
   pointType?: EPointType;
   dropType?: EDropType;
+  disableHover?: boolean;
   onPointTypeChange?: (type: EPointType) => void;
   onCompareXChange?: (x: number) => void;
   onReferXChange?: (x: number) => void;
@@ -75,6 +76,8 @@ export default class MiniChart extends tsc<IProps> {
   @Prop({ type: String, default: EPointType.compare }) pointType: EPointType;
   /* 拖拽标记点时的状态 */
   @Prop({ type: String, default: EDropType.end }) dropType: EDropType;
+  /* 禁止hover tooltip及标记点 */
+  @Prop({ type: Boolean, default: false }) disableHover: boolean;
   @Prop({ type: Array, default: () => [] }) data: any;
 
   /* 对比点 */
@@ -92,7 +95,7 @@ export default class MiniChart extends tsc<IProps> {
 
   options: MonitorEchartOptions = {
     grid: {
-      left: 0,
+      left: 6,
     },
     xAxis: {
       show: false,
@@ -241,7 +244,7 @@ export default class MiniChart extends tsc<IProps> {
             ...this.options.tooltip,
             className: 'details-side-mini-chart-tooltip',
             formatter: params => {
-              if (this.isMouseOver) {
+              if (this.isMouseOver && !this.disableHover) {
                 const time = params[0].value[0];
                 const value = params[0].value[1];
                 this.hoverPoint.position = {
@@ -257,24 +260,26 @@ export default class MiniChart extends tsc<IProps> {
                   this.localReferPoint.y = value;
                 }
                 let timeTitle = '';
+                const compareTitleText = this.$tc('对比时间');
+                const referTitleText = this.$tc('参照时间');
                 const isSelectEnd = this.localPointType === EPointType.end;
                 if (this.localPointType === EPointType.compare) {
-                  timeTitle = this.$tc('对比时间');
+                  timeTitle = compareTitleText;
                 } else if (this.localPointType === EPointType.refer) {
-                  timeTitle = this.$tc('参照时间');
+                  timeTitle = referTitleText;
                 }
                 /* 是否选择完对比点及参照点 */
                 if (isSelectEnd) {
                   if (this.hoverPoint.type === EPointType.compare) {
-                    timeTitle = this.$tc('对比时间');
+                    timeTitle = compareTitleText;
                   } else if (this.hoverPoint.type === EPointType.refer) {
-                    timeTitle = this.$tc('参照时间');
+                    timeTitle = referTitleText;
                   } else {
                     return undefined;
                   }
                 }
                 return `
-              <div class="left-compare-type" style="background: #7B29FF;"></div>
+              <div class="left-compare-type" style="background: ${timeTitle === compareTitleText ? '#7B29FF' : '#FFB848'};"></div>
               <div>
                 <div>${timeTitle}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
                 <div>${this.$t('请求数')}：${value}</div>
@@ -321,7 +326,10 @@ export default class MiniChart extends tsc<IProps> {
     }
   }
 
-  /* 鼠标移动时标记点样式 */
+  /**
+   * @description 获取鼠标悬停标记点样式
+   * @returns
+   */
   getSymbolItemStyle() {
     if (this.hoverPoint.isMouseDown) {
       return {
@@ -336,7 +344,7 @@ export default class MiniChart extends tsc<IProps> {
       };
     }
     return {
-      symbol: this.localPointType === EPointType.end ? 'none' : 'circle',
+      symbol: this.localPointType === EPointType.end || this.disableHover ? 'none' : 'circle',
       symbolSize: 8,
       showSymbol: false,
       itemStyle: {
@@ -347,7 +355,10 @@ export default class MiniChart extends tsc<IProps> {
     };
   }
 
-  /* 面积颜色 */
+  /**
+   * @description 获取折线与面积样式
+   * @returns
+   */
   getSeriesStyle() {
     return {
       lineStyle: {
@@ -374,7 +385,7 @@ export default class MiniChart extends tsc<IProps> {
    * @returns
    */
   handleClick() {
-    if (this.localPointType === EPointType.end) {
+    if (this.localPointType === EPointType.end || this.disableHover) {
       return;
     }
     if (this.localPointType === EPointType.compare) {
@@ -388,6 +399,9 @@ export default class MiniChart extends tsc<IProps> {
     this.setMarkPointData();
   }
 
+  /**
+   * @description 设置标记点数据
+   */
   setMarkPointData() {
     const markPointData = [];
     if ([EPointType.refer, EPointType.end].includes(this.localPointType)) {
@@ -456,21 +470,32 @@ export default class MiniChart extends tsc<IProps> {
     this.isMouseOver = false;
     this.dropEnd();
   }
+  /**
+   * @description 鼠标按下
+   */
   handleMouseDown() {
     if (this.hoverPoint.type !== EPointType.end && this.hoverPoint.isHover) {
       this.hoverPoint.isMouseDown = true;
     }
   }
+  /**
+   * @description 鼠标松开
+   */
   handleMouseUp() {
     this.dropEnd();
   }
+  /**
+   * @description 拖拽开始
+   */
   handleMouseMove() {
     if (this.hoverPoint.isMouseDown && !this.isDrop) {
       this.isDrop = true;
-      console.log('xxxxx');
       this.setMarkPointData();
     }
   }
+  /**
+   * @description 拖拽结束/hover结束
+   */
   dropEnd() {
     if (this.hoverPoint.isMouseDown) {
       if (this.hoverPoint.type === EPointType.compare) {
@@ -487,8 +512,9 @@ export default class MiniChart extends tsc<IProps> {
         type: EPointType.end,
       };
       this.isDrop = false;
-      this.setMarkPointData();
     }
+    this.hoverPoint.isHover = false;
+    this.setMarkPointData();
   }
 
   render() {
