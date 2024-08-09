@@ -34,28 +34,8 @@
         data-test-id="fingerTable_checkBox_selectCustomSize"
         @change="handleShowNearPattern"
       >
+        <span>{{ $t('近24H新增') }}</span>
       </bk-checkbox>
-      <span
-        @click="handleChangeTrigger"
-        @mouseenter="handleShowAlarmPopover"
-        >{{ $t('近24H新增') }}</span
-      >
-      <div v-show="false">
-        <div
-          ref="alarmPopover"
-          class="alarm-content"
-          slot="content"
-        >
-          <span @click.stop="updateNewClsStrategy">{{ !alarmSwitch ? $t('开启告警') : $t('关闭告警') }}</span>
-          <span
-            v-if="alarmSwitch"
-            class="right-alarm"
-            @click="handleEmitEditAlarm"
-          >
-            {{ $t('编辑告警') }}</span
-          >
-        </div>
-      </div>
     </div>
 
     <!-- <div
@@ -310,14 +290,12 @@
     data() {
       return {
         interactType: false, // false 为hover true 为click
-        alarmSwitch: false,
         dimension: [], // 当前维度字段的值
         group: [], // 当前分组选中的值
         isToggle: false, // 当前是否显示分组下拉框
         patternSize: 0,
         yearOnYearHour: 1,
         isNear24: false,
-        isRequestAlarm: false,
         popoverInstance: null,
         isShowPopoverInstance: false,
         yearSwitch: false,
@@ -362,7 +340,6 @@
     mounted() {
       this.handleShowMorePopover();
       this.checkReportIsExistedDebounce();
-      this.handlePopoverShow();
     },
     beforeUnmount() {
       this.popoverInstance = null;
@@ -414,100 +391,6 @@
       handleClickGroupPopover() {
         !this.isShowPopoverInstance ? this.$refs.groupPopover.instance.show() : this.$refs.groupPopover.instance.hide();
         this.isShowPopoverInstance = !this.isShowPopoverInstance;
-      },
-      handleEmitEditAlarm() {
-        this.$emit('handle-finger-operate', 'editAlarm');
-      },
-      handlePopoverShow() {
-        if (JSON.stringify(this.fingerOperateData.alarmObj) === '{}') {
-          this.initNewClsStrategy();
-        }
-      },
-      /**
-       * @desc: 改变近24H新增的交互类型
-       */
-      handleChangeTrigger() {
-        if (!this.interactType) {
-          this.popoverInstance?.set({
-            trigger: 'click',
-            hideOnClick: true,
-          });
-        }
-        this.interactType = true;
-      },
-      handleShowAlarmPopover(e) {
-        if (this.popoverInstance || !this.fingerOperateData.signatureSwitch) return;
-        this.popoverInstance = this.$bkPopover(e.target, {
-          content: this.$refs.alarmPopover,
-          trigger: 'mouseenter',
-          placement: 'top',
-          arrow: true,
-          theme: 'light',
-          interactive: true,
-          hideOnClick: false,
-        });
-        this.popoverInstance?.show();
-      },
-      /**
-       * @desc: 查询新类告警
-       */
-      initNewClsStrategy() {
-        this.$http
-          .request('/logClustering/getNewClsStrategy', {
-            params: {
-              index_set_id: this.$route.params.indexId,
-            },
-          })
-          .then(res => {
-            this.$emit('handle-finger-operate', 'fingerOperateData', {
-              alarmObj: res.data,
-            });
-            this.alarmSwitch = res.data.is_active;
-          });
-      },
-      /**
-       * @desc: 更新新类告警
-       */
-      updateNewClsStrategy() {
-        const action = this.alarmSwitch ? 'delete' : 'create';
-        const strategyID = this.fingerOperateData.alarmObj?.strategy_id;
-        const queryObj = {
-          bk_biz_id: this.bkBizId,
-          strategy_id: strategyID,
-          action,
-        };
-        // 开启新类告警时需删除strategy_id字段
-        !this.alarmSwitch && delete queryObj.strategy_id;
-        (this.isRequestAlarm = true),
-          this.$http
-            .request('/logClustering/updateNewClsStrategy', {
-              params: {
-                index_set_id: this.$route.params.indexId,
-              },
-              data: { ...queryObj },
-            })
-            .then(res => {
-              if (res.result) {
-                this.popoverInstance.hide();
-                this.$emit('handle-finger-operate', 'fingerOperateData', {
-                  alarmObj: {
-                    strategy_id: res.data,
-                    is_active: !this.alarmSwitch,
-                  },
-                });
-                this.$bkMessage({
-                  theme: 'success',
-                  message: this.$t('操作成功'),
-                  ellipsisLine: 0,
-                });
-                setTimeout(() => {
-                  this.alarmSwitch = !this.alarmSwitch;
-                }, 200);
-              }
-            })
-            .finally(() => {
-              this.isRequestAlarm = false;
-            });
       },
       async submitPopover() {
         // 设置过维度 进行二次确认弹窗判断
@@ -575,7 +458,6 @@
         const finger = this.fingerOperateData;
         this.isNear24 = this.requestData.show_new_pattern;
         this.patternSize = finger.patternSize;
-        this.alarmSwitch = finger.alarmObj?.is_active;
         this.dimension = finger.dimensionList;
         this.catchDimension = finger.dimensionList;
         this.group = finger.selectGroupList;
@@ -629,7 +511,6 @@
         margin-left: 4px;
         line-height: 16px;
         cursor: pointer;
-        border-bottom: 1px dashed #979ba5;
       }
     }
 
@@ -679,22 +560,6 @@
     .bk-form-input {
       /* stylelint-disable-next-line declaration-no-important */
       padding: 0 18px 0 10px !important;
-    }
-  }
-
-  .alarm-content {
-    font-size: 12px;
-    color: #3a84ff;
-    cursor: pointer;
-
-    .right-alarm {
-      margin-left: 6px;
-
-      &:before {
-        margin-right: 6px;
-        color: #dcdee5;
-        content: '|';
-      }
     }
   }
 
