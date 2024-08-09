@@ -476,7 +476,25 @@ class UptimeCheckTask(OperateRecordModel):
         else:
             timeout = settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT
 
+        try:
+            task = UptimeCheckTask.objects.get(pk=pk)
+            task_group_ids = list(task.groups.values_list("id", flat=True))
+            task_group_ids.sort()
+            if not task_group_ids:
+                task_group_id = "0"
+            else:
+                task_group_id = ",".join(map(str, task_group_ids))
+        except UptimeCheckTask.DoesNotExist:
+            raise CustomException(_("不存在的任务id:%s") % pk)
+
         params_list = []
+        tasks = resource.uptime_check.generate_sub_config({"task_id": pk})
+        response_with_prefix = resource.uptime_check.generate_sub_config.encode_data_with_prefix(
+            self.config.get("response", "")
+        )
+        request_with_prefix = resource.uptime_check.generate_sub_config.encode_data_with_prefix(
+            self.config.get("request", "")
+        )
         for bk_biz_id in biz_nodes.keys():
             scope = {
                 "bk_biz_id": bk_biz_id,
@@ -501,7 +519,7 @@ class UptimeCheckTask(OperateRecordModel):
                     "context": {
                         "data_id": dataid_map[protocol.upper()],
                         "max_timeout": "{}ms".format(timeout),
-                        "tasks": resource.uptime_check.generate_sub_config({"task_id": pk}),
+                        "tasks": tasks,
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：
                         "task_id": pk,
@@ -510,12 +528,8 @@ class UptimeCheckTask(OperateRecordModel):
                         "available_duration": "{}ms".format(available_duration),
                         "timeout": "{}ms".format(timeout),
                         "target_port": self.config.get("port"),
-                        "response": resource.uptime_check.generate_sub_config.encode_data_with_prefix(
-                            self.config.get("response", "")
-                        ),
-                        "request": resource.uptime_check.generate_sub_config.encode_data_with_prefix(
-                            self.config.get("request", "")
-                        ),
+                        "response": response_with_prefix,
+                        "request": request_with_prefix,
                         "response_format": self.config.get("response_format", "in"),
                         "size": self.config.get("size"),
                         "total_num": self.config.get("total_num"),
@@ -523,17 +537,21 @@ class UptimeCheckTask(OperateRecordModel):
                     }
                 },
             }
+            labels = {
+                "$for": "cmdb_instance.scope",
+                "$body": {
+                    "task_group_id": task_group_id,
+                },
+                "$item": "scope",
+            }
             # 这里由于历史原因，与其他协议相比，icmp漏掉了node_id,这里采用label注入的方式补充上
             if protocol.upper() == UptimeCheckProtocol.ICMP:
-                step["params"]["context"]["labels"] = {
-                    "$for": "cmdb_instance.scope",
-                    "$body": {
-                        "node_id": "{{ cmdb_instance.host.bk_cloud_id[0].id if cmdb_instance.host.bk_cloud_id "
-                        "is iterable and cmdb_instance.host.bk_cloud_id is not string else "
-                        "cmdb_instance.host.bk_cloud_id }}:{{ cmdb_instance.host.bk_host_innerip }}",
-                    },
-                    "$item": "scope",
-                }
+                labels["$body"]["node_id"] = (
+                    "{{ cmdb_instance.host.bk_cloud_id[0].id if cmdb_instance.host.bk_cloud_id is iterable and "
+                    "cmdb_instance.host.bk_cloud_id is not string "
+                    "else cmdb_instance.host.bk_cloud_id }}:{{ cmdb_instance.host.bk_host_innerip }}"
+                )
+            step["params"]["context"]["labels"] = labels
             params = {
                 "scope": scope,
                 "steps": [step],
