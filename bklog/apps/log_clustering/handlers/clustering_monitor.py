@@ -208,7 +208,7 @@ class ClusteringMonitorHandler(object):
 
         self.clustering_config.log_count_agg_rt = f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
         self.clustering_config.save()
-        return strategy_id
+        return {"strategy_id": strategy_id, "label_name": labels}
 
     def get_strategy(self, strategy_type, strategy_id):
         # 获取告警策略信息
@@ -220,7 +220,8 @@ class ClusteringMonitorHandler(object):
         algorithms_config = strategy_config["items"][0]["algorithms"][0]
         level = algorithms_config["level"]
         user_groups = strategy_config["notice"]["user_groups"]
-        data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups}
+        labels = strategy_config["labels"]
+        data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups, "label_name": labels}
         if strategy_type == StrategiesType.NEW_CLS_strategy:
             interval = algorithms_config["config"]["args"].get("$new_class_interval", "")
             threshold = algorithms_config["config"]["args"].get("$new_class_alert_th", "")
