@@ -419,7 +419,7 @@ IS_ASSIGN_DATAID_BY_GSE = True
 DEMO_BIZ_ID = 0
 DEMO_BIZ_WRITE_PERMISSION = False
 DEMO_BIZ_APPLY = ""
-DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/document/6.0/142/8600"
+DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/markdown/ZH/QuickStart/7.0/quick-start-v7.0-monitor.md"
 
 # 企业微信群通知webhook_url
 WXWORK_BOT_WEBHOOK_URL = ""
