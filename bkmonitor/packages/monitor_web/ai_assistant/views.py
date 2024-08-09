@@ -41,7 +41,7 @@ class ChatViewSet(viewsets.GenericViewSet):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         def event_stream():
-            for line in response.iter_lines(chunk_size=10):
+            for line in response.iter_lines():
                 if not line:
                     continue
 
