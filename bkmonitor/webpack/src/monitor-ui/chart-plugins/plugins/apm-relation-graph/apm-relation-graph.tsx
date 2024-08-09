@@ -225,54 +225,53 @@ export default class ApmRelationGraph extends tsc<IProps> {
             class='side-wrap'
             slot='side'
           >
-            {this.expanded.includes('topo') && (
-              <div
-                style={{
-                  minWidth: `${sideTopoMinWidth}px`,
-                }}
-                class='source-topo'
-              >
-                <div class='header-wrap'>
-                  <div class='title'>资源拓扑</div>
-                  <div
-                    class='expand-btn'
-                    onClick={() => this.handleExpand('topo')}
-                  >
-                    <span class='icon-monitor icon-zhankai' />
-                  </div>
-                </div>
-                <div class='content-wrap' />
-              </div>
-            )}
-            {this.expanded.includes('overview') && (
-              <div
-                style={{
-                  minWidth: `${sideOverviewMinWidth}px`,
-                }}
-                class={['service-overview', { 'no-border': !this.expanded.includes('topo') }]}
-              >
-                <div class='header-wrap'>
-                  <div class='title'>服务概览</div>
-                  <div
-                    class='expand-btn'
-                    onClick={() => this.handleExpand('overview')}
-                  >
-                    <span class='icon-monitor icon-zhankai' />
-                  </div>
-                </div>
-                <div class='content-wrap'>
-                  <BarAlarmChart
-                    activeItemHeight={32}
-                    itemHeight={24}
-                    showHeader={true}
-                    showXAxis={true}
-                  >
-                    <div slot='title'>告警</div>
-                    <div slot='more'>更多</div>
-                  </BarAlarmChart>
+            <div
+              style={{
+                minWidth: `${sideTopoMinWidth}px`,
+                display: this.expanded.includes('topo') ? 'block' : 'none',
+              }}
+              class='source-topo'
+            >
+              <div class='header-wrap'>
+                <div class='title'>资源拓扑</div>
+                <div
+                  class='expand-btn'
+                  onClick={() => this.handleExpand('topo')}
+                >
+                  <span class='icon-monitor icon-zhankai' />
                 </div>
               </div>
-            )}
+              <div class='content-wrap' />
+            </div>
+
+            <div
+              style={{
+                minWidth: `${sideOverviewMinWidth}px`,
+                display: this.expanded.includes('overview') ? 'block' : 'none',
+              }}
+              class={['service-overview', { 'no-border': !this.expanded.includes('topo') }]}
+            >
+              <div class='header-wrap'>
+                <div class='title'>服务概览</div>
+                <div
+                  class='expand-btn'
+                  onClick={() => this.handleExpand('overview')}
+                >
+                  <span class='icon-monitor icon-zhankai' />
+                </div>
+              </div>
+              <div class='content-wrap'>
+                <BarAlarmChart
+                  activeItemHeight={32}
+                  itemHeight={24}
+                  showHeader={true}
+                  showXAxis={true}
+                >
+                  <div slot='title'>告警</div>
+                  <div slot='more'>更多</div>
+                </BarAlarmChart>
+              </div>
+            </div>
           </div>
         </ApmRelationGraphContent>
       </div>
