@@ -104,7 +104,7 @@ export default defineComponent({
           content = t('告警中，告警数量：{0}', [alert_number]).toString();
           break;
         default:
-        case 0:
+          // case 0:
           content = t('未配置策略').toString();
           break;
       }

@@ -62,6 +62,7 @@ interface IProps {
   hasAuthApply?: boolean;
   currentSpace?: number | string;
   isCommonStyle?: boolean;
+  needIncidentOption?: boolean;
   onChange?: (value: number[]) => void;
 }
 

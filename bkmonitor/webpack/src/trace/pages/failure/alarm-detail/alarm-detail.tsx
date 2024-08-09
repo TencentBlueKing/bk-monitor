@@ -239,6 +239,7 @@ export default defineComponent({
     const chatGroupShowChange = (show: boolean) => {
       chatGroupDialog.show = show;
     };
+    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
     const feedbackIncidentRootApi = (isCancel = false, data) => {
       const { bk_biz_id } = data;
       const params = {

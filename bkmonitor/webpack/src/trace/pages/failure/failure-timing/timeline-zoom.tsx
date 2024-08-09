@@ -113,10 +113,10 @@ export default defineComponent({
     const legendFn = () => (
       <div class='failure-topo-graph-legend-content'>
         <ul class='node-type'>
-          {NODE_TYPE.map(node => {
+          {NODE_TYPE.map((node, index) => {
             const isTag = node.type === 'tag';
             return (
-              <li>
+              <li key={index}>
                 <span class={['circle', node.status, { 'node-tag': isTag }]}>{isTag ? t('根因') : ''}</span>
                 <span>{t(node.text)}</span>
               </li>
@@ -124,9 +124,9 @@ export default defineComponent({
           })}
         </ul>
         <ul class='info-type'>
-          {INFO_TYPE.map(node => {
+          {INFO_TYPE.map((node, index) => {
             return (
-              <li>
+              <li key={index}>
                 <span>
                   <i class={`icon-monitor item-icon ${node.icon}`} />
                 </span>
@@ -346,10 +346,10 @@ export default defineComponent({
             content: (
               <div class='failure-topo-graph-legend-content'>
                 <ul class='node-type'>
-                  {NODE_TYPE.map(node => {
+                  {NODE_TYPE.map((node, index) => {
                     const isTag = node.type === 'tag';
                     return (
-                      <li>
+                      <li key={index}>
                         <span class={['circle', node.status, { 'node-tag': isTag }]}>
                           {isTag ? this.$t('根因') : ''}
                         </span>
@@ -357,8 +357,8 @@ export default defineComponent({
                       </li>
                     );
                   })}
-                  {INFO_TYPE.map(node => (
-                    <li>
+                  {INFO_TYPE.map((node, index) => (
+                    <li key={index}>
                       <span class='info-circle'>
                         <i class={`icon-monitor item-icon ${node.icon}`} />
                       </span>
