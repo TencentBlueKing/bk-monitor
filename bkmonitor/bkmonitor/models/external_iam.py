@@ -13,8 +13,6 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _lazy
 
-from bkmonitor.iam import Permission
-from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.utils.model_manager import AbstractRecordModel
 
 ACTION_CHOICES = (
@@ -27,7 +25,6 @@ STATUS_CHOICES = (
     ("success", "success"),
     ("failed", "failed"),
 )
-ACTION_ID_MAP = {"view_grafana": "view_dashboard_v2", "manage_grafana": "manage_dashboard_v2"}
 
 
 class ExternalPermission(AbstractRecordModel):
@@ -55,17 +52,25 @@ class ExternalPermission(AbstractRecordModel):
 
     @property
     def status(self):
+        from bk_dataview.permissions import GrafanaRole
         from monitor.models import GlobalConfig
+        from monitor_web.grafana.permissions import DashboardPermission
 
         status = "available"
         if self.expire_time and timezone.now() > self.expire_time:
             status = "expired"
-        action = get_action_by_id(ACTION_ID_MAP[self.action_id])
         authorizer_map = GlobalConfig.objects.get(key="EXTERNAL_AUTHORIZER_MAP").value
-        if str(self.bk_biz_id) in authorizer_map:
-            authorizer = authorizer_map[str(self.bk_biz_id)]
-            if not Permission(username=authorizer).is_allowed_by_biz(self.bk_biz_id, action, raise_exception=False):
-                status = "invalid"
+        if str(self.bk_biz_id) not in authorizer_map:
+            return status
+
+        authorizer = authorizer_map[str(self.bk_biz_id)]
+        _, role, _ = DashboardPermission.get_user_permission(authorizer, str(self.bk_biz_id))
+
+        if (self.action_id == "view_grafana" and role < GrafanaRole.Viewer) or (
+            self.action_id == "manage_grafana" and role < GrafanaRole.Editor
+        ):
+            status = "invalid"
+
         return status
 
 
