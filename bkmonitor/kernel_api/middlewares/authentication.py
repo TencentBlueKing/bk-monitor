@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -29,7 +28,6 @@ from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
-APIGW_PUBLIC_KEY = None
 APP_CODE_TOKENS = {}
 APP_CODE_UPDATE_TIME = None
 APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
@@ -88,8 +86,8 @@ class AppWhiteListModelBackend(ModelBackend):
         try:
             user_model = get_user_model()
             user, _ = user_model.objects.get_or_create(username=username, defaults={"nickname": username})
-        except Exception:
-            logger.exception("Auto create & update UserModel fail")
+        except Exception as e:
+            logger.error("Auto create & update UserModel fail, username: {}, error: {}".format(username, e))
             return None
 
         if self.user_can_authenticate(user):
@@ -104,15 +102,10 @@ class AuthenticationMiddleware(LoginRequiredMiddleware):
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def get_apigw_public_key():
-        global APIGW_PUBLIC_KEY
-        if APIGW_PUBLIC_KEY:
-            return APIGW_PUBLIC_KEY
-
         cache = caches["login_db"]
         # 从缓存中获取
         public_key = cache.get("apigw_public_key")
         if public_key:
-            APIGW_PUBLIC_KEY = public_key
             return public_key
 
         try:
@@ -121,8 +114,7 @@ class AuthenticationMiddleware(LoginRequiredMiddleware):
             logger.error("获取apigw public_key失败，%s" % e)
 
         # 设置缓存
-        cache.set("apigw_public_key", public_key)
-        APIGW_PUBLIC_KEY = public_key
+        cache.set("apigw_public_key", public_key, timeout=None)
         return public_key
 
     def process_view(self, request, view, *args, **kwargs):
