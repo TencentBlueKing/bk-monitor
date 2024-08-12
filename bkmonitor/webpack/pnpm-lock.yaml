@@ -336,8 +336,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: ^0.1.6-beta.3
-        version: 0.1.6-beta.3(highlight.js@11.5.1)(vue@2.7.16)
+        specifier: ^0.1.6-beta.4
+        version: 0.1.6-beta.4(highlight.js@11.5.1)(vue@2.7.16)
       '@blueking/bk-weweb':
         specifier: 0.0.26-beta.1
         version: 0.0.26-beta.1
@@ -2376,10 +2376,10 @@ packages:
     dev: true
     optional: true
 
-  /@blueking/ai-blueking@0.1.6-beta.3(highlight.js@11.5.1)(vue@2.7.16):
-    resolution: {integrity: sha512-Z+19tN8g6iCFFkPjcTqlzT66nY74cuDbWF3Q//FZPf95PZ6VB3u27cxCPalnNS//F95aPozbluzrDKWrWttt1g==}
+  /@blueking/ai-blueking@0.1.6-beta.4(highlight.js@11.5.1)(vue@2.7.16):
+    resolution: {integrity: sha512-MD9fgR6vPeJ1mVoSoCP7lGhCtikmiT08q/H60Of8VhlcBZHCSslQFjq4IhTFe9/82ADA5tvcj3m4fqh3xe5NJQ==}
     dependencies:
-      bkui-vue: 2.0.1-beta.47(highlight.js@11.5.1)(vue@2.7.16)
+      bkui-vue: 2.0.1-beta.49(highlight.js@11.5.1)(vue@2.7.16)
       dompurify: 3.1.5
       markdown-it: 13.0.2
     transitivePeerDependencies:
@@ -5344,8 +5344,8 @@ packages:
       vue-types: 4.1.1(vue@3.4.31)
     dev: false
 
-  /bkui-vue@2.0.1-beta.47(highlight.js@11.5.1)(vue@2.7.16):
-    resolution: {integrity: sha512-5262XDPOWVmFhE0qkYD9StbBLLqNk6bwZMahm0Yb7YiyjXgrG4uso704hrs5vGh5VptDpfvFEyRshCDk7gUBIw==}
+  /bkui-vue@2.0.1-beta.49(highlight.js@11.5.1)(vue@2.7.16):
+    resolution: {integrity: sha512-tSAIBjmXjNnG1yhQyWQW0UVFRysgf2353bo3Qd7f6zYITVbv52KHvKfnE6nCUuHZjm7edqs7mhnGuTWXuqk+cQ==}
     peerDependencies:
       highlight.js: ~11.5.0
       vue: ^3.2.0
