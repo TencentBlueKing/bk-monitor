@@ -10,10 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 import functools
 import logging
+import random
 import time
 
-from apigw_manager.apigw.utils import get_configuration
-from apigw_manager.core.fetch import Fetcher
 from bkoauth.jwt_client import JWTClient
 from blueapps.account.middlewares import LoginRequiredMiddleware
 from django.conf import settings
@@ -25,39 +24,47 @@ from django.http import HttpResponseForbidden
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.models import ApiAuthToken, AuthType
+from core.drf_resource import api
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
-
+APIGW_PUBLIC_KEY = None
 APP_CODE_TOKENS = {}
 APP_CODE_UPDATE_TIME = None
+APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
 
 
 def is_match_api_token(request, app_code: str, token: str) -> bool:
     """
     校验API鉴权
     """
+    # 如果没有biz_id，直接放行
+    if not getattr(request, "biz_id"):
+        return True
+
     global APP_CODE_TOKENS
     global APP_CODE_UPDATE_TIME
 
     # 更新缓存
-    if time.time() - APP_CODE_UPDATE_TIME > 300:
+    if APP_CODE_UPDATE_TIME is None or time.time() - APP_CODE_UPDATE_TIME > APP_CODE_TOKEN_CACHE_TIME:
         result = {}
         records = ApiAuthToken.objects.filter(type=AuthType.API)
         for record in records:
-            app_code = token.params.get("app_code")
+            app_code = record.params.get("app_code")
             if not app_code:
                 continue
             result[app_code] = (record.token, record.namespaces)
         APP_CODE_UPDATE_TIME = time.time()
         APP_CODE_TOKENS = result
 
-    # 如果app_code不在缓存中，则直接返回True
+    # 如果app_code没有对应的token，直接放行
     if app_code not in APP_CODE_TOKENS:
         return True
 
-    # 如果app_code在缓存中，则校验token
     auth_token, namespaces = APP_CODE_TOKENS[app_code]
+
+    # 校验token
     if token != auth_token:
         return False
 
@@ -97,18 +104,25 @@ class AuthenticationMiddleware(LoginRequiredMiddleware):
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def get_apigw_public_key():
+        global APIGW_PUBLIC_KEY
+        if APIGW_PUBLIC_KEY:
+            return APIGW_PUBLIC_KEY
+
         cache = caches["login_db"]
         # 从缓存中获取
         public_key = cache.get("apigw_public_key")
         if public_key:
+            APIGW_PUBLIC_KEY = public_key
             return public_key
 
-        # 从apigw获取
-        m = Fetcher(get_configuration(bk_app_code=settings.APP_CODE, bk_app_secret=settings.APP_TOKEN))
-        public_key = m.get_public_key(api_name=settings.BK_APIGW_NAME)["public_key"]
+        try:
+            public_key = api.bk_apigateway.get_public_key(api_name=settings.BK_APIGW_NAME)["public_key"]
+        except BKAPIError as e:
+            logger.error("获取apigw public_key失败，%s" % e)
 
         # 设置缓存
         cache.set("apigw_public_key", public_key)
+        APIGW_PUBLIC_KEY = public_key
         return public_key
 
     def process_view(self, request, view, *args, **kwargs):
@@ -121,7 +135,7 @@ class AuthenticationMiddleware(LoginRequiredMiddleware):
             request.user = auth.authenticate(username="admin")
             return
 
-        if request.META.get(JWTClient.JWT_KEY_NAME):
+        if request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(JWTClient.JWT_KEY_NAME):
             request.META[JWTClient.JWT_PUBLIC_KEY_HEADER_NAME] = self.get_apigw_public_key()
             request.jwt = JWTClient(request)
             if not request.jwt.is_valid:
