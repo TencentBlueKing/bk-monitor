@@ -191,7 +191,7 @@ export default class AiWhale extends tsc<object> {
     this.whalePosition.top = this.height - robotWidth - 20;
     this.whalePosition.left = this.width - robotWidth / 2;
     this.init();
-    this.initStearmChatHelper();
+    this.initStreamChatHelper();
   }
 
   destroyed() {
@@ -432,9 +432,9 @@ export default class AiWhale extends tsc<object> {
     }#/strategy-config/add`;
     window.open(url);
   }
-  initStearmChatHelper() {
+  initStreamChatHelper() {
     // 聊天开始
-    const handleStart = (id: number | string) => {
+    const handleStart = () => {
       this.loading = true;
       this.messages.push({
         role: RoleType.Assistant,
@@ -443,7 +443,7 @@ export default class AiWhale extends tsc<object> {
       });
     };
     // 接收消息
-    const handleReceiveMessage = (message: string, id: number | string) => {
+    const handleReceiveMessage = (message: string) => {
       const currentMessage = this.messages.at(-1);
       if (currentMessage.status === 'loading') {
         // 如果是loading状态，直接覆盖
@@ -455,7 +455,7 @@ export default class AiWhale extends tsc<object> {
       }
     };
     // 聊天结束
-    const handleEnd = (id: number | string) => {
+    const handleEnd = () => {
       this.loading = false;
       const currentMessage = this.messages.at(-1);
       // loading 情况下终止
@@ -464,7 +464,7 @@ export default class AiWhale extends tsc<object> {
       }
     };
     // 错误处理
-    const handleError = (message: string, code: string, id: number | string) => {
+    const handleError = (message: string) => {
       if (message.includes('user authentication failed')) {
         // 未登录，跳转登录
         const loginUrl = new URL(process.env.BK_LOGIN_URL);
@@ -478,8 +478,6 @@ export default class AiWhale extends tsc<object> {
         this.loading = false;
       }
     };
-    // 需要将 <网关名> 替换成插件部署后生成的网关名
-    // const prefix = process.env.BK_API_URL_TMPL.replace('{api_name}', '<网关名>').replace('http', 'https');
     this.chatHelper = new ChatHelper(
       `${window.site_url}rest/v2/ai_assistant/chat/chat/`,
       handleStart,
@@ -499,18 +497,6 @@ export default class AiWhale extends tsc<object> {
       role: RoleType.User,
       content: message,
     });
-    // const source = new EventSource(`${process.env.proxyUrl}/rest/v2/ai_assistant/chat/chat/`, {
-    //   withCredentials: true,
-    // });
-    // debugger;
-    // source.onmessage = e => {
-    //   const data = e.data;
-    //   console.info(data, '============');
-    // };
-    // source.onerror = e => {
-    //   console.info(e, '++++============');
-    //   source.close();
-    // };
     // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
     this.chatHelper.stream(
       {
@@ -520,10 +506,7 @@ export default class AiWhale extends tsc<object> {
       },
       1,
       {
-        'X-CSRFToken':
-          '3WhfxBmXhDym3iXKPRnx8GKTupd7Znob0oHO5ejePfYbKSbmDnGEfybNVE162AIK' ||
-          window.csrf_token ||
-          getCookie(window.csrf_cookie_name),
+        'X-CSRFToken': window.csrf_token || getCookie(window.csrf_cookie_name),
         'X-Requested-With': 'XMLHttpRequest',
         'Source-App': window.source_app,
       }
