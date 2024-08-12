@@ -64,49 +64,45 @@ class QueryBizByBkBase(Resource):
         bk_base_vm_table_id_list = data.get("bk_base_vm_table_id_list") or []
 
         # 获取 table id
-        table_id_bk_base_data_ids = {
+        table_id_bk_base_data_ids = self.get_table_id_bk_base_data_ids(bk_base_data_id_list, bk_base_vm_table_id_list)
+
+        # 获取对应的业务信息
+        table_id_biz_ids = self.get_table_id_biz_ids(table_id_bk_base_data_ids.keys())
+
+        # 获取0业务的真实业务ID
+        bk_base_data_id_biz_id = self.get_zero_biz_id_mapping(table_id_biz_ids, table_id_bk_base_data_ids)
+
+        return bk_base_data_id_biz_id  # 最终返回一个字典{data_id: bk_biz_id} 数据类型均为int
+
+    def get_table_id_bk_base_data_ids(self, bk_base_data_id_list, bk_base_vm_table_id_list):
+        return {
             qs["result_table_id"]: qs["bk_base_data_id"]
             for qs in models.AccessVMRecord.objects.filter(
                 Q(bk_base_data_id__in=bk_base_data_id_list) | Q(vm_result_table_id__in=bk_base_vm_table_id_list)
             ).values("result_table_id", "bk_base_data_id")
         }
 
-        # 通过 table id 获取对应的业务信息
-        table_id_biz_ids = {
+    def get_table_id_biz_ids(self, table_ids):
+        return {
             qs["table_id"]: qs["bk_biz_id"]
-            for qs in models.ResultTable.objects.filter(table_id__in=table_id_bk_base_data_ids.keys()).values(
-                "table_id", "bk_biz_id"
-            )
+            for qs in models.ResultTable.objects.filter(table_id__in=table_ids).values("table_id", "bk_biz_id")
         }
 
-        # 针对业务为`0`的业务，需要通过 tsgroup 或 eventgroup 过滤，然后通过 dataname 进行拆分
+    def get_zero_biz_id_mapping(self, table_id_biz_ids, table_id_bk_base_data_ids):
         zero_biz_table_id_list = [table_id for table_id, biz_id in table_id_biz_ids.items() if biz_id == 0]
 
         # 获取对应的 data id
-        table_id_data_ids = {
-            qs["table_id"]: qs["bk_data_id"]
-            for qs in models.DataSourceResultTable.objects.filter(table_id__in=zero_biz_table_id_list).values(
-                "bk_data_id", "table_id"
-            )
-        }
-        # 获取 data name
-        data_id_names = {}
-        data_id_space_uid_map = {}
-        for qs in models.DataSource.objects.filter(bk_data_id__in=table_id_data_ids.values()).values(
-            "bk_data_id", "data_name", "space_uid"
-        ):
-            data_id_names[qs["bk_data_id"]] = qs["data_name"]
-            data_id_space_uid_map[qs["bk_data_id"]] = qs["space_uid"]
+        table_id_data_ids = self.get_table_id_data_ids(zero_biz_table_id_list)
+
+        # 获取 data name 和 space_uid
+        data_id_names, data_id_space_uid_map = self.get_data_names_and_space_uids(table_id_data_ids.values())
+
         # 查询是否在指定的表中
-        data_id_ts_group_flag = {
-            obj["bk_data_id"]: True
-            for obj in models.TimeSeriesGroup.objects.filter(table_id__in=zero_biz_table_id_list).values("bk_data_id")
-        }
-        data_id_event_group_flag = {
-            obj["bk_data_id"]: True
-            for obj in models.EventGroup.objects.filter(table_id__in=zero_biz_table_id_list).values("bk_data_id")
-        }
+        data_id_ts_group_flag = self.get_data_id_group_flag(models.TimeSeriesGroup, zero_biz_table_id_list)
+        data_id_event_group_flag = self.get_data_id_group_flag(models.EventGroup, zero_biz_table_id_list)
+
         bk_base_data_id_biz_id = {}
+
         # 获取对应的数据
         for table_id, bk_biz_id in table_id_biz_ids.items():
             # 跳过没有匹配到数据
@@ -122,6 +118,7 @@ class QueryBizByBkBase(Resource):
             data_id = table_id_data_ids.get(table_id)
             if not data_id:
                 bk_base_data_id_biz_id[bk_base_data_id] = 0
+                continue
 
             data_name = data_id_names.get(data_id)
             space_uid = data_id_space_uid_map.get(data_id)
@@ -133,7 +130,31 @@ class QueryBizByBkBase(Resource):
                 bk_biz_id = self.get_biz_id_from_collector_plugin_meta(table_id)
             bk_base_data_id_biz_id[bk_base_data_id] = bk_biz_id
 
-        return bk_base_data_id_biz_id  # 最终返回一个字典{data_id: bk_biz_id} 数据类型均为int
+        return bk_base_data_id_biz_id
+
+    def get_table_id_data_ids(self, zero_biz_table_id_list):
+        return {
+            qs["table_id"]: qs["bk_data_id"]
+            for qs in models.DataSourceResultTable.objects.filter(table_id__in=zero_biz_table_id_list).values(
+                "bk_data_id", "table_id"
+            )
+        }
+
+    def get_data_names_and_space_uids(self, data_ids):
+        data_id_names = {}
+        data_id_space_uid_map = {}
+        for qs in models.DataSource.objects.filter(bk_data_id__in=data_ids).values(
+            "bk_data_id", "data_name", "space_uid"
+        ):
+            data_id_names[qs["bk_data_id"]] = qs["data_name"]
+            data_id_space_uid_map[qs["bk_data_id"]] = qs["space_uid"]
+        return data_id_names, data_id_space_uid_map
+
+    def get_data_id_group_flag(self, model, zero_biz_table_id_list):
+        return {
+            obj["bk_data_id"]: True
+            for obj in model.objects.filter(table_id__in=zero_biz_table_id_list).values("bk_data_id")
+        }
 
     def get_biz_id_from_collector_plugin_meta(self, table_id: str) -> int:
         """
@@ -141,7 +162,6 @@ class QueryBizByBkBase(Resource):
         @param table_id: 元数据中的RT
         @return: 业务ID
         """
-        # from monitor_web import CollectorPluginMeta
         try:
             real_key = table_id.split('_', 1)[-1].rsplit('.', 1)[0]  # 根据插件规则，将RT转换为对应的plugin_id
             plugin_meta = CollectorPluginMeta.objects.get(plugin_id=real_key)
