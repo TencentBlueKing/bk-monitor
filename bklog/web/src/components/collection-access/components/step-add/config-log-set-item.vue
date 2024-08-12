@@ -158,7 +158,7 @@
               </div>
               <div class="black-title-tips">
                 <i class="bk-icon icon-info-circle"></i>
-                <span>{{ $t('设定排除路径，路径之间为或的关系') }}</span>
+                <span>{{ $t('若需要排除指定路径，请展开添加路径') }}</span>
               </div>
             </div>
             <template v-if="isShowBlackList">
@@ -549,7 +549,7 @@
         deep: true,
         handler(val) {
           const { data_encoding, params } = val;
-          this.$emit('configChange', { data_encoding, params });
+          this.$emit('config-change', { data_encoding, params });
         },
       },
       configLength() {

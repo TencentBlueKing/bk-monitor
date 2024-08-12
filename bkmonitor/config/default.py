@@ -419,7 +419,7 @@ IS_ASSIGN_DATAID_BY_GSE = True
 DEMO_BIZ_ID = 0
 DEMO_BIZ_WRITE_PERMISSION = False
 DEMO_BIZ_APPLY = ""
-DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/document/6.0/142/8600"
+DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/markdown/ZH/QuickStart/7.0/quick-start-v7.0-monitor.md"
 
 # 企业微信群通知webhook_url
 WXWORK_BOT_WEBHOOK_URL = ""
@@ -494,6 +494,11 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
+
+# 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
+BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
+    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:build_in_result_table_detail"
+)
 
 # APM config
 APM_ACCESS_URL = ""

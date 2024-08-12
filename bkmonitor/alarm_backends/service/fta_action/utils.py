@@ -625,16 +625,15 @@ class AlertAssignee:
             }
         )
         try:
-            if self.alert.event.bk_host_id:
-                host = HostManager.get_by_id(self.alert.event.bk_host_id)
-            else:
-                ip = self.alert.event.ip
-                bk_cloud_id = self.alert.event.bk_cloud_id
-                host = HostManager.get(ip, bk_cloud_id)
+            if not self.alert.event.target_type:
+                # 无监控对象， 不需要获取负责人
+                return group_users
+
+            host = HostManager.get_by_id(self.alert.event.bk_host_id)
             for operator_attr in ["operator", "bk_bak_operator"]:
                 group_users[operator_attr] = self.get_host_operator(host, operator_attr)
-        except BaseException as error:
-            logger.info("Get ip  of alert(%s) from event failed : %s", self.alert.id, str(error))
+        except AttributeError:
+            pass
         return group_users
 
     @classmethod

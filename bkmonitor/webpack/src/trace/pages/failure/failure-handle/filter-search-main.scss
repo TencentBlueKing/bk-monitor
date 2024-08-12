@@ -21,6 +21,11 @@
                 color: #63656E;
                 background: #fff3e2;
             }
+            &.error {
+                .bk-input {
+                    border: 1px solid #ff5656; 
+                }
+            }
         }
     }
 }

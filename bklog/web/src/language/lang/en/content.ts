@@ -103,7 +103,7 @@ export default {
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
   上次检测时间: 'Last time',
-  腾讯蓝鲸智云: 'Tencent BlueKing',
+  蓝鲸智云: 'BlueKing',
   业务DEMO: 'Demo',
   体验DEMO: 'Demo',
   最大字段长度: 'Maximum field length',
@@ -378,7 +378,7 @@ export default {
   '当前仓库名称为{n}，确认要删除？': 'The current store name is {n}, confirm to delete?',
   '当前是否有数据源，如果没有请 {0}': 'Is there a data source currently? if not, please {0}',
   '无分词字段 请前往 {0} 调整清洗': 'No tokenization field. please go to {0} to adjust parsing',
-  '显示字段（已选 {0} / {1})': 'Display fields (selected {0} / {1})',
+  '显示字段（已选 {0} 条)': 'Display fields ({0} selected)',
   设置了时间格式后将替换默认的数据时间: 'Setting a time format will replace the default data time',
   '未部署基础计算平台，无法进行高级清洗': 'Advanced parsing cannot be performed without basic BK-Base deployment',
   '按行过滤: 从第{0}行到第{1}行': 'Filter by line: from line {0} to line {1}',
@@ -662,8 +662,8 @@ export default {
   当前显示全部字段: 'Currently showing all fields',
   显示全部字段: 'Currently showing all fields',
   新开标签页: 'New tab',
-  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。':
-    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本':
+    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please ensure that the collector has been upgraded to the latest version.',
   '输入自定义同比，按 Enter 确认': 'Enter custom year-on-year and press enter to confirm',
   将分组作为列展示: 'Display groups as columns',
   '如需根据某些维度拆分聚类结果，可将字段设置为维度。':
@@ -808,12 +808,14 @@ export default {
   不等于: 'Not equal to',
   正则不匹配: 'Regular expression mismatch',
   路径黑名单: 'Path blacklist',
-  '设定排除路径，路径之间为或的关系': 'Set exclusion paths, the relationship between paths is OR',
-  '过滤器支持采集时过滤不符合的日志内容，需采集器版本 7.7.2及以上版本':
-    'The filter supports filtering non-conforming log content during collection, requires collector version 7.7.2 and above',
+  '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
+  '过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本':
+    'The filter supports filtering non-conforming log content during collection, please ensure that the collector has been upgraded to the latest version.',
   操作符: 'Operator',
   新增过滤组: 'Add filter group',
   请输入列数: 'Please enter the number of columns',
   请输入日志样例: 'Please enter a log sample',
   '第{n}行': '{n} line',
+  '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
+  分隔符匹配: 'Delimiter match',
 };

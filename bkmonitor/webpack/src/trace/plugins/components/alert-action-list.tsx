@@ -70,7 +70,6 @@ export default defineComponent({
     };
 
     const afterCloseFn = () => {
-      isActionFocus.value = false;
       setTimeout(() => {
         emit('listHidden');
       });
@@ -260,6 +259,7 @@ export default defineComponent({
     };
 
     const handleMouseEnter = () => {
+      isActionFocus.value = false;
       isShowList.value = !isShowList.value;
       if (isShowList.value || isActionFocus.value) {
         emit('listShown');
@@ -326,7 +326,6 @@ export default defineComponent({
     const handleConfirmAfter = () => {};
     const alarmConfirmChange = v => {
       dialog.alarmConfirm.show = v;
-      handleGetTable();
       if (!v) {
         afterCloseFn();
       }
@@ -347,7 +346,7 @@ export default defineComponent({
         <BkDropdown
           v-slots={{
             content: () => (
-              <BkDropdownMenu>
+              !isActionFocus.value && <BkDropdownMenu>
                 {actionList.map(item => (
                   <BkDropdownItem
                     style={`font-size: 12px;color: #63656E; ${getDisabled(item) ? style : ''}`}

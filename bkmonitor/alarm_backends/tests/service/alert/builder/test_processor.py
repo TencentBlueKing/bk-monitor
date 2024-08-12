@@ -26,11 +26,9 @@ from constants.data_source import KubernetesResultTableLabel
 
 
 class TestProcessor(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self):
-
         CacheNode.refresh_from_settings()
         ALERT_DEDUPE_CONTENT_KEY.client.flushall()
         AlertUIDManager.SEQUENCE_REDIS_KEY.client.flushall()
@@ -729,7 +727,8 @@ class TestProcessor(TestCase):
         self.assertEqual([], processor.save_events([]))
         self.assertEqual([], processor.build_alerts([]))
         self.assertEqual([], processor.save_alerts([]))
-        self.assertEqual(None, processor.update_alert_cache([]))
+        self.assertEqual((0, 0), processor.update_alert_cache([]))
+        self.assertEqual(0, processor.update_alert_snapshot([]))
 
     @staticmethod
     def get_alert_processor(event_data=None):
