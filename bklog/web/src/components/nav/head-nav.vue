@@ -60,7 +60,7 @@
     >
       <!-- 全局设置 -->
       <bk-dropdown-menu
-        v-if="!isExternal"
+        v-if="isShowGlobalSetIcon"
         align="center"
         trigger="click"
         @show="dropdownGlobalShow"
@@ -267,7 +267,12 @@ export default {
     GlobalDialog
   },
   mixins: [navMenuMixin],
-  props: {},
+  props: {
+    welcomeData: {
+      type: Object,
+      default: null
+    }
+  },
   data() {
     return {
       isFirstLoad: true,
@@ -345,6 +350,9 @@ export default {
       return this.topMenu.filter(menu => {
         return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
       });
+    },
+    isShowGlobalSetIcon() {
+      return !this.welcomeData && !this.isExternal;
     }
   },
   watch: {
