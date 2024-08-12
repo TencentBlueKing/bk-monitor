@@ -37,6 +37,7 @@
     />
     <head-nav
       v-show="!isAsIframe && !pageLoading"
+      :welcome-data="welcomePageData"
       @reload-router="routerKey += 1"
       @welcome="welcomePageData = $event"
     />
