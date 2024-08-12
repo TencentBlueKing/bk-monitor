@@ -344,8 +344,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: ^0.1.6-beta.2
-        version: 0.1.6-beta.2(highlight.js@11.5.1)(vue@2.7.16)
+        specifier: ^0.1.6-beta.3
+        version: 0.1.6-beta.3(highlight.js@11.5.1)(vue@2.7.16)
       '@blueking/bk-weweb':
         specifier: 0.0.26-beta.6
         version: 0.0.26-beta.6
@@ -2570,9 +2570,9 @@ packages:
     dev: true
     optional: true
 
-  /@blueking/ai-blueking@0.0.3:
+  /@blueking/ai-blueking@0.1.6-beta.3(highlight.js@11.5.1)(vue@2.7.16):
     resolution:
-      { integrity: sha512-zxHrCPTCmSF6aPXGIbyroe9OSUoxd2rm/Oy6kdH0GB5khZ4jyTeScdLiPtXzN9YKhDO8B52MJHFr3GSe9AOdkw== }
+      { integrity: sha512-Z+19tN8g6iCFFkPjcTqlzT66nY74cuDbWF3Q//FZPf95PZ6VB3u27cxCPalnNS//F95aPozbluzrDKWrWttt1g== }
     dependencies:
       bkui-vue: 2.0.1-beta.47(highlight.js@11.5.1)(vue@2.7.16)
       dompurify: 3.1.5
