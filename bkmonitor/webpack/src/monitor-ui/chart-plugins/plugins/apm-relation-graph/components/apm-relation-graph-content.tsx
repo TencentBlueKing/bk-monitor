@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './apm-relation-graph-content.scss';
 
-type IProps = any;
+interface IProps {
+  expanded?: string[];
+}
 @Component
 export default class ApmRelationGraphContent extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) expanded: string[];
   /* 侧栏拖拽 */
   minWidth = 720;
   width = 720;
@@ -38,6 +41,25 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
   isMouseenter = false;
   isDrop = false;
   downPageX = 0;
+
+  @Watch('expanded', { immediate: true })
+  handleWatchExpanded(newVal: string[]) {
+    if (newVal.length) {
+      let width = 0;
+      for (const key of newVal) {
+        if (key === 'overview') {
+          width += 320;
+        }
+        if (key === 'topo') {
+          width += 400;
+        }
+      }
+      this.width = width;
+      this.minWidth = width;
+    } else {
+      this.width = 0;
+    }
+  }
 
   /* 侧栏拖转 ---start----- */
   handleSideMouseenter() {
