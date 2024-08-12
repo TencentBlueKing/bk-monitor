@@ -80,8 +80,7 @@ class ValuesPluginMixin:
         res = defaultdict(lambda: defaultdict(int))
         for k, v in response.items():
             for i in k:
-                self._increase_count(i, v[m.metric_id], res)
-
+                res[(i,)][self.id] += v[m.metric_id]
         return dict(res)
 
     def get_instance_values_mapping(self, **kwargs) -> Dict[Tuple[Union[str, Tuple]], Dict]:
@@ -112,9 +111,6 @@ class ValuesPluginMixin:
     def _to_value(cls, value):
         """value 转换"""
         return value
-
-    def _increase_count(self, group_key, value, mapping):
-        mapping[group_key][self.id] += value
 
     @classmethod
     def _ignore_keys(cls):
@@ -324,7 +320,7 @@ class NodeRequestCountCallee(PrePlugin, ValuesPluginMixin):
 
     id: str = BarChartDataType.REQUEST_COUNT_CALLEE.value
     type: GraphPluginType = GraphPluginType.NODE
-    metric: Type[MetricHandler] = functools.partial(ServiceFlowCount)
+    metric: Type[MetricHandler] = functools.partial(ServiceFlowCount, group_by=["to_apm_service_name"])
 
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_increase_values_mapping()
@@ -465,7 +461,7 @@ class NodeInstanceCount(PrePlugin):
         ).get("data", [])
         instances_count_mapping = defaultdict(lambda: defaultdict(int))
         for i in instances:
-            instances_count_mapping[i["topo_node_key"]][self.id] += 1
+            instances_count_mapping[(i["topo_node_key"],)][self.id] += 1
 
         return instances_count_mapping
 

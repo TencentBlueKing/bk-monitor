@@ -98,7 +98,8 @@ class NodeContainer:
         yield from self._nodes
 
     def to_nodes_attrs_mapping(self):
-        return {i.id: {"data": asdict(i)} for i in self._nodes}
+        # Node 与 Edge 保持统一 key 都使用 tuple 类型
+        return {(i.id,): {"data": asdict(i)} for i in self._nodes}
 
 
 @dataclass
@@ -178,7 +179,7 @@ class Graph:
         self._edges_attrs = edges_attrs
 
     def _refresh(self):
-        self._graph.add_nodes_from(tuple(self._node_merge_attrs.items()))
+        self._graph.add_nodes_from(tuple({k[0]: v for k, v in self._node_merge_attrs.items()}.items()))
         self._graph.add_edges_from(tuple([(*key, value) for key, value in self._edge_merge_attrs.items()]))
 
     def __lshift__(self, patch: Union[NodeContainer, EdgeContainer]):
