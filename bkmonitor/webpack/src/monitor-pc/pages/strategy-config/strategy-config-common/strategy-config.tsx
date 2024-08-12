@@ -275,6 +275,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   ipTargetType = 'TOPO';
   ipSelectorShow = false;
   emptyType: EmptyStatusType = 'empty'; // 空状态
+  selectKey = 1;
   cancelFn = () => {}; // 取消监控目标接口方法
 
   get bizList() {
@@ -859,6 +860,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     this.handleGetListData(true, this.tableInstance.page);
     this.getGroupList();
   }
+
   handleSearchChange(v) {
     if (JSON.stringify(v || []) === JSON.stringify(this.header.keywordObj || [])) return;
     this.header.keywordObj = v;
@@ -1031,6 +1033,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
         });
       }
     });
+    this.selectKey += 1;
     this.conditionList = res;
   }
   /**
@@ -1923,24 +1926,14 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     this.alarmGroupDialog.show = true;
   }
 
-  /** 筛选面板字段展示变动 */
-  handleFilterFieldsChange(fields: string[]) {
-    this.showFilterPanelField = fields;
-    this.handleSetUserConfig(
-      FILTER_PANEL_FIELD,
-      JSON.stringify({
-        fields: this.showFilterPanelField,
-        order: this.filterPanelFieldOrder,
-      })
-    );
-  }
-
-  /** 筛选面板字段排序变动 */
-  handleFilterFieldOrderChange(originIndex: number, targetIndex: number) {
-    const origin = this.filterPanelFieldOrder[originIndex];
-    this.filterPanelFieldOrder[originIndex] = this.filterPanelFieldOrder[targetIndex];
-    this.filterPanelFieldOrder[targetIndex] = origin;
-    this.filterPanelFieldOrder = [...this.filterPanelFieldOrder];
+  /** 筛选面板设置 */
+  handleFilterFieldsChange({ showFields = [], order = [] }) {
+    this.showFilterPanelField = showFields;
+    const fieldsOrder = order.reduce((acc, cur) => {
+      acc.push(this.filterPanelFieldOrder[cur]);
+      return acc;
+    }, []);
+    this.filterPanelFieldOrder = fieldsOrder;
     this.handleSetUserConfig(
       FILTER_PANEL_FIELD,
       JSON.stringify({
@@ -2776,9 +2769,8 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
                 <span class='title'>{this.$t('筛选')}</span>
                 <FilterPanelPopover
                   list={this.filterPanelData}
-                  showFiled={this.showFilterPanelField}
+                  showFields={this.showFilterPanelField}
                   onFilterFieldChange={this.handleFilterFieldsChange}
-                  onFilterFieldOrderChange={this.handleFilterFieldOrderChange}
                 />
               </div>
             </FilterPanel>
@@ -2869,6 +2861,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
                 </ul>
               </bk-dropdown-menu>
               <SearchSelect
+                key={this.selectKey}
                 class='header-search'
                 data={this.conditionList}
                 modelValue={this.header.keywordObj}
