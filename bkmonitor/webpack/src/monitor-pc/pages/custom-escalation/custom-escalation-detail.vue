@@ -932,6 +932,7 @@ import {
   modifyCustomTsGroupingRuleList,
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
+  modifyCustomTimeSeriesDesc,
 } from 'monitor-api/modules/custom_report';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
@@ -1908,12 +1909,15 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
 
   // 编辑描述
   async handleEditDescribe() {
-    if (!this.copyDescribe || this.copyDescribe === this.detailData.desc) {
-      this.copyDescribe = this.detailData.desc;
+    const { desc } = this.detailData;
+    if (!this.copyDescribe || this.copyDescribe === desc) {
+      this.copyDescribe = desc;
       this.isShowEditDesc = false;
       return;
     }
-    await this.$store.dispatch('custom-escalation/editCustomTimeSeriesDesc', {desc: this.copyDescribe});
+    this.detailData.desc = this.copyDescribe;
+    this.isShowEditDesc = false;
+    this.loading = false;
   }
 
   /** 保存自定义事件编辑 */
@@ -2083,6 +2087,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       ],
     };
     await this.handleSaveGroupManage();
+    await this.handleSaveDesc();
     const data = await this.$store.dispatch('custom-escalation/editCustomTime', params);
     if (data) {
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
@@ -2356,6 +2361,17 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     };
     await modifyCustomTsGroupingRuleList(params).catch(() => false);
   }
+
+  /* 保存描述信息 */
+  async handleSaveDesc() {
+    const params = {
+      bk_biz_id: this.detailData.bk_biz_id,
+      time_series_group_id: this.detailData.time_series_group_id,
+      desc: this.copyDescribe,
+    };;
+    await modifyCustomTimeSeriesDesc(params).catch(() => false);
+  }
+
   /* 选择分组下拉框收起展开 */
   handleGroupSelectToggle(v: boolean) {
     if (!v) {

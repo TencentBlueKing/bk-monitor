@@ -62,6 +62,7 @@ export interface IDetailData {
   is_readonly?: boolean;
   protocol?: string;
   desc?: string;
+  bk_biz_id?: string;
 }
 
 export interface IShortcuts {

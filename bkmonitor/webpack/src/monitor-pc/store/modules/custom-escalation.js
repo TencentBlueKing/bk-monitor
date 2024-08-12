@@ -32,7 +32,6 @@ import {
   getCustomTimeSeriesLatestDataByFields,
   modifyCustomEventGroup,
   modifyCustomTimeSeries,
-  modifyCustomTimeSeriesDesc,
   proxyHostInfo,
   queryCustomEventGroup,
   validateCustomEventGroupName,
@@ -64,11 +63,6 @@ const actions = {
   async editCustomTime(_, params) {
     const data = await modifyCustomTimeSeries(params).catch(() => false);
     return transformDataKey(data);
-  },
-
-  // 编辑自定义指标描述信息
-  async editCustomTimeSeriesDesc(_, params) {
-    await modifyCustomTimeSeriesDesc(params).catch(() => false);
   },
 
   //  删除自定义指标
