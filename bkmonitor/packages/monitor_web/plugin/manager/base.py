@@ -373,7 +373,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         }
         api.node_man.release_config(param)
 
-    def release(self, config_version, info_version, token):
+    def release(self, config_version, info_version, token, debug=True):
         """
         发布插件包
 
@@ -382,23 +382,30 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             current_version = self.plugin.get_version(config_version, info_version)
             # 接入数据源
             PluginDataAccessor(current_version, self.operator).access()
+
+            if debug:
+                release_version = self.plugin.get_debug_version(config_version)
+            else:
+                release_version = current_version
+
             # 调用节点管理接口，发布配置文件
-            debug_version = self.plugin.get_debug_version(config_version)
-            release_config = partial(self.release_config, debug_version.config_version, debug_version.info_version)
+            release_config = partial(self.release_config, release_version.config_version, release_version.info_version)
             list(map(release_config, self.config_files))
             # 调用节点管理接口，发布插件包
             api.node_man.release_plugin(
                 {
                     "name": self.plugin.plugin_id,
-                    "version": "{}.{}".format(debug_version.config_version, debug_version.info_version),
+                    "version": "{}.{}".format(release_version.config_version, release_version.info_version),
                     "md5_list": token,
                 }
             )
             # 将插件版本状态置为release
-            debug_version.stage = "release"
-            debug_version.save()
-            current_version.stage = "release"
-            current_version.save()
+            release_version.stage = "release"
+            release_version.save()
+
+            if debug:
+                current_version.stage = "release"
+                current_version.save()
         except Exception as err:
             logger.error("[plugin] release plugin {} error, msg is {}".format(self.plugin.plugin_id, str(err)))
             self.plugin.rollback_version_status(config_version)

@@ -72,7 +72,7 @@ class PlatformConfigStore extends VuexModule {
       favIcon: '/static/monitor/img/monitor-64.png',
       version: window.footer_version,
     };
-    if (!window.bk_shared_res_url) {
+    if (window.bk_shared_res_url) {
       configPromise = getPlatformConfig(
         `${window.bk_shared_res_url.replace(/\/$/, '')}/bk_monitorv3/base.js`,
         initialConfig

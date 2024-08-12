@@ -86,6 +86,15 @@ export const operatorMapping = {
 export const tableRowBaseObj: ITableRowItem = {
   fieldindex: '',
   word: '',
-  op: 'eq',
+  op: '=',
   tableIndex: 0,
+};
+
+export const operatorMappingObj = {
+  eq: window.mainComponent.$t('等于'),
+  neq: window.mainComponent.$t('不等于'),
+  include: window.mainComponent.$t('包含'),
+  exclude: window.mainComponent.$t('不包含'),
+  regex: window.mainComponent.$t('正则匹配'),
+  nregex: window.mainComponent.$t('正则不匹配'),
 };

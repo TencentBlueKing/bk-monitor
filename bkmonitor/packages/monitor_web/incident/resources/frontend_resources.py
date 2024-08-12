@@ -359,13 +359,18 @@ class IncidentTopologyResource(IncidentBaseResource):
             )
             incident_snapshots = sorted(incident_snapshots, key=lambda x: x["create_time"])
 
+        # 根据实体加入的时间生成实体ID到时间的映射
+        entities_orders = self.generate_entities_orders(incident_snapshots)
+
         snapshots = {}
         for incident_snapshot in incident_snapshots:
             snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
             if validated_request_data["auto_aggregate"]:
-                snapshot.aggregate_graph(incident)
+                snapshot.aggregate_graph(incident, entities_orders=entities_orders)
             elif validated_request_data["aggregate_config"]:
-                snapshot.aggregate_graph(incident, validated_request_data["aggregate_config"])
+                snapshot.aggregate_graph(
+                    incident, validated_request_data["aggregate_config"], entities_orders=entities_orders
+                )
             snapshots[incident_snapshot.id] = snapshot
 
         latest_snapshot_content = self.generate_topology_data_from_snapshot(
@@ -402,6 +407,14 @@ class IncidentTopologyResource(IncidentBaseResource):
                 "edges": list(complete_topologies["edges"].values()),
             },
         }
+
+    def generate_entities_orders(self, incident_snapshots: List[IncidentSnapshotDocument]) -> Dict:
+        entities_orders = {}
+        for incident_snapshot in incident_snapshots:
+            for entity in incident_snapshot.content["incident_propagation_graph"]["entities"]:
+                if entity["entity_id"] not in entities_orders:
+                    entities_orders[entity["entity_id"]] = incident_snapshot.create_time
+        return entities_orders
 
     def generate_topology_diff_from_snapshot(
         self,

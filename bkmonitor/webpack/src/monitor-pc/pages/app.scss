@@ -508,7 +508,11 @@
 
   @media screen and (max-width: 1500px) {
     .bk-navigation-title {
-      flex: 0 0 144px !important;
+      flex: 0 0 154px !important;
+
+      .title-desc {
+        margin-left: 6px;
+      }
     }
   }
 }

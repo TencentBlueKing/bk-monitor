@@ -23,48 +23,59 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getMetricId } from './utils';
 
-import type { PanelModel } from '../typings';
+import { ref, watch } from 'vue';
 
-export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
-  const metricIdMap = {};
-  const promqlSet = new Set<string>();
-  if (panel?.targets?.length) {
-    for (const target of panel.targets) {
-      if (target.data?.query_configs?.length) {
-        for (const item of target.data.query_configs) {
-          if (item.promql) {
-            promqlSet.add(JSON.stringify(item.promql));
-          } else {
-            const metricId = getMetricId(
-              item.data_source_label,
-              item.data_type_label,
-              item.metrics?.[0]?.field,
-              item.table,
-              item.index_set_id
-            );
-            if (metricId) {
-              metricIdMap[metricId] = 'true';
-            }
-          }
+interface TagsOverflowOptions {
+  targetRef: any;
+  collapseTagRef: any;
+  isOverflow: any;
+}
+
+function useTagsOverflow(options: TagsOverflowOptions) {
+  const { targetRef, isOverflow, collapseTagRef } = options;
+  const overflowTagIndex = ref<null | number>(null);
+
+  const getTagDOM = (index?: number) => {
+    const tagDomList = targetRef.value.map(item => item?.$el).filter(item => !!item);
+    return typeof index === 'number' ? tagDomList[index] : tagDomList;
+  };
+
+  const calcOverflow = () => {
+    if (!isOverflow.value) return;
+
+    overflowTagIndex.value = null;
+    setTimeout(() => {
+      const tags = getTagDOM();
+      // 出现换行的Index位置
+      const tagIndexInSecondRow = tags.findIndex((currentTag, index) => {
+        if (!index) {
+          return false;
         }
+        const previousTag = tags[index - 1];
+        return previousTag.offsetTop !== currentTag.offsetTop;
+      });
+      overflowTagIndex.value = tagIndexInSecondRow > 0 ? tagIndexInSecondRow : null;
+      // 剩余位置能否放下数字tag
+      if (tags[overflowTagIndex.value]?.offsetTop !== collapseTagRef.value?.offsetTop && overflowTagIndex.value > 1) {
+        overflowTagIndex.value -= 1;
       }
-    }
-  }
-  let queryString = '';
-  for (const metricId of Object.keys(metricIdMap)) {
-    queryString += `${queryString.length ? ' or ' : ''}指标ID : ${metricId}`;
-  }
-  let promqlString = '';
-  for (const promql of promqlSet) {
-    promqlString = `promql=${promql}`;
-  }
-  (queryString.length || promqlString) &&
-    window.open(
-      location.href.replace(
-        location.hash,
-        `#/event-center?from=${timeRange[0]}&to=${timeRange[1]}&timezone=${window.timezone}&${promqlString || `queryString=${queryString}`}`
-      )
-    );
-};
+    });
+  };
+
+  watch(
+    isOverflow,
+    () => {
+      calcOverflow();
+    },
+    { immediate: true }
+  );
+
+  // 监听Dom元素变化
+  return {
+    canShowIndex: overflowTagIndex,
+    calcOverflow: calcOverflow,
+  };
+}
+
+export { useTagsOverflow };

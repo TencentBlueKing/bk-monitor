@@ -110,16 +110,16 @@ class BaseAlertProcessor:
         更新告警信息到 redis 缓存
         """
         if not alerts:
-            return
+            return 0, 0
         update_count, finished_count = AlertCache.save_alert_to_cache(alerts)
-        self.logger.info("[update alert cache]: updated(%s), finished(%s)", update_count, finished_count)
+        return update_count, finished_count
 
     def update_alert_snapshot(self, alerts: List[Alert]):
         if not alerts:
-            return
+            return 0
 
         snapshot_count = AlertCache.save_alert_snapshot(alerts)
-        self.logger.info("[update alert snapshot]: %s", snapshot_count)
+        return snapshot_count
 
     def save_alerts(self, alerts: List[Alert], action=BulkActionType.INDEX, force_save=False) -> List[Alert]:
         """

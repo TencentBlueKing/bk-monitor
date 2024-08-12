@@ -144,7 +144,6 @@ def check_blocked_alert_finished(alert_keys):
     )
 
 
-@task(ignore_result=True, queue="celery_alert_manager")
 def send_check_task(alerts: List[Dict], run_immediately=True):
     """
     生成告警检测任务
