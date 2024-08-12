@@ -22,9 +22,9 @@ from metadata.models import (
     DataSourceResultTable,
     Label,
     ResultTable,
+    Space,
     TimeSeriesGroup,
 )
-from metadata.models.space.managers import SpaceManager
 from metadata.utils.redis_tools import RedisTools
 
 
@@ -42,34 +42,21 @@ class Command(BaseCommand):
         # 根据对应的Key，查询Redis中的哈希表拉取数据
         redis_data = RedisTools.hgetall(self.redis_key)
 
-        # 预先获取所有table_id
-        table_ids = [
-            "bkmonitor_{}_{}_built_in_time_series.__default__".format(
-                field.decode('utf-8').split('__')[0], field.decode('utf-8').split('__')[1]
-            )
-            for field in redis_data.keys()
-        ]
-
-        # 批量获取ResultTable对象
-        existing_rts = ResultTable.objects.filter(table_id__in=table_ids, is_builtin=True)
-        existing_rts_dict = {rt.table_id: rt for rt in existing_rts}
+        # 批量获取所有内置RT对象
+        existing_rts = ResultTable.objects.filter(is_builtin=True)
 
         for field, value in redis_data.items():
             value_dict = json.loads(value)  # 获取对应的field与value
             key = field.decode('utf-8')
             space_type, space_id = key.split('__')  # 分割出space_type和space_id
-            biz_id = (
-                space_id
-                if space_type == "bkcc"
-                else SpaceManager.get_biz_id_by_space(space_type=space_type, space_id=space_id)
-            )
+            biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
             # bkmonitor_{space_type}_{space_id}_built_in_time_series.__default__
             data_name = "bkmonitor_{}_{}_built_in_time_series".format(space_type, space_id)
             table_id = "bkmonitor_{}_{}_built_in_time_series.__default__".format(space_type, space_id)
             token = value_dict.get('token')
             modify_time = value_dict.get('modifyTime')  # noqa
 
-            rt = existing_rts_dict.get(table_id)
+            rt = existing_rts.get(table_id=table_id)
             if rt:
                 if not token:
                     try:
@@ -79,9 +66,12 @@ class Command(BaseCommand):
                         generated_token = transform_data_id_to_token(
                             metric_data_id=data_id, bk_biz_id=biz_id, app_name=data_name
                         )
-                        # 更新Redis中的dataID和modifyTime
+                        # 更新Redis中的Token和modifyTime
                         value_dict['token'] = generated_token
-                        # DS中的Token也应该更新
+                        # DS中的Token也需要更新
+                        ds = DataSource.objects.get(bk_data_id=dsrt.bk_data_id)
+                        ds.token = generated_token
+                        ds.save()
                         value_dict['modifyTime'] = new_modify_time
                         RedisTools.hset_to_redis(self.redis_key, key, json.dumps(value_dict))
                     except Exception as e:
