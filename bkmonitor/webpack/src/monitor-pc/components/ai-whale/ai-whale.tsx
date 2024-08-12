@@ -99,7 +99,13 @@ interface IData {
 const robotWidth = 64;
 
 const tipClassName = 'ai-small-whale-tip-content';
-
+const questions = [
+  '蓝鲸监控的告警包含哪几个级别？',
+  '如何在仪表盘中进行指标计算？',
+  '主机监控场景包含哪些指标？',
+  '如何接入第三方告警源？',
+  '智能检测目前能支持哪些场景？',
+];
 @Component
 export default class AiWhale extends tsc<object> {
   @Ref('robot') robotRef: HTMLDivElement;
@@ -137,20 +143,11 @@ export default class AiWhale extends tsc<object> {
   /* AI Blueking */
   messages: IMessage[] = [
     {
-      content: '你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。',
+      content: window.i18n.tc('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。'),
       role: RoleType.Assistant,
     },
   ];
-  prompts = [
-    {
-      id: 1,
-      content: '帮我计算1+1的结果',
-    },
-    {
-      id: 2,
-      content: '帮我计算2+2的结果',
-    },
-  ];
+  prompts = questions.map((v, index) => ({ id: index + 1, content: window.i18n.tc(v) }));
   loading = false;
   background = '#f5f7fa';
   headBackground = 'linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)';
