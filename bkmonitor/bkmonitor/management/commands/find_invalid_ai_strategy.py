@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 
@@ -52,4 +52,7 @@ class Command(BaseCommand):
         strategies = StrategyModel.objects.filter(id__in=strategy_ids, is_enabled=True).values_list(
             "id", "name", "bk_biz_id"
         )
-        print(f"以下策略配置了aiops算法，但未生效，列表中每个元素含义是(策略ID, 策略名, 业务ID)：{list(strategies)}")
+        url_tmp = f"{settings.BK_MONITOR_HOST}/?bizId=%s/#/strategy-config/edit/%s"
+        print("以下策略配置了aiops算法，但未生效:")
+        for strategy in strategies:
+            print(f"[{strategy[1]}]({url_tmp % (strategy[2], strategy[0])})")
