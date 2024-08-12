@@ -198,9 +198,6 @@ class SQLCompiler(compiler.SQLCompiler):
         if self.query.offset is not None:
             result["start"] = self.query.offset
 
-        print(self.query.__dict__)
-        print(filter_string)
-
         return "", result
 
     def _get_metric(self):
