@@ -240,9 +240,15 @@
       display: inline-block;
       width: 16px;
       height: 16px;
+      text-align: center;
       background: #c5c5c533;
       border: 1px solid #979ba5;
       border-radius: 100%;
+    }
+
+    .restored {
+      background: #6C6F78;
+      border-color: #6C6F78;
     }
 
     .notRestored {

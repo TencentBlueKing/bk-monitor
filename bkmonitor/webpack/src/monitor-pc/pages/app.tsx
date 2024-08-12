@@ -126,7 +126,7 @@ export default class App extends tsc<object> {
     const { appLogo, footerCopyrightContent, i18n } = platformConfigStore.publicConfig;
     return {
       logo: appLogo || monitorLogo,
-      name: i18n?.name ?? this.$t('监控平台'),
+      name: this.$t('监控平台'),
       contact: i18n?.footerInfoHTML ?? '',
       copyright: footerCopyrightContent,
     };

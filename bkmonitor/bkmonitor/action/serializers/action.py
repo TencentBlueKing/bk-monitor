@@ -128,9 +128,7 @@ class UpgradeConfigSlz(serializers.Serializer):
 
 class NoticeWaySerializer(serializers.Serializer):
     name = serializers.CharField(required=True, label="通知方式")
-    receivers = serializers.ListField(
-        required=False, label="接收人员人员", default=[], child=serializers.CharField(max_length=32)
-    )
+    receivers = serializers.ListField(required=False, label="接收人员人员", default=[], child=serializers.CharField())
 
 
 class BaseNotifyConfigSerializer(serializers.Serializer):

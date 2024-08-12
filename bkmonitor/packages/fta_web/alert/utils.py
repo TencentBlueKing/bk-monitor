@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import re
 
 
 def slice_by_interval_seconds(start_time: int, end_time: int, interval_seconds: int) -> list:
@@ -65,3 +66,49 @@ def add_aggs(agg_id_map: dict, result: dict, sliced_result: dict):
                 for res_child in result["aggs"][index]["children"]:
                     if res_child["id"] == child["id"]:
                         res_child["count"] += child["count"]
+
+
+def process_stage_string(query_string):
+    patterns = [
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已通知",
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已确认",
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已屏蔽",
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已流控",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_handled",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_ack",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_shielded",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_blocked",
+    ]
+    stage_mapping = {
+        "已通知": "is_handled",
+        "已确认": "is_ack",
+        "已屏蔽": "is_shielded",
+        "已流控": "is_blocked",
+        "is_handled": "is_handled",
+        "is_ack": "is_ack",
+        "is_shielded": "is_shielded",
+        "is_blocked": "is_blocked",
+    }
+
+    combined_pattern = '|'.join(patterns)
+    matches = list(re.finditer(combined_pattern, query_string, re.IGNORECASE))
+    extracted_parts = [match.group(0) for match in matches]
+
+    query_string = re.sub(combined_pattern, "", query_string, flags=re.IGNORECASE)
+
+    stage_conditions = []
+    for stage in extracted_parts:
+        if "处理阶段" in stage or "stage" in stage:
+            stage_value = stage.split(":")[1].strip()
+            stage_conditions.append(
+                {
+                    "key": "stage",
+                    "value": [stage_mapping.get(stage_value.lower(), stage_value)],
+                    "condition": stage.split("处理阶段")[0].strip().lower()
+                    if "处理阶段" in stage
+                    else stage.split("stage")[0].strip().lower(),
+                    "method": "eq",
+                }
+            )
+
+    return query_string, stage_conditions

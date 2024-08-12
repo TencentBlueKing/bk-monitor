@@ -243,4 +243,7 @@ export default {
   故障开始时间: 'Fault Start Time',
   故障结束时间: 'Fault End Time',
   故障图谱快照: 'Fault Topology Snapshot',
+  处理的告警: 'Processed alarms',
+  的告警: 'alarms',
+  将通过企业微信把当前故障相关人员邀请到一个群里面进行讨论: 'The current fault related personnel will be invited to a group chat via WeChat Work for discussion',
 };

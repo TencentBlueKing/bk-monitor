@@ -159,6 +159,24 @@ export const commonAlertFieldMap = {
       name: window.i18n.tc('提醒'),
     },
   ],
+  stage: [
+    {
+      id: isEn ? 'is_handled' : '已通知',
+      name: window.i18n.tc('已通知'),
+    },
+    {
+      id: isEn ? 'is_ack' : '已确认',
+      name: window.i18n.tc('已确认'),
+    },
+    {
+      id: isEn ? 'is_shielded' : '已屏蔽',
+      name: window.i18n.tc('已屏蔽'),
+    },
+    {
+      id: isEn ? 'is_blocked' : '已流控',
+      name: window.i18n.tc('已流控'),
+    },
+  ],
 };
 const commonActionFieldMap = {
   status: [
@@ -456,6 +474,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     return this.searchType === 'alert' ? this.analyzeFields : this.analyzeActionFields;
   }
 
+  get isIncident() {
+    return this.searchType === 'incident';
+  }
+
   // 是否拥有查询条件： 搜索条件或者高级筛选条件
   get hasSearchParams() {
     return !!(this.queryString || Object.values(this.condition).some(item => item.length));
@@ -703,7 +725,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       ];
     }
     /** 移动端带collectId跳转事件中心 */
-    if (!!defaultData.collectId) {
+    if (defaultData.collectId) {
       defaultData.queryString = defaultData.queryString
         ? `${defaultData.queryString} AND action_id : ${defaultData.collectId}`
         : `action_id : ${defaultData.collectId}`;
@@ -711,7 +733,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       defaultData.timeRange = ['now-30d', 'now'];
     }
     /** 处理指标参数 */
-    if (!!defaultData.metricId?.length) {
+    if (defaultData.metricId?.length) {
       const metricStr = `metric : (${defaultData.metricId.map(item => `"${item}"`).join(' OR ')})`;
       defaultData.queryString = defaultData.queryString ? `AND ${metricStr}` : metricStr;
     }
@@ -1430,6 +1452,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   handleParam2Url() {
     const defaultRouteData = this.handleGetDefaultRouteData();
     const newData = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(defaultRouteData).forEach(key => {
       const item = defaultRouteData[key];
       if (item !== this[key]) {
@@ -1452,6 +1475,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
       if (['from', 'to'].includes(key)) {
         key === 'from' && ([newData[key]] = this.timeRange);
+        // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
         key === 'to' && ([, newData[key]] = this.timeRange);
       } else if (key === 'timezone') {
         newData[key] = this.timezone;
@@ -2186,6 +2210,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   getOperateDialogComponent() {
     return [
       <AlarmConfirm
+        key='AlarmConfirm'
         bizIds={this.dialog.alarmConfirm.bizIds}
         ids={this.dialog.alarmConfirm.ids}
         show={this.dialog.alarmConfirm.show}
@@ -2193,6 +2218,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         onConfirm={this.handleConfirmAfter}
       />,
       <QuickShield
+        key='QuickShield'
         authority={this.authority}
         bizIds={this.dialog.quickShield.bizIds}
         details={this.dialog.quickShield.details}
@@ -2203,6 +2229,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         on-succes={this.quickShieldSucces}
       />,
       <ManualProcess
+        key='ManualProcess'
         alertIds={this.dialog.manualProcess.alertIds}
         bizIds={this.dialog.manualProcess.bizIds}
         show={this.dialog.manualProcess.show}
@@ -2211,12 +2238,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         onShowChange={this.manualProcessShowChange}
       />,
       <ManualDebugStatus
+        key='ManualDebugStatus'
         actionIds={this.dialog.manualProcess.actionIds}
         bizIds={this.dialog.manualProcess.bizIds}
         debugKey={this.dialog.manualProcess.debugKey}
         mealInfo={this.dialog.manualProcess.mealInfo}
       />,
       <AlarmDispatch
+        key='AlarmDispatch'
         alertIds={this.dialog.alarmDispatch.alertIds}
         bizIds={this.dialog.alarmDispatch.bizIds}
         show={this.dialog.alarmDispatch.show}
@@ -2254,6 +2283,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const isOpen = this.commonFilterDataIdMap[item.id].includes(this.listOpenId);
     return [
       <div
+        key='list-title'
         class={['list-title', { 'item-active': item.id === this.activeFilterId }]}
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >
@@ -2514,6 +2544,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 class='mr-16'
                 currentSpace={this.$store.getters.bizId}
                 hasAuthApply={true}
+                // needAlarmOption={!this.isIncident}
+                needIncidentOption={this.isIncident}
                 spaceList={this.$store.getters.bizList}
                 value={this.bizIds}
                 onApplyAuth={this.handleCheckAllowedByIds}

@@ -76,6 +76,11 @@ export default defineComponent({
       type: Array as PropType<IMenuChildItem[]>,
       default: () => [],
     },
+    /** 是否展示告警操作 */
+    isShowAlarm: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['updateDragging', 'menuClick', 'selectChild', 'metricClick', 'allMetricClick', 'alarmClick', 'successLoad'],
   setup(props, { emit }) {
@@ -99,7 +104,7 @@ export default defineComponent({
           content = t('告警中，告警数量：{0}', [alert_number]).toString();
           break;
         default:
-        case 0:
+          // case 0:
           content = t('未配置策略').toString();
           break;
       }
@@ -207,6 +212,10 @@ export default defineComponent({
       return props.showMore || isAlertListShown.value;
     });
 
+    const isShowAlarmStyle = computed(() => {
+      return props.isShowAlarm ? { width: isToolsShow.value ? '68%' : '70%' } : {};
+    });
+
     return {
       chartTitleRef,
       showMenu,
@@ -232,6 +241,7 @@ export default defineComponent({
       handleChildMenuToggle,
       handleAlertListShown,
       handleSuccessLoad,
+      isShowAlarmStyle,
     };
   },
   render() {
@@ -257,7 +267,7 @@ export default defineComponent({
               </Popover>
             ) : undefined}
             <div
-              style={{ width: this.isToolsShow ? '68%' : '70%' }}
+              style={this.isShowAlarmStyle}
               class={['title-name', { 'has-more': this.isToolsShow }]}
               title={this.title}
             >
@@ -299,17 +309,19 @@ export default defineComponent({
               </Popover>
             ) : undefined}
             <div style={{ display: 'flex', marginRight: '-18px' }}>
-              <AlertActionList
-                style={{
-                  minWidth: '72px',
-                  marginLeft: 'auto',
-                  display: this.isToolsShow ? 'flex' : 'none',
-                  lineHeight: '28px',
-                }}
-                onListHidden={() => this.handleAlertListShown(false)}
-                onListShown={() => this.handleAlertListShown(true)}
-                onSuccessLoad={this.handleSuccessLoad}
-              />
+              {this.isShowAlarm && (
+                <AlertActionList
+                  style={{
+                    minWidth: '72px',
+                    marginLeft: 'auto',
+                    display: this.isToolsShow ? 'flex' : 'none',
+                    lineHeight: '28px',
+                  }}
+                  onListHidden={() => this.handleAlertListShown(false)}
+                  onListShown={() => this.handleAlertListShown(true)}
+                  onSuccessLoad={this.handleSuccessLoad}
+                />
+              )}
               <Popover content={this.$t('更多')}>
                 <span
                   style={{

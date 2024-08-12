@@ -157,7 +157,7 @@ export default class FieldAnalysis extends Vue {
   beforeDestroy() {
     this.getInfoCancelFn();
     this.getChartsCancelFn();
-    this.commonLegendRef?.removeAllListeners('wheel');
+    this.commonLegendRef?.removeEventListener('wheel', this.legendWheel);
   }
 
   async queryStatisticsInfo() {
@@ -324,11 +324,15 @@ export default class FieldAnalysis extends Vue {
             axisLabel: {
               color: '#979BA5',
               boundaryGap: false,
-              showMinLabel: false,
-              showMaxLabel: false,
+              // showMinLabel: false,
+              // showMaxLabel: false,
               fontSize: 12,
               formatter: value => {
                 return dayjs.tz(value).format(formatStr);
+              },
+              interval: index => {
+                // 控制显示的刻度数量
+                return index % 2 === 0; // 每两个刻度点显示一个
               },
             },
             scale: false,
@@ -378,6 +382,7 @@ export default class FieldAnalysis extends Vue {
   }
 
   initFieldChart() {
+    if (this.isShowEmpty) return;
     const echarts = require('echarts');
     const chart: any = echarts.init(this.chartRef, null, {
       height: `${this.height}px`,
@@ -398,7 +403,7 @@ export default class FieldAnalysis extends Vue {
                   <span class="item-series" style="background-color:${item.color};"></span>
                   <span class="item-name is-warp">${item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n')}:</span>
                   <div class="item-value-box is-warp">
-                    <span class="item-value">${item.value[1]}</span>
+                    <span class="item-value">${formatNumberWithRegex(item.value[1])}</span>
                   </div>
                 </li>`;
       });
