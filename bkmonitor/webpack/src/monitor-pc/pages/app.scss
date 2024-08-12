@@ -516,3 +516,11 @@
     }
   }
 }
+
+.check-version-wrapper {
+  z-index: 99999999 !important;
+
+  .bk-dialog-header-inner {
+    white-space: wrap !important;
+  }
+}
