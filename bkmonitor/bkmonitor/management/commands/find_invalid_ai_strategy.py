@@ -49,10 +49,12 @@ class Command(BaseCommand):
             return
 
         # 5. 找出配置了aiops算法， 但未生效的策略
-        strategies = StrategyModel.objects.filter(id__in=strategy_ids, is_enabled=True).values_list(
-            "id", "name", "bk_biz_id"
+        strategies = (
+            StrategyModel.objects.filter(id__in=strategy_ids, is_enabled=True)
+            .values_list("id", "name", "bk_biz_id")
+            .order_by("bk_biz_id")
         )
-        url_tmp = f"{settings.BK_MONITOR_HOST}/?bizId=%s/#/strategy-config/edit/%s"
+        url_tmp = f"{settings.BK_MONITOR_HOST}?bizId=%s/#/strategy-config/edit/%s"
         print("以下策略配置了aiops算法，但未生效:")
         for strategy in strategies:
-            print(f"[{strategy[1]}]({url_tmp % (strategy[2], strategy[0])})")
+            print(f"- 【{strategy[2]}】  [{strategy[1]}]({url_tmp % (strategy[2], strategy[0])})")
