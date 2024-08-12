@@ -118,6 +118,10 @@ export default defineComponent({
           if (select.includes(treeNode.key)) {
             checkedIds.value.push(treeNode.children.map(({ id }) => id).concat(treeNode.id));
           } else {
+            const data = treeNode.children.some(s => select.includes(s.key));
+            if (data) {
+              checkedIds.value.push(treeNode.id);
+            }
             treeNode.children.map(({ key, id }) => {
               select.includes(key) && checkedIds.value.push(id);
             });
@@ -197,11 +201,9 @@ export default defineComponent({
       updateAggregationConfig();
     };
     /** 更新选中 */
-    const handleUpdateCheckedIds = (v: string[], parentNodes: string[]) => {
+    const handleUpdateCheckedIds = (v: string[]) => {
       checkedIds.value = v;
-      /** 去除选中的父节点id */
-      const selectedData = v.filter(f => !parentNodes.includes(f));
-      autoAggregate.value = selectedData.join('|') === autoAggregateIdText;
+      autoAggregate.value = v.join('|') === autoAggregateIdText;
       setTreeDataChecked();
       updateAggregationConfig();
     };

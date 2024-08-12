@@ -44,6 +44,9 @@ class ShieldStatusChecker(BaseChecker):
 
         config_id = notice_relation.get("config_id")
         relation_id = notice_relation.get("relation_id")
+        if not (config_id and relation_id):
+            return
+
         # 存在通知发送的时候，才创建通知动作
         cycle_handle_record = alert.get_extra_info("cycle_handle_record", {})
         handle_record = cycle_handle_record.get(str(relation_id))

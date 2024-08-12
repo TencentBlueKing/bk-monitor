@@ -31,10 +31,13 @@ class BaseEventEnricher(metaclass=abc.ABCMeta):
                 event = self.enrich_event(event)
                 if event.is_dropped():
                     logger.info(
-                        "[drop event] %s event(%s) strategy(%s)", self.__name__, event.event_id, event.strategy_id
+                        "[drop event] %s event(%s) strategy(%s)",
+                        self.__class__.__name__,
+                        event.event_id,
+                        event.strategy_id,
                     )
             except Exception as e:
-                logger.exception("[event enricher ERROR] (%s), detail: %s", self.__name__, e)
+                logger.exception("[event enricher ERROR] (%s), detail: %s", self.__class__.__name__, e)
             events.append(event)
         return events
 

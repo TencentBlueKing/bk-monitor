@@ -73,7 +73,7 @@ export default defineComponent({
       default: () => {},
     },
   },
-  emits: ['toDetail'],
+  emits: ['toDetail', 'hideToolTips'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const graphRef = ref<HTMLElement>(null);
@@ -223,6 +223,11 @@ export default defineComponent({
       graphData.value.combos = graphData.value.combos.filter(combo => !!combo);
       openAggregatedComboMap[node.originComboId] = node.comboId;
       renderGraph();
+    };
+    /** 关闭弹窗， 主要用于左侧画布出现弹窗时关闭当前弹窗，避免出现2个 */
+    const hideToolTips = () => {
+      tooltipsRef?.value?.hide?.();
+      tooltips?.hide?.();
     };
     /** 自定义节点 */
     const registerCustomNode = () => {
@@ -950,7 +955,15 @@ export default defineComponent({
             return tooltipsRef.value.$el;
           },
         },
-        ['resource-aggregated-node-rect', 'resource-aggregated-node-text']
+        e => {
+          const { item } = e;
+          const model: ITopoNode = item.getModel();
+          if (item.getType() === 'node' && model.aggregated_nodes.length > 0) {
+            return true;
+          }
+          if (['resource-aggregated-node-rect', 'resource-aggregated-node-text'].indexOf(e.target?.cfg?.name) !== -1)
+            return true;
+        }
       );
     };
     /** 自定义布局 */
@@ -1318,6 +1331,10 @@ export default defineComponent({
           k: graph.getZoom(),
         });
       });
+      /** 点击tips时，关闭左侧打开的tips */
+      graph.on('tooltipchange', ({ action }) => {
+        action === 'show' && emit('hideToolTips');
+      });
       /** 设置高亮 */
       graph.on('node:click', e => {
         const { target } = e;
@@ -1403,6 +1420,7 @@ export default defineComponent({
       tooltipsModel,
       tooltipsEdge,
       tooltipsType,
+      hideToolTips,
       handleToDetail,
       loading,
       graph,

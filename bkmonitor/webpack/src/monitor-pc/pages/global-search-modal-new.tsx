@@ -98,34 +98,6 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     top: 0,
     left: 0,
   };
-  /** 搜索取消请求方法 */
-  searchCancelFn = () => {};
-
-  handleShowChange(v) {
-    this.$emit('change', v, this.searchVal);
-  }
-
-  @Watch('show', { immediate: true })
-  handleShow(v) {
-    this.searchCancelFn();
-    this.isPollRequest = v;
-    this.isLoading = false;
-    if (v) {
-      this.$nextTick(() => document.addEventListener('click', this.handleClickOutSide, true));
-    }
-  }
-
-  mounted() {
-    if (localStorage.getItem('globalSearchHistory')) {
-      this.searchHistoryList = JSON.parse(localStorage.getItem('globalSearchHistory'));
-    }
-    this.resizeObsever();
-  }
-
-  beforeDestroy() {
-    this.resizeObserver.unobserve(document.body);
-  }
-
   get bizId() {
     return this.$store.getters.bizId;
   }
@@ -162,10 +134,44 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     return this.isAllScene ? list : list.filter(val => this.selectSceneList.includes(val.id));
   }
 
+  /** 搜索取消请求方法 */
+  searchCancelFn = () => {};
+
+  handleShowChange(v) {
+    this.$emit('change', v, this.searchVal);
+  }
+
+  @Watch('show', { immediate: true })
+  handleShow(v) {
+    this.searchCancelFn();
+    this.isPollRequest = v;
+    this.isLoading = false;
+    if (v) {
+      this.$nextTick(() => {
+        document.addEventListener('click', this.handleClickOutSide, true);
+        window.addEventListener('blur', this.handleHiddenPanel);
+      });
+    }
+  }
+
+  mounted() {
+    if (localStorage.getItem('globalSearchHistory')) {
+      this.searchHistoryList = JSON.parse(localStorage.getItem('globalSearchHistory'));
+    }
+    this.resizeObsever();
+  }
+
+  beforeDestroy() {
+    this.resizeObserver.unobserve(document.body);
+    window.removeEventListener('blur', this.handleHiddenPanel);
+  }
+
   activated() {
     this.inputRef.focus();
   }
-
+  handleHiddenPanel() {
+    this.handleShowChange(false);
+  }
   /** 监听页面大小变化 定位 Modal */
   resizeObsever() {
     this.resizeObserver = new ResizeObserver(() => {
@@ -303,7 +309,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
    */
   handleDefaultNavView(nav) {
     this.$router.push({ name: nav.id });
-    this.handleShowChange(false);
+    this.handleHiddenPanel();
   }
 
   /**
@@ -464,7 +470,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
       });
       if (this.$route.name === view) location.reload();
     }
-    this.handleShowChange(false);
+    this.handleHiddenPanel();
   }
 
   /**
@@ -474,7 +480,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
   handleClickOutSide(evt: Event) {
     const targetEl = evt.target as HTMLBaseElement;
     if (this.$el.contains(targetEl)) return;
-    this.handleShowChange(false);
+    this.handleHiddenPanel();
   }
 
   render() {

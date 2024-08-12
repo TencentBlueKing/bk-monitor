@@ -32,7 +32,7 @@ class ChatViewSet(viewsets.GenericViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        url = f"{settings.BK_MONITOR_AI_API_URL}/api/chat/"
+        url = f"{settings.BK_MONITOR_AI_API_URL}/api/llm/chat/"
 
         try:
             response = requests.post(url, json=serializer.validated_data, stream=True)
@@ -41,7 +41,7 @@ class ChatViewSet(viewsets.GenericViewSet):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         def event_stream():
-            for line in response.iter_lines(chunk_size=10):
+            for line in response.iter_lines():
                 if not line:
                     continue
 

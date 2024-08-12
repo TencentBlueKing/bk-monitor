@@ -54,7 +54,7 @@ class UnifyQueryHandler(object):
         self.order_by = self.search_params.get("sort_list", [])
 
         # 是否为联合查询
-        self.is_multi_rt: bool = len(params.get("result_table_ids", [])) > 1
+        self.is_multi_rt: bool = len(self.index_set_ids) > 1
 
         # 查询时间范围
         self.start_time = self.search_params["start_time"]
@@ -271,7 +271,7 @@ class UnifyQueryHandler(object):
                 reference_list.append(query["reference_name"])
             metric_merge = "count(" + " or ".join(reference_list) + ")"
             search_dict.update({"metric_merge": metric_merge, "instant": True})
-            data = self.query_ts(search_dict)
+            data = self.query_ts_reference(search_dict)
         else:
             for query in search_dict["query_list"]:
                 query["function"] = [{"method": "cardinality"}]

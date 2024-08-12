@@ -63,10 +63,10 @@ function modifyCSS(dom: HTMLElement | null | undefined, css: { [key: string]: an
 
 export default class TopoTooltip extends Tooltip {
   currentTarget: Item;
-  disabledShape: string[]; // 定义不可出现tips的shape
-  constructor(config: TooltipConfig, disabledShape?: string[]) {
+  disabled: (e: IG6GraphEvent) => boolean; // 定义不可出现tips的情况
+  constructor(config: TooltipConfig, disabled?: (e: IG6GraphEvent) => boolean) {
     super(config);
-    this.disabledShape = disabledShape || [];
+    disabled && (this.disabled = disabled);
   }
 
   public getDefaultCfgs(): TooltipConfig {
@@ -90,8 +90,7 @@ export default class TopoTooltip extends Tooltip {
   }
 
   onClick(e: IG6GraphEvent) {
-    console.log(e.target, e.target.cfg, 'eeee');
-    if (this.disabledShape.indexOf(e.target?.cfg?.name) !== -1) return;
+    if (this.disabled?.(e)) return;
     const itemTypes = this.get('itemTypes');
     if (e.item?.getType && itemTypes.indexOf(e.item.getType()) === -1) return;
 
