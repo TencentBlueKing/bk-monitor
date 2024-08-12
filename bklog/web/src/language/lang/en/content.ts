@@ -830,4 +830,8 @@ export default {
   数量突增告警策略: 'Volume surge strategy',
   '策略：': 'Strategy: ',
   '是否删除该策略？': 'Has this policy been deleted?',
+  请先删除策略: 'Please delete the strategy first.',
+  '每隔 n（整数）天数，再次产生的日志模式将视为新类':
+    'Every n (integer) days, the log pattern generated again will be treated as a new class.',
+  新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
 };

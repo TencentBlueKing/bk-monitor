@@ -34,6 +34,7 @@ import './index.scss';
 type FormType = 'alarm' | 'increase';
 type StrategyType = 'new_cls_strategy' | 'normal_strategy';
 import $http from '../../../../../../api';
+import { deepClone } from '../../../../../../common/util';
 
 const { $i18n } = window.mainComponent;
 
@@ -44,19 +45,40 @@ export default class Strategy extends tsc<object> {
   formLoading = false;
   /** 当前编辑的类型 */
   activeType: FormType = 'alarm';
+  /** 聚类接口类型映射 */
+  typeMapping = {
+    new_cls_strategy: 'alarm',
+    normal_strategy: 'increase',
+  };
   isEdit = false;
+  baseAlarmFormData = null;
+  baseIncreaseFormData = null;
+  labelName = [];
+  /** 聚类消息初始化对应的key */
+  infoKeyData = {
+    alarm: {
+      submit: 'alarmIsSubmit',
+      data: 'alarmFormData',
+    },
+    increase: {
+      submit: 'increaseIsSubmit',
+      data: 'increaseFormData',
+    },
+  };
   /** 新类提交数据 */
   alarmFormData = {
     interval: '',
     threshold: '',
     level: '',
     user_groups: [],
+    label_name: [],
   };
   /** 数据提交表单数据 */
   increaseFormData = {
     level: '',
     sensitivity: 0,
     user_groups: [],
+    label_name: [],
   };
   /** 告警级别下拉框 */
   levelSelectList = [
@@ -114,8 +136,9 @@ export default class Strategy extends tsc<object> {
   }
 
   mounted() {
-    this.requestStrategyInfo('new_cls_strategy');
-    this.requestStrategyInfo('normal_strategy');
+    this.baseAlarmFormData = deepClone(this.alarmFormData);
+    this.baseIncreaseFormData = deepClone(this.increaseFormData);
+    this.initStrategyInfo();
   }
 
   /** 给索引集添加标签 */
@@ -137,7 +160,6 @@ export default class Strategy extends tsc<object> {
         this.formLoading = false;
       });
   }
-
   /** 获取信息 */
   async requestStrategyInfo(strategyType: StrategyType = 'new_cls_strategy') {
     try {
@@ -147,18 +169,11 @@ export default class Strategy extends tsc<object> {
           strategy_type: strategyType,
         },
       });
-      const isSubmit = JSON.stringify(res.data) !== '{}';
-      if (strategyType === 'new_cls_strategy') {
-        this.alarmIsSubmit = isSubmit;
-        Object.assign(this.alarmFormData, res.data);
-      }
-      if (strategyType === 'normal_strategy') {
-        this.increaseIsSubmit = isSubmit;
-        Object.assign(this.increaseFormData, res.data);
-      }
-    } catch (err) {}
+      return { data: res.data, type: this.typeMapping[strategyType] ?? strategyType };
+    } catch (error) {
+      return { type: strategyType };
+    }
   }
-
   handleSelectFromType(shotType: FormType) {
     this.strategyFromRef.clearError();
     this.activeType = shotType;
@@ -178,7 +193,6 @@ export default class Strategy extends tsc<object> {
               theme: 'success',
               message: this.$t('操作成功'),
             });
-            this.initStrategyInfo();
             this.isShowDialog = false;
           }
         });
@@ -190,15 +204,17 @@ export default class Strategy extends tsc<object> {
     } else {
       this.isEdit = false;
       this.strategyFromRef.clearError();
+      this.initStrategyInfo();
     }
   }
   editStrategy(type: FormType) {
+    this.initStrategyInfo();
     this.activeType = type;
     this.isEdit = true;
     this.isShowDialog = true;
   }
   deleteStrategy(type: FormType) {
-    const strategyType = type === 'alarm' ? 'new_cls_strategy' : 'normal_strategy';
+    const strategyType = this.typeMapping[type] ?? type;
     const h = this.$createElement;
     this.$bkInfo({
       title: this.$t('是否删除该策略？'),
@@ -228,7 +244,7 @@ export default class Strategy extends tsc<object> {
       ),
       confirmFn: async () => {
         try {
-          const res = $http.request('retrieve/deleteClusteringInfo', {
+          const res = await $http.request('retrieve/deleteClusteringInfo', {
             params: { index_set_id: this.$route.params.indexId },
             data: { strategy_type: strategyType },
           });
@@ -245,8 +261,40 @@ export default class Strategy extends tsc<object> {
     });
   }
   initStrategyInfo() {
-    this.requestStrategyInfo('new_cls_strategy');
-    this.requestStrategyInfo('normal_strategy');
+    Promise.all([this.requestStrategyInfo('new_cls_strategy'), this.requestStrategyInfo('normal_strategy')])
+      .then(values => {
+        values.forEach(vItem => {
+          const isSubmit = JSON.stringify(vItem.data) !== '{}';
+          this[this.infoKeyData[vItem.type].submit] = isSubmit;
+          Object.assign(this[this.infoKeyData[vItem.type].data], vItem.data);
+        });
+      })
+      .catch(error => {
+        this.resetFormData(error.type);
+        this.labelName = [...new Set([...this.alarmFormData?.label_name, ...this.increaseFormData?.label_name])];
+      })
+      .finally(() => {
+        this.labelName = [...new Set([...this.alarmFormData?.label_name, ...this.increaseFormData?.label_name])];
+      });
+  }
+  /** 重置表单参数 */
+  resetFormData(type: FormType = 'alarm') {
+    type === 'alarm'
+      ? Object.assign(this.alarmFormData, this.baseAlarmFormData)
+      : Object.assign(this.increaseFormData, this.baseIncreaseFormData);
+  }
+  /** 点击新增告警 */
+  handleAddNewStrategy() {
+    this.activeType = this.alarmIsSubmit ? 'increase' : 'alarm';
+    this.resetFormData(this.activeType);
+    this.isShowDialog = true;
+  }
+  /** 跳转告警策略列表 */
+  handleJumpStrategyList() {
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config?strategyLabels=${JSON.stringify(this.labelName)}`,
+      '_blank',
+    );
   }
   render() {
     const strategyDialog = () => (
@@ -273,14 +321,14 @@ export default class Strategy extends tsc<object> {
         <div class={['select-group bk-button-group', { 'increase-group': !this.isAlarmType }]}>
           <bk-button
             class={{ 'is-selected': this.isAlarmType }}
-            disabled={this.alarmIsSubmit || this.isEdit}
+            disabled={this.alarmIsSubmit && !this.isEdit}
             onClick={() => this.handleSelectFromType('alarm')}
           >
             {$i18n.t('新类告警')}
           </bk-button>
           <bk-button
             class={{ 'is-selected': !this.isAlarmType }}
-            disabled={this.increaseIsSubmit || this.isEdit}
+            disabled={this.increaseIsSubmit && !this.isEdit}
             onClick={() => this.handleSelectFromType('increase')}
           >
             {$i18n.t('数量突增告警')}
@@ -307,6 +355,7 @@ export default class Strategy extends tsc<object> {
               v-model={this.formData.interval}
               show-controls={false}
               type='number'
+              placeholder={$i18n.t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
             ></bk-input>
           </bk-form-item>
           <bk-form-item
@@ -319,6 +368,7 @@ export default class Strategy extends tsc<object> {
               v-model={this.formData.threshold}
               show-controls={false}
               type='number'
+              placeholder={$i18n.t('新类对应日志触发告警的条数')}
             ></bk-input>
           </bk-form-item>
           <bk-form-item
@@ -395,7 +445,7 @@ export default class Strategy extends tsc<object> {
       >
         <div class={['edit-strategy-box', type]}>
           <i class={['bk-icon log-icon', type === 'alarm' ? 'icon-new-alarm' : 'icon-sudden-increase']}></i>
-          <span class='num'>1</span>
+          {/* <span class='num'>1</span> */}
         </div>
         <div slot='content'>
           <span>{$i18n.t(type === 'alarm' ? '新类告警' : '数量突增告警策略')}</span>
@@ -418,28 +468,37 @@ export default class Strategy extends tsc<object> {
       <div class='strategy-container'>
         {strategyDialog()}
         <div class='new-built-container'>
-          <bk-button
-            disabled={this.alarmIsSubmit && this.increaseIsSubmit}
-            icon='plus'
-            size='small'
-            onClick={() => {
-              this.activeType = this.increaseIsSubmit ? 'alarm' : 'increase';
-              this.isShowDialog = true;
+          <div
+            v-bk-tooltips={{
+              content: this.$t('请先删除策略'),
+              disabled: !(this.alarmIsSubmit && this.increaseIsSubmit),
             }}
           >
-            {$i18n.t('新建策略')}
-          </bk-button>
+            <bk-button
+              disabled={this.alarmIsSubmit && this.increaseIsSubmit}
+              icon='plus'
+              size='small'
+              onClick={this.handleAddNewStrategy}
+            >
+              {$i18n.t('新建策略')}
+            </bk-button>
+          </div>
           {this.alarmIsSubmit && popoverSlot('alarm')}
           {this.increaseIsSubmit && popoverSlot('increase')}
         </div>
-        <bk-button
-          size='small'
-          text
-          // onClick={() => (this.isShowDialog = true)}
-        >
-          <span>{$i18n.t('查看策略')}</span>
-          <i class='log-icon icon-jump'></i>
-        </bk-button>
+        {!!this.labelName.length && (
+          <bk-button
+            size='small'
+            text
+            onClick={this.handleJumpStrategyList}
+          >
+            <span>{$i18n.t('查看策略')}</span>
+            <i
+              style={{ 'margin-left': '4px' }}
+              class='log-icon icon-jump'
+            ></i>
+          </bk-button>
+        )}
       </div>
     );
   }
