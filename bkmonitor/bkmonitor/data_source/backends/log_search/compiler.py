@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import copy
 import re
 
@@ -21,7 +20,6 @@ from bkmonitor.data_source.backends.base import compiler
 
 
 class SQLCompiler(compiler.SQLCompiler):
-
     TIME_SECOND_AGG_FIELD_RE = re.compile(r"time\((?P<second>\d+)s\)")
     SELECT_RE = re.compile(
         r"(?P<agg_method>[^\( ]+)[\( ]+" r"(?P<metric_field>[^\) ]+)[\) ]+" r"([ ]?as[ ]+(?P<metric_alias>[^ ]+))?"
@@ -65,8 +63,8 @@ class SQLCompiler(compiler.SQLCompiler):
         for child in node.children:
             if isinstance(child, tuple) and len(child) == 2:
                 field = child[0].split("__")
-                if len(field) == 1:
-                    field = field[0]
+                if len(field) == 1 or "" in field:
+                    field = child[0]
                     method = "eq"
                 else:
                     field, method = field[:-1], field[-1]
@@ -199,6 +197,9 @@ class SQLCompiler(compiler.SQLCompiler):
 
         if self.query.offset is not None:
             result["start"] = self.query.offset
+
+        print(self.query.__dict__)
+        print(filter_string)
 
         return "", result
 
