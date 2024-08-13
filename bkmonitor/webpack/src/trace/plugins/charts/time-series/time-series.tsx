@@ -42,6 +42,7 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
@@ -359,6 +360,7 @@ export default defineComponent({
       const maxX = Array.isArray(lastItem) ? getXVal(lastItem) : getXVal(lastItem?.value);
       minX &&
         maxX &&
+        // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
         (formatterFunc = (v: any) => {
           const duration = dayjs.duration(dayjs.tz(maxX).diff(dayjs.tz(minX))).asSeconds();
           if (onlyBeginEnd && v > minX && v < maxX) {
@@ -561,6 +563,7 @@ export default defineComponent({
         await Promise.all(promiseList).catch(() => false);
         if (series.length) {
           csvSeries = series;
+          const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
           const seriesResult = series
             .filter(item => ['extra_info', '_result_'].includes(item.alias))
             .map(item => ({
@@ -628,6 +631,7 @@ export default defineComponent({
             props.panel?.options?.time_series?.echart_option || {},
             { arrayMerge: (_, newArr) => newArr }
           );
+          const xInterval = getTimeSeriesXInterval(maxXInterval, width.value, maxSeriesCount);
           options.value = Object.freeze(
             deepmerge(echartOptions, {
               animation: hasShowSymbol,
@@ -655,11 +659,15 @@ export default defineComponent({
                 axisLabel: {
                   formatter: formatterFunc || '{value}',
                 },
-                splitNumber: Math.ceil(width.value / 80),
-                min: 'dataMin',
+                ...xInterval,
               },
               series: seriesList,
               tooltip: props.customTooltip ?? {},
+              customData: {
+                // customData 自定义的一些配置 用户后面echarts实例化后的配置
+                maxXInterval,
+                maxSeriesCount,
+              },
             })
           );
           metrics.value = metricList || [];
