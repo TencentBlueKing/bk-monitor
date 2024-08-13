@@ -76,6 +76,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
       name: '调用错误率',
     },
   ];
+  dataType = 'error';
 
   /* 筛选列表 */
   filterList = [
@@ -131,6 +132,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
 
   /* 表格数据 */
   tableColumns: ITableColumn[] = [];
+  tableData = [];
   /** 分页数据 */
   pagination: ITablePagination = {
     current: 1,
@@ -216,7 +218,11 @@ export default class ApmRelationGraph extends tsc<IProps> {
                 </div>
               ))}
             </div>
-            <bk-select class='type-selector'>
+            <bk-select
+              class='type-selector'
+              v-model={this.dataType}
+              clearable={false}
+            >
               {this.dataTypes.map(item => (
                 <bk-option
                   id={item.id}
@@ -330,6 +336,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
               <CommonTable
                 checkable={false}
                 columns={this.tableColumns}
+                data={this.tableData}
                 pagination={this.pagination}
                 paginationType={'simple'}
               />
