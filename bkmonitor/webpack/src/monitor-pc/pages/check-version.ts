@@ -67,9 +67,11 @@ const promptForReload = async () => {
   hasShownConfirm = true;
   return await new Promise(resolve => {
     Vue.prototype.$bkInfo({
-      title: window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面'),
+      title: window.i18n.tc('检测到蓝鲸监控版本更新'),
+      subTitle: window.i18n.tc('请点击“确定”刷新页面，保证数据准确性。'),
       maskClose: false,
       extCls: 'check-version-wrapper',
+      width: '480px',
       confirmFn: () => {
         window.location.reload();
       },
