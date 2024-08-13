@@ -385,7 +385,7 @@ export default class SearchComp extends tsc<IProps> {
     const stringifyList = filterAddition.map(item => ({
       field: item.id,
       operator: item.operator,
-      value: item.value.join(','),
+      value: item.value,
       isInclude: item.isInclude,
     }));
     if (linkAdditionList?.length) {
@@ -579,7 +579,7 @@ export default class SearchComp extends tsc<IProps> {
       .map(item => ({
         field: item.id,
         operator: item.operator,
-        value: item.value.join(','),
+        value: item.value,
       }));
     this.handleSearchAddChange(addition, isQuery, isForceQuery);
   }
