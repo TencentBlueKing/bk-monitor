@@ -23,6 +23,7 @@ class PermissionDeniedError(Error):
     code = 9900403
     name = _lazy("权限校验不通过")
     message_tpl = _lazy("当前用户无 [{action_name}] 权限")
+    popup_message = "primary"  # 报错弹框级别-蓝框
 
 
 class APIPermissionDeniedError(PermissionDeniedError):
