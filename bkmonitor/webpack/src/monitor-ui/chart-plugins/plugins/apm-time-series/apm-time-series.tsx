@@ -57,7 +57,6 @@ const eventHasId = (event: Event | any, id: string) => {
   }
   return has;
 };
-
 @Component
 export default class ApmTimeSeries extends TimeSeries {
   contextmenuInfo = {
