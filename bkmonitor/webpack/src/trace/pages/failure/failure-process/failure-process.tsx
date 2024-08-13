@@ -53,8 +53,9 @@ export default defineComponent({
     const queryString = ref<string>('');
     const hidePopover = ref<boolean>(false);
     // const operations = ref([]);
-    const operations = inject<Ref>('operationsList');
+    const operationsList = inject<Ref>('operationsList');
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
+    const operationsLoading = inject<Ref<boolean>>('operationsLoading');
     const operationTypes = ref([]);
     const operationTypeMap = ref({});
     const checkedNodes = ref([]);
@@ -76,6 +77,9 @@ export default defineComponent({
       const result = select.filter(item => !filterSelect.find(filter => filter.id === item.id));
       checkedNodes.value = result.map(item => item.id);
     };
+    const operations = computed(() => {
+      return operationsList.value;
+    });
     /** 前端搜索 */
     const searchOperations = computed(() => {
       let result = operations.value;
@@ -172,6 +176,7 @@ export default defineComponent({
       failureProcessListRef,
       incidentId,
       incidentDetail,
+      operationsLoading,
     };
   },
   render() {
@@ -243,7 +248,7 @@ export default defineComponent({
             }}
           </Popover>
         </div>
-        <Loading loading={this.tableLoading}>
+        <Loading loading={this.operationsLoading || this.tableLoading}>
           {this.searchOperations.length ? (
             <ul
               ref='failureProcessListRef'
@@ -262,9 +267,9 @@ export default defineComponent({
                         class={[
                           'icon-monitor item-icon',
                           operation.operation_class === 'system'
-                            ? (operation.operation_type.startsWith('alert')
+                            ? operation.operation_type.startsWith('alert')
                               ? 'icon-gaojing1'
-                              : 'icon-mc-fault')
+                              : 'icon-mc-fault'
                             : 'icon-mc-user-one',
                         ]}
                       />

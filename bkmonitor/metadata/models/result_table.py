@@ -91,6 +91,7 @@ class ResultTable(models.Model):
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
     data_label = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)
+    is_builtin = models.BooleanField("是否内置", default=False)
 
     class Meta:
         verbose_name = "逻辑结果表"
@@ -278,6 +279,7 @@ class ResultTable(models.Model):
         time_option=None,
         create_storage=True,
         data_label: Optional[str] = None,
+        is_builtin=False,
     ):
         """
         创建一个结果表
@@ -302,6 +304,7 @@ class ResultTable(models.Model):
         :param time_option: 时间字段的配置内容
         :param create_storage: 是否创建存储，默认为 True
         :param data_label: 数据标签
+        :param is_builtin: 是否为系统内置的结果表
         :return: result_table instance | raise Exception
         """
         # 判断label是否真实存在的配置
@@ -424,6 +427,7 @@ class ResultTable(models.Model):
             bk_biz_id=bk_biz_id,
             label=label,
             data_label=data_label,
+            is_builtin=is_builtin,
         )
 
         # 创建结果表的option内容如果option为非空

@@ -62,6 +62,7 @@ interface IProps {
   hasAuthApply?: boolean;
   currentSpace?: number | string;
   isCommonStyle?: boolean;
+  needIncidentOption?: boolean;
   onChange?: (value: number[]) => void;
 }
 
@@ -201,7 +202,7 @@ export default class SpaceSelect extends tsc<
   }
 
   /** 初始化空间列表 */
-  initLocalSpaceList () {
+  initLocalSpaceList() {
     this.localSpaceList = this.getSpaceList(this.spaceList);
     const nullItem = {
       space_name: '',
@@ -219,14 +220,6 @@ export default class SpaceSelect extends tsc<
         bk_biz_id: hasDataBizId,
         id: hasDataBizId,
         name: this.$t('-我有告警的空间-'),
-      } as any);
-    }
-    if (this.needIncidentOption) {
-      this.localSpaceList.unshift({
-        ...nullItem,
-        bk_biz_id: hasDataBizId,
-        id: hasDataBizId,
-        name: this.$t('-我有故障的空间-'),
       } as any);
     }
     if (this.needAuthorityOption) {
@@ -250,12 +243,13 @@ export default class SpaceSelect extends tsc<
     }
   }
   @Watch('needAlarmOption')
-  handleWatchNeedAlarmOption(v: boolean) {
+  handleWatchNeedAlarmOption() {
     this.initLocalSpaceList();
   }
   @Watch('needIncidentOption')
   handleWatchNeedIncidentOption(v: boolean) {
-    this.initLocalSpaceList();
+    const hasSpace: IlocalSpaceList = this.localSpaceList.find(space => space.id === hasDataBizId) as IlocalSpaceList;
+    hasSpace.name = (v ? this.$t('-我有故障的空间-') : this.$t('-我有告警的空间-')) as string;
   }
 
   created() {

@@ -80,7 +80,7 @@ export default defineComponent({
     isShowAlarm: {
       type: Boolean,
       default: false,
-    }
+    },
   },
   emits: ['updateDragging', 'menuClick', 'selectChild', 'metricClick', 'allMetricClick', 'alarmClick', 'successLoad'],
   setup(props, { emit }) {
@@ -104,7 +104,7 @@ export default defineComponent({
           content = t('告警中，告警数量：{0}', [alert_number]).toString();
           break;
         default:
-        case 0:
+          // case 0:
           content = t('未配置策略').toString();
           break;
       }
@@ -213,7 +213,7 @@ export default defineComponent({
     });
 
     const isShowAlarmStyle = computed(() => {
-      return props.isShowAlarm ? { width: isToolsShow.value ? '68%' : '70%' } : {}
+      return props.isShowAlarm ? { width: isToolsShow.value ? '68%' : '70%' } : {};
     });
 
     return {
@@ -241,7 +241,7 @@ export default defineComponent({
       handleChildMenuToggle,
       handleAlertListShown,
       handleSuccessLoad,
-      isShowAlarmStyle
+      isShowAlarmStyle,
     };
   },
   render() {
@@ -309,8 +309,8 @@ export default defineComponent({
               </Popover>
             ) : undefined}
             <div style={{ display: 'flex', marginRight: '-18px' }}>
-              {
-                this.isShowAlarm && <AlertActionList
+              {this.isShowAlarm && (
+                <AlertActionList
                   style={{
                     minWidth: '72px',
                     marginLeft: 'auto',
@@ -321,7 +321,7 @@ export default defineComponent({
                   onListShown={() => this.handleAlertListShown(true)}
                   onSuccessLoad={this.handleSuccessLoad}
                 />
-              }
+              )}
               <Popover content={this.$t('更多')}>
                 <span
                   style={{

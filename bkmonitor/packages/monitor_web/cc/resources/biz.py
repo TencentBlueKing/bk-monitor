@@ -19,7 +19,6 @@ from typing import List
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
-from bkm_space.define import Space
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
@@ -182,5 +181,5 @@ def get_notify_roles():
 
 @using_cache(CacheType.OVERVIEW(60 * 2))
 def fetch_allow_biz_ids_by_user(username: str) -> List[int]:
-    spaces: List[Space] = ListSpacesResource.get_space_by_user(username)
-    return [space.bk_biz_id for space in spaces]
+    spaces: List[dict] = ListSpacesResource.get_space_by_user(username)
+    return [space["bk_biz_id"] for space in spaces]

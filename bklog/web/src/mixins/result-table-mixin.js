@@ -397,12 +397,12 @@ export default {
         .replace(/<\/mark>/g, '');
       if (type === 'search') {
         // 将表格单元添加到过滤条件
-        this.$emit('add-filter-condition', field.field_name, 'eq', value, isLink);
+        this.$emit('add-filter-condition', field.field_name, 'eq', [value], isLink);
       } else if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not'].includes(type)) {
-        this.$emit('add-filter-condition', field.field_name, type, value === '--' ? '' : value.toString(), isLink);
+        this.$emit('add-filter-condition', field.field_name, type, value === '--' ? [] : [value], isLink);
       }
     },
     getFieldIcon(fieldType) {
@@ -413,7 +413,7 @@ export default {
         case 'is':
         case 'is not':
           const { fieldName, operation, value } = option;
-          this.$emit('add-filter-condition', fieldName, operation, value === '--' ? '' : value.toString(), isLink);
+          this.$emit('add-filter-condition', fieldName, operation, value === '--' ? [] : [value], isLink);
           break;
         case 'copy':
           copyMessage(option.value);
