@@ -656,7 +656,7 @@ export default {
   新建策略: 'New Strategy',
   编辑策略: 'Edit Strategy',
   查看策略: 'View Strategy',
-  新类告警: 'New type of alarm',
+  新类告警策略: 'New type of alarm',
   数量突增告警: 'Alarm for sudden increase',
   新类告警间隔: 'New alarm interval',
   新类告警阈值: 'New alarm threshold',

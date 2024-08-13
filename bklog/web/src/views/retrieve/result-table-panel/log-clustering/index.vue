@@ -47,7 +47,11 @@
               {{ item.name }}
             </bk-button>
           </div>
-          <strategy style="margin-left: 20px;"></strategy>
+          <strategy
+            style="margin-left: 20px"
+            :signature-switch="signatureSwitch"
+            :strategy-submit-status="watchStrategySubmitStatus"
+          />
         </div>
 
         <finger-operate
@@ -56,6 +60,7 @@
           :finger-operate-data="fingerOperateData"
           :request-data="requestData"
           :total-fields="totalFields"
+          :strategy-have-submit="strategyHaveSubmit"
           @handle-finger-operate="handleFingerOperate"
         />
       </div>
@@ -299,6 +304,8 @@
         isIndexSetChange: false,
         isInitPage: true, // 是否是第一次进入数据指纹
         scrollEl: null,
+        /** 是否创建过策略 */
+        strategyHaveSubmit: false,
       };
     },
     computed: {
@@ -645,6 +652,9 @@
       handleCloseYearTag() {
         Object.assign(this.fingerOperateData, { yearSwitch: false });
         this.handleFingerOperate('requestData', { year_on_year_hour: 0 }, true);
+      },
+      watchStrategySubmitStatus(v) {
+        this.strategyHaveSubmit = v;
       },
     },
   };

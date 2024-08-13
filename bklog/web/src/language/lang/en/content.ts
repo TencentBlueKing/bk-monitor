@@ -98,7 +98,7 @@ export default {
   设置显示字段: 'Set display fields',
   暂未进行检索: 'No search yet',
   优化查询语句: 'Optimize query statements',
-  近24H新增: 'Added in the last 24 hours',
+  仅查看新类: 'Just view new class strategy',
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
@@ -834,4 +834,5 @@ export default {
   '每隔 n（整数）天数，再次产生的日志模式将视为新类':
     'Every n (integer) days, the log pattern generated again will be treated as a new class.',
   新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
+  请先新建新类告警策略: 'Please create a new category strategy first',
 };

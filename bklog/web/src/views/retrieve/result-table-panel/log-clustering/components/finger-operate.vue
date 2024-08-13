@@ -25,16 +25,19 @@
 -->
 <template>
   <div class="fingerprint-setting fl-sb">
-    <div class="is-near24">
+    <div
+      class="is-near24"
+      v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
+    >
       <bk-checkbox
         v-model="isNear24"
-        :disabled="!fingerOperateData.signatureSwitch"
+        :disabled="!fingerOperateData.signatureSwitch || !strategyHaveSubmit"
         :false-value="false"
         :true-value="true"
         data-test-id="fingerTable_checkBox_selectCustomSize"
         @change="handleShowNearPattern"
       >
-        <span>{{ $t('近24H新增') }}</span>
+        <span>{{ $t('仅查看新类') }}</span>
       </bk-checkbox>
     </div>
 
@@ -210,7 +213,7 @@
                   :name="option.name"
                 >
                 </bk-option>
-                <template #default>
+                <template #extension>
                   <div class="compared-customize">
                     <div
                       v-if="fingerOperateData.isShowCustomize"
@@ -219,10 +222,7 @@
                     >
                       <span>{{ $t('自定义') }}</span>
                     </div>
-                    <div
-                      v-else
-                      style="margin-top: 8px"
-                    >
+                    <div v-else>
                       <bk-input
                         :placeholder="$t('输入自定义同比，按 Enter 确认')"
                         @enter="handleEnterCompared"
@@ -285,6 +285,10 @@
       totalFields: {
         type: Array,
         require: true,
+      },
+      strategyHaveSubmit: {
+        type: Boolean,
+        default: false,
       },
     },
     data() {
@@ -531,13 +535,12 @@
   .compared-select-option {
     .compared-customize {
       position: relative;
-      top: -3px;
-      margin-bottom: 8px;
+      padding: 4px 0;
     }
 
     .compared-select-icon {
       position: absolute;
-      top: 0;
+      top: 3px;
       right: 22px;
       font-size: 14px;
     }
@@ -545,11 +548,6 @@
     .customize-option {
       padding: 0 16px;
       cursor: pointer;
-
-      &:hover {
-        color: #3a84ff;
-        background: #eaf3ff;
-      }
     }
 
     .bk-form-control {
