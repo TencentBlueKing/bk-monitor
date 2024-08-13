@@ -192,7 +192,9 @@ class ListDevopsSpacesResource(Resource):
         if not devops_projects:
             return []
         # 过滤监控已接入蓝盾和bcs项目空间
-        all_space_ids = [space.space_id for space in SpaceApi.list_spaces() if space.space_type_id == "bkci"]
+        all_space_ids = [
+            space["space_id"] for space in SpaceApi.list_spaces_dict() if space["space_type_id"] == SpaceTypeEnum.BKCI
+        ]
         return [
             devops_project for devops_project in devops_projects if devops_project["project_code"] not in all_space_ids
         ]
