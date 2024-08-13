@@ -132,11 +132,7 @@ class DynamicUnifyQueryResource(Resource):
     class RequestSerializer(serializers.Serializer):
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
-        category = serializers.CharField(label="分类")
-        kind = serializers.CharField(label="类型")
-        predicate_value = serializers.CharField(label="具体值", allow_blank=True)
         unify_query_param = serializers.DictField(label="unify-query参数")
-
         bk_biz_id = serializers.IntegerField(label="业务ID")
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
@@ -155,12 +151,18 @@ class DynamicUnifyQueryResource(Resource):
         )
 
         # 替换service_name
-        pure_service_name = ComponentHandler.get_component_belong_service(
-            validate_data["service_name"], validate_data["predicate_value"]
-        )
+        pure_service_name = ComponentHandler.get_component_belong_service(validate_data["service_name"])
 
-        if validate_data["category"] not in component_where_mapping:
+        component_node = ServiceHandler.get_node(
+            validate_data["bk_biz_id"],
+            validate_data["app_name"],
+            validate_data["service_name"],
+        )
+        if component_node["extra_data"]["category"] not in component_where_mapping:
             raise ValueError(_lazy(f"组件指标值查询不支持{validate_data['category']}分类"))
+
+        if not ComponentHandler.is_component_by_node(component_node):
+            raise ValueError(f"服务: {validate_data['service_name']} 非组件类服务，无法构建指标查询条件")
 
         # 追加where条件
         for config in unify_query_params["query_configs"]:
@@ -169,8 +171,8 @@ class DynamicUnifyQueryResource(Resource):
                 component_filter = ComponentHandler.get_component_instance_query_params(
                     validate_data["bk_biz_id"],
                     validate_data["app_name"],
-                    validate_data["kind"],
-                    validate_data["category"],
+                    component_node["extra_data"]["kind"],
+                    component_node["extra_data"]["category"],
                     validate_data["component_instance_id"],
                     config["where"],
                     template=ComponentHandler.unify_query_operator,
@@ -179,11 +181,12 @@ class DynamicUnifyQueryResource(Resource):
                 config["where"] += component_filter
             else:
                 # 没有组件实例时 单独添加组件类型的条件
-                where = component_where_mapping[validate_data["category"]]
-                if validate_data.get("predicate_value"):
-                    config["where"].append(
-                        json.loads(json.dumps(where).replace("{predicate_value}", validate_data["predicate_value"]))
+                where = component_where_mapping[component_node["extra_data"]["category"]]
+                config["where"].append(
+                    json.loads(
+                        json.dumps(where).replace("{predicate_value}", component_node["extra_data"]["predicate_value"])
                     )
+                )
 
         # 替换service名称
         unify_query_params = json.loads(

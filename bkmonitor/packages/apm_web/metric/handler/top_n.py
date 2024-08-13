@@ -124,9 +124,7 @@ class TopNHandler:
                         )
                     )
                 )
-                pure_service_name = ComponentHandler.get_component_belong_service(
-                    self.filter_dict[service_name_key],
-                )
+                pure_service_name = ComponentHandler.get_component_belong_service(self.filter_dict[service_name_key])
                 filter_dict[service_name_key] = pure_service_name
 
         return filter_dict, where_condition
