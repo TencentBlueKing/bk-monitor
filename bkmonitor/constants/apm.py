@@ -103,6 +103,8 @@ class StandardFieldCategory:
     MESSAGING = "messaging"
     ASYNC_BACKEND = "async_backend"
 
+    OTHER = "other"
+
     @classmethod
     def get_label_by_key(cls, key: str):
         return {
@@ -112,6 +114,7 @@ class StandardFieldCategory:
             cls.DB: _("数据库"),
             cls.MESSAGING: _("消息队列"),
             cls.ASYNC_BACKEND: _("后台任务"),
+            cls.OTHER: _("其他"),
         }.get(key, key)
 
 

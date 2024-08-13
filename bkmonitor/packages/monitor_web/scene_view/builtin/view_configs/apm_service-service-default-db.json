@@ -708,11 +708,6 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
-            },
             "component_instance_id": "$bk_instance_id"
           }
         }
@@ -744,11 +739,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
-            },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -784,11 +774,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
-            },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -1474,11 +1459,6 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
-            },
             "component_instance_id": "$bk_instance_id"
           }
         }
@@ -1510,11 +1490,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
-            },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -1550,11 +1525,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
-            },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
             },
             "component_instance_id": "$bk_instance_id"
           },

@@ -50,15 +50,12 @@ class TopNHandler:
 
     group_by_keys = []
 
-    def __init__(
-        self, application: Application, start_time: int, end_time: int, size: int, filter_dict=None, service_params=None
-    ):
+    def __init__(self, application: Application, start_time: int, end_time: int, size: int, filter_dict=None):
         self.application = application
         self.start_time = start_time
         self.end_time = end_time
         self.size = size
         self.filter_dict = filter_dict or {}
-        self.service_params = service_params
 
     def top_n(self, override_filter_dict=None):
         """
@@ -113,22 +110,24 @@ class TopNHandler:
         """如果是组件的话获取查询条件"""
         where_condition = []
         filter_dict = self.filter_dict if not override_filter_dict else override_filter_dict
-
-        if ComponentHandler.is_component(self.service_params):
-            # 组件获取TopN时
-            where_condition.append(
-                json.loads(
-                    json.dumps(component_where_mapping[self.service_params["category"]]).replace(
-                        "{predicate_value}", self.service_params["predicate_value"]
+        service_name_key = OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)
+        service_name = self.filter_dict.get(service_name_key)
+        if service_name:
+            # 在服务页面下
+            node = ServiceHandler.get_node(self.application.bk_biz_id, self.application.app_name, service_name)
+            if ComponentHandler.is_component_by_node(node):
+                # 在组件类型的服务页面下 需要额外添加指标查询参数
+                where_condition.append(
+                    json.loads(
+                        json.dumps(component_where_mapping[node["extra_data"]["category"]]).replace(
+                            "{predicate_value}", node["extra_data"]["predicate_value"]
+                        )
                     )
                 )
-            )
-            if OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME) in self.filter_dict:
                 pure_service_name = ComponentHandler.get_component_belong_service(
-                    self.filter_dict[OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)],
-                    self.service_params["predicate_value"],
+                    self.filter_dict[service_name_key],
                 )
-                filter_dict[OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)] = pure_service_name
+                filter_dict[service_name_key] = pure_service_name
 
         return filter_dict, where_condition
 
@@ -162,13 +161,10 @@ class TopNHandler:
         if self._is_service_view():
             query_params["sceneId"] = "apm_service"
             query_params["dashboardId"] = "service-default-endpoint"
+            node = ServiceHandler.get_node(self.application.bk_biz_id, self.application.app_name, service_name)
 
-            if ComponentHandler.is_component(self.service_params):
-                query_params["filter-category"] = self.service_params["category"]
-                query_params["filter-kind"] = self.service_params["kind"]
-                query_params["filter-predicate_value"] = self.service_params["predicate_value"]
-
-                predicate_views = f"component-{self.service_params['predicate_value']}-endpoint"
+            if ComponentHandler.is_component_by_node(node):
+                predicate_views = f"component-{node['extra_info']['predicate_value']}-endpoint"
                 if ApmBuiltinProcessor.exists_views(predicate_views):
                     query_params["dashboardId"] = predicate_views
                 else:
@@ -256,7 +252,6 @@ class EndpointCalledCountTopNHandler(TopNHandler):
 
             result.append(
                 {
-                    # TODO 未补充kind等新的参数
                     "total": sum_count,
                     "unit": _("次"),
                     "name": service_name + self.JOIN_CHAR + span_name,

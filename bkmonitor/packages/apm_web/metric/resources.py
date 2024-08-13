@@ -37,6 +37,7 @@ from apm_web.constants import (
     TopoNodeKind,
     component_where_mapping,
 )
+from apm_web.db.db_utils import get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
@@ -67,11 +68,7 @@ from apm_web.resources import (
     AsyncColumnsListResource,
     ServiceAndComponentCompatibleResource,
 )
-from apm_web.serializers import (
-    AsyncSerializer,
-    ComponentInstanceIdDynamicField,
-    ServiceParamsSerializer,
-)
+from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
 from apm_web.utils import Calculator, group_by, handle_filter_fields
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request
@@ -219,11 +216,7 @@ class ServiceListResource(PageListResource):
                 width=200,
                 name=_lazy("服务名称"),
                 checked=True,
-                url_format="/service/?filter-service_name={service_name}"
-                "&filter-app_name={app_name}"
-                "&filter-category={category}"
-                "&filter-kind={kind}"
-                "&filter-predicate_value={predicate_value}",
+                url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
                 icon_get=lambda row: get_icon(row["service_name"].split(":")[0])
                 if row["kind"] == TopoNodeKind.REMOTE_SERVICE
                 else get_icon(row["category"]),
@@ -689,39 +682,19 @@ class CollectServiceResource(Resource):
 
 
 class InstanceListResource(Resource):
+    """获取实例列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称", required=False, allow_blank=True)
         keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         category = serializers.ListField(label="分类", required=False, default=[])
 
     def perform_request(self, validated_request_data):
         query_dict = {"bk_biz_id": validated_request_data["bk_biz_id"], "app_name": validated_request_data["app_name"]}
-        if "service_name" in validated_request_data.keys():
+        if "service_name" in validated_request_data:
             query_dict["service_name"] = [validated_request_data["service_name"]]
-
-        if ComponentHandler.is_component(validated_request_data.get("service_params")):
-            service_params = validated_request_data["service_params"]
-            if "service_name" in query_dict:
-                query_dict["service_name"] = [
-                    ComponentHandler.get_component_belong_service(
-                        query_dict["service_name"][0], service_params["predicate_value"]
-                    )
-                ]
-            query_dict["filters"] = {
-                "instance_topo_kind": TopoNodeKind.COMPONENT,
-                "component_instance_category": service_params["category"],
-                "component_instance_predicate_value": service_params["predicate_value"],
-            }
-        elif validated_request_data.get("category"):
-            query_dict["filters"] = {
-                "component_instance_category__in": validated_request_data.get("category"),
-                "instance_topo_kind": TopoNodeKind.COMPONENT,
-            }
-        else:
-            query_dict["filters"] = {"instance_topo_kind": TopoNodeKind.SERVICE}
 
         instances = api.apm_api.query_instance(query_dict).get("data", [])
         data = []
@@ -777,11 +750,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             target="blank",
             event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             filterable=True,
-            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}"
-            + "&filter-app_name={app_name}&"
-            "filter-category={service_category}&"
-            "filter-kind={service_kind}&"
-            "filter-predicate_value={service_predicate_value}",
+            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
             min_width=120,
         )
         if column_type:
@@ -793,9 +762,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                 filterable=True,
                 url_format="/service/?filter-service_name={service}" + "&filter-app_name={app_name}&"
-                "filter-category={service_category}&"
-                "filter-kind={service_kind}&"
-                "filter-predicate_value={service_predicate_value}&"
                 "dashboardId=service-default-overview&sceneId=apm_service&sceneType=overview",
                 min_width=120,
             )
@@ -877,7 +843,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         filter_fields = serializers.DictField(required=False, label="匹配条件", default={})
         check_filter_dict = serializers.DictField(required=False, label="勾选条件", default={})
         status = serializers.CharField(required=False, label="状态筛选")
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
         def validate_filter(self, value):
             if value == "all":
@@ -929,9 +894,12 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     }
                 )
 
-        ComponentHandler.build_component_filter_params(
-            data["bk_biz_id"], data["app_name"], query_params["filter_params"], data.get("service_params")
-        )
+            ComponentHandler.build_component_filter_params(
+                data["bk_biz_id"],
+                data["app_name"],
+                data["service_name"],
+                query_params["filter_params"],
+            )
         return api.apm_api.query_span(query_params)
 
     def format_time(self, time_int):
@@ -1019,9 +987,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
     def parse_errors(self, bk_biz_id, error_spans):
         # 获取service
-        service_mappings = {
-            i["topo_key"]: i for i in api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": self.app_name})
-        }
+        service_mappings = {i["topo_key"]: i for i in ServiceHandler.list_nodes(bk_biz_id, self.app_name)}
 
         error_map = {}
 
@@ -1094,30 +1060,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         paginated_data["filter"] = self.get_status_filter()
         return paginated_data
 
-    def get_pagination_data(self, origin_data, params, column_type=None):
-        data = super(ErrorListResource, self).get_pagination_data(origin_data, params, column_type)
-
-        # 因为在组件页面下 点击侧边栏需要传递额外参数 所以这里兼容组件的页面配置(见组件错误页面配置selector_panel.target.fields)
-        component_extra_data = ["category", "kind", "predicate_value", "service_name"]
-
-        param = {
-            **params.get("service_params", {}),
-            "service_name": params.get("service_name"),
-        }
-
-        is_all_exists = all(bool(param.get(i)) for i in component_extra_data)
-        if not is_all_exists:
-            return data
-
-        add_data = {}
-        for key in component_extra_data:
-            add_data[f"component_{key}"] = param[key]
-
-        for i in data["data"]:
-            i.update(add_data)
-
-        return data
-
 
 class TopNQueryResource(ApiAuthResource):
     class RequestSerializer(serializers.Serializer):
@@ -1128,7 +1070,6 @@ class TopNQueryResource(ApiAuthResource):
         size = serializers.IntegerField(label="查询数量", default=5)
         query_type = serializers.ChoiceField(label="查询类型", choices=get_top_n_query_type())
         filter_dict = serializers.DictField(label="过滤条件", required=False)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
     def perform_request(self, validated_request_data):
         start_time = validated_request_data["start_time"]
@@ -1145,7 +1086,6 @@ class TopNQueryResource(ApiAuthResource):
             end_time,
             validated_request_data["size"],
             validated_request_data.get("filter_dict"),
-            validated_request_data.get("service_params"),
         ).get_topo_n_data()
         return {"data": result}
 
@@ -1392,9 +1332,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         filter_fields = serializers.DictField(required=False, label="匹配条件", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
         status = serializers.CharField(required=False, label="状态过滤", allow_blank=True)
-        category = serializers.CharField(label="分类(服务视图下)", required=False)
-        kind = serializers.CharField(label="类型(服务视图下)", required=False)
-        predicate_value = serializers.CharField(label="分类具体值(服务视图下)", required=False)
 
     def get_sort_fields(self):
         return ["request_count", "error_rate", "error_count", "avg_duration"]
@@ -1430,10 +1367,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             filterable=True,
             event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}"
-            + "&filter-app_name={app_name}&"
-            "filter-category={service_category}&"
-            "filter-kind={service_kind}&"
-            "filter-predicate_value={service_predicate_value}",
+            + "&filter-app_name={app_name}",
         )
         if column_type:
             service_format = ServiceComponentAdaptLinkFormat(
@@ -1445,9 +1379,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 filterable=True,
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                 url_format="/service/?filter-service_name={service}" + "&filter-app_name={app_name}&"
-                "filter-category={service_category}&"
-                "filter-kind={service_kind}&"
-                "filter-predicate_value={service_predicate_value}&"
                 "dashboardId=service-default-overview&sceneId=apm_service&sceneType=overview",
             )
         # columns 默认顺序: 接口、调用类型、调用次数、错误次数、错误率、平均响应时间、状态、类型、分类、服务、操作
@@ -1739,12 +1670,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         if data.get("filter"):
             query_param["category"] = data["filter"]
 
-        if ComponentHandler.is_component(data):
-            predicate_value = data["predicate_value"]
-            query_param["category"] = data["category"]
-            service_name = ComponentHandler.get_component_belong_service(service_name, predicate_value)
-            query_param["service_name"] = service_name
-            query_param["category_kind_value"] = predicate_value
+        node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+        if ComponentHandler.is_component_by_node(node):
+            query_param["category"] = node["extra_data"]["category"]
+            query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
+            query_param["category_kind_value"] = node["extra_data"]["predicate_value"]
 
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
         # ENDPOINT_LIST 服务过滤条件
@@ -1943,7 +1873,6 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
         filter_dict = serializers.DictField(required=False, label="筛选条件", default={})
         filter_fields = serializers.DictField(required=False, label="匹配条件", default={})
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
     def get_columns(self, column_type=None):
         return [
@@ -2014,23 +1943,20 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
             "service_name": [validated_request_data["service_name"]],
         }
 
-        if ComponentHandler.is_component(validated_request_data.get("service_params")):
-            service_params = validated_request_data["service_params"]
-            if "service_name" in query_dict:
-                query_dict["service_name"] = [
-                    ComponentHandler.get_component_belong_service(
-                        query_dict["service_name"][0], service_params["predicate_value"]
-                    )
-                ]
-            query_dict["filters"] = {
-                "instance_topo_kind": TopoNodeKind.COMPONENT,
-                "component_instance_category": service_params["category"],
-                "component_instance_predicate_value": service_params["predicate_value"],
-            }
+        node = ServiceHandler.get_node(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            validated_request_data["service_name"],
+        )
+
+        if ComponentHandler.is_component_by_node(node):
+            query_dict["service_name"] = [
+                ComponentHandler.get_component_belong_service(validated_request_data["service_name"])
+            ]
             metric_data = ComponentHandler.get_service_component_instance_metrics(
                 application,
-                service_params["kind"],
-                service_params["category"],
+                node["extra_data"]["kind"],
+                node["extra_data"]["category"],
                 validated_request_data["start_time"],
                 validated_request_data["end_time"],
             )
@@ -2070,7 +1996,6 @@ class ServiceQueryExceptionResource(PageListResource):
         filter_dict = serializers.DictField(required=False, label="过滤条件", default={})
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.CharField(required=False, label="组件实例id(组件页面下有效)")
 
     def get_columns(self, column_type=None):
@@ -2110,13 +2035,15 @@ class ServiceQueryExceptionResource(PageListResource):
 
     def perform_request(self, data):
         filter_params = self.build_filter_params(data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            data["bk_biz_id"],
-            data["app_name"],
-            filter_params,
-            data.get("service_params"),
-            data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            ComponentHandler.build_component_filter_params(
+                data["bk_biz_id"],
+                data["app_name"],
+                service_name,
+                filter_params,
+                data.get("component_instance_id"),
+            )
 
         query_dict = {
             "start_time": data["start_time"],

@@ -601,6 +601,15 @@ class TopoNodeKind:
     # 虚拟服务 (Flow 指标处)
     VIRTUAL_SERVICE = "virtualService"
 
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.SERVICE: _("服务"),
+            cls.COMPONENT: _("服务组件"),
+            cls.REMOTE_SERVICE: _("自定义服务"),
+            cls.VIRTUAL_SERVICE: _("虚拟服务"),
+        }.get(key, key)
+
 
 class TraceFilterField:
     """trace检索表头支持获取候选值的字段"""

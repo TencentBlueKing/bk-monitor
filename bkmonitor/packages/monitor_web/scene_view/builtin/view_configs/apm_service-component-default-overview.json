@@ -568,11 +568,6 @@
             "query_type": "endpoint_called_count",
             "filter_dict": {
               "service_name": "${service_name}"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             }
           }
         }
@@ -600,11 +595,6 @@
             "query_type": "endpoint_error_rate",
             "filter_dict": {
               "service_name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             }
           }
         }
@@ -633,11 +623,6 @@
             "filter_dict": {
               "bk_instance_id": "$bk_instance_id",
               "service_name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             }
           }
         }

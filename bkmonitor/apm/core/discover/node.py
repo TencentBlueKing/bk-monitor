@@ -56,7 +56,7 @@ class NodeDiscover(DiscoverBase):
                 component_predicate_key=match_rule.predicate_key,
             )
             if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
-                # 组件类型的节点名称需要添加上服务名称的前缀
+                # 组件类型的节点名称需要添加上服务名称的前缀 (不考虑拼接后与用户定义的服务重名情况需要引导用户进行更改)
                 topo_key = f"{self.get_service_name(span)}-{topo_key}"
 
             find_instances[topo_key]["category"] = match_rule.category_id

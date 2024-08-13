@@ -16,6 +16,7 @@ from typing import Dict, List, Union
 import networkx
 
 from apm_web.constants import CustomServiceMatchType, TopoNodeKind
+from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric_handler import ServiceFlowCount
 from apm_web.models import ApplicationCustomService
 from apm_web.topo.constants import GraphPluginType
@@ -24,7 +25,6 @@ from apm_web.topo.handle import NodeDisplayType as Display
 from apm_web.topo.handle.graph_plugin import PluginProvider, ViewConverter
 from apm_web.utils import merge_dicts
 from bkmonitor.utils.thread_backend import ThreadPool
-from core.drf_resource import api
 
 logger = logging.getLogger("apm")
 
@@ -276,7 +276,7 @@ class GraphQuery(BaseQuery):
 
         found_node_keys = []
         # Resource1: 拓扑发现
-        topo_nodes = api.apm_api.query_topo_node(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        topo_nodes = ServiceHandler.list_nodes(self.bk_biz_id, self.app_name)
         for node in topo_nodes:
             extra_data = node.get("extra_data", {})
 

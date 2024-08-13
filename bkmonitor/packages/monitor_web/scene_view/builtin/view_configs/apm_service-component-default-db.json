@@ -34,12 +34,7 @@
           "api": "apm_metric.instanceList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            }
+            "service_name": "$service_name"
           },
           "fields": {
             "id": "bk_instance_id"
@@ -629,11 +624,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name"
             },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           }
         }
@@ -664,11 +654,6 @@
             "filter_params": {
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -703,11 +688,6 @@
             "filter_params": {
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -1301,11 +1281,6 @@
             "filter_params": {
               "resource.service.name": "$service_name"
             },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           }
         }
@@ -1335,11 +1310,6 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -1373,11 +1343,6 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "$bk_instance_id"
           },

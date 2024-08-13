@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import django
 import mock
 import pytest
+
 from apm_web.db.resources import ListDbStatisticsResource
 
 pytestmark = pytest.mark.django_db
@@ -46,7 +47,6 @@ class TestListDbStatistics(django.test.TestCase):
                 "slow_request_count",
                 "slow_command_rate",
             ],
-            "service_params": {"category": "db", "kind": "component", "predicate_value": ""},
             "component_instance_id": ["redis::::"],
             "start_time": 1694517684,
             "end_time": 1894521284,

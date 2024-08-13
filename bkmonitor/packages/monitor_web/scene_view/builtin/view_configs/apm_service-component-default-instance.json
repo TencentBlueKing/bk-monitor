@@ -19,11 +19,6 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             }
           }
         }
@@ -378,11 +373,6 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "${instance_view_bk_instance_id}"
           }
@@ -756,12 +746,7 @@
           "api": "apm_metric.serviceInstances",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            }
+            "service_name": "$service_name"
           },
           "fields": {
             "instance_view_bk_instance_id": "bk_instance_id",

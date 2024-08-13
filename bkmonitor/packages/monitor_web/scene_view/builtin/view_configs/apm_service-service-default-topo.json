@@ -60,12 +60,7 @@
           "api": "apm_meta.serviceDetail",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "service_params": {
-              "category": "$category",
-              "kind": "$kind",
-              "predicate_value": "$predicate_value"
-            }
+            "service_name": "$service_name"
           }
         }
       ]

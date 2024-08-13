@@ -24,9 +24,9 @@ from apm_web.constants import (
     SceneEventKey,
 )
 from apm_web.db.db_utils import build_db_param, get_offset
+from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbInstanceHandler, DbQuery, DbStatisticsHandler
 from apm_web.models import Application
-from apm_web.serializers import ServiceParamsSerializer
 from constants.apm import OtlpKey
 from core.drf_resource import Resource, api
 from monitor_web.scene_view.resources.base import PageListResource
@@ -51,7 +51,6 @@ class DbQuerySerializer(serializers.Serializer):
     component_instance_id = serializers.ListSerializer(
         child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
     )
-    service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
     keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
     filter = serializers.CharField(required=False, label="筛选条件", allow_blank=True)
 
@@ -142,7 +141,9 @@ class ListDbStatisticsResource(PageListResource):
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
         items = super(ListDbStatisticsResource, self).get_pagination_data(data, params, column_type)
-
+        service_name = params.get("filter_params", {}).get(OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME))
+        if service_name:
+            service_name = ComponentHandler.get_component_belong_service(service_name)
         # url 拼接
         for item in items["data"]:
             tmp = {
@@ -152,13 +153,6 @@ class ListDbStatisticsResource(PageListResource):
                     "selectedConditionValue": [item["span_name"]],
                 }
             }
-            service_name = params.get("filter_params", {}).get(
-                OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)
-            )
-            predicate_value = params.get("service_params", {}).get("predicate_value")
-
-            if predicate_value:
-                service_name = str(service_name).replace(f"-{predicate_value}", "")
             if service_name:
                 tmp[OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)] = {
                     "selectedCondition": {"label": "=", "value": "equal"},
@@ -175,7 +169,7 @@ class ListDbStatisticsResource(PageListResource):
         table_id = Application.get_trace_table_id(validated_data["bk_biz_id"], validated_data["app_name"])
 
         if not table_id:
-            raise ValueError(_("应用【{}】没有trace 结果表").format(validated_data['app_name']))
+            raise ValueError(_("应用【{}】没有 trace 结果表").format(validated_data['app_name']))
 
         # 指标准入
         metric_list = [metric for metric in validated_data["metric_list"] if metric in METRIC_TUPLE]

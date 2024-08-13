@@ -51,6 +51,7 @@ from apm_web.constants import (
     ServiceRelationLogTypeChoices,
     TopoNodeKind,
 )
+from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
@@ -93,7 +94,6 @@ from apm_web.serializers import (
     ApplicationCacheSerializer,
     AsyncSerializer,
     CustomServiceConfigSerializer,
-    ServiceParamsSerializer,
 )
 from apm_web.service.resources import CMDBServiceTemplateResource
 from apm_web.service.serializers import (
@@ -114,6 +114,7 @@ from constants.apm import (
     FlowType,
     OtlpKey,
     SpanStandardField,
+    StandardFieldCategory,
     TailSamplingSupportMethod,
 )
 from constants.data_source import (
@@ -980,7 +981,6 @@ class ServiceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
     def key_name_map(self):
         return {
@@ -989,7 +989,7 @@ class ServiceDetailResource(Resource):
                 "category": _("服务分类"),
                 "predicate_value": _("分类名称"),
                 "service_language": _("语言"),
-                "instance_count": _("实例数"),
+                "instance_count": _("实例数量"),
                 "cmdb_template_name": _("关联CMDB服务名称"),
                 "cmdb_first_category": _("关联CMDB一级分类名称"),
                 "cmdb_second_category": _("关联CMDB二级分类名称"),
@@ -1006,6 +1006,7 @@ class ServiceDetailResource(Resource):
                 "predicate_value": _("分类名称"),
                 "kind": _("服务类型"),
                 "belong_service": _("归属服务"),
+                "instance_count": _("实例数量"),
             },
         }
 
@@ -1014,69 +1015,55 @@ class ServiceDetailResource(Resource):
             "category": lambda x: CategoryEnum.get_label_by_key(x),
         }
 
-    def get_service_detail(self, data):
-        resp = api.apm_api.query_topo_node({"bk_biz_id": data["bk_biz_id"], "app_name": data["app_name"]})
-        instance_map = api.apm_api.query_instance(
-            {
-                "bk_biz_id": data["bk_biz_id"],
-                "app_name": data["app_name"],
-                "service_name": [data["service_name"]],
-                "filters": {
-                    "instance_topo_kind": TopoNodeKind.SERVICE,
-                },
-            }
+    def perform_request(self, data):
+        node_info = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], data["service_name"])
+        if not node_info:
+            raise ValueError(f"节点: {data['service_name']} 暂未发现，请检查上报数据中是否包含此服务")
+
+        instance_count = api.apm_api.query_instance(
+            bk_biz_id=data["bk_biz_id"],
+            app_name=data["app_name"],
+            service_name=[data["service_name"]],
+            page_size=1,
         )
-        instance_count = instance_map.get("total", 0)
-        for service in resp:
-            if service["topo_key"] == data["service_name"]:
-                service.update(service["extra_data"])
-                for clean_key in ["extra_data", "kind"]:
-                    service.pop(clean_key)
+        if instance_count:
+            instance_count = instance_count.get("total")
 
-                if service["category"] == CategoryEnum.HTTP:
-                    service.pop("predicate_value")
+        extra_data = node_info.get("extra_data", {})
+        if extra_data.get("kind") == TopoNodeKind.COMPONENT:
+            return [
+                {
+                    "name": self.key_name_map()[TopoNodeKind.COMPONENT][k],
+                    "type": "string",
+                    "value": v,
+                }
+                for k, v in {
+                    "topo_key": data["service_name"],
+                    "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
+                    "predicate_value": extra_data.get("predicate_value"),
+                    "kind": TopoNodeKind.get_label_by_key(extra_data.get("kind")),
+                    "belong_service": ComponentHandler.get_component_belong_service(data["service_name"]),
+                    "instance_count": instance_count,
+                }.items()
+            ]
 
-                service["instance_count"] = instance_count
-
-                self.add_service_relation(data["bk_biz_id"], data["app_name"], service)
-
-                return [
-                    {
-                        "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
-                        "type": "string",
-                        "value": self.value_map().get(item, lambda x: str(x))(value),
-                    }
-                    for item, value in service.items()
-                    if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
-                ]
-
-    def get_component_detail(self, data):
-        service_params = data["service_params"]
-
-        instance = {
-            "topo_key": data.get("service_name"),
-            "category": service_params.get("category"),
-            "predicate_value": service_params.get("predicate_value"),
-            "kind": service_params.get("kind"),
-            "belong_service": ComponentHandler.get_component_belong_service(
-                data.get("service_name", ""), service_params.get("predicate_value", "")
-            ),
-        }
+        self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
 
         return [
             {
-                "name": self.key_name_map()[TopoNodeKind.COMPONENT][k],
+                "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
                 "type": "string",
-                "value": v,
+                "value": self.value_map().get(item, lambda x: str(x))(value),
             }
-            for k, v in instance.items()
+            for item, value in {
+                "topo_key": data["service_name"],
+                "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
+                "predicate_value": extra_data.get("predicate_value"),
+                "service_language": TopoNodeKind.get_label_by_key(extra_data.get("service_language")),
+                "instance_count": instance_count,
+            }.items()
+            if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
         ]
-
-    def perform_request(self, data):
-        if ComponentHandler.is_component(data.get("service_params")):
-            return self.get_component_detail(data)
-
-        return self.get_service_detail(data)
 
     def add_service_relation(self, bk_biz_id, app_name, service):
         query_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service["topo_key"]}
@@ -1146,9 +1133,8 @@ class ServiceListResource(ApiAuthResource):
         app_name = serializers.CharField(label="应用名称")
 
     def perform_request(self, validated_request_data):
-        resp = api.apm_api.query_topo_node(
-            {"bk_biz_id": validated_request_data["bk_biz_id"], "app_name": validated_request_data["app_name"]}
-        )
+        resp = ServiceHandler.list_nodes(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+
         return {
             "conditionList": [],
             "data": [
@@ -1176,37 +1162,33 @@ class QueryExceptionEventResource(PageListResource):
         filter_dict = serializers.DictField(required=False, label="过滤条件", default={})
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
-
-    def build_filter_params(self, filter_dict):
-        result = []
-        for key, value in filter_dict.items():
-            if value == "undefined":
-                continue
-            result.append(
-                {"key": key, "op": "=", "value": value if isinstance(value, list) else [value], "condition": "and"}
-            )
-        return result
 
     def get_operator(self):
         return _("查看")
 
     def perform_request(self, validated_request_data):
-        filter_params = self.build_filter_params(validated_request_data["filter_params"])
-        DbComponentHandler.build_component_filter_params(
-            validated_request_data["bk_biz_id"],
-            validated_request_data["app_name"],
-            filter_params,
-            validated_request_data.get("service_params"),
-            validated_request_data.get("component_instance_id"),
-        )
-        category = validated_request_data.get("service_params", {}).get("category")
-        if category:
-            db_system_filter = DbComponentHandler.build_db_system_param(category=category)
-            filter_params.extend(db_system_filter)
+        filter_params = build_filter_params(validated_request_data["filter_params"])
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            node = ServiceHandler.get_node(
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                service_name,
+            )
+            # 如果是组件 增加查询参数
+            if ComponentHandler.is_component_by_node(node):
+                DbComponentHandler.build_component_filter_params(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_request_data.get("component_instance_id"),
+                )
+                db_system_filter = DbComponentHandler.build_db_system_param(category=node["extra_data"]["category"])
+                filter_params.extend(db_system_filter)
 
         events = api.apm_api.query_event(
             {
@@ -1967,7 +1949,6 @@ class QueryEndpointStatisticsResource(PageListResource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
@@ -2076,13 +2057,31 @@ class QueryEndpointStatisticsResource(PageListResource):
         if not validated_data.get("sort"):
             validated_data["sort"] = self.default_sort
         filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        is_component = False
+        uri_queryset = None
+
+        if service_name:
+            node = ServiceHandler.get_node(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+            )
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
+                is_component = True
+            else:
+                uri_queryset = UriServiceRelation.objects.filter(
+                    bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
+                )
+                if "resource.service.name" in validated_data.get("filter_params", {}):
+                    uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         buckets = api.apm_api.query_span(
             {
@@ -2094,15 +2093,6 @@ class QueryEndpointStatisticsResource(PageListResource):
                 "group_keys": [key.replace(".", "_") for key in self.span_keys],
             }
         )
-
-        is_component = ComponentHandler.is_component(validated_data.get("service_params"))
-        uri_queryset = None
-        if not is_component:
-            uri_queryset = UriServiceRelation.objects.filter(
-                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-            )
-            if "resource.service.name" in validated_data.get("filter_params", {}):
-                uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         res = []
         summary_mappings = defaultdict(list)
@@ -2158,7 +2148,6 @@ class QueryExceptionDetailEventResource(PageListResource):
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         keyword = serializers.CharField(required=False, default="", label="关键词", allow_blank=True)
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
@@ -2173,13 +2162,15 @@ class QueryExceptionDetailEventResource(PageListResource):
 
     def perform_request(self, validated_data):
         filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            ComponentHandler.build_component_filter_params(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+                filter_params,
+                validated_data.get("component_instance_id"),
+            )
 
         query_dict = {
             "start_time": validated_data["start_time"],
@@ -2247,7 +2238,6 @@ class QueryExceptionEndpointResource(Resource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
         exception_type = serializers.CharField(label="异常类型", required=False, default="")
         filter_params = serializers.DictField(required=False, label="过滤条件", default={})
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
@@ -2262,13 +2252,15 @@ class QueryExceptionEndpointResource(Resource):
 
     def perform_request(self, validated_data):
         filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            ComponentHandler.build_component_filter_params(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+                filter_params,
+                validated_data.get("component_instance_id"),
+            )
 
         query_dict = {
             "start_time": validated_data["start_time"],
@@ -2342,7 +2334,6 @@ class QueryExceptionTypeGraphResource(Resource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
         exception_type = serializers.CharField(label="异常类型", required=False, default="")
         filter_params = serializers.DictField(required=False, label="过滤条件", default={})
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
@@ -2357,13 +2348,15 @@ class QueryExceptionTypeGraphResource(Resource):
 
     def perform_request(self, validated_data):
         filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            ComponentHandler.build_component_filter_params(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+                filter_params,
+                validated_data.get("component_instance_id"),
+            )
 
         query_dict = {
             "start_time": validated_data["start_time"],

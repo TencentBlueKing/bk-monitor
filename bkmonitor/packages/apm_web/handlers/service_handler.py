@@ -29,8 +29,10 @@ from apm_web.constants import (
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, ApplicationCustomService
 from apm_web.utils import group_by
+from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +94,7 @@ class ServiceHandler:
             app_name = application.app_name
             is_enabled_profiling = application.is_enabled_profiling
 
-        resp = api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": app_name})
+        resp = cls.list_nodes(bk_biz_id, app_name)
 
         # step1: 获取已发现的服务
         trace_services = [item for item in resp if item["extra_data"]["kind"] in ["service", "remote_service"]]
@@ -228,22 +230,12 @@ class ServiceHandler:
         if not node_topo_key:
             return False
 
-        nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=node_topo_key)
+        node = cls.get_node(bk_biz_id, app_name, node_topo_key)
 
-        if nodes:
-            return nodes[0]["extra_data"]["kind"] == TopoNodeKind.REMOTE_SERVICE
+        if node:
+            return node.get("extra_data", {}).get("kind") == TopoNodeKind.REMOTE_SERVICE
 
         return False
-
-    @classmethod
-    def get_service_node_detail(cls, bk_biz_id, app_name, node_topo_key):
-        """获取服务详细信息"""
-        nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=node_topo_key)
-
-        if nodes:
-            return nodes[0]
-
-        return None
 
     @classmethod
     def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, nodes=None):
@@ -251,7 +243,7 @@ class ServiceHandler:
         获取服务apdex配置
         """
         if not nodes:
-            nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
+            nodes = cls.list_nodes(bk_biz_id, app_name)
 
         instance = ApdexServiceRelation.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
@@ -277,7 +269,7 @@ class ServiceHandler:
     @classmethod
     def get_service_apdex_key(cls, bk_biz_id, app_name, service_name, nodes=None, raise_exception=True):
         if not nodes:
-            nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
+            nodes = cls.list_nodes(bk_biz_id, app_name)
 
         node = next((i for i in nodes if i["topo_key"] == service_name), None)
         if not node:
@@ -288,3 +280,35 @@ class ServiceHandler:
 
         category = node["extra_data"]["category"]
         return ApdexCategoryMapping.get_apdex_by_category(category)
+
+    @classmethod
+    @using_cache(CacheType.APM(60 * 10))
+    def get_node(cls, bk_biz_id, app_name, service_name):
+        """获取 topoNode 节点信息"""
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "topo_key": service_name,
+        }
+
+        try:
+            response = api.apm_api.query_topo_node(**params)
+            if not response:
+                raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
+            return response[0]
+        except BKAPIError as e:
+            raise ValueError(f"[ServiceHandler] 查询拓扑节点信息失败，错误: {e}")
+
+    @classmethod
+    def list_nodes(cls, bk_biz_id, app_name):
+        """获取 topoNode 节点信息列表"""
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+        }
+
+        try:
+            response = api.apm_api.query_topo_node(**params)
+            return response
+        except BKAPIError as e:
+            raise ValueError(f"[ServiceHandler] 查询拓扑节点列表失败， 错误: {e}")
