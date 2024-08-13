@@ -177,3 +177,65 @@ def get_dashboard_by_uid(org_id: int, dashboard_uid: int):
     headers = {"X-Grafana-Org-Id": str(org_id)}
     resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
     return resp
+
+
+def common_get_folders(api_host: str, org_id: int):
+    url = f"{api_host}/api/folders"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
+    return resp
+
+
+def common_get_all_organization(api_host: str):
+    url = f"{api_host}/api/orgs/"
+    resp = rpool.get(url, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
+    return resp
+
+
+def common_create_folder(api_host: str, org_id: int, title: str, parent_uid: str = None):
+    url = f"{api_host}/api/folders"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    if parent_uid is None:
+        data = {"title": title}
+    else:
+        data = {"title": title, "parentUid": parent_uid}
+    resp = rpool.post(
+        url, json=data, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log}
+    )
+    return resp
+
+
+def common_create_dashboard(api_host: str, org_id: int, dashboard_info: dict, panels: list, folder_uid: str):
+    url = f"{api_host}/api/dashboards/db"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    data = {
+        "dashboard": {
+            "id": None,
+            "uid": None,
+            "title": dashboard_info['title'],
+            "tags": dashboard_info['tags'],
+            "timezone": dashboard_info['timezone'],
+            "refresh": dashboard_info['refresh'],
+            "panels": panels,
+        },
+        "folderUid": folder_uid,
+        "overwrite": True,
+    }
+    resp = rpool.post(
+        url, json=data, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log}
+    )
+    return resp
+
+
+def common_get_datasources(api_host, org_id):
+    url = f"{api_host}/api/datasources/"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
+    return resp
+
+
+def common_create_organization(api_host, name):
+    url = f"{api_host}/api/orgs/"
+    data = {"name": name}
+    resp = rpool.post(url, json=data, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
+    return resp
