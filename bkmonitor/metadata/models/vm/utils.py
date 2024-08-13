@@ -19,6 +19,7 @@ from django.db.models import Q
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from metadata.models import AccessVMRecord
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
 from metadata.models.vm.config import BkDataStorageWithDataID
 from metadata.models.vm.constants import BKDATA_NS_TIMESTAMP_DATA_ID_LIST, TimestampLen
@@ -315,6 +316,7 @@ def get_vm_cluster_id_name(
     return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
 
 
+# "space_4593_bkapm_metric_dataservice_test.__default__"
 def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     """获取 bkbase 的结果表名称"""
     # 如果以 '__default__'结尾，则取前半部分
@@ -323,6 +325,12 @@ def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
     # NOTE: 清洗结果表不能出现双下划线
     vm_name = f"vm_{name}".replace('__', '_')
+    # 兼容部分场景中划线和下划线允许同时存在的情况
+    is_exist = AccessVMRecord.objects.filter(vm_result_table_id__contains=vm_name).exists()
+    if is_exist:
+        if len(vm_name) > 45:
+            vm_name = vm_name[:45]
+        vm_name = vm_name + "_add"
 
     return {"data_name": vm_name, "topic_name": f"{vm_name}{settings.DEFAULT_BKDATA_BIZ_ID}"}
 
