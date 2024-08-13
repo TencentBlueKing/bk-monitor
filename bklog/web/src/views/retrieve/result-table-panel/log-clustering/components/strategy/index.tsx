@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { From } from 'bk-magic-vue';
@@ -41,6 +41,11 @@ const { $i18n } = window.mainComponent;
 @Component
 export default class Strategy extends tsc<object> {
   @Ref('strategyFrom') strategyFromRef: From;
+  /** 策略状态更新函数 */
+  @Prop({ type: Function }) strategySubmitStatus: (v: boolean) => boolean;
+  /** 日志聚类总开关 */
+  @Prop({ type: Boolean, default: false }) signatureSwitch: boolean;
+
   isShowDialog = false;
   formLoading = false;
   /** 当前编辑的类型 */
@@ -49,6 +54,10 @@ export default class Strategy extends tsc<object> {
   typeMapping = {
     new_cls_strategy: 'alarm',
     normal_strategy: 'increase',
+  };
+  strategyMapping = {
+    alarm: 'new_cls_strategy',
+    increase: 'normal_strategy',
   };
   isEdit = false;
   baseAlarmFormData = null;
@@ -88,7 +97,7 @@ export default class Strategy extends tsc<object> {
   ];
   /** 告警组下拉框 */
   groupSelectList = [];
-  /** 新类告警是否保存过 */
+  /** 新类告警策略是否保存过 */
   alarmIsSubmit = false;
   /** 数量突增告警告警是否保存过 */
   increaseIsSubmit = false;
@@ -123,16 +132,27 @@ export default class Strategy extends tsc<object> {
     ],
   };
 
-  get isAlarmType() {
+  get isAlarmType(): boolean {
     return this.activeType === 'alarm';
   }
-
   get bkBizId() {
     return this.$store.state.bkBizId;
   }
-
   get formData(): any {
     return this.isAlarmType ? this.alarmFormData : this.increaseFormData;
+  }
+  /** 是否创建了策略 */
+  get strategyHaveSubmit(): boolean {
+    return this.alarmIsSubmit || this.increaseIsSubmit;
+  }
+  /** 新增按钮是否禁用 */
+  get addBtnIsDisabled(): boolean {
+    return this.alarmIsSubmit && this.increaseIsSubmit;
+  }
+
+  @Watch('strategyHaveSubmit')
+  watchStrategyStatus() {
+    this.strategySubmitStatus(this.strategyHaveSubmit);
   }
 
   mounted() {
@@ -182,10 +202,11 @@ export default class Strategy extends tsc<object> {
     this.strategyFromRef.validate().then(() => {
       const submitPostStr = this.isAlarmType ? 'retrieve/newClsStrategy' : 'retrieve/normalStrategy';
       const data = this.isAlarmType ? this.alarmFormData : this.increaseFormData;
+      const { label_name, ...otherData } = data;
       $http
         .request(submitPostStr, {
           params: { index_set_id: this.$route.params.indexId },
-          data,
+          data: otherData,
         })
         .then(res => {
           if (res.code === 0) {
@@ -214,7 +235,7 @@ export default class Strategy extends tsc<object> {
     this.isShowDialog = true;
   }
   deleteStrategy(type: FormType) {
-    const strategyType = this.typeMapping[type] ?? type;
+    const strategyType = this.strategyMapping[type] ?? type;
     const h = this.$createElement;
     this.$bkInfo({
       title: this.$t('是否删除该策略？'),
@@ -239,7 +260,7 @@ export default class Strategy extends tsc<object> {
             },
             [this.$t('策略：') as string],
           ),
-          h('span', this.$t(type === 'alarm' ? '新类告警' : '数量突增告警策略') as string),
+          h('span', this.$t(type === 'alarm' ? '新类告警策略' : '数量突增告警策略') as string),
         ],
       ),
       confirmFn: async () => {
@@ -250,6 +271,10 @@ export default class Strategy extends tsc<object> {
           });
           if (res.code === 0) {
             this.isShowDialog = false;
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('操作成功'),
+            });
             this.initStrategyInfo();
           }
           return true;
@@ -266,7 +291,11 @@ export default class Strategy extends tsc<object> {
         values.forEach(vItem => {
           const isSubmit = JSON.stringify(vItem.data) !== '{}';
           this[this.infoKeyData[vItem.type].submit] = isSubmit;
-          Object.assign(this[this.infoKeyData[vItem.type].data], vItem.data);
+          if (isSubmit) {
+            Object.assign(this[this.infoKeyData[vItem.type].data], vItem.data);
+          } else {
+            this.resetFormData(vItem.type as FormType);
+          }
         });
       })
       .catch(error => {
@@ -324,7 +353,7 @@ export default class Strategy extends tsc<object> {
             disabled={this.alarmIsSubmit && !this.isEdit}
             onClick={() => this.handleSelectFromType('alarm')}
           >
-            {$i18n.t('新类告警')}
+            {$i18n.t('新类告警策略')}
           </bk-button>
           <bk-button
             class={{ 'is-selected': !this.isAlarmType }}
@@ -353,9 +382,9 @@ export default class Strategy extends tsc<object> {
           >
             <bk-input
               v-model={this.formData.interval}
+              placeholder={$i18n.t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
               show-controls={false}
               type='number'
-              placeholder={$i18n.t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
             ></bk-input>
           </bk-form-item>
           <bk-form-item
@@ -366,9 +395,9 @@ export default class Strategy extends tsc<object> {
           >
             <bk-input
               v-model={this.formData.threshold}
+              placeholder={$i18n.t('新类对应日志触发告警的条数')}
               show-controls={false}
               type='number'
-              placeholder={$i18n.t('新类对应日志触发告警的条数')}
             ></bk-input>
           </bk-form-item>
           <bk-form-item
@@ -440,6 +469,7 @@ export default class Strategy extends tsc<object> {
     const popoverSlot = (type: FormType = 'alarm') => (
       <bk-popover
         ext-cls='strategy-popover'
+        disabled={!this.signatureSwitch}
         placement='top'
         theme='light'
       >
@@ -448,7 +478,7 @@ export default class Strategy extends tsc<object> {
           {/* <span class='num'>1</span> */}
         </div>
         <div slot='content'>
-          <span>{$i18n.t(type === 'alarm' ? '新类告警' : '数量突增告警策略')}</span>
+          <span>{$i18n.t(type === 'alarm' ? '新类告警策略' : '数量突增告警策略')}</span>
           <span
             class='operator'
             onClick={() => this.editStrategy(type)}
@@ -471,11 +501,11 @@ export default class Strategy extends tsc<object> {
           <div
             v-bk-tooltips={{
               content: this.$t('请先删除策略'),
-              disabled: !(this.alarmIsSubmit && this.increaseIsSubmit),
+              disabled: !this.addBtnIsDisabled,
             }}
           >
             <bk-button
-              disabled={this.alarmIsSubmit && this.increaseIsSubmit}
+              disabled={this.addBtnIsDisabled || !this.signatureSwitch}
               icon='plus'
               size='small'
               onClick={this.handleAddNewStrategy}
