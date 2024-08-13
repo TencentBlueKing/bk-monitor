@@ -71,17 +71,6 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
     def list_spaces_dict(cls, using_cache=True) -> List[dict]:
         """
         告警性能版本获取空间列表
-        {'id': 4631,
-           'space_type_id': 'bkci',
-           'space_id': 'uc-overseas',
-           'space_code': 'd4b77646c4954917b4a3471a22829b32',
-           'space_name': 'uc-overseas',
-           'status': 'normal',
-           'time_zone': 'Asia/Shanghai',
-           'language': 'zh-hans',
-           'is_bcs_valid': True,
-           'space_uid': 'bkci__uc-overseas',
-           'display_name': '[研发项目] uc-overseas'}
         """
         ret: List[dict] = local_mem.get("metadata:list_spaces_dict", None)
         if ret is not None and using_cache:
@@ -112,7 +101,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             if space["space_type_id"] != SpaceTypeEnum.BKCC.value:
                 space["bk_biz_id"] = -space["id"]
             else:
-                space["bk_biz_id"] = space["space_id"]
+                space["bk_biz_id"] = int(space["space_id"])
             space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
             space["display_name"] = (
                 f"[{space['type_name']}] "
