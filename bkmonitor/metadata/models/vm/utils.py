@@ -316,7 +316,6 @@ def get_vm_cluster_id_name(
     return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
 
 
-# "space_4593_bkapm_metric_dataservice_test.__default__"
 def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     """获取 bkbase 的结果表名称"""
     # 如果以 '__default__'结尾，则取前半部分
