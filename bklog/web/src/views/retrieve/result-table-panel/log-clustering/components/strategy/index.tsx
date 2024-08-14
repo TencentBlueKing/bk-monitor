@@ -141,18 +141,14 @@ export default class Strategy extends tsc<object> {
   get formData(): any {
     return this.isAlarmType ? this.alarmFormData : this.increaseFormData;
   }
-  /** 是否创建了策略 */
-  get strategyHaveSubmit(): boolean {
-    return this.alarmIsSubmit || this.increaseIsSubmit;
-  }
   /** 新增按钮是否禁用 */
   get addBtnIsDisabled(): boolean {
     return this.alarmIsSubmit && this.increaseIsSubmit;
   }
 
-  @Watch('strategyHaveSubmit')
-  watchStrategyStatus() {
-    this.strategySubmitStatus(this.strategyHaveSubmit);
+  @Watch('alarmIsSubmit')
+  watchStrategyStatus(v: boolean) {
+    this.strategySubmitStatus(v);
   }
 
   mounted() {
