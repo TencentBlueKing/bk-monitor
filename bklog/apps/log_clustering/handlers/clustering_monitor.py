@@ -220,7 +220,8 @@ class ClusteringMonitorHandler(object):
         algorithms_config = strategy_config["items"][0]["algorithms"][0]
         level = algorithms_config["level"]
         user_groups = strategy_config["notice"]["user_groups"]
-        labels = strategy_config["labels"][-1:]
+        label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
+        labels = [f"LogClustering/Count/{label_index_set_id}"]
         data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups, "label_name": labels}
         if strategy_type == StrategiesType.NEW_CLS_strategy:
             interval = algorithms_config["config"]["args"].get("$new_class_interval", "")
