@@ -931,7 +931,7 @@ export default class App extends tsc<object> {
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&
             this.$route.name &&
             !AI_WHALE_EXCLUED_ROUTES.includes(this.$route.name) &&
-            this.hasBusinessAuth && <AiWhale />
+            this.hasBusinessAuth && <AiWhale key={this.bizId} />
           // #endif
         }
       </div>
