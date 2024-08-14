@@ -167,6 +167,8 @@ export default class AiWhale extends tsc<object> {
   };
   showAIBlueking = false;
   chatHelper: ChatHelper = null;
+  enableAiAssistant = !!window.enable_ai_assistant;
+
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
@@ -188,7 +190,7 @@ export default class AiWhale extends tsc<object> {
     this.whalePosition.top = this.height - robotWidth - 20;
     this.whalePosition.left = this.width - robotWidth / 2;
     this.init();
-    this.initStreamChatHelper();
+    this.enableAiAssistant && this.initStreamChatHelper();
   }
 
   destroyed() {
@@ -807,11 +809,11 @@ export default class AiWhale extends tsc<object> {
               class={tipClassName}
             >
               {this.createAIContent()}
-              {this.createAIDialogFooter()}
+              {this.enableAiAssistant && this.createAIDialogFooter()}
             </div>
           )}
         </div>
-        {this.showAIBlueking && this.createAiBlueking()}
+        {this.enableAiAssistant && this.showAIBlueking && this.createAiBlueking()}
       </div>
     );
   }
