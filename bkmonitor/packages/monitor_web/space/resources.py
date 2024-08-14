@@ -20,7 +20,7 @@ def get_bk_biz_ids_by_user(user=None, use_cache=True) -> [int]:
     return [biz["bk_biz_id"] for biz in spaces]
 
 
-def get_space_map(use_cache=True) -> Dict[int : Dict[str, Any]]:
+def get_space_map(use_cache=True) -> Dict[int, Dict[str, Any]]:
     space_map = {}
     spaces = SpaceApi.list_spaces_dict(use_cache)
     for space in spaces:
@@ -34,6 +34,8 @@ def get_space_dict_by_user(user=None, use_cache=True) -> List[Dict[str, Any]]:
     """
     if user is None:
         username = get_global_user()
+    elif isinstance(user, str):
+        username = user
     else:
         username = user.username
 
