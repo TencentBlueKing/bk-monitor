@@ -14,8 +14,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
-from bkmonitor.iam import Permission
 from bkmonitor.utils.request import get_request
+from core.drf_resource import resource
 from fta_web.models.alert import AlertFeedback, AlertSuggestion, SearchFavorite
 
 
@@ -67,7 +67,7 @@ class AllowedBizIdsField(serializers.ListField):
         if not req:
             # 如果上下文没有请求对象，可能是shell调试状态，就不做校验了
             return value
-        return Permission(request=req).filter_biz_ids_by_action(action=self.iam_action, bk_biz_ids=value)
+        return resource.space.get_bk_biz_ids_by_user(req.user)
 
 
 class AlertSearchSerializer(serializers.Serializer):
