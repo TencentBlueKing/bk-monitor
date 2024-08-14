@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import Dict, Iterable, List, Union
+from typing import Dict, List, Union
 
 from django.conf import settings
 from iam import (
@@ -34,7 +34,6 @@ from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 from iam.utils import gen_perms_apply_data
 
-from api.cmdb.define import Business
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
@@ -482,62 +481,6 @@ class Permission(object):
                 results.append(space)
 
         return results
-
-    def filter_business_list_by_action(
-        self, action: Union[ActionMeta, str], business_list: List[Business] = None
-    ) -> List[Business]:
-        """
-        根据动作过滤用户有权限的业务列表
-        """
-
-        if business_list is None:
-            # 获取业务列表
-            business_list = [Business(s["bk_biz_id"], **s) for s in SpaceApi.list_spaces_dict()]
-
-        # 对后台API进行权限豁免
-        if self.skip_check:
-            return business_list
-
-        # 拉取策略
-        request = self.make_request(action=action)
-
-        try:
-            policies = self.iam_client._do_policy_query(request)
-        except AuthAPIError as e:
-            logger.exception("[IAM AuthAPI Error]: %s", e)
-            return []
-
-        if not policies:
-            return []
-
-        # 生成表达式
-        expr = make_expression(policies)
-
-        results = []
-        for business in business_list:
-            obj_set = ObjectSet()
-            obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(business.bk_biz_id)})
-
-            if self.iam_client._eval_expr(expr, obj_set):
-                results.append(business)
-
-        return results
-
-    def filter_biz_ids_by_action(self, action: Union[ActionMeta, str], bk_biz_ids: Iterable[int] = None) -> List[int]:
-        """
-        过滤只包含数值的业务ID列表，filter_business_list_by_action 的进一步封装
-        """
-        bk_biz_ids = bk_biz_ids or []
-        if -1 in bk_biz_ids:
-            # -1 代表获取用户所有有权限的业务
-            bk_biz_ids = []
-
-        business_list = [Business(bk_biz_id) for bk_biz_id in bk_biz_ids]
-        if not business_list:
-            business_list = None
-
-        filtered_business = self.filter_business_list_by_action(action=action, business_list=business_list)
-        return [business.bk_biz_id for business in filtered_business]
 
     @classmethod
     def setup_meta(cls):
