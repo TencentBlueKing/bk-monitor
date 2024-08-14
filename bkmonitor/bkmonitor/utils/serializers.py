@@ -148,7 +148,7 @@ class BkBizIdSerializer(serializers.Serializer):
             raise serializers.ValidationError(_("bk_biz_id or space_uid must be provided"))
 
         # 如果没有bk_biz_id就根据space_uid获取bk_biz_id
-        if not attrs("bk_biz_id"):
+        if not attrs.get("bk_biz_id"):
             attrs["bk_biz_id"] = space_uid_to_bk_biz_id(attrs["space_uid"])
 
         if not attrs["bk_biz_id"]:
