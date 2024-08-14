@@ -56,14 +56,6 @@ class ShieldObj(object):
     def is_dimension_scope(self):
         return self.config["category"] == ShieldCategory.DIMENSION
 
-    def is_biz_topo(self, node):
-        """
-        判断是否是业务拓扑
-        :param node:
-        :return:
-        """
-        return len(node) == 1 and node[0]["bk_obj_id"] == ScopeType.BIZ
-
     def _parse_cycle_config(self):
         """
          将config_list转成datetime_config_list 避免重复转换
@@ -120,24 +112,27 @@ class ShieldObj(object):
             # 如果是按照节点进行屏蔽，则需要判断是否是按照业务屏蔽的
             if self.config["scope_type"] == ScopeType.NODE:
                 bk_topo_node = clean_dimension.pop("bk_topo_node", [])
-                if not self.is_biz_topo(bk_topo_node):
+                if not (len(bk_topo_node) == 1 and bk_topo_node[0]["bk_obj_id"] == ScopeType.BIZ):
                     clean_dimension["bk_topo_node"] = bk_topo_node
-            elif self.config["scope_type"] == ScopeType.DYNAMIC_GROUP:
-                dynamic_group_ids = []
-                for dg in clean_dimension.pop("dynamic_group", []):
-                    dynamic_group_ids.extend(dg["dynamic_group_id"])
 
-                # 查询动态分组所属的主机
-                dynamic_groups = []
-                if dynamic_group_ids:
-                    dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
+        # 解析动态分组配置
+        if self.config["scope_type"] == ScopeType.DYNAMIC_GROUP:
+            dynamic_group_ids = set()
+            for dg in clean_dimension.pop("dynamic_group", []):
+                dynamic_group_ids.add(dg["dynamic_group_id"])
+            dynamic_group_ids = list(dynamic_group_ids)
 
-                bk_host_ids = set()
-                for dynamic_group in dynamic_groups:
-                    if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
-                        bk_host_ids.update(dynamic_group["bk_inst_ids"])
-                if bk_host_ids:
-                    clean_dimension["bk_host_id"] = list(bk_host_ids)
+            # 查询动态分组所属的主机
+            dynamic_groups = []
+            if dynamic_group_ids:
+                dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
+
+            bk_host_ids = set()
+            for dynamic_group in dynamic_groups:
+                if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                    bk_host_ids.update(dynamic_group["bk_inst_ids"])
+            if bk_host_ids:
+                clean_dimension["bk_host_id"] = list(bk_host_ids)
 
         for k, v in list(clean_dimension.items()):
             field = load_field_instance(k, v)
