@@ -1,0 +1,68 @@
+.icon-setting.filter-popover-trigger {
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 2px;
+
+  &:hover {
+    background: #f0f1f5;
+  }
+
+  &.active {
+    color: #3a84ff;
+    background: #e1ecff;
+  }
+}
+
+.strategy-config-filter-popover {
+  .tippy-tooltip.light-theme {
+    padding: 0;
+    box-shadow: 0 4px 12px 0 #00000033;
+  }
+
+  .filter-popover-content {
+    width: 240px;
+    padding: 12px 0;
+    background-color: #fff;
+
+    .title {
+      height: 34px;
+      padding: 0 12px 0 16px;
+      font-size: 14px;
+      line-height: 22px;
+      color: #313238;
+    }
+
+    .field-list {
+      max-height: 428px;
+      overflow-y: auto;
+
+      &-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px 0 16px;
+        margin-bottom: 4px;
+        font-size: 14px;
+        line-height: 32px;
+        color: #63656e;
+
+        &:hover {
+          cursor: move;
+        }
+
+        &.drag-target-item {
+          background-color: #e1ecff;
+        }
+
+        .icon-mc-tuozhuai {
+          font-size: 12px;
+          color: #c4c6cc;
+        }
+      }
+    }
+  }
+}

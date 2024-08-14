@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { ofType, modifiers } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -47,6 +47,7 @@ import { debounce } from 'throttle-debounce';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
+import UserConfigMixin from '../../../mixins/userStoreConfig';
 import { downFile } from '../../../utils';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -58,6 +59,7 @@ import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
+import FilterPanelPopover from './filter-panel-popover';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
@@ -70,11 +72,13 @@ import '@blueking/search-select-v3/vue2/vue2.css';
 const { i18n: I18N } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
 const STRATEGY_CONFIG_SETTING = 'strategy_config_setting';
+/** 过滤项 */
+const FILTER_PANEL_FIELD = 'FILTER_PANEL_FIELD';
 
 @Component({
   name: 'StrategyConfig',
 })
-export default class StrategyConfig extends tsc<IStrategyConfigProps> {
+class StrategyConfig extends Mixins(UserConfigMixin) {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('authorityMap') authorityMap;
@@ -98,6 +102,26 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   @Prop({ type: String, default: '' }) resultTableId: IStrategyConfigProps['resultTableId']; /** 结果表搜索条件 */
 
   showFilterPanel = true;
+  showFilterPanelField = [
+    'strategy_status',
+    'scenario',
+    'data_source_list',
+    'user_group_name',
+    'label_name',
+    'action_name',
+  ];
+  /** 过滤面板字段展示顺序 */
+  filterPanelFieldOrder = [
+    'status',
+    'scenario',
+    'dataSource',
+    'noticeName',
+    'strategyLabels',
+    'actionName',
+    'level',
+    'algorithmType',
+    'invalidType',
+  ];
   header: IHeader = {
     value: 0,
     dropdownShow: false,
@@ -251,6 +275,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   ipTargetType = 'TOPO';
   ipSelectorShow = false;
   emptyType: EmptyStatusType = 'empty'; // 空状态
+  selectKey = 1;
   cancelFn = () => {}; // 取消监控目标接口方法
 
   get bizList() {
@@ -271,10 +296,9 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       })
     );
   }
+
+  // 筛选面板所有字段
   get filterPanelData(): IGroupData[] {
-    // 筛选面板数据
-    // 过滤需要展示的分组（监控对象、数据来源、告警组）
-    const displayKeys = ['scenario', 'dataSource', 'noticeName', 'strategyLabels', 'actionName'];
     const iconMap = {
       ALERT: 'icon-mc-chart-alert',
       INVALID: 'icon-shixiao',
@@ -291,17 +315,20 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         icon: iconMap[item.id],
       })),
     };
-    return [
-      strategyStatusFilter,
-      ...displayKeys.map(key => {
-        const { id, name, list } = this.backDisplayMap[key];
-        return {
-          id,
-          name,
-          data: key === 'noticeName' ? this.groupList.map(({ name, count }) => ({ id: name, name, count })) : list,
-        };
-      }),
-    ];
+    return this.filterPanelFieldOrder.map(key => {
+      if (key === 'status') return strategyStatusFilter;
+      const { id, name, list } = this.backDisplayMap[key];
+      return {
+        id,
+        name,
+        data: key === 'noticeName' ? this.groupList.map(({ name, count }) => ({ id: name, name, count })) : list,
+      };
+    });
+  }
+
+  /** 筛选面板展示字段 */
+  get showFilterPanelData(): IGroupData[] {
+    return this.filterPanelData.filter(item => this.showFilterPanelField.includes(item.id as string));
   }
 
   get isFta() {
@@ -796,6 +823,23 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     this.header.handleSearch = debounce(300, () => {
       this.handleGetListData(false, 1);
     });
+    /** 获取筛选面板用户配置 */
+    this.handleGetUserConfig<{ fields: string[]; order: string[] }>(FILTER_PANEL_FIELD, { reject403: true }).then(
+      res => {
+        if (!res) {
+          this.handleSetUserConfig(
+            FILTER_PANEL_FIELD,
+            JSON.stringify({
+              fields: this.showFilterPanelField,
+              order: this.filterPanelFieldOrder,
+            })
+          );
+        } else {
+          this.showFilterPanelField = res.fields;
+          this.filterPanelFieldOrder = res.order;
+        }
+      }
+    );
   }
 
   activated() {
@@ -806,16 +850,17 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     ) {
       if (this.tableInstance.setDefaultStore) {
         this.tableInstance.setDefaultStore();
-        this.tableInstance.pageSize = commonPageSizeGet();
+        this.handleResetRoute('Get');
       }
       this.header.keyword = '';
     }
     this.checkColInit();
     this.handleSetDashboard();
     this.handleSearchBackDisplay();
-    this.handleGetListData(true, 1);
+    this.handleGetListData(true, this.tableInstance.page);
     this.getGroupList();
   }
+
   handleSearchChange(v) {
     if (JSON.stringify(v || []) === JSON.stringify(this.header.keywordObj || [])) return;
     this.header.keywordObj = v;
@@ -988,6 +1033,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         });
       }
     });
+    this.selectKey += 1;
     this.conditionList = res;
   }
   /**
@@ -1183,7 +1229,11 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           id: item.name,
           name: item.name,
         }));
+        this.backDisplayMap.level.list = data.alert_level_list || [];
+        this.backDisplayMap.algorithmType.list = data.algorithm_type_list || [];
+        this.backDisplayMap.invalidType.list = data.invalid_type_list || [];
         this.createdConditionList();
+        this.handleResetRoute('Set');
         // magic code  reflesh bk table
         this.$refs.strategyTable?.doLayout?.();
       })
@@ -1194,6 +1244,24 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         this.loading = false;
         this.table.loading = false;
       });
+  }
+
+  handleResetRoute(type: 'Get' | 'Set') {
+    if (type === 'Get') {
+      const { page, pageSize, keywordObj } = this.$route.query;
+      this.tableInstance.page = Number(page) || 1;
+      this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
+      this.header.keywordObj = keywordObj ? JSON.parse(keywordObj as string) : [];
+    } else {
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          page: String(this.tableInstance.page),
+          pageSize: String(this.tableInstance.pageSize),
+          keywordObj: JSON.stringify(this.header.keywordObj),
+        },
+      });
+    }
   }
   /**
    * @description: 监控对象处理
@@ -1856,6 +1924,23 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   handleAlarmGroupClick(groupId: number) {
     this.alarmGroupDialog.id = groupId;
     this.alarmGroupDialog.show = true;
+  }
+
+  /** 筛选面板设置 */
+  handleFilterFieldsChange({ showFields = [], order = [] }) {
+    this.showFilterPanelField = showFields;
+    const fieldsOrder = order.reduce((acc, cur) => {
+      acc.push(this.filterPanelFieldOrder[cur]);
+      return acc;
+    }, []);
+    this.filterPanelFieldOrder = fieldsOrder;
+    this.handleSetUserConfig(
+      FILTER_PANEL_FIELD,
+      JSON.stringify({
+        fields: this.showFilterPanelField,
+        order: this.filterPanelFieldOrder,
+      })
+    );
   }
 
   getTableComponent() {
@@ -2674,9 +2759,21 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 },
               }}
               checkedData={this.header.keywordObj}
-              data={this.filterPanelData}
+              data={this.showFilterPanelData}
               on-change={this.handleSearchSelectChange}
-            />
+            >
+              <div
+                class='filter-panel-header mb20'
+                slot='header'
+              >
+                <span class='title'>{this.$t('筛选')}</span>
+                <FilterPanelPopover
+                  list={this.filterPanelData}
+                  showFields={this.showFilterPanelField}
+                  onFilterFieldChange={this.handleFilterFieldsChange}
+                />
+              </div>
+            </FilterPanel>
             <div
               class={['content-left-drag', { displaynone: !this.showFilterPanel }]}
               onMousedown={this.handleMouseDown}
@@ -2764,6 +2861,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 </ul>
               </bk-dropdown-menu>
               <SearchSelect
+                key={this.selectKey}
                 class='header-search'
                 data={this.conditionList}
                 modelValue={this.header.keywordObj}
@@ -2844,3 +2942,5 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     );
   }
 }
+
+export default ofType<IStrategyConfigProps>().convert(StrategyConfig);
