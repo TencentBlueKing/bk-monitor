@@ -220,7 +220,7 @@ class ClusteringMonitorHandler(object):
         algorithms_config = strategy_config["items"][0]["algorithms"][0]
         level = algorithms_config["level"]
         user_groups = strategy_config["notice"]["user_groups"]
-        labels = strategy_config["labels"]
+        labels = strategy_config["labels"][-1:]
         data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups, "label_name": labels}
         if strategy_type == StrategiesType.NEW_CLS_strategy:
             interval = algorithms_config["config"]["args"].get("$new_class_interval", "")
