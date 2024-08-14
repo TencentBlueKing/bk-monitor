@@ -50,7 +50,6 @@ from bkmonitor.iam.resource import Business as BusinessResource
 from bkmonitor.iam.resource import _all_resources, get_resource_by_id
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.utils.request import get_request
-from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from core.errors.share import TokenValidatedError
@@ -450,11 +449,11 @@ class Permission(object):
             )
         return data["actions"]
 
-    def filter_space_list_by_action(self, action: Union[ActionMeta, str]) -> List[dict]:
+    def filter_space_list_by_action(self, action: Union[ActionMeta, str], using_cache=True) -> List[dict]:
         """
         获取有对应action权限的空间列表
         """
-        space_list = SpaceApi.list_spaces_dict()
+        space_list = SpaceApi.list_spaces_dict(using_cache)
         # 对后台API进行权限豁免
         if self.skip_check:
             return space_list
@@ -493,7 +492,7 @@ class Permission(object):
 
         if business_list is None:
             # 获取业务列表
-            business_list = api.cmdb.get_business()
+            business_list = [Business(s["bk_biz_id"], **s) for s in SpaceApi.list_spaces_dict()]
 
         # 对后台API进行权限豁免
         if self.skip_check:

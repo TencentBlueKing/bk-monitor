@@ -194,8 +194,8 @@ def render_mails(
             # 获取订阅者的业务列表
             perm_client = Permission(receivers[0])
             perm_client.skip_check = False
-            business_list = perm_client.filter_business_list_by_action(ActionEnum.VIEW_BUSINESS)
-            bk_biz_ids = [biz.bk_biz_id for biz in business_list]
+            spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+            bk_biz_ids = [s["bk_biz_id"] for s in spaces]
         except Exception as error:
             logger.exception(
                 "[mail_report] get business info of report_item(%s)" " failed: %s", report_item.id, str(error)

@@ -97,16 +97,28 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             cursor.execute(sql)
             columns = [col[0] for col in cursor.description]
             spaces: List[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
+        if not spaces and settings.RUN_MODE == "DEVELOP":
+            raise Exception(
+                "未成功初始化metadata空间数据，请执行"
+                "env DJANGO_CONF_MODULE=conf.worker.development.enterprise python manage.py init_space_data"
+            )
         for space in spaces:
+            # bk_biz_id
             if space["space_type_id"] != SpaceTypeEnum.BKCC.value:
                 space["bk_biz_id"] = -space["id"]
             else:
                 space["bk_biz_id"] = int(space["space_id"])
+            # is_demo
             space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
-            space["display_name"] = (
-                f"[{space['type_name']}] "
-                f"{space['space_name'] if space['space_type_id'] == SpaceTypeEnum.BKCC.value else space['space_id']}"
-            )
+            # display_name
+            # [cc-auto]配置发现
+            display_name = f"[{space['space_id']}]{space['space_name']}"
+            if space['space_type_id'] == SpaceTypeEnum.BKCC.value:
+                # [2]蓝鲸
+                display_name = f"[{space['space_id']}]{space['space_name']}"
+            space["display_name"] = display_name + f" ({space['type_name']})"
+
         # 10min
         local_mem.set("metadata:list_spaces_dict", spaces, 600)
         return spaces
