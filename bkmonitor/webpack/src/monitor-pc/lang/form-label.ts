@@ -1273,7 +1273,7 @@ export default {
   '插件名称(ID或别名)': 'Plugin Name (ID or Alias)',
   环境变量参数: 'Environment Variable Parameters',
   非官方插件: 'Unofficial Plugin',
-  结合插件提供本地和远程采集两种方式: 'Combined with the plug-in to provide local and remote collection two ways', // 确定位置
+  结合插件提供本地和远程采集两种方式: 'Combined with the plugin to provide local and remote collection two ways', // 确定位置
   '设置指标&维度': 'Set metrics & dimensions',
   服务实例标签: 'Service instance tags',
 
