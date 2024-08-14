@@ -326,7 +326,7 @@ export default {
   '字段名匹配(*代表通配符)：': 'Field name matching (* stands for wildcard):',
   '当前业务没有接入调用链日志，': 'The current business has not accessed the trace logs,',
   '文本类型不支持 {n} 操作': 'Text type does not support {n} operation',
-  当前索引集不支持字段提取设置: 'The current index set does not support field extraction settings',
+  当前索引集不支持日志聚类设置: 'The current index set does not support log cluster settings',
   '{n}不规范, 包含特殊符号': '{n} is not standard, contains special characters',
   查询命中pattern的日志: 'Query logs that hit the pattern',
   日志数据已进入数据平台或ES: 'The log data has entered the data platform or es',

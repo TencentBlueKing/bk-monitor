@@ -321,7 +321,7 @@
       exhibitText() {
         return this.configID
           ? this.$t('当前无可用字段，请前往日志清洗进行设置')
-          : this.$t('当前索引集不支持字段提取设置');
+          : this.$t('当前索引集不支持日志聚类设置');
       },
       exhibitOperate() {
         return this.configID ? this.$t('跳转到日志清洗') : '';

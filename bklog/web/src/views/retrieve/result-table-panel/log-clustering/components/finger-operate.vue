@@ -426,6 +426,7 @@
           dimensionList: this.dimension,
           selectGroupList: this.group,
           yearSwitch: this.yearSwitch,
+          yearOnYearHour: this.yearOnYearHour,
         });
         this.$emit(
           'handle-finger-operate',
