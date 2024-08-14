@@ -82,7 +82,7 @@ def create_actions(
     public_labels = {"strategy_id": metrics.TOTAL_TAG, "signal": signal, "run_type": "once", "notice_type": notice_type}
 
     alert_id = alerts[0].id if alerts else alert_ids[0]
-    logger.info("do create actions(%s) for alert(%s)", notice_type, alert_id)
+    logger.info("[create actions](%s) for alert(%s)", notice_type, alert_id)
 
     try:
         with metrics.ACTION_CREATE_PROCESS_TIME.labels(**public_labels).time():
@@ -99,7 +99,7 @@ def create_actions(
                 is_unshielded,
                 notice_type,
             ).do_create_actions()
-        logger.info("do create actions(%s) end for alert(%s), action count(%s)", notice_type, alert_id, len(actions))
+        logger.info("[create actions](%s) end for alert(%s), action count(%s)", notice_type, alert_id, len(actions))
     except BaseException as e:
         exc = e
         logger.exception("create actions for alert(%s) failed: %s", alert_id, e)
@@ -550,10 +550,10 @@ class CreateActionProcessor:
 
         if not actions:
             logger.info(
-                "create actions error: empty config, strategy_id %s, alerts %s, signal %s",
+                "[ignore create action]: empty config for signal(%s), strategy(%s), alerts %s",
+                self.signal,
                 self.strategy_id,
                 self.alert_ids,
-                self.signal,
             )
             return new_actions
 

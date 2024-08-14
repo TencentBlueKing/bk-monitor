@@ -337,6 +337,7 @@ ACTIVE_VIEWS = {
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
+        "ai_assistant": "monitor_web.ai_assistant.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -418,7 +419,7 @@ IS_ASSIGN_DATAID_BY_GSE = True
 DEMO_BIZ_ID = 0
 DEMO_BIZ_WRITE_PERMISSION = False
 DEMO_BIZ_APPLY = ""
-DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/document/6.0/142/8600"
+DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/markdown/ZH/QuickStart/7.0/quick-start-v7.0-monitor.md"
 
 # 企业微信群通知webhook_url
 WXWORK_BOT_WEBHOOK_URL = ""
@@ -493,6 +494,11 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
+
+# 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
+BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
+    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:build_in_result_table_detail"
+)
 
 # APM config
 APM_ACCESS_URL = ""
@@ -1064,6 +1070,7 @@ BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
+APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1320,6 +1327,7 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+ES_CLUSTER_BLACKLIST = []
 
 # BCS 数据合流配置， 默认为 不启用
 BCS_DATA_CONVERGENCE_CONFIG = {}
@@ -1382,3 +1390,9 @@ ENABLE_UPTIMECHECK_TEST = True
 
 # 检测结果缓存 TTL(小时)
 CHECK_RESULT_TTL_HOURS = 1
+
+# LLM 接口地址
+BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
+
+# 监控平台apigw代码
+BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")

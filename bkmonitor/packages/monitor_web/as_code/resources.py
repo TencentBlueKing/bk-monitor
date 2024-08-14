@@ -57,6 +57,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.serializers import BkBizIdSerializer
 from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
@@ -71,10 +72,9 @@ class ImportConfigResource(Resource):
     导入Code配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         configs = serializers.DictField(required=True, label="文件内容")
         app = serializers.CharField(default="as_code")
-        bk_biz_id = serializers.IntegerField()
         overwrite = serializers.BooleanField(default=False)
         incremental = serializers.BooleanField(default=False)
 
@@ -98,13 +98,12 @@ class ExportConfigResource(Resource):
     导出Code配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         action_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         notice_group_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         assign_group_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         dashboard_uids = serializers.ListField(child=serializers.CharField(), allow_null=True, default=None)
-        bk_biz_id = serializers.IntegerField()
 
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
 
@@ -406,8 +405,7 @@ class ExportConfigFileResource(ExportConfigResource):
     导出配置（压缩包）
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
+    class RequestSerializer(BkBizIdSerializer):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         with_related_config = serializers.BooleanField(label="是否导出关联", default=False)
@@ -506,8 +504,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
 
 class ExportAllConfigFileResource(ExportConfigFileResource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
+    class RequestSerializer(BkBizIdSerializer):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
 
 
@@ -516,11 +513,11 @@ class ImportConfigFileResource(Resource):
     导入配置（压缩包）
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         app = serializers.CharField(default="as_code", label="配置分组")
-        bk_biz_id = serializers.IntegerField(label="业务ID")
         overwrite = serializers.BooleanField(default=False, label="是否覆盖其他分组配置")
         file = serializers.FileField(label="配置文件")
+        incremental = serializers.BooleanField(default=False)
 
         def validate(self, attrs):
             # 校验文件格式
@@ -573,12 +570,13 @@ class ImportConfigFileResource(Resource):
         return configs
 
     @step(state="IMPORT", message=_lazy("配置导入中..."))
-    def import_config(self, bk_biz_id: int, app: str, overwrite: bool, configs: dict):
+    def import_config(self, bk_biz_id: int, app: str, overwrite: bool, configs: dict, incremental: bool = False):
         return ImportConfigResource().request(
             bk_biz_id=bk_biz_id,
             app=app,
             overwrite=overwrite,
             configs=configs,
+            incremental=incremental,
         )
 
     def perform_request(self, params):
@@ -594,6 +592,7 @@ class ImportConfigFileResource(Resource):
             app=params["app"],
             overwrite=params["overwrite"],
             configs=configs,
+            incremental=params["incremental"],
         )
         task.result = result
         task.save()

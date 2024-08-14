@@ -201,7 +201,7 @@ export default {
   '可能存在运行参数变动，请检查并确认运行参数！':
     'There may be changes in operating parameters, please check and confirm the operating parameters! ',
   '插件{name}最新版本{version}可能存在运行参数变动，请检查并确认运行参数！':
-    'The latest version {version} of plug-in {name} may have running parameter changes, please check and confirm the running parameters!',
+    'The latest version {version} of plugin {name} may have running parameter changes, please check and confirm the running parameters!',
   '插件已变更，请先升级': 'Plugin has been changed, please upgrade first',
   '文本不符合 {type} 格式': 'Text does not conform to {type} format',
   '本次对插件的编辑不影响采集进程，可以跳过调度阶段直接进行保存。':

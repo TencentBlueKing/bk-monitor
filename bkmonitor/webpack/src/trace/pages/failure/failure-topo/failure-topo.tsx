@@ -41,6 +41,7 @@ import {
   Arrow,
   Graph,
   type ICombo,
+  type INode,
   Tooltip,
   registerBehavior,
   registerCombo,
@@ -69,16 +70,23 @@ import './failure-topo.scss';
 
 const NODE_TYPE = [
   {
-    text: '未恢复告警',
-    status: 'notRestored',
-  },
-  {
     text: '异常',
     status: 'error',
   },
   {
     text: '正常',
     status: 'normal',
+  },
+];
+
+const TAG_TYPE = [
+  {
+    text: '未恢复告警',
+    status: 'notRestored',
+  },
+  {
+    text: '已恢复 / 已解决 / 已失效告警',
+    status: 'restored',
   },
   {
     text: '根因',
@@ -89,6 +97,8 @@ const NODE_TYPE = [
     status: 'feedBackRoot',
   },
 ];
+/** 增加画布离画布上下左右的留白区域可 */
+const GRAPH_DRAG_MARGIN = 100;
 
 export default defineComponent({
   name: 'FailureTopo',
@@ -118,7 +128,7 @@ export default defineComponent({
     const edgeInterval = [];
     let playTime = null;
     /** g6 默认缩放级别 数值 / 10 为真实结果值  */
-    const MIN_ZOOM = 0.2;
+    const MIN_ZOOM = 0.8;
     const { t } = useI18n();
     const incidentDetail = inject<Ref<IncidentDetailData>>('incidentDetail');
     const incidentDetailData: Ref<IncidentDetailData> = computed(() => {
@@ -144,6 +154,7 @@ export default defineComponent({
     const tooltipsEdge: Ref<IEdge> = shallowRef();
     const tooltipsType = ref<string>('node');
     const tooltipsRef = ref<InstanceType<typeof FailureTopoTooltips>>();
+    const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
     const aggregateConfig = ref({});
@@ -159,6 +170,7 @@ export default defineComponent({
     const resourceNodeId = ref<string>('');
     const zoomValue = ref<number>(10);
     const showResourceGraph = ref<boolean>(false);
+    const savedMatrix = ref(null);
     /** 检测文字长度 */
     const accumulatedWidth = (text, maxWidth = 80) => {
       const context = graph.get('canvas').get('context'); // 获取canvas上下文用于测量文本
@@ -182,14 +194,15 @@ export default defineComponent({
       registerNode('topo-node', {
         afterDraw(cfg, group) {
           const nodeAttrs = getNodeAttrs(cfg as ITopoNode);
-          if ((cfg as ITopoNode).entity.is_root || (cfg as ITopoNode).is_feedback_root) {
+          const { entity } = cfg as ITopoNode;
+          if (entity.is_root || (cfg as ITopoNode).is_feedback_root) {
             group.addShape('circle', {
               attrs: {
                 lineDash: [3],
                 lineWidth: 1, // 描边宽度
                 cursor: 'pointer', // 手势类型
                 r: 25, // 圆半径
-                stroke: (cfg as ITopoNode).entity.is_root ? '#F55555' : '#FF9C01',
+                stroke: entity.is_root ? '#F55555' : '#FF9C01',
               },
               name: 'topo-node-root-border',
             });
@@ -202,7 +215,7 @@ export default defineComponent({
                 height: 16,
                 radius: 8,
                 stroke: '#3A3B3D',
-                fill: (cfg as ITopoNode).entity.is_root ? '#F55555' : '#FF9C01',
+                fill: entity.is_root ? '#F55555' : '#FF9C01',
               },
               name: 'topo-node-rect',
             });
@@ -219,6 +232,33 @@ export default defineComponent({
                 ...nodeAttrs.textAttrs,
               },
               name: 'topo-node-text',
+            });
+          }
+          if (entity.is_on_alert || entity.alert_all_recorved) {
+            group.addShape('circle', {
+              attrs: {
+                x: 15,
+                y: -14,
+                zIndex: 10,
+                lineWidth: 1, // 描边宽度
+                cursor: 'pointer', // 手势类型
+                r: 8, // 圆半径
+                fill: entity.is_on_alert ? '#F55555' : '#6C6F78',
+              },
+              name: 'topo-tag-border',
+            });
+            group.addShape('image', {
+              zIndex: 12,
+              attrs: {
+                x: 9,
+                y: -21,
+                width: 12,
+                height: 12,
+                cursor: 'pointer', // 手势类型
+                img: NODE_TYPE_SVG.Alert,
+              },
+              draggable: true,
+              name: 'topo-tag-img',
             });
           }
         },
@@ -389,24 +429,15 @@ export default defineComponent({
               rootBorderShape?.attr({
                 opacity: 0,
               });
-              runningShape.animate(
-                {
-                  lineWidth: 6,
-                  r: 24,
-                  strokeOpacity: 0.3,
-                },
-                {
-                  repeat: true, // 循环
-                  duration: 3000,
-                  // easing: 'easeCubic',
-                  delay: 100, // 无延迟
-                }
-              );
+              runningShape.attr({
+                lineWidth: 3,
+                r: 24,
+                strokeOpacity: 1,
+              });
             } else {
               rootBorderShape?.attr({
                 opacity: 1,
               });
-              runningShape.stopAnimate();
               runningShape.attr({
                 lineWidth: 0, // 描边宽度
                 cursor: 'pointer', // 手势类型
@@ -649,6 +680,9 @@ export default defineComponent({
       registerBehavior('drag-node-with-fixed-combo', {
         getEvents() {
           return {
+            'combo:dragstart': 'onDragStart',
+            'combo:drag': 'onDrag',
+            'combo:dragend': 'onDragEnd',
             'node:dragstart': 'onDragStart',
             'node:drag': 'onDrag',
             'node:dragend': 'onDragEnd',
@@ -657,64 +691,89 @@ export default defineComponent({
         onDragStart(e) {
           const { item } = e;
           const combos = graph.getCombos();
+          const model = item.getModel();
           // 存储当前节点所在的 combo ID
-          if (item.get('type') === 'node') {
-            const model = item.getModel();
-            const combo = combos.find(combo => combo.getID() === model.comboId || combo.getID() === model.subComboId);
+          if (item.get('type') === 'node' || (item.get('type') === 'combo' && model.parentId)) {
+            const combo = combos.find(combo =>
+              [model.comboId, model.subComboId, model.parentId].includes(combo.getID())
+            );
             this.currentComboId = combo ? combo.getID() : null;
+            this.currentNodes = [];
+            /** 如果拖动的是combo */
+            if (item.get('type') === 'combo') {
+              graph.getNodes().forEach(node => {
+                if (node.getModel().subComboId === item.getID()) {
+                  (this.currentNodes as INode[]).push(node);
+                }
+              });
+            }
+            this.origin = { x: e.x, y: e.y };
           }
         },
         onDrag(e) {
           const { item, x, y } = e;
           if (this.currentComboId) {
             const combos = graph.getCombos();
+            let dragBbox = item.getBBox();
             const combo = combos.find(combo => combo.getID() === this.currentComboId);
             const comboBBox = combo.getBBox();
             const nodeSize = 40; // 假设节点的边长为40
-            // 获取节点内名为'topo-node-type-text'的Shape
-            const errTextShape = item.get('group').find(s => s.get('name') === 'topo-node-type-text');
-            const nameTextShape = item.get('group').find(s => s.get('name') === 'topo-node-name-text');
-            const shapeBBox = errTextShape.getBBox();
-            const nameShapeBBox = nameTextShape?.getBBox?.() || {
-              width: 0,
-              y: 0,
-              height: 0,
-            };
-            const shapeWidth = Math.max(shapeBBox.width, nameShapeBBox.width);
-            const shapeHeight = Math.max(shapeBBox.height, nameShapeBBox.height);
-            const shapeY = Math.max(shapeBBox.y, nameShapeBBox.y);
-            // 获取该Shape相对于画布的边界框
-            const nodeCenter = {
-              x,
-              y,
-            };
-            // 根据节点中心位置和边长计算出节点的新边界框
-            const newNodeBBox = {
-              minX: nodeCenter.x - shapeWidth / 2,
-              maxX: nodeCenter.x + shapeWidth / 2,
-              minY: nodeCenter.y - nodeSize / 2 - 5,
-              maxY: nodeCenter.y + (nodeSize + shapeHeight + shapeY) / 2,
-            };
+            const { x: originX, y: originY } = this.origin as { x: number; y: number };
+            let dx = x - originX;
+            let dy = y - originY;
 
-            // 检查新的中心位置是否在Combo边界内
-            const isXInside = newNodeBBox.minX >= comboBBox.minX && newNodeBBox.maxX <= comboBBox.maxX;
-            const isYInside = newNodeBBox.minY >= comboBBox.minY && newNodeBBox.maxY <= comboBBox.maxY;
-
-            if (isXInside && isYInside) {
-              // 如果节点新位置还在Combo内，可以移动
-              item.toFront(); // 如果需要的话可以让节点到最前方显示
-              graph.updateItem(item, {
-                x,
-                y,
-              });
-            } else {
-              return false;
+            if (item.get('type') === 'node') {
+              const model = item.getModel();
+              // 获取节点内名为'topo-node-type-text'的Shape
+              const nameTextShape = item.get('group').find(s => s.get('name') === 'topo-node-name-text');
+              const nameShapeBBox = nameTextShape?.getBBox?.() || {
+                width: 0,
+                y: 0,
+                height: 0,
+              };
+              // 获取该Shape相对于画布的边界框
+              // 根据节点中心位置和边长计算出节点的新边界框
+              dragBbox = {
+                minX: model.x + nameShapeBBox.minX,
+                maxX: model.x + nameShapeBBox.maxX,
+                minY: model.y + nameShapeBBox.minY - (nodeSize + nameShapeBBox.height * 2),
+                maxY: model.y + nameShapeBBox.maxY,
+              };
             }
+            if (dragBbox.minX + dx < comboBBox.minX) {
+              dx = comboBBox.minX - dragBbox.minX;
+            }
+            if (dragBbox.maxX + dx > comboBBox.maxX) {
+              dx = comboBBox.maxX - dragBbox.maxX;
+            }
+            if (dragBbox.minY + dy < comboBBox.minY) {
+              dy = comboBBox.minY - dragBbox.minY;
+            }
+            if (dragBbox.maxY + dy > comboBBox.maxY) {
+              dy = comboBBox.maxY - dragBbox.maxY;
+            }
+            // 如果节点新位置还在Combo内，可以移动
+            item.toFront(); // 如果需要的话可以让节点到最前方显示
+            const model = item.getModel();
+            graph.updateItem(item, {
+              x: model.x + dx,
+              y: model.y + dy,
+            });
+            (this.currentNodes as INode[]).forEach(node => {
+              const model = node.getModel();
+              graph.updateItem(node, {
+                x: model.x + dx,
+                y: model.y + dy,
+              });
+              node.toFront();
+            });
+            this.origin = { x: e.x, y: e.y };
           }
         },
         onDragEnd() {
-          // 清楚临时信息
+          // 清除临时信息
           delete this.currentComboId;
+          delete this.currentNodes;
         },
       });
       // 自定义拖拽
@@ -729,7 +788,10 @@ export default defineComponent({
           };
         },
         omMouseenter(e) {
-          if (e.item && ['node', 'edge'].includes(e.item.getType())) {
+          const itemType = e?.item?.getType();
+          const model = e?.item?.getModel();
+          /** 子combo/节点/和边不响应拖动 */
+          if (['node', 'edge'].includes(itemType) || (itemType === 'combo' && model?.parentId)) {
             return;
           }
           const canvas = graph.get('canvas');
@@ -740,7 +802,9 @@ export default defineComponent({
           (this.comboRect as any).el.cursor = 'grab';
         },
         onMouseDown(e) {
-          if (e.item && ['node', 'edge'].includes(e.item.getType())) {
+          const itemType = e?.item?.getType();
+          const model = e?.item?.getModel();
+          if (['node', 'edge'].includes(itemType) || (itemType === 'combo' && model?.parentId)) {
             return;
           }
           e.item &&
@@ -783,22 +847,25 @@ export default defineComponent({
             // 大于零向上拖动
             if (movementY < 0) {
               const { bottomRight } = getCanvasByPoint(comboRect.bottomCombo);
-              bottomRight.y < comboRect.height && (movementY = 0);
+              bottomRight.y + GRAPH_DRAG_MARGIN < comboRect.height && (movementY = 0);
             } else {
               const { topLeft } = getCanvasByPoint(comboRect.topCombo);
-              topLeft.y > 0 && (movementY = 0);
+              topLeft.y - GRAPH_DRAG_MARGIN > 0 && (movementY = 0);
             }
             const { topLeft, bottomRight } = getCanvasByPoint(comboRect.xCombo);
             /** 大于0向左拖动 */
             if (movementX < 0) {
-              bottomRight.x < comboRect.width && (movementX = 0);
+              bottomRight.x + GRAPH_DRAG_MARGIN < comboRect.width && (movementX = 0);
             } else {
-              topLeft.x > 0 && (movementX = 0);
+              topLeft.x - GRAPH_DRAG_MARGIN > 0 && (movementX = 0);
             }
             graph.translate(movementX, movementY);
           }
         },
         onMouseUp(e) {
+          if (!this.dragging) {
+            return;
+          }
           this.dragging = false;
           e.item &&
             e.item.getType() === 'combo' &&
@@ -846,11 +913,11 @@ export default defineComponent({
             if (deltaY > 0) {
               const bottomCombo = combos[combos.length - 1];
               const { bottomRight } = getCanvasByPoint(bottomCombo);
-              bottomRight.y < height && (dy = 0);
+              bottomRight.y + GRAPH_DRAG_MARGIN < height && (dy = 0);
             } else {
               const topCombo = combos[0];
               const { topLeft } = getCanvasByPoint(topCombo);
-              topLeft.y > 0 && (dy = 0);
+              topLeft.y - GRAPH_DRAG_MARGIN > 0 && (dy = 0);
             }
             dx = 0;
           } else {
@@ -858,25 +925,13 @@ export default defineComponent({
             const { topLeft, bottomRight } = getCanvasByPoint(topCombo);
             /** 大于0判断右侧 否则判断左侧 */
             if (deltaX > 0) {
-              bottomRight.x < width && (dx = 0);
+              bottomRight.x + GRAPH_DRAG_MARGIN < width && (dx = 0);
             } else {
-              topLeft.x > 0 && (dx = 0);
+              topLeft.x - GRAPH_DRAG_MARGIN > 0 && (dx = 0);
             }
             dy = 0;
           }
           graph.translate(dx, dy);
-        },
-      });
-      registerBehavior('custom-wheel-zoom', {
-        getEvents() {
-          return {
-            wheel: 'onWheel',
-          };
-        },
-        onWheel(evt) {
-          // 阻止默认的滚动行为
-          evt.preventDefault();
-          return;
         },
       });
     };
@@ -983,6 +1038,11 @@ export default defineComponent({
         }
         const node = graph.findById(resourceNodeId.value);
         node && graph.setItemState(node, 'running', true);
+      }
+
+      /** 恢复视图状态 */
+      if (savedMatrix.value) {
+        graph.getGroup().setMatrix(savedMatrix.value);
       }
     }
 
@@ -1102,20 +1162,63 @@ export default defineComponent({
         return { layouted, data: copyData };
       });
     };
+    /** 确认某个节点是否在画布之外 */
+    const isNodeOutOfCanvas = node => {
+      const canvasWidth = graph.get('width');
+      const canvasHeight = graph.get('height');
+      const matrix = graph.get('group').getMatrix();
+      const { x, y, width } = node.getModel();
+
+      /** 拖动画布偏移节点位置是不变的，需要考虑画布的偏移和缩放 */
+      const transformedX = x * matrix[0] + matrix[6];
+      const transformedY = y * matrix[4] + matrix[7];
+
+      /** 计算节点边界 */
+      const fraction = width / 3;
+      /** 检查节点的位置是否超出画布边界 */
+      if (
+        transformedX - fraction < 0 ||
+        transformedX + fraction > canvasWidth ||
+        transformedY < 0 ||
+        transformedY > canvasHeight
+      ) {
+        return true;
+      }
+      return false;
+    };
+
     /** 移动根因节点到画布中心 */
-    const moveRootNodeCenter = () => {
-      const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
-      const node = graph.findById(rootNode.id);
-      const { x, y } = node.getModel();
-      const graphWidth = graph.get('width');
-      const graphHeight = graph.get('height');
-      const centerX = graphWidth / 2;
-      const centerY = graphHeight / 2;
+    const moveRootNodeCenter = (isRecordMatrix = false) => {
+      if (isRecordMatrix) {
+        /** 记录当前画布的移动坐标 */
+        const matrix = graph.getGroup().getMatrix();
+        if (matrix) {
+          /** 保存当前的变换矩阵 */
+          savedMatrix.value = matrix.slice();
+        }
+      } else {
+        const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
+        const node = graph.findById(resourceNodeId.value || rootNode.id);
+        if (!isNodeOutOfCanvas(node)) {
+          return;
+        }
+        // x轴居中，y轴在视图范围内即可
+        const { x, y, height } = node.getModel();
+        const graphWidth = graph.get('width');
+        const graphHeight = graph.get('height');
+        const centerX = graphWidth / 2;
+        const dx = centerX - x;
+        const h = (height as number) / 2;
+        // 计算 y 轴上的偏移量，使节点在画布范围内
+        let dy = 0;
+        if (y < h) {
+          dy = h - y; // 节点超过上边界
+        } else if (y > graphHeight - h) {
+          dy = graphHeight - h - y; // 节点超过下边界
+        }
 
-      const dx = centerX - x;
-      const dy = centerY - y;
-
-      graph.translate(dx, dy);
+        graph.translate(dx, dy);
+      }
     };
     /** 错误的线置于顶层 */
     const toFrontAnomalyEdge = () => {
@@ -1142,7 +1245,7 @@ export default defineComponent({
         }
         isRenderComplete.value = renderComplete;
         // 默认渲染最后帧
-        handleTimelineChange(topoRawDataCache.value.diff.length - 1);
+        // handleTimelineChange(topoRawDataCache.value.diff.length - 1);
         /** 获取用户拖动设置后的zoom缩放级别 */
         const zoom = localStorage.getItem('failure-topo-zoom');
         if (zoom) {
@@ -1172,7 +1275,8 @@ export default defineComponent({
         fitViewPadding: 40,
         fitCenter: false,
         fitView: false,
-        minZoom: 0.8,
+        minZoom: MIN_ZOOM,
+        maxZoom: 2,
         groupByTypes: false,
         plugins: [tooltips],
         defaultNode: {
@@ -1201,9 +1305,11 @@ export default defineComponent({
           default: [
             'drag-node-with-fixed-combo',
             'drag-canvas-no-move',
-            'custom-wheel-zoom',
             'drag-canvas-move',
-            'custom-scroll-canvas',
+            {
+              type: 'scroll-canvas',
+              scalableRange: -0.92,
+            },
           ],
         },
         comboStateStyles: {
@@ -1280,6 +1386,12 @@ export default defineComponent({
         };
       });
       renderGraph();
+      /** 点击tips时，关闭右侧资源打开的tips */
+      graph.on('tooltipchange', ({ action }) => {
+        if (action === 'show' && showResourceGraph.value) {
+          resourceGraphRef.value.hideToolTips();
+        }
+      });
       /** 点击非节点清楚高亮状态 */
       graph.on('click', e => {
         if (!e.item || e.item.getType() !== 'node') {
@@ -1323,6 +1435,12 @@ export default defineComponent({
           combo && graph.setItemState(combo, 'hover', true);
         }
         return;
+      });
+      /** 监听手势缩放联动缩放轴数据 */
+      graph.on('viewportchange', ({ action }) => {
+        if (action === 'zoom') {
+          zoomValue.value = graph.getZoom() * 10;
+        }
       });
       // 监听鼠标离开节点
       graph.on('node:mouseleave', e => {
@@ -1398,6 +1516,7 @@ export default defineComponent({
         if (state && !(state as string).includes('show-animate')) return;
         clearTimeout(playTime);
         playTime = setTimeout(() => {
+          timelinePosition.value = timelinePosition.value + 1;
           handlePlay({ value: isPlay.value });
         }, 1000);
       });
@@ -1427,6 +1546,7 @@ export default defineComponent({
       }
       resourceNodeId.value = sourceNode.id;
       nodeEntityId.value = node?.entity?.entity_id || node?.model?.entity?.entity_id;
+      moveRootNodeCenter(true);
       tooltipsRef.value.hide();
       tooltips.hide();
       emit('changeSelectNode', sourceNode.id);
@@ -1495,16 +1615,32 @@ export default defineComponent({
       /** 对比node是否已经展示，已经展示还存在diff中说明只是状态变更以及对比每个展示的node都需要判断边关系的node是在展示状态 */
       const { showNodes } = topoRawDataCache.value.diff[timelinePosition.value];
       const currNodes = topoRawDataCache.value.diff[timelinePosition.value].content.nodes;
+      const currEdges = topoRawDataCache.value.diff[timelinePosition.value].content.edges;
       const randomStr = random(8);
       let next = false;
+      const edges = graph.getEdges();
+      edges.forEach(edge => {
+        const edgeModel = edge.getModel();
+        const targetEdge = currEdges.find(item => item.source === edgeModel.source && edgeModel.target === item.target);
+
+        if (targetEdge) {
+          graph.updateItem(edge, { ...edge, ...targetEdge });
+        }
+      });
       currNodes.forEach(item => {
         const node = graph.findById(item.id);
+        const model = node?.getModel?.();
         const isShow = showNodes.find(node => node.id === item.id);
         if (!isShow) {
           if (node) {
             next = true;
             /** diff中的节点 comboId没有经过布局处理，延用node之前已设置过的id即可 */
-            graph.updateItem(node, { ...node, ...item, comboId: node.getModel().comboId });
+            graph.updateItem(node, {
+              ...node,
+              ...item,
+              comboId: model.comboId,
+              subComboId: model.subComboId,
+            });
             graph.setItemState(node, 'show-animate', randomStr);
             const edges = (node as any).getEdges();
             edges.forEach(edge => {
@@ -1518,7 +1654,7 @@ export default defineComponent({
           }
         } else {
           /** diff中的节点 comboId没有经过布局处理，延用node之前已设置过的id即可 */
-          graph.updateItem(node, { ...item, comboId: node.getModel().comboId });
+          graph.updateItem(node, { ...item, comboId: model.comboId, subComboId: model.subComboId });
         }
       });
       const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
@@ -1551,14 +1687,20 @@ export default defineComponent({
       const { value, isStart = true } = playOption;
       if ('timeline' in playOption) {
         timelinePosition.value = 0;
-        topoTools.value.handleChangeTimeLine(timelinePosition.value);
       }
       isPlay.value = value;
       if (value) {
+        const len = topoRawDataCache.value.diff.length;
+        if (timelinePosition.value === len || timelinePosition.value + 1 === len) {
+          timelinePosition.value = topoRawDataCache.value.diff.length - 1;
+          isPlay.value = false;
+          emit('playing', false);
+          handleChangeRefleshTime(refreshTime.value);
+          return;
+        }
         emit('playing', true, timelinePosition.value);
         let hideNodes = [];
         if (!isStart) {
-          // timelinePosition.value = timelinePosition.value + 1;
           /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
           const { showNodes, content } = topoRawDataCache.value.diff[timelinePosition.value];
           hideNodes = topoRawDataCache.value.complete.nodes.filter(node => {
@@ -1567,17 +1709,10 @@ export default defineComponent({
           });
         }
         const next = isStart ? handleRenderTimeline() : handleRenderTimeline(hideNodes);
-        if (timelinePosition.value + 1 === topoRawDataCache.value.diff.length) {
-          isPlay.value = false;
-          emit('playing', false);
-          setTimeout(() => {
-            topoTools.value.handleChangeTimeLine(timelinePosition.value);
-          });
-          handleChangeRefleshTime(refreshTime.value);
-          return;
+        if (next) {
+          timelinePosition.value = timelinePosition.value + 1;
+          handlePlay({ value: true });
         }
-        timelinePosition.value = timelinePosition.value + 1;
-        next && handlePlay({ value: true });
       }
     };
     /** 点击展示某一帧的图 */
@@ -1597,8 +1732,19 @@ export default defineComponent({
             node && graph.hideItem(node);
           } else if (diffNode) {
             const node = graph.findById(diffNode.id);
+            const model = node?.getModel?.();
             node && graph.showItem(node);
-            node && graph.updateItem(node, diffNode);
+            node && graph.updateItem(node, { ...diffNode, comboId: model.comboId, subComboId: model.subComboId });
+          }
+        });
+        const edges = graph.getEdges();
+        edges.forEach(edge => {
+          const edgeModel = edge.getModel();
+          const targetEdge = content.edges.find(
+            item => item.source === edgeModel.source && edgeModel.target === item.target
+          );
+          if (targetEdge) {
+            graph.updateItem(edge, { ...edge, ...targetEdge });
           }
         });
         /** 子combo需要根据节点时候有展示来决定 */
@@ -1617,6 +1763,7 @@ export default defineComponent({
     /** 查看资源展开收起 */
     const handleExpandResourceChange = () => {
       showResourceGraph.value = !showResourceGraph.value;
+      moveRootNodeCenter(true);
     };
     const handleResetZoom = () => {
       zoomValue.value = 10;
@@ -1651,6 +1798,11 @@ export default defineComponent({
     };
     const handleToDetail = node => {
       emit('toDetail', node);
+    };
+    /** 右侧资源图tips打开时，左侧tips关闭 */
+    const handleHideToolTips = () => {
+      tooltipsRef?.value?.hide?.();
+      tooltips?.hide?.();
     };
     /** 根据左侧选中节点组计算出画布高亮节点信息 */
     const navSelectNode = computed(() => {
@@ -1687,10 +1839,13 @@ export default defineComponent({
           });
           navSelectNode.value?.map?.((item, index) => {
             /** 多个节点只设置第一个节点会资源图节点 */
-            if (index === 0 && item.entityId !== nodeEntityId.value) {
-              showResourceGraph.value = false;
-              resourceNodeId.value = item.id;
-              nodeEntityId.value = item.entityId;
+            if (index === 0) {
+              if (item.entityId !== nodeEntityId.value) {
+                showResourceGraph.value = false;
+                resourceNodeId.value = item.id;
+                nodeEntityId.value = item.entityId;
+              }
+              moveRootNodeCenter();
             }
             graph.setItemState(graph.findById(item.id), 'running', true);
           });
@@ -1725,6 +1880,7 @@ export default defineComponent({
       graphRef,
       loading,
       zoomValue,
+      resourceGraphRef,
       tooltipsRef,
       wrapRef,
       showLegend,
@@ -1735,6 +1891,7 @@ export default defineComponent({
       topoRawDataCache,
       tooltipsType,
       handleToDetail,
+      handleHideToolTips,
       handleFeedBackChange,
       handleFeedBack,
       handleShowLegend,
@@ -1800,8 +1957,24 @@ export default defineComponent({
                               <li>
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
-                                    {['notRestored', 'error'].includes(node.status) && (
-                                      <i class='icon-monitor icon-mc-pod' />
+                                    {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
+                                    {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
+                                  </span>
+                                </span>
+                                <span>{this.$t(node.text)}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <ul class='node-type node-line-type'>
+                          <li class='node-type-title'>{this.$t('标签图例')}</li>
+                          {TAG_TYPE.map(node => {
+                            return (
+                              <li>
+                                <span class='circle-wrap'>
+                                  <span class={['circle', node.status]}>
+                                    {['notRestored', 'restored'].includes(node.status) && (
+                                      <i class='icon-monitor icon-menu-event' />
                                     )}
                                     {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
                                   </span>
@@ -1844,7 +2017,7 @@ export default defineComponent({
                   }}
                   always={true}
                   arrow={false}
-                  boundary='parent'
+                  boundary='body'
                   disabled={!this.showLegend}
                   isShow={this.showLegend}
                   offset={{ crossAxis: 90, mainAxis: 10 }}
@@ -1900,8 +2073,11 @@ export default defineComponent({
             </div>
             {this.showResourceGraph && !this.isPlay && (
               <ResourceGraph
+                ref='resourceGraphRef'
                 entityId={this.nodeEntityId}
+                modelData={this.topoRawDataCache.complete}
                 resourceNodeId={this.resourceNodeId}
+                onHideToolTips={this.handleHideToolTips}
                 onToDetail={this.handleToDetail}
               />
             )}

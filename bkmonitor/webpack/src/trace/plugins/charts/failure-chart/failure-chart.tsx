@@ -1079,8 +1079,8 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              isShowAlarm={true}
               menuList={this.chartOption.tool.list || []}
-              show-more={true}
               showMore={!this.readonly && this.showTitleTool}
               subtitle={this.$props.subtitle || ''}
               title={this.$props.title}

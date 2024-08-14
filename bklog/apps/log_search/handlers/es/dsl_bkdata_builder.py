@@ -308,7 +308,7 @@ class DslCreateSearchTailBodyScenarioBkData:
         sort_list, size, start, gseindex, path, ip, keyword
         """
         sort_list = kwargs.get("sort_list")
-        # size = kwargs.get("size")
+        size = kwargs.get("size")
         start = kwargs.get("start")
         gseindex = kwargs.get("gseindex")
         path = kwargs.get("path", "")
@@ -413,8 +413,9 @@ class DslCreateSearchTailBodyScenarioBkData:
                     }
                 }
             )
-
-        if zero:
+        if size:
+            body_data["size"] = size
+        elif zero:
             body_data["size"] = 500
         else:
             body_data["size"] = 30
@@ -433,7 +434,7 @@ class DslCreateSearchTailBodyScenarioLog:
         sort_list, size, start, gseIndex, path, serverIp, keyword
         """
         sort_list = kwargs.get("sort_list")
-        # size = kwargs.get("size")
+        size = kwargs.get("size")
         start = kwargs.get("start")
         gse_index = kwargs.get("gseIndex")
         path = kwargs.get("path")
@@ -472,7 +473,9 @@ class DslCreateSearchTailBodyScenarioLog:
         if path:
             body_data["query"]["bool"]["must"].append({"match": {"path": {"query": path, "operator": "and"}}})
 
-        if zero:
+        if size:
+            body_data["size"] = size
+        elif zero:
             body_data["size"] = 500
         else:
             body_data["size"] = 30
@@ -489,6 +492,7 @@ class DslCreateSearchTailBodyCustomField:
         """
         自定义字段实时日志查询构造请求参数
         """
+        size = kwargs.get("size")
         start = kwargs.get("start")
         zero = kwargs.get("zero", False)
 
@@ -543,8 +547,9 @@ class DslCreateSearchTailBodyCustomField:
                         }
                     }
                 )
-
-        if zero:
+        if size:
+            body_data["size"] = size
+        elif zero:
             body_data["size"] = 500
         else:
             body_data["size"] = 30

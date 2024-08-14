@@ -9,26 +9,26 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
 from django.http import Http404
+from django.utils.translation import ugettext_lazy as _lazy
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
 from bkmonitor.utils.common_utils import failed
-from core.errors import Error
-from core.errors.common import CustomError, DrfApiError, HTTP404Error, UnknownError
+from core.errors import Error, ErrorDetails
+from core.errors.common import DrfApiError, HTTP404Error, UnknownError
 
 logger = logging.getLogger(__name__)
 
 
-class CustomException(APIException):
-    # todo  和core.errors 结合
+class CustomException(Error):
     status_code = 500
-    default_detail = "A custom exception occurred."
-    default_code = "custom_exception"
+    code = 3300002
+    name = _lazy("自定义异常")
+    message_tpl = _lazy("自定义异常：{msg}")
 
     def __init__(self, message=None, data=None, code=None):
         """
@@ -37,12 +37,11 @@ class CustomException(APIException):
         :param code: 错误码
         """
         if message is None:
-            message = self.default_detail
+            message = self.name
 
-        self.detail = message
-        self.message = message
         self.data = data
-        self.code = code
+        self.code = code or self.code
+        super().__init__(context={"msg": message}, data=data, extra={"code": code})
 
 
 def custom_exception_handler(exc, context):
@@ -50,35 +49,42 @@ def custom_exception_handler(exc, context):
     针对CustomException返回的错误进行特殊处理，增加了传递数据的特性
     """
     response = None
-    if isinstance(exc, CustomException):
+    if isinstance(exc, Error):
         headers = {}
         if getattr(exc, "auth_header", None):
             headers["WWW-Authenticate"] = exc.auth_header
         if getattr(exc, "wait", None):
             headers["Retry-After"] = "%d" % exc.wait
-
-        result = failed(exc.message)
-        result["code"] = CustomError.code
-        result["name"] = CustomError.name
-        logger.exception(exc)
-        response = Response(result, status=exc.status_code, headers=headers)
-    elif isinstance(exc, Error):
-        result = {"result": False, "code": exc.code, "name": exc.name, "message": exc.message, "data": exc.data}
+        result = {
+            "result": False,
+            "code": exc.code,
+            "name": exc.name,
+            "message": exc.message,
+            "data": exc.data,
+            "error_details": exc.error_details,
+        }
         result.update(getattr(exc, "extra", {}))
-        response = Response(result, status=exc.status_code)
+        response = Response(result, status=exc.status_code, headers=headers)
     elif isinstance(exc, APIException):
         headers = {}
         if getattr(exc, "auth_header", None):
             headers["WWW-Authenticate"] = exc.auth_header
         if getattr(exc, "wait", None):
             headers["Retry-After"] = "%d" % exc.wait
-
+        msg = DrfApiError.drf_error_processor(exc.detail)
+        error_detail = ErrorDetails(
+            exc_type=type(exc).__name__,
+            exc_code=DrfApiError.code,
+            overview=msg,
+            detail=msg,
+        ).to_dict()
         result = {
             "result": False,
             "code": DrfApiError.code,
             "name": DrfApiError.name,
-            "message": DrfApiError.drf_error_processor(exc.detail),
+            "message": msg,
             "data": exc.detail,
+            "error_details": error_detail,
         }
 
         response = Response(result, status=exc.status_code, headers=headers)
@@ -90,13 +96,24 @@ def custom_exception_handler(exc, context):
             "name": HTTP404Error.name,
             "message": msg,
             "data": None,
+            "error_details": ErrorDetails(
+                exc_type=type(exc).__name__,
+                exc_code=HTTP404Error.code,
+                overview=msg,
+                detail=msg,
+                popup_message="danger",  # 红框
+            ).to_dict(),
         }
 
         response = Response(result, status=status.HTTP_404_NOT_FOUND)
     else:
-        result = failed(exc)
-        result["code"] = UnknownError.code
-        result["name"] = UnknownError.name
+        result = failed(
+            exc,
+            error_code=UnknownError.code,
+            error_name=UnknownError.name,
+            exc_type=type(exc).__name__,
+            popup_type="danger",
+        )
         result["data"] = getattr(exc, "data", None)
         logger.exception(exc)
         response = Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

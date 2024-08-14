@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Debounce, copyText } from 'monitor-common/utils/utils';
-import MonitorResizeLayout from 'monitor-pc/components/resize-layout/resize-layout';
 import {
   type ProfileDataUnit,
   parseProfileDataTypeValue,
@@ -70,9 +69,9 @@ interface IFlameGraphProps {
 }
 
 interface IFlameGraphEvent {
-  onUpdateLoading: void;
-  onShowSpanDetail: void;
-  onDiffTraceSuccess: void;
+  onUpdateLoading: () => void;
+  onShowSpanDetail: () => void;
+  onDiffTraceSuccess: () => void;
   onUpdateHighlightId: number;
 }
 
@@ -145,7 +144,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   }
 
   @Debounce(16)
-  @Watch('flameInstance', { immediate: true, deep: true })
+  @Watch('flameInstance', { immediate: true })
   async handleFlameInstanceChange() {
     this.contextMenuRect.left = -1;
     this.handleUpdateloadingChange(true);
@@ -179,12 +178,13 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 this.tipDetail = {};
                 return;
               }
-              let detailsData, dataText;
+              let detailsData = undefined;
+              let dataText = undefined;
               const { value: dataValue, text: profileText } = parseProfileDataTypeValue(d.data.value, this.unit, true);
               detailsData = dataValue;
               dataText = profileText;
 
-              let diffData;
+              let diffData = undefined;
               let diffValue = 0;
               if (this.isCompared && d.data?.diff_info) {
                 const { value: diffProfileValue } = parseProfileDataTypeValue(d.data.diff_info.comparison, this.unit);
@@ -207,8 +207,6 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               }
               if (axisTop + 180 > window.innerHeight) {
                 axisTop = axisTop - 180;
-              } else {
-                axisTop = axisTop;
               }
               this.tipDetail = {
                 left: axisLeft,
@@ -391,7 +389,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
 
     // 加载SVG图像
-    img.onload = function () {
+    img.onload = () => {
       // 在canvas上绘制SVG图像
       ctx.drawImage(img, 0, 0, width, height);
 
@@ -435,11 +433,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
         />
       );
     return (
-      <MonitorResizeLayout
-        style='height: 100%'
-        class={'hide-aside'}
-        placement='right'
-      >
+      <div style='height: fit-content; flex: 1'>
         <div
           class='selector-list-slot'
           slot='main'
@@ -448,7 +442,12 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             <span class='tag tag-new'>added</span>
             <div class='percent-queue'>
               {this.diffPercentList.map((item, index) => (
-                <span class={`percent-tag tag-${index + 1}`}>{item}</span>
+                <span
+                  key={index}
+                  class={`percent-tag tag-${index + 1}`}
+                >
+                  {item}
+                </span>
               ))}
             </div>
             <span class='tag tag-removed'>removed</span>
@@ -473,15 +472,23 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               class='flame-graph-tips'
             >
               {this.tipDetail.title && [
-                <div class='funtion-name'>{this.tipDetail.title}</div>,
-                <table class='tips-table'>
+                <div
+                  key={'funtion-name'}
+                  class='funtion-name'
+                >
+                  {this.tipDetail.title}
+                </div>,
+                <table
+                  key={'tips-table'}
+                  class='tips-table'
+                >
                   {this.localIsCompared && (
                     <thead>
                       <th />
                       <th>{window.i18n.t('当前')}</th>
                       {this.tipDetail.id !== RootId && [
-                        <th>{window.i18n.t('参照')}</th>,
-                        <th>{window.i18n.t('差异')}</th>,
+                        <th key={'参照'}>{window.i18n.t('参照')}</th>,
+                        <th key='差异'>{window.i18n.t('差异')}</th>,
                       ]}
                     </thead>
                   )}
@@ -497,8 +504,8 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                       <td>{this.tipDetail.data}</td>
                       {this.localIsCompared &&
                         this.tipDetail.id !== RootId && [
-                          <td>{this.tipDetail.diffData ?? '--'}</td>,
-                          <td>
+                          <td key={1}>{this.tipDetail.diffData ?? '--'}</td>,
+                          <td key={2}>
                             {this.tipDetail.mark === 'added' ? (
                               <span class='tips-added'>{this.tipDetail.mark}</span>
                             ) : (
@@ -509,7 +516,10 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                     </tr>
                   </tbody>
                 </table>,
-                <div class='tips-info'>
+                <div
+                  key={'tips-info'}
+                  class='tips-info'
+                >
                   <span class='icon-monitor icon-mc-mouse tips-info-icon' />
                   {window.i18n.t('鼠标右键有更多菜单')}
                 </div>,
@@ -553,7 +563,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             />
           </div>
         </div>
-      </MonitorResizeLayout>
+      </div>
     );
   }
 }

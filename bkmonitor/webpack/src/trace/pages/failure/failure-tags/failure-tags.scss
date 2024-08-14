@@ -54,6 +54,13 @@
         min-width: 0;
         margin-right: 28px;
         color: #63656e;
+        &:first-child {
+          .item-main {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+          }
+        }
 
         &:last-child {
           margin-right: 0;
@@ -121,7 +128,15 @@
     .principal-tag {
       color: #3a84ff;
       background: transparent;
-
+    }
+    .business-tag {
+      background-color: #fafbfd !important;
+      padding: 0 4px !important;
+      // &.business-tag-collapse {
+      //   color: #63656e !important;
+      // }
+    }
+    .principal-tag {
       .bk-select-tag {
         height: auto;
         min-height: auto !important;
