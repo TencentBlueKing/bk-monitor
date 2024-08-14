@@ -144,7 +144,7 @@ export default {
   'JMX可以采集任何开启了JMX服务端口的java进程的服务状态，通过jmx采集java进程的jvm信息，包括gc耗时、gc次数、gc吞吐、老年代使用率、新生代晋升大小、活跃线程数等信息':
     'JMX can collect the service status of any java process with the JMX service port enabled, and collect the jvm information of the java process through jmx, including gc time consumption, gc times, gc throughput, old generation usage rate, new generation promotion size, number of active threads, etc. Information',
   '对于开启了JMX的服务，可以方便进行配置制作自己的插件。更多介绍':
-    'For services that have enabled JMX, you can easily configure and make your own plug-ins. More introduction',
+    'For services that have enabled JMX, you can easily configure and make your own plugins. More introduction',
   'Kubernetes Cluster概览，是以Kubernetes整体视角查看该业务下所有的集群的情况，目的是能快速了解整体情况并且快速进行问题的定位。':
     'Kubernetes Cluster Overview is to view all the clusters under the business from the overall perspective of Kubernetes. The purpose is to quickly understand the overall situation and quickly locate the problem. ',
   'Log主要是围绕日志相关的内容进行数据的采集，比如日志关键字等':
@@ -203,12 +203,12 @@ export default {
   '可以定义远程拉取的插件，如拉取pushgateway的数据。更多介绍':
     'You can define the plug-in for remote pulling, such as pulling the data of pushgateway. More introduction',
   '可以批量导入插件,采集配置,策略配置等. 建议:导入的监控目标相同.':
-    'Can import plug-ins, collection configurations, alert rules, etc. in batches. Suggestion: The imported monitoring targets are the same.',
+    'Can import plugins, collection configurations, alert rules, etc. in batches. Suggestion: The imported monitoring targets are the same.',
   '可以批量导出采集配置,策略配置和相应的依赖. 注意:不包括监控目标.':
     'Can export collection configuration, rule and corresponding dependencies in batches. Note: monitoring targets are not included.',
   '可以改变查询方式避免单图数量过大。': 'The query method can be changed to avoid a large number of single graphs.',
   '可以通过制作各种监控插件满足数据采集的需求，该功能依赖服务器安装bkmonitorbeat采集器。':
-    'You can meet the needs of data collection by making various monitoring plug-ins. This function relies on the server to install the bkmonitorbeat collector. ',
+    'You can meet the needs of data collection by making various monitoring plugins. This function relies on the server to install the bkmonitorbeat collector. ',
   '可批量导入, 导入策略请上传yaml配置，导入仪表盘请上传json配置':
     'can be imported in batches, please upload yaml configuration for import rule, and upload json configuration for dashboard import',
   '日志即通过日志关键字匹配的数量进行告警，主要有两种':
@@ -243,7 +243,7 @@ export default {
   '注入的维度信息将追加进采集的指标数据中，基于配置平台的服务实例自定义标签及主机字段获取':
     'injected dimension information in Shell will be added to the collected metric data, and the custom label and service instance based on the configuration platform Host Field Acquisition',
   '插件类型是蓝鲸监控丰富支持采集能力的一种表现，插件的类型将越来越丰富。 往下具体介绍当前每种类型特点':
-    'The plug-in type is a manifestation of the rich support and collection capabilities of BlueKing Monitoring, and the types of plug-ins will become more and more abundant. The following describes the current characteristics of each type in detail ',
+    'The plug-in type is a manifestation of the rich support and collection capabilities of BlueKing Monitoring, and the types of plugins will become more and more abundant. The following describes the current characteristics of each type in detail ',
   '自定义是直接执行，不用解释器进行执行。 如 ./脚本':
     'Customization is executed directly, without the need for an interpreter. Such as, ./script.',
   'API频率限制 1000/min，单次上报Body最大为500KB':
@@ -268,7 +268,7 @@ export default {
   '自定义场景是除了平台自带的场景之外可以根据监控需求来自定义监控场景，平台提供了快速定义场景的能力，从数据源接入到数据可视化、关联功能联动都可以很快速的完成。':
     'In addition to the scenarios provided by the platform, you can customize monitoring scenarios based on monitoring requirements. The platform provides the ability to quickly define scenarios, including data source access, data visualization, and association functions.',
   '数据采集是通过下发监控插件或配置来实现数据采集，并且提供插件和配置的全生命周期管理，所以依赖服务器安装bkmonitorbeat采集器。':
-    'Data collection is implemented by delivering monitoring plug-ins or configurations, and provides lifecycle management of plug-ins and configurations. Therefore, the bkmonitorbeat collector is installed on the server.',
+    'Data collection is implemented by delivering monitoring plugins or configurations, and provides lifecycle management of plugins and configurations. Therefore, the bkmonitorbeat collector is installed on the server.',
   '精确匹配(支持AND、OR)：': 'Exact match (supports AND, OR):',
   '说明运行该插件的环境依赖，如运行在哪个版本上，只支持哪些版本的采集等':
     'Indicates the environment dependency of running this plug-in, such as which version it is running on, Which versions of collection are only supported',
@@ -295,7 +295,7 @@ export default {
     ' Yaml configuration file: It is a yaml configuration file converted from a mib file through a command line tool. ',
   '提供了Events、Log、Metrics的采集方案': 'The collection scheme of Events, Log and Metrics is provided',
   '监控数据采集是通过下发监控插件来实现数据采集的全生命周期管理，该功能依赖服务器安装bkmonitorbeat采集器':
-    'Monitoring data collection is to realize the whole life cycle management of data collection by issuing monitoring plug-ins. This function relies on the server to install bkmonitorbeat collector',
+    'Monitoring data collection is to realize the whole life cycle management of data collection by issuing monitoring plugins. This function relies on the server to install bkmonitorbeat collector',
   '指标数据即时序数据。数据来源有：蓝鲸监控采集，自定义上报，计算平台，日志平台。':
     'metric data is sequence data. Data sources include: BlueKing monitoring and collection, custom reporting, computing platform, and log platform. ',
   '拨测是主动探测应用可用性的监控方式，通过拨测节点对目标进行周期性探测，通过可用性和响应时间来度量目标的状态。帮助业务主动发现问题和提升用户体验。':
@@ -328,7 +328,7 @@ export default {
     'Data collection is realized by user-defined scripts, and the standard output monitoring data format is sufficient. More introduction',
   关键字规则配置方法: 'Method for Configuring Keyword Rules',
   'Datadog是一个一站式云端性能监控平台，拥有丰富的采集能力。蓝鲸监控兼容了Datadog的采集能力，当前用户不能自定义插件。因为Datadog是由python编写，需要有python可运行环境，不需要占用端口':
-    "Datadog is a one-stop cloud performance monitoring platform with rich collection capabilities. BlueKing Monitoring is compatible with Datadog's collection capabilities, and currently users cannot customize plug-ins. Because Datadog is written by python, it needs a python executable environment and does not need to occupy a port",
+    "Datadog is a one-stop cloud performance monitoring platform with rich collection capabilities. BlueKing Monitoring is compatible with Datadog's collection capabilities, and currently users cannot customize plugins. Because Datadog is written by python, it needs a python executable environment and does not need to occupy a port",
   '事件内容，必需项': 'Event content, required',
   '指标，必需项': 'Metrics, Required',
   '来源标识如IP，必需项': 'Source identification such as IP, required',
