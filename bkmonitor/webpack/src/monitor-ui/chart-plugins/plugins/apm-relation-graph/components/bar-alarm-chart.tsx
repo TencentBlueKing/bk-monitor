@@ -35,6 +35,7 @@ interface IProps {
   activeItemHeight?: number;
   showXAxis?: boolean;
   showHeader?: boolean;
+  isAdaption?: boolean;
 }
 
 enum EAlarmType {
@@ -61,10 +62,16 @@ interface IDataItem {
 @Component
 export default class BarAlarmChart extends tsc<IProps> {
   @Ref('tips') tipsRef: HTMLDivElement;
+  /* 当前item的高度 */
   @Prop({ type: Number, default: 24 }) itemHeight: number;
+  /* 当前选中的item的高度 */
   @Prop({ type: Number, default: 32 }) activeItemHeight: number;
+  /* 是否展示x轴 */
   @Prop({ type: Boolean, default: false }) showXAxis: boolean;
+  /* 是否展示头部内容 */
   @Prop({ type: Boolean, default: false }) showHeader: boolean;
+  /* 是否自适应宽度 */
+  @Prop({ type: Boolean, default: false }) isAdaption: boolean;
 
   localData: IDataItem[] = [
     {
@@ -192,7 +199,7 @@ export default class BarAlarmChart extends tsc<IProps> {
     boundingClientRect: null,
     top: -1,
     left: -1,
-    width: -1,
+    width: 0,
   };
 
   timeRange = [];
@@ -326,19 +333,23 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @description 鼠标抬起事件
    */
   handleMouseUp() {
-    this.timeRangeChange();
-    this.boxSelector = {
-      downClientX: -1,
-      moveClientX: -1,
-      isMouseDown: false,
-      start: false,
-      boundingClientRect: null,
-      top: -1,
-      left: -1,
-      width: -1,
-    };
-    document.removeEventListener('mousemove', this.handleMouseMove);
-    document.removeEventListener('mouseup', this.handleMouseUp);
+    if (this.boxSelector.start) {
+      this.timeRangeChange();
+      this.boxSelector = {
+        downClientX: -1,
+        moveClientX: -1,
+        isMouseDown: false,
+        start: false,
+        boundingClientRect: null,
+        top: -1,
+        left: -1,
+        width: 0,
+      };
+      document.removeEventListener('mousemove', this.handleMouseMove);
+      document.removeEventListener('mouseup', this.handleMouseUp);
+    } else {
+      this.boxSelector.isMouseDown = false;
+    }
   }
 
   /**
@@ -350,8 +361,10 @@ export default class BarAlarmChart extends tsc<IProps> {
     const endX = this.boxSelector.left + this.boxSelector.width;
     let startTime = 0;
     let endTime = 0;
+    const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');
+    const itemWidth = target?.children?.[0]?.clientWidth || 6;
     for (const item of this.localData) {
-      w += 8;
+      w += itemWidth;
       if (!startTime && w - 2 > startX) {
         startTime = item.time;
       }
@@ -371,7 +384,7 @@ export default class BarAlarmChart extends tsc<IProps> {
     return (
       <div
         style={{
-          width: `${this.localData.length * 8 - 2}px`,
+          width: this.isAdaption ? '100%' : `${this.localData.length * 8 - 2}px`,
         }}
         class='bar-alarm-chart'
       >
@@ -408,7 +421,7 @@ export default class BarAlarmChart extends tsc<IProps> {
                 background: `${alarmColorMap[item.type]}`,
                 cursor: item.type !== EAlarmType.gray ? 'pointer' : 'default',
               }}
-              class='time-cube'
+              class={['time-cube', { 'adaptive-width': this.isAdaption }]}
               onClick={() => this.handleClick(item)}
               onMouseenter={event => this.handleMouseEnter(event, item)}
               onMouseleave={() => this.handleMouseLeave()}

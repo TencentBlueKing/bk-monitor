@@ -27,14 +27,27 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import BarAlarmChart from './components/bar-alarm-chart';
 import ServiceOverview from './components/service-overview';
 
 import type { PanelModel } from '../../typings';
+import type { ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './apm-relation-graph.scss';
+
+enum EColumn {
+  avgTime = 'avg_time',
+  callCount = 'call_count',
+  callService = 'call_service',
+  callType = 'call_type',
+  errorRate = 'error_rate',
+  operate = 'operate',
+  serverName = 'service_name',
+}
 
 const sideTopoMinWidth = 400;
 const sideOverviewMinWidth = 320;
@@ -48,7 +61,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
   /* 概览图、列表图切换 */
   showTypes = [
     {
-      id: 'overview',
+      id: 'topo',
       icon: 'icon-mc-overview',
     },
     {
@@ -56,7 +69,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
       icon: 'icon-mc-list',
     },
   ];
-  showType = 'overview';
+  showType = 'topo';
   /* 数据类型 */
   dataTypes = [
     {
@@ -64,6 +77,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
       name: '调用错误率',
     },
   ];
+  dataType = 'error';
 
   /* 筛选列表 */
   filterList = [
@@ -103,11 +117,12 @@ export default class ApmRelationGraph extends tsc<IProps> {
       icon: 'icon-zidingyi',
     },
   ];
+  curFilter = 'all';
   /* 展开列表 */
   expandList = [
     {
       id: 'topo',
-      icon: 'icon-Component',
+      icon: 'icon-ziyuan',
     },
     {
       id: 'overview',
@@ -116,6 +131,57 @@ export default class ApmRelationGraph extends tsc<IProps> {
   ];
   expanded = ['topo', 'overview'];
 
+  /* 表格数据 */
+  tableColumns: ITableColumn[] = [];
+  tableData = [];
+  /** 分页数据 */
+  pagination: ITablePagination = {
+    current: 1,
+    count: 2,
+    limit: 10,
+    showTotalCount: true,
+  };
+
+  created() {
+    this.tableColumns = [
+      {
+        type: 'link',
+        id: EColumn.serverName,
+        name: window.i18n.tc('服务名称'),
+      },
+      {
+        type: 'scoped_slots',
+        id: EColumn.callType,
+        name: window.i18n.tc('调用类型'),
+      },
+      {
+        type: 'string',
+        id: EColumn.callService,
+        name: window.i18n.tc('调用服务'),
+      },
+      {
+        type: 'number',
+        id: EColumn.callCount,
+        name: window.i18n.tc('调用数'),
+      },
+      {
+        type: 'scoped_slots',
+        id: EColumn.errorRate,
+        name: window.i18n.tc('错误率'),
+      },
+      {
+        type: 'scoped_slots',
+        id: EColumn.avgTime,
+        name: window.i18n.tc('平均响应耗时'),
+      },
+      {
+        type: 'scoped_slots',
+        id: EColumn.operate,
+        name: window.i18n.tc('操作'),
+      },
+    ];
+  }
+
   /**
    * @description 伸缩侧栏
    * @param id
@@ -123,41 +189,18 @@ export default class ApmRelationGraph extends tsc<IProps> {
   handleExpand(id: string) {
     const index = this.expanded.findIndex(key => key === id);
     if (index >= 0) {
-      let width = 0;
-      if (this.expanded.length > 1) {
-        if (id === 'topo') {
-          const { clientWidth } = this.$el.querySelector('.side-wrap .source-topo');
-          width = this.contentWrap.width - clientWidth;
-        } else if (id === 'overview') {
-          const { clientWidth } = this.$el.querySelector('.side-wrap .service-overview');
-          width = this.contentWrap.width - clientWidth;
-        }
-      } else {
-        width = 0;
-      }
       this.expanded.splice(index, 1);
-      this.contentWrap.setWidth(width);
     } else {
       this.expanded.push(id);
-      let width = 0;
-      if (id === 'topo') {
-        width += sideTopoMinWidth;
-      }
-      if (id === 'overview') {
-        width += sideOverviewMinWidth;
-      }
-      this.contentWrap.setWidth(this.contentWrap.width + width);
     }
-    if (this.expanded.length) {
-      let minWidth = 0;
-      if (this.expanded.includes('topo')) {
-        minWidth += sideTopoMinWidth;
-      }
-      if (this.expanded.includes('overview')) {
-        minWidth += sideOverviewMinWidth;
-      }
-      this.contentWrap.setMinWidth(minWidth);
-    }
+  }
+
+  handleFilterChange(id) {
+    this.curFilter = id;
+  }
+
+  handleDataTypeChange(item) {
+    this.showType = item.id;
   }
 
   render() {
@@ -170,12 +213,17 @@ export default class ApmRelationGraph extends tsc<IProps> {
                 <div
                   key={item.id}
                   class={['data-type-item', { active: this.showType === item.id }]}
+                  onClick={() => this.handleDataTypeChange(item)}
                 >
                   <span class={`icon-monitor ${item.icon}`} />
                 </div>
               ))}
             </div>
-            <bk-select class='type-selector'>
+            <bk-select
+              class='type-selector'
+              v-model={this.dataType}
+              clearable={false}
+            >
               {this.dataTypes.map(item => (
                 <bk-option
                   id={item.id}
@@ -195,7 +243,10 @@ export default class ApmRelationGraph extends tsc<IProps> {
             <StatusTab
               class='ml-24'
               needAll={false}
+              needExpand={true}
               statusList={this.filterList}
+              value={this.curFilter}
+              onChange={this.handleFilterChange}
             />
             <bk-checkbox class='ml-24'>无数据节点</bk-checkbox>
             <bk-input
@@ -220,53 +271,70 @@ export default class ApmRelationGraph extends tsc<IProps> {
             </div>
           </div>
         </div>
-        <ApmRelationGraphContent ref='content-wrap'>
-          <div>main</div>
-          <div
-            class='side-wrap'
-            slot='side'
+        {this.showType === 'topo' ? (
+          <ApmRelationGraphContent
+            ref='content-wrap'
+            expanded={this.expanded}
           >
+            <div>main</div>
             <div
-              style={{
-                minWidth: `${sideTopoMinWidth}px`,
-                display: this.expanded.includes('topo') ? 'block' : 'none',
-              }}
-              class='source-topo'
+              class='side-wrap'
+              slot='side'
             >
-              <div class='header-wrap'>
-                <div class='title'>资源拓扑</div>
-                <div
-                  class='expand-btn'
-                  onClick={() => this.handleExpand('topo')}
-                >
-                  <span class='icon-monitor icon-zhankai' />
+              <div
+                style={{
+                  minWidth: `${sideTopoMinWidth}px`,
+                  display: this.expanded.includes('topo') ? 'block' : 'none',
+                }}
+                class='source-topo'
+              >
+                <div class='header-wrap'>
+                  <div class='title'>资源拓扑</div>
+                  <div
+                    class='expand-btn'
+                    onClick={() => this.handleExpand('topo')}
+                  >
+                    <span class='icon-monitor icon-zhankai' />
+                  </div>
                 </div>
+                <div class='content-wrap' />
               </div>
-              <div class='content-wrap' />
-            </div>
 
-            <div
-              style={{
-                minWidth: `${sideOverviewMinWidth}px`,
-                display: this.expanded.includes('overview') ? 'block' : 'none',
-              }}
-              class={['service-overview', { 'no-border': !this.expanded.includes('topo') }]}
-            >
-              <div class='header-wrap'>
-                <div class='title'>服务概览</div>
-                <div
-                  class='expand-btn'
-                  onClick={() => this.handleExpand('overview')}
-                >
-                  <span class='icon-monitor icon-zhankai' />
+              <div
+                style={{
+                  minWidth: `${sideOverviewMinWidth}px`,
+                  display: this.expanded.includes('overview') ? 'block' : 'none',
+                }}
+                class={['service-overview', { 'no-border': !this.expanded.includes('topo') }]}
+              >
+                <div class='header-wrap'>
+                  <div class='title'>服务概览</div>
+                  <div
+                    class='expand-btn'
+                    onClick={() => this.handleExpand('overview')}
+                  >
+                    <span class='icon-monitor icon-zhankai' />
+                  </div>
+                </div>
+                <div class='content-wrap'>
+                  <ServiceOverview data={{}} />
                 </div>
               </div>
-              <div class='content-wrap'>
-                <ServiceOverview data={{}} />
-              </div>
+            </div>
+          </ApmRelationGraphContent>
+        ) : (
+          <div class='apm-relation-graph-table-wrap'>
+            <div class='table-wrap'>
+              <CommonTable
+                checkable={false}
+                columns={this.tableColumns}
+                data={this.tableData}
+                pagination={this.pagination}
+                paginationType={'simple'}
+              />
             </div>
           </div>
-        </ApmRelationGraphContent>
+        )}
       </div>
     );
   }

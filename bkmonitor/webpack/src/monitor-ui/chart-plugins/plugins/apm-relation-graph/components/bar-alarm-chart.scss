@@ -39,11 +39,16 @@
 
     .time-cube {
       width: 6px;
+      min-width: 6px;
       margin-right: 2px;
       cursor: pointer;
       user-select: none;
       background: #2DCB56;
       transition: all .1s;
+
+      &.adaptive-width {
+        flex: 1;
+      }
 
       &:last-of-type {
         margin-right: 0;

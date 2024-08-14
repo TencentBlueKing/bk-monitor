@@ -131,6 +131,20 @@
     }
   }
 
+  .apm-relation-graph-table-wrap {
+    position: relative;
+    width: 100%;
+    height: calc(100% - 52px);
+    overflow-y: auto;
+    background: #F5F7FA;
+
+    .table-wrap {
+      padding: 16px;
+      margin: 24px;
+      background: #fff;
+    }
+  }
+
   .side-wrap {
     display: flex;
     align-items: center;
@@ -138,16 +152,19 @@
     height: 100%;
 
     .service-overview {
-      border-left: 1px solid #dcdee5;
+      width: 320px;
+      border-left: 1px solid #DCDEE5;
 
       .content-wrap {
         height: calc(100% - 52px);
       }
     }
 
-    .source-topo,
-    .service-overview {
+    .source-topo {
       flex: 1;
+    }
+
+    .source-topo, .service-overview {
       height: 100%;
 
       &.no-border {

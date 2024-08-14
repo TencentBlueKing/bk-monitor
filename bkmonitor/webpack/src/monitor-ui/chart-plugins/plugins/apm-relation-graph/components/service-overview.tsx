@@ -103,6 +103,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
         <div class='alarm-wrap'>
           <BarAlarmChart
             activeItemHeight={32}
+            isAdaption={true}
             itemHeight={24}
             showHeader={true}
             showXAxis={true}
