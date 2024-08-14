@@ -32,6 +32,7 @@ import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import BarAlarmChart from './components/bar-alarm-chart';
+import ServiceOverview from './components/service-overview';
 
 import type { PanelModel } from '../../typings';
 import type { ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
@@ -316,16 +317,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
                   </div>
                 </div>
                 <div class='content-wrap'>
-                  <BarAlarmChart
-                    activeItemHeight={32}
-                    isAdaption={true}
-                    itemHeight={24}
-                    showHeader={true}
-                    showXAxis={true}
-                  >
-                    <div slot='title'>告警</div>
-                    <div slot='more'>更多</div>
-                  </BarAlarmChart>
+                  <ServiceOverview data={{}} />
                 </div>
               </div>
             </div>

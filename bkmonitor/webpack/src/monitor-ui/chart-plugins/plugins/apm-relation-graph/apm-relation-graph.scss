@@ -8,8 +8,8 @@
     display: flex;
     align-items: center;
     height: 52px;
-    background: #FFFFFF;
-    box-shadow: 0 1px 0 0 #DCDEE5;
+    background: #ffffff;
+    box-shadow: 0 1px 0 0 #dcdee5;
 
     .ml-24 {
       margin-left: 24px;
@@ -24,12 +24,12 @@
         white-space: nowrap;
       }
     }
-    
+
     .header-select-wrap {
       display: flex;
       align-items: center;
       height: 100%;
-      border-right: 1px solid #DCDEE5;
+      border-right: 1px solid #dcdee5;
 
       .data-type-select {
         display: flex;
@@ -38,8 +38,8 @@
         height: 32px;
         padding: 0 2px;
         margin-left: 24px;
-        background: #FFFFFF;
-        border: 1px solid #DCDEE5;
+        background: #ffffff;
+        border: 1px solid #dcdee5;
         border-radius: 2px;
 
         .data-type-item {
@@ -52,12 +52,12 @@
 
           .icon-monitor {
             font-size: 16px;
-            color: #63656E;
+            color: #63656e;
           }
 
           &.active {
             cursor: auto;
-            background: #3A84FF;
+            background: #3a84ff;
             border-radius: 2px;
 
             .icon-monitor {
@@ -70,8 +70,8 @@
       .type-selector {
         min-width: 102px;
         margin: 0 24px 0 16px;
-        background: #F5F7FA;
-        border: 1px solid #F5F7FA;
+        background: #f5f7fa;
+        border: 1px solid #f5f7fa;
       }
     }
 
@@ -81,7 +81,7 @@
       min-width: 337px;
       height: 100%;
       padding: 0 24px;
-      border-right: 1px solid #DCDEE5;
+      border-right: 1px solid #dcdee5;
     }
 
     .header-search-wrap {
@@ -100,7 +100,7 @@
         width: 70px;
         height: 32px;
         padding: 2px 0 2px 2px;
-        background: #F0F1F5;
+        background: #f0f1f5;
         border-radius: 4px;
 
         .tool-btn {
@@ -111,16 +111,16 @@
           height: 28px;
           margin-right: 2px;
           cursor: pointer;
-          background: #F0F1F5;
+          background: #f0f1f5;
           border-radius: 3px;
 
           .icon-monitor {
             font-size: 16px;
-            color: #63656E;
+            color: #63656e;
           }
 
           &.active {
-            background: #979BA5;
+            background: #979ba5;
 
             .icon-monitor {
               color: #fff;
@@ -154,6 +154,10 @@
     .service-overview {
       width: 320px;
       border-left: 1px solid #DCDEE5;
+
+      .content-wrap {
+        height: calc(100% - 52px);
+      }
     }
 
     .source-topo {
@@ -172,7 +176,7 @@
         align-items: center;
         height: 52px;
         margin-top: 1px;
-        background: #FFFFFF;
+        background: #ffffff;
         box-shadow: 0 2px 4px 0 #1919290d;
 
         .title {
@@ -193,7 +197,7 @@
 
           &:hover {
             cursor: pointer;
-            background: #F0F1F5;
+            background: #f0f1f5;
             border-radius: 2px;
           }
         }
