@@ -510,7 +510,7 @@
       },
       isHaveFilter(params) {
         if (params.type === 'none') return false;
-        return params.conditions && !!params.conditions?.separator_filters.length;
+        return !!params.conditions?.separator_filters?.length;
       },
       isMatchType(params) {
         return params.conditions.type === 'match';
