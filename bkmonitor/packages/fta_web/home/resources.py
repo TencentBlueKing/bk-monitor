@@ -249,7 +249,7 @@ class StatisticsResource(Resource):
     @classmethod
     def get_space_data_by_cache(cls) -> Dict[str, Any]:
         username: str = get_request_username()
-        allowed_biz_ids = set(resource.cc.fetch_allow_biz_ids_by_user(username))
+        allowed_biz_ids = set(resource.space.get_bk_biz_ids_by_user(username))
         return {"biz_id__space_map": {}, "allowed_biz_ids": allowed_biz_ids}
 
     @classmethod

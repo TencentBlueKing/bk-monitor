@@ -110,15 +110,6 @@ def active_business(username: str, space_info: Dict[str, Any]):
 
 
 @task(ignore_result=True)
-def cache_space_data(username: str, space_info: Dict[str, Any]):
-    logger.info("[cache_space_data] task start: username -> %s", username)
-    try:
-        resource.cc.fetch_allow_biz_ids_by_user.refresh(username)
-    except Exception:  # noqa
-        logger.exception("[cache_space_data] error: username -> %s, space_info -> %s", username, space_info)
-
-
-@task(ignore_result=True)
 def run_init_builtin(bk_biz_id):
     if bk_biz_id and settings.ENVIRONMENT != "development":
         logger.info("[run_init_builtin] enter with bk_biz_id -> %s", bk_biz_id)
