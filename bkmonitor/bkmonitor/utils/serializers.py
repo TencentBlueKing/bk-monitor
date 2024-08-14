@@ -153,3 +153,4 @@ class BkBizIdSerializer(serializers.Serializer):
 
         if not attrs["bk_biz_id"]:
             raise serializers.ValidationError(_("space_uid is invalid"))
+        return attrs
