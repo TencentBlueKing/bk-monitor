@@ -97,8 +97,22 @@ export default class LogViewControl extends tsc<IProps> {
     this.highlightHtmlList = document.querySelectorAll('[data-index="light"]');
     this.lightSize = this.highlightHtmlList.length;
     if (this.lightSize) {
-      this.highlightHtmlList[0].style.opacity = 1;
-      this.currentViewIndex = 1;
+      const markDom = document.querySelector('.dialog-log-markdown');
+      const markTop = markDom.getBoundingClientRect().top;
+      let isFindShow = false;
+      for (let index = 0; index < this.highlightHtmlList.length; index++) {
+        const iItemTop = this.highlightHtmlList[index].getBoundingClientRect().top;
+        if (iItemTop > markTop) {
+          this.currentViewIndex = Number(index) + 1;
+          this.highlightHtmlList[index].style.opacity = 1;
+          isFindShow = true;
+          break;
+        }
+      }
+      if (!isFindShow) {
+        this.currentViewIndex = this.highlightHtmlList.length;
+        this.handelChangeLight(this.highlightHtmlList.length);
+      }
       this.colorList[3].color = (lightList as any).map(item => item.color);
     }
   }
