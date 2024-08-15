@@ -314,7 +314,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in query_dict.get("where", [])
@@ -359,7 +359,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in query_dict.get("where", [])
@@ -742,7 +742,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in where_conditions
