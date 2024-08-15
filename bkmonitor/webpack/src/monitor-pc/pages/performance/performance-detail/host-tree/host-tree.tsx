@@ -105,7 +105,7 @@ export interface IEvents {
   onListChange: IHostNode[];
   onTitleChange: (a: string, b: TreeNodeItem) => void;
   onChange: IViewOptions;
-  onOverviewChange?: void;
+  onOverviewChange?: () => void;
   onSearchChange: any[];
 }
 
@@ -370,12 +370,13 @@ export default class HostTree extends tsc<IProps, IEvents> {
       })
       .then(data => {
         this.emptyStatusType = 'empty';
-        const treeData = (typeTools.isObject(data) ? data.data : data) as TreeNodeItem[];
+        const treeData = Object.freeze((typeTools.isObject(data) ? data.data : data) as TreeNodeItem[]);
+        console.info(treeData, '=============');
         this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
-        this.hostTreeData = treeData;
+        this.hostTreeData = Object.freeze(treeData) as TreeNodeItem[];
         this.traverseTree(treeData);
-        this.initExpanedSelectedNode(treeData);
+        this.initExpandSelectedNode(treeData as TreeNodeItem[]);
         this.handleListChange();
         const { bk_inst_id, bk_target_service_instance_id } = this.viewOptions.filters;
         if (bk_inst_id !== undefined || bk_target_service_instance_id !== undefined) {
@@ -402,7 +403,9 @@ export default class HostTree extends tsc<IProps, IEvents> {
       .catch(() => {
         this.emptyStatusType = '500';
       })
-      .finally(() => (this.loading = false));
+      .finally(() => {
+        this.loading = false;
+      });
   }
   /** 查找节点或者服务实例的名称 */
   getNodeName() {
@@ -420,14 +423,11 @@ export default class HostTree extends tsc<IProps, IEvents> {
   /** 查找树节点的目标数据,返回符合条件的数据节点,否则null  广度优先 */
   handleFindNode(treeData: Record<string, any>[], cb: (node: any) => boolean): Record<string, any> {
     if (!treeData.length) return null;
-    const queues = [];
-    treeData.forEach(node => {
-      queues.push(node);
-    });
-    while (!!queues.length) {
+    const queues = treeData.slice();
+    while (queues.length) {
       const currentNode = queues.shift();
       if (cb(currentNode)) return currentNode;
-      if (!!currentNode.children?.length) {
+      if (currentNode.children?.length) {
         for (const item of currentNode.children) {
           queues.push(item);
         }
@@ -437,7 +437,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   }
 
   /** 初始化展开选中节点 */
-  initExpanedSelectedNode(treeData: TreeNodeItem[]) {
+  initExpandSelectedNode(treeData: TreeNodeItem[]) {
     const idMap: Record<string, any> = {
       service: (node: TreeNodeItem) => node.service_instance_id,
       host: (node: TreeNodeItem) => `${this.panel.targets?.[0]?.handleCreateItemId(node)}`,
@@ -553,7 +553,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       this.curNode.id = null;
     }
     const viewOptions = this.handleGetSelectedViewOptions(data, isOverview);
-    this.handleViewOptionsChnage(viewOptions);
+    this.handleViewOptionsChange(viewOptions);
     return viewOptions;
   }
 
@@ -583,7 +583,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
         targets: this.localCompareTargets,
       },
     };
-    this.handleViewOptionsChnage(viewOptions);
+    this.handleViewOptionsChange(viewOptions);
   }
 
   /**
@@ -594,7 +594,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   handleListChange(): IOption[] {
     const hostMap = new Map();
     const fn = (data: TreeNodeItem[]) => {
-      data.forEach(item => {
+      for (const item of data) {
         if (item.children) {
           fn(item.children);
         }
@@ -606,7 +606,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
               id,
             });
         }
-      });
+      }
     };
     fn(this.hostTreeData);
     const hostList = Array.from(hostMap).map(item => item[1]) as IHostNode[];
@@ -614,7 +614,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   }
   /** 对外输出一个viewOptions格式数据 */
   @Emit('change')
-  handleViewOptionsChnage(viewOptions: IViewOptions): IViewOptions {
+  handleViewOptionsChange(viewOptions: IViewOptions): IViewOptions {
     return viewOptions;
   }
 
@@ -677,9 +677,9 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const key = 'name';
     const recursiveTraverse = node => {
       if (node.children) {
-        node.children.forEach(item => {
+        for (const item of node.children) {
           recursiveTraverse(item);
-        });
+        }
       } else if ((node.ip || node.instance_name || node.service_instance_id) && !hosts.has(node[key])) {
         hosts.add(node[key]);
         /** 生成主机/服务实例的id */
@@ -694,10 +694,10 @@ export default class HostTree extends tsc<IProps, IEvents> {
         statusData[localStatus].count += 1;
       }
     };
-    treeData.forEach(node => {
+    for (const node of treeData) {
       recursiveTraverse(node);
-    });
-    this.statusData = statusData;
+    }
+    this.statusData = Object.freeze(statusData);
   }
 
   handleStatusChange(v: string) {
@@ -767,13 +767,16 @@ export default class HostTree extends tsc<IProps, IEvents> {
           >
             <div
               class='node-content-wrap'
-              v-bk-overflow-tips={{
-                content: `${
-                  'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
-                }`,
-              }}
+              // v-bk-overflow-tips={{
+              //   content: `${
+              //     'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
+              //   }`,
+              // }}
+              title={`${
+                'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
+              }`}
             >
-              {!!data.status ? (
+              {data.status ? (
                 <span class={['host-status', `status-${this.getItemStatusClassName(data.status)}`]} />
               ) : undefined}
               <span class='host-name'>
@@ -862,6 +865,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
             <div style={{ height: `${this.hostTreeHeight}px` }}>
               <bk-big-tree
                 ref='bigTreeRef'
+                height={this.hostTreeHeight}
                 class={['big-tree', { 'clear-selected': !this.curNode?.id }]}
                 data={this.hostTreeData}
                 default-expanded-nodes={this.defaultExpandedId}
