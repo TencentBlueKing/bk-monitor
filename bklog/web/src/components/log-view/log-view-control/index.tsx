@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 const { $i18n } = window.mainComponent;
@@ -39,11 +39,13 @@ interface IProps {
 export default class LogViewControl extends tsc<IProps> {
   @Prop({ default: 'log', type: String }) showType: string;
   @Prop({ default: () => [], type: Array }) lightList: Array<[]>;
+  @Ref('jumpInput') jumpInputRef: HTMLElement;
 
   currentViewIndex = 1;
   catchViewIndex = 1;
   highlightHtmlList: Element[] | NodeListOf<Element> = [];
   lightSize = 0;
+  focus = false;
   colorList = [
     {
       color: [
@@ -104,13 +106,14 @@ export default class LogViewControl extends tsc<IProps> {
         const iItemTop = this.highlightHtmlList[index].getBoundingClientRect().top;
         if (iItemTop > markTop) {
           this.currentViewIndex = Number(index) + 1;
+          this.catchViewIndex = this.currentViewIndex;
           this.highlightHtmlList[index].style.opacity = 1;
           isFindShow = true;
           break;
         }
       }
       if (!isFindShow) {
-        this.currentViewIndex = this.highlightHtmlList.length;
+        this.catchViewIndex = this.highlightHtmlList.length;
         this.handelChangeLight(this.highlightHtmlList.length);
       }
       this.colorList[3].color = (lightList as any).map(item => item.color);
@@ -118,8 +121,9 @@ export default class LogViewControl extends tsc<IProps> {
   }
 
   handelChangeLight(page: number) {
-    const viewIndex = page - 1;
     this.catchViewIndex = this.currentViewIndex;
+    this.currentViewIndex = page > this.highlightHtmlList.length ? 1 : page;
+    const viewIndex = this.currentViewIndex - 1;
     const catchIndex = this.catchViewIndex - 1;
     this.highlightHtmlList[viewIndex].scrollIntoView({
       behavior: 'instant',
@@ -128,7 +132,7 @@ export default class LogViewControl extends tsc<IProps> {
     });
     this.highlightHtmlList[catchIndex].style.opacity = 0.5;
     this.highlightHtmlList[viewIndex].style.opacity = 1;
-    this.currentViewIndex = page;
+    this.setInputIndexShow(this.currentViewIndex);
   }
 
   clearLightCatch() {
@@ -136,6 +140,33 @@ export default class LogViewControl extends tsc<IProps> {
     this.currentViewIndex = 1;
     this.catchViewIndex = 1;
     this.highlightHtmlList = [];
+    this.colorList[3].color = [];
+  }
+
+  handleInputChange(event) {
+    const $target = event.target;
+    const value = parseInt($target.textContent, 10);
+    // 无效值不抛出事件
+    if (!value || value < 1 || value > this.lightSize || value === this.currentViewIndex) return;
+    this.currentViewIndex = value;
+  }
+
+  handleBlur() {
+    this.focus = false;
+    if (typeof this.catchViewIndex !== 'string') this.catchViewIndex = this.currentViewIndex;
+    this.handelChangeLight(this.currentViewIndex);
+  }
+
+  handleKeyDown(e) {
+    if (['Enter', 'NumpadEnter'].includes(e.code)) {
+      this.focus = true;
+      this.handelChangeLight(this.currentViewIndex + 1);
+      e.preventDefault();
+    }
+  }
+
+  setInputIndexShow(v: number) {
+    this.jumpInputRef && (this.jumpInputRef.textContent = String(v));
   }
 
   render() {
@@ -160,14 +191,20 @@ export default class LogViewControl extends tsc<IProps> {
         <div class='right'>
           {!!this.lightSize && (
             <div>
-              <bk-pagination
-                count={this.lightSize}
-                current={this.currentViewIndex}
-                limit={1}
-                limit-list={[1]}
-                small
-                onChange={this.handelChangeLight}
-              />
+              <div class={['jump-input-wrapper', { focus: this.focus }]}>
+                <span
+                  ref='jumpInput'
+                  class='jump-input'
+                  contenteditable
+                  onBlur={this.handleBlur}
+                  onFocus={() => (this.focus = true)}
+                  onInput={this.handleInputChange}
+                  onKeydown={this.handleKeyDown}
+                >
+                  {this.catchViewIndex}
+                </span>
+                <span class={['page-total', { focus: this.focus }]}>/ {this.lightSize}</span>
+              </div>
               <div
                 class='jump-btn'
                 onClick={() => {

@@ -49,8 +49,41 @@
     }
 
     .jump-input-wrapper {
-      background: transparent;
-      border: none;
+      display: flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
+      cursor: pointer;
+      background-color: transparent;
+      border-radius: 2px;
+
+      &:hover,
+      &.focus {
+        color: #2d3542;
+        background-color: #f0f1f5;
+      }
+
+      &.focus {
+        border: 1px solid #3a84ff;
+        box-shadow: 0px 0px 4px rgba(58, 132, 255, 0.4);
+      }
+    }
+
+    .jump-input{
+      min-width: 22px;
+      height: 16px;
+      font-size: 14px;
+      line-height: 16px;
+      text-align: center;
+      background-color: transparent;
+      border: 0;
+      border-radius: 2px;
+      transition: all .15s;
+
+      &:hover,
+      &:focus{
+        border-color: #3A84FF;
+      }
     }
 
     .jump-btn {
