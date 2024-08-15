@@ -277,8 +277,8 @@ class CreateOrUpdateExternalPermission(Resource):
         1. 新增权限 - 被授权人视角
         2. 新增权限 - 实例视角
         """
-        space_info = {i.bk_biz_id: i for i in SpaceApi.list_spaces()}
-        bk_biz_name = space_info[params["bk_biz_id"]].space_name
+        biz = resource.cc.get_app_by_id(params["bk_biz_id"])
+        bk_biz_name = biz.bk_biz_name
         ticket_data = {
             "creator": get_request_username() or get_local_username(),
             "fields": [
@@ -449,7 +449,7 @@ class GetExternalPermissionList(Resource):
         2. 基于实例资源视角
         """
         authorizer_map, _ = GlobalConfig.objects.get_or_create(key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}})
-        space_info = {i.bk_biz_id: i.space_name for i in SpaceApi.list_spaces()}
+        space_info = {i["bk_biz_id"]: i["space_name"] for i in SpaceApi.list_spaces_dict()}
         permission_qs = ExternalPermission.objects.all()
         if validated_request_data["bk_biz_id"] != 0:
             permission_qs = permission_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])

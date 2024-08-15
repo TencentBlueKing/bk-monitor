@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, onMounted, type Ref, ref, watch } from 'vue';
+import { type Ref, computed, defineComponent, inject, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
@@ -413,7 +413,7 @@ export default defineComponent({
         onExport-data-retrieval={this.handleToDataRetrieval}
         // onExportSataRetrieval={this.handleToDataRetrieval}
         onSuccessLoad={this.handleSuccessLoad}
-      ></FailureChart>
+      />
     );
   },
 });

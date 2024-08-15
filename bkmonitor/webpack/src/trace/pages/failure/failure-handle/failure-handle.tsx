@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, ref } from 'vue';
+import { type PropType, defineComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { type ITagInfoType, type IUserName } from '../types';
 import HandleSearch from './handle-search';
 import HandlerList from './handler-list';
+
+import type { ITagInfoType, IUserName } from '../types';
 
 import './failure-handle.scss';
 
@@ -44,20 +45,24 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll'],
-  setup() {
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'changeSpace'],
+  setup(props, { emit }) {
     const { t } = useI18n();
     const handleSearchRef = ref(null);
     const username = ref<IUserName>({
-      id: 'admin',
-      name: t('我负责'),
+      id: window.user_name || window.username,
+      name: t('我处理'),
     });
 
     const refreshTree = () => {
       handleSearchRef.value?.handleFilter();
     };
 
+    const handleChangeSpace = (value: string[], isErr: boolean) => {
+      emit('changeSpace', value, isErr);
+    };
     return {
+      handleChangeSpace,
       handleSearchRef,
       username,
       refreshTree,
@@ -73,6 +78,7 @@ export default defineComponent({
           tagInfo={this.$props.tagInfo}
           topoNodeId={this.$props.topoNodeId}
           username={this.username}
+          onChangeSpace={this.handleChangeSpace}
           onFilterSearch={(data: any) => this.$emit('filterSearch', data)}
           onNodeClick={(item: any) => this.$emit('nodeClick', item)}
           onNodeExpand={(data: any) => this.$emit('nodeExpand', data)}

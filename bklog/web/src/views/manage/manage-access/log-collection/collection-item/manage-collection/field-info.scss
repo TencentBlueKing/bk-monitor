@@ -31,29 +31,29 @@
         flex-direction: column;
         line-height: 24px;
 
-        @include flex-align(flex-start)
-      ;
+        @include flex-align(flex-start);
 
         span {
           height: 24px;
           line-height: 24px;
-        }}
+        }
+      }
     }
 
     .preview-result {
       max-width: 400px;
 
       @include flex-align(center);
-  
+
       .old {
         color: #63656e;
       }
-  
+
       .icon-arrows-right {
         font-size: 24px;
         color: #c4c6cc;
       }
-  
+
       .result {
         min-width: 20px;
         color: #ff9c01;

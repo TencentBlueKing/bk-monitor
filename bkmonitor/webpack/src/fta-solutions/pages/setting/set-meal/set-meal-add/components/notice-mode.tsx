@@ -225,10 +225,6 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
     const isRobotValidPass = res.every(item => {
       return item.notice_ways.every(({ name, receivers }) => {
         if (name === robot.wxworkBot) {
-          if (receivers.length > 32) {
-            this.errMsg = window.i18n.tc('长度不能超过32个字符');
-            return false;
-          }
           if (
             /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(receivers as string)
           ) {
@@ -266,14 +262,14 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
               <th class='first-col'>{this.tableTitle[this.type]}</th>
               {this.newNoticeWay.length
                 ? this.newNoticeWay.map(item => (
-                    <th>
+                    <th key={item.label}>
                       <div class='th-title'>
                         {item.icon ? (
                           <img
                             class='title-icon'
                             alt=''
                             src={`data:image/png;base64,${item.icon}`}
-                          ></img>
+                          />
                         ) : undefined}
                         {item.label}
                         {item.tip ? (
@@ -286,7 +282,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               width: item.width,
                               allowHTML: true,
                             }}
-                          ></i>
+                          />
                         ) : undefined}
                       </div>
                     </th>
@@ -295,18 +291,19 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
             </thead>
             <tbody>
               {this.noticeData.map(item => (
-                <tr>
+                <tr key={item.level}>
                   <td class='first-col'>
                     <div
                       key={item.title}
                       class='cell'
                     >
-                      {this.showlevelMark && <span class={`level-mark level-mark-${item.level}`}></span>}
+                      {this.showlevelMark && <span class={`level-mark level-mark-${item.level}`} />}
                       <span class={[this.showlevelMark ? `level-title-${item.level}` : undefined]}>{item.title}</span>
                     </div>
                   </td>
                   {item.list.map(notice => (
                     <td
+                      key={notice.name + item.level}
                       class={[
                         this.channels.length === 3 && 'limit-width',
                         [robot.wxworkBot, 'bkchat'].includes(notice.name) && 'custom-td',
@@ -317,7 +314,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                         class={['cell', { 'wxwork-bot': notice.name === robot.wxworkBot }]}
                       >
                         {this.readonly ? (
-                          <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]}></i>
+                          <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]} />
                         ) : ['bkchat', 'wxwork-bot'].includes(notice.name) ? undefined : (
                           <bk-checkbox
                             v-model={notice.checked}
@@ -330,7 +327,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                             size={'small'}
                             theme='primary'
                             on-change={() => this.handleParams()}
-                          ></bk-checkbox>
+                          />
                         )}
                         {notice.name === robot.wxworkBot && (
                           <div class='work-group'>
@@ -344,7 +341,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                   notice.checked = !!v.trim();
                                   this.handleParams();
                                 }}
-                              ></AutoHeightTextarea>
+                              />
                               // <bk-input
                               //   v-model={notice.receivers}
                               //   placeholder={this.$t('输入群ID')}
@@ -388,7 +385,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                 <i
                                   style={{ marginRight: '5px' }}
                                   class='bk-icon icon-plus-circle'
-                                ></i>
+                                />
                                 {this.$tc('新增群组')}
                               </div>
                             </bk-select>

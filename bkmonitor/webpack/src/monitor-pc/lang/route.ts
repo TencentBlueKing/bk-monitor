@@ -180,8 +180,8 @@ export default {
   标准运维: 'Standard OPS',
   节点管理: 'NodeMan',
   'GSEKit（进程配置管理）': 'GSEKit',
-  监控平台: 'BKMonitor',
-  日志平台: 'BKLog',
+  监控平台: 'BK Monitor',
+  日志平台: 'BK Log',
   容器管理平台: 'BlueKing Container Service',
   'CI-制品库': 'BlueKing Repository',
   'CI-流水线': 'BlueKing Continuous Integration',
@@ -208,4 +208,5 @@ export default {
   新增集群: 'Add cluster',
   'route-订阅配置': 'Subscription configuration',
   'route-配置服务': 'Configuration Service',
+  智能: 'AI',
 };

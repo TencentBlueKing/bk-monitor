@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { defineComponent, nextTick, onMounted, inject, onUnmounted, provide, ref, watch, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Checkbox, Loading, PopConfirm, Tree, Exception } from 'bkui-vue';
+import { Checkbox, Exception, Loading, PopConfirm, Tree } from 'bkui-vue';
 import { BkCheckboxGroup } from 'bkui-vue/lib/checkbox';
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
 
-import { type IAggregationRoot, type IUserName, type ITagInfoType } from '../types';
 import { useIncidentInject } from '../utils';
 import FilterSearchMain from './filter-search-main';
+
+import type { IAggregationRoot, ITagInfoType, IUserName } from '../types';
 
 import './handle-search.scss';
 
@@ -52,9 +53,10 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll'],
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'changeSpace'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     const alertAggregateData = ref<IAggregationRoot[]>([]);
     const listLoading = ref(false);
     const isShowDropdown = ref(false);
@@ -104,9 +106,10 @@ export default defineComponent({
       <div class='handle-search-top'>
         <FilterSearchMain
           tagInfo={props.tagInfo}
-          onChangeSpace={(val: number[]) => {
+          onChangeSpace={(val: number[], isErr: boolean) => {
             bkBizIds.value = val;
-            getIncidentAlertAggregate();
+            !isErr && getIncidentAlertAggregate();
+            emit('changeSpace', bkBizIds.value);
           }}
           onSearch={(val: string, validate: boolean) => {
             queryString.value = val;
@@ -129,7 +132,7 @@ export default defineComponent({
       const params = {
         id: incidentId.value,
         aggregate_bys: aggregateBys.value,
-        bk_biz_ids: bkBizIds.value,
+        bk_biz_ids: bkzIds.value,
         query_string: queryString.value,
       };
       props.username.id !== 'all' && Object.assign(params, { username: props.username.id });
@@ -139,14 +142,20 @@ export default defineComponent({
           alertAggregateData.value = list.filter(item => item.count !== 0);
           const isHasRoot = alertAggregateData.value.findIndex(item => item.is_root || item.is_feedback_root) !== -1;
           const isHasChildInd = alertAggregateData.value.findIndex(item => item.children?.length);
-          isHasRoot ? handleIsRoot(alertAggregateData.value) : (alertAggregateData.value[isHasChildInd].isOpen = true);
+          if (alertAggregateData.value.length !== 0) {
+            isHasRoot
+              ? handleIsRoot(alertAggregateData.value)
+              : (alertAggregateData.value[isHasChildInd].isOpen = true);
+          }
           emit('filterSearch', params);
           emit('nodeExpand', alertAggregateData.value);
         })
         .catch(err => {
           console.log(err);
         })
-        .finally(() => (listLoading.value = false));
+        .finally(() => {
+          listLoading.value = false;
+        });
     };
     /** 节点icon映射 */
     const treeShowIcon = {
@@ -260,7 +269,7 @@ export default defineComponent({
               let title = '';
               if (level_name !== 'status') {
                 const curNode = aggregateBysList.filter(item => item.key === level_name);
-                title = `${curNode[0]!.name}: ${name}`;
+                title = `${curNode[0]?.name}: ${name}`;
               }
               return <span title={title}>{name}</span>;
             },
@@ -284,6 +293,7 @@ export default defineComponent({
           auto-open-parent-node={false}
           data={alertAggregateData.value}
           label='name'
+          nodeKey={'id'}
           prefix-icon={getPrefixIcon}
           level-line
           virtual-render
@@ -294,10 +304,10 @@ export default defineComponent({
       );
     };
     const showName = () => {
-      if (['all', 'admin'].includes(props.username.id)) {
-        return `${props.username.name}的告警`;
+      if (['all', window.user_name, window.username].includes(props.username.id)) {
+        return `${props.username.name}${t('的告警')}`;
       }
-      return `${props.username.name}负责的告警`;
+      return `${props.username.name}${t('处理的告警')}`;
     };
     const scrollChange = e => {
       const scrollTop = e.target?.scrollTop;
@@ -347,6 +357,7 @@ export default defineComponent({
                     >
                       {this.aggregateBysList.map(item => (
                         <Checkbox
+                          key={item.key}
                           class='drop-item drop-item-checkbox'
                           disabled={this.aggregateBys.length === 1 && this.aggregateBys.includes(item.key)}
                           label={item.key}

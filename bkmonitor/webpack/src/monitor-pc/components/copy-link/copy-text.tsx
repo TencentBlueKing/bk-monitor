@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { copyText, Debounce } from 'monitor-common/utils/utils';
+import { Debounce, copyText } from 'monitor-common/utils/utils';
 
 import './copy-text.scss';
 
@@ -75,7 +75,7 @@ export default class CopyText extends tsc<IProps> {
           allowHTML: false,
         }}
         onClick={this.handleCopyText}
-      ></span>
+      />
     );
   }
 }

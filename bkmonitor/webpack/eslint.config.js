@@ -328,6 +328,7 @@ module.exports = [
           fixStyle: 'inline-type-imports',
         },
       ],
+      '@typescript-eslint/ban-types': WARNING,
     },
   },
   ...eslintVuePlugin.configs['flat/vue2-recommended'].filter(config => !config.files?.length),

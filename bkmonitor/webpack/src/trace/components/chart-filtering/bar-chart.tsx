@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
+  type WatchStopHandle,
   defineComponent,
   onBeforeUnmount,
   onMounted,
-  type PropType,
   ref,
   shallowRef,
   watch,
-  type WatchStopHandle,
 } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 export const BarChartProps = {
   // echart 配置

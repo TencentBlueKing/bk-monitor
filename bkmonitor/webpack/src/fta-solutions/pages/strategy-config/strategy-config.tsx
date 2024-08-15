@@ -29,7 +29,8 @@ import StrategyConfig from 'monitor-pc/pages/strategy-config/strategy-config-com
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import * as authorityMap from './authority-map';
-import { strategyType } from './typings/strategy';
+
+import type { strategyType } from './typings/strategy';
 
 import './strategy-config.scss';
 

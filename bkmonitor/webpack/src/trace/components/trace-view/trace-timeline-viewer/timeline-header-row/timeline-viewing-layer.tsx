@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, type PropType, ref } from 'vue';
+import { type PropType, defineComponent, onBeforeUnmount, ref } from 'vue';
 
 import { useSpanBarCurrentInject, useViewRangeInject } from '../../hooks';
-import {
-  type IViewRange,
-  type IViewRangeTime,
-  type TNil,
-  type TUpdateViewRangeTimeFunction,
-  type ViewRangeTimeUpdate,
-} from '../../typings';
 import DraggableManager, { type DraggableBounds, type DraggingUpdate } from '../../utils/draggable-manager';
+
+import type {
+  IViewRange,
+  IViewRangeTime,
+  TNil,
+  TUpdateViewRangeTimeFunction,
+  ViewRangeTimeUpdate,
+} from '../../typings';
 
 import './timeline-viewing-layer.scss';
 

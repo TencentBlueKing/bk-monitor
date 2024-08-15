@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type PropType, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 
 import { Exception, Input, Popover } from 'bkui-vue';
 import { Search } from 'bkui-vue/lib/icon';
@@ -194,12 +194,12 @@ export default defineComponent({
                       e.stopPropagation();
                       this.handleClear();
                     }}
-                  ></span>
+                  />
                 )}
                 <span
                   class={['icon-monitor', 'sel-icon', 'icon-arrow-down']}
                   onClick={e => e.stopPropagation()}
-                ></span>
+                />
               </div>
             ),
             content: (
@@ -213,14 +213,14 @@ export default defineComponent({
                         <Search
                           width={14}
                           height={14}
-                        ></Search>
+                        />
                       ),
                     }}
                     behavior='simplicity'
                     placeholder={this.$t('输入关键字')}
                     prefixIcon='bk-icon icon-search'
                     onInput={this.handleKeywordChange}
-                  ></Input>
+                  />
                   {this.filterList.length > 0 ? (
                     <div class='panel-list'>
                       {this.filterList.length > 0 && (
@@ -232,7 +232,7 @@ export default defineComponent({
                               onMouseenter={() => this.handleGroupMouseenter(item)}
                             >
                               {item.name}
-                              <i class='icon-monitor icon-arrow-right arrow-icon'></i>
+                              <i class='icon-monitor icon-arrow-right arrow-icon' />
                             </li>
                           ))}
                         </ul>
@@ -293,7 +293,7 @@ export default defineComponent({
           placement='bottom'
           theme='light common-monitor'
           trigger='click'
-        ></Popover>
+        />
       </div>
     );
   },

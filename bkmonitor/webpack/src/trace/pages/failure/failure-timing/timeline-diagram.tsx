@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
+  type Ref,
   computed,
   defineComponent,
   inject,
+  nextTick,
   onBeforeUnmount,
   onMounted,
-  type Ref,
   ref,
   watch,
-  type PropType,
-  nextTick,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -47,12 +47,13 @@ import AlarmConfirm from '../alarm-detail/alarm-confirm';
 import AlarmDispatch from '../alarm-detail/alarm-dispatch';
 import ManualProcess from '../alarm-detail/manual-process';
 import QuickShield from '../alarm-detail/quick-shield';
-import { dialogConfig, EVENT_SEVERITY, TREE_SHOW_ICON_LIST } from '../constant';
+import { EVENT_SEVERITY, TREE_SHOW_ICON_LIST, dialogConfig } from '../constant';
 import { renderMap } from '../failure-process/process';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
-import { type IAlert, type IIncident, type IIncidentOperation, type IAggregationRoot } from '../types';
 import { useIncidentInject } from '../utils';
 import TimelineZoom from './timeline-zoom';
+
+import type { IAggregationRoot, IAlert, IIncident, IIncidentOperation } from '../types';
 
 import './timeline-diagram.scss';
 
@@ -131,6 +132,7 @@ export default defineComponent({
     const currentBizIds = ref<number[]>([]);
     const isDragging = ref<boolean>(false);
     const mouseRatio = ref<number>();
+    const processPopoverRefs = ref<HTMLDivElement[]>([]);
     const actionList = ref([
       {
         id: 'alert_confirm',
@@ -476,13 +478,16 @@ export default defineComponent({
       () => props.chooseOperation,
       val => {
         circleOnClick([val]);
+        processPopoverRefs.value[`process${val.id}`]?.show();
         if (percentage.value !== 0) {
           nextTick(() => {
             const activeElements: any = processRef.value.querySelectorAll('.active');
-            const num = -activeElements[0].offsetLeft + 100;
-            const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
-            mainLeft.value = num > max ? num : max;
-            ratio.value = mainLeft.value / max;
+            if (activeElements.length > 0) {
+              const num = -activeElements[0].offsetLeft + 100;
+              const max = timelineRef.value.offsetWidth - timeLineMainRef.value.offsetWidth;
+              mainLeft.value = num > max ? num : max;
+              ratio.value = mainLeft.value / max;
+            }
           });
         }
       }
@@ -498,7 +503,7 @@ export default defineComponent({
       const info = Object.values(EVENT_SEVERITY)[severity - 1];
       return (
         <span class='severity-info'>
-          <i class={`icon-monitor icon-${info.icon} ${info.key}`}></i>
+          <i class={`icon-monitor icon-${info.icon} ${info.key}`} />
           {info.label}
         </span>
       );
@@ -553,7 +558,7 @@ export default defineComponent({
           label: t('告警状态'),
           renderFn: status => (
             <span class={`info-status ${status}`}>
-              <i class={`icon-monitor icon-${TREE_SHOW_ICON_LIST.status[status]}`}></i>
+              <i class={`icon-monitor icon-${TREE_SHOW_ICON_LIST.status[status]}`} />
               {statusEnum.value[status]}
             </span>
           ),
@@ -571,7 +576,7 @@ export default defineComponent({
       return (
         <div class='tool-div'>
           <div class='tool-text'>
-            <i class={`icon-monitor item-icon icon-${level_name === 'alert_name' ? 'gaojing1' : 'Pod'}`}></i>
+            <i class={`icon-monitor item-icon icon-${level_name === 'alert_name' ? 'gaojing1' : 'Pod'}`} />
             <label class='tool-name'>{alertNameFn(alert_example, children, ind, alert_ids)}</label>
             {(is_root || is_feedback_root) && (
               <span class={['root', { 'feedback-root': is_feedback_root }]}>{t('根因')}</span>
@@ -582,7 +587,7 @@ export default defineComponent({
                 showToolMenu.value = !showToolMenu.value;
               }}
             >
-              <i class='icon-monitor icon-mc-more'></i>
+              <i class='icon-monitor icon-mc-more' />
             </i>
             {showToolMenu.value && (
               <div class='more-list'>
@@ -609,7 +614,7 @@ export default defineComponent({
                     <i
                       style='margin-right: 4px;'
                       class={['icon-monitor', item.icon]}
-                    ></i>
+                    />
                     {item.name}
                   </div>
                 ))}
@@ -676,7 +681,11 @@ export default defineComponent({
       <div class='operations-tips'>
         <span class='tips-item'>{formatTime(ele.create_time * 1000)}</span>
         <span class='tips-type'>{operationTypeMapData.value[ele.operation_type] || '--'}</span>
-        <span class='tips-item'>{renderMap[ele.operation_type]?.(ele)}</span>
+        <span class='tips-item'>{renderMap[ele.operation_type]?.(
+          ele,
+          incidentId.value,
+          incidentDetail.value?.bk_biz_id
+        ) || '--'}</span>
       </div>
     );
     /** 绘制流转的圆 */
@@ -693,13 +702,13 @@ export default defineComponent({
         <i
           class={[
             'icon-monitor item-icon',
-            ele[0].operation_class !== 'system'
+            ele[0].operation_class === 'system'
               ? ele[0].operation_type.startsWith('alert')
                 ? 'icon-gaojing1'
                 : 'icon-mc-fault'
               : 'icon-mc-user-one',
           ]}
-        ></i>
+        />
       );
       return (
         <span
@@ -717,8 +726,12 @@ export default defineComponent({
     /** 绘制流转的圆popover */
     const renderPopover = (isMore = true, ele, index) => {
       const len = ele.length;
+      const setItemRef = (el, key) => {
+        el && (processPopoverRefs.value[key] = el);
+      };
       return (
         <Popover
+          ref={(el) => setItemRef(el, `process${ele[0].id}`)}
           extCls={`operations-popover${len > 1 ? '-more' : ''}`}
           v-slots={{
             content: () => {
@@ -830,7 +843,18 @@ export default defineComponent({
       const matrix = style.transform || style.webkitTransform || style.mozTransform;
       if (matrix === 'none' || !matrix) return 0;
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
-      return parseFloat(values[4]);
+      return Number.parseFloat(values[4]);
+    }
+    /** 时序图位置变化处理方法 */
+    const onTimeLineMouseHandle = (deltaX: number) => {
+      const selection: any = timeLineMainRef.value;
+      const startTransform = getTransformX(selection);
+      const newTransformX = startTransform + deltaX;
+      const maxTransformX = selection.offsetWidth - selection.parentNode.offsetWidth;
+      const newPos = Math.max(-maxTransformX, Math.min(maxTransformX, newTransformX));
+      const ratio = newPos / maxTransformX;
+      mainLeft.value = newPos > 0 ? 0 : newPos;
+      mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
     }
     const onTimeLineMainMouseDown = (event: MouseEvent) => {
       if (percentage.value === 0) {
@@ -838,18 +862,10 @@ export default defineComponent({
       }
       isDragging.value = true;
       const startX = event.clientX;
-      const selection: any = timeLineMainRef.value;
-      const startTransform = getTransformX(selection);
-
       const onMouseMove = (e: MouseEvent) => {
         if (!isDragging.value) return;
         const deltaX = e.clientX - startX;
-        const newTransformX = startTransform + deltaX;
-        const maxTransformX = selection.offsetWidth - selection.parentNode.offsetWidth;
-        const newPos = Math.max(-maxTransformX, Math.min(maxTransformX, newTransformX));
-        const ratio = newPos / maxTransformX;
-        mainLeft.value = newPos > 0 ? 0 : newPos;
-        mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
+        onTimeLineMouseHandle(deltaX);
       };
 
       const onMouseUp = () => {
@@ -857,9 +873,19 @@ export default defineComponent({
         timeLineMainRef.value.removeEventListener('mousemove', onMouseMove);
         timeLineMainRef.value.removeEventListener('mouseup', onMouseUp);
       };
-
       timeLineMainRef.value.addEventListener('mousemove', onMouseMove);
       timeLineMainRef.value.addEventListener('mouseup', onMouseUp);
+    };
+    const handleWheel = e => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (percentage.value === 0) {
+        return;
+      }
+      const { deltaX } = e;
+      const sensitivity = 2; // 设置滚动灵敏度
+      let dx = -deltaX * sensitivity;
+      onTimeLineMouseHandle(dx);
     };
     return {
       t,
@@ -893,6 +919,7 @@ export default defineComponent({
       manualProcessShowChange,
       handleDebugStatus,
       handleMealInfo,
+      handleWheel,
       handleAlarmDispatchShowChange,
       alarmConfirmChange,
       tickPopoverRefs,
@@ -979,6 +1006,7 @@ export default defineComponent({
           style={{ width: `${this.mainWidth}px`, transform: `translateX(${this.mainLeft}px)` }}
           class='timeline-diagram-main'
           onMousedown={this.onTimeLineMainMouseDown}
+          onWheel={this.handleWheel}
         >
           <ul class='time-tick'>
             {(this.showTickArr || []).map(item => {
@@ -989,7 +1017,7 @@ export default defineComponent({
                   class='time-view-tick'
                 >
                   <span class='tick-name'>{time}</span>
-                  <span class='tick-line'></span>
+                  <span class='tick-line' />
                 </li>
               );
             })}
@@ -1000,7 +1028,7 @@ export default defineComponent({
                 style={{ width: `${this.tickWidth}px` }}
                 class='time-view-tick'
               >
-                <span class='tick-line'></span>
+                <span class='tick-line' />
               </span>
             ))}
             <div
@@ -1032,7 +1060,7 @@ export default defineComponent({
           visible={this.dialog.rootCauseConfirm.show}
           onRefresh={this.refresh}
           onUpdate:isShow={this.handleFeedbackChange}
-        ></FeedbackCauseDialog>
+        />
         <QuickShield
           bizIds={this.currentBizIds}
           data={this.currentSpan}
@@ -1041,7 +1069,7 @@ export default defineComponent({
           show={this.dialog.quickShield.show}
           onChange={this.quickShieldChange}
           onRefresh={this.refresh}
-        ></QuickShield>
+        />
         <ManualProcess
           alertIds={this.currentIds}
           bizIds={this.currentBizIds}
@@ -1050,21 +1078,21 @@ export default defineComponent({
           onDebugStatus={this.handleDebugStatus}
           onMealInfo={this.handleMealInfo}
           onShowChange={this.manualProcessShowChange}
-        ></ManualProcess>
+        />
         <AlarmDispatch
           alertIds={this.currentIds}
           bizIds={this.currentBizIds}
           data={this.currentSpan}
           show={this.dialog.alarmDispatch.show}
           onShow={this.handleAlarmDispatchShowChange}
-        ></AlarmDispatch>
+        />
         <AlarmConfirm
           bizIds={this.currentBizIds}
           data={this.currentSpan}
           ids={this.currentIds}
           show={this.dialog.alarmConfirm.show}
           onChange={this.alarmConfirmChange}
-        ></AlarmConfirm>
+        />
       </div>
     );
   },

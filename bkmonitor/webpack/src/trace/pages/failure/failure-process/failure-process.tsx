@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, nextTick, onMounted, type Ref, ref, watch } from 'vue';
+import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { incidentOperationTypes } from 'monitor-api/modules/incident';
 
-import { type IIncident } from '../types';
 import { useIncidentInject } from '../utils';
 import { renderMap } from './process';
+
+import type { IIncident } from '../types';
 
 import './failure-process.scss';
 
@@ -52,8 +53,9 @@ export default defineComponent({
     const queryString = ref<string>('');
     const hidePopover = ref<boolean>(false);
     // const operations = ref([]);
-    const operations = inject<Ref>('operationsList');
+    const operationsList = inject<Ref>('operationsList');
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
+    const operationsLoading = inject<Ref<boolean>>('operationsLoading');
     const operationTypes = ref([]);
     const operationTypeMap = ref({});
     const checkedNodes = ref([]);
@@ -75,11 +77,17 @@ export default defineComponent({
       const result = select.filter(item => !filterSelect.find(filter => filter.id === item.id));
       checkedNodes.value = result.map(item => item.id);
     };
+    const operations = computed(() => {
+      return operationsList.value;
+    });
     /** 前端搜索 */
     const searchOperations = computed(() => {
       let result = operations.value;
       if (checkedNodes.value.length > 0) {
         result = operations.value.filter(operation => checkedNodes.value.includes(operation.operation_type));
+      }
+      if (checkedNodes.value.length === 0) {
+        result = [];
       }
       if (queryString.value !== '') {
         result = operations.value.filter(
@@ -107,6 +115,11 @@ export default defineComponent({
             isAddLineIndex > 0 && (item.operation_types[isAddLineIndex - 1].isAddLine = true);
           });
           operationTypes.value = res;
+          const defaultCheckNodeIds = [];
+          operationTypes.value.forEach(item => {
+            defaultCheckNodeIds.push(item.id, ...(item?.operation_types ?? []).map(child => child.id));
+          });
+          checkedNodes.value = defaultCheckNodeIds;
         })
         .catch(err => {
           console.log(err);
@@ -163,6 +176,7 @@ export default defineComponent({
       failureProcessListRef,
       incidentId,
       incidentDetail,
+      operationsLoading,
     };
   },
   render() {
@@ -172,7 +186,7 @@ export default defineComponent({
           <Input
             v-model={this.queryString}
             placeholder={this.$t('搜索 流转记录')}
-          ></Input>
+          />
 
           <Popover
             width='242'
@@ -190,12 +204,13 @@ export default defineComponent({
                   v-bk-tooltips={{ content: this.$t('设置展示类型') }}
                   onClick={this.handleSetting}
                 >
-                  <CogShape></CogShape>
+                  <CogShape />
                 </span>
               ),
               content: (
                 <div class='failure-process-search-setting-tree'>
                   <Tree
+                    checked={this.checkedNodes}
                     children='operation_types'
                     data={this.operationTypes}
                     expand-all={true}
@@ -219,10 +234,10 @@ export default defineComponent({
                                   'icon-monitor',
                                   data.id.startsWith('alert') ? 'icon-gaojing1' : 'icon-mc-fault',
                                 ]}
-                              ></i>
+                              />
                             )}
                             {data.name}
-                            {data.isAddLine ? <span class='node-line'></span> : ''}
+                            {data.isAddLine ? <span class='node-line' /> : ''}
                           </span>
                         );
                       },
@@ -233,7 +248,7 @@ export default defineComponent({
             }}
           </Popover>
         </div>
-        <Loading loading={this.tableLoading}>
+        <Loading loading={this.operationsLoading || this.tableLoading}>
           {this.searchOperations.length ? (
             <ul
               ref='failureProcessListRef'
@@ -247,17 +262,17 @@ export default defineComponent({
                     onClick={e => this.handleOperationId(e, operation)}
                   >
                     <div class='failure-process-item-avatar'>
-                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line'></span>}
+                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line' />}
                       <i
                         class={[
                           'icon-monitor item-icon',
-                          operation.operation_class !== 'system'
+                          operation.operation_class === 'system'
                             ? operation.operation_type.startsWith('alert')
                               ? 'icon-gaojing1'
                               : 'icon-mc-fault'
                             : 'icon-mc-user-one',
                         ]}
-                      ></i>
+                      />
                     </div>
                     <div class='failure-process-item-content'>
                       <p>

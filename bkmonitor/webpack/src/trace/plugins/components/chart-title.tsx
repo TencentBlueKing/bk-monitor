@@ -23,23 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, type ComputedRef, defineComponent, type PropType, ref, watch } from 'vue';
+import { type ComputedRef, type PropType, computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
 import { createMetricTitleTooltips } from '../../utils';
-import {
-  type ChartTitleMenuType,
-  type IChartTitleMenuEvents,
-  type IExtendMetricData,
-  type IMenuChildItem,
-  type IMenuItem,
-  type ITitleAlarm,
-} from '../typings';
 import AlertActionList from './alert-action-list';
 import TitleMenu from './title-menu';
+
+import type {
+  ChartTitleMenuType,
+  IChartTitleMenuEvents,
+  IExtendMetricData,
+  IMenuChildItem,
+  IMenuItem,
+  ITitleAlarm,
+} from '../typings';
 
 import './chart-title.scss';
 
@@ -75,6 +76,11 @@ export default defineComponent({
       type: Array as PropType<IMenuChildItem[]>,
       default: () => [],
     },
+    /** 是否展示告警操作 */
+    isShowAlarm: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['updateDragging', 'menuClick', 'selectChild', 'metricClick', 'allMetricClick', 'alarmClick', 'successLoad'],
   setup(props, { emit }) {
@@ -98,7 +104,7 @@ export default defineComponent({
           content = t('告警中，告警数量：{0}', [alert_number]).toString();
           break;
         default:
-        case 0:
+          // case 0:
           content = t('未配置策略').toString();
           break;
       }
@@ -206,6 +212,10 @@ export default defineComponent({
       return props.showMore || isAlertListShown.value;
     });
 
+    const isShowAlarmStyle = computed(() => {
+      return props.isShowAlarm ? { width: isToolsShow.value ? '68%' : '70%' } : {};
+    });
+
     return {
       chartTitleRef,
       showMenu,
@@ -231,6 +241,7 @@ export default defineComponent({
       handleChildMenuToggle,
       handleAlertListShown,
       handleSuccessLoad,
+      isShowAlarmStyle,
     };
   },
   render() {
@@ -256,7 +267,7 @@ export default defineComponent({
               </Popover>
             ) : undefined}
             <div
-              style={{ width: this.isToolsShow ? '68%' : '70%' }}
+              style={this.isShowAlarmStyle}
               class={['title-name', { 'has-more': this.isToolsShow }]}
               title={this.title}
             >
@@ -280,12 +291,12 @@ export default defineComponent({
                     <div
                       class='common-chart-tooltips-wrap'
                       v-html={createMetricTitleTooltips(this.metricTitleData)}
-                    ></div>
+                    />
                   ),
                 }}
-              ></Popover>
+              />
             ) : undefined}
-            <span class='title-center'></span>
+            <span class='title-center' />
             {this.showMetricAlarm && this.metricTitleData ? (
               <Popover content={this.$t('添加策略')}>
                 <i
@@ -294,21 +305,23 @@ export default defineComponent({
                   }}
                   class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   onClick={this.handleAllMetricSelect}
-                ></i>
+                />
               </Popover>
             ) : undefined}
             <div style={{ display: 'flex', marginRight: '-18px' }}>
-              <AlertActionList
-                style={{
-                  minWidth: '72px',
-                  marginLeft: 'auto',
-                  display: this.isToolsShow ? 'flex' : 'none',
-                  lineHeight: '28px',
-                }}
-                onListHidden={() => this.handleAlertListShown(false)}
-                onListShown={() => this.handleAlertListShown(true)}
-                onSuccessLoad={this.handleSuccessLoad}
-              />
+              {this.isShowAlarm && (
+                <AlertActionList
+                  style={{
+                    minWidth: '72px',
+                    marginLeft: 'auto',
+                    display: this.isToolsShow ? 'flex' : 'none',
+                    lineHeight: '28px',
+                  }}
+                  onListHidden={() => this.handleAlertListShown(false)}
+                  onListShown={() => this.handleAlertListShown(true)}
+                  onSuccessLoad={this.handleSuccessLoad}
+                />
+              )}
               <Popover content={this.$t('更多')}>
                 <span
                   style={{
@@ -344,7 +357,7 @@ export default defineComponent({
           onMetricSelect={this.handleMetricSelect}
           onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
-        ></TitleMenu>
+        />
       </div>
     );
   },

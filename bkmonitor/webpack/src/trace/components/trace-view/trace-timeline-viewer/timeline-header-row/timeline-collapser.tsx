@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { Popover } from 'bkui-vue';
 

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, reactive, watch } from 'vue';
+import { type PropType, defineComponent, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { DatePicker, Radio, Select, TimePicker } from 'bkui-vue';
@@ -270,7 +270,7 @@ export default defineComponent({
                   placement={'bottom-start'}
                   type='datetimerange'
                   onChange={v => this.handleSingleRangeChange(v)}
-                ></DatePicker>
+                />
                 {!this.errMsg.singleRange && <div class='datetimerange-tip'>{this.t('注意：最大值为6个月')}</div>}
               </FormItem>
             );
@@ -293,7 +293,7 @@ export default defineComponent({
                     type='timerange'
                     allowCrossDay
                     onUpdate:modelValue={v => this.handleDayRangeChange(v)}
-                  ></TimePicker>
+                  />
                 </FormItem>
               </>
             );
@@ -320,7 +320,7 @@ export default defineComponent({
                           id={item.id}
                           key={item.id}
                           name={item.name}
-                        ></Select.Option>
+                        />
                       ))}
                     </Select>
                     <TimePicker
@@ -332,7 +332,7 @@ export default defineComponent({
                       placeholder={this.t('选择时间范围')}
                       type='timerange'
                       onUpdate:modelValue={v => this.handleWeekRangeChange(v)}
-                    ></TimePicker>
+                    />
                   </div>
                 </FormItem>
               </>
@@ -350,7 +350,7 @@ export default defineComponent({
                   <DayPicker
                     value={this.noticeDate.month.list as any}
                     onChange={v => this.handleMonthListChange(v)}
-                  ></DayPicker>
+                  />
                   <TimePicker
                     class='width-413'
                     allowCrossDay={true}
@@ -360,7 +360,7 @@ export default defineComponent({
                     placeholder={this.t('选择时间范围')}
                     type='timerange'
                     onUpdate:modelValue={v => this.handleMonthRangeChange(v)}
-                  ></TimePicker>
+                  />
                 </div>
               </FormItem>
             );
@@ -386,7 +386,7 @@ export default defineComponent({
                   placement={'bottom-start'}
                   type='daterange'
                   onChange={v => this.handleDateRangeChange(v)}
-                ></DatePicker>
+                />
                 {!this.errMsg.dateRange && <div class='datetimerange-tip'>{this.t('注意：最大值为6个月')}</div>}
               </FormItem>
             );

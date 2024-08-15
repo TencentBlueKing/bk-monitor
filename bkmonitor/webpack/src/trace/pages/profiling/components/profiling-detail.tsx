@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Form, Loading, Sideslider } from 'bkui-vue';
@@ -111,7 +111,7 @@ export default defineComponent({
                 onClick={this.handleViewAppDetail}
               >
                 {this.t('应用详情')}
-                <i class='icon-monitor icon-fenxiang'></i>
+                <i class='icon-monitor icon-fenxiang' />
               </span>
             </Form.FormItem>
             {/* <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency || '-'}</Form.FormItem> */}
@@ -133,7 +133,7 @@ export default defineComponent({
           <Form.FormItem label={`${this.t('协议类型')}:`}>{data.file_type || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('解析状态')}:`}>
             <div class='status'>
-              <div class={['circle', this.statusMap[data.status].type]}></div>
+              <div class={['circle', this.statusMap[data.status].type]} />
               <span class='label'>{this.statusMap[data.status].name}</span>
             </div>
           </Form.FormItem>
@@ -161,15 +161,12 @@ export default defineComponent({
             header: () => (
               <div class='profiling-detail-header'>
                 <span class='title'>{this.t('基础信息')}</span>
-                <span class='jump-link'>
-                  <a
-                    class='link'
-                    target='_blank'
-                    onClick={() => this.handleGotoLink('profiling_docs')}
-                  >
-                    {this.t('Profile 接入指引')}
-                  </a>
-                  <i class='icon-monitor icon-fenxiang'></i>
+                <span
+                  class='jump-link'
+                  onClick={() => this.handleGotoLink('profiling_docs')}
+                >
+                  <span class='link'>{this.t('Profile 接入指引')}</span>
+                  <i class='icon-monitor icon-fenxiang' />
                 </span>
               </div>
             ),

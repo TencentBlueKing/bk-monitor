@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type ITopoNode } from './types';
+import type { ITopoNode } from './types';
 
 /** 根因节点样式 */
 const rootNodeAttrs = {
@@ -61,22 +61,22 @@ const feedbackRootAttrs = {
   },
 };
 /** 告警未恢复 */
-const notRestoredAttrs = {
-  groupAttrs: {
-    fill: '#F55555',
-    stroke: '#F55555',
-  },
-  rectAttrs: {
-    stroke: '#3A3B3D',
-    fill: '#F55555',
-  },
-  textAttrs: {
-    fill: '#fff',
-  },
-  textNameAttrs: {
-    fill: '#F55555',
-  },
-};
+// const notRestoredAttrs = {
+//   groupAttrs: {
+//     fill: '#F55555',
+//     stroke: '#F55555',
+//   },
+//   rectAttrs: {
+//     stroke: '#3A3B3D',
+//     fill: '#F55555',
+//   },
+//   textAttrs: {
+//     fill: '#fff',
+//   },
+//   textNameAttrs: {
+//     fill: '#F55555',
+//   },
+// };
 /** 异常节点 */
 const errorNodeAttrs = {
   groupAttrs: {
@@ -114,9 +114,9 @@ const normalNodeAttrs = {
 };
 /** 根据优先级返回 */
 export const getNodeAttrs = (node: ITopoNode): typeof normalNodeAttrs => {
-  if (node.entity?.is_on_alert) {
-    return { ...notRestoredAttrs };
-  }
+  // if (node.entity?.is_on_alert) {
+  //   return { ...notRestoredAttrs };
+  // }
   if (node.entity?.is_anomaly) {
     return { ...errorNodeAttrs };
   }

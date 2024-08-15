@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type TNil } from '../../typings';
-
+import type { TNil } from '../../typings';
 import type DraggableManager from './draggable-manager';
 import type EUpdateTypes from './e-update-types';
 

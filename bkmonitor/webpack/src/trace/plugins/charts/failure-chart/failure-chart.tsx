@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import {
+  type Ref,
   computed,
   defineComponent,
   inject,
@@ -34,7 +35,6 @@ import {
   onMounted,
   onUnmounted,
   reactive,
-  type Ref,
   ref,
   watch,
 } from 'vue';
@@ -48,7 +48,7 @@ import { toBlob, toPng } from 'html-to-image';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import EchartOptions from 'monitor-ui/monitor-echarts/options/echart-options';
-import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
 
 import ChartTitle from '../../components/chart-title';
@@ -1079,8 +1079,8 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              isShowAlarm={true}
               menuList={this.chartOption.tool.list || []}
-              show-more={true}
               showMore={!this.readonly && this.showTitleTool}
               subtitle={this.$props.subtitle || ''}
               title={this.$props.title}

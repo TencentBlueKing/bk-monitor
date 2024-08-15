@@ -225,7 +225,6 @@ DEFAULT_CRONTAB += [
     # metadata自动部署bkmonitorproxy
     ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
-    ("metadata.task.config_refresh.refresh_kafka_topic_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
@@ -251,8 +250,6 @@ LONG_TASK_CRONTAB = [
     # ("metadata.task.config_refresh.clean_influxdb_storage", "*/30 * * * *", "global"),
     # ("metadata.task.config_refresh.clean_influxdb_cluster", "*/30 * * * *", "global"),
     # ("metadata.task.config_refresh.clean_influxdb_host", "*/30 * * * *", "global"),
-    # 刷新数据源信息到 consul
-    ("metadata.task.config_refresh.refresh_datasource", "*/10 * * * *", "global"),
     # 刷新 storage 信息给unify-query使用
     # TODO: 待确认是否还有使用，如没使用可以删除
     ("metadata.task.config_refresh.refresh_consul_influxdb_tableinfo", "*/10 * * * *", "global"),

@@ -46,13 +46,13 @@ export default class AdvancedFilterSkeleton extends tsc<object> {
               marginLeft: `${item.lml}px`,
             }}
             class='h-24 skeleton-element'
-          ></div>
-          <div class='h-24 w-24 skeleton-element'></div>
+          />
+          <div class='h-24 w-24 skeleton-element' />
         </div>
       ));
     return (
       <div class='advanced-filter-skeleton'>
-        <div class='h-24 w-auto skeleton-element'></div>
+        <div class='h-24 w-auto skeleton-element' />
         {domFn(
           [
             { lw: 106, lml: 12, mt: 8 },
@@ -61,7 +61,7 @@ export default class AdvancedFilterSkeleton extends tsc<object> {
           ],
           '1'
         )}
-        <div class='h-24 w-auto mt-8 skeleton-element'></div>
+        <div class='h-24 w-auto mt-8 skeleton-element' />
         {domFn(
           [
             { lw: 106, lml: 12, mt: 8 },
@@ -75,7 +75,7 @@ export default class AdvancedFilterSkeleton extends tsc<object> {
           ],
           '2'
         )}
-        <div class='h-24 w-auto mt-8 skeleton-element'></div>
+        <div class='h-24 w-auto mt-8 skeleton-element' />
         {domFn(
           [
             { lw: 106, lml: 12, mt: 8 },

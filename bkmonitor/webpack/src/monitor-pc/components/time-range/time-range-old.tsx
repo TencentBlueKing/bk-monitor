@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
@@ -234,7 +234,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                       class={['time-range-trigger', 'input-type', { active: this.isShow }]}
                       onClick={() => (this.isShow = true)}
                     >
-                      <span class='icon-monitor icon-mc-time'></span>
+                      <span class='icon-monitor icon-mc-time' />
                       <span class='time-range-text'>{this.timeDisplay}</span>
                     </div>
                   );
@@ -247,9 +247,9 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                     ]}
                     onClick={() => (this.isShow = true)}
                   >
-                    <span class='icon-monitor icon-mc-time'></span>
+                    <span class='icon-monitor icon-mc-time' />
                     {this.type !== 'simple' && <span class='time-range-text'>{this.timeDisplay}</span>}
-                    {this.type !== 'normal' && <i class='bk-icon icon-angle-down'></i>}
+                    {this.type !== 'normal' && <i class='bk-icon icon-angle-down' />}
                   </div>
                 );
               })()}
@@ -276,25 +276,25 @@ export default class TimeRange extends tsc<IProps, IEvents> {
               >
                 <bk-input
                   class='custom-input'
+                  v-model={this.localValue[0]}
                   v-bk-tooltips={{
                     allowHTML: true,
                     theme: 'light',
                     content: '#time-range-desc-left',
                     placement: 'bottom',
                   }}
-                  v-model={this.localValue[0]}
                   clearable
                   onInput={() => this.handleCustomInput(0)}
                 />
                 <bk-input
                   class='custom-input'
+                  v-model={this.localValue[1]}
                   v-bk-tooltips={{
                     allowHTML: true,
                     theme: 'light',
                     content: '#time-range-desc-right',
                     placement: 'bottom',
                   }}
-                  v-model={this.localValue[1]}
                   clearable
                   onInput={() => this.handleCustomInput(1)}
                 />

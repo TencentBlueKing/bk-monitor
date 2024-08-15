@@ -36,15 +36,15 @@ import DataStatus from './data-status/data-status';
 import HeaderFunctional from './detail-header/detail-header';
 import TestControl from './test-control/test-control';
 import {
-  bgColorMap,
   EStatusMap,
+  type IAlertConfigTable,
+  type IBaseInfo,
+  type INormalizationTable,
+  type IPushConfigData,
+  type ITabListItem,
+  type StatusType,
+  bgColorMap,
   fontColorMap,
-  IAlertConfigTable,
-  IBaseInfo,
-  INormalizationTable,
-  IPushConfigData,
-  ITabListItem,
-  StatusType,
   textMap,
 } from './types';
 
@@ -60,9 +60,9 @@ interface IDetail {
 }
 
 enum ETabKey {
-  'desc' = 1,
-  'config',
-  'dataStatus',
+  config = 2,
+  dataStatus = 3,
+  desc = 1,
 }
 
 /**
@@ -282,7 +282,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
   }
   viewEvent() {
     const url = location.href.replace(location.hash, '#/event-center');
-    window.open(`${url}?queryString=${i18n.t('告警源')} : "${this.baseInfo.pluginId}"`, '_blank');
+    window.open(`${url}?queryString=${i18n.t('告警来源')} : "${this.baseInfo.pluginId}"`, '_blank');
   }
 
   @Emit('install')
@@ -317,12 +317,12 @@ export default class EventSourceDetail extends tsc<IDetail> {
             class='close-btn'
             onClick={this.handleHidden}
           >
-            <i class='icon-monitor icon-mc-close'></i>
+            <i class='icon-monitor icon-mc-close' />
           </span>
           <div
             style={this.statusKey && this.statusKey !== 'AVAILABLE' ? `background-color: ${this.curColor}` : ''}
             class='status-bar'
-          ></div>
+          />
           {/* 头部 */}
           <HeaderFunctional
             curColor={this.curColor}
@@ -331,21 +331,22 @@ export default class EventSourceDetail extends tsc<IDetail> {
             data={this.baseInfo}
             onInstall={() => this.handleInstall()}
             onViewEvent={this.viewEvent}
-          ></HeaderFunctional>
-          <div class='line'></div>
+          />
+          <div class='line' />
           {/* 详情内容区域 */}
           <div class='event-source-content'>
             {/* tab */}
             <div class='content-tab-wrap'>
               {this.tabList.map(tab => (
                 <div
+                  key={tab.id}
                   class={['content-tab-item', { 'content-tab-item-active': this.tabActive === tab.id }]}
                   onClick={() => this.tabChange(tab)}
                 >
                   <div class='content-tab-item-mian'>
                     <span class={['tab-item-name', { 'tab-item-name-warning': tab.warning }]}>
                       {tab.name}
-                      {tab.warning && <i class='icon-monitor icon-tixing'></i>}
+                      {tab.warning && <i class='icon-monitor icon-tixing' />}
                     </span>
                   </div>
                 </div>
@@ -363,7 +364,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
                       class='md-viewer'
                       flowchartStyle={true}
                       value={this.descMd}
-                    ></Viewer>
+                    />
                   ) : (
                     <div style='padding: 20px 10px;'>{this.$t('暂无')}</div>
                   )}
@@ -374,7 +375,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
                 <DataStatus
                   style={`display: ${this.tabActive === ETabKey.dataStatus ? 'block' : 'none'}`}
                   pluginId={this.id}
-                ></DataStatus>
+                />
               )}
               {/* 配置 */}
               {
@@ -392,12 +393,12 @@ export default class EventSourceDetail extends tsc<IDetail> {
                   pushConfigData={this.pushConfigData}
                   tutorialMd={this.tutorialMd}
                   type={this.baseInfo.pluginType}
-                ></Config>
+                />
               }
             </div>
           </div>
           {/* 测试控件 */}
-          {false && this.tabActive === ETabKey.config && <TestControl v-model={this.isShowTest}></TestControl>}
+          {false && this.tabActive === ETabKey.config && <TestControl v-model={this.isShowTest} />}
         </div>
       </bk-dialog>
     );

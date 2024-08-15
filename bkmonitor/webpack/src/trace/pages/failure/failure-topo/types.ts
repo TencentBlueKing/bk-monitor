@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ModelConfig } from '@antv/g6';
+import type { ModelConfig } from '@antv/g6';
 
 export interface IEntityTag {
   cluster_id: string;
@@ -35,6 +35,7 @@ export interface IEntity {
   aggregated_entites: IEntity[];
   anomaly_score: number;
   anomaly_type: string;
+  alert_all_recorved: boolean;
   entity_id: string;
   entity_name: string;
   entity_type: string;

@@ -25,11 +25,12 @@
  */
 
 import Component from 'vue-class-component';
-import { TranslateResult } from 'vue-i18n';
 import { Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ViewParam from './view-param.vue';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './history-dialog.scss';
 
@@ -73,7 +74,7 @@ export default class HistoryDialog extends tsc<IHistoryDialogProps> {
         v-bk-tooltips={{ content: this.title, allowHTML: false }}
         onClick={this.handleHistoryClick}
       >
-        <span class='icon-monitor icon-lishijilu icon'></span>
+        <span class='icon-monitor icon-lishijilu icon' />
         <ViewParam
           list={this.list}
           title={this.title}

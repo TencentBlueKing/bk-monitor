@@ -632,3 +632,18 @@ class SyslogFilterFieldEnum(ChoicesEnum):
         (PROGRAM, _("进程")),
         (PID, _("进程标识符")),
     )
+
+
+class KafkaInitialOffsetEnum(ChoicesEnum):
+    """
+    1. 控制是否从头开始消费 默认为 newest（消费最新的数据）
+    2. 只针对初始化一个新的消费组时生效
+    """
+
+    OLDEST = "oldest"
+    NEWEST = "newest"
+
+    _choices_labels = (
+        (OLDEST, _("最旧")),
+        (NEWEST, _("最新")),
+    )

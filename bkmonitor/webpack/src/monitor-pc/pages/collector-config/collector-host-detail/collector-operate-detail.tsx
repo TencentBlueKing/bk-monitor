@@ -104,7 +104,7 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
           updateKey={this.updateKey}
           onCanPolling={this.handlePolling}
           onRefresh={this.handleRefreshData}
-        ></CollectorStatusDetails>
+        />
       </div>
     );
   }

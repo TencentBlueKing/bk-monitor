@@ -7,8 +7,8 @@
   "scripts": {
     "prettier": "prettier --write . '!**/*.{css,scss,less}'",
     "lint": "npm run lint:script && npm run lint:vue",
-    "lint:vue": "eslint --fix --ext .vue  ./",
-    "lint:script": "eslint --fix --ext .js,.ts,tsx  ./",
+    "lint:vue": "eslint --fix ./**/*.vue",
+    "lint:script": "eslint --fix  ./",
     "fix": "npm run lint"
   },
   "dependencies": {
@@ -31,10 +31,7 @@
   "devDependencies": {
     "@types/throttle-debounce": "^5.0.2"
   },
-  "keywords": [
-    "monitor",
-    "mobile"
-  ],
+  "keywords": ["monitor", "mobile"],
   "author": "bk fe",
   "license": "MIT"
 }

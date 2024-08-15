@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -33,9 +32,11 @@ import dayjs from 'dayjs';
 import { random } from '../../../monitor-common/utils/utils';
 import { transformLogUrlQuery } from '../../../monitor-pc/utils';
 import { handleToAlertList } from './event-detail/action-detail';
-import { TType as TSliderType } from './event-detail/event-detail-slider';
+
+import type { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { getStatusInfo } from './event-detail/type';
-import { eventPanelType, IPagination, SearchType } from './typings/event';
+import type { IPagination, SearchType, eventPanelType } from './typings/event';
+import type { TranslateResult } from 'vue-i18n';
 
 import './incident-table.scss';
 
@@ -44,7 +45,7 @@ import './incident-table.scss';
 type TableSizeType = 'large' | 'medium' | 'small';
 
 interface IncidentItem {
-  labels: { key: string; value: string }[];
+  labels: { key: string; value: string }[] | string[];
   assignees: string[];
   incident_reason: string;
   bk_biz_id: string;
@@ -152,8 +153,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   metricPopoverIns = null;
   handleMetricMouseenter(e: MouseEvent, data: { key: string; value: string }[] | string[]) {
     this.metricPopoverIns?.hide?.(0);
-    const { clientWidth, scrollWidth } = e.target as HTMLDivElement;
-    if (scrollWidth > clientWidth) {
+    this.metricPopoverIns?.destroy?.(0);
+    const { clientWidth, scrollWidth, scrollHeight, clientHeight } = e.target as HTMLDivElement;
+    if (scrollWidth > clientWidth || scrollHeight > clientHeight) {
       this.metricPopoverIns = this.$bkPopover(e.target, {
         content: `${data.map(item => `<div>${item}</div>`).join('')}`,
         interactive: true,
@@ -232,7 +234,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                     onMouseenter={e => this.handleMetricMouseenter(e, row.labels)}
                   >
                     {row.labels?.map(item => (
-                      <div class='tag-item set-item'>{item.key ? `${item.key}: ${item.value}` : item}</div>
+                      <div class='tag-item set-item'>
+                        {item.key ? `${item.key}: ${item.value.replace(/\//g, '')}` : item?.replace(/\//g, '')}
+                      </div>
                     )) || '--'}
                   </div>
                 </div>
@@ -252,7 +256,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             formatter: (row: IncidentItem) => {
               return (
                 <span>
-                  {this.formatterTime(row.begin_time)} / <br></br>
+                  {this.formatterTime(row.begin_time)} / <br />
                   {this.formatterTime(row.end_time)}
                 </span>
               );
@@ -267,7 +271,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 100,
             minWidth: 100,
-            sortable: 'curstom',
+            // sortable: 'curstom',
             formatter: (row: IncidentItem) => {
               return row.duration || '--';
             },
@@ -703,7 +707,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                   <i
                     style={{ color: this.eventStatusMap?.[status]?.color }}
                     class={['icon-monitor item-icon', this.eventStatusMap?.[status]?.icon ?? '']}
-                  ></i>
+                  />
                 ) : (
                   ''
                 )}

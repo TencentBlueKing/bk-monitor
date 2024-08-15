@@ -167,7 +167,7 @@ export default {
   日志路径: 'Log Path',
   日志字符集: 'Character Set',
   日志关键字: 'Log Keywords',
-  日志数据: 'Log Data',
+  日志数据: 'Log',
   日志: 'Log',
   源日志: 'Source Log',
   操作日志: 'Record',
@@ -350,7 +350,6 @@ export default {
 
   // 业务
   '-我有告警的业务-': '-Alarming Business-',
-  业务ID: 'Business ID',
   新业务接入详情: 'Access Details',
   业务拓扑: 'Business Topology',
   业务数: 'Businesses',
@@ -687,7 +686,7 @@ export default {
   每个小时整点发送: 'Send every hour on the hour',
   每个工作日重复: 'Repeat Every Workday',
 
-  当前版本: 'Latest',
+  当前版本: 'Current',
   所属: 'Spaces',
   是否启用: 'Enabled',
   触发条件: 'Trigger Condition',
@@ -1851,13 +1850,12 @@ export default {
   系统关闭: 'System closed',
   生成告警级别: 'Generate alarm levels',
   // 故障
-  故障根因描述: 'Desc',
   根因所属节点: 'Root Node',
-  通知人: 'Notifier',
   标准提示: 'Type',
   屏蔽类型: 'Mute type',
   执行时间: 'Execution time',
   语言: 'Language',
   关联服务类型: 'Associated service type',
   Apdex阈值T: 'Apdex threshold T',
+  替换为: 'Replace with',
 };

@@ -28,29 +28,30 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from 'monitor-api/index';
-import { copyText, Debounce, random } from 'monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { Debounce, copyText, random } from 'monitor-common/utils/utils';
 import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { resize } from '../../../components/ip-selector/common/observer-directive';
 import MonitorResizeLayout, {
   ASIDE_COLLAPSE_HEIGHT,
   ASIDE_DEFAULT_HEIGHT,
-  IUpdateHeight,
+  type IUpdateHeight,
 } from '../../../components/resize-layout/resize-layout';
-import { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
-import IndexList, { IIndexListItem } from '../../data-retrieval/index-list/index-list';
-import { ITableItem } from '../typings';
-import { IDetailItem } from '../typings/common-detail';
-import Aipanel from './ai-panel/ai-panel';
-import { type ShowModeType } from './common-page-new';
+import IndexList, { type IIndexListItem } from '../../data-retrieval/index-list/index-list';
+// import Aipanel from './ai-panel/ai-panel';
 import HostDetailView from './host-detail-view/host-detail-view';
-import ShowModeButton, { ShowModeButtonType } from './show-mode-button/show-mode-button';
+import ShowModeButton, { type ShowModeButtonType } from './show-mode-button/show-mode-button';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { ITableItem } from '../typings';
+import type { IDetailItem } from '../typings/common-detail';
+import type { ShowModeType } from './common-page-new';
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './common-detail.scss';
 
@@ -118,7 +119,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   @Prop({ default: '', type: String }) readonly title: string;
   @Prop({ default: null, type: Object }) readonly panel: PanelModel;
   //
-  @Prop({ default: null, type: Object }) readonly aiPanel: PanelModel;
+  // @Prop({ default: null, type: Object }) readonly aiPanel: PanelModel;
   /** 是否需要开启监听内容区域的高度 */
   @Prop({ default: false, type: Boolean }) readonly enableResizeListener: boolean;
   /** 拖拽工具的位置 */
@@ -152,7 +153,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   // 默认宽度
   @Prop({ default: DEFAULT_WIDTH, type: Number }) defaultWidth: number;
   // 所有的图表id
-  @Prop({ default: () => [], type: Array }) allPanelId: string[];
+  // @Prop({ default: () => [], type: Array }) allPanelId: string[];
 
   @Ref() resizeLayoutRef: MonitorResizeLayout;
   @Ref() indexListRef: IndexList;
@@ -209,8 +210,8 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
           16
         );
       }
-      return this.maxWidth;
     }
+    return this.maxWidth;
   }
 
   /** 索引列表可拉伸最大高度 */
@@ -331,14 +332,14 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         }) || [];
       this.loading = false;
       const nameObj = data.find?.(item => item.key === 'name');
-      if (!!nameObj) {
+      if (nameObj) {
         /* k8s 导航subname 需要设置为名称加id */
         let id =
           this.selectorPanelType === 'list-cluster' ? data?.find?.(item => item.key.includes('id'))?.value || '' : '';
         if (id === (nameObj.value.value || nameObj.value)) {
           id = '';
         }
-        this.handleTitleChange(`${nameObj.value.value || nameObj.value}${!!id ? `(${id})` : ''}`);
+        this.handleTitleChange(`${nameObj.value.value || nameObj.value}${id ? `(${id})` : ''}`);
       }
     }
   }
@@ -445,7 +446,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   initIndexListHeight() {
     if (!!this.indexList.length && this.$el) {
       const data = this.storage.get(INDEX_LIST_DEFAULT_CONFIG_KEY);
-      if (!!data) {
+      if (data) {
         this.indexListHeight = data.height;
         this.indexListPlacement = data.placement;
         this.expandIndexList = data.expand;
@@ -460,7 +461,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
    */
   initContainerWidth() {
     const data = this.storage.get(this.localWidthKey);
-    if (!!data) {
+    if (data) {
       if (data.width >= this.maxWidthVal - 740) {
         this.width = Math.max(this.maxWidthVal - 740, 0);
         return;
@@ -554,7 +555,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               class='bk-icon icon-minus detail-shrink'
               v-bk-tooltips={{ content: this.$t('收起'), delay: 200, boundary: 'window' }}
               onClick={() => this.handleClickShrink()}
-            ></i>
+            />
           )}
         </div>
         <div class={`common-detail-panel ${this.needOverflow ? 'need-overflow' : ''}`}>
@@ -565,14 +566,14 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               width={this.width}
               data={this.data}
               onLinkToDetail={v => this.$emit('linkToDetail', v)}
-            ></HostDetailView>
+            />
           )}
-          {this.aiPanel && (
+          {/* {this.aiPanel && (
             <Aipanel
               allPanelId={this.allPanelId}
               panel={this.aiPanel}
             />
-          )}
+          )} */}
         </div>
       </div>
     );
@@ -599,7 +600,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
             // && !!this.indexList.length
             <MonitorResizeLayout
               ref='resizeLayoutRef'
-              default={!!this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
+              default={this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
               disabled={!this.expandIndexList}
               max={this.maxIndexListHeight}
               min={INDEX_LIST_MIN_HEIGHT}
@@ -621,12 +622,12 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                 slot='aside'
               >
                 {/* 拉到顶 出现浅阴影 */}
-                {this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar'></div>}
+                {this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar' />}
                 <div
                   class='index-tree-header'
                   onClick={this.handleExpandIndexList}
                 >
-                  <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]}></span>
+                  <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]} />
                   <span class='index-tree-header-text'>{this.$t('索引')}</span>
                   <div
                     class={['index-search-bar', { 'full-width': this.showIndexSearchInput }]}
@@ -647,7 +648,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                         class='bk-icon icon-search'
                         slot='prefix'
                         onClick={() => (this.showIndexSearchInput = true)}
-                      ></i>
+                      />
                     )}
                   </div>
                 </div>

@@ -1958,9 +1958,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                 "bk_biz_id": table["bk_biz_id"],
                 "data_target": table["target_type"],
                 "collect_config_ids": [],
-                "default_dimensions": [
-                    dimension["id"] for dimension in table["dimensions"] if dimension.get("is_dimension", True)
-                ],
+                "default_dimensions": [],
                 "default_condition": [],
                 "metric_field": table["alert_name"],
                 "metric_field_name": table.get("alert_name_alias", table["alert_name"]),

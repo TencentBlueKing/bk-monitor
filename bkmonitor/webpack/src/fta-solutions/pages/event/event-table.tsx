@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -35,9 +34,11 @@ import authorityStore from 'monitor-pc/store/modules/authority';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import { handleToAlertList } from './event-detail/action-detail';
-import { TType as TSliderType } from './event-detail/event-detail-slider';
 import { getStatusInfo } from './event-detail/type';
-import { eventPanelType, IEventItem, IPagination, SearchType } from './typings/event';
+
+import type { TType as TSliderType } from './event-detail/event-detail-slider';
+import type { IEventItem, IPagination, SearchType, eventPanelType } from './typings/event';
+import type { TranslateResult } from 'vue-i18n';
 
 import './event-table.scss';
 
@@ -1214,7 +1215,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                           class={['operate-more', { active: this.popoperOperateIndex === $index }]}
                           onClick={e => this.handleShowMoreOperate(e, $index)}
                         >
-                          <span class='bk-icon icon-more'></span>
+                          <span class='bk-icon icon-more' />
                         </span>
                       </div>
                     </div>
@@ -1399,7 +1400,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               class='table-prepend'
               slot='prepend'
             >
-              <i class='icon-monitor icon-hint prepend-icon'></i>
+              <i class='icon-monitor icon-hint prepend-icon' />
               <i18n
                 path='已选择{count}条'
                 tag='span'
@@ -1484,7 +1485,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               this.handleQuickShield(this.opetateRow)
             }
           >
-            <span class='icon-monitor icon-mc-notice-shield'></span>
+            <span class='icon-monitor icon-mc-notice-shield' />
             <span>{window.i18n.t('快捷屏蔽')}</span>
           </div>
 
@@ -1498,7 +1499,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             }}
             on-click={() => this.handleAlarmDispatch(this.opetateRow)}
           >
-            <span class='icon-monitor icon-fenpai'></span>
+            <span class='icon-monitor icon-fenpai' />
             <span>{window.i18n.t('告警分派')}</span>
           </div>
         </div>

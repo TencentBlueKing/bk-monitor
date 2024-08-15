@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
 import re
 from collections import defaultdict
 from typing import Optional
@@ -1348,12 +1349,31 @@ class BaseIndexSetHandler(object):
             TransferApi.create_or_update_es_router(
                 {
                     "cluster_id": index_set.storage_cluster_id,
-                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]),
+                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
                     "source_type": index_set.scenario_id,
                     "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
                     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
                     "space_id": index_set.space_uid.split("__")[-1],
-                    "space_type": index_set.space_uid.split("__")[0]
+                    "space_type": index_set.space_uid.split("__")[0],
+                    "options": [
+                        {
+                            "name": "time_field",
+                            "value_type": "dict",
+                            "value": json.dumps(
+                                {
+                                    "name": index_set.time_field,
+                                    "type": index_set.time_field_type,
+                                    "unit": index_set.time_field_unit
+                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                    else TimeFieldUnitEnum.MILLISECOND.value,
+                                }
+                            ),
+                        }, {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(index_set.scenario_id != Scenario.ES),
+                        }
+                    ],
                 }
             )
         except Exception as e:

@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
+
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -296,9 +298,7 @@ class IndexSetViewSet(ModelViewSet):
         total = qs.count()
         qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
         index_set_ids = list(qs.values_list("index_set_id", flat=True))
-        index_set_list = list(
-            qs.values("scenario_id", "space_uid", "storage_cluster_id", "index_set_id", "collector_config_id")
-        )
+        index_set_list = list(qs.values())
         index_set_dict = {
             index_set["index_set_id"]: index_set for index_set in index_set_list if index_set.get("index_set_id")
         }
@@ -314,16 +314,40 @@ class IndexSetViewSet(ModelViewSet):
                     index_set["indexes"] = [index]
 
         for index_set_id, index_set in index_set_dict.items():
+            if not index_set.get("indexes", []):
+                continue
+            origin_index_set = ",".join([index["result_table_id"] for index in index_set["indexes"]])
+            if index_set["scenario_id"] == Scenario.LOG:
+                origin_index_set = origin_index_set.replace(".", "_")
             router_list.append(
                 {
                     "cluster_id": index_set["storage_cluster_id"],
-                    "index_set": ",".join([index["result_table_id"] for index in index_set["indexes"]]),
+                    "index_set": origin_index_set,
                     "source_type": index_set["scenario_id"],
                     "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set_id),
                     "table_id": BaseIndexSetHandler.get_rt_id(
                         index_set_id, index_set["collector_config_id"], index_set["indexes"]
                     ),
                     "space_uid": index_set["space_uid"],
+                    "options": [
+                        {
+                            "name": "time_field",
+                            "value_type": "dict",
+                            "value": json.dumps(
+                                {
+                                    "name": index_set["time_field"],
+                                    "type": index_set["time_field_type"],
+                                    "unit": index_set["time_field_unit"]
+                                    if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
+                                    else TimeFieldUnitEnum.MILLISECOND.value,
+                                }
+                            ),
+                        }, {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
+                        }
+                    ],
                 }
             )
         return Response({"total": total, "list": router_list})
@@ -501,6 +525,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
         )
+
         return Response(self.get_serializer_class()(instance=index_set).data)
 
     def update(self, request, *args, **kwargs):
@@ -569,6 +594,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
         )
+
         return Response(self.get_serializer_class()(instance=index_set).data)
 
     @list_route(methods=["POST"], url_path="replace")

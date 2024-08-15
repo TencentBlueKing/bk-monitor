@@ -31,7 +31,7 @@ import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import { addCustomMetric } from 'monitor-api/modules/custom_report';
 import { getMetricListV2, updateMetricListByBiz } from 'monitor-api/modules/strategies';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
-import { copyText, Debounce, deepClone, docCookies } from 'monitor-common/utils/utils';
+import { Debounce, copyText, deepClone, docCookies } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 
 import { handleGotoLink } from '../../common/constant';
@@ -40,10 +40,11 @@ import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import EmptyStatus from '../empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
 import CheckedboxList from './checkedbox-list';
 import MetricPopover from './metric-popover';
-import { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps, TGetMetricData } from './typings';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
+import type { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps, TGetMetricData } from './typings';
 
 import './metric-selector.scss';
 
@@ -142,6 +143,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     [MetricType.EVENT]: 'event',
     [MetricType.LOG]: 'log',
     [MetricType.ALERT]: 'alert',
+    [MetricType.HostAnomalyDetection]: 'HostAnomalyDetection',
+    [MetricType.MultivariateAnomalyDetection]: 'MultivariateAnomalyDetection',
   };
 
   /** 采集来源数据 */
@@ -270,7 +273,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   initData() {
-    if (!!this.defaultScenario) {
+    if (this.defaultScenario) {
       this.checkededValue = {
         result_table_label: [this.defaultScenario],
       };
@@ -313,7 +316,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       conditions: this.searchConditions,
       data_source: this.isPromql
         ? (() => {
-            if (!!this.checkededValue?.data_source_label?.length) {
+            if (this.checkededValue?.data_source_label?.length) {
               const promqlParamsSourceLabels = promqlParams.map(p => p[0]);
               const tempPromqlParams = [];
               this.checkededValue.data_source_label.forEach(dsl => {
@@ -342,7 +345,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
    * @param page 分页
    */
   async getMetricList(page = 1) {
-    page === 1 && (this.currentIndex = !!this.search ? 0 : null);
+    page === 1 && (this.currentIndex = this.search ? 0 : null);
     const { pageSize, total } = this.pagination;
     if (page > 1 && (page - 1) * pageSize >= total) return;
     if (page === 1) {
@@ -440,11 +443,16 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     return indexRanges.map((range: number[], index: number) => {
       if (index !== indexRanges.length - 1) {
         return [
-          <span>{content.slice(range[0], range[1])}</span>,
-          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>,
+          <span key={`${range[0]}_${range[1]}_${index}_0`}>{content.slice(range[0], range[1])}</span>,
+          <span
+            key={`${range[0]}_${range[1]}_${index}_1`}
+            class='light'
+          >
+            {content.slice(range[1], indexRanges[index + 1][0])}
+          </span>,
         ];
       }
-      return <span>{content.slice(range[0], range[1])}</span>;
+      return <span key={`${range[0]}_${range[1]}_${index}_2`}>{content.slice(range[0], range[1])}</span>;
     });
   }
 
@@ -822,7 +830,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   class='metric-checkbox'
                   value={item.checked}
                   onChange={v => this.handleCheckMetric(item, v)}
-                ></bk-checkbox>
+                />
               </span>
             )}
             <span>{this.highLightContent(this.search, item.readable_name)}</span>
@@ -832,18 +840,20 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         <div class='bottom'>{`${item.result_table_label_name} / ${dataSourceLabel}${
           item.related_name ? ` / ${item.related_name}` : ''
         }`}</div>
-        <div class='operate'>
+        <div
+          class='operate'
+          v-bk-tooltips={{
+            content: window.i18n.t('复制指标名'),
+            placements: ['top'],
+          }}
+        >
           <span
             class='icon-monitor icon-mc-copy'
-            v-bk-tooltips={{
-              content: window.i18n.t('复制指标名'),
-              placements: ['top'],
-            }}
             onClick={e => {
               e.stopPropagation();
               this.handleCopyMetricMame(item);
             }}
-          ></span>
+          />
           {/* <span class="icon-monitor icon-fenxiang"
             v-bk-tooltips={{
               content: window.i18n.t('完整查看'),
@@ -851,7 +861,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             }}
           ></span> */}
         </div>
-        <div class='tip-dom'></div>
+        <div class='tip-dom' />
       </div>
     );
   }
@@ -901,7 +911,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
    * @description 获取当前选中的指标
    */
   async getSelectedMetric() {
-    if (!this.metricId || this.type !== MetricType.TimeSeries) return;
+    if (!this.metricId) return;
     let selectedMetric = null;
     this.metricList.forEach(item => {
       if (item.metric_id === this.metricId) {
@@ -954,14 +964,14 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               placeholder={this.$t('搜索指标')}
               rightIcon={'bk-icon icon-search'}
               onInput={this.handleSearch}
-            ></bk-input>
+            />
             <bk-button
               class='refresh-btn'
               disabled={this.refreshLoading}
               icon={this.refreshLoading ? 'loading' : 'refresh'}
               text
               onClick={this.handleRefreshClick}
-            ></bk-button>
+            />
           </div>
           <div
             class='metric-selector-content-wrap'
@@ -996,20 +1006,19 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                 {!!this.selectedMetric && (
                   <div
                     key={`__${this.selectedMetric?.metric_id || '--'}__`}
-                    class={[
-                      'metric-item',
-                      'pin-top-top',
-                      {
-                        'common-type': this.type === MetricType.TimeSeries,
-                      },
-                    ]}
+                    class={['metric-item', 'pin-top-top', 'common-type']}
                   >
-                    <div class='selected-label'>
+                    <div
+                      class={{
+                        'selected-label': true,
+                        small: this.type === MetricType.EVENT || this.type === MetricType.ALERT,
+                      }}
+                    >
                       <div class='blue-bg'>
                         {!isEn ? (
                           <span class='text'>{this.$t('已选')}</span>
                         ) : (
-                          <span class='icon-monitor icon-mc-check-small'></span>
+                          <span class='icon-monitor icon-mc-check-small' />
                         )}
                       </div>
                     </div>
@@ -1035,8 +1044,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                         {this.metricItem(item)}
                       </div>
                     )),
-                    <div class='metric-next-page-tips'>
-                      {this.nextPageLoading && <span class='loading-icon'></span>}
+                    <div
+                      key='1'
+                      class='metric-next-page-tips'
+                    >
+                      {this.nextPageLoading && <span class='loading-icon' />}
                       <span class='loading-text'>{this.$tc(this.isLoadAll ? '已加载全部数据' : '加载中...')}</span>
                     </div>,
                   ]

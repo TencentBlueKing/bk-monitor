@@ -93,7 +93,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
-import { IGroupItem, IHostGroup } from '../performance-type';
+import type { IGroupItem, IHostGroup } from '../performance-type';
 
 @Component({ name: 'SortDragList' })
 export default class SortDragList extends Vue {
@@ -105,7 +105,7 @@ export default class SortDragList extends Vue {
 
   checked = {
     id: '',
-    panels: []
+    panels: [],
   };
 
   @Emit('check-change')

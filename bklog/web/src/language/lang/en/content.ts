@@ -37,7 +37,7 @@ export default {
   搜索收藏名: 'Search collection name',
   收藏名重复: 'Collection name duplicated',
   收藏名排序: 'Sort by collection name',
-  未完成配置: 'Incomplete configuration',
+  请先完成采集接入: 'Please complete the collection first',
   查看调用链: 'View trace',
   保存待生效: 'Saved and will take effect in 1 hour',
   索引集管理: 'Index set management',
@@ -103,7 +103,7 @@ export default {
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
   上次检测时间: 'Last time',
-  腾讯蓝鲸智云: 'Tencent BlueKing',
+  蓝鲸智云: 'BlueKing',
   业务DEMO: 'Demo',
   体验DEMO: 'Demo',
   最大字段长度: 'Maximum field length',
@@ -378,7 +378,7 @@ export default {
   '当前仓库名称为{n}，确认要删除？': 'The current store name is {n}, confirm to delete?',
   '当前是否有数据源，如果没有请 {0}': 'Is there a data source currently? if not, please {0}',
   '无分词字段 请前往 {0} 调整清洗': 'No tokenization field. please go to {0} to adjust parsing',
-  '显示字段（已选 {0} / {1})': 'Display fields (selected {0} / {1})',
+  '显示字段（已选 {0} 条)': 'Display fields ({0} selected)',
   设置了时间格式后将替换默认的数据时间: 'Setting a time format will replace the default data time',
   '未部署基础计算平台，无法进行高级清洗': 'Advanced parsing cannot be performed without basic BK-Base deployment',
   '按行过滤: 从第{0}行到第{1}行': 'Filter by line: from line {0} to line {1}',
@@ -419,14 +419,14 @@ export default {
     'Note: if stored as another type after parsing, it will not be associated.',
   '不能跨集群添加多个索引，切换集群请先清空索引':
     'Multiple indexes cannot be added across clusters, please clear the indexes before switching clusters',
-  '{0}/{1}条记录中数量排名前 5 的数据值': 'Top 5 data values with the highest quantity ranking in {0}/{1} records',
+  '{0}/{1}条记录中数量排名前 {2} 的数据值': 'Top {2} data values with the highest quantity ranking in {0}/{1} records',
   '自定义输入格式: 如 1h 代表一小时 h小时': 'Custom input format: e.g. 1h represents one hour, h for hours',
   '支持拖拽更改顺序，排在上面的拥有更高的排序权重':
     'Supports drag and drop to change order, those above have a higher sorting weight',
   '只能设置一个数据时间，如果要更改请先取消原来的':
     'Only one data time can be set, if you want to change it, please cancel the previous one first',
-  '您当前没有业务--${n}的权限，请先申请吧！':
-    'You currently do not have permission for business--${n}, please apply first!',
+  '您当前没有业务--{n}的权限，请先申请吧！':
+    'You currently do not have permission for business--{n}, please apply first!',
   '平台默认的集群不允许编辑和删除，请联系管理员。':
     'Editing and deletion are not allowed for default clusters, please contact the administrator',
   '支持拖拽更改顺序，从上向下对应列表列从左到右顺序':
@@ -501,8 +501,6 @@ export default {
     'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
   '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
-    "To reduce transmission and storage costs, some content can be filtered out, more complex filtering can be done in the 'parsing' function",
   '非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。':
     'Non-required fields, after filling in, will replace the field name; when the field name conflicts with the built-in field, it must be renamed.',
   '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
@@ -664,8 +662,8 @@ export default {
   当前显示全部字段: 'Currently showing all fields',
   显示全部字段: 'Currently showing all fields',
   新开标签页: 'New tab',
-  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。':
-    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本':
+    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please ensure that the collector has been upgraded to the latest version.',
   '输入自定义同比，按 Enter 确认': 'Enter custom year-on-year and press enter to confirm',
   将分组作为列展示: 'Display groups as columns',
   '如需根据某些维度拆分聚类结果，可将字段设置为维度。':
@@ -777,4 +775,47 @@ export default {
   '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
   '是否保存本次操作？': 'Do you want to save this operation?',
   '容量审核中，请等待': 'Capacity review is in progress, please wait.',
+  总行数: 'Total number of lines',
+  出现行数: 'Number of occurrences',
+  日志条数: 'Number of log entries',
+  次: 'Times',
+  去重后条数: 'Real after the number',
+  最大值: 'Maximum value',
+  最小值: 'Minimum value',
+  平均值: 'Average value',
+  中位数: 'Median value',
+  时序图: 'Related Pictures',
+  数值分布直方图: 'Numeric Distribution Histogram',
+  该字段暂无匹配日志: 'There is no matching log for this field yet.',
+  查询异常: 'Query abnormal',
+  图表分析: 'Chart analysis',
+  点击隐藏: 'Click to hide',
+  点击显示: 'Click to display',
+  暂不支持: 'Not supported',
+  查询时段: 'Query period',
+  字段在该事件范围内有数据的日志条数: 'The number of log entries whose fields have data within the event range.',
+  '计算规则：出现行数/总行数。若该值不为100%，该字段存在空值。':
+    'Calculation rule: number of rows/total number of rows. If the value is not 100%, there is a null value in the field.',
+  '当前采集项已配置基础清洗，无需重复配置':
+    'The current collection item has been configured with basic cleaning. Repeat the configuration.',
+  '自然语言分词，按照日常语法习惯进行分词':
+    'Natural language word segmentation, segmentation according to daily grammar habits.',
+  '支持自定义分词符，可按需自行配置符号进行分词':
+    'Supports custom word breakers, you can configure your own symbols for word breakers.',
+  '更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续':
+    'After changing the field type, an exception may occur when retrieving old and new data at the same time. Please confirm and continue.',
+  '第{n}组': 'Group {n}',
+  不等于: 'Not equal to',
+  正则不匹配: 'Regular expression mismatch',
+  路径黑名单: 'Path blacklist',
+  '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
+  '过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本':
+    'The filter supports filtering non-conforming log content during collection, please ensure that the collector has been upgraded to the latest version.',
+  操作符: 'Operator',
+  新增过滤组: 'Add filter group',
+  请输入列数: 'Please enter the number of columns',
+  请输入日志样例: 'Please enter a log sample',
+  '第{n}行': '{n} line',
+  '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
+  分隔符匹配: 'Delimiter match',
 };

@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, KeepAlive, type Ref, ref, type PropType } from 'vue';
+import { KeepAlive, type PropType, type Ref, defineComponent, inject, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
-import { type ITagInfoType } from '../types';
+
+import type { ITagInfoType } from '../types';
 
 import './failure-nav.scss';
 
@@ -45,7 +46,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation'],
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
@@ -87,10 +88,14 @@ export default defineComponent({
       active.value === 'FailureHandle' && refNav.value?.refreshTree();
     };
 
+    const handleSpace = (value: string[]) => {
+      emit('changeSpace', value);
+    };
     return {
       active,
       tabList,
       handleChange,
+      handleSpace,
       nodeClick,
       filterSearch,
       nodeExpand,
@@ -112,13 +117,14 @@ export default defineComponent({
           tabList={this.tabList}
           top={-16}
           onChange={this.handleChange}
-        ></FailureMenu>
+        />
         <div class='failure-nav-main'>
           <KeepAlive>
             <Component
               ref='refNav'
               tagInfo={this.$props.tagInfo}
               topoNodeId={this.$props.topoNodeId}
+              onChangeSpace={this.handleSpace}
               onChooseOperation={this.chooseOperation}
               onFilterSearch={this.filterSearch}
               onNodeClick={this.nodeClick}

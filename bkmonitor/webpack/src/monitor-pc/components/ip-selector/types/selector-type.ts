@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue, { VNode } from 'vue';
-import { TranslateResult } from 'vue-i18n';
+import type Vue from 'vue';
+import type { VNode } from 'vue';
+import type { TranslateResult } from 'vue-i18n';
 
 export type IpType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
 

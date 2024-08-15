@@ -30,19 +30,20 @@ import { Button, Checkbox, Input, Radio, Select, Switcher, Table } from 'bkui-vu
 import { debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
 import CommonItem from '../components/common-item';
-import {
-  type IHeaderInfo,
-  type IHttpData,
-  type IParamsValueItem,
-  type ISelectListItem,
-  type ISetingValue,
-  type THeaderType,
-  type TMethod,
-} from '../components/http-editor/types';
 import { localDataConvertToRequest } from '../components/http-editor/utils';
 import ResizeContainer from '../components/resize-container/resize-container';
 import VerifyItem from '../components/verify-item/verify-item';
-import { type IWebhook } from './meal-content-data';
+
+import type {
+  IHeaderInfo,
+  IHttpData,
+  IParamsValueItem,
+  ISelectListItem,
+  ISetingValue,
+  THeaderType,
+  TMethod,
+} from '../components/http-editor/types';
+import type { IWebhook } from './meal-content-data';
 
 import './http-callback.scss';
 
@@ -443,7 +444,7 @@ export default defineComponent({
                 <i
                   class='icon-monitor icon-mc-close'
                   onClick={() => deleteFn(index, item)}
-                ></i>
+                />
               </div>
             );
           }
@@ -505,7 +506,7 @@ export default defineComponent({
                 behavior='simplicity'
                 disabled={!props.isEdit}
                 onInput={authParamInput}
-              ></Input>
+              />
             </div>
           ) : undefined}
           {type === 'basic_auth' ? (
@@ -518,7 +519,7 @@ export default defineComponent({
                   behavior='simplicity'
                   disabled={!props.isEdit}
                   onInput={authParamInput}
-                ></Input>
+                />
               </div>
               <div class='input-item'>
                 <div class='auth-params-label'>{t('密码')}</div>
@@ -529,7 +530,7 @@ export default defineComponent({
                   disabled={!props.isEdit}
                   type='password'
                   onInput={authParamInput}
-                ></Input>
+                />
               </div>
             </div>
           ) : undefined}
@@ -559,7 +560,7 @@ export default defineComponent({
           <Table
             columns={columns}
             data={data}
-          ></Table>
+          />
         </div>
       );
     };
@@ -596,14 +597,14 @@ export default defineComponent({
                 class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
                 v-bk-tooltips={headerHideTips.value[`${isHide}`]}
                 onClick={() => (curHeaderData.value.hide = !isHide)}
-              ></i>
+              />
               {isHide ? <span>{t('已隐藏{count}项', { count: hideCount })}</span> : <span>{t('已展开全部')}</span>}
             </div>
           ) : undefined}
           <Table
             columns={columns}
             data={temp}
-          ></Table>
+          />
         </div>
       );
     };
@@ -670,7 +671,7 @@ export default defineComponent({
                     id={option.id}
                     key={option.id}
                     name={option.name}
-                  ></Select.Option>
+                  />
                 ))}
               </Select>
             ) : undefined}
@@ -690,14 +691,14 @@ export default defineComponent({
                         onBlur={() => handleRawBlur(data.type, data.content)}
                         onFocus={() => (rawErrorMsg.value = '')}
                         onInput={bodyParamInput}
-                      ></Input>,
+                      />,
                       rawErrorMsg.value && <p style='margin: 0; color: #ff5656;'>{rawErrorMsg.value}</p>,
                     ];
                   },
                 }}
                 minHeight={80}
                 minWidth={200}
-              ></ResizeContainer>
+              />
             </div>
           ) : undefined}
           {isTable ? (
@@ -705,7 +706,7 @@ export default defineComponent({
               class='table'
               columns={columns}
               data={data}
-            ></Table>
+            />
           ) : undefined}
         </div>
       );
@@ -847,7 +848,7 @@ export default defineComponent({
                     id={option}
                     key={option}
                     name={option}
-                  ></Select.Option>
+                  />
                 ))}
               </Select>
               <VerifyItem
@@ -861,24 +862,24 @@ export default defineComponent({
                       placeholder={this.$t('输入请求 URL')}
                       onChange={this.urlChange}
                       onFocus={this.urlFocus}
-                    ></Input>
+                    />
                   ),
                 }}
                 errorMsg={this.errorMsg.url}
-              ></VerifyItem>
+              />
             </div>
           ) : (
             <div class='dispaly-method-url'>
               {this.label ? <span class='label'>{this.label}</span> : undefined}
               <span class='method'>{this.httpData.method}</span>
-              <span class='border'></span>
+              <span class='border' />
               <span class='url'>{this.httpData.url}</span>
             </div>
           )
         }
         {/* http头信息区域 */}
         <div class='http-header-wrap'>
-          <div class='arrow'></div>
+          <div class='arrow' />
           <div class='http-header-main'>
             <div class='tab-select-wrap'>
               {this.localHeaderInfo.map((tab, i) => (
@@ -893,7 +894,7 @@ export default defineComponent({
             </div>
             {!!this.curHeaderData.desc && (
               <div class='header-desc'>
-                <i class='icon-monitor icon-bangzhu'></i>
+                <i class='icon-monitor icon-bangzhu' />
                 <span class='desc-text'>{this.curHeaderData.desc}</span>
               </div>
             )}
@@ -931,7 +932,7 @@ export default defineComponent({
                       behavior={'simplicity'}
                       type={'number'}
                       on-change={() => this.emitLocalHeaderInfo()}
-                    ></Input>
+                    />
                   </i18n>
                 </CommonItem>
               </div>

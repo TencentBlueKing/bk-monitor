@@ -55,6 +55,7 @@ import 'monitor-static/icons/monitor-icons.css';
 window.source_app = 'monitor';
 // 全局图表数量变量
 window.slimit = 500;
+Vue.config.ignoredElements = ['custom-incident-detail'];
 setVue(Vue);
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');

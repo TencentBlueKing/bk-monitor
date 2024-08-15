@@ -130,6 +130,7 @@ class QueryDataResource(UnifyQueryAPIResource):
         space_uid = serializers.CharField(allow_null=True)
         down_sample_range = serializers.CharField(allow_blank=True)
         timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
 
 
 class QueryClusterMetricsDataResource(UnifyQueryAPIResource):

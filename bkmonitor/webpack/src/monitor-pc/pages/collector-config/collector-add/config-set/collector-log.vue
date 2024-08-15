@@ -175,10 +175,10 @@
 </template>
 
 <script lang="ts">
-// eslint-disable-next-line no-unused-vars
-import { TranslateResult } from 'vue-i18n/types/index';
-import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 import { deepClone } from 'monitor-common/utils/utils';
+// eslint-disable-next-line no-unused-vars
+import type { TranslateResult } from 'vue-i18n/types/index';
+import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
@@ -209,8 +209,8 @@ type TRuleType = 'path' | 'rule' | 'filter';
 
 @Component({
   components: {
-    VerifyInput
-  }
+    VerifyInput,
+  },
 })
 export default class CollectorLog extends Vue {
   pluginName: TranslateResult; //  插件名称
@@ -222,26 +222,26 @@ export default class CollectorLog extends Vue {
   //  校验提示
   rule: { logPath: boolean; keywordRule: boolean } = {
     logPath: false,
-    keywordRule: false
+    keywordRule: false,
   };
 
   ruleItemMap = {
     path: { id: 0, value: '' },
     rule: { name: '', pattern: '' },
-    filter: { value: '' }
+    filter: { value: '' },
   };
 
   get ruleDataMap() {
     return {
       path: this.logPath,
       rule: this.keywordRule,
-      filter: this.filterRule
+      filter: this.filterRule,
     };
   }
 
   //  log回填Data
   @Prop({ default: () => ({}) })
-    logData: any;
+  logData: any;
 
   //  日志路径校验
   @Watch('logPath', { deep: true })
@@ -282,9 +282,9 @@ export default class CollectorLog extends Vue {
   //  能否下一步
   get canNext(): boolean {
     return (
-      this.logPath.some(item => item.value !== '')
-      && this.keywordRule.every(item => item.name !== '' && item.pattern !== '')
-      && this.isRuleNameRepeat
+      this.logPath.some(item => item.value !== '') &&
+      this.keywordRule.every(item => item.name !== '' && item.pattern !== '') &&
+      this.isRuleNameRepeat
     );
   }
 
@@ -324,7 +324,7 @@ export default class CollectorLog extends Vue {
       log_path: logPath,
       charset: this.character,
       rules,
-      filter_patterns: this.filterRule.map(item => item.value).filter(item => item !== '')
+      filter_patterns: this.filterRule.map(item => item.value).filter(item => item !== ''),
     };
     return params;
   }

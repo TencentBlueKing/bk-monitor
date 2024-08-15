@@ -124,7 +124,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                     v-model={this.localFormData.kafka.is_register_gse}
                     theme='primary'
                     onChange={this.handleBizIdsChange}
-                  ></bk-switcher>
+                  />
                 </FormItem>
               );
             case 'elasticsearch':
@@ -157,7 +157,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                             id={item.id}
                             key={item.id}
                             name={item.name}
-                          ></bk-option>
+                          />
                         ))}
                       </bk-select>
                     ) : (
@@ -168,7 +168,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                         spaceList={this.$store.getters.bizList}
                         value={this.localFormData.elasticsearch.space}
                         onChange={this.handleBizIdsChange}
-                      ></SpaceSelect>
+                      />
                     )}
                   </FormItem>
                   <div class='horizontal'>
@@ -188,7 +188,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                               id={item.id}
                               key={item.id}
                               name={item.name}
-                            ></bk-option>
+                            />
                           ))}
                         </bk-select>
                       </div>
@@ -209,7 +209,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                               id={item.id}
                               key={item.id}
                               name={item.name}
-                            ></bk-option>
+                            />
                           ))}
                         </bk-select>
                       </div>
@@ -227,7 +227,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                           v-model={this.localFormData.elasticsearch.replica.default}
                           type='number'
                           onChange={this.handleEmitChange}
-                        ></bk-input>
+                        />
                       </div>
                     </FormItem>
                     <FormItem
@@ -241,7 +241,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                           v-model={this.localFormData.elasticsearch.replica.max}
                           type='number'
                           onChange={this.handleEmitChange}
-                        ></bk-input>
+                        />
                       </div>
                     </FormItem>
                   </div>

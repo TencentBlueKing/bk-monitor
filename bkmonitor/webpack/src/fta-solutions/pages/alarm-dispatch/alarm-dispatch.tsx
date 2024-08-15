@@ -34,6 +34,6 @@ export default class FtaAlarmDispatch extends Mixins(authorityMixinCreate(author
   @Provide('authority') authority;
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   render() {
-    return <AlarmDispatch></AlarmDispatch>;
+    return <AlarmDispatch />;
   }
 }

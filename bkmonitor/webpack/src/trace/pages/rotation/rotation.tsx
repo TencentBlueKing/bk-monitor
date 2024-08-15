@@ -30,13 +30,15 @@ import { useRouter } from 'vue-router';
 
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
-import { type IAuthority } from '../../typings/authority';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
 import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
+
+import type { IAuthority } from '../../typings/authority';
 
 import './rotation.scss';
 
@@ -222,6 +224,8 @@ export default defineComponent({
     init();
     async function init() {
       loading.value = true;
+      const pageSize = commonPageSizeGet();
+      tableData.pagination.limit = pageSize;
       authority.auth = await getAuthorityMap(authMap);
       const list = await listDutyRule().catch(() => []);
       const labelsSet = new Set();
@@ -462,6 +466,7 @@ export default defineComponent({
     function handleLimitChange(limit: number) {
       tableData.pagination.current = 1;
       tableData.pagination.limit = limit;
+      commonPageSizeSet(limit);
       setFilterList();
     }
 
@@ -573,7 +578,7 @@ export default defineComponent({
           return (
             <span class={['status-label', statusClass[row.status]]}>
               <div class='point'>
-                <div class='small-point'></div>
+                <div class='small-point' />
               </div>
               <span class='ml-7'>{statusMap[row.status]}</span>
             </span>
@@ -600,7 +605,7 @@ export default defineComponent({
                     theme='primary'
                     value={row.enabled}
                     onChange={v => (row.enabled = v)}
-                  ></Switcher>
+                  />
                 ),
                 content: () => <span>{t('存在关联的告警组')}</span>,
               }}
@@ -702,7 +707,7 @@ export default defineComponent({
                 theme='primary'
                 onClick={this.handleAdd}
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 <span>{this.t('新建')}</span>
               </Button>
               <SearchSelect
@@ -711,7 +716,7 @@ export default defineComponent({
                 modelValue={this.searchData.value}
                 placeholder={`ID / ${this.t('规则名称')}`}
                 onUpdate:modelValue={v => this.handleSearch(v)}
-              ></SearchSelect>
+              />
             </div>
             <Loading loading={this.loading}>
               <div class='table-content'>
@@ -733,7 +738,7 @@ export default defineComponent({
                   onColumnFilter={this.handleColumnFilter}
                   onColumnSort={this.handleColumnSort}
                   onSettingChange={this.handleSettingChange}
-                ></Table>
+                />
                 <Pagination
                   class='mt-14'
                   align={'right'}
@@ -744,7 +749,7 @@ export default defineComponent({
                   modelValue={this.tableData.pagination.current}
                   onChange={v => this.handlePageChange(v)}
                   onLimitChange={v => this.handleLimitChange(v)}
-                ></Pagination>
+                />
               </div>
             </Loading>
           </div>
@@ -754,7 +759,7 @@ export default defineComponent({
           id={this.detailData.id}
           show={this.detailData.show}
           onShowChange={v => (this.detailData.show = v)}
-        ></RotationDetail>
+        />
       </div>
     );
   },

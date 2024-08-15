@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, type Ref, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Collapse, Dialog, Form, Input, Message } from 'bkui-vue';
 import { feedbackIncidentRoot, incidentRecordOperation } from 'monitor-api/modules/incident';
 
-import { type IncidentDetailData } from './types';
+import type { IncidentDetailData } from './types';
 
 import './feedback-cause-dialog.scss';
 
@@ -61,7 +61,7 @@ export default defineComponent({
     const formRef = ref<HTMLDivElement>();
     const incidentDetail = inject<Ref<IncidentDetailData>>('incidentDetail');
     const incidentDetailData = computed<IncidentDetailData>(() => {
-      return incidentDetail.value;
+      return incidentDetail?.value;
     });
     function valueChange(v) {
       emit('update:isShow', v);
@@ -120,7 +120,55 @@ export default defineComponent({
   },
   render() {
     const { content } = this.incidentDetailData?.current_snapshot || {};
-    const originalFaultFn = () => <div class='fault-item'>{content?.incident_name || '--'}</div>;
+    const { template, elements } = content?.incident_name_template || {};
+    const originalFaultFn = () => {
+      const replacePlaceholders = (template, replacements) => {
+        const parts: Array<JSX.Element | string> = [];
+        const regex = /{(.*?)}/g;
+        let lastIndex = 0;
+        let match;
+
+        while ((match = regex.exec(template)) !== null) {
+          const [placeholder, key] = match;
+          const startIndex = match.index;
+
+          if (lastIndex < startIndex) {
+            parts.push(template.slice(lastIndex, startIndex));
+          }
+
+          parts.push(replacements[key] ?? placeholder);
+          lastIndex = startIndex + placeholder.length;
+        }
+
+        if (lastIndex < template.length) {
+          parts.push(template.slice(lastIndex));
+        }
+
+        return parts;
+      };
+      if (template && elements.length > 0) {
+        // 替换内容对象
+        const replacements = {
+          0: (
+            <label>
+              (<label class='name-target'>{elements[0][1]}</label>)
+            </label>
+          ),
+          1: elements[1],
+        };
+        const processedContentArray = replacePlaceholders(template, replacements);
+        const tips = replacePlaceholders(template, { 0: elements[0][1], 1: elements[1] });
+        return (
+          <span
+            class={['item-info']}
+            title={tips.join('')}
+          >
+            {processedContentArray.map(part => (typeof part === 'string' ? part : <>{part}</>))}
+          </span>
+        );
+      }
+      return <span class='empty-text'>--</span>;
+    };
     const newFeedback = () => {
       const { bk_biz_id, bk_biz_name, entity } = this.$props.data;
       const { entity_type, rank, entity_id } = entity;
@@ -131,12 +179,12 @@ export default defineComponent({
           label-width={100}
           model={this.formData}
         >
-          <Form.FormItem label={this.t('根因所属节点') + ':'}>{entity_id}</Form.FormItem>
-          <Form.FormItem label={this.t('分类') + ':'}>{rank?.rank_alias || '--'}</Form.FormItem>
-          <Form.FormItem label={this.t('节点类型') + ':'}>{entity_type}</Form.FormItem>
-          <Form.FormItem label={this.t('所属业务') + ':'}>{`[${bk_biz_id}] ${bk_biz_name}`}</Form.FormItem>
+          <Form.FormItem label={`${this.t('根因所属节点')}:`}>{entity_id}</Form.FormItem>
+          <Form.FormItem label={`${this.t('分类')}:`}>{rank?.rank_alias || '--'}</Form.FormItem>
+          <Form.FormItem label={`${this.t('节点类型')}:`}>{entity_type}</Form.FormItem>
+          <Form.FormItem label={`${this.t('所属业务')}:`}>{`[${bk_biz_id}] ${bk_biz_name}`}</Form.FormItem>
           <Form.FormItem
-            label={this.t('故障根因描述')}
+            label={`${this.t('故障根因描述')}:`}
             property='feedbackContent'
             required
           >

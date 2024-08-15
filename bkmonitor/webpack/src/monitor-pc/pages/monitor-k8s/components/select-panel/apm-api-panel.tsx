@@ -29,11 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
-import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
@@ -44,6 +42,8 @@ import {
 import CommonStatus from '../common-status/common-status';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IQueryData, IQueryDataSearch } from '../../typings';
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './apm-api-panel.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -324,13 +324,13 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
               placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
-            ></bk-input>
+            />
           )}
           <bk-button
             class='reflesh-btn'
             onClick={this.handleRefresh}
           >
-            <i class='icon-monitor icon-shuaxin'></i>
+            <i class='icon-monitor icon-shuaxin' />
           </bk-button>
         </div>
         {!!this.statusList.length && (
@@ -339,7 +339,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
             v-model={this.currentStatus}
             statusList={this.statusList}
             onChange={this.handleStatusFilter}
-          ></StatusTab>
+          />
         )}
         {!!this.tabList.length && (
           <bk-tab
@@ -354,7 +354,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
                 key={tab.id}
                 label={tab.name}
                 name={tab.id}
-              ></bk-tab-panel>
+              />
             ))}
           </bk-tab>
         )}
@@ -373,7 +373,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
                       <CommonStatus
                         class='status-icon'
                         type={data.status.type}
-                      ></CommonStatus>
+                      />
                     )}
                     <span class='item-name'>{data.name || '--'}</span>
                     <span class='item-count'>{this.formaterCount(data)}</span>
@@ -381,7 +381,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
                 ),
               }}
               item-height={36}
-            ></bk-virtual-scroll>
+            />
           ) : (
             <bk-exception
               class='exception-part'

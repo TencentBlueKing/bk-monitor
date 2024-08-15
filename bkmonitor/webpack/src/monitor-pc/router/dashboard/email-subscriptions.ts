@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 // import * as alarmShieldAuth from '../../pages/alarm-shield/authority-map'
-import { RouteConfig } from 'vue-router';
+import type { RouteConfig } from 'vue-router';
 
 const EmailSubscriptions = () =>
   import(/* webpackChunkName: 'EmailSubscriptions' */ '../../pages/email-subscriptions/email-subscriptions.vue');

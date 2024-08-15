@@ -37,7 +37,7 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab } from 'bkui-vue';
+import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
@@ -48,7 +48,6 @@ import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import StatisticsTable, { type IFilterItem } from '../../../components/statistics-table/statistics-table';
 import TraceView from '../../../components/trace-view';
 import SearchBar from '../../../components/trace-view/search-bar';
-import { type Span } from '../../../components/trace-view/typings';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
@@ -63,14 +62,16 @@ import {
 import { useTraceStore } from '../../../store/modules/trace';
 import {
   type DirectionType,
+  ETopoType,
   type ISpanClassifyItem,
   type ITraceData,
   type ITraceTree,
-  ETopoType,
 } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
 import NodeTopo from './node-topo';
+
+import type { Span } from '../../../components/trace-view/typings';
 
 import './trace-detail.scss';
 
@@ -183,7 +184,7 @@ export default defineComponent({
     /** 工具栏输入框搜索内容 */
     const filterKeywords = ref<string[]>([]);
     const showCompareSelect = computed(() => {
-      return ['topo', 'statistics', 'flame'].includes(state.activePanel) && topoType.value == ETopoType.time;
+      return ['topo', 'statistics', 'flame'].includes(state.activePanel) && topoType.value === ETopoType.time;
     });
 
     const isFullscreen = inject<boolean>('isFullscreen', false);
@@ -196,6 +197,7 @@ export default defineComponent({
     const ellipsisDirection = computed(() => store.ellipsisDirection);
     const traceViewFilters = computed(() => store.traceViewFilters);
     const diffPercentList = computed(() => COMPARE_DIFF_COLOR_LIST.map(val => `${val.value}%`));
+    const enabledTimeAlignment = ref(false);
     const curViewElem = computed(() => {
       switch (state.activePanel) {
         case 'timeline':
@@ -209,8 +211,11 @@ export default defineComponent({
     });
     const serviceCount = computed<number>(() =>
       traceData.value.span_classify.reduce((pre, cur) => {
-        if (cur.type === 'service') pre += 1;
-        return pre;
+        let total = pre;
+        if (cur.type === 'service') {
+          total += 1;
+        }
+        return total;
       }, 0)
     );
     // 层级数
@@ -459,14 +464,16 @@ export default defineComponent({
           comps?.handleKeywordFliter(val);
           break;
         case 'statistics':
-          let filterDict: IFilterItem | null = null; // 统计内容搜索参数
-          if (val.length) {
-            filterDict = {
-              type: 'keyword',
-              value: val.toString(),
-            };
+          {
+            let filterDict: IFilterItem | null = null; // 统计内容搜索参数
+            if (val.length) {
+              filterDict = {
+                type: 'keyword',
+                value: val.toString(),
+              };
+            }
+            comps?.handleKeywordFliter(filterDict);
           }
-          comps?.handleKeywordFliter(filterDict);
           break;
         default:
           break;
@@ -518,7 +525,7 @@ export default defineComponent({
     };
     // 获取两个数组差异元素
     const getArrDifference = (arr1: string[], arr2: string[]) => {
-      return arr1.concat(arr2).filter(function (v, i, arr) {
+      return arr1.concat(arr2).filter((v, i, arr) => {
         return arr.indexOf(v) === arr.lastIndexOf(v);
       });
     };
@@ -545,8 +552,8 @@ export default defineComponent({
           app_name: props.appName,
           trace_id: traceId,
           displays,
+          enabled_time_alignment: enabledTimeAlignment.value,
         };
-
         await traceDetail(params, {
           cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
         }).then(async data => {
@@ -586,6 +593,7 @@ export default defineComponent({
       }
     };
     /** 时序图过滤 span */
+    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
     const handleSpanListFilter = (spanList: string[], subTitle = '', filterFunc: () => void) => {
       !spanList?.length && resetFilterListFunc?.();
       resetFilterListFunc = filterFunc;
@@ -725,11 +733,11 @@ export default defineComponent({
       // 服务topo禁用 SOURCE_CATEGORY_EBPF, VIRTUAL_SPAN
       const traceViewFiltersV = [];
       if (topoType.value === ETopoType.service) {
-        traceViewFilters.value.forEach(v => {
+        for (const v of traceViewFilters.value) {
           if (![SOURCE_CATEGORY_EBPF, VIRTUAL_SPAN].includes(v)) {
             traceViewFiltersV.push(v);
           }
-        });
+        }
         handleSpanKindChange(traceViewFiltersV);
       }
     }
@@ -742,7 +750,22 @@ export default defineComponent({
       await (searchBarElem.value as any).handleChange([]);
       clearSearch();
     }
-
+    async function handleChangeEnableTimeALignment(v: boolean) {
+      contentLoading.value = true;
+      const { trace_id: traceId } = traceData.value;
+      enabledTimeAlignment.value = v;
+      const params = {
+        bk_biz_id: window.bk_biz_id,
+        app_name: props.appName,
+        trace_id: traceId,
+        enabled_time_alignment: enabledTimeAlignment.value,
+      };
+      const data = await traceDetail(params, {
+        cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
+      }).catch(() => false);
+      data && (await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId }));
+      contentLoading.value = false;
+    }
     return {
       ...toRefs(state),
       isLoading,
@@ -763,6 +786,7 @@ export default defineComponent({
       prevResult,
       traceData,
       traceTree,
+      enabledTimeAlignment,
       updateMatchedSpanIds,
       isFullscreen,
       baseMessage,
@@ -796,6 +820,7 @@ export default defineComponent({
       topoType,
       handleTopoChangeType,
       handleServiceTopoClickItem,
+      handleChangeEnableTimeALignment,
     };
   },
 
@@ -816,7 +841,7 @@ export default defineComponent({
             class='fullscreen-btn toggle-full-screen'
             onClick={() => this.$emit('close')}
           >
-            <div class='circle'></div>
+            <div class='circle' />
             <span class='icon-monitor icon-mc-close icon-page-close' />
           </div>
         )}
@@ -854,14 +879,36 @@ export default defineComponent({
           <div class='message-item'>
             <label>{this.$t('总耗时')}</label>
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
-            {traceInfo?.time_error && (
+            {traceInfo?.time_error && [
+              this.enabledTimeAlignment ? (
+                <span
+                  key={1}
+                  style='color: #699DF4; margin-left: 5px'
+                  class='icon-monitor icon-mc-time'
+                />
+              ) : undefined,
               <Popover
-                content={this.$t('时间经过校准，注意服务所在时钟是否同步')}
+                key={2}
+                v-slots={{
+                  default: () => <span class='icon-monitor icon-tips' />,
+                  content: () => (
+                    <div class='trace-duration-pop'>
+                      <span style='color: #313238'>{this.$t('时间校准')}</span>
+                      <Switcher
+                        modelValue={this.enabledTimeAlignment}
+                        size='small'
+                        theme='primary'
+                        onChange={this.handleChangeEnableTimeALignment}
+                      />
+                      <span class='icon-monitor icon-hint' />
+                      {this.$t('开启时间校准，可同步服务所在时钟')}
+                    </div>
+                  ),
+                }}
                 placement='top'
-              >
-                <span class='icon-monitor icon-tips'></span>
-              </Popover>
-            )}
+                theme='light'
+              />,
+            ]}
           </div>
           <div class='message-item'>
             <label>{this.$t('时间区间')}</label>
@@ -881,8 +928,9 @@ export default defineComponent({
           </div>
         </div>
         <div class='overview-content'>
-          {spanClassify?.map(card => (
+          {spanClassify?.map((card, index) => (
             <div
+              key={index}
               class={[
                 'item-card',
                 {
@@ -914,7 +962,7 @@ export default defineComponent({
                   ''
                 )
               ) : (
-                <span class={`card-icon icon-monitor icon-${card.icon}`}></span>
+                <span class={`card-icon icon-monitor icon-${card.icon}`} />
               )}
               <span class='card-text'>{card.name}</span>
               {card.type !== 'max_duration' && <span class='card-count'>{card.count}</span>}
@@ -995,7 +1043,7 @@ export default defineComponent({
                 v-slots={{
                   label: () => (
                     <span class='tab-label'>
-                      <i class={`icon-monitor icon-${item.icon}`}></i>
+                      <i class={`icon-monitor icon-${item.icon}`} />
                       {item.name}
                     </span>
                   ),
@@ -1026,8 +1074,9 @@ export default defineComponent({
                   v-model={this.traceViewFilters}
                   onChange={this.handleSpanKindChange}
                 >
-                  {this.filterToolList.map(kind => (
+                  {this.filterToolList.map((kind, index) => (
                     <Checkbox
+                      key={index}
                       disabled={
                         (this.activePanel === 'statistics' &&
                           this.traceViewFilters.length === 1 &&
@@ -1059,7 +1108,12 @@ export default defineComponent({
                 <span class='tag tag-new'>added</span>
                 <div class='percent-queue'>
                   {this.diffPercentList.map((item, index) => (
-                    <span class={`percent-tag tag-${index + 1}`}>{item}</span>
+                    <span
+                      key={index}
+                      class={`percent-tag tag-${index + 1}`}
+                    >
+                      {item}
+                    </span>
                   ))}
                 </div>
                 <span class='tag tag-removed'>removed</span>
@@ -1151,7 +1205,7 @@ export default defineComponent({
                 onResizing={this.handleSpanListResizing}
               >
                 {{
-                  main: () => <div></div>,
+                  main: () => <div />,
                   aside: () => (
                     <TopoSpanList
                       compareSpanList={this.compareSpanList}
@@ -1173,7 +1227,7 @@ export default defineComponent({
             class='back-top'
             onClick={this.handleBackTop}
           >
-            <i class='icon-monitor icon-back-up'></i>
+            <i class='icon-monitor icon-back-up' />
           </div>
         )}
         <SpanDetails

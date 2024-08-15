@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, watch, type PropType } from 'vue';
+import { type PropType, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover, Slider } from 'bkui-vue';
 
-import { type IAlert } from '../types';
+import type { IAlert } from '../types';
 
 import './timeline-zoom.scss';
 
@@ -113,10 +113,10 @@ export default defineComponent({
     const legendFn = () => (
       <div class='failure-topo-graph-legend-content'>
         <ul class='node-type'>
-          {NODE_TYPE.map(node => {
+          {NODE_TYPE.map((node, index) => {
             const isTag = node.type === 'tag';
             return (
-              <li>
+              <li key={index}>
                 <span class={['circle', node.status, { 'node-tag': isTag }]}>{isTag ? t('根因') : ''}</span>
                 <span>{t(node.text)}</span>
               </li>
@@ -124,11 +124,11 @@ export default defineComponent({
           })}
         </ul>
         <ul class='info-type'>
-          {INFO_TYPE.map(node => {
+          {INFO_TYPE.map((node, index) => {
             return (
-              <li>
+              <li key={index}>
                 <span>
-                  <i class={`icon-monitor item-icon ${node.icon}`}></i>
+                  <i class={`icon-monitor item-icon ${node.icon}`} />
                 </span>
                 <span>{t(node.text)}</span>
               </li>
@@ -155,12 +155,19 @@ export default defineComponent({
     };
     const currentPopover = ref(popoverConfig.legend);
     const handleShowLegend = () => {
-      minimapRef.value?.hide();
+      if (showMinimap.value) {
+        minimapRef.value?.hide();
+        showMinimap.value = !showMinimap.value;
+      }
       showLegend.value = !showLegend.value;
       localStorage.setItem('showTimeLegend', String(showLegend.value));
     };
     const handleShowMinimap = () => {
-      legendRef.value?.hide();
+      if (showLegend.value) {
+        legendRef.value?.hide();
+        showLegend.value = !showLegend.value;
+        localStorage.setItem('showTimeLegend', String(showLegend.value));
+      }
       showMinimap.value = !showMinimap.value;
       drawCanvas();
     };
@@ -241,7 +248,7 @@ export default defineComponent({
       const matrix = style.transform || style.webkitTransform || style.mozTransform;
       if (matrix === 'none' || !matrix) return 0;
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
-      return parseFloat(values[4]);
+      return Number.parseFloat(values[4]);
     }
     const onSelectionMouseDown = (event: MouseEvent) => {
       isDragging.value = true;
@@ -339,10 +346,10 @@ export default defineComponent({
             content: (
               <div class='failure-topo-graph-legend-content'>
                 <ul class='node-type'>
-                  {NODE_TYPE.map(node => {
+                  {NODE_TYPE.map((node, index) => {
                     const isTag = node.type === 'tag';
                     return (
-                      <li>
+                      <li key={index}>
                         <span class={['circle', node.status, { 'node-tag': isTag }]}>
                           {isTag ? this.$t('根因') : ''}
                         </span>
@@ -350,10 +357,10 @@ export default defineComponent({
                       </li>
                     );
                   })}
-                  {INFO_TYPE.map(node => (
-                    <li>
+                  {INFO_TYPE.map((node, index) => (
+                    <li key={index}>
                       <span class='info-circle'>
-                        <i class={`icon-monitor item-icon ${node.icon}`}></i>
+                        <i class={`icon-monitor item-icon ${node.icon}`} />
                       </span>
                       <span>{this.$t(node.text)}</span>
                     </li>
@@ -368,23 +375,24 @@ export default defineComponent({
                   content: this.$t('显示图例'),
                   disabled: this.showLegend,
                   boundary: 'parent',
+                  extCls: 'failure-topo-graph-tooltip',
                 }}
                 onClick={this.handleShowLegend}
               >
-                <i class='icon-monitor icon-legend'></i>
+                <i class='icon-monitor icon-legend' />
               </div>
             ),
           }}
           always={this.showLegend}
           arrow={false}
-          boundary='parent'
+          boundary='body'
           isShow={this.showLegend}
           offset={{ crossAxis: 90, mainAxis: 10 }}
           placement='top'
           renderType='auto'
           theme='light'
           trigger='manual'
-        ></Popover>
+        />
         <Popover
           ref='minimapRef'
           width={242}
@@ -406,7 +414,7 @@ export default defineComponent({
                   style={{ width: `${this.selectionWidth}px`, transform: `translateX(${this.selectionLeft}px)` }}
                   class='map-selection'
                   onMousedown={this.onSelectionMouseDown}
-                ></div>
+                />
               </div>
             ),
             default: (
@@ -417,30 +425,31 @@ export default defineComponent({
                   disabled: this.showMinimap,
                   boundary: 'parent',
                   placement: 'bottom',
+                  extCls: 'failure-topo-graph-tooltip',
                 }}
                 onClick={this.handleShowMinimap}
               >
-                <i class='icon-monitor icon-minimap'></i>
+                <i class='icon-monitor icon-minimap' />
               </div>
             ),
           }}
           always={this.showMinimap}
           arrow={false}
-          boundary='parent'
+          boundary='body'
           isShow={this.showMinimap}
           offset={{ crossAxis: 70, mainAxis: 10 }}
           placement='top'
           renderType='auto'
           theme='light'
           trigger='manual'
-        ></Popover>
-        <span class='failure-topo-graph-line'></span>
+        />
+        <span class='failure-topo-graph-line' />
         <div class='failure-topo-graph-zoom-slider'>
           <div
             class='failure-topo-graph-setting'
             onClick={this.handleUpdateZoom.bind(this, -2)}
           >
-            <i class='icon-monitor icon-minus-line'></i>
+            <i class='icon-monitor icon-minus-line' />
           </div>
           <Slider
             class='slider'
@@ -448,21 +457,21 @@ export default defineComponent({
             maxValue={this.$props.maxZoom}
             minValue={this.MIN_ZOOM}
             onChange={this.handleUpdateZoom}
-          ></Slider>
+          />
           <div
             class='failure-topo-graph-setting'
             onClick={this.handleUpdateZoom.bind(this, 2)}
           >
-            <i class='icon-monitor icon-plus-line'></i>
+            <i class='icon-monitor icon-plus-line' />
           </div>
         </div>
-        <span class='failure-topo-graph-line'></span>
+        <span class='failure-topo-graph-line' />
         <div
           class='failure-topo-graph-proportion'
-          v-bk-tooltips={{ content: this.$t('重置比例'), boundary: 'parent' }}
+          v-bk-tooltips={{ content: this.$t('重置比例'), boundary: 'parent', extCls: 'failure-topo-graph-tooltip' }}
           onClick={this.handleResetZoom}
         >
-          <i class='icon-monitor icon-mc-restoration-ratio'></i>
+          <i class='icon-monitor icon-mc-restoration-ratio' />
         </div>
       </div>
     );

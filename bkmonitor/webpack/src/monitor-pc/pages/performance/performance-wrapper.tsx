@@ -35,7 +35,7 @@ import AlarmTools from '../monitor-k8s/components/alarm-tools';
 import DashboardTools from '../monitor-k8s/components/dashboard-tools';
 import PageTitle from '../monitor-k8s/components/page-title';
 import SplitPanel from '../monitor-k8s/components/split-panel';
-import { IBookMark, ITabItem, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../monitor-k8s/typings';
+import { type IBookMark, type ITabItem, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../monitor-k8s/typings';
 import Performance from './performance.vue';
 
 import './performance-wrapper.scss';

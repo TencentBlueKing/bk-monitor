@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, type PropType, reactive, ref, toRefs } from 'vue';
+import { type PropType, defineComponent, onBeforeUnmount, reactive, ref, toRefs } from 'vue';
 
 import DraggableManager, { type DraggableBounds, type DraggingUpdate } from '../utils/draggable-manager';
 

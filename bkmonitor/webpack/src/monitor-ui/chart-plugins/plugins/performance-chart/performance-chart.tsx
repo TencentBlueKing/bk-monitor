@@ -36,12 +36,13 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
 import { padTextToWidth, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
+
+import type { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
 
 @Component
 export default class PerformanceChart extends TimeSeries {
@@ -140,7 +141,7 @@ export default class PerformanceChart extends TimeSeries {
       });
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
-        const maxXInterval = getSeriesMaxInterval(series);
+        const { maxXInterval, maxSeriesCount } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         const emitDimensions = () => {
           const dimensionSet = new Set();
@@ -186,6 +187,7 @@ export default class PerformanceChart extends TimeSeries {
             return {
               name: item.name,
               cursor: 'auto',
+              // biome-ignore lint/style/noCommaOperator: <explanation>
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
               unit: item.unit,
@@ -249,7 +251,7 @@ export default class PerformanceChart extends TimeSeries {
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
+        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -286,6 +288,7 @@ export default class PerformanceChart extends TimeSeries {
             customData: {
               // customData 自定义的一些配置 用户后面echarts实例化后的配置
               maxXInterval,
+              maxSeriesCount,
             },
           })
         );

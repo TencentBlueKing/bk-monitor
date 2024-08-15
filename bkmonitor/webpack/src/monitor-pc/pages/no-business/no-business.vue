@@ -37,7 +37,7 @@
           class="card-img"
           src="../../static/images/svg/new-business.svg"
           alt=""
-        >
+        />
         <p class="card-title">
           {{ $t('新业务接入') }}
         </p>
@@ -48,7 +48,8 @@
           class="common-btn"
           hover-theme="primary"
           @click="handleNewBusiness"
-        >{{ $t('接入业务') }}<i class="icon-monitor icon-mc-wailian" /></bk-button>
+          >{{ $t('接入业务') }}<i class="icon-monitor icon-mc-wailian"
+        /></bk-button>
       </div>
       <div
         v-if="getAccess"
@@ -58,7 +59,7 @@
           class="card-img"
           src="../../static/images/svg/get-access.svg"
           alt=""
-        >
+        />
         <p class="card-title">
           {{ $t('获取权限') }}
         </p>
@@ -71,7 +72,8 @@
             class="common-btn"
             theme="primary"
             @click="handleGetAccess"
-          >{{ $t('申请权限') }}</bk-button>
+            >{{ $t('申请权限') }}</bk-button
+          >
         </template>
         <!-- 权限中心不带业务ID -->
         <template v-else-if="getAccess.url && !getAccess.businessName">
@@ -82,22 +84,23 @@
             class="common-btn"
             hover-theme="primary"
             @click="handleGetAccess"
-          >{{ $t('申请权限') }}</bk-button>
+            >{{ $t('申请权限') }}</bk-button
+          >
         </template>
         <!-- 未接入权限中心带业务ID -->
         <p
           v-else-if="getAccess.businessName"
           class="card-detail"
         >
-          {{
-            $t('您没有业务{0}的权限,请联系运维!', [getAccess.businessName])
-          }}
+          {{ $t('您没有业务{0}的权限,请联系运维!', [getAccess.businessName]) }}
         </p>
         <!-- 未接入权限中心不带业务ID -->
         <p
           v-else
           class="card-detail"
-        >{{ $t('您没有业务权限，请先联系对应的业务运维同学进行添加!') }}</p>
+        >
+          {{ $t('您没有业务权限，请先联系对应的业务运维同学进行添加!') }}
+        </p>
       </div>
       <div
         v-if="hasDemoBiz"
@@ -107,7 +110,7 @@
           class="card-img"
           src="../../static/images/svg/demo-business.svg"
           alt=""
-        >
+        />
         <p class="card-title">
           {{ $t('业务DEMO') }}
         </p>
@@ -118,16 +121,17 @@
           class="common-btn"
           hover-theme="primary"
           @click="handleDemoBusiness"
-        >{{ $t('我要体验') }}</bk-button>
+          >{{ $t('我要体验') }}</bk-button
+        >
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { getUrlParam } from 'monitor-common/utils';
+import { Component, Vue } from 'vue-property-decorator';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../components/access-request-dialog';
 interface INewBusiness {
@@ -150,7 +154,7 @@ export default class NoBusiness extends Vue {
     this.getAccess = {
       url: data.get_access_url || '',
       operator: data.operator || [],
-      businessName: data.bk_biz_name || ''
+      businessName: data.bk_biz_name || '',
     };
   }
   get hasDemoBiz() {
@@ -212,15 +216,15 @@ export default class NoBusiness extends Vue {
       height: 400px;
       background: #fff;
       border-radius: 2px;
-      transition: box-shadow .3s;
+      transition: box-shadow 0.3s;
 
       &:not(:last-child) {
         margin-right: 40px;
       }
 
       &:hover {
-        box-shadow: 0 3px 6px 0 rgba(0, 0, 0, .1);
-        transition: box-shadow .3s;
+        box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.3s;
       }
 
       .card-img {

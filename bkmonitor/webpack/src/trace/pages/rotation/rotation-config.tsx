@@ -458,7 +458,7 @@ export default defineComponent({
           callbackRouterBack={this.handleBackPage}
           needBack={true}
           routeList={this.navList}
-        ></NavBar>
+        />
         <div class='rotation-config-page-content'>
           <FormItem
             class='mt-24'
@@ -471,7 +471,7 @@ export default defineComponent({
               v-model={this.formData.name}
               showOverflowTooltips={false}
               onBlur={this.handleNameBlur}
-            ></Input>
+            />
           </FormItem>
           <FormItem
             class='mt-24'
@@ -481,7 +481,7 @@ export default defineComponent({
               class='width-508'
               v-model={this.formData.labels}
               allowCreate
-            ></TagInput>
+            />
           </FormItem>
           <FormItem
             class='mt-24'
@@ -501,7 +501,7 @@ export default defineComponent({
                       v-model={this.formData.enabled}
                       disabled={this.enabledDisabled}
                       theme='primary'
-                    ></Switcher>
+                    />
                   ),
                   content: () => <span>{this.t('存在关联的告警组')}</span>,
                 }}
@@ -561,7 +561,7 @@ export default defineComponent({
               placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
               type='datetime'
               onChange={val => this.handleEffectiveChange(val, 'startTime')}
-            ></DatePicker>
+            />
             <span class='split-line'>-</span>
             <DatePicker
               ref='effectiveEndRef'
@@ -573,7 +573,7 @@ export default defineComponent({
               clearable
               onChange={val => this.handleEffectiveChange(val, 'endTime')}
               onOpen-change={this.handleDatePickerOpen}
-            ></DatePicker>
+            />
           </FormItem>
           <FormItem
             class='mt-24'
@@ -583,7 +583,7 @@ export default defineComponent({
             <RotationCalendarPreview
               class='min-width-974'
               value={this.previewData}
-            ></RotationCalendarPreview>
+            />
           </FormItem>
           <FormItem class='mt-32'>
             <Button

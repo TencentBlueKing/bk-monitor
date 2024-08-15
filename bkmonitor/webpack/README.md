@@ -1,42 +1,31 @@
-#### 监控前端构建使用说明
+### 蓝鲸监控平台前端开发指引
 
-###### 安装和更新前端依赖（`nodejs`最小依赖版本为`V14.18.0`）
+#### 安装依赖
 
-```bash
-cd webpack
-npm i -g pnpm
-pnpm i
-```
+- [pnpm](https://pnpm.io/installation) 用于前端依赖管理
 
-如果您尚未安装过 `nodejs` [详细安装参见](https://nodejs.org/zh-cn/download/)
+- [nvm](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) 用于nodejs 版本管理 `nodejs`版本要求在 `20`版本以上
 
-###### 本地开发模式
+#### 开发使用
 
-- 本地启动
+- 安装依赖
 
-  ```bash
-  # 监控平台本地开发模式
-  npm run dev
-  # 移动端本地开发模式
-  npm run mobile:dev
-  # 故障自愈本地开发模式
-  npm run fta:dev
+  ```bas
+  nvm use
+  pnpm i // 或者使用 make deps
   ```
 
-- 前端环境变量配置
+- 开发本地配置
 
-  1. 新建文件 `local.settings.js`
+  - 在前端根目录下创建文件 `local.settings.js` 并复制和按需配置 `webpack server` 配置
 
-  2. 配置自定义内容 参考如下 [更多配置参见](https://webpack.docschina.org/configuration/dev-server/)
-
-     ```js
-    const context = ['/apm', '/rest', '/fta', '/api', '/weixin', '/version_log', '/calendars'];
+  - ```javascript
+    const context = ['/apm', '/rest', '/fta', '/api', '/weixin', '/version_log', '/calendars', '/alert', '/query-api'];
     const changeOrigin = true;
     const secure = false;
+    const devProxyUrl = 'http://xxx.com'; // 代理的后台api目标环境地址
 
-    const devProxyUrl = 'http://hostname.com'
-    const loginHost = `${devProxyUrl}/login`
-    const host = 'appdev.hostname.com'
+    const host = `appdev.${devProxyUrl.match(/\.([^.]+)\.com\/?/)[1]}.com`; // 本地hosts配置的同级域名
     const proxy = {
       context,
       changeOrigin,
@@ -45,76 +34,97 @@ pnpm i
       headers: {
         host: devProxyUrl.replace(/https?:\/\//i, ''),
         referer: devProxyUrl,
-        // 'X-CSRFToken': '',
-        // Cookie: ``
-      }
-    }
-
+        'X-CSRFToken': '', // 监控平台api所需的 X-CSRFToken
+        Cookie: ``, // 监控平台api所需的 cookie
+      },
+    };
+    const defaultBizId = proxy.headers.Cookie.match(/bk_biz_id=([^;]+);?/)[1]; // 默认空间业务id
     module.exports = {
       devProxyUrl,
-      loginHost,
       host,
-      proxy
+      proxy,
+      defaultBizId,
     };
+    ```
 
-     ```
+  - 执行命令 `pnpm dev` 或者 `make pc:dev`
 
-###### 生产构建
+  - 监控平台前端采用的是微前端架构，启动或开发其他微应用的指令可参考 `package.json` 中`scripts`项的配置 或者查看 `Makefile`文件（推荐）
 
-- 构建 pc 端和移动端
+  - 其他 `make --`指令如下
+
+    ```javascript
+    Usage:
+      make <target>
+
+    Dependencies
+      deps             Install frontend dependencies.
+
+    Development
+      dev-pc           Start development server for Monitor.
+      dev-apm          Start development server for Monitor APM.
+      dev-fta          Start development server for Monitor FTA.
+      dev-vue3         Start development server for Monitor Vue3 APP.
+      dev-mobile       Start development server for Monitor Mobile APP.
+      dev-external     Start development server for Monitor External APP.
+
+    Build
+      build            Build all applications in parallel.
+      prod             Build for production, then clean and move files to ../static/.
+      build-s          Build all applications in serial.
+      build-pc         Build Monitor.
+      build-apm        Build Monitor APM.
+      build-fta        Build Monitor FTA.
+      build-vue3       Build Monitor Vue3 APP.
+      build-mobile     Build Monitor Mobile APP.
+      build-external   Build Monitor External APP.
+
+    Linter
+      check-pc         Biome check monitor-pc code.
+      eslint-pc        Eslint check monitor-pc code.
+
+    Visualization
+      vis-pc           Visualize Monitor.
+      vis-apm          Visualize Monitor APM.
+      vis-fta          Visualize Monitor FTA.
+      vis-vue3         Visualize Monitor Vue3 APP.
+      vis-mobile       Visualize Monitor Mobile APP.
+      vis-external     Visualize Monitor External APP.
+
+    Docker
+      docker-build     Build Docker image and extract frontend.tar.gz.
+
+    Utilities
+      clean            Clean old static files.
+      move             Move new build files to static directory.
+      reflesh-git-hooks  Reflesh git hooks.
+
+    Help
+      help             Display this help.
+    ```
+
+#### 构建监控
+
+- 并行构建
 
   ```bash
-  npm run build
+  pnpm run build // 或者 make build
   ```
 
-- 仅构建 pc 端
+- 串行构建
+
+  ```bas
+  make build-s // 或者 使用 npx run-s [...targes]
+  ```
+
+- Paas平台构建
 
   ```bash
-  npm run pc:build
+  make prod // 或者 pnpm run prod
   ```
 
-- 仅构建移动端
+- Docker 构建
 
   ```bash
-  npm run mobile:build
+  make docker-build // 或者 ./docker_build.sh
   ```
-- 仅构建故障自愈
-
-  ```bash
-  npm run fta:build
-  ```
-
-###### 其他命令
-
-- 本地一键构建用于上云环境
-
-  ```bash
-  npm run prod
-  ```
-
-- 移动构建产品到 `static/`目录下
-
-  ```bash
-  npm run replace
-  ```
-
-- 分析构建产物组成
-
-  ```bash
-  # pc端生产环境构建产物分析
-  npm run analyze
-  # 移动端生产环境构建产物分析
-  npm run analyze:mobile
-  ```
-
-###### 前端构建工具 `@blueking/bkmonitor-cli`
-
-```bash
-cd webpack
-git submodule update packages/cli
-```
-
-#### help
-
-- 前端构建最小依赖 node 版本 V14.18.1 更推荐使用 V16.13.0以上版本node 性能更好
-- 编译过程中出现任何问题请联系 admin

@@ -26,7 +26,7 @@
 import { computed, defineComponent, inject } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { type ICommonNavBarProps, type INavItem } from './type';
+import type { ICommonNavBarProps, INavItem } from './type';
 
 import './nav-bar.scss';
 
@@ -105,7 +105,7 @@ export default defineComponent({
             <span
               class='icon-monitor icon-back-left navigation-bar-back'
               onClick={() => handleBackGotoPage()}
-            ></span>
+            />
           )}
           {!!slots.custom ? (
             <div class='navigation-bar-list'>{slots.custom()}</div>

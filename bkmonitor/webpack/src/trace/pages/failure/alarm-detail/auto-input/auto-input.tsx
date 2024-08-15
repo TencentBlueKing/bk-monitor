@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, ref } from 'vue';
 
 import { Input } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
@@ -207,7 +207,7 @@ export default defineComponent({
             placeholder={this.placeholder || this.$t('请输入')}
             readonly={this.readonly}
             onInput={this.handleInput}
-          ></Input>
+          />
         </div>
         <div style='display: none'>
           <ul class='tips-list-wrap'>

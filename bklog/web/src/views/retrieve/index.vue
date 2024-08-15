@@ -151,21 +151,22 @@
                 data-test-id="retrieve_div_fieldFilterBox"
               >
                 <!-- 字段过滤 -->
-                <div
-                  style="color: #313238"
-                  class="tab-item-title field-filter-title"
-                >
+                <div class="tab-item-title field-filter-title">
                   {{ $t('查询结果统计') }}
                 </div>
                 <field-filter
+                  ref="fieldFilterRef"
+                  :index-set-item="indexSetItem"
+                  :retrieve-params="retrieveParams"
+                  :sort-list="sortList"
                   :field-alias-map="fieldAliasMap"
                   :parent-loading="tableLoading"
-                  :retrieve-params="retrieveParams"
                   :show-field-alias="showFieldAlias"
-                  :sort-list="sortList"
                   :statistical-fields-data="statisticalFieldsData"
                   :total-fields="totalFields"
                   :visible-fields="visibleFields"
+                  :date-picker-value="datePickerValue"
+                  :retrieve-search-number="retrieveSearchNumber"
                   @fields-updated="handleFieldsUpdated"
                 />
               </div>
@@ -302,13 +303,13 @@
   import AddCollectDialog from './collect/add-collect-dialog';
   import CollectIndex from './collect/collect-index';
   // import IpSelectorDialog from '@/components/collection-access/ip-selector-dialog';
-  import FieldFilter from './condition-comp/field-filter';
   import SelectIndexSet from './condition-comp/select-index-set.tsx';
   import NoIndexSet from './result-comp/no-index-set';
   import ResultHeader from './result-comp/result-header';
   import ResultMain from './result-comp/result-main';
   import SearchComp from './search-comp';
   import SettingModal from './setting-modal/index.vue';
+  import FieldFilter from './field-filter-comp';
 
   const CancelToken = axios.CancelToken;
   const currentTime = Math.floor(new Date().getTime() / 1000);

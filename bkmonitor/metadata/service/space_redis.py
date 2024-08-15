@@ -15,7 +15,6 @@ from typing import Dict, List, Optional
 import requests
 
 from metadata import models
-from metadata.models.constants import EsSourceType
 from metadata.models.space.constants import (
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
@@ -90,24 +89,31 @@ def push_and_publish_es_table_id(
 ):
     """推送并发布es结果表
 
+    下面的处理方式，交由调用接口端，通过 `option` 进行处理
     - 自有: 追加时间戳和read后缀
     - 数据平台: 追加时间戳
     - 第三方: 不追加任何，直接按照规则处理
     """
-    table_id_db = ""
-    # 针对内建的索引，如果没有设置索引集，则按照结果表获取查询规则
-    if source_type == EsSourceType.LOG.value:
-        _index_list = index_set.split(",") if index_set else [table_id]
-        table_id_db = ",".join([f"{index.replace('.', '_')}_*_read" for index in _index_list])
-    elif source_type == EsSourceType.BKDATA.value:
-        _index_list = index_set.split(",")
-        table_id_db = ",".join([f"{index}_*" for index in _index_list])
-    else:
-        table_id_db = index_set
-
-    if not table_id_db:
-        logger.error("compose table_id_db failed, index_set: %s", index_set)
-        return
+    # 组装values，包含 options 字段
+    values = {
+        "source_type": source_type,
+        "storage_id": cluster_id,
+        "db": index_set,
+        "measurement": "__default__",
+        "options": {},
+    }
+    if options:
+        _options = {}
+        for option in options:
+            try:
+                _options[option["name"]] = (
+                    option["value"]
+                    if option["value_type"] == models.ResultTableOption.TYPE_STRING
+                    else json.loads(option["value"])
+                )
+            except Exception:
+                _options[option["name"]] = {}
+        values["options"] = _options
 
     # 组装values，包含 options 字段
     values = {"storage_id": cluster_id, "db": table_id_db, "measurement": "__default__", "options": {}}

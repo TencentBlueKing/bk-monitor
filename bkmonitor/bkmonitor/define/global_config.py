@@ -232,8 +232,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
         ("METRIC_CACHE_TASK_PERIOD", slz.IntegerField(label="指标缓存任务周期(min)", default=10)),
         ("LAST_MIGRATE_VERSION", slz.CharField(label="最后一次迁移版本", default="")),
-        # ("EXTERNAL_APIGW_PUBLIC_KEY", slz.CharField(label="外部APIGW公钥", default="")),
-        # ("APIGW_PUBLIC_KEY", slz.CharField(label="APIGW公钥", default="")),
         ("GSE_MANAGERS", slz.ListField(label="GSE平台管理员", default=[])),
         ("OFFICIAL_PLUGINS_MANAGERS", slz.ListField(label="官方插件管理员", default=[])),
         (
@@ -282,6 +280,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
+        ("ES_CLUSTER_BLACKLIST", slz.ListField(label="ES 黑名单集群列表", default=[])),
         ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
         (
             "BCS_DATA_CONVERGENCE_CONFIG",
@@ -305,7 +304,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SKIP_INFLUXDB_TABLE_ID_LIST", slz.BooleanField(label="跳过写入influxdb的结果表列表", default=[])),
         ("ENABLE_UPTIMECHECK_TEST", slz.BooleanField(label="是否开启拨测联通性测试", default=True)),
         ("CHECK_RESULT_TTL_HOURS", slz.CharField(label="检测结果缓存 TTL(小时)", default=1)),
-        ("ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST", slz.ListField(label="启用新链路的集群ID列表", default=[])),
     ]
 )
 

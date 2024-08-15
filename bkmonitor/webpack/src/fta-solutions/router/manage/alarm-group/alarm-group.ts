@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import * as AlarmGroupAuth from 'monitor-pc/pages/alarm-group/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const AlarmGroup = () => import(/* webpackChunkName: "AlarmGroup" */ '../../../pages/alarm-group/alarm-group');
 const AlarmGroupAdd = () =>

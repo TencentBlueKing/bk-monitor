@@ -602,10 +602,11 @@ export function parseBigNumberList(lsit) {
 /**
  * 生成随机数
  * @param {Number} n
+ * @param str,默认26位字母及数字
  */
-export const random = n => {
+export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
   // 生成n位长度的字符串
-  const str = 'abcdefghijklmnopqrstuvwxyz0123456789'; // 可以作为常量放到random外面
+  // const str = 'abcdefghijklmnopqrstuvwxyz0123456789' // 可以作为常量放到random外面
   let result = '';
   for (let i = 0; i < n; i++) {
     result += str[parseInt(Math.random() * str.length, 10)];
@@ -1103,3 +1104,32 @@ export const xssFilter = str => {
     }) || str
   );
 };
+/** 数字千分位处理 */
+export const formatNumberWithRegex = number => {
+  var parts = number.toString().split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+};
+/** 上下文，实时日志高亮颜色 */
+export const contextHighlightColor = [
+  {
+    dark: '#FFB401',
+    light: '#FFF6E1',
+  },
+  {
+    dark: '#1CAB88',
+    light: '#E8FFF5',
+  },
+  {
+    dark: '#3A84FF',
+    light: '#F0F5FF',
+  },
+  {
+    dark: '#FF5656',
+    light: '#FFEEEE',
+  },
+  {
+    dark: '#00CBCB',
+    light: '#E1FCFD',
+  },
+];

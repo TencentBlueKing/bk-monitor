@@ -28,6 +28,7 @@ from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 
 from api.grafana.exporter import DashboardExporter
+from bk_dataview.models import Dashboard, DataSource
 from bkmonitor.action.serializers import (
     ActionConfigDetailSlz,
     AssignRuleSlz,
@@ -56,6 +57,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.serializers import BkBizIdSerializer
 from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
@@ -70,10 +72,9 @@ class ImportConfigResource(Resource):
     导入Code配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         configs = serializers.DictField(required=True, label="文件内容")
         app = serializers.CharField(default="as_code")
-        bk_biz_id = serializers.IntegerField()
         overwrite = serializers.BooleanField(default=False)
         incremental = serializers.BooleanField(default=False)
 
@@ -97,13 +98,12 @@ class ExportConfigResource(Resource):
     导出Code配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         action_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         notice_group_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         assign_group_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         dashboard_uids = serializers.ListField(child=serializers.CharField(), allow_null=True, default=None)
-        bk_biz_id = serializers.IntegerField()
 
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
 
@@ -288,27 +288,33 @@ class ExportConfigResource(Resource):
         # 查询数据源实例
         data_sources = None
         if external:
-            data_sources = api.grafana.get_all_data_source(org_id=org_id)["data"]
+            data_sources = DataSource.objects.filter(org_id=org_id).values("name", "type", "uid")
+
+        # 查询文件夹
+        folder_id_to_title = {
+            folder["id"]: folder["title"]
+            for folder in Dashboard.objects.filter(org_id=org_id, is_folder=True).values("id", "title")
+        }
 
         datasource_mapping = {}
-        dashboards = api.grafana.search_folder_or_dashboard(type="dash-db", org_id=org_id)
-        for info in dashboards.get("data", []):
-            if dashboard_uids is not None and info["uid"] not in dashboard_uids:
-                continue
+        dashboards = Dashboard.objects.filter(org_id=org_id, is_folder=False)
+        if dashboard_uids:
+            dashboards = dashboards.filter(uid__in=dashboard_uids)
 
-            dashboard = api.grafana.get_dashboard_by_uid(org_id=org_id, uid=info["uid"])["data"]
-            dashboard_config = dashboard["dashboard"]
+        for dashboard in dashboards:
+            dashboard_config = json.loads(dashboard.data)
+
             # 是否按外部使用导出
             if external:
                 DashboardExporter(data_sources).make_exportable(dashboard_config, datasource_mapping)
 
             # 将仪表盘目录设置为导出文件夹目录
-            if "folderTitle" in info:
-                folder = info["folderTitle"].replace("/", "-")
+            if dashboard.folder_id in folder_id_to_title:
+                folder = folder_id_to_title[dashboard.folder_id].replace("/", "-")
             else:
                 folder = ""
 
-            name = dashboard["meta"]["slug"].replace("/", "-")
+            name = dashboard.slug.replace("/", "-")
             yield folder, f"{name}.json", json.dumps(dashboard_config, ensure_ascii=False, indent=2)
 
         if datasource_mapping:
@@ -399,8 +405,7 @@ class ExportConfigFileResource(ExportConfigResource):
     导出配置（压缩包）
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
+    class RequestSerializer(BkBizIdSerializer):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         with_related_config = serializers.BooleanField(label="是否导出关联", default=False)
@@ -499,8 +504,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
 
 class ExportAllConfigFileResource(ExportConfigFileResource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
+    class RequestSerializer(BkBizIdSerializer):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
 
 
@@ -509,11 +513,11 @@ class ImportConfigFileResource(Resource):
     导入配置（压缩包）
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         app = serializers.CharField(default="as_code", label="配置分组")
-        bk_biz_id = serializers.IntegerField(label="业务ID")
         overwrite = serializers.BooleanField(default=False, label="是否覆盖其他分组配置")
         file = serializers.FileField(label="配置文件")
+        incremental = serializers.BooleanField(default=False)
 
         def validate(self, attrs):
             # 校验文件格式
@@ -566,12 +570,13 @@ class ImportConfigFileResource(Resource):
         return configs
 
     @step(state="IMPORT", message=_lazy("配置导入中..."))
-    def import_config(self, bk_biz_id: int, app: str, overwrite: bool, configs: dict):
+    def import_config(self, bk_biz_id: int, app: str, overwrite: bool, configs: dict, incremental: bool = False):
         return ImportConfigResource().request(
             bk_biz_id=bk_biz_id,
             app=app,
             overwrite=overwrite,
             configs=configs,
+            incremental=incremental,
         )
 
     def perform_request(self, params):
@@ -587,6 +592,7 @@ class ImportConfigFileResource(Resource):
             app=params["app"],
             overwrite=params["overwrite"],
             configs=configs,
+            incremental=params["incremental"],
         )
         task.result = result
         task.save()

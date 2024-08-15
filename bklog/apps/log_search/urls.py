@@ -26,6 +26,7 @@ from apps.log_search.views import (
     aggs_views,
     bizs_views,
     favorite_search_views,
+    field_views,
     index_set_views,
     meta_views,
     result_table_views,
@@ -51,5 +52,7 @@ router.register(r"search/favorite_group", favorite_search_views.FavoriteGroupVie
 router.register(r"search/favorite_union", favorite_search_views.FavoriteUnionSearchViewSet, basename="favorite_union")
 
 router.register(r"result_table", result_table_views.ResultTablesViewSet, basename="result_table")
+
+router.register(r"field/index_set", field_views.FieldViewSet, basename="field")
 
 urlpatterns = [url(r"^", include(router.urls))]

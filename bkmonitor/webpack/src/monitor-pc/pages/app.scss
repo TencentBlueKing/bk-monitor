@@ -440,6 +440,9 @@
   .monitor-logo {
     width: 32px;
     height: 32px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
   }
 
   .monitor-footer {
@@ -505,7 +508,11 @@
 
   @media screen and (max-width: 1500px) {
     .bk-navigation-title {
-      flex: 0 0 144px !important;
+      flex: 0 0 154px !important;
+
+      .title-desc {
+        margin-left: 6px;
+      }
     }
   }
 }

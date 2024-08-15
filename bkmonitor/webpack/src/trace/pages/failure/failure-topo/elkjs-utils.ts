@@ -25,11 +25,11 @@
  */
 import Elkjs from 'elkjs';
 
-import { type Edge, type VirtaulNode } from './format-topo-data';
+import type { Edge, VirtaulNode } from './format-topo-data';
 
 let subCombosMap: Record<string, number> = {};
 const space = 30;
-const nodeWidth = 76;
+const nodeWidth = 92;
 const nodeHeight = 92;
 
 const setSubCombosMap = (val: any) => {
@@ -60,7 +60,12 @@ const defaultLayoutOptions = {
 
 const childLayoutOption = {
   'elk.algorithm': 'layered',
-  'elk.direction': 'RIGHT', // 设置为横向布局
+  'elk.direction': 'RIGHT',
+};
+
+const subChildOption = {
+  'elk.algorithm': 'layered',
+  'elk.direction': 'RIGHT',
   'elk.layered.layering.strategy': 'LONGEST_PATH',
   'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
   'elk.layered.mergeEdges': true,
@@ -84,6 +89,20 @@ const convertToElkFormat = data => {
       id: `${edge.source}-${edge.target}`,
       sources: [edge.source],
       targets: [edge.target],
+    });
+  });
+
+  data.nodes.forEach(child => {
+    Object.assign(child, { layoutOptions: subChildOption });
+    (child.children ?? []).forEach(subChild => {
+      if (subChild.isCombo) {
+        Object.assign(child, {
+          layoutOptions: {
+            'elk.algorithm': 'layered',
+            'elk.direction': 'DOWN',
+          },
+        });
+      }
     });
   });
 
@@ -156,6 +175,15 @@ const setSubNodesY = (children: VirtaulNode[], starY: number) => {
   });
 };
 
+const fixNodeYOffset = (nodes, diff) => {
+  nodes.forEach(node => {
+    node.y += diff;
+    if (node.children?.length) {
+      fixNodeYOffset(node.children, diff);
+    }
+  });
+};
+
 /**
  * 优化最终布局
  * @param layouted 计算之后的布局数据
@@ -165,7 +193,12 @@ const setSubNodesY = (children: VirtaulNode[], starY: number) => {
 const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const globalNodes = [];
   const groupByY = new Map<number, VirtaulNode[]>();
-
+  layouted.children.forEach((child, index) => {
+    const prevHeight = index > 0 ? layouted.children[index - 1].height : 0;
+    const diffY = child.y - child.height / 2 + prevHeight;
+    child.y = child.height / 2 + prevHeight;
+    fixNodeYOffset(child.children, diffY);
+  });
   const rootNode = data.nodes.find(node => node.entity.is_root);
   let rootBox = rootNode;
 
@@ -278,13 +311,17 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     };
 
     let diffValue = 0;
-
     const nodeSpace = nodeHeight + space * 2;
     for (let index = 0; index < yKeys.length; index++) {
       if (index > 0 && groupByY.get(yKeys[index])[0].comboId === groupByY.get(yKeys[index - 1])[0].comboId) {
         diffValue = yKeys[index] - yKeys[index - 1];
         if (diffValue < nodeSpace) {
-          const to = yKeys[index - 1] + nodeSpace;
+          /** nodeHeight 为固定节点高度，但如果是一个子combo高度是不确定的，求的这一层级的最大高度和nodeHeight做对比  */
+          const maxHeight = Math.max(...groupByY.get(yKeys[index - 1]).map(node => node.height));
+          /** height > 间距表示可能出现重叠或者间距过小 */
+          const diffY = maxHeight - nodeSpace;
+          const to = yKeys[index - 1] + nodeSpace + (diffY > 0 ? diffY : 0);
+
           updateNodeY(to, index);
         }
 
@@ -297,7 +334,6 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
 
     yKeys = [...groupByY.keys()];
     yKeys.sort((a, b) => b - a);
-
     let preLeveYVal = null;
     yKeys.forEach(key => {
       const nodes = groupByY.get(key);
@@ -319,7 +355,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
         }
       });
 
-      const rightNodes = nodes.filter(node => node.x > x);
+      const rightNodes = nodes.filter(node => node.x >= x);
       rightNodes.sort((a, b) => a.subNodes?.length - b.subNodes?.length);
       rightNodes.sort((a, b) => b.referenceRoot.length - a.referenceRoot.length);
 
@@ -350,8 +386,14 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const leftPdding = Math.max(...usefullNodes.filter(node => node.x === globalMinX).map(node => node.width));
   const rightPadding = Math.max(...usefullNodes.filter(node => node.x === globalMaxX).map(node => node.width));
   const globalWidth = globalMaxX - globalMinX + leftPdding + rightPadding;
-  Object.assign(data.combos[0], { width: globalWidth, fixSize: [globalWidth, data.combos[0].height] });
-  Object.assign(data.combos[1], { width: globalWidth, fixSize: [globalWidth, data.combos[1].height] });
+  Object.assign(data.combos[0], {
+    width: globalWidth,
+    fixSize: [globalWidth, data.combos[0].height],
+  });
+  Object.assign(data.combos[1], {
+    width: globalWidth,
+    fixSize: [globalWidth, data.combos[1].height],
+  });
 
   const paddingLeft = globalMinX < 0 ? -globalMinX : 0;
 
@@ -366,19 +408,23 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     const target = (isCombo ? combos : nodes).find(n => n.id === queryId);
     if (target) {
       Object.assign(target, { x: x + paddingLeft, y });
+      if (isCombo && !node.isRoot) {
+        node.children.forEach((child, index) => {
+          child.x = target.x - target.width / 2 + index * child.width + 10;
+        });
+      }
     }
   });
 };
 
+/** 兼容动态combo数量 */
 const setRootComboStyle = (combos: Array<any>, width) => {
-  const maxWidth = Math.max(...getRootCombos({ combos }).map(combo => combo.width ?? 0), width);
-
-  Object.assign(combos[0], { width: maxWidth, x: width / 2, y: 0, fixSize: [maxWidth, combos[0].height] });
-  Object.assign(combos[1], {
-    width: maxWidth,
-    x: width / 2,
-    y: combos[0].height + combos[1].height / 2 + 15,
-    fixSize: [maxWidth, combos[1].height],
+  const rootCombos = getRootCombos({ combos });
+  const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width, 1440);
+  rootCombos.forEach((combo, index) => {
+    const prevCombo = rootCombos[index - 1];
+    const y = index === 0 ? 0 : prevCombo.y + prevCombo.height + combo.height / 2 + 15 + 30;
+    Object.assign(combo, { width: maxWidth, x: width / 2, y, fixSize: [maxWidth, combo.height + 30] });
   });
 };
 
@@ -466,7 +512,6 @@ const getLayoutData = elkData => {
       return Promise.reject(error);
     });
 };
-
 export default {
   getLayoutData,
   getComboId,

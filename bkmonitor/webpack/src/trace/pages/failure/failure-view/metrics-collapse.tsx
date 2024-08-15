@@ -136,7 +136,7 @@ export default defineComponent({
                 this.isCollapse ? 'icon-mc-arrow-right' : 'icon-mc-arrow-down',
               ]}
               onClick={this.handleToggleCollapse.bind(this, false)}
-            ></i>
+            />
             <span
               class='correlation-metrics-title'
               onClick={this.handleToggleCollapse.bind(this, false)}
@@ -183,7 +183,7 @@ export default defineComponent({
                         disabled: !!this.showLayoutName,
                         appendTo: 'parent',
                       }}
-                    ></i>
+                    />
                     {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
                   </span>
                 </Popover>

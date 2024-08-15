@@ -37,9 +37,13 @@ from metadata.models.bcs import (
     PodMonitorInfo,
     ServiceMonitorInfo,
 )
+from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
-from metadata.service.data_source import stop_or_enable_datasource
+from metadata.service.data_source import (
+    modify_data_id_source,
+    stop_or_enable_datasource,
+)
 from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
@@ -392,6 +396,22 @@ class StopOrEnableDatasource(Resource):
 
     def perform_request(self, request_data):
         stop_or_enable_datasource(request_data["data_id_list"], request_data["is_enabled"])
+
+
+class ModifyDataIdSource(Resource):
+    """更改数据源来源"""
+
+    class RequestSerializer(serializers.Serializer):
+        data_id_list = serializers.ListField(required=True, child=serializers.IntegerField(), label="数据源列表")
+        source_system = serializers.CharField(required=True, label="数据源ID来源平台")
+
+        def validate_source_system(self, source_system: str) -> str:
+            if source_system not in [DataIdCreatedFromSystem.BKDATA.value, DataIdCreatedFromSystem.BKGSE.value]:
+                raise ValidationError("source_system must be one of [bkdata, bkgse]")
+            return source_system
+
+    def perform_request(self, request_data):
+        modify_data_id_source(request_data["data_id_list"], request_data["source_system"])
 
 
 class QueryDataSourceBySpaceUidResource(Resource):

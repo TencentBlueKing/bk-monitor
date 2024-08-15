@@ -339,6 +339,7 @@ export default class SearchComp extends tsc<IProps> {
   // 改变条件时 更新路由参数
   setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null) {
     const { params, query } = this.$route;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
     Object.assign(filterQuery, retrieveParams);
@@ -384,7 +385,7 @@ export default class SearchComp extends tsc<IProps> {
     const stringifyList = filterAddition.map(item => ({
       field: item.id,
       operator: item.operator,
-      value: item.value.join(','),
+      value: item.value,
       isInclude: item.isInclude,
     }));
     if (linkAdditionList?.length) {
@@ -399,7 +400,7 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   // 初始化或从外部下钻添加过来的交互下钻过来的条件
-  pushCondition(field: string, operator: string, value: any, isInclude: boolean) {
+  pushCondition(field: string, operator: string, value: any, isInclude: boolean, isSearchInit = false) {
     const findField = this.filterFields.find(item => item.id === field);
     let findOperatorItem = null;
     // 字段类型并且是包含, 不包含的情况下才会去匹配当前展示的操作符列表元素
@@ -421,30 +422,32 @@ export default class SearchComp extends tsc<IProps> {
     const lastCondition = this.conditionList[this.conditionList.length - 1];
     // 检查操作符是否是包含或不包含匹配短语
     const isContainsType = this.allContainsStrList.includes(operator);
-    // 遍历条件列表
-    for (const cIndex in this.conditionList) {
-      // 获取当前遍历到的条件
-      const currentCondition = this.conditionList[cIndex];
-      // 如果当前条件的操作符和字段与给定的匹配
-      if (currentCondition.operator === operator && currentCondition.id === field && currentCondition.isInclude) {
-        // 如果当前条件的值为空数组
-        if (!currentCondition.value.length) {
-          // 则将输入值数组直接设置为当前条件的值
-          currentCondition.value = inputValueList;
-          return;
-        }
-        // 如果存在具有相同操作符和字段的条件，并且操作符是包含类型
-        if (isExistCondition && isContainsType) {
-          // 如果最后一个条件的字段与给定的匹配
-          if (lastCondition.id === field) {
-            // 则将输入值数组添加到最后一个条件的值中
-            lastCondition.value = [...lastCondition.value, ...inputValueList];
+    if (!isSearchInit) {
+      // 遍历条件列表
+      for (const cIndex in this.conditionList) {
+        // 获取当前遍历到的条件
+        const currentCondition = this.conditionList[cIndex];
+        // 如果当前条件的操作符和字段与给定的匹配
+        if (currentCondition.operator === operator && currentCondition.id === field && currentCondition.isInclude) {
+          // 如果当前条件的值为空数组
+          if (!currentCondition.value.length) {
+            // 则将输入值数组直接设置为当前条件的值
+            currentCondition.value = inputValueList;
             return;
           }
-          if (!lastCondition.value.length) {
-            // 如果最后一个条件的值为空数组，则将输入值数组添加到当前条件的值中
-            currentCondition.value = [...currentCondition.value, ...inputValueList];
-            return;
+          // 如果存在具有相同操作符和字段的条件，并且操作符是包含类型
+          if (isExistCondition && isContainsType) {
+            // 如果最后一个条件的字段与给定的匹配
+            if (lastCondition.id === field && lastCondition.isInclude) {
+              // 则将输入值数组添加到最后一个条件的值中
+              lastCondition.value = [...lastCondition.value, ...inputValueList];
+              return;
+            }
+            if (!lastCondition.value.length && lastCondition.isInclude) {
+              // 如果最后一个条件的值为空数组，则将输入值数组添加到当前条件的值中
+              currentCondition.value = [...currentCondition.value, ...inputValueList];
+              return;
+            }
           }
         }
       }
@@ -487,7 +490,7 @@ export default class SearchComp extends tsc<IProps> {
     }
     addition.forEach(el => {
       const { field, operator, value, isInclude } = el;
-      this.pushCondition(field, operator, value, isInclude);
+      this.pushCondition(field, operator, value, isInclude, true);
     });
   }
 
@@ -576,7 +579,7 @@ export default class SearchComp extends tsc<IProps> {
       .map(item => ({
         field: item.id,
         operator: item.operator,
-        value: item.value.join(','),
+        value: item.value,
       }));
     this.handleSearchAddChange(addition, isQuery, isForceQuery);
   }

@@ -27,12 +27,13 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import EventDetail from '../../../store/modules/event-detail';
 import LoadingBox from './loading-box';
 import NoticeStatusDialog from './notice-status-dialog';
-import { IDetail } from './type';
+
+import type { IDetail } from './type';
+import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './circulation-record.scss';
 
@@ -320,7 +321,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
               on-click={ () => this.beforeCollapseChange(item)}></span> : undefined
         } */}
         <span class='item-title-icon'>
-          <i class={['icon-monitor', item.logIcon]}></i>
+          <i class={['icon-monitor', item.logIcon]} />
         </span>
         <span class='item-title-date'>{item.expand ? item.time : item.expandTime}</span>
       </div>
@@ -461,7 +462,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         <div
           style={{ borderColor: item.border ? '#979BA5' : '#DCDEE5' }}
           class='item-border'
-        ></div>
+        />
       </div>
     );
   }
@@ -496,13 +497,13 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             style={{ display: this.showLoadingBox ? 'flex' : 'none' }}
             class='log-list-loading'
           >
-            <LoadingBox></LoadingBox>
+            <LoadingBox />
           </li>
         </ul>
         <NoticeStatusDialog
           v-model={this.isShowHandleStatus}
           actionId={`${this.offsetId}`}
-        ></NoticeStatusDialog>
+        />
       </div>
     );
   }

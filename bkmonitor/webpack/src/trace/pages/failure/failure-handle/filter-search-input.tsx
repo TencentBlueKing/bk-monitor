@@ -23,21 +23,51 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch, inject, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Input, Message } from 'bkui-vue';
-import { $bkPopover } from 'bkui-vue/lib/popover';
+import { Input, Message, Popover } from 'bkui-vue';
 import { listSearchHistory } from 'monitor-api/modules/alert';
+import { listSearchFavorite } from 'monitor-api/modules/model';
 import { createSearchFavorite, destroySearchFavorite, partialUpdateSearchFavorite } from 'monitor-api/modules/model';
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
-import { getEventPaths } from 'monitor-pc/utils';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
-import { type ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
 import debounceDecorator from '../../common/debounce-decorator';
 
+import type { ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
+const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 import './filter-search-input.scss';
 
+export const commonAlertFieldMap = {
+  status: [
+    {
+      id: isEn ? 'ABNORMAL' : '未恢复',
+      name: window.i18n.tc('未恢复'),
+    },
+    {
+      id: isEn ? 'RECOVERED' : '已恢复',
+      name: window.i18n.tc('已恢复'),
+    },
+    {
+      id: isEn ? 'CLOSED' : '已关闭',
+      name: window.i18n.tc('已关闭'),
+    },
+  ],
+  severity: [
+    {
+      id: isEn ? 1 : '致命',
+      name: window.i18n.tc('致命'),
+    },
+    {
+      id: isEn ? 2 : '预警',
+      name: window.i18n.tc('预警'),
+    },
+    {
+      id: isEn ? 3 : '提醒',
+      name: window.i18n.tc('提醒'),
+    },
+  ],
+};
 type PanelType = 'favorite' | 'field' | 'history';
 type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
 interface IFocusData {
@@ -113,11 +143,7 @@ export default defineComponent({
     },
     inputStatus: {
       type: String,
-      default: 'success',
-    },
-    valueMap: {
-      type: Object,
-      default: () => ({}),
+      default: '',
     },
     isFillId: {
       type: Boolean,
@@ -128,11 +154,14 @@ export default defineComponent({
   setup(props, { emit }) {
     const textTypeList = ['field', 'method', 'value', 'condition'];
     const { t } = useI18n();
+    const valueMap = inject<Ref<any>>('valueMap');
     const inputValue = ref<string>('');
     const focusData = ref<IFocusData>({});
     const panelWidth = ref<number>(700);
+    const showValueMap = ref(false);
     const blurInPanel = ref<boolean>(false);
     const popoverInstance = ref(null);
+    const showPopoverInstance = ref(false);
     const popoverMenuInstance = ref(null);
     const filterPanelRef = ref(null);
     const filterSearchRef = ref(null);
@@ -421,30 +450,30 @@ export default defineComponent({
       },
     ]);
     const favoriteDisable = computed(() => {
-      return !Boolean(inputValue.value.length);
+      return Boolean(!inputValue.value.length);
     });
     const fieldList = computed(() => {
-      let list = [];
-      switch (props.searchType) {
-        case 'alert':
-          list = alertFieldList.value;
-          break;
-        case 'action':
-          list = actionFieldList.value;
-          break;
-        case 'event':
-          list = eventFieldList.value;
-          break;
-        case 'incident':
-          list = incidentFieldList.value;
-          break;
-      }
+      let list = alertFieldList.value;
+      // switch (props.searchType) {
+      //   case 'alert':
+      //     list = alertFieldList.value;
+      //     break;
+      //   case 'action':
+      //     list = actionFieldList.value;
+      //     break;
+      //   case 'event':
+      //     list = eventFieldList.value;
+      //     break;
+      //   case 'incident':
+      //     list = incidentFieldList.value;
+      //     break;
+      // }
       return isEn.value ? list.map(item => ({ ...item, name: item.id })) : list;
     });
     const menuList = computed(() => {
-      if (focusData.value.show === 'condition') return conditionList;
-      if (focusData.value.show === 'method') return methodList;
-      if (focusData.value.show === 'value') return props.valueMap?.[focusData.value.filedId] || [];
+      if (focusData.value.show === 'condition') return conditionList.value;
+      if (focusData.value.show === 'method') return methodList.value;
+      if (focusData.value.show === 'value') return valueMap.value?.[focusData.value.filedId] || [];
       return [];
     });
     debounceDecorator(20);
@@ -454,24 +483,27 @@ export default defineComponent({
      * @return {*}
      */
     const handleInputFocus = async () => {
+      destroyPopoverInstance();
       if (inputValue.value?.trim?.().length < 1) {
         handleMainPopoverShow();
         return;
       }
       const ret = await handleSetInputValue();
+
       if (ret.show === 'field') {
         focusData.value = ret;
         handleMainPopoverShow();
       } else if (['method', 'condition', 'value'].includes(ret.show.toString())) {
         focusData.value = ret;
         if (ret.show.toString() === 'value' && !menuList.value.length) {
-          destroyMenuPopoverInstance();
           destroyPopoverInstance();
           return;
         }
-        handleMenuPopoverShow();
+        setTimeout(() => {
+          handleMainPopoverShow();
+        }, 200);
       } else {
-        destroyMenuPopoverInstance();
+        blurInPanel.value = false;
         destroyPopoverInstance();
         focusData.value = {};
       }
@@ -481,20 +513,19 @@ export default defineComponent({
      * @param {*}
      * @return {*}
      */
-    const handleSetInputValue = () => {
+    function handleSetInputValue(): Promise<IFocusData> {
       let valueText = inputValue.value.trimStart();
       while (/\s\s/g.test(valueText)) {
         valueText = valueText.replace(/\s\s/g, ' ');
       }
       inputValue.value = valueText;
-      return new Promise<IFocusData>(resolve => {
+      return new Promise(resolve => {
         setTimeout(() => {
-          const offset = inputRef.value.selectionStart;
+          const el = inputRef.value.$el.querySelector('.bk-input--text');
+          const offset = el.selectionStart;
           const textList = handleGetTextList(valueText);
           textListArr.value = textList;
-          const filterItemIndex = textList.findIndex(item => {
-            return offset >= item.startOffset && offset <= item.endOffset;
-          });
+          const filterItemIndex = textList.findIndex(item => offset >= item.startOffset && offset <= item.endOffset);
           const filterItem = filterItemIndex > -1 ? textList[filterItemIndex] : null;
           if (!filterItem) {
             if (textList.length) {
@@ -552,7 +583,12 @@ export default defineComponent({
                 }
               }
             } else {
-              const list = this[`${filterItem.dataType}List`] as IListItem[];
+              const listMap = {
+                conditionList: conditionList.value,
+                methodList: methodList.value,
+                fieldList: fieldList.value,
+              };
+              const list = listMap[`${filterItem.dataType}List`] as IListItem[];
               const item = list.find(
                 item => item.id.trim() === filterItem.text || item.name.toString().trim() === filterItem.text
               );
@@ -591,8 +627,8 @@ export default defineComponent({
           }
         }, 20);
       });
-    };
-    const handleGetTextList = (valueText: string) => {
+    }
+    function handleGetTextList(valueText: string) {
       const list = valueText.split(/\s(and|or)/i);
       const textList: FilterText[] = [];
       let startOffset = 0;
@@ -623,132 +659,37 @@ export default defineComponent({
           startOffset = Math.min(startOffset, valueText.length);
         });
       return textList;
+    }
+
+    const handleMainPopoverHidden = () => {
+      showPopoverInstance.value = false;
+      showValueMap.value = false;
     };
-    const handleMainPopoverShow = (onShown?: () => void) => {
-      destroyMenuPopoverInstance();
-      panelWidth.value = filterSearchRef.value.getBoundingClientRect().width - 64;
-      if (!popoverInstance.value) {
-        popoverInstance.value = $bkPopover({
-          maxWidth: 800,
-          always: false,
-          target: filterSearchRef.value,
-          content: filterPanelRef.value,
-          arrow: false,
-          trigger: 'manual',
-          placement: 'bottom',
-          theme: 'light common-monitor',
-          isShow: false,
-          disabled: false,
-          width: 700,
-          height: 'auto',
-          maxHeight: '300',
-          allowHtml: true,
-          renderType: 'auto',
-          padding: 0,
-          offset: 0,
-          zIndex: 9999,
-          disableTeleport: false,
-          autoPlacement: false,
-          autoVisibility: false,
-          disableOutsideClick: false,
-          disableTransform: false,
-          modifiers: [],
-          popoverDelay: 0,
-          extCls: 'filter-search-input-popover',
-          componentEventDelay: 0,
-          forceClickoutside: false,
-          immediate: false,
-        });
-        popoverInstance.value.onShow = () => {
-          typeof onShown === 'function' && onShown();
-        };
-        popoverInstance.value.onAfterHidden = () => {
-          popoverInstance.value.destroy();
-          popoverInstance.value = null;
-        };
-      } else {
-        popoverInstance.value.content = filterPanelRef.value;
-        popoverInstance.value.onShow = () => {
-          typeof onShown === 'function' && onShown();
-        };
-      }
-      popoverInstance.value?.popperInstance?.update?.();
-      popoverInstance.value?.show?.(1000);
-      mouseDownController.value = new AbortController();
-      document.addEventListener('mousedown', handleMouseDown, { signal: mouseDownController.value.signal });
+    const handleMainPopoverShow = (showFavorite = false) => {
+      showValueMap.value = showFavorite
+        ? false
+        : ['method', 'condition', 'value'].includes(focusData.value?.show?.toString());
+      showPopoverInstance.value = true;
     };
-    const handleMouseDown = (event: Event) => {
-      const pathsClass = JSON.parse(JSON.stringify(getEventPaths(event).map(item => item.className)));
-      if (
-        !pathsClass.includes('filter-input-wrap') &&
-        !pathsClass.includes('search-input') &&
-        favoriteList.value.every(item => !item.edit)
-      ) {
-        destroyPopoverInstance();
+    const handleClickoutside = ({ event }: { event: Event }) => {
+      if (showPopoverInstance.value) {
+        !filterSearchRef.value.contains(event.target as Node) && handleMainPopoverHidden();
       }
     };
-    const destroyMenuPopoverInstance = () => {
+    const handleAfterHidden = () => {
+      favoriteList.value = favoriteList.value.filter(item => !item.edit);
       blurInPanel.value = false;
-      popoverMenuInstance.value?.hide?.(0);
-      popoverMenuInstance.value?.destroy?.();
-      popoverMenuInstance.value = null;
+      /** 处理非正常关闭弹窗下，值没有被置为false */
+      setTimeout(() => {
+        showPopoverInstance.value && handleMainPopoverHidden();
+      }, 50);
     };
     const destroyPopoverInstance = () => {
       blurInPanel.value = false;
-      popoverInstance.value?.hide?.(0);
-      popoverInstance.value?.destroy?.();
-      popoverInstance.value = null;
       mouseDownController.value?.abort?.();
     };
-    const handleMenuPopoverShow = () => {
-      destroyPopoverInstance();
-      setTimeout(() => {
-        const rect = preTextRef.value.getBoundingClientRect();
-        const offsetX = rect.width + 40;
-        const offsetY = -2;
-        if (!popoverMenuInstance.value) {
-          popoverInstance.value = $bkPopover({
-            maxWidth: 400,
-            always: false,
-            target: filterSearchRef.value,
-            content: menuPanelRef.value,
-            arrow: false,
-            trigger: 'manual',
-            placement: 'bottom',
-            theme: 'light common-monitor',
-            isShow: false,
-            disabled: false,
-            width: 300,
-            height: 'auto',
-            maxHeight: '300',
-            allowHtml: true,
-            renderType: 'auto',
-            padding: 0,
-            offset: { mainAxis: offsetX, crossAxis: offsetY },
-            zIndex: 9999,
-            disableTeleport: false,
-            autoPlacement: false,
-            autoVisibility: false,
-            disableOutsideClick: false,
-            disableTransform: false,
-            modifiers: [],
-            popoverDelay: 0,
-            extCls: 'filter-menu-popover',
-            componentEventDelay: 0,
-            forceClickoutside: false,
-            immediate: false,
-          });
-        } else {
-          popoverMenuInstance.value.set({
-            offset: `${offsetX}, ${offsetY}`,
-          });
-        }
-        popoverMenuInstance.value?.popperInstance?.update?.();
-        popoverMenuInstance.value?.show?.(100);
-      }, 20);
-    };
-    const handleInput = (e: any) => {
-      inputValue.value = e.target.value;
+    const handleInput = (val: string) => {
+      inputValue.value = val;
     };
     /**
      * @description: 搜索条件变更时触发
@@ -763,6 +704,23 @@ export default defineComponent({
         emit('change', inputValue.value);
       }
     };
+    /**
+     * @description: 收藏
+     * @param {*}
+     * @return {*}
+     */
+    const handleGetSearchFavorite = async () => {
+      const data = await listSearchFavorite({ search_type: props.searchType });
+      favoriteList.value = data
+        ?.filter(item => item?.params?.query_string)
+        .map(item => ({
+          id: item.id,
+          name: item.name,
+          queryString: item.params.query_string,
+          edit: false,
+          fakeName: item.name,
+        }));
+    };
     const handleGetSearchHistory = async () => {
       const data = await listSearchHistory({ search_type: props.searchType });
       historyList.value = data
@@ -773,6 +731,7 @@ export default defineComponent({
       if (!blurInPanel.value) {
         emit('blur', inputValue.value);
         handleChange();
+        handleMainPopoverHidden();
       }
     };
     /**
@@ -819,11 +778,12 @@ export default defineComponent({
         inputValue.value += `${name}${seperator}`;
         selection = inputValue.value.length;
       }
-      inputRef.value.selectionStart = selection;
-      inputRef.value.selectionEnd = selection;
+      const el = inputRef.value.$el.querySelector('.bk-input--text');
+      el.selectionStart = selection;
+      el.selectionEnd = selection;
       setTimeout(() => {
-        inputRef.value.selectionStart = selection;
-        inputRef.value.selectionEnd = selection;
+        el.selectionStart = selection;
+        el.selectionEnd = selection;
         handleInputFocus();
       }, 20);
     };
@@ -833,25 +793,29 @@ export default defineComponent({
       blurInPanel.value = true;
       item.edit = true;
       setTimeout(() => {
-        // (this.$refs[`favorite-input-${item.id}`] as any)?.focus();
+        favoriteInputRef.value?.focus();
       }, 20);
     };
     // 删除收藏触发
     const handleDeleteFavorite = async (e: MouseEvent, item: IListItem, index: number) => {
       e.stopPropagation();
       blurInPanel.value = true;
-      const data = await destroySearchFavorite(item.id);
-      Message({
-        message: data ? t('删除成功') : t('删除失败'),
-        theme: data ? 'success' : 'error',
-      });
-      if (data) {
+      try {
+        await destroySearchFavorite(item.id);
+        Message({
+          message: t('删除成功'),
+          theme: 'success',
+        });
         favoriteList.value.splice(index, 1);
         item.edit = false;
+        inputRef.value.focus();
+        blurInPanel.value = false;
+      } catch (err) {
+        Message({
+          message: t('删除失败'),
+          theme: 'error',
+        });
       }
-      //   await this.$nextTick();
-      inputRef.value.focus();
-      blurInPanel.value = false;
     };
     const handleFavoriteInputBlur = (e: MouseEvent, item: IListItem) => {
       if (item.id === 'favorite') {
@@ -911,19 +875,19 @@ export default defineComponent({
               queryString: data.params?.query_string || '',
               edit: false,
             });
+            handleMainPopoverHidden();
           }
           item.edit = !data;
         } else {
-          const data = await partialUpdateSearchFavorite({
+          const data = await partialUpdateSearchFavorite(item.id, {
             id: item.id,
-            params: {
-              name: item.fakeName,
-            },
+            name: item.fakeName,
           });
           Message({
             message: data ? t('更新成功') : t('更新失败'),
             theme: data ? 'success' : 'error',
           });
+          showPopoverInstance.value = !data;
           item.name = data ? item.fakeName : item.name;
           item.edit = !data;
         }
@@ -932,6 +896,7 @@ export default defineComponent({
     const handleSelectPanelItem = (e: MouseEvent, id: PanelType, item: IListItem) => {
       e.preventDefault();
       e.stopPropagation();
+      handleMainPopoverHidden();
       if (id === 'field') {
         if (!inputValue.value?.length) {
           inputValue.value = item.special ? `${item.id}.` : `${item.name} : `;
@@ -954,53 +919,59 @@ export default defineComponent({
     const commonPanelComponent = (id: PanelType, list: any[]) => {
       return (
         <ul class='panel-list'>
-          {list.map((item, index) => (
-            <li
-              key={item.id}
-              class={[
-                'panel-list-item',
-                {
-                  'item-active':
-                    id === 'field' &&
-                    focusData.value.show === 'field' &&
-                    (item.id === focusData.value.nextText || item.name === focusData.value.nextText),
-                },
-              ]}
-              onMousedown={e => !item.edit && handleSelectPanelItem(e, id, item)}
-            >
-              {!item.edit && <span>{item.name}</span>}
-              {id === 'field' && !item.edit && !isEn.value && <span class='item-id'>({item.id})</span>}
-              {id === 'favorite' &&
-                !item.edit && [
-                  <i
-                    class='icon-monitor icon-bianji edit-icon'
-                    onMousedown={e => handleEidtFavorite(e, item)}
-                  />,
-                  <i
-                    class='icon-monitor icon-mc-close close-icon'
-                    onMousedown={e => handleDeleteFavorite(e, item, index)}
-                  />,
-                ]}
-              {id === 'favorite' &&
-                item.edit && [
-                  <Input
-                    ref={`favorite-input-${item.id}`}
-                    class='favorite-input'
-                    v-model={item.fakeName}
-                    placeholder={t('输入收藏名称')}
-                    type='text'
-                    on-blur={e => handleFavoriteInputBlur(e, item)}
-                  />,
-                  <i
-                    class={[
-                      'icon-monitor icon-mc-check-small check-icon',
-                      { 'is-diabled': !item?.fakeName?.trim?.().length },
-                    ]}
-                    onMousedown={e => handleUpdateFavorite(e, item)}
-                  />,
-                ]}
-            </li>
-          ))}
+          {list.map(
+            (item, index) =>
+              (item.name || item.edit) && (
+                <li
+                  key={item.id}
+                  class={[
+                    'panel-list-item',
+                    {
+                      'item-active':
+                        id === 'field' &&
+                        focusData.value.show === 'field' &&
+                        (item.id === focusData.value.nextText || item.name === focusData.value.nextText),
+                    },
+                  ]}
+                  onMousedown={e => !item.edit && handleSelectPanelItem(e, id, item)}
+                >
+                  {!item.edit && <span class='flex'>{item.name}</span>}
+                  {id === 'field' && !item.edit && !isEn.value && <span class='item-id flex'>({item.id})</span>}
+                  {id === 'favorite' && !item.edit && item.name && (
+                    <span class='flex'>
+                      <i
+                        class='icon-monitor icon-bianji edit-icon'
+                        onMousedown={e => handleEidtFavorite(e, item)}
+                      />
+                      <i
+                        class='icon-monitor icon-mc-close close-icon'
+                        onMousedown={e => handleDeleteFavorite(e, item, index)}
+                      />
+                    </span>
+                  )}
+                  {id === 'favorite' && item.edit && (
+                    <span class='flex'>
+                      <Input
+                        ref={favoriteInputRef as any}
+                        class='favorite-input'
+                        v-model={item.fakeName}
+                        placeholder={t('输入收藏名称')}
+                        type='text'
+                        on-blur={e => handleFavoriteInputBlur(e, item)}
+                      />
+                      <i
+                        class={[
+                          'icon-monitor icon-mc-check-small check-icon',
+                          { 'is-diabled': !item?.fakeName?.trim?.().length },
+                        ]}
+                        onMousedown={e => handleUpdateFavorite(e, item)}
+                      />
+                      ,
+                    </span>
+                  )}
+                </li>
+              )
+          )}
         </ul>
       );
     };
@@ -1037,20 +1008,19 @@ export default defineComponent({
             edit: true,
           });
         favoriteList.value.forEach(item => {
-          if (!!item.name) {
+          if (item.name) {
             item.edit = false;
             item.fakeName = String(item.name);
           }
         });
-        handleMainPopoverShow(() => {
-          setTimeout(() => {
-            blurInPanel.value = true;
-            favoriteInputRef.value?.focus();
-          }, 20);
-        });
+        handleMainPopoverShow(true);
+        setTimeout(() => {
+          blurInPanel.value = true;
+          favoriteInputRef.value?.focus();
+        }, 20);
         emit('favorite');
       } else {
-        handleMainPopoverShow();
+        handleMainPopoverShow(true);
       }
     };
     /**
@@ -1065,6 +1035,8 @@ export default defineComponent({
     const handleClear = () => {
       inputValue.value = '';
       isManualInput.value = false;
+      focusData.value = {};
+      handleMainPopoverHidden();
       emit('clear', '');
     };
     watch(
@@ -1081,23 +1053,30 @@ export default defineComponent({
       () => props.searchType,
       () => {
         handleGetSearchHistory();
-        // handleGetSearchFavorite();
+        handleGetSearchFavorite();
       },
       { immediate: true }
     );
+    const inputStatusVal = computed(() => {
+      return props.inputStatus;
+    });
     return {
       t,
       handleClear,
       menuList,
       commonPanelComponent,
       panelEmptyComponent,
+      handleClickoutside,
       filterSearchRef,
+      popoverInstance,
+      showValueMap,
       filterPanelRef,
       inputRef,
       favoriteDisable,
       inputValue,
       focusData,
       panelWidth,
+      handleAfterHidden,
       handleInputFocus,
       handleInput,
       handleBlur,
@@ -1105,6 +1084,7 @@ export default defineComponent({
       alertFieldList,
       incidentFieldList,
       actionFieldList,
+      showPopoverInstance,
       eventFieldList,
       historyList,
       favoriteList,
@@ -1113,88 +1093,161 @@ export default defineComponent({
       handleSetFavorite,
       preTextRef,
       menuPanelRef,
+      inputStatusVal,
     };
   },
   render() {
     return (
-      <div
-        ref='filterSearchRef'
-        class='filter-input-wrap'
+      <Popover
+        ref='popoverInstance'
+        extCls='filter-search-input-popover'
+        isShow={this.showPopoverInstance}
+        maxWidth={680}
+        placement='bottom'
+        popoverDelay={[0, 99999999]}
+        theme='light common-monitor'
+        trigger='manual'
+        onAfterHidden={this.handleAfterHidden}
+        onClickoutside={this.handleClickoutside}
       >
-        <div class='filter-search'>
-          <Input
-            ref='inputRef'
-            style={{ borderColor: this.$props.inputStatus === 'error' ? '#ff5656' : '#c4c6cc' }}
-            v-model={this.inputValue}
-            v-slots={{
-              prefix: () => <i class='icon-monitor icon-filter-fill filter-icon' />,
-              suffix: () => (
-                <span
-                  class={['filter-favorites', { 'is-disable': this.favoriteDisable }]}
-                  onMousedown={this.handleSetFavorite}
-                >
-                  <i class='icon-monitor icon-mc-uncollect favorite-icon'></i>
-                  {this.t('收藏')}
-                </span>
-              ),
-            }}
-            clearable={true}
-            placeholder={String(this.t('输入搜索条件'))}
-            onBlur={this.handleBlur}
-            onClear={this.handleClear}
-            onFocus={this.handleInputFocus}
-            onInput={this.handleInput}
-            onKeydown={this.handleKeydown}
-          />
-        </div>
-        <div style='display: none;'>
-          <div
-            ref='filterPanelRef'
-            style={{ width: `${this.panelWidth}px` }}
-            class='filter-input-panel'
-          >
-            <div class='field-panel common-panel'>
-              <div class='panel-title'>{this.t('建议字段')}</div>
-              {this.fieldList?.length ? this.commonPanelComponent('field', this.fieldList) : this.panelEmptyComponent()}
-            </div>
-            <div class='search-panel common-panel'>
-              <div class='panel-title'>{this.t('最近搜索')}</div>
-              {this.historyList?.length
-                ? this.commonPanelComponent('history', this.historyList)
-                : this.panelEmptyComponent(this.t('暂无搜索'))}
-            </div>
-            <div class='favorite-panel common-panel'>
-              <div class='panel-title'>{this.t('收藏')}</div>
-              {this.favoriteList?.length
-                ? this.commonPanelComponent('favorite', this.favoriteList)
-                : this.panelEmptyComponent(this.t('暂无收藏'))}
-            </div>
-          </div>
-        </div>
-        <div style='display: none;'>
-          <ul
-            ref='menuPanelRef'
-            class='condition-list'
-          >
-            {this.menuList.length
-              ? this.menuList.map(item => (
-                  <li
-                    key={item.id}
-                    class={[
-                      'condition-list-item',
-                      {
-                        'item-active': item.id === this.focusData.nextText || item.name === this.focusData.nextText,
-                      },
-                    ]}
-                    onMousedown={e => this.handleSelectMenuItem(e, item)}
+        {{
+          content: () => {
+            return this.showValueMap ? (
+              <ul
+                ref='menuPanelRef'
+                class='condition-list'
+              >
+                {this.menuList.length
+                  ? this.menuList.map(item => (
+                      <li
+                        key={item.id}
+                        class={[
+                          'condition-list-item',
+                          {
+                            'item-active': item.id === this.focusData.nextText || item.name === this.focusData.nextText,
+                          },
+                        ]}
+                        onMousedown={e => this.handleSelectMenuItem(e, item)}
+                      >
+                        {item.name.toString().replace(/"/gm, '')}
+                      </li>
+                    ))
+                  : undefined}
+              </ul>
+            ) : (
+              <div
+                ref='filterPanelRef'
+                style='width: 100% !important;'
+                class='filter-input-panel'
+              >
+                <div class='field-panel common-panel'>
+                  <div class='panel-title'>{this.t('建议字段')}</div>
+                  {this.fieldList?.length
+                    ? this.commonPanelComponent('field', this.fieldList)
+                    : this.panelEmptyComponent()}
+                </div>
+                <div class='search-panel common-panel'>
+                  <div class='panel-title'>{this.t('最近搜索')}</div>
+                  {this.historyList?.length
+                    ? this.commonPanelComponent('history', this.historyList)
+                    : this.panelEmptyComponent(this.t('暂无搜索'))}
+                </div>
+                <div class='favorite-panel common-panel'>
+                  <div class='panel-title'>{this.t('收藏')}</div>
+                  {this.favoriteList?.length
+                    ? this.commonPanelComponent('favorite', this.favoriteList)
+                    : this.panelEmptyComponent(this.t('暂无收藏'))}
+                </div>
+              </div>
+            );
+          },
+          default: () => {
+            return (
+              <div
+                ref='filterSearchRef'
+                class='filter-input-wrap'
+              >
+                <div class={['filter-search', { error: this.inputStatusVal === 'error' }]}>
+                  <Input
+                    ref='inputRef'
+                    v-model={this.inputValue}
+                    v-slots={{
+                      prefix: () => <i class='icon-monitor icon-filter-fill filter-icon' />,
+                      suffix: () => (
+                        <span
+                          class={['filter-favorites', { 'is-disable': this.favoriteDisable }]}
+                          onMousedown={!this.favoriteDisable && this.handleSetFavorite}
+                        >
+                          <i class='icon-monitor icon-mc-uncollect favorite-icon' />
+                          {this.t('收藏')}
+                        </span>
+                      ),
+                    }}
+                    clearable={true}
+                    placeholder={String(this.t('输入搜索条件'))}
+                    onBlur={this.handleBlur}
+                    onClear={this.handleClear}
+                    onEnter={this.handleBlur}
+                    onFocus={this.handleInputFocus}
+                    onInput={this.handleInput}
+                    onKeydown={this.handleKeydown}
+                  />
+                </div>
+                <div style='display: none;'>
+                  <div
+                    ref='filterPanelRef'
+                    // style={{ width: `${this.panelWidth}px` }}
+                    class='filter-input-panel'
                   >
-                    {item.name.toString().replace(/"/gm, '')}
-                  </li>
-                ))
-              : undefined}
-          </ul>
-        </div>
-      </div>
+                    <div class='field-panel common-panel'>
+                      <div class='panel-title'>{this.t('建议字段')}</div>
+                      {this.fieldList?.length
+                        ? this.commonPanelComponent('field', this.fieldList)
+                        : this.panelEmptyComponent()}
+                    </div>
+                    <div class='search-panel common-panel'>
+                      <div class='panel-title'>{this.t('最近搜索')}</div>
+                      {this.historyList?.length
+                        ? this.commonPanelComponent('history', this.historyList)
+                        : this.panelEmptyComponent(this.t('暂无搜索'))}
+                    </div>
+                    <div class='favorite-panel common-panel'>
+                      <div class='panel-title'>{this.t('收藏')}</div>
+                      {this.favoriteList?.length
+                        ? this.commonPanelComponent('favorite', this.favoriteList)
+                        : this.panelEmptyComponent(this.t('暂无收藏'))}
+                    </div>
+                  </div>
+                </div>
+                <div style='display: none;'>
+                  <ul
+                    ref='menuPanelRef'
+                    class='condition-list'
+                  >
+                    {this.menuList.length
+                      ? this.menuList.map(item => (
+                          <li
+                            key={item.id}
+                            class={[
+                              'condition-list-item',
+                              {
+                                'item-active':
+                                  item.id === this.focusData.nextText || item.name === this.focusData.nextText,
+                              },
+                            ]}
+                            onMousedown={e => this.handleSelectMenuItem(e, item)}
+                          >
+                            {item.name.toString().replace(/"/gm, '')}
+                          </li>
+                        ))
+                      : undefined}
+                  </ul>
+                </div>
+              </div>
+            );
+          },
+        }}
+      </Popover>
     );
   },
 });

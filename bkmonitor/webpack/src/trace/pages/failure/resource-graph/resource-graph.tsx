@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { type Ref, defineComponent, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -35,19 +35,21 @@ import {
   registerEdge,
   registerLayout,
   registerNode,
-  Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading } from 'bkui-vue';
 import { incidentTopologyUpstream } from 'monitor-api/modules/incident';
+import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
-import { type ITopoCombo, type ITopoData, type ITopoNode } from '../failure-topo/types';
+import TopoTooltip from '../failure-topo/topo-tppltip-plugin';
 import { getNodeAttrs } from '../failure-topo/utils';
 import { useIncidentInject } from '../utils';
 import { createGraphData } from './resource-data';
+
+import type { ITopoCombo, ITopoData, ITopoNode, IEdge } from '../failure-topo/types';
 
 import './resource-graph.scss';
 
@@ -66,8 +68,12 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    modelData: {
+      type: Object,
+      default: () => {},
+    },
   },
-  emits: ['toDetail'],
+  emits: ['toDetail', 'hideToolTips'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const graphRef = ref<HTMLElement>(null);
@@ -85,6 +91,7 @@ export default defineComponent({
     /** 缓存所有节点的位置 */
     let maxNodeWidth = 0;
     const tooltipsModel = shallowRef();
+    const tooltipsEdge: Ref<IEdge> = shallowRef();
     const tooltipsType = ref<string>('node');
     const tooltipsRef = ref<InstanceType<typeof FailureTopoTooltips>>();
     const incidentId = useIncidentInject();
@@ -121,6 +128,7 @@ export default defineComponent({
 
     /** 删除展开的combo 并清除combo的信息 */
     const deleteChildCombo = (comboItem, needUpdate = true) => {
+      maxNodeWidth = 0;
       const comboModel = comboItem.getModel();
       graphData.value.combos = graphData.value.combos.filter(combo => combo && combo.id !== comboModel.id);
       const node: ITopoNode = graphData.value.nodes.find(item => {
@@ -142,13 +150,15 @@ export default defineComponent({
         }
       });
       openAggregatedComboMap[node.originComboId] = false;
-      needUpdate && renderGraph();
+      if (!needUpdate) return;
+      graph.clear();
+      renderGraph();
     };
     /** 创建聚合combo 保存节点前后关系 修改节点与边的关系 */
     const createdChildCombo = (nodeItem: any) => {
+      const combos = graph.getCombos();
       const model = nodeItem.getModel();
       if (openAggregatedComboMap[model.comboId]) {
-        const combos = graph.getCombos();
         const combo = combos.find(item => item.getModel().id === openAggregatedComboMap[model.comboId]);
         deleteChildCombo(combo, false);
       }
@@ -214,6 +224,11 @@ export default defineComponent({
       openAggregatedComboMap[node.originComboId] = node.comboId;
       renderGraph();
     };
+    /** 关闭弹窗， 主要用于左侧画布出现弹窗时关闭当前弹窗，避免出现2个 */
+    const hideToolTips = () => {
+      tooltipsRef?.value?.hide?.();
+      tooltips?.hide?.();
+    };
     /** 自定义节点 */
     const registerCustomNode = () => {
       registerNode('resource-node', {
@@ -257,6 +272,33 @@ export default defineComponent({
                 ...nodeAttrs.textAttrs,
               },
               name: 'resource-node-text',
+            });
+          }
+          if (entity.is_on_alert || entity.alert_all_recorved) {
+            group.addShape('circle', {
+              attrs: {
+                x: 15,
+                y: -14,
+                zIndex: 10,
+                lineWidth: 1, // 描边宽度
+                cursor: 'pointer', // 手势类型
+                r: 8, // 圆半径
+                fill: entity.is_on_alert ? '#F55555' : '#6C6F78',
+              },
+              name: 'topo-tag-border',
+            });
+            group.addShape('image', {
+              zIndex: 12,
+              attrs: {
+                x: 9,
+                y: -21,
+                width: 12,
+                height: 12,
+                cursor: 'pointer', // 手势类型
+                img: NODE_TYPE_SVG.Alert,
+              },
+              draggable: true,
+              name: 'topo-tag-img',
             });
           }
         },
@@ -395,24 +437,16 @@ export default defineComponent({
               rootBorderShape?.attr({
                 opacity: 0,
               });
-              runningShape.animate(
-                {
-                  lineWidth: 6,
-                  r: 24,
-                  strokeOpacity: 0.3,
-                },
-                {
-                  repeat: true, // 循环
-                  duration: 3000,
-                  delay: 100, // 无延迟
-                }
-              );
+              runningShape.attr({
+                lineWidth: 3,
+                r: 24,
+                strokeOpacity: 1,
+              });
             } else {
               rootBorderShape?.attr({
                 opacity: 1,
               });
-              runningShape?.stopAnimate?.();
-              runningShape?.attr?.({
+              runningShape.attr({
                 lineWidth: 0, // 描边宽度
                 cursor: 'pointer', // 手势类型
                 r: 22, // 圆半径
@@ -855,19 +889,82 @@ export default defineComponent({
     };
     /** 自定义tips */
     const registerCustomTooltip = () => {
-      tooltips = new Tooltip({
-        offsetX: 10,
-        offsetY: 10,
-        trigger: 'click',
-        itemTypes: ['node'],
-        getContent: e => {
-          const type = e.item.getType();
-          const model = e.item.getModel();
-          tooltipsModel.value = model as ITopoNode;
-          tooltipsType.value = type;
-          return tooltipsRef.value.$el;
+      tooltips = new TopoTooltip(
+        {
+          offsetX: 10,
+          offsetY: 10,
+          trigger: 'click',
+          itemTypes: ['node', 'edge'],
+          getContent: e => {
+            const type = e.item.getType();
+            const model = e.item.getModel();
+            if (type === 'edge') {
+              const { nodes = [] } = props.modelData;
+              const targetModel = nodes.find(item => item.id === model.target);
+              const sourceModel = nodes.find(item => item.id === model.source);
+              tooltipsModel.value = [sourceModel, targetModel];
+              tooltipsEdge.value = model as IEdge;
+              model.nodes = [
+                {
+                  ...sourceModel,
+                  entity: {
+                    is_anomaly: model.source_is_anomaly,
+                    is_on_alert: model.source_is_on_alert,
+                    entity_name: model.source_name,
+                    entity_type: model.source_type,
+                  },
+                  events: model.events || [],
+                },
+                {
+                  ...targetModel,
+                  events: model.events || [],
+                },
+              ];
+              (model.aggregated_edges as ITopoNode[]).forEach(node => {
+                node.id = random(10);
+                const targetModel = nodes.find(item => item.id === node.target);
+                const sourceModel = nodes.find(item => item.id === node.source);
+                /** 聚合节点在nodes集合中第一层可能找不到直接取边中的信息制造entity */
+                node.nodes = [
+                  {
+                    entity: {
+                      is_anomaly: node.source_is_anomaly,
+                      is_on_alert: node.source_is_on_alert,
+                      entity_name: node.source_name,
+                      entity_type: node.source_type,
+                    },
+                    ...sourceModel,
+                    events: node.events || [],
+                  },
+                  {
+                    entity: {
+                      is_anomaly: node.target_is_anomaly,
+                      is_on_alert: node.target_is_on_alert,
+                      entity_name: node.target_name,
+                      entity_type: node.target_type,
+                    },
+                    ...targetModel,
+                    events: node.events || [],
+                  },
+                ];
+              });
+            } else {
+              tooltipsModel.value = model as ITopoNode;
+            }
+            tooltipsType.value = type;
+            return tooltipsRef.value.$el;
+          },
         },
-      });
+        e => {
+          const { item } = e;
+          const model: ITopoNode = item.getModel();
+          if (item.getType() === 'node' && model.aggregated_nodes.length > 0) {
+            return true;
+          }
+          if (['resource-aggregated-node-rect', 'resource-aggregated-node-text'].indexOf(e.target?.cfg?.name) !== -1)
+            return true;
+        }
+      );
     };
     /** 自定义布局 */
     const registerCustomLayout = () => {
@@ -1045,7 +1142,7 @@ export default defineComponent({
           ...cfg,
           shape: 'quadratic',
           style: {
-            // cursor: 'pointer',
+            cursor: 'pointer',
             lineAppendWidth: 15,
             endArrow: isInvoke
               ? {
@@ -1088,7 +1185,7 @@ export default defineComponent({
         const filterCombos = combos.filter(item => !item.get('model').parentId);
         const graphWidth = graph.getWidth();
         const { height } = document.querySelector('.resource-graph').getBoundingClientRect();
-        const comboxHeight = Math.max((height - 40) / combos.length, 120);
+        const comboxHeight = Math.max((height - 40) / filterCombos.length, 120);
         filterCombos.forEach(combo => {
           // 获取 Combo 中包含的节点和边的范围
           const nodeBegin = 80;
@@ -1213,6 +1310,7 @@ export default defineComponent({
       });
       /** 子combo点击收起 */
       graph.on('combo:click', e => {
+        tooltips.hide();
         const { item, target } = e;
         if (
           [
@@ -1225,13 +1323,6 @@ export default defineComponent({
         }
         tooltips.hide();
       });
-      /** 边点击关闭tips */
-      graph.on('edge:click', e => {
-        // const { item } = e;
-        e.preventDefault(); // 阻止默认行为
-        e.stopPropagation(); // 停止事件传播
-        tooltips?.hide?.();
-      });
       graph.on('aftertranslate', e => {
         // 存储或更新图形平移后的状态
         graph.set('currentTransform', {
@@ -1239,6 +1330,10 @@ export default defineComponent({
           y: e.y,
           k: graph.getZoom(),
         });
+      });
+      /** 点击tips时，关闭左侧打开的tips */
+      graph.on('tooltipchange', ({ action }) => {
+        action === 'show' && emit('hideToolTips');
       });
       /** 设置高亮 */
       graph.on('node:click', e => {
@@ -1323,7 +1418,9 @@ export default defineComponent({
       graphRef,
       tooltipsRef,
       tooltipsModel,
+      tooltipsEdge,
       tooltipsType,
+      hideToolTips,
       handleToDetail,
       loading,
       graph,
@@ -1345,6 +1442,7 @@ export default defineComponent({
         <div style='display: none'>
           <FailureTopoTooltips
             ref='tooltipsRef'
+            edge={this.tooltipsEdge}
             model={this.tooltipsModel}
             showViewResource={false}
             type={this.tooltipsType}

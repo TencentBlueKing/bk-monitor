@@ -25,7 +25,7 @@
  */
 import { reactive } from 'vue';
 
-import { LEVEL_LIST } from '../constant';
+import { LEVEL_LIST, STATUS_LIST } from '../constant';
 
 /** 文案对应表 */
 export const typeTextMap = {
@@ -52,7 +52,16 @@ export const typeTextMap = {
 };
 /** 渲染tag */
 export const renderHandlers = handles => {
-  return handles?.length ? handles.map(tag => <span class='tag-item'>{tag}</span>) : '--';
+  return handles?.length
+    ? handles.map(tag => (
+        <span
+          key={tag}
+          class='tag-item'
+        >
+          {tag}
+        </span>
+      ))
+    : '--';
 };
 export const handleFun = data => {
   const node = JSON.parse(JSON.stringify({ ...data }));
@@ -63,35 +72,43 @@ export const handleFun = data => {
 /** 点击跳转到告警tab */
 export const handleDetail = (e, {}, id, bizId) => {
   e.stopPropagation();
-  const routeUrl = `incident/detail/${id}?tab=FailureView`;
-  const url = `${location.origin}${location.pathname}?bizId=${bizId}#${routeUrl}`;
+  const word = `?tab=FailureView`;
+  const key = location.hash.indexOf(word) === -1 ? word : '';
+  const routeUrl = `${location.hash}${key}`;
+  const url = `${location.origin}${location.pathname}?bizId=${bizId}${routeUrl}`;
   window.location.href = url;
 };
 /** 修改故障属性的渲染函数 */
 const handleUpdate = ({ extra_info, operator }) => {
   const { incident_key_alias, from_value, to_value, incident_key } = extra_info;
   const isLevel = incident_key === 'level';
+  const isStatus = incident_key === 'status';
   const isIncidentName = incident_key === 'incident_name';
   const statusTag = val => {
-    const info = LEVEL_LIST[val];
+    let info: any = {};
+    isLevel && (info = LEVEL_LIST[val]);
+    isStatus && (info = STATUS_LIST[val]);
     return (
       <span
-        style={{ background: info.color }}
+        style={{ background: info.bgColor, color: info?.color || '#fff' }}
         class='status-tag'
       >
-        <i class={`icon-monitor icon-${info.key} sign-icon`}></i>
+        <i class={`icon-monitor icon-${info.icon} sign-icon`} />
         {info.label}
       </span>
     );
   };
   const className = isIncidentName ? 'tag-txt' : 'tag-item';
-  const toValue = isLevel ? (
-    statusTag(to_value)
-  ) : (
-    <span class={className}>{Array.isArray(to_value) ? to_value.join('、') : to_value}</span>
-  );
+  const handleValue = val => {
+    return Array.isArray(val) ? val.map(item => item.replace(/\//g, '')).join('、') : val;
+  };
+  const toValue = isLevel || isStatus ? statusTag(to_value) : <span class={className}>{handleValue(to_value)}</span>;
   const fromValue =
-    isLevel && !!from_value ? statusTag(from_value) : <span class={className}>{from_value || 'null'}</span>;
+    (isLevel || isStatus) && !!from_value ? (
+      statusTag(from_value)
+    ) : (
+      <span class={className}>{handleValue(from_value) || 'null'}</span>
+    );
   return (
     <i18n-t
       v-slots={{
@@ -101,7 +118,7 @@ const handleUpdate = ({ extra_info, operator }) => {
         to_value: () => toValue,
       }}
       keypath={typeTextMap.incident_update}
-    ></i18n-t>
+    />
   );
 };
 /** 各类型文案渲染函数 */
@@ -121,7 +138,7 @@ export const renderMap = reactive({
           assignees: () => <span class='tag-wrap'>{renderHandlers(extra_info.assignees)}</span>,
         }}
         keypath={typeTextMap.incident_create}
-      ></i18n-t>
+      />
     );
   },
   incident_observe: ({ extra_info }) => {
@@ -131,7 +148,7 @@ export const renderMap = reactive({
           last_minutes: <span class='count'>{extra_info?.last_minutes || 0}</span>,
         }}
         keypath={typeTextMap.incident_observe}
-      ></i18n-t>
+      />
     );
   },
   incident_recover: () => {
@@ -144,7 +161,7 @@ export const renderMap = reactive({
           receivers: () => <span class='tag-wrap'>{renderHandlers(extra_info.receivers)}</span>,
         }}
         keypath={typeTextMap.incident_notice}
-      ></i18n-t>
+      />
     );
   },
   incident_merge: ({ extra_info }) => {
@@ -154,7 +171,7 @@ export const renderMap = reactive({
           merged_incident_name: <span>{extra_info?.merged_incident_name || ''}</span>,
         }}
         keypath={typeTextMap.incident_merge}
-      ></i18n-t>
+      />
     );
   },
   incident_update: handleUpdate,
@@ -172,7 +189,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_trigger}
-      ></i18n-t>
+      />
     );
   },
   alert_recover: ({ extra_info }) => {
@@ -189,7 +206,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_recover}
-      ></i18n-t>
+      />
     );
   },
   alert_invalid: ({ extra_info }) => {
@@ -206,7 +223,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_invalid}
-      ></i18n-t>
+      />
     );
   },
   alert_notice: ({ extra_info }) => {
@@ -225,7 +242,7 @@ export const renderMap = reactive({
           receivers: () => <span class='tag-wrap'>{renderHandlers(receivers)}</span>,
         }}
         keypath={typeTextMap.alert_notice}
-      ></i18n-t>
+      />
     );
   },
   alert_convergence: ({ extra_info }) => {
@@ -244,7 +261,7 @@ export const renderMap = reactive({
           converged_count: () => <span class='count'>{converged_count}</span>,
         }}
         keypath={typeTextMap.alert_convergence}
-      ></i18n-t>
+      />
     );
   },
   // <-- 以下为人工事件  -->
@@ -266,7 +283,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.feedback}
-      ></i18n-t>
+      />
     );
   },
   incident_close: () => {
@@ -276,10 +293,10 @@ export const renderMap = reactive({
     return (
       <i18n-t
         v-slots={{
-          group_name: () => <span>{extra_info.group_name || '--'}</span>,
+          group_name: () => <span class='tag-wrap'>{renderHandlers(extra_info.group_name )}</span>,
         }}
         keypath={typeTextMap.group_gather}
-      ></i18n-t>
+      />
     );
   },
   alert_confirm: ({ extra_info }) => {
@@ -296,7 +313,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_confirm}
-      ></i18n-t>
+      />
     );
   },
   alert_shield: ({ extra_info }) => {
@@ -313,7 +330,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_shield}
-      ></i18n-t>
+      />
     );
   },
   alert_handle: ({ extra_info }) => {
@@ -330,7 +347,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_handle}
-      ></i18n-t>
+      />
     );
   },
   // 告警关闭
@@ -348,7 +365,7 @@ export const renderMap = reactive({
           ),
         }}
         keypath={typeTextMap.alert_close}
-      ></i18n-t>
+      />
     );
   },
   alert_dispatch: ({ extra_info }) => {
@@ -367,7 +384,7 @@ export const renderMap = reactive({
           handlers: () => <span class='tag-wrap'>{renderHandlers(handlers)}</span>,
         }}
         keypath={typeTextMap.alert_dispatch}
-      ></i18n-t>
+      />
     );
   },
 });

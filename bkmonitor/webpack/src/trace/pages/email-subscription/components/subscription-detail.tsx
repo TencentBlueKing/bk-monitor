@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, type PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
@@ -193,7 +193,7 @@ export default defineComponent({
                               class='avatar'
                             />
                           )} */}
-                          <i class='icon-monitor icon-mc-user-one'></i>
+                          <i class='icon-monitor icon-mc-user-one' />
                           <span style='margin-left: 5px;'>{item.id}</span>
                         </div>
                       );

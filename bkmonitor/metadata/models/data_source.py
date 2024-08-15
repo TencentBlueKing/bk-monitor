@@ -177,7 +177,10 @@ class DataSource(models.Model):
                 # # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
                 if not consul_config:
                     continue
-                if consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES:
+                if (consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES) or (
+                    consul_config.get("cluster_type") == ClusterInfo.TYPE_INFLUXDB
+                    and table_id in settings.SKIP_INFLUXDB_TABLE_ID_LIST
+                ):
                     continue
                 conf_list.append(consul_config)
             except real_storage.DoesNotExist:
@@ -936,17 +939,7 @@ class DataSource(models.Model):
         更新consul配置，告知ETL等其他依赖模块配置有所更新
         :return: True | raise Exception
         """
-        # 如果数据源没有启用，则不用刷新 consul 配置
-        from metadata.models.data_link.constants import DataLinkKind
-        from metadata.models.data_link.resource import DataLinkResourceConfig
-        from metadata.models.data_link.utils import get_bkdata_data_id_name
-
-        if (
-            not self.is_enable
-            or DataLinkResourceConfig.objects.filter(
-                name=get_bkdata_data_id_name(self.data_name), kind=DataLinkKind.DATAID.value
-            ).exists()
-        ):
+        if not self.can_refresh_consul_and_gse():
             logger.info(
                 "data->[%s] is not enable or has been moved to new data link, nothing will refresh to outer systems.",
                 self.bk_data_id,

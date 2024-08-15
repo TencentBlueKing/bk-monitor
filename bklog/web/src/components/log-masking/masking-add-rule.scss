@@ -107,7 +107,7 @@
       border: 1px solid #c4c6cc;
       border-radius: 2px 0 0 2px;
       transform: translateX(1px);
-  
+
       @include flex-center;
     }
 
@@ -174,7 +174,7 @@
       }
 
       .debugging-input textarea {
-        @include scroller($backgroundColor: #C4C6CC, $width: 4px);
+        @include scroller($backgroundColor: #c4c6cc, $width: 4px);
       }
     }
 
@@ -210,12 +210,12 @@
       .icon-play-shape {
         margin-right: 4px;
         font-size: 12px;
-        transition: transform .3s;
-        transform: scale(.8);
+        transition: transform 0.3s;
+        transform: scale(0.8);
       }
 
       .is-active {
-        transform: scale(.8) rotateZ(90deg);
+        transform: scale(0.8) rotateZ(90deg);
       }
 
       &:hover {

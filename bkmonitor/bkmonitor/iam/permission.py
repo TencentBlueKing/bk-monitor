@@ -36,7 +36,6 @@ from iam.utils import gen_perms_apply_data
 
 from api.cmdb.define import Business
 from bkm_space.api import SpaceApi
-from bkm_space.define import Space
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import (
@@ -451,11 +450,11 @@ class Permission(object):
             )
         return data["actions"]
 
-    def filter_space_list_by_action(self, action: Union[ActionMeta, str]) -> List[Space]:
+    def filter_space_list_by_action(self, action: Union[ActionMeta, str]) -> List[dict]:
         """
         获取有对应action权限的空间列表
         """
-        space_list = SpaceApi.list_spaces()
+        space_list = SpaceApi.list_spaces_dict()
         # 对后台API进行权限豁免
         if self.skip_check:
             return space_list
@@ -478,7 +477,7 @@ class Permission(object):
         results = []
         for space in space_list:
             obj_set = ObjectSet()
-            obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(space.bk_biz_id)})
+            obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(space["bk_biz_id"])})
 
             if self.iam_client._eval_expr(expr, obj_set):
                 results.append(space)

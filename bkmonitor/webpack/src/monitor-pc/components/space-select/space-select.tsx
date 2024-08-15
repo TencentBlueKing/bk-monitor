@@ -29,10 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import { Debounce } from 'monitor-common/utils';
 
-import { ISpaceItem } from '../../types';
 import { getEventPaths } from '../../utils';
 import { ETagsType } from '../biz-select/list';
 import { SPACE_TYPE_MAP } from './utils';
+
+import type { ISpaceItem } from '../../types';
 
 import './space-select.scss';
 
@@ -61,6 +62,7 @@ interface IProps {
   hasAuthApply?: boolean;
   currentSpace?: number | string;
   isCommonStyle?: boolean;
+  needIncidentOption?: boolean;
   onChange?: (value: number[]) => void;
 }
 
@@ -109,6 +111,8 @@ export default class SpaceSelect extends tsc<
   @Prop({ default: false, type: Boolean }) hasAuthApply: boolean;
   /*  */
   @Prop({ default: true, type: Boolean }) isCommonStyle: boolean;
+  /* 是否包含我有故障的选项 */
+  @Prop({ default: false, type: Boolean }) needIncidentOption: boolean;
 
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('select') selectRef: HTMLDivElement;
@@ -197,7 +201,8 @@ export default class SpaceSelect extends tsc<
     return this.localValue;
   }
 
-  created() {
+  /** 初始化空间列表 */
+  initLocalSpaceList() {
     this.localSpaceList = this.getSpaceList(this.spaceList);
     const nullItem = {
       space_name: '',
@@ -236,6 +241,19 @@ export default class SpaceSelect extends tsc<
       }
       this.setPaginationData(true);
     }
+  }
+  @Watch('needAlarmOption')
+  handleWatchNeedAlarmOption() {
+    this.initLocalSpaceList();
+  }
+  @Watch('needIncidentOption')
+  handleWatchNeedIncidentOption(v: boolean) {
+    const hasSpace: IlocalSpaceList = this.localSpaceList.find(space => space.id === hasDataBizId) as IlocalSpaceList;
+    hasSpace.name = (v ? this.$t('-我有故障的空间-') : this.$t('-我有告警的空间-')) as string;
+  }
+
+  created() {
+    this.initLocalSpaceList();
   }
 
   /* 获取权限信息 */
@@ -674,8 +692,8 @@ export default class SpaceSelect extends tsc<
             class={rightIconClassName}
             onClick={this.handleClear}
           >
-            <span class='icon-monitor icon-arrow-down'></span>
-            {this.multiple && <span class='icon-monitor icon-mc-close-fill'></span>}
+            <span class='icon-monitor icon-arrow-down' />
+            {this.multiple && <span class='icon-monitor icon-mc-close-fill' />}
           </span>
         </div>
         <div style={{ display: 'none' }}>
@@ -690,7 +708,7 @@ export default class SpaceSelect extends tsc<
                 left-icon='bk-icon icon-search'
                 placeholder={this.$t('请输入关键字或标签')}
                 onChange={this.handleSearchChange}
-              ></bk-input>
+              />
             </div>
             <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }]}>
               <ul
@@ -717,13 +735,13 @@ export default class SpaceSelect extends tsc<
                 class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
                 onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
               >
-                <span class='icon-monitor icon-arrow-left'></span>
+                <span class='icon-monitor icon-arrow-left' />
               </div>
               <div
                 class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
                 onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
               >
-                <span class='icon-monitor icon-arrow-right'></span>
+                <span class='icon-monitor icon-arrow-right' />
               </div>
             </div>
             <div
@@ -752,7 +770,7 @@ export default class SpaceSelect extends tsc<
                         disabled={!!item.noAuth && !item.hasData}
                         value={item.isCheck}
                         onChange={v => this.handleCheckOption(v, item)}
-                      ></bk-checkbox>
+                      />
                     </div>
                   )}
                   <span class='space-name'>
@@ -777,7 +795,7 @@ export default class SpaceSelect extends tsc<
                           content: this.$t('当前空间'),
                           placements: ['top'],
                         }}
-                      ></span>
+                      />
                     )}
                   </span>
                   <span class='space-tags'>

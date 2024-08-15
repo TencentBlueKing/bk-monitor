@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, type Ref, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -33,10 +33,11 @@ import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incide
 
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
-import { type IIncident } from '../types';
-import { type IAggregationRoot } from '../types';
 import { useIncidentInject } from '../utils';
 import FailureEditDialog from './failure-edit-dialog';
+
+import type { IIncident } from '../types';
+import type { IAggregationRoot } from '../types';
 
 import './failure-header.scss';
 
@@ -93,6 +94,7 @@ export default defineComponent({
       incidentAlertAggregate({
         id: incidentId.value,
         aggregate_bys: [],
+        bk_biz_ids: [-1],
       })
         .then(res => {
           alertAggregateData.value = res;
@@ -108,7 +110,10 @@ export default defineComponent({
         .finally(() => (listLoading.value = false));
     };
     const handleBack = () => {
-      router.go(-1);
+      const { bk_biz_id } = incidentDetail.value;
+      const { origin, pathname } = location;
+      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident`;
+      window.location.href = url;
     };
     /** 一期先不展示 */
     // const tipsItem = (val: number) => (
@@ -309,9 +314,9 @@ export default defineComponent({
           <i
             class='icon-monitor icon-back-left head-icon'
             onClick={this.handleBack}
-          ></i>
+          />
           <span class={`header-sign ${this.levelList[level]?.key}`}>
-            <i class={`icon-monitor icon-${this.levelList[level]?.key} sign-icon`}></i>
+            <i class={`icon-monitor icon-${this.levelList[level]?.key} sign-icon`} />
             {level_alias}
           </span>
           <div class='header-info'>
@@ -324,13 +329,13 @@ export default defineComponent({
                 {incident_name}
               </label>
               {(labels || []).map((item: any) => (
-                <Tag>{item}</Tag>
+                <Tag>{item.replace(/\//g, '')}</Tag>
               ))}
               <span
                 class='info-edit'
                 onClick={() => (this.isShow = true)}
               >
-                <i class='icon-monitor icon-bianji info-edit-icon'></i>
+                <i class='icon-monitor icon-bianji info-edit-icon' />
                 {this.t('编辑')}
               </span>
             </div>
@@ -358,14 +363,14 @@ export default defineComponent({
                 }
               }}
             >
-              <i class='icon-monitor icon-mc-solved btn-icon'></i>
+              <i class='icon-monitor icon-mc-solved btn-icon' />
               {this.t('标记已解决')}
             </div>
             <div
               class='header-btn'
               onClick={() => this.handleChatGroup()}
             >
-              <i class='icon-monitor icon-qiye-weixin btn-icon'></i>
+              <i class='icon-monitor icon-qiye-weixin btn-icon' />
               {this.t('故障群')}
             </div>
           </div>
@@ -382,6 +387,7 @@ export default defineComponent({
           alertIds={this.chatGroupDialog.alertIds}
           assignee={this.chatGroupDialog.assignee}
           data={this.incidentDetailData}
+          type={'incident'}
           show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />

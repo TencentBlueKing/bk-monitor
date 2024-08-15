@@ -35,14 +35,20 @@ import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
 import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
-import { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
-import { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';
-import { EditModeType, IDetectionConfig, ISourceData, MetricDetail } from '../../../strategy-config-set-new/typings';
 import { transformSensitivityValue } from '../../../util';
 import { EShortcutsType } from '../typing';
 
-import './strategy-chart.scss';
+import type { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
+import type { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';
+import type {
+  EditModeType,
+  IDetectionConfig,
+  ISourceData,
+  MetricDetail,
+} from '../../../strategy-config-set-new/typings';
 
+import './strategy-chart.scss';
+const CustomEventMetricAll = '__INDEX__';
 interface IProps {
   metricData?: MetricDetail[];
   detectionConfig?: IDetectionConfig;
@@ -61,7 +67,7 @@ interface IProps {
   shortcutsType?: EShortcutsType;
 }
 interface IEvent {
-  onLogQuery: void;
+  onLogQuery: () => void;
 }
 
 @Component
@@ -182,7 +188,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Watch('promqlStr')
   @Watch('metricData', { immediate: true })
   watchMetricDataChange(val: MetricDetail[]) {
-    if (!!val?.length) {
+    if (val?.length) {
       this.initPanel();
     }
   }
@@ -311,6 +317,12 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       isMetric ? this.detectionConfig : this.scoreThreshold,
       this.yAxisNeedUnitGetter
     );
+    const { data_source_label, data_type_label, result_table_id, custom_event_name, agg_condition } =
+      this.metricData[0] || {};
+    const type = `${data_source_label}_${data_type_label}`;
+    /** 是否是事件 */
+    const isEvent = type === 'custom_event' || type === 'bk_monitor_log';
+
     const data = {
       id: this.dashboardId,
       // type: 'graph',
@@ -327,6 +339,24 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           nearSeriesNum: this.nearNum,
           ...thresholdOptions,
         },
+        ...(isEvent
+          ? {
+              alert_filterable: {
+                filter_type: 'event',
+                data: {
+                  result_table_id,
+                  data_source_label,
+                  data_type_label,
+                  where: [
+                    custom_event_name && custom_event_name !== CustomEventMetricAll
+                      ? { key: 'event_name', method: 'eq', value: [custom_event_name] }
+                      : undefined,
+                    ...agg_condition,
+                  ].filter(Boolean),
+                },
+              },
+            }
+          : {}),
       },
       targets: [
         {
@@ -533,7 +563,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
             needHoverStryle={false}
             panel={this.panel}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
-          ></ChartWrapper>
+          />
         )}
       </div>
     );

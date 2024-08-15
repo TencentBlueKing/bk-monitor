@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import VueI18n, { IVueI18n } from 'vue-i18n';
 import 'vue-loader';
 
-import VueRouter, { Route } from 'vue-router/types';
+import type VueI18n from 'vue-i18n';
+import type { IVueI18n } from 'vue-i18n';
+import type VueRouter from 'vue-router/types';
+import type { Route } from 'vue-router/types';
 
 declare module 'vue/types/vue' {
   interface Vue {
