@@ -76,16 +76,16 @@ export default class Strategy extends tsc<object> {
   };
   /** 新类提交数据 */
   alarmFormData = {
-    interval: '',
-    threshold: '',
-    level: '',
+    interval: '30',
+    threshold: '1',
+    level: 2,
     user_groups: [],
     label_name: [],
   };
   /** 数据提交表单数据 */
   increaseFormData = {
-    level: '',
-    sensitivity: 0,
+    level: 2,
+    sensitivity: 5,
     user_groups: [],
     label_name: [],
   };
@@ -372,7 +372,7 @@ export default class Strategy extends tsc<object> {
         >
           <bk-form-item
             v-show={this.isAlarmType}
-            label={$i18n.t('新类告警间隔')}
+            label={$i18n.t('新类告警间隔（天）')}
             property='interval'
             required
           >
