@@ -48,7 +48,6 @@ class CustomEventReportViewSet(ResourceViewSet):
 
 
 class CustomMetricReportViewSet(ResourceViewSet):
-
     query_post_actions = ["get_custom_report_dashboard_config"]
 
     def get_permissions(self):
@@ -75,6 +74,9 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ),
         ResourceRoute("POST", resource.custom_report.create_custom_time_series, endpoint="create_custom_time_series"),
         ResourceRoute("POST", resource.custom_report.modify_custom_time_series, endpoint="modify_custom_time_series"),
+        ResourceRoute(
+            "POST", resource.custom_report.modify_custom_time_series_desc, endpoint="modify_custom_time_series_desc"
+        ),
         ResourceRoute(
             "POST", resource.custom_report.create_or_update_grouping_rule, endpoint="create_or_update_grouping_rule"
         ),
