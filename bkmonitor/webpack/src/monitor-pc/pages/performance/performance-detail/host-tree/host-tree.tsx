@@ -767,14 +767,11 @@ export default class HostTree extends tsc<IProps, IEvents> {
           >
             <div
               class='node-content-wrap'
-              // v-bk-overflow-tips={{
-              //   content: `${
-              //     'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
-              //   }`,
-              // }}
-              title={`${
-                'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
-              }`}
+              v-bk-overflow-tips={{
+                content: `${
+                  'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
+                }`,
+              }}
             >
               {data.status ? (
                 <span class={['host-status', `status-${this.getItemStatusClassName(data.status)}`]} />
