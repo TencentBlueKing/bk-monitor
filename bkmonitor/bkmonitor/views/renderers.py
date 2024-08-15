@@ -44,7 +44,6 @@ class UJSONRenderer(BaseRenderer):
     charset = None
 
     def render(self, data, *args, **kwargs):
-
         if data is None:
             return bytes()
 
@@ -92,6 +91,7 @@ class MonitorJSONRenderer(UJSONRenderer):
                 formatted_data["message"] = exc.message
                 formatted_data["data"] = exc.data
                 formatted_data["code"] = exc.code
+                formatted_data["error_details"] = data.get("error_details")  # 报错额外信息，适配新版弹框样式
             elif isinstance(exc, PermissionDeniedError):
                 extra = exc.__dict__["extra"]
                 formatted_data.update(exc.__dict__)
@@ -99,6 +99,7 @@ class MonitorJSONRenderer(UJSONRenderer):
                 formatted_data.pop("extra")
             elif isinstance(data, dict):
                 formatted_data["message"] = data.get("detail") or data.get("message") or data
+                formatted_data["error_details"] = data.get("error_details")  # 报错额外信息，适配新版弹框样式
             else:
                 formatted_data["message"] = data
         return formatted_data

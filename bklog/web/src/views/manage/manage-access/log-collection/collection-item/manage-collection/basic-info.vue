@@ -121,7 +121,7 @@
           <!-- 日志路径 -->
           <div>
             <span>
-              {{ collectorData.collector_scenario_id === 'wineventlog' ? $t('日志种类') : $t('日志路径') }}
+              {{ isWinEventLog ? $t('日志种类') : $t('日志路径') }}
             </span>
             <div
               v-if="params.paths"
@@ -191,7 +191,7 @@
             </div>
           </template>
           <div
-            v-if="conditions.type === 'none'"
+            v-if="!isWinEventLog && conditions.type === 'none'"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
@@ -247,7 +247,7 @@
             </div>
           </div>
           <div
-            v-else-if="collectorData.collector_scenario_id === 'wineventlog' && isHaveEventValue"
+            v-else-if="isWinEventLog && isHaveEventValue"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
@@ -379,8 +379,11 @@
       isCustomReport() {
         return this.$route.name === 'custom-report-detail';
       },
+      isWinEventLog() {
+        return this.collectorData.collector_scenario_id === 'wineventlog';
+      },
       isNotWinAndHaveFilter() {
-        if (this.collectorData.collector_scenario_id === 'wineventlog' || this.params.type === 'none') return false;
+        if (this.isWinEventLog || this.params.type === 'none') return false;
         return this.conditions && !!this.conditions?.separator_filters.length;
       },
       isMatchType() {

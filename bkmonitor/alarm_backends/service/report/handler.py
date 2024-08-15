@@ -735,7 +735,7 @@ class ReportHandler:
                 perm_client = Permission(receiver)
                 perm_client.skip_check = False
                 business_list = [
-                    int(biz.bk_biz_id) for biz in perm_client.filter_business_list_by_action(ActionEnum.VIEW_BUSINESS)
+                    biz["bk_biz_id"] for biz in perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
                 ]
                 business_list.sort()
                 biz_list = "superuser" if user_is_superuser else ",".join([str(biz) for biz in business_list])

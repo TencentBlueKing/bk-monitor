@@ -794,6 +794,7 @@ class Shield(AbstractRecordModel):
         ("ip", "IP"),
         ("node", _lazy("节点")),
         ("biz", _lazy("业务")),
+        ("dynamic_group", _lazy("动态分组")),
     )
 
     bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)

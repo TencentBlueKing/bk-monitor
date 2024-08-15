@@ -132,17 +132,12 @@ class BizTranslator(AbstractTranslator):
     def biz_map(self):
         with self.__class__.lock:
             if self.__class__.biz_map_cache is None:
-                self.__class__.biz_map_cache = resource.cc.get_biz_map()
+                self.__class__.biz_map_cache = resource.space.get_space_map()
         return self.__class__.biz_map_cache
 
     def translate(self, values: List[int]) -> Dict:
-        if len(values) == 1:
-            bk_biz_id = values[0]
-            biz = resource.cc.get_app_by_id(bk_biz_id)
-            biz_map = {str(bk_biz_id): biz}
-        else:
-            biz_map = self.biz_map()
-        return {value: biz_map[str(value)].bk_biz_name if str(value) in biz_map else value for value in values}
+        biz_map = self.biz_map()
+        return {value: biz_map[value]["display_name"] if value in biz_map else str(value) for value in values}
 
 
 class CategoryTranslator(AbstractTranslator):

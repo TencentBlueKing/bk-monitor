@@ -9,12 +9,31 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
 from django.utils.translation import ugettext_lazy as _lazy
 
 logger = logging.getLogger(__name__)
+
+
+class ErrorDetails:
+    """错误详情信息补充类"""
+
+    def __init__(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warn"):
+        self.exc_type = exc_type  # 错误类型
+        self.exc_code = exc_code  # 错误码
+        self.overview = overview  # 错误概述
+        self.detail = detail  # 错误详情
+        self.popup_message = popup_message  # 错误弹框类型 warn-黄色 danger-红色
+
+    def to_dict(self):
+        return {
+            "exc_type": self.exc_type,
+            "exc_code": self.exc_code,
+            "overview": self.overview,
+            "detail": self.detail,
+            "popup_message": self.popup_message,
+        }
 
 
 class Error(Exception):
@@ -32,6 +51,9 @@ class Error(Exception):
     level = logging.ERROR
     # 错误描述
     description = ""
+    # 错误信息详情
+    error_details = None
+    popup_message = "warn"  # 弹框颜色，默认为黄框
 
     def __init__(self, context=None, data=None, extra=None, **kwargs):
         if not context:
@@ -53,6 +75,17 @@ class Error(Exception):
 
         # 返回给前端的额外字段
         self.extra = extra
+        self.set_details(
+            exc_type=type(self).__name__,
+            exc_code=self.code,
+            overview=self.message,
+            detail=self.data,
+            popup_message=self.popup_message,
+        )
+
+    def set_details(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warn"):
+        """设置错误详情信息"""
+        self.error_details = ErrorDetails(exc_type, exc_code, overview, detail, popup_message).to_dict()
 
     def __str__(self):
         return self.message

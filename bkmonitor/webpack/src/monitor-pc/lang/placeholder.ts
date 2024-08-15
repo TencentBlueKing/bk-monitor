@@ -85,7 +85,7 @@ export default {
   输入非中文符号的英文名: 'Enter an English name without Chinese symbols', // 查看语境
   输入合法的十六进制请求内容: 'Enter a valid hexadecimal request content',
   '输入插件名称，仅以字母开头，仅支持字母、下划线和数字, 长度不能超过30个字符':
-    'Enter the plug-in name, which only starts with a letter, only supports letters, underscores and numbers, and the length cannot exceed 30 characters',
+    'Enter the plugin name, which only starts with a letter, only supports letters, underscores and numbers, and the length cannot exceed 30 characters',
   '输入请求 URL': 'Enter Request URL',
   '输入指标名/ID': 'Enter Metric Name/ID',
   '输入屏蔽内容、ID': 'Enter the content and ID to be blocked',
@@ -211,7 +211,7 @@ export default {
   '输入指标名,以字母开头,允许包含下划线和数字':
     'Enter the metric name, which starts with a letter and can include underscores and numbers.',
   '输入插件名称，仅以字母开头，仅支持字母、下划线和数字':
-    'Enter the plug-in name, which only starts with a letter, and only supports letters, underscores and numbers',
+    'Enter the plugin name, which only starts with a letter, and only supports letters, underscores and numbers',
   '输入域名说明/校验规则，可通过回车区隔多个域名':
     'Enter domain name description/verification rules, multiple domain names can be separated by carriage return',
   '输入指标名,以字母开头,允许包含下划线和数字且不能为group_default':

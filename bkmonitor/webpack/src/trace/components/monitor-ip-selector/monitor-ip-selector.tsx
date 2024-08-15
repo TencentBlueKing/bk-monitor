@@ -44,6 +44,9 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
+  executeIpChooserDynamicGroup,
+  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
 import { useAppStore } from '../../store/modules/app';
@@ -107,6 +110,9 @@ export default defineComponent({
       fetchCustomSettings,
       updateCustomSettings,
       fetchConfig,
+      fetchDynamicGroups, // 动态分组列表
+      fetchHostsDynamicGroup, // 动态分组下的节点
+      fetchHostAgentStatisticsDynamicGroups,
       ...props.service,
     };
     const ipSelectorConfig = computed(() => ({
@@ -136,6 +142,37 @@ export default defineComponent({
       hostViewFieldRender,
       serviceConfigError: true,
     }));
+
+    // 动态分组api
+    async function fetchDynamicGroups(p) {
+      const data = await groupsIpChooserDynamicGroup(
+        transformParams({
+          scope_list: scopeList,
+          ...p,
+        })
+      );
+      return data;
+    }
+    async function fetchHostsDynamicGroup(p) {
+      const data = await executeIpChooserDynamicGroup(
+        transformParams({
+          scope_list: scopeList,
+          ...p,
+        })
+      );
+      console.info('fetchHostsDynamicGroup', p, data);
+      return data;
+    }
+    async function fetchHostAgentStatisticsDynamicGroups(p) {
+      const data = await agentStatisticsIpChooserDynamicGroup(
+        transformParams({
+          scope_list: scopeList,
+          ...p,
+        })
+      );
+      console.info('fetchHostAgentStatisticsDynamicGroups', p, data);
+      return data;
+    }
     /**
      * @description 拉取topology
      * @returns

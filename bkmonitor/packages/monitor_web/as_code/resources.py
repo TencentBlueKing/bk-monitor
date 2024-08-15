@@ -57,6 +57,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.serializers import BkBizIdSerializer
 from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
@@ -71,10 +72,9 @@ class ImportConfigResource(Resource):
     导入Code配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         configs = serializers.DictField(required=True, label="文件内容")
         app = serializers.CharField(default="as_code")
-        bk_biz_id = serializers.IntegerField()
         overwrite = serializers.BooleanField(default=False)
         incremental = serializers.BooleanField(default=False)
 
@@ -98,18 +98,45 @@ class ExportConfigResource(Resource):
     导出Code配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         action_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         notice_group_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         assign_group_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         dashboard_uids = serializers.ListField(child=serializers.CharField(), allow_null=True, default=None)
-        bk_biz_id = serializers.IntegerField()
 
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
+        lock_filename = serializers.BooleanField(label="锁定文件名", default=False)
+        with_id = serializers.BooleanField(label="带上ID", default=False)
 
     @classmethod
-    def export_rules(cls, bk_biz_id: int, rule_ids: Optional[List[int]]) -> Dict[str, str]:
+    def transform_configs(cls, parser, configs: List[Dict], with_id: bool, lock_filename: bool):
+        """
+        配置转换为as_code格式
+        """
+        for config in configs:
+            name = config["name"].replace("/", "-")
+            if config["path"]:
+                path, filename = os.path.split(config["path"])
+                # 如果锁定文件名，那么文件名就是配置名称
+                if lock_filename:
+                    filename = f"{name}.yaml"
+            else:
+                path = ""
+                filename = f"{name}.yaml"
+
+            transformed_config = parser.unparse(config)
+
+            # 是否需要带上ID
+            if with_id:
+                transformed_config["id"] = config["id"]
+
+            yield path, filename, yaml.dump(transformed_config, allow_unicode=True)
+
+    @classmethod
+    def export_rules(
+        cls, bk_biz_id: int, rule_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+    ) -> Dict[str, str]:
         """
         导出策略配置
         """
@@ -167,18 +194,12 @@ class ExportConfigResource(Resource):
             service_templates=service_templates,
             set_templates=set_templates,
         )
-        for strategy_config in strategy_configs:
-            name = strategy_config["name"].replace("/", "-")
-            if strategy_config["path"]:
-                path, filename = os.path.split(strategy_config["path"])
-            else:
-                path = ""
-                filename = f"{name}.yaml"
-
-            yield path, filename, yaml.dump(parser.unparse(strategy_config), allow_unicode=True)
+        yield from cls.transform_configs(parser, strategy_configs, with_id, lock_filename)
 
     @classmethod
-    def export_notice_groups(cls, bk_biz_id: int, notice_group_ids: Optional[List[int]]):
+    def export_notice_groups(
+        cls, bk_biz_id: int, notice_group_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+    ):
         """
         导出告警组配置
         """
@@ -202,19 +223,12 @@ class ExportConfigResource(Resource):
 
         # 转换为AsCode配置
         parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules_ids)
-        for user_group_config in user_group_configs:
-            name = user_group_config["name"].replace("/", "-")
-
-            if user_group_config["path"]:
-                path, filename = os.path.split(user_group_config["path"])
-            else:
-                path = ""
-                filename = f"{name}.yaml"
-
-            yield path, filename, yaml.dump(parser.unparse(user_group_config), allow_unicode=True)
+        yield from cls.transform_configs(parser, user_group_configs, with_id, lock_filename)
 
     @classmethod
-    def export_duties(cls, bk_biz_id: int, duty_rules: Optional[List[int]]):
+    def export_duties(
+        cls, bk_biz_id: int, duty_rules: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+    ):
         """
         导出告警组配置
         """
@@ -233,19 +247,12 @@ class ExportConfigResource(Resource):
 
         # 转换为AsCode配置
         parser = DutyRuleParser(bk_biz_id=bk_biz_id)
-        for config in duty_configs:
-            name = config["name"].replace("/", "-")
-
-            if config["path"]:
-                path, filename = os.path.split(config["path"])
-            else:
-                path = ""
-                filename = f"{name}.yaml"
-
-            yield path, filename, yaml.dump(parser.unparse(config), allow_unicode=True)
+        yield from cls.transform_configs(parser, duty_configs, with_id, lock_filename)
 
     @classmethod
-    def export_actions(cls, bk_biz_id: int, action_ids: Optional[List[int]]):
+    def export_actions(
+        cls, bk_biz_id: int, action_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+    ):
         """
         导出自愈套餐配置
         """
@@ -263,15 +270,7 @@ class ExportConfigResource(Resource):
 
         # 转换为AsCode配置
         parser = ActionConfigParser(bk_biz_id=bk_biz_id, action_plugins=ActionPlugin.objects.all())
-        for action_config in action_configs:
-            name = action_config["name"].replace("/", "-")
-            if action_config["path"]:
-                path, filename = os.path.split(action_config["path"])
-            else:
-                path = ""
-                filename = f"{name}.yaml"
-
-            yield path, filename, yaml.dump(parser.unparse(action_config), allow_unicode=True)
+        yield from cls.transform_configs(parser, action_configs, with_id, lock_filename)
 
     @classmethod
     def export_dashboard(cls, bk_biz_id: int, dashboard_uids: Optional[List[str]], external: bool = False):
@@ -322,7 +321,9 @@ class ExportConfigResource(Resource):
             yield "", "datasource_mapping.json", json.dumps(datasource_mapping, ensure_ascii=False, indent=2)
 
     @classmethod
-    def export_assign_groups(cls, bk_biz_id: int, assign_group_ids: Optional[List[int]]) -> Dict[str, str]:
+    def export_assign_groups(
+        cls, bk_biz_id: int, assign_group_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+    ) -> Dict[str, str]:
         """
         导出策略配置
         """
@@ -366,28 +367,26 @@ class ExportConfigResource(Resource):
 
         # 转换为AsCode配置
         parser = AssignGroupRuleParser(bk_biz_id=bk_biz_id, notice_group_ids=notice_group_ids, action_ids=action_ids)
-        for group_config in groups_dict.values():
-            name = group_config["name"].replace("/", "-")
-            if group_config["path"]:
-                path, filename = os.path.split(group_config["path"])
-            else:
-                path = ""
-                filename = f"{name}.yaml"
-
-            yield path, filename, yaml.dump(parser.unparse(group_config), allow_unicode=True)
+        yield from cls.transform_configs(parser, list(groups_dict.values()), with_id, lock_filename)
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         configs = {
             "rule": {
-                (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2] for x in self.export_rules(bk_biz_id, params["rule_ids"])
+                (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
+                for x in self.export_rules(bk_biz_id, params["rule_ids"], params["with_id"], params["lock_filename"])
             },
             "notice": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
-                for x in self.export_notice_groups(bk_biz_id, params["notice_group_ids"])
+                for x in self.export_notice_groups(
+                    bk_biz_id, params["notice_group_ids"], params["with_id"], params["lock_filename"]
+                )
             },
             "action": {
-                (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2] for x in self.export_actions(bk_biz_id, params["action_ids"])
+                (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
+                for x in self.export_actions(
+                    bk_biz_id, params["action_ids"], params["with_id"], params["lock_filename"]
+                )
             },
             "grafana": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
@@ -395,7 +394,9 @@ class ExportConfigResource(Resource):
             },
             "assign_group": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
-                for x in self.export_assign_groups(bk_biz_id, params["assign_group_ids"])
+                for x in self.export_assign_groups(
+                    bk_biz_id, params["assign_group_ids"], params["with_id"], params["lock_filename"]
+                )
             },
         }
         return configs
@@ -406,11 +407,12 @@ class ExportConfigFileResource(ExportConfigResource):
     导出配置（压缩包）
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
+    class RequestSerializer(BkBizIdSerializer):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         with_related_config = serializers.BooleanField(label="是否导出关联", default=False)
+        lock_filename = serializers.BooleanField(label="锁定文件名", default=False)
+        with_id = serializers.BooleanField(label="带上ID", default=False)
 
     @classmethod
     def create_tarfile(cls, configs: Dict[str, Iterable[Tuple[str, str, str]]]) -> str:
@@ -480,12 +482,16 @@ class ExportConfigFileResource(ExportConfigResource):
                 )
 
         configs = {
-            "rule": self.export_rules(bk_biz_id, rule_ids),
-            "notice": self.export_notice_groups(bk_biz_id, notice_group_ids),
-            "action": self.export_actions(bk_biz_id, action_ids),
+            "rule": self.export_rules(bk_biz_id, rule_ids, params["with_id"], params["lock_filename"]),
+            "notice": self.export_notice_groups(
+                bk_biz_id, notice_group_ids, params["with_id"], params["lock_filename"]
+            ),
+            "action": self.export_actions(bk_biz_id, action_ids, params["with_id"], params["lock_filename"]),
             "grafana": self.export_dashboard(bk_biz_id, dashboard_uids, params["dashboard_for_external"]),
-            "assign_group": self.export_assign_groups(bk_biz_id, assign_group_ids),
-            "duty": self.export_duties(bk_biz_id, duty_rules),
+            "assign_group": self.export_assign_groups(
+                bk_biz_id, assign_group_ids, params["with_id"], params["lock_filename"]
+            ),
+            "duty": self.export_duties(bk_biz_id, duty_rules, params["with_id"], params["lock_filename"]),
         }
 
         # 压缩包制作
@@ -506,8 +512,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
 
 class ExportAllConfigFileResource(ExportConfigFileResource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
+    class RequestSerializer(BkBizIdSerializer):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
 
 
@@ -516,9 +521,8 @@ class ImportConfigFileResource(Resource):
     导入配置（压缩包）
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(BkBizIdSerializer):
         app = serializers.CharField(default="as_code", label="配置分组")
-        bk_biz_id = serializers.IntegerField(label="业务ID")
         overwrite = serializers.BooleanField(default=False, label="是否覆盖其他分组配置")
         file = serializers.FileField(label="配置文件")
         incremental = serializers.BooleanField(default=False)

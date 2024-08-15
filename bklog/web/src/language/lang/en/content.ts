@@ -818,6 +818,9 @@ export default {
   '第{n}行': '{n} line',
   '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
   分隔符匹配: 'Delimiter match',
+  默认定位: 'Default target',
+  上下文命中: 'Context hit',
+  高亮: 'Highlight',
   '当前页面提供快速配置，如需完整配置，请前往{0}':
     'The current page provides quick configuration. For complete configuration, please go to {0}',
   新建完整策略: 'Create a new complete strategy',

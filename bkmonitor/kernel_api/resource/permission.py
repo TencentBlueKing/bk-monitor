@@ -14,7 +14,7 @@ import logging
 from django.core.exceptions import ValidationError
 
 from bkmonitor.iam import Permission
-from bkmonitor.iam.action import get_action_by_id
+from bkmonitor.iam.action import ActionEnum
 from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
@@ -29,7 +29,7 @@ class BusinessListByActions(Resource):
         >>>from bkmonitor.iam.action import ActionEnum
         """
 
-        action_ids = serializers.ListField(required=False, label="权限id列表", default=["view_business"])
+        action_ids = serializers.ListField(required=False, label="权限id列表", default=[ActionEnum.VIEW_BUSINESS])
         username = serializers.CharField(required=False, label="用户名", allow_null=True, default="")
 
     def validate_username(self, username):
@@ -46,9 +46,10 @@ class BusinessListByActions(Resource):
         perm_client = Permission(validated_request_data["username"])
         perm_client.skip_check = False
         for action_id in validated_request_data["action_ids"]:
-            action = get_action_by_id(action_id)
             # 根据权限中心的【业务访问】权限，对业务列表进行过滤
-            business_list = perm_client.filter_business_list_by_action(action)
+            business_list = perm_client.filter_space_list_by_action(action_id)
             for business in business_list:
-                biz_dict.setdefault(business.bk_biz_id, {"id": business.id, "text": business.display_name})
+                biz_dict.setdefault(
+                    business["bk_biz_id"], {"id": business["bk_biz_id"], "text": business["display_name"]}
+                )
         return list(biz_dict.values())
