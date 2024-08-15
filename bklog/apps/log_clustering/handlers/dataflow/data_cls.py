@@ -424,6 +424,8 @@ class LogCountAggregationFlowCls(object):
     log_count_aggregation: RealTimeCls
     tspider_storage: TspiderStorageCls
     storage_type: str
+    signature: dict
+    pattern: dict
     bk_biz_id: int
     cluster: str = ""
 

@@ -1728,8 +1728,17 @@ class DataFlowHandler(BaseAiopsHandler):
                 # TODO: group by 字段需要转换为原始字段名称
                 groups=", ".join(clustering_config.group_fields),
             ),
+            signature={
+                "table_name": f"bklog_{index_set_id}_signature",
+                "result_table_id": f"{bk_biz_id}_bklog_{index_set_id}_signature",
+            },
+            pattern={
+                "table_name": f"bklog_{index_set_id}_pattern",
+                "result_table_id": f"{bk_biz_id}_bklog_{index_set_id}_pattern",
+                "expires": self.conf.get("log_pattern_expires", 30),
+            },
             tspider_storage=TspiderStorageCls(
-                cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires")
+                cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires", 3)
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
