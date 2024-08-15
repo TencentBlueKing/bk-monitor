@@ -601,7 +601,9 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
                 req = get_request()
             except Exception:
                 return bk_biz_ids, []
-            authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+            authorized_bizs = set(resource.space.get_bk_biz_ids_by_user(req.user))
+            if -1 not in authorized_bizs:
+                authorized_bizs = list(set(bk_biz_ids) - authorized_bizs)
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
         return authorized_bizs, unauthorized_bizs
 
