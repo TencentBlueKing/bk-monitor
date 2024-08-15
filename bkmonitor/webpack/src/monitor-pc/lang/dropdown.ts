@@ -102,4 +102,5 @@ export default {
   基本设置: 'Basic Settings',
   已通知: 'Notified',
   已流控: 'Throttled',
+  字段设置: 'Field Settings',
 };
