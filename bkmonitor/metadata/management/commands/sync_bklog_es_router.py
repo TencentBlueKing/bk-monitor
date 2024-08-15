@@ -159,7 +159,6 @@ class Command(BaseCommand):
                 (
                     _need_add_option_objs,
                     _need_update_option_objs,
-                    _update_fields,
                 ) = self._compose_create_or_update_option_objs(tid, info["options"])
                 # 更新
                 if _need_add_option_objs:
@@ -202,7 +201,7 @@ class Command(BaseCommand):
                 models.ESStorage.objects.bulk_create(es_obj_list, batch_size=BULK_CREATE_BATCH_SIZE)
                 models.ResultTableOption.objects.bulk_create(need_add_option_objs, batch_size=BULK_CREATE_BATCH_SIZE)
                 models.ResultTableOption.objects.bulk_update(
-                    need_update_option_objs, _update_fields, batch_size=BULK_UPDATE_BATCH_SIZE
+                    need_update_option_objs, ["value", "value_type"], batch_size=BULK_UPDATE_BATCH_SIZE
                 )
         except Exception as e:
             self.stderr.write(f"failed to create rt or es storage, err: {e}")
@@ -222,32 +221,29 @@ class Command(BaseCommand):
             client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
         # 推送详情
         if update_rt_set:
-            client.push_table_id_detail(list(update_rt_set), is_publish=True, include_es_table_ids=True)
+            client.push_table_id_detail(is_publish=True, include_es_table_ids=True)
 
-    def _compose_create_or_update_option_objs(self, table_id: str, options: List[Dict]) -> Tuple[List, List, List]:
+    def _compose_create_or_update_option_objs(self, table_id: str, options: List[Dict]) -> Tuple[List, List]:
         """创建或者更新结果表 option"""
-        # 转换option数据格式
-        option_map = {}
-        for option in options:
-            option_map[option["name"]] = option
-
         # 查询结果表下的option
-        exist_objs = models.ResultTableOption.objects.filter(table_id=table_id)
+        exist_objs = {obj.name: obj for obj in models.ResultTableOption.objects.filter(table_id=table_id)}
         need_update_objs, need_add_objs = [], []
-        update_fields = []
-        for obj in exist_objs:
-            op = option_map.get(obj.name)
-            # 如果存在，则比较是否有变更，然后进行更新
-            if op:
-                if op["value"] != obj.value:
-                    obj.value = op["value"]
-                    update_fields.append("value")
-                if op["value_type"] != obj.value_type:
-                    obj.value_type = op["value_type"]
-                    update_fields.append("value_type")
-                if update_fields:
-                    need_update_objs.append(obj)
-            # 否则，创建
+
+        for option in options:
+            exist_obj = exist_objs.get(option["name"])
+            need_update = False
+            if exist_obj:
+                # 更新数据
+                if option["value"] != exist_obj.value:
+                    exist_obj.value = option["value"]
+                    need_update = True
+                if option["value_type"] != exist_obj.value_type:
+                    exist_obj.value_type = option["value_type"]
+                    need_update = True
+                # 判断是否需要更新
+                if need_update:
+                    need_update_objs.append(exist_obj)
             else:
-                need_add_objs.append(models.ResultTableOption(table_id=table_id, **option))
-        return need_add_objs, need_update_objs, update_fields
+                need_add_objs.append(models.ResultTableOption(table_id=table_id, **dict(option)))
+
+        return need_add_objs, need_update_objs
