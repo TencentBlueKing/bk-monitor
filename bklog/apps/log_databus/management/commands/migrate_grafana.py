@@ -168,7 +168,7 @@ class Command(BaseCommand):
     def convert_bklog_grafana_config(self, grafana_url, grafana_data):
         """转换 bk-log grafana 配置数据, 支持平滑迁移到 bk-monitor"""
         failed_biz = {}
-        orgs_resp = grafana_client.common_get_all_organization(grafana_url)
+        orgs_resp = grafana_client.get_all_organization(grafana_url)
         if orgs_resp.status_code != 200:
             self.show_error(f"failed to convert orgs for bk_log: {orgs_resp.json()}")
             raise ValueError(f"Failed to get orgs from {grafana_url}")
@@ -211,7 +211,7 @@ class Command(BaseCommand):
 
     def get_datasource_uid(self, grafana_url, org_id, failed_biz, biz_id):
         """获取指定组织的数据源 uid"""
-        bk_monitor_ds_resp = grafana_client.common_get_datasources(grafana_url, org_id)
+        bk_monitor_ds_resp = grafana_client.get_all_datasources(org_id, grafana_url)
         if bk_monitor_ds_resp.status_code != 200:
             self.show_error(f"failed to get datasources for org {org_id}: {bk_monitor_ds_resp.json()}")
             self.record_error(failed_biz, biz_id, f"failed to get datasources: {bk_monitor_ds_resp.json()}")
@@ -224,7 +224,7 @@ class Command(BaseCommand):
 
     def create_organization(self, grafana_url, biz_id, failed_biz):
         """必要时创建新组织并返回组织 id"""
-        resp = grafana_client.common_create_organization(grafana_url, biz_id)
+        resp = grafana_client.create_organization(biz_id, grafana_url)
         if resp.status_code == 200:
             if (
                 'message' in resp.json()
@@ -294,7 +294,7 @@ class Command(BaseCommand):
                 self.create_dashboard(grafana_url, biz_id, org_id, dashboard, folder_title, folder_uid, failed_biz)
 
     def get_all_folders(self, grafana_url, org_id, biz_id):
-        all_folders_resp = grafana_client.common_get_folders(grafana_url, org_id)
+        all_folders_resp = grafana_client.get_folders(org_id, grafana_url)
         if all_folders_resp.status_code == 200:
             all_folders = all_folders_resp.json()
             return [folder['title'] for folder in all_folders]
@@ -308,14 +308,14 @@ class Command(BaseCommand):
         parent_uid = folder.get('parent_uid', None)
 
         if folder_title != "General":
-            resp = grafana_client.common_create_folder(grafana_url, org_id, folder_title, parent_uid)
+            resp = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
             if resp.status_code == 200:
                 folder_uid = resp.json()['uid']
                 self.stdout.write(f"create folder success in org {org_id} with folder_title {folder_title}")
                 return folder_title, folder_uid
             elif not folder_title.endswith("_bklog") and f"{folder_title}_bklog" not in all_folders:
                 folder_title = folder_title + "_bklog"
-                resp_copy = grafana_client.common_create_folder(grafana_url, org_id, folder_title, parent_uid)
+                resp_copy = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
                 if resp_copy.status_code == 200:
                     folder_uid = resp_copy.json()['uid']
                     self.stdout.write(f"create folder success in org {org_id} with folder_title {folder_title}")
@@ -349,9 +349,7 @@ class Command(BaseCommand):
             'timezone': dashboard['timezone'],
             'refresh': dashboard['refresh'],
         }
-        resp = grafana_client.common_create_dashboard(
-            grafana_url, org_id, dashboard_info, dashboard['panels'], folder_uid
-        )
+        resp = grafana_client.create_dashboard(org_id, dashboard_info, dashboard['panels'], folder_uid, grafana_url)
         if resp.status_code == 200:
             self.stdout.write(
                 f"create dashboard success {dashboard_info['title']} in org {org_id} "

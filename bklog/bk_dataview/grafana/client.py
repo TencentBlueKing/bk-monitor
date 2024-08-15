@@ -58,14 +58,16 @@ def get_organization_by_id(org_id: int):
     return resp
 
 
-def get_all_organization():
-    url = f"{API_HOST}/api/orgs/"
+def get_all_organization(api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/orgs/"
     resp = rpool.get(url, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
     return resp
 
 
-def create_organization(name: str):
-    url = f"{API_HOST}/api/orgs/"
+def create_organization(name: str, api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/orgs/"
     data = {"name": name}
     resp = rpool.post(url, json=data, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
     return resp
@@ -97,6 +99,14 @@ def update_user_in_org(org_id: int, user_id: int, role: str = "Editor"):
 def get_datasource(org_id: int, name):
     """查询数据源"""
     url = f"{API_HOST}/api/datasources/name/{name}"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
+    return resp
+
+
+def get_all_datasources(org_id: int, api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/datasources/"
     headers = {"X-Grafana-Org-Id": str(org_id)}
     resp = rpool.get(url, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
     return resp
@@ -144,55 +154,8 @@ def delete_datasource(org_id: int, datasource_id: int):
     return resp
 
 
-def update_dashboard(org_id: int, folder_id, dashboard):
-    url = f"{API_HOST}/api/dashboards/db"
-    data = {
-        "dashboard": dashboard,
-        "message": "provisioning dashboard",
-        "overwrite": True,
-        "folder_id": folder_id,
-    }
-    headers = {"X-Grafana-Org-Id": str(org_id)}
-    resp = rpool.post(
-        url, json=data, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log}
-    )
-    return resp
-
-
-def create_folder():
-    pass
-
-
-def search_dashboard(org_id: int, dashboard_id: int = None):
-    url = f"{API_HOST}/api/search/?type=dash-db"
-    if dashboard_id is not None:
-        url += f"&dashboardIds={dashboard_id}"
-    headers = {"X-Grafana-Org-Id": str(org_id)}
-    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
-    return resp
-
-
-def get_dashboard_by_uid(org_id: int, dashboard_uid: int):
-    url = f"{API_HOST}/api/dashboards/uid/{dashboard_uid}"
-    headers = {"X-Grafana-Org-Id": str(org_id)}
-    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
-    return resp
-
-
-def common_get_folders(api_host: str, org_id: int):
-    url = f"{api_host}/api/folders"
-    headers = {"X-Grafana-Org-Id": str(org_id)}
-    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
-    return resp
-
-
-def common_get_all_organization(api_host: str):
-    url = f"{api_host}/api/orgs/"
-    resp = rpool.get(url, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
-    return resp
-
-
-def common_create_folder(api_host: str, org_id: int, title: str, parent_uid: str = None):
+def create_folder(org_id: int, title: str, parent_uid: str = None, api_host: str = None):
+    api_host = api_host or API_HOST
     url = f"{api_host}/api/folders"
     headers = {"X-Grafana-Org-Id": str(org_id)}
     if parent_uid is None:
@@ -205,7 +168,15 @@ def common_create_folder(api_host: str, org_id: int, title: str, parent_uid: str
     return resp
 
 
-def common_create_dashboard(api_host: str, org_id: int, dashboard_info: dict, panels: list, folder_uid: str):
+def get_folders(org_id: int, api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/folders"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
+    return resp
+
+
+def create_dashboard(org_id: int, dashboard_info: dict, panels: list, folder_uid: str, api_host: str = None):
     url = f"{api_host}/api/dashboards/db"
     headers = {"X-Grafana-Org-Id": str(org_id)}
     data = {
@@ -227,15 +198,32 @@ def common_create_dashboard(api_host: str, org_id: int, dashboard_info: dict, pa
     return resp
 
 
-def common_get_datasources(api_host, org_id):
-    url = f"{api_host}/api/datasources/"
+def update_dashboard(org_id: int, folder_id, dashboard):
+    url = f"{API_HOST}/api/dashboards/db"
+    data = {
+        "dashboard": dashboard,
+        "message": "provisioning dashboard",
+        "overwrite": True,
+        "folder_id": folder_id,
+    }
     headers = {"X-Grafana-Org-Id": str(org_id)}
-    resp = rpool.get(url, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
+    resp = rpool.post(
+        url, json=data, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log}
+    )
     return resp
 
 
-def common_create_organization(api_host, name):
-    url = f"{api_host}/api/orgs/"
-    data = {"name": name}
-    resp = rpool.post(url, json=data, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
+def search_dashboard(org_id: int, dashboard_id: int = None):
+    url = f"{API_HOST}/api/search/?type=dash-db"
+    if dashboard_id is not None:
+        url += f"&dashboardIds={dashboard_id}"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
+    return resp
+
+
+def get_dashboard_by_uid(org_id: int, dashboard_uid: int):
+    url = f"{API_HOST}/api/dashboards/uid/{dashboard_uid}"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
     return resp
