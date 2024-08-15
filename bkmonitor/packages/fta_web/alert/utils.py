@@ -135,8 +135,6 @@ def parse_query_str(query_str: str) -> Q:
             value = value.strip()
             if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
                 value = value[1:-1]
-            else:
-                value = value
 
             # 如果是 event.metric 字段，则使用 wildcard 模糊查询
             if field == "event.metric":
