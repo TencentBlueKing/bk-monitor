@@ -1254,7 +1254,11 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
       const { page, pageSize, filters } = this.$route.query;
       this.tableInstance.page = Number(page) || 1;
       this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
-      this.header.condition = filters ? JSON.parse(filters as string) : [];
+      try {
+        this.header.condition = filters ? JSON.parse(filters as string) : [];
+      } catch {
+        this.header.condition = [];
+      }
     } else {
       const { route } = this.$router.resolve({
         name: this.$route.name,
