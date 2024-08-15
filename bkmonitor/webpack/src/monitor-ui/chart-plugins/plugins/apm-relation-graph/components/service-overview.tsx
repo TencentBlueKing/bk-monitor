@@ -27,6 +27,9 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import deepmerge from 'deepmerge';
+import { deepClone } from 'monitor-common/utils';
+
 import { PanelModel } from '../../../../chart-plugins/typings';
 import ChartWrapper from '../../../components/chart-wrapper';
 import BarAlarmChart from './bar-alarm-chart';
@@ -55,12 +58,53 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   tabActive = 'service';
 
-  get panel(): PanelModel[] {
-    return this.panels[this.tabActive].map(panel => new PanelModel(panel as any));
+  panel: PanelModel[] = [];
+
+  initPanel() {
+    this.panel = this.panels[this.tabActive].map(
+      panel =>
+        new PanelModel({
+          ...panel,
+          options: deepmerge(
+            deepClone(panel.options),
+            {
+              logHeader: this.tabActive === 'log',
+              disableContextmenu: true,
+              time_series: {
+                echart_option: {
+                  grid: {
+                    bottom: 0,
+                  },
+                  xAxis: {
+                    splitNumber: 3,
+                  },
+                },
+              },
+              legend: {
+                displayMode: this.tabActive === 'log' ? 'hidden' : 'list',
+              },
+            },
+            { arrayMerge: (_, newArr) => newArr }
+          ),
+        })
+    );
+  }
+
+  mounted() {
+    this.initPanel();
+  }
+
+  handleChartCheck(check: boolean, panel: PanelModel) {
+    panel.updateChecked(check);
+  }
+
+  handleCollectChart(panel: PanelModel) {
+    console.log(panel);
   }
 
   handleTabClick(id: string) {
     this.tabActive = id;
+    this.initPanel();
   }
 
   render() {
@@ -130,25 +174,29 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               ))}
             </div>
             <div class='tabs-content'>
-              {this.panel.map((item, index) => (
+              {this.tabActive === 'service' && (
+                <BarAlarmChart
+                  style='margin-bottom: 16px'
+                  activeItemHeight={32}
+                  isAdaption={true}
+                  itemHeight={24}
+                  showHeader={true}
+                  showXAxis={true}
+                >
+                  <div slot='title'>Apdex</div>
+                </BarAlarmChart>
+              )}
+              {this.panel.map(panel => (
                 <div
-                  key={item.id}
+                  key={panel.id}
                   class={['chart-item', `${this.tabActive}-type`]}
                 >
-                  {this.tabActive === 'log' && (
-                    <div class='log-header'>
-                      <div
-                        class='chart-name'
-                        v-bk-tooltips={{ content: this.$t('跳转查看详情') }}
-                      >
-                        {this.$t('索引集')}
-                        {index + 1}
-                        <i class='icon-monitor icon-fenxiang' />
-                      </div>
-                      <bk-checkbox>Error</bk-checkbox>
-                    </div>
-                  )}
-                  <ChartWrapper panel={item} />
+                  <ChartWrapper
+                    customMenuList={['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']}
+                    panel={panel}
+                    onChartCheck={v => this.handleChartCheck(v, panel)}
+                    onCollectChart={() => this.handleCollectChart(panel)}
+                  />
                 </div>
               ))}
             </div>

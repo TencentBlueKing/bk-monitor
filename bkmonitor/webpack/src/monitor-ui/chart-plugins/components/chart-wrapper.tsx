@@ -64,7 +64,7 @@ import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 
-import type { PanelModel } from '../typings';
+import type { ChartTitleMenuType, PanelModel } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
@@ -79,6 +79,7 @@ interface IChartWrapperProps {
   detectionConfig?: IDetectionConfig;
   needHoverStryle?: boolean;
   needCheck?: boolean;
+  customMenuList?: ChartTitleMenuType[];
 }
 interface IChartWrapperEvent {
   onChartCheck: boolean;
@@ -102,6 +103,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Boolean, default: true }) needCheck: boolean;
   @Prop({ type: Boolean, default: undefined }) collapse: boolean;
   @Prop({ type: Boolean, default: undefined }) chartChecked: boolean;
+  @Prop({ type: Array, default: null }) customMenuList: ChartTitleMenuType[];
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -497,6 +499,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return (
           <ApmTimeSeries
             clearErrorMsg={this.handleClearErrorMsg}
+            customMenuList={this.customMenuList}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
             onCollectChart={this.handleCollectChart}

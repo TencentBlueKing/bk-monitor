@@ -276,7 +276,7 @@ export class DataQuery implements IDataQuery {
   handleCreateFieldsKey(fieldsSort) {
     return fieldsSort.reduce((total, cur, index) => {
       const joiner = !index ? '' : '-';
-      return (total = `${total}${joiner}${cur[1]}`);
+      return `${total}${joiner}${cur[1]}`;
     }, '');
   }
   /** 对象生成有序的二维数组 */
