@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 from datetime import datetime
+from typing import Dict, List
 
 import six
 from django.utils.translation import gettext as _
@@ -85,6 +86,11 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         elif scope_type == ScopeType.NODE:
             node_path_list = self.get_node_path_list(bk_biz_id, dimension_config.get("bk_topo_node"))
             content += ",".join(["/".join(item) for item in node_path_list])
+        elif scope_type == ScopeType.DYNAMIC_GROUP:
+            dynamic_group_names = self.get_dynamic_group_name_list(
+                bk_biz_id, dimension_config.get("dynamic_group") or []
+            )
+            content += ",".join(dynamic_group_names)
         else:
             content += self.get_business_name(bk_biz_id)
 
@@ -115,6 +121,13 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         example:
         输入：bk_biz_id=2, bk_topo_node_list=[{"bk_obj_id":"set","bk_inst_id":6},{"bk_obj_id":"module","bk_inst_id":60}]
         输出：[['蓝鲸', 'test1', '计算平台'], ['蓝鲸', 'test1', '作业平台', 'consul']]
+        """
+        return []
+
+    @abc.abstractmethod
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: List[Dict]) -> List:
+        """
+        根据动态分组id列表返回动态分组名称列表，需要子类实现
         """
         return []
 
