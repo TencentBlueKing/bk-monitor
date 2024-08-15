@@ -53,7 +53,7 @@ class DynamicGroupHandler:
 
     def execute(self, dynamic_group_id: str, start: int, page_size: int) -> Dict:
         """执行动态分组"""
-        result = {"start": start, "page_size": page_size, "total": 0}
+        result = {"start": start, "page_size": page_size, "total": 0, "data": []}
 
         if page_size > 0:
             execute_dynamic_group_result = BkApi.execute_dynamic_group(
@@ -117,10 +117,7 @@ class DynamicGroupHandler:
             "fields": constants.CommonEnum.SIMPLE_HOST_FIELDS.value,
             "no_request": True,
         }
-        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params)
-        if not hosts:
-            return result
-
+        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params) or []
         result["host_count"] = len(hosts)
         TopoHandler.fill_agent_status(hosts, self.bk_biz_id)
         agent_statistics = TopoHandler.count_agent_status(hosts)
