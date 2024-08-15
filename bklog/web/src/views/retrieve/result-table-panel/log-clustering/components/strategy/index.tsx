@@ -76,16 +76,16 @@ export default class Strategy extends tsc<object> {
   };
   /** 新类提交数据 */
   alarmFormData = {
-    interval: '',
-    threshold: '',
-    level: '',
+    interval: '30',
+    threshold: '1',
+    level: 2,
     user_groups: [],
     label_name: [],
   };
   /** 数据提交表单数据 */
   increaseFormData = {
-    level: '',
-    sensitivity: 0,
+    level: 2,
+    sensitivity: 5,
     user_groups: [],
     label_name: [],
   };
@@ -378,7 +378,7 @@ export default class Strategy extends tsc<object> {
           >
             <bk-input
               v-model={this.formData.interval}
-              placeholder={$i18n.t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
+              placeholder={$i18n.t('新类告警间隔 (天)')}
               show-controls={false}
               type='number'
             ></bk-input>
