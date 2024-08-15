@@ -111,18 +111,7 @@ def push_and_publish_es_table_id(
                     if option["value_type"] == models.ResultTableOption.TYPE_STRING
                     else json.loads(option["value"])
                 )
-            except Exception:
-                _options[option["name"]] = {}
-        values["options"] = _options
-
-    # 组装values，包含 options 字段
-    values = {"storage_id": cluster_id, "db": table_id_db, "measurement": "__default__", "options": {}}
-    if options:
-        _options = {}
-        for option in options:
-            try:
-                _options[option["name"]] = json.loads(option["value"])
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 _options[option["name"]] = {}
         values["options"] = _options
 
