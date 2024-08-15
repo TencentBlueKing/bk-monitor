@@ -372,13 +372,13 @@ export default class Strategy extends tsc<object> {
         >
           <bk-form-item
             v-show={this.isAlarmType}
-            label={$i18n.t('新类告警间隔')}
+            label={$i18n.t('新类告警间隔（天）')}
             property='interval'
             required
           >
             <bk-input
               v-model={this.formData.interval}
-              placeholder={$i18n.t('新类告警间隔 (天)')}
+              placeholder={$i18n.t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
               show-controls={false}
               type='number'
             ></bk-input>

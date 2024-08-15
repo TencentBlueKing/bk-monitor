@@ -660,6 +660,7 @@ export default {
   数量突增告警: 'Alarm for sudden increase',
   新类告警间隔: 'New alarm interval',
   新类告警阈值: 'New alarm threshold',
+  '新类告警间隔（天）': 'New alarm interval (days)',
   告警级别: 'Alarm level',
   告警组: 'Alarm group',
 };
