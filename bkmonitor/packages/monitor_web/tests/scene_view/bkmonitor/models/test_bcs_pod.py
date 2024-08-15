@@ -16,6 +16,8 @@ from api.kubernetes.default import FetchK8sPodListByClusterResource
 from bkmonitor.models.bcs_pod import BCSPod
 from core.testing import assert_list_contains
 
+pytestmark = pytest.mark.django_db(databases=["default", "monitor_api"])
+
 
 class TestBCSPod:
     def test_load_list_from_api(self, monkeypatch, monkeypatch_bcs_storage_fetch_pod_list_by_cluster):
@@ -86,17 +88,13 @@ class TestBCSPod:
         ]
         assert_list_contains(actual, expect)
 
-    @pytest.mark.django_db
-    def test_sync_resource_usage(
-        self, monkeypatch_kubernetes_fetch_pod_usage, monkeypatch_fetch_k8s_bkm_metricbeat_endpoint_up, add_bcs_pods
-    ):
-        bcs_cluster_id = "BCS-K8S-00000"
+    @pytest.mark.parametrize("bcs_cluster_id", ["BCS-K8S-00000", None])
+    def test_sync_resource_usage_by_cluster(self, bcs_cluster_id, monkeypatch_kubernetes_fetch_pod_usage, add_bcs_pods):
         bk_biz_id = 2
 
-        actual = BCSPod.sync_resource_usage(bk_biz_id, bcs_cluster_id)
-        assert actual is None
+        BCSPod.sync_resource_usage(bk_biz_id, bcs_cluster_id)
 
-        actual = [model_to_dict(model) for model in BCSPod.objects.all()]
+        actual = [model_to_dict(model) for model in BCSPod.objects.filter(bk_biz_id=bk_biz_id)]
         expect = [
             {
                 'bcs_cluster_id': 'BCS-K8S-00000',
@@ -122,6 +120,7 @@ class TestBCSPod:
                 'workload_name': 'api-gateway',
                 'workload_type': 'StatefulSet',
             },
+            # 无 CPU 数据，状态为 disabled
             {
                 'bcs_cluster_id': 'BCS-K8S-00000',
                 'bk_biz_id': 2,
@@ -140,35 +139,9 @@ class TestBCSPod:
                 'resource_requests_cpu': 0.0,
                 'resource_requests_memory': 1073741824,
                 'resource_usage_cpu': None,
-                'resource_usage_disk': None,
-                'resource_usage_memory': None,
+                'resource_usage_disk': 5210112,
+                'resource_usage_memory': 195993600,
                 'restarts': 0,
-                'status': 'Completed',
-                'total_container_count': 2,
-                'workload_name': 'api-gateway',
-                'workload_type': 'StatefulSet',
-            },
-            {
-                'bcs_cluster_id': 'BCS-K8S-00002',
-                'bk_biz_id': 100,
-                'deleted_at': None,
-                'images': 'host/namespace/apisix:latest,host/namespace/gateway-discovery:latest',
-                'labels': [],
-                'monitor_status': 'failed',
-                'name': 'api-gateway-2',
-                'namespace': 'namespace_a',
-                'node_ip': '1.1.1.1',
-                'node_name': 'node-1.1.1.1',
-                'pod_ip': '2.2.2.2',
-                'ready_container_count': 2,
-                'resource_limits_cpu': 10.0,
-                'resource_limits_memory': 9663676416,
-                'resource_requests_cpu': 0.0,
-                'resource_requests_memory': 1073741824,
-                'resource_usage_cpu': 0.03,
-                'resource_usage_disk': 330514432,
-                'resource_usage_memory': 826540032,
-                'restarts': 10,
                 'status': 'Completed',
                 'total_container_count': 2,
                 'workload_name': 'api-gateway',

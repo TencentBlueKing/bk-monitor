@@ -712,7 +712,7 @@ class BCSBase(models.Model):
         return data
 
     @staticmethod
-    def fetch_container_usage(bk_biz_id: int, bcs_cluster_id: str, group_by: List) -> Dict:
+    def fetch_container_usage(bk_biz_id: int, bcs_cluster_id: Optional[str], group_by: List) -> Dict:
         """获得cpu,memory,disk使用量 ."""
         usage_types = ["cpu", "memory", "disk"]
         bulk_params = [
@@ -903,6 +903,9 @@ class BCSBase(models.Model):
 
         self.monitor_status = monitor_status
         self.save()
+
+    def sync_resource_usage(self, bk_biz_id, bcs_cluster_id):
+        pass
 
 
 class BCSBaseUsageResources(models.Model):
