@@ -19,12 +19,14 @@ class DataLinkKind(Enum):
     RESULTTABLE = "ResultTable"
     VMSTORAGEBINDING = "VmStorageBinding"
     DATABUS = "Databus"
+    CONDITIONALSINK = "ConditionalSink"
 
     _choices_labels = (
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
         (DATABUS, "databuses"),
+        (CONDITIONALSINK, "conditionalsinks"),
     )
 
     @classmethod
