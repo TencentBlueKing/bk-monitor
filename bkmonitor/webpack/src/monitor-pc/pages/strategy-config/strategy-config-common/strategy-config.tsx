@@ -96,6 +96,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   @Prop({ type: Array, default: null }) bkStrategyId: IStrategyConfigProps['bkStrategyId'];
   @Prop({ type: Array, default: null }) dataSource: IStrategyConfigProps['dataSource'];
   @Prop({ type: String, default: '' }) actionName: IStrategyConfigProps['actionName'];
+  @Prop({ type: String, default: '' }) strategyLabels: IStrategyConfigProps['strategyLabels'];
   @Prop({ type: [String, Array] }) scenario: string;
   @Prop({ type: [String, Array] }) strategyState: string;
   @Prop({ type: Array }) keywords: IStrategyConfigProps['keywords']; /** 支持传入自定义搜索关键词 */

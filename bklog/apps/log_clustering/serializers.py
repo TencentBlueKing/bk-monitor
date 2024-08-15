@@ -30,6 +30,8 @@ from apps.log_clustering.constants import (
     OwnerConfigEnum,
     PatternEnum,
     RemarkConfigEnum,
+    StrategiesAlarmLevelEnum,
+    StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 
@@ -146,26 +148,37 @@ class UpdateStrategyAction(serializers.Serializer):
     operator = serializers.CharField(required=False)
     value = serializers.CharField(required=False)
 
-
-class UpdateStrategiesSerializer(serializers.Serializer):
-    pattern_level = serializers.ChoiceField(required=True, choices=PatternEnum.get_choices())
-    bk_biz_id = serializers.IntegerField()
-    actions = serializers.ListField(child=UpdateStrategyAction())
-
-
-class UpdateNewClsStrategySerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField()
-    action = serializers.ChoiceField(required=True, choices=ActionEnum.get_choices())
-    operator = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
-    strategy_id = serializers.IntegerField(required=False)
-
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
         if attrs["action"] == ActionEnum.DELETE.value and not attrs.get("strategy_id"):
             raise ValidationError(_("删除操作时需要提供对应strategy_id"))
         return attrs
+
+
+class UserGroupsSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    ids = serializers.ListField(child=serializers.IntegerField(), label=_("用户组ID"), required=False, default=[])
+
+
+class StrategySerializer(serializers.Serializer):
+    level = serializers.ChoiceField(label=_("告警级别"), choices=StrategiesAlarmLevelEnum.get_choices())
+    user_groups = serializers.ListField(child=serializers.IntegerField(), label=_("告警组"))
+
+
+class NewClsStrategySerializer(StrategySerializer):
+    interval = serializers.IntegerField(label=_("告警间隔"))
+    threshold = serializers.IntegerField(label=_("告警阈值"))
+
+
+class StrategyTypeSerializer(serializers.Serializer):
+    strategy_type = serializers.ChoiceField(
+        label=_("告警策略"), choices=[StrategiesType.NEW_CLS_strategy, StrategiesType.NORMAL_STRATEGY]
+    )
+
+
+class NormalStrategySerializer(StrategySerializer):
+    sensitivity = serializers.IntegerField(label=_("敏感度"))
 
 
 class SubscriberSerializer(serializers.Serializer):
