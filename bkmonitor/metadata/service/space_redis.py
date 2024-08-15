@@ -111,7 +111,7 @@ def push_and_publish_es_table_id(
                     if option["value_type"] == models.ResultTableOption.TYPE_STRING
                     else json.loads(option["value"])
                 )
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 _options[option["name"]] = {}
         values["options"] = _options
 

@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils.translation import ugettext as _
 
 from alarm_backends.service.scheduler.app import app
@@ -276,13 +277,15 @@ def multi_push_space_table_ids(space_list: List[Dict]):
     logger.info("multi push space table ids successfully")
 
 
-def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
+def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int, bcs_cluster_id: Optional[str] = None):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
     """
     from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 
-    if settings.ENABLE_V2_VM_DATA_LINK:
+    if settings.ENABLE_V2_VM_DATA_LINK or (
+        bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
+    ):
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
         access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
@@ -295,7 +298,14 @@ def access_bkdata_vm(
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
     try:
-        _access_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        from metadata.models import BCSClusterInfo
+
+        # 查询`data_id`所在的集群 ID 在启用新链路的白名单中
+        fq = Q(K8sMetricDataID=data_id) | Q(CustomMetricDataID=data_id) | Q(K8sEventDataID=data_id)
+        obj = BCSClusterInfo.objects.filter(fq).first()
+        bcs_cluster_id = obj.cluster_id if obj else None
+
+        _access_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id, bcs_cluster_id=bcs_cluster_id)
     except Exception as e:
         logger.error(
             "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e
@@ -307,7 +317,10 @@ def access_bkdata_vm(
     # 更新数据源依赖的 consul
     try:
         # 保证有 backend，才进行更新
-        if models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
+        if (
+            settings.ENABLE_V2_VM_DATA_LINK
+            or (bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST)
+        ) and models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
             data_source = models.DataSource.objects.get(bk_data_id=data_id, is_enable=True)
             data_source.refresh_consul_config()
     except models.DataSource.DoesNotExist:
