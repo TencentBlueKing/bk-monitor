@@ -129,6 +129,10 @@
             .chart-wrapper {
               height: 136px;
 
+              .time-series-content {
+                height: calc(100% - 28px);
+              }
+
               .title-wrapper {
                 display: block;
               }
@@ -136,12 +140,8 @@
           }
 
           &.log-type {
-            .bk-checkbox-text {
-              font-size: 12px;
-            }
-
             .chart-wrapper {
-              height: 84px;
+              height: 112px;
             }
           }
 
@@ -151,36 +151,9 @@
             }
           }
 
-          .log-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            line-height: 20px;
-
-            .chart-name {
-              font-size: 12px;
-              color: #313238;
-              cursor: pointer;
-
-              .icon-fenxiang {
-                display: none;
-                margin-left: 6px;
-              }
-
-              &:hover {
-                font-weight: 700;
-                color: #3a84ff;
-
-                .icon-fenxiang {
-                  display: inline-block;
-                }
-              }
-            }
-          }
-
           .chart-wrapper {
             background-color: transparent;
+            border: none;
 
             .title-wrapper {
               margin-bottom: 8px;
@@ -189,12 +162,17 @@
               .main-title {
                 min-height: 20px;
                 max-height: 20px;
+                padding-left: 0;
               }
 
               .title-name,
               .alarm-icon {
                 font-size: 12px;
               }
+            }
+
+            .time-series-content {
+              padding-bottom: 0;
             }
 
             .chart-legend {
