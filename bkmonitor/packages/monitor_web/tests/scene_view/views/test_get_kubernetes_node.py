@@ -14,8 +14,8 @@ from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
 
 
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 class TestGetKubernetesNode:
-    @pytest.mark.django_db
     def test_perform_request(
         self,
         monkeypatch_request_performance_data,
@@ -62,7 +62,7 @@ class TestGetKubernetesNode:
             },
             {'key': 'cloud_id', 'name': '云区域', 'type': 'string', 'value': ''},
             {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'Ready'},
-            {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '正常', 'type': 'success'}},
+            {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '异常', 'type': 'failed'}},
             {
                 'key': 'system_cpu_summary_usage',
                 'name': 'CPU使用率',
@@ -102,7 +102,6 @@ class TestGetKubernetesNode:
 
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request__ci_space(
         self,
         monkeypatch_get_space_detail,
@@ -151,7 +150,7 @@ class TestGetKubernetesNode:
             },
             {'key': 'cloud_id', 'name': '云区域', 'type': 'string', 'value': ''},
             {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'Ready'},
-            {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '正常', 'type': 'success'}},
+            {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '异常', 'type': 'failed'}},
             {
                 'key': 'system_cpu_summary_usage',
                 'name': 'CPU使用率',
