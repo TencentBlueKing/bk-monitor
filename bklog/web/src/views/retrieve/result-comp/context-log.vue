@@ -287,7 +287,7 @@
       async requestContentLog(direction) {
         const data = Object.assign(
           {
-            size: 50,
+            size: 500,
             zero: this.zero,
           },
           this.params,
