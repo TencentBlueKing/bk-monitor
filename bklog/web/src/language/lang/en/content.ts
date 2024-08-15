@@ -818,4 +818,7 @@ export default {
   '第{n}行': '{n} line',
   '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
   分隔符匹配: 'Delimiter match',
+  默认定位: 'Default target',
+  上下文命中: 'Context hit',
+  高亮: 'Highlight',
 };
