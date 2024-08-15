@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import List
 
 from celery.schedules import crontab
+from django.db import transaction
 
 from apps.api import TransferApi
 from apps.constants import BATCH_SYNC_SPACE_COUNT
@@ -59,7 +60,14 @@ def sync_spaces():
     # 记录本地同步所有的space_id, 用于删除不存在的空间
     space_id_list: List[int] = []
     # 有关联的空间
-    have_related_space_id_list: List[int] = []
+    have_related_space_list = []
+    # 没有关联的空间
+    not_related_space_list = []
+    # id和空间映射关系
+    space_mappings = {}
+    # space_uid和空间映射关系
+    space_uid_mappings = {}
+
     total: int = TransferApi.list_spaces({"page": 1, "page_size": 1})["count"]
     for i in get_page_numbers(total=total, page_size=BATCH_SYNC_SPACE_COUNT):
         spaces = TransferApi.list_spaces(
@@ -87,29 +95,62 @@ def sync_spaces():
                 properties=space,
                 is_deleted=False,
             )
-
-            space_obj.save()
+            space_mappings[space_pk] = space_obj
+            space_uid_mappings[space_uid] = space_obj
             space_id_list.append(space_pk)
             # 记录存在关联的空间, 因为只有非BKCC的业务会关联其他空间, 但是BKCC的业务不会知道他关联了哪些非BKCC业务, 所以需要记录
             if space_type_id == SpaceTypeEnum.BKCC.value or not space.get("resources", []):
+                not_related_space_list.append(
+                    {"space_uid": space_uid, "properties": space, "space_id": space_id, "space_type_id": space_type_id}
+                )
                 continue
-            have_related_space_id_list.append(space_obj.id)
-
-    # 将BKCC的业务的resources里也添加上其他空间类型的resource, 这样就可以通过BKCC的业务找到其他空间类型的业务
-    for _space_id in have_related_space_id_list:
-        _space = Space.objects.get(pk=_space_id)
-        for resource in _space.properties["resources"]:
+            have_related_space_list.append(
+                {"space_uid": space_uid, "properties": space, "space_id": space_id, "space_type_id": space_type_id}
+            )
+    need_relate_space_list = []
+    for _space in have_related_space_list:
+        for resource in _space["properties"]["resources"]:
             need_relate_space_uid: str = SpaceApi.gen_space_uid(
                 space_type=resource["resource_type"], space_id=resource["resource_id"]
             )
-            need_relate_space_obj: Space = Space.objects.filter(space_uid=need_relate_space_uid).first()
+            need_relate_space_obj = space_uid_mappings.get(need_relate_space_uid)
             if not need_relate_space_obj:
                 continue
             properties = deepcopy(need_relate_space_obj.properties)
-            properties["resources"].append({'resource_id': _space.space_id, 'resource_type': _space.space_type_id})
+            properties["resources"].append(
+                {'resource_id': _space["space_id"], 'resource_type': _space["space_type_id"]}
+            )
             need_relate_space_obj.properties = properties
-            need_relate_space_obj.save()
+            need_relate_space_list.append(need_relate_space_obj)
+    with transaction.atomic():
+        space_create_list = []
+        space_update_list = []
+        exist_space_id_list = Space.objects.values_list("id", flat=True)
+        for space_pk, _space in space_mappings.items():
+            if space_pk in exist_space_id_list:
+                space_update_list.append(_space)
+            else:
+                space_create_list.append(_space)
+        # 批量创建
+        Space.objects.bulk_create(space_create_list, batch_size=500)
+        # 批量更新
+        Space.objects.bulk_update(
+            space_update_list,
+            [
+                "space_uid",
+                "bk_biz_id",
+                "space_type_id",
+                "space_type_name",
+                "space_id",
+                "space_name",
+                "space_code",
+                "properties",
+                "is_deleted",
+            ],
+            batch_size=500,
+        )
+        Space.objects.bulk_update(need_relate_space_list, ["properties"], batch_size=500)
 
-    # 删除不存在的空间
-    deleted_rows = Space.origin_objects.exclude(id__in=space_id_list).delete()
+        # 删除不存在的空间
+        deleted_rows = Space.origin_objects.exclude(id__in=space_id_list).delete()
     logger.info("[sync_spaces] sync ({}), delete ({})".format(len(space_id_list), deleted_rows))
