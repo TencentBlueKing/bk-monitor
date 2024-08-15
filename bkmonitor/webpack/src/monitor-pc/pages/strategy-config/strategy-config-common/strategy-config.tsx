@@ -1251,17 +1251,17 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
 
   handleResetRoute(type: 'Get' | 'Set') {
     if (type === 'Get') {
-      const { page, pageSize, condition } = this.$route.query;
+      const { page, pageSize, filters } = this.$route.query;
       this.tableInstance.page = Number(page) || 1;
       this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
-      this.header.condition = condition ? JSON.parse(condition as string) : [];
+      this.header.condition = filters ? JSON.parse(filters as string) : [];
     } else {
       const { route } = this.$router.resolve({
         name: this.$route.name,
         query: {
           page: String(this.tableInstance.page),
           pageSize: String(this.tableInstance.pageSize),
-          condition: JSON.stringify(this.header.condition),
+          filters: JSON.stringify(this.header.condition),
         },
       });
       if (this.$route.fullPath !== route.fullPath) {
