@@ -602,7 +602,7 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
             except Exception:
                 return bk_biz_ids, []
             authorized_bizs = set(resource.space.get_bk_biz_ids_by_user(req.user))
-            if -1 not in authorized_bizs:
+            if -1 not in bk_biz_ids:
                 authorized_bizs = list(set(bk_biz_ids) - authorized_bizs)
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
         return authorized_bizs, unauthorized_bizs
