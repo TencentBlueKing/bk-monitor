@@ -88,7 +88,7 @@ class ShieldListResource(Resource):
         if bk_biz_id:
             q_list.append(Q(bk_biz_id=bk_biz_id))
         else:
-            q_list.append(Q(bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)]))
+            q_list.append(Q(bk_biz_id__in=resource.space.get_bk_biz_ids_by_user(get_request().user)))
 
         # 过滤条件
         if categories:
@@ -229,6 +229,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
             ScopeType.INSTANCE: "service_instance_id",
             ScopeType.IP: "bk_target_ip",
             ScopeType.NODE: "bk_topo_node",
+            ScopeType.DYNAMIC_GROUP: "dynamic_group",
         }
         scope_type = data["dimension_config"]["scope_type"]
         dimension_config = {}
@@ -238,7 +239,6 @@ class AddShieldResource(Resource, EventDimensionMixin):
                 for t in target:
                     t["bk_target_ip"] = t.pop("ip")
                     t["bk_target_cloud_id"] = t.pop("bk_cloud_id")
-
             dimension_config = {scope_key_mapping.get(scope_type): target}
         if "metric_id" in data["dimension_config"]:
             dimension_config["metric_id"] = data["dimension_config"]["metric_id"]

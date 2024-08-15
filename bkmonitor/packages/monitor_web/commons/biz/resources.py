@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import re
+from typing import List
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -39,13 +40,12 @@ class BusinessListOptionResource(Resource):
     def perform_request(self, validated_request_data):
         if validated_request_data["show_all"]:
             # api.cmdb.define.Business
-            biz_list = api.cmdb.get_business()
+            biz_list = resource.commons.list_spaces(show_all=1)
         else:
             request = get_request()
-            # monitor_web.cc.resources.biz.Business
-            biz_list = resource.cc.get_app_by_user(request.user)
+            biz_list = resource.space.get_space_dict_by_user(request.user)
 
-        select_options = [{"id": biz.bk_biz_id, "text": biz.display_name} for biz in biz_list]
+        select_options = [{"id": biz["bk_biz_id"], "text": biz["display_name"]} for biz in biz_list]
         select_options.sort(key=lambda b: safe_int(b["id"]))
         return select_options
 
@@ -118,23 +118,22 @@ class ListSpacesResource(Resource):
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
     @classmethod
-    def get_space_by_user(cls, username):
+    def get_space_by_user(cls, username, use_cache=True) -> List[dict]:
         perm_client = Permission(username)
-        return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+        return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
 
-    def perform_request(self, validated_request_data) -> [dict]:
+    def perform_request(self, validated_request_data) -> List[dict]:
         username = get_request_username()
 
         if validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息
             if settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username):
-                all_space_list = self.get_space_by_user(username)
+                spaces: List[dict] = self.get_space_by_user(username)
             else:
-                all_space_list = SpaceApi.list_spaces()
+                spaces: List[dict] = SpaceApi.list_spaces_dict()
         else:
-            all_space_list = self.get_space_by_user(username)
+            spaces: List[dict] = self.get_space_by_user(username)
 
-        spaces = [s.to_dict() for s in all_space_list]
         if validated_request_data["show_detail"]:
             list(map(self.enrich_space_func, spaces))
         return spaces
@@ -192,7 +191,9 @@ class ListDevopsSpacesResource(Resource):
         if not devops_projects:
             return []
         # 过滤监控已接入蓝盾和bcs项目空间
-        all_space_ids = [space.space_id for space in SpaceApi.list_spaces() if space.space_type_id == "bkci"]
+        all_space_ids = [
+            space["space_id"] for space in SpaceApi.list_spaces_dict() if space["space_type_id"] == SpaceTypeEnum.BKCI
+        ]
         return [
             devops_project for devops_project in devops_projects if devops_project["project_code"] not in all_space_ids
         ]

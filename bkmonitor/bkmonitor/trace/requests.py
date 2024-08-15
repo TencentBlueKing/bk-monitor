@@ -20,6 +20,9 @@ def requests_span_callback(span: Span, response):
     if not response:
         return
 
+    if hasattr(response.raw, "stream"):
+        return
+
     try:
         json_result = response.json()
     except Exception:  # pylint: disable=broad-except # noqa

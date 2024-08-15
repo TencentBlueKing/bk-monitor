@@ -2199,42 +2199,41 @@ class Strategy(AbstractConfig):
             access_host_anomaly_detect_by_strategy_id,
         )
 
-        # 未开启计算平台接入，则直接返回
+        # 1. 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:
             return
 
+        # 2. 获取配置的智能检测算法(AIOPS)
         intelligent_algorithm = None
         for algorithm in chain(*(item.algorithms for item in self.items)):
-            # 主机异常检测的接入逻辑跟其他智能检测不一样，因此单独接入
-            if algorithm.type == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
-                intelligent_algorithm = algorithm.type
-                break
-
             if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
                 intelligent_algorithm = algorithm.type
                 break
 
+        # 3. 未找到配置的智能检测算法(AIOPS)，则直接返回
         if not intelligent_algorithm:
             return
 
-        # 判断数据来源
+        # 4. 遍历每个监控项的查询配置，以判断数据来源并执行相应处理逻辑
         for query_config in chain(*(item.query_configs for item in self.items)):
+            # 4.1 如果数据类型不是时序数据，则跳过不处理
             if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
                 continue
 
+            # 4.2 标记是否需要接入智能检测算法，默认False表示不接入
             need_access = False
-
+            # 4.2.1 如果数据来源是监控采集器，且查询条件中不存在特殊的方法，则标记需要接入智能检测算法
             if query_config.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR:
-                # 如果查询条件中存在特殊的方法，查询条件置为空
                 for condition in query_config.agg_condition:
                     if condition["method"] in AdvanceConditionMethod:
                         raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
                 need_access = True
-
+            # 4.2.2 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
             elif query_config.data_source_label == DataSourceLabel.BK_DATA:
-                # 1. 先授权给监控项目(以创建或更新策略的用户来请求一次授权)
+                # 授权给监控项目(以创建或更新策略的用户来请求一次授权)
                 if intelligent_algorithm in AlgorithmModel.AIOPS_ALGORITHMS:
                     # 主机异常检测使用业务主机观测场景的flow，因此不需要授权
+                    # todo AlgorithmModel.AIOPS_ALGORITHMS包含主机异常检测算法，实际这种情况也授权了
                     from bkmonitor.dataflow import auth
 
                     auth.ensure_has_permission_with_rt_id(
@@ -2242,11 +2241,11 @@ class Strategy(AbstractConfig):
                         rt_id=query_config.result_table_id,
                         project_id=settings.BK_DATA_PROJECT_ID,
                     )
-
-                # 2. 然后再创建异常检测的dataflow
                 need_access = True
 
+            # 4.3 接入智能检测算法
             if need_access:
+                # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
                 intelligent_detect = getattr(query_config, "intelligent_detect", {})
                 intelligent_detect["status"] = AccessStatus.PENDING
                 intelligent_detect["retries"] = 0
@@ -2254,11 +2253,13 @@ class Strategy(AbstractConfig):
                 query_config.intelligent_detect = intelligent_detect
                 query_config.save()
 
+                # 4.3.2 仅在web运行模式下，异步接入智能检测算法
                 if settings.ROLE == "web":
                     if intelligent_algorithm == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                        # 根据策略ID，异步接入主机异常检测算法
                         access_host_anomaly_detect_by_strategy_id.delay(self.id)
                     else:
-                        # 只有 web 运行模式下，才允许触发 celery 异步接入任务
+                        # 根据策略ID，异步接入其他智能检测算法
                         access_aiops_by_strategy_id.delay(self.id)
 
     @classmethod

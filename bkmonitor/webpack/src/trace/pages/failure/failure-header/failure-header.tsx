@@ -110,7 +110,10 @@ export default defineComponent({
         .finally(() => (listLoading.value = false));
     };
     const handleBack = () => {
-      router.go(-1);
+      const { bk_biz_id } = incidentDetail.value;
+      const { origin, pathname } = location;
+      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident`;
+      window.location.href = url;
     };
     /** 一期先不展示 */
     // const tipsItem = (val: number) => (

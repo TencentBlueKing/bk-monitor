@@ -1537,6 +1537,7 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
     description = serializers.CharField(
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
     )
+    target_object_type = serializers.CharField(label=_("目标类型"), required=False)
     target_node_type = serializers.CharField(label=_("节点类型"), required=False)
     target_nodes = TargetNodeSerializer(label=_("目标节点"), required=False, many=True)
     params = PluginParamSerializer(required=False)

@@ -22,14 +22,14 @@ the project delivered to anyone in the future.
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
-from apps.exceptions import ValidationError
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
-    ActionEnum,
     OwnerConfigEnum,
     PatternEnum,
     RemarkConfigEnum,
+    StrategiesAlarmLevelEnum,
+    StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 
@@ -136,34 +136,29 @@ class UpdateGroupFieldsSerializer(serializers.Serializer):
     group_fields = serializers.ListField(child=serializers.CharField(), allow_empty=True, default=list)
 
 
-class UpdateStrategyAction(serializers.Serializer):
-    signature = serializers.CharField()
-    pattern = serializers.CharField(allow_blank=True, allow_null=True)
-    strategy_id = serializers.IntegerField(required=False)
-    action = serializers.ChoiceField(required=True, choices=ActionEnum.get_choices())
-    operator = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
+class UserGroupsSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    ids = serializers.ListField(child=serializers.IntegerField(), label=_("用户组ID"), required=False, default=[])
 
 
-class UpdateStrategiesSerializer(serializers.Serializer):
-    pattern_level = serializers.CharField(default=PatternEnum.LEVEL_05)
-    bk_biz_id = serializers.IntegerField()
-    actions = serializers.ListField(child=UpdateStrategyAction())
+class StrategySerializer(serializers.Serializer):
+    level = serializers.ChoiceField(label=_("告警级别"), choices=StrategiesAlarmLevelEnum.get_choices())
+    user_groups = serializers.ListField(child=serializers.IntegerField(), label=_("告警组"))
 
 
-class UpdateNewClsStrategySerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField()
-    action = serializers.ChoiceField(required=True, choices=ActionEnum.get_choices())
-    operator = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
-    strategy_id = serializers.IntegerField(required=False)
+class NewClsStrategySerializer(StrategySerializer):
+    interval = serializers.IntegerField(label=_("告警间隔"))
+    threshold = serializers.IntegerField(label=_("告警阈值"))
 
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
 
-        if attrs["action"] == ActionEnum.DELETE.value and not attrs.get("strategy_id"):
-            raise ValidationError(_("删除操作时需要提供对应strategy_id"))
-        return attrs
+class StrategyTypeSerializer(serializers.Serializer):
+    strategy_type = serializers.ChoiceField(
+        label=_("告警策略"), choices=[StrategiesType.NEW_CLS_strategy, StrategiesType.NORMAL_STRATEGY]
+    )
+
+
+class NormalStrategySerializer(StrategySerializer):
+    sensitivity = serializers.IntegerField(label=_("敏感度"))
 
 
 class SubscriberSerializer(serializers.Serializer):

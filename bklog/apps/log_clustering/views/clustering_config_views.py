@@ -119,15 +119,6 @@ class ClusteringConfigViewSet(APIViewSet):
         action_result = task_service.forced_fail(request.query_params.get("node_id", ""))
         return Response({"result": action_result.result, "message": action_result.message})
 
-    @detail_route(methods=["GET"], url_path="create_new_cls_strategy")
-    def create_clustering_new_cls_strategy(self, request, *args, index_set_id=None, **kwargs):
-        from apps.log_clustering.handlers.clustering_monitor import (
-            ClusteringMonitorHandler,
-        )
-
-        strategy_id = ClusteringMonitorHandler(index_set_id=index_set_id).create_clustering_new_cls_strategy()
-        return Response({"strategy_id": strategy_id})
-
     @detail_route(methods=["POST"])
     def create_or_update(self, request, *args, **kwargs):
         """
