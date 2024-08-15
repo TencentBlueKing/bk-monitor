@@ -396,7 +396,7 @@ export default defineComponent({
                 </td>
               </tr>
             )}
-            <tr>
+            <tr key='tabelLoadingRef'>
               <td colspan={3}>
                 <div
                   ref='tabelLoadingRef'

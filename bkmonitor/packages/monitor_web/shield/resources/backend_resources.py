@@ -88,7 +88,7 @@ class ShieldListResource(Resource):
         if bk_biz_id:
             q_list.append(Q(bk_biz_id=bk_biz_id))
         else:
-            q_list.append(Q(bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)]))
+            q_list.append(Q(bk_biz_id__in=resource.space.get_bk_biz_ids_by_user(get_request().user)))
 
         # 过滤条件
         if categories:

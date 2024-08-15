@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 import abc
 from collections import defaultdict
-from typing import List, Dict, Callable, Optional
+from typing import Callable, List, Optional
 
 from django.utils.functional import cached_property
 
 from api.cmdb.define import Business
-from bkmonitor.iam import Permission
 from bkmonitor.iam.action import ActionMeta
 from bkmonitor.utils.request import get_request_username
-from core.drf_resource import api
+from core.drf_resource import api, resource
 
 
 class SearchScope:
@@ -19,8 +18,13 @@ class SearchScope:
 
 class SearchResultItem:
     def __init__(
-            self, bk_biz_id: int, title: str, view: str, view_args: dict = None, is_collected: bool = False,
-            temp_share_url: Optional[str] = None
+        self,
+        bk_biz_id: int,
+        title: str,
+        view: str,
+        view_args: dict = None,
+        is_collected: bool = False,
+        temp_share_url: Optional[str] = None,
     ):
         self.bk_biz_id = bk_biz_id
         self.title = title
@@ -40,7 +44,7 @@ class SearchResultItem:
             "view": self.view,
             "view_args": self.view_args,
             "is_collected": self.is_collected,
-            "temp_share_url": self.temp_share_url
+            "temp_share_url": self.temp_share_url,
         }
 
 
@@ -54,7 +58,6 @@ class SearchResult:
 
 
 class BaseSearchHandler(metaclass=abc.ABCMeta):
-
     # 搜索场景
     SCENE: str = ""
 
@@ -81,9 +84,7 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
         """
         为搜索结果增加访问权限检测
         """
-        bk_biz_ids = list({item.bk_biz_id for item in results})
-        permission = Permission(username=self.username)
-        allowed_biz_ids = permission.filter_biz_ids_by_action(action, bk_biz_ids)
+        allowed_biz_ids = resource.space.get_bk_biz_ids_by_user(self.username)
         for item in results:
             item.is_allowed = item.bk_biz_id in allowed_biz_ids
 

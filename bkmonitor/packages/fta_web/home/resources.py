@@ -11,7 +11,6 @@ from rest_framework import serializers
 from api.cmdb.define import Business
 from bkm_space.api import SpaceApi
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
-from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -249,7 +248,7 @@ class StatisticsResource(Resource):
     @classmethod
     def get_space_data_by_cache(cls) -> Dict[str, Any]:
         username: str = get_request_username()
-        allowed_biz_ids = set(resource.cc.fetch_allow_biz_ids_by_user(username))
+        allowed_biz_ids = set(resource.space.get_bk_biz_ids_by_user(username))
         return {"biz_id__space_map": {}, "allowed_biz_ids": allowed_biz_ids}
 
     @classmethod
@@ -666,13 +665,11 @@ class BizWithAlertStatisticsResource(Resource):
     @staticmethod
     def get_all_business_list():
         business_list = {
-            biz.bk_biz_id: {"bk_biz_id": biz.bk_biz_id, "bk_biz_name": biz.bk_biz_name}
-            for biz in api.cmdb.get_business(all=True)
+            biz["bk_biz_id"]: {"bk_biz_id": biz["bk_biz_id"], "bk_biz_name": biz["display_name"]}
+            for biz in resource.commons.list_spaces(show_all=1)
         }
         all_bk_biz_ids = list(business_list.keys())
-        authorized_business_list = Permission().filter_biz_ids_by_action(
-            action=ActionEnum.VIEW_EVENT, bk_biz_ids=all_bk_biz_ids
-        )
+        authorized_business_list = resource.space.get_bk_biz_ids_by_user()
         business_with_permission = [business_list[bk_biz_id] for bk_biz_id in authorized_business_list]
         unauthorized_biz_ids = set(all_bk_biz_ids) - set(authorized_business_list)
         business_data = {

@@ -991,7 +991,7 @@ class StrategyConfigListResource(Resource):
             all_strategy = all_strategy.filter(bk_biz_id=bk_biz_id).order_by(order)
         else:
             all_strategy = all_strategy.filter(
-                bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
+                bk_biz_id__in=resource.space.get_bk_biz_ids_by_user(get_request().user)
             ).order_by(order)
 
         # 模糊搜索
@@ -1998,7 +1998,7 @@ class PlainStrategyListResource(StrategyConfigListResource):
             all_strategy = all_strategy.filter(bk_biz_id=bk_biz_id, is_enabled=True).order_by("-update_time")
         else:
             all_strategy = all_strategy.filter(
-                bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)], is_enabled=True
+                bk_biz_id__in=resource.space.get_bk_biz_ids_by_user(get_request().user), is_enabled=True
             ).order_by("-update_time")
 
         strategy_list = []

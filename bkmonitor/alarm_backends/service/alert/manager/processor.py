@@ -86,23 +86,20 @@ class AlertManager(BaseAlertProcessor):
         处理入口
         """
         alerts = self.fetch_alerts()
-        dedupe_md5_list = [alert.dedupe_md5 for alert in alerts]
-
-        if not dedupe_md5_list:
+        if not alerts:
             return
 
-        lock_keys = [ALERT_UPDATE_LOCK.get_key(dedupe_md5=dedupe_md5) for dedupe_md5 in dedupe_md5_list]
+        lock_keys = [ALERT_UPDATE_LOCK.get_key(dedupe_md5=alert.dedupe_md5) for alert in alerts]
 
         with multi_service_lock(ALERT_UPDATE_LOCK, lock_keys) as lock:
-            success_locked_dimensions = []
-            fail_locked_dimensions = []
-            for dedupe_md5 in dedupe_md5_list:
-                if lock.is_locked(ALERT_UPDATE_LOCK.get_key(dedupe_md5=dedupe_md5)):
-                    success_locked_dimensions.append(dedupe_md5)
+            locked_alerts = []
+            fail_locked_alert_ids = []
+            for alert in alerts:
+                if lock.is_locked(ALERT_UPDATE_LOCK.get_key(dedupe_md5=alert.dedupe_md5)):
+                    locked_alerts.append(alert)
                 else:
-                    fail_locked_dimensions.append(dedupe_md5)
+                    fail_locked_alert_ids.append(alert.id)
             # 加锁成功的告警，才会开始处理
-            locked_alerts = [alert for alert in alerts if alert.dedupe_md5 in success_locked_dimensions]
             alerts_to_check = []
             alerts_to_update_directly = []
             for alert in locked_alerts:
@@ -113,12 +110,12 @@ class AlertManager(BaseAlertProcessor):
 
             alerts_to_check = self.handle(alerts_to_check)
 
-            if fail_locked_dimensions:
+            if fail_locked_alert_ids:
                 # 对加锁失败的告警，不进行操作，等下一轮的周期检测即可
                 self.logger.info(
-                    "%s alerts is locked, will try later: %s",
-                    len(fail_locked_dimensions),
-                    ",".join(fail_locked_dimensions),
+                    "[alert.manager get lock error] total(%s) is locked, will try later: %s",
+                    len(fail_locked_alert_ids),
+                    ", ".join(fail_locked_alert_ids),
                 )
 
             # 4. 保存告警到ES
@@ -140,7 +137,7 @@ class AlertManager(BaseAlertProcessor):
 
         if alerts_to_update_directly:
             # 某些情况下，会存在snapshot的告警处于终结状态，而 DB 的并没有，此时需要刷一波进DB
-            self.logger.info("%s alerts with wrong status, will update db directly", len(alerts_to_update_directly))
+            self.logger.info("[refresh alert es] refresh ES directly: %s", alerts_to_update_directly)
             self.save_alerts(alerts_to_update_directly, action=BulkActionType.UPSERT, force_save=True)
 
     def handle(self, alerts: List[Alert]):
@@ -155,14 +152,16 @@ class AlertManager(BaseAlertProcessor):
             [Event(data=alert.top_event, do_clean=False) for alert in alerts]
         )
         active_alerts_mapping = {alert.dedupe_md5: alert.id for alert in active_alerts}
-        self.update_alert_cache(
+        update_count, finished_count = self.update_alert_cache(
             [
                 alert
                 for alert in alerts
                 if alert.dedupe_md5 not in active_alerts_mapping or active_alerts_mapping[alert.dedupe_md5] == alert.id
             ]
         )
+        self.logger.info("[alert.manager update alert cache]: updated(%s), finished(%s)", update_count, finished_count)
         # 4. 再把最新的内容刷回快照
-        self.update_alert_snapshot(alerts)
+        snapshot_count = self.update_alert_snapshot(alerts)
+        self.logger.info("[alert.manager update alert snapshot]: %s", snapshot_count)
 
         return alerts

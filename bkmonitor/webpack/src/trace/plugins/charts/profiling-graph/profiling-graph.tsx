@@ -71,7 +71,7 @@ export default defineComponent({
     const frameGraphRef = ref(FrameGraph);
     const empty = ref(true);
     // 当前视图模式
-    const activeMode = ref<ViewModeType>(ViewModeType.Flame);
+    const activeMode = ref<ViewModeType>(ViewModeType.Combine);
     const textDirection = ref<DirectionType>('ltr');
     const isLoading = ref(false);
     const tableData = shallowRef<ProfilingTableItem[]>([]);
@@ -344,7 +344,7 @@ export default defineComponent({
             {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
               <TableGraph
                 style={{
-                  width: ViewModeType.Combine ? '50%' : '100%',
+                  width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
                 }}
                 data={this.tableData}
                 dataType={this.queryParams.data_type}
@@ -363,7 +363,7 @@ export default defineComponent({
               <FrameGraph
                 ref='frameGraphRef'
                 style={{
-                  width: ViewModeType.Combine ? '50%' : '100%',
+                  width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
                 }}
                 appName={this.queryParams.app_name}
                 data={this.flameData}
