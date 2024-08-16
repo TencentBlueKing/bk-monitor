@@ -283,7 +283,7 @@
         <bk-button
           class="submit-dialog-btn"
           theme="primary"
-          @click="isShowSubmitDialog = false"
+          @click="closeKnowDialog"
         >
           {{ $t('我知道了') }}</bk-button
         >
@@ -590,7 +590,6 @@
                 },
               })
               .then(() => {
-                this.$emit('update-log-fields');
                 this.isShowSubmitDialog = true;
               })
               .finally(() => {
@@ -665,6 +664,10 @@
       },
       resetPage() {
         this.$emit('reset-page');
+      },
+      closeKnowDialog() {
+        this.isShowSubmitDialog = false;
+        this.$emit('update-log-fields');
       },
     },
   };

@@ -132,6 +132,7 @@
     data() {
       return {
         timeRange: [],
+        timer: null,
         isFold: localStorage.getItem('chartIsFold') === 'true',
         intervalArr: [
           { id: 'auto', name: 'auto' },
@@ -426,34 +427,37 @@
         this.isLoading = isLoading;
       },
       getInfoTotalNum() {
-        this.infoTotalNumLoading = true;
-        this.infoTotalNumError = false;
-        this.infoTotal = 0;
-        this.$http
-          .request(
-            'retrieve/fieldStatisticsTotal',
-            {
-              data: {
-                ...this.retrieveParams,
-                index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId],
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => {
+          this.infoTotalNumLoading = true;
+          this.infoTotalNumError = false;
+          this.infoTotal = 0;
+          this.$http
+            .request(
+              'retrieve/fieldStatisticsTotal',
+              {
+                data: {
+                  ...this.retrieveParams,
+                  index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId],
+                },
               },
-            },
-            {
-              cancelToken: new CancelToken(c => {
-                this.infoTotalCancel = c;
-              }),
-            },
-          )
-          .then(res => {
-            const { data, code } = res;
-            if (code === 0) this.infoTotal = data.total_count;
-          })
-          .catch(() => {
-            this.infoTotalNumError = true;
-          })
-          .finally(() => {
-            this.infoTotalNumLoading = false;
-          });
+              {
+                cancelToken: new CancelToken(c => {
+                  this.infoTotalCancel = c;
+                }),
+              },
+            )
+            .then(res => {
+              const { data, code } = res;
+              if (code === 0) this.infoTotal = data.total_count;
+            })
+            .catch(() => {
+              this.infoTotalNumError = true;
+            })
+            .finally(() => {
+              this.infoTotalNumLoading = false;
+            });
+        }, 0);
       },
     },
   };

@@ -70,7 +70,7 @@ interface IColumnItem {
     minWidth?: number | string;
     resizable?: boolean;
     formatter?: (value: any) => string; // Replace `Function` with a more specific function type
-    sortable?: 'curstom' | boolean;
+    sortable?: 'custom' | boolean;
   };
 }
 interface IEventTableEvent {
@@ -119,7 +119,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   tableSize: TableSizeType = 'medium';
   tableKey: string = random(10);
   extendInfoMap: Record<string, TranslateResult>;
-  popoperInstance: any = null;
+  popoverInstance: any = null;
   metricPopoverIns = null;
   selectedCount = 0;
   tableToolList: {
@@ -127,9 +127,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     name: TranslateResult | string;
   }[];
   /* 状态栏更多操作按钮 */
-  popoperOperateInstance: any = null;
-  popoperOperateIndex = -1;
-  opetateRow = null;
+  popoverOperateInstance: any = null;
+  popoverOperateIndex = -1;
+  operateRow = null;
   enableCreateChatGroup = false;
   /* 关注人禁用操作 */
   followerDisabled = false;
@@ -173,7 +173,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 150,
             minWidth: 150,
-            sortable: 'curstom',
+            sortable: 'custom',
             formatter: (row: IEventItem) => this.formatterTime(row.create_time),
           },
         },
@@ -185,7 +185,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 180,
             minWidth: 180,
-            sortable: 'curstom',
+            sortable: 'custom',
             showOverflowTooltip: true,
           },
         },
@@ -196,7 +196,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           props: {
             width: 100,
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -241,7 +241,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 120,
             minWidth: 120,
-            // sortable: 'curstom'
+            // sortable: 'custom'
           },
         },
         {
@@ -262,7 +262,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 150,
             minWidth: 150,
-            sortable: 'curstom',
+            sortable: 'custom',
             formatter: (row: IEventItem) => this.formatterTime(row.end_time),
           },
         },
@@ -274,7 +274,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 80,
             minWidth: 80,
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -284,7 +284,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: true,
           props: {
             width: 100,
-            sortable: 'curstom',
+            sortable: 'custom',
             formatter: (row: IEventItem) => {
               const statusInfo = getStatusInfo(row.status, row.failure_type);
               return (
@@ -339,7 +339,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         },
         this.bizIds.length > 1 || this.bizIds?.[0] === -1
           ? {
-              id: 'bizName',
+              id: 'bk_biz_name',
               name: this.$t('空间名'),
               disabled: true,
               checked: true,
@@ -386,7 +386,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           checked: true,
           props: {
             minWidth: 180,
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -406,7 +406,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.create_time),
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -417,7 +417,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.begin_time),
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -428,7 +428,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.end_time),
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -439,7 +439,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.latest_time),
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -450,7 +450,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.first_anomaly_time),
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -459,7 +459,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: false,
           props: {
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
         {
@@ -481,7 +481,12 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.tags?.map(item => <span class='tag-item'>{`${item.key}: ${item.value}`}</span>) || '--',
+              row.tags?.map((item, index) => (
+                <span
+                  key={index}
+                  class='tag-item'
+                >{`${item.key}: ${item.value}`}</span>
+              )) || '--',
           },
         },
         {
@@ -503,7 +508,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.appointee?.map(appointee => <span class='tag-item'>{appointee}</span>) || '--',
+              row.appointee?.map((appointee, index) => (
+                <span
+                  key={index}
+                  class='tag-item'
+                >
+                  {appointee}
+                </span>
+              )) || '--',
           },
         },
         {
@@ -515,7 +527,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.assignee?.map(assginne => <span class='tag-item'>{assginne}</span>) || '--',
+              row.assignee?.map((assignee, index) => (
+                <span
+                  key={index}
+                  class='tag-item'
+                >
+                  {assignee}
+                </span>
+              )) || '--',
           },
         },
         {
@@ -527,7 +546,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.follower?.map(follower => <span class='tag-item'>{follower}</span>) || '--',
+              row.follower?.map((follower, index) => (
+                <span
+                  key={index}
+                  class='tag-item'
+                >
+                  {follower}
+                </span>
+              )) || '--',
           },
         },
         // {
@@ -560,7 +586,15 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 200,
             minWidth: 200,
-            formatter: (row: IEventItem) => row.labels?.map(label => <span class='tag-item'>{label}</span>) || '--',
+            formatter: (row: IEventItem) =>
+              row.labels?.map((label, index) => (
+                <span
+                  key={index}
+                  class='tag-item'
+                >
+                  {label}
+                </span>
+              )) || '--',
           },
         },
         {
@@ -585,7 +619,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             resizable: true,
             width: this.$store.getters.lang === 'en' ? 120 : 80,
             minWidth: this.$store.getters.lang === 'en' ? 140 : 110,
-            sortable: 'curstom',
+            sortable: 'custom',
           },
         },
       ] as IColumnItem[]
@@ -633,7 +667,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     };
     this.tableToolList = [
       {
-        id: 'comfirm',
+        id: 'confirm',
         name: this.$t('批量确认'),
       },
       {
@@ -677,11 +711,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       if (!this.tableRef?.store?.states?.selection?.length) {
         if (this.tableRef) {
           const selection = [];
-          this.tableData.forEach(item => {
+          for (const item of this.tableData) {
             if (v.includes(item.id)) {
               selection.push(item);
             }
-          });
+          }
           this.tableRef.store.states.selection = selection;
         }
       }
@@ -726,7 +760,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
    */
   handleSettingChange({ size, fields }) {
     this.tableSize = size;
-    this.tableColumn.forEach(item => (item.checked = fields.some(field => field.id === item.id)));
+    for (const item of this.tableColumn) {
+      item.checked = fields.some(field => field.id === item.id);
+    }
     const storeKey = this.searchType === 'alert' ? alertStoreKey : actionStoreKey;
     localStorage.setItem(
       storeKey,
@@ -797,7 +833,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
     switch (extendInfo.type) {
       // 监控主机监控详情
-      case 'host':
+      case 'host': {
         const detailId =
           extendInfo.bk_host_id ??
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
@@ -806,8 +842,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           '_blank'
         );
         return;
+      }
       // 监控数据检索
-      case 'bkdata':
+      case 'bkdata': {
         const targets = [{ data: { query_configs: extendInfo.query_configs } }];
         window.open(
           `${origin}${location.pathname
@@ -816,8 +853,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           '_blank'
         );
         return;
+      }
       // 日志检索
-      case 'log_search':
+      case 'log_search': {
         const retrieveParams = {
           // 检索参数
           bizId,
@@ -828,8 +866,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${extendInfo.index_set_id}${queryStr}`;
         window.open(url);
         return;
+      }
       // 监控自定义事件
-      case 'custom_event':
+      case 'custom_event': {
         const id = extendInfo.bk_event_group_id;
         window.open(
           `${origin}${location.pathname
@@ -838,6 +877,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           '_blank'
         );
         return;
+      }
     }
   }
   /** 关联信息提示信息 */
@@ -874,8 +914,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     switch (extendInfo.type) {
       case 'host':
         return [
-          <div class='extend-content'>{`${this.$t('主机名:')}${extendInfo.hostname || '--'}`}</div>,
-          <div class='extend-content'>
+          <div
+            key={'extend-content-1'}
+            class='extend-content'
+          >{`${this.$t('主机名:')}${extendInfo.hostname || '--'}`}</div>,
+          <div
+            key={'extend-content-2'}
+            class='extend-content'
+          >
             <span class='extend-content-message'>{`${this.$t('节点信息:')}${extendInfo.topo_info || '--'}`}</span>
             <span
               class='extend-content-link link-more'
@@ -950,13 +996,13 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
    * @return {*}
    */
   handlePopoverShow(e: MouseEvent, content: string) {
-    this.popoperInstance = this.$bkPopover(e.target, {
+    this.popoverInstance = this.$bkPopover(e.target, {
       content,
       maxWidth: 320,
       arrow: true,
       boundary: 'window',
     });
-    this.popoperInstance?.show?.(100);
+    this.popoverInstance?.show?.(100);
   }
 
   /**
@@ -965,9 +1011,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
    * @return {*}
    */
   handlePopoverHide() {
-    this.popoperInstance?.hide?.(0);
-    this.popoperInstance?.destroy?.();
-    this.popoperInstance = null;
+    this.popoverInstance?.hide?.(0);
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
   }
   /**
    * @description: 清除已选
@@ -1020,10 +1066,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
 
   /* 状态栏更多按钮操作 */
   handleShowMoreOperate(e: Event, index: number) {
-    this.popoperOperateIndex = index;
-    this.opetateRow = this.tableData[index];
-    if (!this.popoperOperateInstance) {
-      this.popoperOperateInstance = this.$bkPopover(e.target, {
+    this.popoverOperateIndex = index;
+    this.operateRow = this.tableData[index];
+    if (!this.popoverOperateInstance) {
+      this.popoverOperateInstance = this.$bkPopover(e.target, {
         content: this.moreItemsRef,
         arrow: false,
         trigger: 'click',
@@ -1032,13 +1078,13 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         maxWidth: 520,
         duration: [200, 0],
         onHidden: () => {
-          this.popoperOperateInstance.destroy();
-          this.popoperOperateInstance = null;
-          this.popoperOperateIndex = -1;
+          this.popoverOperateInstance.destroy();
+          this.popoverOperateInstance = null;
+          this.popoverOperateIndex = -1;
         },
       });
     }
-    this.popoperOperateInstance?.show(100);
+    this.popoverOperateInstance?.show(100);
   }
 
   handleMetricMouseenter(e: MouseEvent, data: IEventItem['metric_display']) {
@@ -1112,7 +1158,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                       >
                         {row.metric_display.map((item, index) => (
                           <div
-                            key={item.id + '__' + index}
+                            key={`${item.id}__${index}`}
                             class='tag-item set-item'
                           >
                             {item.name || item.id}
@@ -1156,7 +1202,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                       <div
                         style={{
                           display:
-                            this.hoverRowIndex === $index || this.popoperOperateIndex === $index ? 'flex' : 'none',
+                            this.hoverRowIndex === $index || this.popoverOperateIndex === $index ? 'flex' : 'none',
                         }}
                         class='operate-panel'
                         v-en-class='en-lang'
@@ -1212,7 +1258,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         v-bk-tooltips={{ content: this.$t('手动处理'), delay: 200, appendTo: 'parent' }}
                       /> */}
                         <span
-                          class={['operate-more', { active: this.popoperOperateIndex === $index }]}
+                          class={['operate-more', { active: this.popoverOperateIndex === $index }]}
                           onClick={e => this.handleShowMoreOperate(e, $index)}
                         >
                           <span class='bk-icon icon-more' />
@@ -1283,7 +1329,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                       onMouseleave={this.handlePopoverHide}
                     >
                       {[
-                        <div class='dimension-desc'>
+                        <div
+                          key={1}
+                          class='dimension-desc'
+                        >
                           {this.$t('维度信息')}：
                           {dimensions?.length
                             ? dimensions
@@ -1291,7 +1340,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                                 .join('-')
                             : '--'}
                         </div>,
-                        <div class='description-desc'>
+                        <div
+                          key={2}
+                          class='description-desc'
+                        >
                           {this.$t('告警内容')}：{description || '--'}
                         </div>,
                       ]}
@@ -1464,14 +1516,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           class='event-table-options-more-items'
         >
           <div
-            class={['more-item', { 'is-disable': this.opetateRow?.is_shielded || this.opetateRow?.followerDisabled }]}
+            class={['more-item', { 'is-disable': this.operateRow?.is_shielded || this.operateRow?.followerDisabled }]}
             v-bk-tooltips={{
               content: (() => {
-                if (this.opetateRow?.followerDisabled) {
+                if (this.operateRow?.followerDisabled) {
                   return this.$t('关注人禁用此操作');
                 }
-                return this.opetateRow?.is_shielded
-                  ? `${this.opetateRow.shield_operator?.[0] || ''}${this.$t('已屏蔽')}`
+                return this.operateRow?.is_shielded
+                  ? `${this.operateRow.shield_operator?.[0] || ''}${this.$t('已屏蔽')}`
                   : '';
               })(),
               delay: 200,
@@ -1480,9 +1532,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               allowHTML: false,
             }}
             on-click={() =>
-              !this.opetateRow?.is_shielded &&
-              !this.opetateRow?.followerDisabled &&
-              this.handleQuickShield(this.opetateRow)
+              !this.operateRow?.is_shielded &&
+              !this.operateRow?.followerDisabled &&
+              this.handleQuickShield(this.operateRow)
             }
           >
             <span class='icon-monitor icon-mc-notice-shield' />
@@ -1490,14 +1542,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           </div>
 
           <div
-            class={['more-item', { 'is-disable': this.opetateRow?.followerDisabled }]}
+            class={['more-item', { 'is-disable': this.operateRow?.followerDisabled }]}
             v-bk-tooltips={{
-              content: this.opetateRow?.followerDisabled ? this.$t('关注人禁用此操作') : '',
+              content: this.operateRow?.followerDisabled ? this.$t('关注人禁用此操作') : '',
               delay: 200,
               placements: ['left'],
               appendTo: () => document.body,
             }}
-            on-click={() => this.handleAlarmDispatch(this.opetateRow)}
+            on-click={() => this.handleAlarmDispatch(this.operateRow)}
           >
             <span class='icon-monitor icon-fenpai' />
             <span>{window.i18n.t('告警分派')}</span>

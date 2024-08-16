@@ -650,7 +650,7 @@ msgid "获取任务参数异常，错误信息：{}"
 msgstr "Get the task parameter abnormal, error message: {}"
 
 msgid "[故障自愈]-{}"
-msgstr "[Flash self-healing]-{}"
+msgstr "[Fault Tree Analysis]-{}"
 
 msgid "当前任务状态不可执行"
 msgstr "The current task status cannot be executed"
@@ -2320,7 +2320,7 @@ msgid "指标：{metric_field_name}；数据名称：{related_name}；数据来�
 msgstr "Metrics: {metric_field_name}; data name: {related_name}; data source: custom time order"
 
 msgid "数据来源：故障自愈第三方告警"
-msgstr "Data Source: Self -healing Third Party Alarm"
+msgstr "Data Source: FTA Third Party Alarm"
 
 #, python-brace-format
 msgid "指标：{metric_field}；指标分类：{result_table_name}；数据来源：监控采集"
@@ -2339,7 +2339,7 @@ msgid "监控"
 msgstr "Monitoring"
 
 msgid "故障自愈"
-msgstr "Fault self-healing"
+msgstr "Fault Tree Analysis"
 
 msgid "关联的策略已失效"
 msgstr "The associated rule has expired"
@@ -8335,7 +8335,7 @@ msgid "trace_id({})对应的参照不存在"
 msgstr "Reference for trace_id({}) Does Not Exist"
 
 msgid "故障自愈 | 蓝鲸智云"
-msgstr "Failure Self -heal | BlueKing Zhiyun"
+msgstr "Fault Tree Analysis | BlueKing"
 
 msgid "对应的ID{}不存在"
 msgstr "The corresponding ID {} does not exist"
@@ -8775,10 +8775,10 @@ msgid "自愈通知"
 msgstr "Self -healing notice"
 
 msgid "故障自愈通知"
-msgstr "Notice of Failing Self -healing"
+msgstr "Notice of FTA"
 
 msgid "故障自愈获取备机"
-msgstr "Failing self -healing for reserve"
+msgstr "FTA get backup host"
 
 #, python-brace-format
 msgid "故障自愈获取到备机为【${bak_ip}】"
@@ -8876,25 +8876,25 @@ msgid "{}（组合套餐迁移）"
 msgstr "{} (Combined Solution migration)"
 
 msgid "{}||{}【故障自愈】"
-msgstr "{} || {} 【Failure Self -healing】"
+msgstr "{} || {} 【FTA】"
 
 msgid "迁移的通知套餐"
 msgstr "Notice of Migration"
 
 msgid "[{}]自愈迁移{}告警组"
-msgstr "[{}] Self -healing {} alarm group"
+msgstr "[{}] FTA Migrate {} alarm group"
 
 msgid "自愈迁移"
-msgstr "Self -healing"
+msgstr "FTA Migrate"
 
 msgid "自愈迁移-{}"
-msgstr "Self-healing- {}"
+msgstr "FTA Migrate- {}"
 
 msgid "[{}]自愈迁移-{}"
-msgstr "[{}] Self-healing- {}"
+msgstr "[{}] FTA-Migrate {}"
 
 msgid "{}（迁移自愈套餐）"
-msgstr "{} (Migrate Solution)"
+msgstr "{} (Migrated Solution)"
 
 msgid "系统内置快捷套餐"
 msgstr "System built-in Solution"

@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 import logging
 from datetime import datetime
 
@@ -16,6 +17,7 @@ from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from alarm_backends.core.cache.cmdb import HostManager
+from alarm_backends.core.cache.key import ALERT_SHIELD_SNAPSHOT
 from alarm_backends.core.cache.shield import ShieldCacheManager
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.i18n import i18n
@@ -37,12 +39,36 @@ class AlertShieldConfigShielder(BaseShielder):
 
     type = ShieldType.SAAS_CONFIG
 
+    def get_shield_objs_from_cache(self):
+        # 从缓存获取alert近期命中的屏蔽配置ID列表
+        key = self.shield_objs_cache_key(self.alert)
+        if key is None:
+            # 告警没有策略(第三方告警), 或者未设置过缓存 返回None
+            return None
+        client = ALERT_SHIELD_SNAPSHOT.client
+        config_ids = client.get(key)
+        if config_ids:
+            # 已经进行过屏蔽匹配了， 这里直接返回
+            config_ids: [str] = json.loads(config_ids)
+            return [AlertShieldObj(config) for config in self.configs if str(config["id"]) in config_ids]
+        return None
+
+    def set_shield_objs_cache(self):
+        # 将匹配的屏蔽策略id 放进缓存
+        key = self.shield_objs_cache_key(self.alert)
+        if key is None:
+            return False
+        client = ALERT_SHIELD_SNAPSHOT.client
+        config_ids: [str] = [str(shield_obj.config["id"]) for shield_obj in self.shield_objs]
+        client.set(key, json.dumps(config_ids), ex=ALERT_SHIELD_SNAPSHOT.ttl)
+        return True
+
     def __init__(self, alert: AlertDocument):
         self.alert = alert
         try:
             self.configs = ShieldCacheManager.get_shields_by_biz_id(self.alert.event.bk_biz_id)
-            config_ids = ",".join([str(config["id"]) for config in self.configs])
-            logger.info(
+            config_ids: [str] = ",".join([str(config["id"]) for config in self.configs])
+            logger.debug(
                 "[load shield] alert(%s) strategy(%s) ids:(%s)",
                 self.alert.id,
                 self.alert.strategy_id,
@@ -54,15 +80,36 @@ class AlertShieldConfigShielder(BaseShielder):
                 "[load shield failed] alert(%s) strategy(%s) detail:(%s)", self.alert.id, self.alert.strategy_id, error
             )
 
-        self.shield_objs = []
-        for config in self.configs:
-            shield_obj = AlertShieldObj(config)
-            if shield_obj.is_match(alert):
-                self.shield_objs.append(shield_obj)
+        shield_objs_cache = self.get_shield_objs_from_cache()
+        from_cache = True
+        if shield_objs_cache is None:
+            self.shield_objs = []
+            for config in self.configs:
+                shield_obj = AlertShieldObj(config)
+                if shield_obj.is_match(alert):
+                    self.shield_objs.append(shield_obj)
+            self.set_shield_objs_cache()
+            from_cache = False
+        else:
+            self.shield_objs = shield_objs_cache
+
+        if not self.shield_objs:
+            # 记录未匹配屏蔽的告警信息
+            detail = "%s 条屏蔽配置全部未匹配" % len(self.configs)
+            if len(self.configs) == 0:
+                detail = "无生效屏蔽配置"
+            if not from_cache:
+                logger.info("[shield skipped] alert(%s) strategy(%s) %s", alert.id, alert.strategy_id, detail)
+
         shield_config_ids = ",".join([str(shield_obj.id) for shield_obj in self.shield_objs])
         self.is_global_shielder = None
         self.is_host_shielder = None
         self.detail = extended_json.dumps({"message": _("因为告警屏蔽配置({})屏蔽当前处理").format(shield_config_ids)})
+
+    def shield_objs_cache_key(self, alert):
+        if not alert.strategy_id:
+            return None
+        return ALERT_SHIELD_SNAPSHOT.get_key(strategy_id=self.alert.strategy_id, alert_id=self.alert.id)
 
     def is_matched(self):
         if GlobalShielder().is_matched():

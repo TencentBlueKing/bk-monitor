@@ -61,7 +61,7 @@ export default defineComponent({
     const handleNodeCheck = checkedData => {
       emit(
         'update:checkedIds',
-        checkedData.filter(item => !item.children).map(item => item.id)
+        checkedData.map(item => item.id)
       );
     };
 

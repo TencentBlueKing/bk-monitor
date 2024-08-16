@@ -6,7 +6,7 @@ settings:
 
 overrides:
   '@blueking/user-selector>vue': v2-latest
-  bk-magic-vue: 2.5.8
+  bk-magic-vue: 2.5.9-beta.38
   eslint: ^9.6.0
   monaco-editor: 0.44.0
   monaco-editor-webpack-plugin>monaco-editor: 0.44.0
@@ -132,8 +132,8 @@ importers:
         specifier: ^3.5.2
         version: 3.5.2
       bk-magic-vue:
-        specifier: 2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: 2.5.9-beta.38
+        version: 2.5.9-beta.38(vue@2.7.16)
       dayjs:
         specifier: ^1.11.11
         version: 1.11.11
@@ -208,8 +208,8 @@ importers:
         specifier: ^3.5.2
         version: 3.5.2
       bk-magic-vue:
-        specifier: 2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: 2.5.9-beta.38
+        version: 2.5.9-beta.38(vue@2.7.16)
       dayjs:
         specifier: ^1.11.11
         version: 1.11.11
@@ -351,8 +351,8 @@ importers:
         specifier: 0.0.1-beta.14
         version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/ip-selector':
-        specifier: 0.2.0-beta.1
-        version: 0.2.0-beta.1
+        specifier: 0.3.0-beta.30
+        version: 0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.5
         version: 1.0.5
@@ -381,8 +381,8 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1
       bk-magic-vue:
-        specifier: 2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: 2.5.9-beta.38
+        version: 2.5.9-beta.38(vue@2.7.16)
       dayjs:
         specifier: ^1.11.11
         version: 1.11.11
@@ -484,8 +484,8 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1
       bk-magic-vue:
-        specifier: 2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: 2.5.9-beta.38
+        version: 2.5.9-beta.38(vue@2.7.16)
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -581,8 +581,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.2.0-beta.1
-        version: 0.2.0-beta.1
+        specifier: 0.3.0-beta.30
+        version: 0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@3.4.31)
       '@blueking/login-modal':
         specifier: ^1.0.5
         version: 1.0.5
@@ -2526,6 +2526,12 @@ packages:
   /@blueking/bkui-library@0.0.0-beta.4:
     resolution: {integrity: sha512-FjrSj+tglFjpy17NvTZidzbtgm3l7nEn5Jyi1pB7lCK6eBkXam66IF+zZYDFE1XeyEeZfTAFUHV/Kil+Q6DmLg==}
     dependencies:
+      '@vue/runtime-dom': 3.4.38
+    dev: false
+
+  /@blueking/bkui-library@0.0.0-beta.6:
+    resolution: {integrity: sha512-1M6pNDIOQYWzOu3uVRxo0h67d+huTbBQYDjj8+QF4Ka3HSe/mLgSrIkaZhhUVlJJl5zP8HK+UwXpkWcjL8zIsw==}
+    dependencies:
       '@vue/runtime-dom': 3.4.31
     dev: false
 
@@ -2573,9 +2579,52 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/ip-selector@0.2.0-beta.1:
-    resolution: {integrity: sha512-ODkudyOh/YIigjRawmzXLdAWV0TO3ICzNNZYcxE4c5ZGPLdKzFnF4OWyaA+xXCMS1I2S/NiM6Te4sBHG7wF1Xg==}
+  /@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
+    resolution: {integrity: sha512-PTGEzuEKxuSd28u4nuKfmA/jRz2i+DHs+QdNr4bfB7p8K12R3tTMyLYkNgv78nt7+Q6sOnDLAXY2/7UD3P4fvQ==}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+      bkui-vue: ^1.0.3-beta.38
+      vue: ^3
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@2.7.16)
+      vue: 2.7.16
+    dev: false
+
+  /@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@3.4.31):
+    resolution: {integrity: sha512-PTGEzuEKxuSd28u4nuKfmA/jRz2i+DHs+QdNr4bfB7p8K12R3tTMyLYkNgv78nt7+Q6sOnDLAXY2/7UD3P4fvQ==}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+      bkui-vue: ^1.0.3-beta.38
+      vue: ^3
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@3.4.31)
+      vue: 3.4.31(typescript@5.5.3)
+    dev: false
+
+  /@blueking/ip-selector@0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
+    resolution: {integrity: sha512-8EGFyGthicb7C/5BVkbIuo0Id+8wJwYf4gGOK2C/yO4zuOqnkGjvDbOz8BjEyD+RCoLvHujpFPSpHo34Qo221Q==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      '@blueking/functional-dependency': 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+      vue-i18n: 8.14.1(vue@2.7.16)
+    transitivePeerDependencies:
+      - bkui-vue
+      - vue
+    dev: false
+
+  /@blueking/ip-selector@0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@3.4.31):
+    resolution: {integrity: sha512-8EGFyGthicb7C/5BVkbIuo0Id+8wJwYf4gGOK2C/yO4zuOqnkGjvDbOz8BjEyD+RCoLvHujpFPSpHo34Qo221Q==}
+    engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      '@blueking/functional-dependency': 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@3.4.31)
+      vue-i18n: 8.14.1(vue@3.4.31)
+    transitivePeerDependencies:
+      - bkui-vue
+      - vue
     dev: false
 
   /@blueking/login-modal@1.0.5:
@@ -4556,11 +4605,24 @@ packages:
       '@vue/shared': 3.4.31
     dev: false
 
+  /@vue/reactivity@3.4.38:
+    resolution: {integrity: sha512-4vl4wMMVniLsSYYeldAKzbk72+D3hUnkw9z8lDeJacTxAkXeDAP1uE9xr2+aKIN0ipOL8EG2GPouVTH6yF7Gnw==}
+    dependencies:
+      '@vue/shared': 3.4.38
+    dev: false
+
   /@vue/runtime-core@3.4.31:
     resolution: {integrity: sha512-LDkztxeUPazxG/p8c5JDDKPfkCDBkkiNLVNf7XZIUnJ+66GVGkP+TIh34+8LtPisZ+HMWl2zqhIw0xN5MwU1cw==}
     dependencies:
       '@vue/reactivity': 3.4.31
       '@vue/shared': 3.4.31
+    dev: false
+
+  /@vue/runtime-core@3.4.38:
+    resolution: {integrity: sha512-21z3wA99EABtuf+O3IhdxP0iHgkBs1vuoCAsCKLVJPEjpVqvblwBnTj42vzHRlWDCyxu9ptDm7sI2ZMcWrQqlA==}
+    dependencies:
+      '@vue/reactivity': 3.4.38
+      '@vue/shared': 3.4.38
     dev: false
 
   /@vue/runtime-dom@3.4.31:
@@ -4569,6 +4631,15 @@ packages:
       '@vue/reactivity': 3.4.31
       '@vue/runtime-core': 3.4.31
       '@vue/shared': 3.4.31
+      csstype: 3.1.3
+    dev: false
+
+  /@vue/runtime-dom@3.4.38:
+    resolution: {integrity: sha512-afZzmUreU7vKwKsV17H1NDThEEmdYI+GCAK/KY1U957Ig2NATPVjCROv61R19fjZNzMmiU03n79OMnXyJVN0UA==}
+    dependencies:
+      '@vue/reactivity': 3.4.38
+      '@vue/runtime-core': 3.4.38
+      '@vue/shared': 3.4.38
       csstype: 3.1.3
     dev: false
 
@@ -4584,6 +4655,10 @@ packages:
 
   /@vue/shared@3.4.31:
     resolution: {integrity: sha512-Yp3wtJk//8cO4NItOPpi3QkLExAr/aLBGZMmTtW9WpdwBCJpRM6zj9WgWktXAl8IDIozwNMByT45JP3tO3ACWA==}
+
+  /@vue/shared@3.4.38:
+    resolution: {integrity: sha512-q0xCiLkuWWQLzVrecPb0RMsNWyxICOjPrcrwxTUEHb1fsnvni4dcuyG7RT/Ie7VPTvnjzIaWzRMUBsrqNj/hhw==}
+    dev: false
 
   /@vueuse/core@10.11.0(vue@3.4.31):
     resolution: {integrity: sha512-x3sD4Mkm7PJ+pcq3HX8PLPBadXCAlSDR/waK87dz0gQE+qJnaaFhc/dZVfJz+IUYzTMVGum2QlR7ImiJQN4s6g==}
@@ -5253,8 +5328,9 @@ packages:
     engines: {node: '>=8'}
     dev: true
 
-  /bk-magic-vue@2.5.8(vue@2.7.16):
-    resolution: {integrity: sha512-U4xBFCJuM9gZkP9ds0bfhsocHzJRkTm9dlf8iPLfMMHaIiABITzb+D2+R2EMVh5yHw7draGOhF6uhBUsq8HT1g==}
+  /bk-magic-vue@2.5.9-beta.38(vue@2.7.16):
+    resolution: {integrity: sha512-/Xp8EcNsi05kTiNdRwC2YuMVMrZGBdYSevrzoj7D6dgkUM7FZEmf/CkIYTVM4d3Rd0zJ+1OiEgFiUDxf37/8Qg==}
+    engines: {node: <= 16.14}
     peerDependencies:
       vue: ^2.6.0
     dependencies:
@@ -13789,6 +13865,22 @@ packages:
   /vue-hot-reload-api@2.3.4:
     resolution: {integrity: sha512-BXq3jwIagosjgNVae6tkHzzIk6a8MHFtzAdwhnV5VlvPTFxDCvIttgSiHWjdGoTJvXtmRu5HacExfdarRcFhog==}
     dev: true
+
+  /vue-i18n@8.14.1(vue@2.7.16):
+    resolution: {integrity: sha512-uHzw5GTFyf/TmjJXveSl3L4CG61KI4lvhKOQvx8W4Y8P2LZ3v3l/qw4KRs1C6pWyjkfY9p0rezYNFO5YzMEQ8A==}
+    peerDependencies:
+      vue: ^2
+    dependencies:
+      vue: 2.7.16
+    dev: false
+
+  /vue-i18n@8.14.1(vue@3.4.31):
+    resolution: {integrity: sha512-uHzw5GTFyf/TmjJXveSl3L4CG61KI4lvhKOQvx8W4Y8P2LZ3v3l/qw4KRs1C6pWyjkfY9p0rezYNFO5YzMEQ8A==}
+    peerDependencies:
+      vue: ^2
+    dependencies:
+      vue: 3.4.31(typescript@5.5.3)
+    dev: false
 
   /vue-i18n@8.28.2(vue@2.7.16):
     resolution: {integrity: sha512-C5GZjs1tYlAqjwymaaCPDjCyGo10ajUphiwA922jKt9n7KPpqR7oM1PCwYzhB/E7+nT3wfdG3oRre5raIT1rKA==}

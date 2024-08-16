@@ -113,10 +113,10 @@ export default defineComponent({
     const legendFn = () => (
       <div class='failure-topo-graph-legend-content'>
         <ul class='node-type'>
-          {NODE_TYPE.map(node => {
+          {NODE_TYPE.map((node, index) => {
             const isTag = node.type === 'tag';
             return (
-              <li>
+              <li key={index}>
                 <span class={['circle', node.status, { 'node-tag': isTag }]}>{isTag ? t('根因') : ''}</span>
                 <span>{t(node.text)}</span>
               </li>
@@ -124,9 +124,9 @@ export default defineComponent({
           })}
         </ul>
         <ul class='info-type'>
-          {INFO_TYPE.map(node => {
+          {INFO_TYPE.map((node, index) => {
             return (
-              <li>
+              <li key={index}>
                 <span>
                   <i class={`icon-monitor item-icon ${node.icon}`} />
                 </span>
@@ -155,12 +155,19 @@ export default defineComponent({
     };
     const currentPopover = ref(popoverConfig.legend);
     const handleShowLegend = () => {
-      minimapRef.value?.hide();
+      if (showMinimap.value) {
+        minimapRef.value?.hide();
+        showMinimap.value = !showMinimap.value;
+      }
       showLegend.value = !showLegend.value;
       localStorage.setItem('showTimeLegend', String(showLegend.value));
     };
     const handleShowMinimap = () => {
-      legendRef.value?.hide();
+      if (showLegend.value) {
+        legendRef.value?.hide();
+        showLegend.value = !showLegend.value;
+        localStorage.setItem('showTimeLegend', String(showLegend.value));
+      }
       showMinimap.value = !showMinimap.value;
       drawCanvas();
     };
@@ -339,10 +346,10 @@ export default defineComponent({
             content: (
               <div class='failure-topo-graph-legend-content'>
                 <ul class='node-type'>
-                  {NODE_TYPE.map(node => {
+                  {NODE_TYPE.map((node, index) => {
                     const isTag = node.type === 'tag';
                     return (
-                      <li>
+                      <li key={index}>
                         <span class={['circle', node.status, { 'node-tag': isTag }]}>
                           {isTag ? this.$t('根因') : ''}
                         </span>
@@ -350,8 +357,8 @@ export default defineComponent({
                       </li>
                     );
                   })}
-                  {INFO_TYPE.map(node => (
-                    <li>
+                  {INFO_TYPE.map((node, index) => (
+                    <li key={index}>
                       <span class='info-circle'>
                         <i class={`icon-monitor item-icon ${node.icon}`} />
                       </span>
@@ -368,6 +375,7 @@ export default defineComponent({
                   content: this.$t('显示图例'),
                   disabled: this.showLegend,
                   boundary: 'parent',
+                  extCls: 'failure-topo-graph-tooltip',
                 }}
                 onClick={this.handleShowLegend}
               >
@@ -377,7 +385,7 @@ export default defineComponent({
           }}
           always={this.showLegend}
           arrow={false}
-          boundary='parent'
+          boundary='body'
           isShow={this.showLegend}
           offset={{ crossAxis: 90, mainAxis: 10 }}
           placement='top'
@@ -417,6 +425,7 @@ export default defineComponent({
                   disabled: this.showMinimap,
                   boundary: 'parent',
                   placement: 'bottom',
+                  extCls: 'failure-topo-graph-tooltip',
                 }}
                 onClick={this.handleShowMinimap}
               >
@@ -426,7 +435,7 @@ export default defineComponent({
           }}
           always={this.showMinimap}
           arrow={false}
-          boundary='parent'
+          boundary='body'
           isShow={this.showMinimap}
           offset={{ crossAxis: 70, mainAxis: 10 }}
           placement='top'
@@ -459,7 +468,7 @@ export default defineComponent({
         <span class='failure-topo-graph-line' />
         <div
           class='failure-topo-graph-proportion'
-          v-bk-tooltips={{ content: this.$t('重置比例'), boundary: 'parent' }}
+          v-bk-tooltips={{ content: this.$t('重置比例'), boundary: 'parent', extCls: 'failure-topo-graph-tooltip' }}
           onClick={this.handleResetZoom}
         >
           <i class='icon-monitor icon-mc-restoration-ratio' />

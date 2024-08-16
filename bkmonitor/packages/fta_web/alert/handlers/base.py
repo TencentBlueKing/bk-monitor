@@ -22,13 +22,14 @@ from luqum.exceptions import ParseError
 from luqum.parser import lexer, parser
 from luqum.tree import AndOperation, FieldGroup, SearchField, Word
 
-from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request, get_request_username
 from constants.alert import EventTargetType
+from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
+from fta_web.alert.utils import process_stage_string
 
 
 class QueryField:
@@ -287,7 +288,10 @@ class BaseQueryHandler:
         处理 query_string
         """
         query_string = self.query_string if query_string is None else query_string
-        if query_string:
+        query_string, stage_conditions = process_stage_string(query_string)
+
+        search_object = self.add_conditions(search_object, stage_conditions)
+        if query_string.strip():
             query_dsl = self.query_transformer.transform_query_string(query_string)
             if isinstance(query_dsl, str):
                 # 如果 query_dsl 是字符串，就使用 query_string 查询
@@ -597,9 +601,9 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
                 req = get_request()
             except Exception:
                 return bk_biz_ids, []
-            authorized_bizs = Permission(request=req).filter_biz_ids_by_action(
-                action=ActionEnum.VIEW_EVENT, bk_biz_ids=bk_biz_ids
-            )
+            authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+            if -1 not in bk_biz_ids:
+                authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
         return authorized_bizs, unauthorized_bizs
 

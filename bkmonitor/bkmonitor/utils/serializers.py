@@ -15,6 +15,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from bkm_space.utils import space_uid_to_bk_biz_id
 from constants.result_table import RT_TABLE_NAME_WORD_EXACT
 from core.unit import UNITS
 
@@ -135,3 +136,21 @@ class StringSplitListField(serializers.ListField):
     def to_internal_value(self, data):
         result = data.split(self.sep) if isinstance(data, str) else data
         return super(StringSplitListField, self).to_internal_value([item for item in result if item])
+
+
+class BkBizIdSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=False, label="空间UID")
+    bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+
+    def validate(self, attrs):
+        # bk_biz_id与space_uid至少需要存在一个
+        if not attrs.get("bk_biz_id") and not attrs.get("space_uid"):
+            raise serializers.ValidationError(_("bk_biz_id or space_uid must be provided"))
+
+        # 如果没有bk_biz_id就根据space_uid获取bk_biz_id
+        if not attrs.get("bk_biz_id"):
+            attrs["bk_biz_id"] = space_uid_to_bk_biz_id(attrs["space_uid"])
+
+        if not attrs["bk_biz_id"]:
+            raise serializers.ValidationError(_("space_uid is invalid"))
+        return attrs
