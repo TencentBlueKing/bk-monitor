@@ -27,22 +27,33 @@ class RedisMetricCollectReport(object):
     def get_redis_info(self):
         redis_nodes = CacheNode.objects.filter(is_enable=True)
         nodes_info = []
+        node_label = {"err": ""}
         for node in redis_nodes:
             try:
-                nodes_info.append(self.get_node_redis_info(node))
+                node_label["node"] = str(node)
+                client = self.get_node_client(node)
+                node_label.update(self.get_node_labels(node, client))
+                node_info = self.get_node_redis_info(node)
+                node_info.update(node_label)
+                nodes_info.append(node_info)
             except Exception as e:
-                logger.exception("[collect redis error]{} detail: {}", node, e)
+                node_label["err"] = str(e)
+                metrics.EXPORTER_LAST_SCRAPE_ERROR.labels(**node_label).set(1)
                 continue
+            else:
+                metrics.EXPORTER_LAST_SCRAPE_ERROR.labels(**node_label).set(0)
         return nodes_info
 
-    def get_node_redis_info(self, node):
-        real_client = self.client.get_client(node)
-        node_info = real_client.info()
-        node_info.update(real_client.info("commandstats"))
-        # 在info命令获取的信息基础上增加额外的信息
+    def get_node_client(self, node):
+        # 实际redis节点client
+        return self.client.get_client(node)
+
+    def get_node_labels(self, node, client=None):
+        client = client or self.get_node_client(node)
+        labels = {}
         if node.cache_type == "SentinelRedisCache":
-            host, port = real_client._instance.connection_pool.get_master_address()
-            node_info.update(
+            host, port = client._instance.connection_pool.get_master_address()
+            labels.update(
                 {
                     "node": str(node),
                     "host": host,
@@ -50,15 +61,20 @@ class RedisMetricCollectReport(object):
                 }
             )
         else:
-            connection_kwargs = real_client._instance.connection_pool.connection_kwargs
-            node_info.update(
+            connection_kwargs = client._instance.connection_pool.connection_kwargs
+            labels.update(
                 {
                     "node": str(node),
                     "host": connection_kwargs["host"],
                     "port": connection_kwargs["port"],
                 }
             )
+        return labels
 
+    def get_node_redis_info(self, node):
+        real_client = self.client.get_client(node)
+        node_info = real_client.info()
+        node_info.update(real_client.info("commandstats"))
         # 获取指标config_maxclients、config_maxmemory、db的值
         node_info.update(
             {
@@ -71,6 +87,7 @@ class RedisMetricCollectReport(object):
     def set_redis_metric_data(self, node_info: dict):
         labels = {
             "node": node_info["node"],
+            # redis info 返回自带 role 信息
             "role": node_info["role"],
             "host": node_info["host"],
             "port": str(node_info["port"]),

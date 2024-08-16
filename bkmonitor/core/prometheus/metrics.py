@@ -659,7 +659,7 @@ EXPORTER_LAST_SCRAPE_DURATION_SECONDS = Gauge(
 EXPORTER_LAST_SCRAPE_ERROR = Gauge(
     name="redis_exporter_last_scrape_error",
     documentation="The last scrape error status",
-    labelnames=("node", "role", "err", "host", "port"),
+    labelnames=("node", "err", "host", "port"),
 )
 
 EXPORTER_SCRAPE_DURATION_SECONDS_SUM = Gauge(
