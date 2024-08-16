@@ -174,8 +174,10 @@ class RedisMetricCollectReport(object):
         for key in node_info:
             if key.startswith("cmdstat_"):
                 cmd_name = key.split("_", 1)[1]
-                metrics.COMMANDS_DURATION_SECONDS_TOTAL.labels(**labels, cmd=cmd_name).set(node_info[key]["calls"])
-                metrics.COMMANDS_TOTAL.labels(**labels, cmd=cmd_name).set(node_info[key]["usec"])
+                metrics.COMMANDS_DURATION_SECONDS_TOTAL.labels(**labels, cmd=cmd_name).set(
+                    node_info[key]["usec"] / 10**6
+                )
+                metrics.COMMANDS_TOTAL.labels(**labels, cmd=cmd_name).set(node_info[key]["calls"])
 
     def collect_report_redis_metric_data(self):
         nodes_info = self.get_redis_info()
