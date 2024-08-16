@@ -483,3 +483,4 @@ class OnlineTaskTrainingArgs(object):
     USE_OFFLINE_MODEL = 0
     ST_LIST = "0.875"
     MAX_DIST_LIST = "0.5"
+    DEPTH = 7

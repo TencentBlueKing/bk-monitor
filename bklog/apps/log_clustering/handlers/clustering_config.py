@@ -204,14 +204,16 @@ class ClusteringConfigHandler(object):
                     update_clustering_clean.delay(index_set_id=index_set_id)
 
             return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
+
         clustering_config = ClusteringConfig.objects.create(
             model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
             collector_config_id=collector_config_id,
             collector_config_name_en=collector_config_name_en,
             es_storage=es_storage,
             min_members=min_members,
-            max_dist_list=max_dist_list,
+            max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
             predefined_varibles=predefined_varibles,
+            depth=OnlineTaskTrainingArgs.DEPTH,
             delimeter=delimeter,
             max_log_length=max_log_length,
             is_case_sensitive=is_case_sensitive,
