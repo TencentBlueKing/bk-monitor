@@ -87,9 +87,12 @@ def check_blocked_alert():
             continue
         alerts.append({"id": hit.id, "strategy_id": getattr(hit, "strategy_id", None)})
 
-    alert_keys = [AlertKey(alert_id=alert["id"], strategy_id=alert.get("strategy_id")) for alert in alerts]
-    for index in range(0, len(alert_keys), BATCH_SIZE):
-        check_blocked_alert_finished(alert_keys[index : index + BATCH_SIZE])
+    for index in range(0, len(alerts), BATCH_SIZE):
+        alert_keys = [
+            AlertKey(alert_id=alert["id"], strategy_id=alert.get("strategy_id"))
+            for alert in alerts[index : index + BATCH_SIZE]
+        ]
+        check_blocked_alert_finished(alert_keys)
 
     logger.info("[check_blocked_alert]  blocked alert total count(%s)", len(alerts))
 
