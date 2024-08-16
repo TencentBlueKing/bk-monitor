@@ -7,6 +7,8 @@ const eslintVueParser = require('vue-eslint-parser');
 const perfectionist = require('eslint-plugin-perfectionist');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
+const tailwind = require('eslint-plugin-tailwindcss');
+
 const OFF = 0;
 const WARNING = 1;
 const ERROR = 2;
@@ -381,5 +383,6 @@ module.exports = [
       'vue/attributes-order': OFF,
     },
   },
+  ...tailwind.configs['flat/recommended'],
   eslintConfigPrettier,
 ];
