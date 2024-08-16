@@ -698,8 +698,8 @@ export default defineComponent({
     };
 
     const formatContent = (content?: string, isFormat?: boolean) => {
-      if (typeof content === 'string' || typeof content === 'number' || typeof content === 'undefined') return content;
-      if (!isJson(content)) return JSON.stringify(content);
+      if (typeof content === 'number' || typeof content === 'undefined') return content;
+      if (!isJson(content)) return typeof content === 'string' ? content : JSON.stringify(content);
       const data = JSON.parse(content || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };

@@ -2164,7 +2164,9 @@ class SearchHandler(object):
             value = _add.get("value")
             new_value: list = []
             # 对于前端传递为空字符串的场景需要放行过去
-            if isinstance(value, str) or value:
+            if isinstance(value, list):
+                new_value = value
+            elif isinstance(value, str) or value:
                 new_value = self._deal_normal_addition(value, _operator)
             new_addition.append(
                 {"field": field, "operator": _operator, "value": new_value, "condition": _add.get("condition", "and")}

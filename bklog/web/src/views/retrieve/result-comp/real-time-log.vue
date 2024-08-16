@@ -117,6 +117,10 @@
         :show-type="showType"
       />
     </div>
+    <log-view-control
+      :show-type="showType"
+      :light-list="highlightList"
+    />
     <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
   </section>
 </template>
@@ -124,6 +128,7 @@
 <script>
   import { getFlatObjValues } from '@/common/util';
   import logView from '@/components/log-view';
+  import logViewControl from '@/components/log-view/log-view-control';
 
   import DataFilter from '../condition-comp/data-filter';
 
@@ -131,6 +136,7 @@
     name: 'RealTimeLog',
     components: {
       logView,
+      logViewControl,
       DataFilter,
     },
     props: {
@@ -462,6 +468,8 @@
       height: 404px;
       overflow-y: auto;
       background: #f5f7fa;
+      border: 1px solid #dcdee5;
+      border-bottom: none;
 
       @include scroller($backgroundColor: #aaa, $width: 4px);
 
@@ -481,7 +489,11 @@
       overflow: hidden;
 
       .dialog-log-markdown {
-        height: calc(100% - 128px);
+        height: calc(100% - 176px);
+      }
+
+      .handle-tips {
+        margin-top: 18px;
       }
     }
   }

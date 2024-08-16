@@ -112,6 +112,11 @@
         :light-list="highlightList"
       />
     </div>
+    <log-view-control
+      ref="viewControlRef"
+      :show-type="showType"
+      :light-list="highlightList"
+    />
 
     <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
     <!--        <div class="scroll-bar">-->
@@ -124,6 +129,7 @@
 <script>
   import FieldsConfig from '@/components/common/fields-config';
   import logView from '@/components/log-view';
+  import logViewControl from '@/components/log-view/log-view-control';
   import { getFlatObjValues } from '@/common/util';
 
   import DataFilter from '../condition-comp/data-filter.vue';
@@ -132,6 +138,7 @@
     name: 'ContextLog',
     components: {
       logView,
+      logViewControl,
       FieldsConfig,
       DataFilter,
     },
@@ -280,7 +287,7 @@
       async requestContentLog(direction) {
         const data = Object.assign(
           {
-            size: 50,
+            size: 500,
             zero: this.zero,
           },
           this.params,
@@ -334,6 +341,7 @@
           console.warn(e);
         } finally {
           this.logLoading = false;
+          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList();
           if (this.zero) {
             this.$nextTick(() => {
               this.initLogScrollPosition();
@@ -517,6 +525,8 @@
       height: 404px;
       overflow-y: auto;
       background: #f5f7fa;
+      border: 1px solid #dcdee5;
+      border-bottom: none;
 
       @include scroller($backgroundColor: #aaa, $width: 4px);
 
@@ -552,7 +562,11 @@
     overflow: hidden;
 
     .dialog-log-markdown {
-      height: calc(100% - 132px);
+      height: calc(100% - 190px);
+    }
+
+    .handle-tips {
+      margin-top: 18px;
     }
 
     .dialog-label {

@@ -295,7 +295,7 @@ export default {
     'No-Data alarm triggered when {0} data is lost continuously for {1} cycles',
   只有监控指标及日志关键字可配置无数据: 'Only monitoring metrics and log keywords can be configured without data',
   '由于插件定义时未定义参数，此处无需填写。':
-    'Because there is no parameter defined when the plug-in is defined, there is no need to fill in here. ',
+    'Because there is no parameter defined when the plugin is defined, there is no need to fill in here. ',
   '可能出现下发失败或无数据上报，是否继续下发':
     'There may be issuance failures or no data reported, do you want to continue issuing?',
   '已配置全天24小时生效时段，无需额外添加生效时段':

@@ -399,7 +399,7 @@
                       <div>
                         <i class="bk-icon icon-info"></i>
                         <span>
-                          {$t('采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本')}
+                          {{ $t('采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本') }}
                         </span>
                       </div>
                     </template>

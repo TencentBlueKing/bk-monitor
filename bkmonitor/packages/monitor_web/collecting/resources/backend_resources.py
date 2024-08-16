@@ -313,7 +313,7 @@ class CollectConfigListResource(Resource):
                 filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
             else:
                 plugin_ids = []
-                user_biz_ids = [biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
+                user_biz_ids = resource.space.get_bk_biz_ids_by_user(get_request().user)
                 space_uid_set = set()
                 for biz_id in user_biz_ids:
                     space = bk_biz_id_space_dict.get(biz_id)

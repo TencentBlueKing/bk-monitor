@@ -21,10 +21,8 @@ from bk_dataview.permissions import GrafanaRole
 from bk_dataview.views import ProxyBaseView
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.iam.resource import ApmApplication
 from bkmonitor.models.external_iam import (
-    ACTION_ID_MAP,
     ExternalPermission,
     ExternalPermissionApplyRecord,
 )
@@ -266,9 +264,14 @@ class CreateOrUpdateExternalPermission(Resource):
             """
             验证授权人是否有对应操作ID权限
             """
+            from monitor_web.grafana.permissions import DashboardPermission
+
             authorizer = attrs.pop("authorizer", "")
-            action = get_action_by_id(ACTION_ID_MAP[attrs["action_id"]])
-            Permission(username=authorizer).is_allowed_by_biz(attrs["bk_biz_id"], action, raise_exception=True)
+            _, role, _ = DashboardPermission.get_user_permission(authorizer, str(attrs["bk_biz_id"]))
+            if (attrs["action_id"] == "view_grafana" and role < GrafanaRole.Viewer) or (
+                attrs["action_id"] == "manage_grafana" and role < GrafanaRole.Editor
+            ):
+                raise serializers.ValidationError(f"{authorizer}无此操作权限")
             return attrs
 
     def create_approval_ticket(self, authorized_users, params):
@@ -277,8 +280,8 @@ class CreateOrUpdateExternalPermission(Resource):
         1. 新增权限 - 被授权人视角
         2. 新增权限 - 实例视角
         """
-        space_info = {i.bk_biz_id: i for i in SpaceApi.list_spaces()}
-        bk_biz_name = space_info[params["bk_biz_id"]].space_name
+        biz = resource.cc.get_app_by_id(params["bk_biz_id"])
+        bk_biz_name = biz.bk_biz_name
         ticket_data = {
             "creator": get_request_username() or get_local_username(),
             "fields": [
@@ -449,7 +452,7 @@ class GetExternalPermissionList(Resource):
         2. 基于实例资源视角
         """
         authorizer_map, _ = GlobalConfig.objects.get_or_create(key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}})
-        space_info = {i.bk_biz_id: i.space_name for i in SpaceApi.list_spaces()}
+        space_info = {i["bk_biz_id"]: i["space_name"] for i in SpaceApi.list_spaces_dict()}
         permission_qs = ExternalPermission.objects.all()
         if validated_request_data["bk_biz_id"] != 0:
             permission_qs = permission_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])

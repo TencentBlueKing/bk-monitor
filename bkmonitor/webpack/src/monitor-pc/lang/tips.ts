@@ -113,7 +113,7 @@ export default {
     'Provides metrics such as single point availability, response time, and expected response code',
   '直接进行{0}，定位到 Trace 详情': 'Directly perform {0}, locate Trace details',
   '自定义上报指标和插件采集指标请勾选映射规则，K8S系统指标可以不勾选。':
-    'Please check the mapping rules for custom reporting metrics and plug-in collection metrics, and K8s system metrics can not be checked. ', // 确定位置
+    'Please check the mapping rules for custom reporting metrics and plugin collection metrics, and K8s system metrics can not be checked. ', // 确定位置
   '若不同时删除掉，相关联的策略配置则会成为失效策略':
     'if not deleted at the same time, the associated rule will become an invalid rule',
   '该指标需设置期望返回码/期望响应信息后才可选取':

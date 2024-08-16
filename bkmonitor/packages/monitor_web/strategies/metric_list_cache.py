@@ -651,7 +651,9 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
             dimensions.append(
                 {
                     "id": field["field_name"],
-                    "name": field["field_alias"] if field["field_alias"] else field["field_name"],
+                    "name": f'{field["field_alias"]}({field["field_name"]})'
+                    if field["field_alias"]
+                    else field["field_name"],
                     "type": field_type,
                     "is_dimension": is_dimensions,
                 }
@@ -681,7 +683,9 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
 
             if field["field_type"] in TIME_SERIES_FIELD_TYPE:
                 field_dict["metric_field"] = field["field_name"]
-                field_dict["metric_field_name"] = field["field_alias"] if field["field_alias"] else field["field_name"]
+                field_dict["metric_field_name"] = (
+                    f'{field["field_alias"]}({field["field_name"]})' if field["field_alias"] else field["field_name"],
+                )
                 field_dict["unit"] = field.get("unit", "") or self.unit_metric_mapping.get(field["field_name"], "")
                 field_dict["unit_conversion"] = field.get("unit_conversion", 1.0)
                 yield field_dict

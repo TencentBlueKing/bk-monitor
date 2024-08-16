@@ -144,12 +144,13 @@ class BkBizIdSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         # bk_biz_id与space_uid至少需要存在一个
-        if not attrs["bk_biz_id"] and not attrs["space_uid"]:
+        if not attrs.get("bk_biz_id") and not attrs.get("space_uid"):
             raise serializers.ValidationError(_("bk_biz_id or space_uid must be provided"))
 
         # 如果没有bk_biz_id就根据space_uid获取bk_biz_id
-        if not attrs["bk_biz_id"]:
+        if not attrs.get("bk_biz_id"):
             attrs["bk_biz_id"] = space_uid_to_bk_biz_id(attrs["space_uid"])
 
         if not attrs["bk_biz_id"]:
             raise serializers.ValidationError(_("space_uid is invalid"))
+        return attrs
