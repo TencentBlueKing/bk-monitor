@@ -190,7 +190,7 @@ if BCS_API_GATEWAY_HOST:
         # bcs集群安装operator信息，一天同步一次
         ("api.bcs.tasks.sync_bkmonitor_operator_info", "0 2 * * *", "global"),
         # redis指标采集
-        ("alarm_backends.service.selfmonitor.tasks.collect_redis_metric", "* * * * *", "global"),
+        ("alarm_backends.service.selfmonitor.tasks.collect_redis_metric", "* * * * *", "cluster"),
     ]
 
 ACTION_TASK_CRONTAB = [
