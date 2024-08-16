@@ -465,219 +465,219 @@ ALARM_CONTEXT_GET_FIELD_TIME = Histogram(
 ACTIVE_DEFRAG_RUNNING = Gauge(
     name="redis_active_defrag_running",
     documentation="Automatic memory defragmentation current aggressiveness (% cpu)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_CURRENT_REWRITE_DURATION_SEC = Gauge(
     name="redis_aof_current_rewrite_duration_sec",
     documentation="Duration of the on-going AOF rewrite operation if any",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_ENABLED = Gauge(
     name="redis_aof_enabled",
     documentation="是否开启aof，默认没开启",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_LAST_BGREWRITE_STATUS = Gauge(
     name="redis_aof_last_bgrewrite_status",
     documentation="Status of the last AOF rewrite operation",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_LAST_COW_SIZE_BYTES = Gauge(
     name="redis_aof_last_cow_size_bytes",
     documentation="The size in bytes of copy-on-write memory during the last AOF rewrite operation",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_LAST_REWRITE_DURATION_SEC = Gauge(
     name="redis_aof_last_rewrite_duration_sec",
     documentation="Duration of the last AOF rewrite operation in seconds",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_LAST_WRITE_STATUS = Gauge(
     name="redis_aof_last_write_status",
     documentation="Status of the last write operation to the AOF",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_REWRITE_IN_PROGRESS = Gauge(
     name="redis_aof_rewrite_in_progress",
     documentation="Flag indicating a AOF rewrite operation is on-going",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_REWRITE_SCHEDULED = Gauge(
     name="redis_aof_rewrite_scheduled",
     documentation="Flag indicating an AOF rewrite operation will be scheduled once the on-going RDB save is complete",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CLUSTER_ENABLED = Gauge(
     name="redis_cluster_enabled",
     documentation="Indicate Redis cluster is enabled",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 COMMANDS_DURATION_SECONDS_TOTAL = Gauge(
     name="redis_commands_duration_seconds_total",
     documentation="How many seconds spend on processing Redis commands",
-    labelnames=("node", "role", "cmd", "host", "port"),
+    labelnames=("node", "role", "cmd", "host", "port", "cluster_name"),
 )
 
 COMMANDS_PROCESSED_TOTAL = Gauge(
     name="redis_commands_processed_total",
     documentation="How many commands processed by Redis",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 COMMANDS_TOTAL = Gauge(
     name="redis_commands_total",
     documentation="Total number of calls per command",
-    labelnames=("node", "role", "cmd", "host", "port"),
+    labelnames=("node", "role", "cmd", "host", "port", "cluster_name"),
 )
 
 CONFIG_MAXCLIENTS = Gauge(
     name="redis_config_maxclients",
     documentation="Maximum client number for Redis",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CONFIG_MAXMEMORY = Gauge(
     name="redis_config_maxmemory",
     documentation="The value of the maxmemory configuration directive",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CONNECTIONS_RECEIVED_TOTAL = Gauge(
     name="redis_connections_received_total",
     documentation="Total number of connections accepted by the server",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CPU_SYS_CHILDREN_SECONDS_TOTAL = Gauge(
     name="redis_cpu_sys_children_seconds_total",
     documentation="System CPU consumed by the background processes",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CPU_SYS_SECONDS_TOTAL = Gauge(
     name="redis_cpu_sys_seconds_total",
     documentation="System CPU consumed by the Redis server, which is the sum of system CPU consumed "
     "by all threads of the server process (main thread and background threads)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CPU_USER_CHILDREN_SECONDS_TOTAL = Gauge(
     name="redis_cpu_user_children_seconds_total",
     documentation="User CPU consumed by the background processes",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CPU_USER_SECONDS_TOTAL = Gauge(
     name="redis_cpu_user_seconds_total",
     documentation="User CPU consumed by the Redis server, which is the sum of user CPU consumed "
     "by all threads of the server process (main thread and background threads)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 DB_AVG_TTL_SECONDS = Gauge(
     name="redis_db_avg_ttl_seconds",
     documentation="Avg TTL in seconds",
-    labelnames=("node", "role", "db", "host", "port"),
+    labelnames=("node", "role", "db", "host", "port", "cluster_name"),
 )
 
 DEFRAG_HITS = Gauge(
     name="redis_defrag_hits",
     documentation="Number of value reallocations performed by active the defragmentation process",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 DEFRAG_KEY_HITS = Gauge(
     name="redis_defrag_key_hits",
     documentation="Number of keys that were actively defragmented",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 DEFRAG_KEY_MISSES = Gauge(
     name="redis_defrag_key_misses",
     documentation="Number of keys that were skipped by the active defragmentation process",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 DEFRAG_MISSES = Gauge(
     name="redis_defrag_misses",
     documentation="Number of aborted value reallocations started by the active defragmentation process",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EVICTED_KEYS_TOTAL = Gauge(
     name="redis_evicted_keys_total",
     documentation="Number of evicted keys due to maxmemory limit in Redis",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPIRED_KEYS_TOTAL = Gauge(
     name="redis_expired_keys_total",
     documentation="number of keys that has expired",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPIRED_STALE_PERCENTAGE = Gauge(
     name="redis_expired_stale_percentage",
     documentation="The percentage of keys probably expired",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPIRED_TIME_CAP_REACHED_TOTAL = Gauge(
     name="redis_expired_time_cap_reached_total",
     documentation="The count of times that active expiry cycles have stopped early",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPORTER_BUILD_INFO = Gauge(
     name="redis_exporter_build_info",
     documentation="redis exporter build_info",
-    labelnames=("node", "role", "commit_sha", "version", "build_date", "host", "port"),
+    labelnames=("node", "role", "commit_sha", "version", "build_date", "host", "port", "cluster_name"),
 )
 
 EXPORTER_LAST_SCRAPE_CONNECT_TIME_SECONDS = Gauge(
     name="redis_exporter_last_scrape_connect_time_seconds",
     documentation="The duration(in seconds) to connect when scrape",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPORTER_LAST_SCRAPE_DURATION_SECONDS = Gauge(
     name="redis_exporter_last_scrape_duration_seconds",
     documentation="The last scrape duration",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPORTER_LAST_SCRAPE_ERROR = Gauge(
     name="redis_exporter_last_scrape_error",
     documentation="The last scrape error status",
-    labelnames=("node", "err", "host", "port"),
+    labelnames=("node", "err", "host", "port", "cluster_name"),
 )
 
 EXPORTER_SCRAPE_DURATION_SECONDS_SUM = Gauge(
     name="redis_exporter_scrape_duration_seconds_sum",
     documentation="Durations of scrapes by the exporter",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPORTER_SCRAPE_DURATION_SECONDS_COUNT = Gauge(
     name="redis_exporter_scrape_duration_seconds_count",
     documentation="Durations of scrapes by the exporter",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 EXPORTER_SCRAPES_TOTAL = Gauge(
     name="redis_exporter_scrapes_total",
     documentation="Current total redis scrapes",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 INSTANCE_INFO = Gauge(
@@ -697,358 +697,359 @@ INSTANCE_INFO = Gauge(
         "process_id",
         "host",
         "port",
+        "cluster_name",
     ),
 )
 
 KEYSPACE_HITS_TOTAL = Gauge(
     name="redis_keyspace_hits_total",
     documentation="Number of successful lookup of keys in Redis",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 KEYSPACE_MISSES_TOTAL = Gauge(
     name="redis_keyspace_misses_total",
     documentation="Number of failed lookup of keys in Redis",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 LAST_KEY_GROUPS_SCRAPE_DURATION_MILLISECONDS = Gauge(
     name="redis_last_key_groups_scrape_duration_milliseconds",
     documentation="Duration of the last key group metrics scrape in milliseconds",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 LAST_SLOW_EXECUTION_DURATION_SECONDS = Gauge(
     name="redis_last_slow_execution_duration_seconds",
     documentation="The amount of time needed for last slow execution, in seconds",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 LATEST_FORK_SECONDS = Gauge(
     name="redis_latest_fork_seconds",
     documentation="The amount of time needed for last fork, in seconds",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 LAZYFREE_PENDING_OBJECTS = Gauge(
     name="redis_lazyfree_pending_objects",
     documentation="The number of objects waiting to be freed (as a result of calling UNLINK, "
     "or FLUSHDB and FLUSHALL with the ASYNC option)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 LOADING_DUMP_FILE = Gauge(
     name="redis_loading_dump_file",
     documentation="loading dump file",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_MAX_BYTES = Gauge(
     name="redis_memory_max_bytes",
     documentation="The value of the Redis maxmemory configuration directive",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_USED_BYTES = Gauge(
     name="redis_memory_used_bytes",
     documentation="Total number of bytes allocated by Redis using its allocator",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_USED_DATASET_BYTES = Gauge(
     name="redis_memory_used_dataset_bytes",
     documentation="The size in bytes of the dataset (used_memory_overhead subtracted from used_memory)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_USED_LUA_BYTES = Gauge(
     name="redis_memory_used_lua_bytes",
     documentation="Number of bytes used by the Lua engine",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_USED_OVERHEAD_BYTES = Gauge(
     name="redis_memory_used_overhead_bytes",
     documentation="The sum in bytes of all overheads that the server allocated "
     "for managing its internal data structures",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_USED_PEAK_BYTES = Gauge(
     name="redis_memory_used_peak_bytes",
     documentation="Peak memory consumed by Redis (in bytes)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_USED_RSS_BYTES = Gauge(
     name="redis_memory_used_rss_bytes",
     documentation="Number of bytes that Redis allocated as seen by the operating system (a.k.a resident set size). "
     "This is the number reported by tools such as top(1) and ps(1)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEMORY_USED_STARTUP_BYTES = Gauge(
     name="redis_memory_used_startup_bytes",
     documentation="Initial amount of memory consumed by Redis at startup in bytes",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MIGRATE_CACHED_SOCKETS_TOTAL = Counter(
     name="redis_migrate_cached_sockets_total",
     documentation="The number of sockets open for MIGRATE purposes",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 NET_INPUT_BYTES_TOTAL = Gauge(
     name="redis_net_input_bytes_total",
     documentation="Total input bytes",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 NET_OUTPUT_BYTES_TOTAL = Gauge(
     name="redis_net_output_bytes_total",
     documentation="Total output bytes",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 PROCESS_ID = Gauge(
     name="redis_process_id",
     documentation="Process ID",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 RDB_BGSAVE_IN_PROGRESS = Gauge(
     name="redis_rdb_bgsave_in_progress",
     documentation="Flag indicating a RDB save is on-going",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 RDB_CURRENT_BGSAVE_DURATION_SEC = Gauge(
     name="redis_rdb_current_bgsave_duration_sec",
     documentation="Duration of the on-going RDB save operation if any",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 RDB_LAST_BGSAVE_DURATION_SEC = Gauge(
     name="redis_rdb_last_bgsave_duration_sec",
     documentation="Duration of the last RDB save operation in seconds",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 RDB_LAST_BGSAVE_STATUS = Gauge(
     name="redis_rdb_last_bgsave_status",
     documentation="Status of the last RDB save operation",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 RDB_LAST_COW_SIZE_BYTES = Gauge(
     name="redis_rdb_last_cow_size_bytes",
     documentation="The size in bytes of copy-on-write memory during the last RDB save operation",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 RDB_LAST_SAVE_TIMESTAMP_SECONDS = Gauge(
     name="redis_rdb_last_save_timestamp_seconds",
     documentation="Epoch-based timestamp of last successful RDB save",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REJECTED_CONNECTIONS_TOTAL = Gauge(
     name="redis_rejected_connections_total",
     documentation="Number of connections rejected by Redis",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REPL_BACKLOG_FIRST_BYTE_OFFSET = Gauge(
     name="redis_repl_backlog_first_byte_offset",
     documentation="The master offset of the replication backlog buffer",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REPL_BACKLOG_HISTORY_BYTES = Gauge(
     name="redis_repl_backlog_history_bytes",
     documentation="Size in bytes of the data in the replication backlog buffer",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REPL_BACKLOG_IS_ACTIVE = Gauge(
     name="redis_repl_backlog_is_active",
     documentation="Flag indicating replication backlog is active",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REPLICA_PARTIAL_RESYNC_ACCEPTED = Gauge(
     name="redis_replica_partial_resync_accepted",
     documentation="The number of accepted partial resync requests",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REPLICA_PARTIAL_RESYNC_DENIED = Gauge(
     name="redis_replica_partial_resync_denied",
     documentation="The number of denied partial resync requests",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REPLICA_RESYNCS_FULL = Gauge(
     name="redis_replica_resyncs_full",
     documentation="The number of full resyncs with replicas",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 REPLICATION_BACKLOG_BYTES = Gauge(
     name="redis_replication_backlog_bytes",
     documentation="Memory used by replication backlog",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 SECOND_REPL_OFFSET = Gauge(
     name="redis_second_repl_offset",
     documentation="The offset up to which replication IDs are accepted",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 SLAVE_EXPIRES_TRACKED_KEYS = Gauge(
     name="redis_slave_expires_tracked_keys",
     documentation="The number of keys tracked for expiry purposes (applicable only to writable replicas)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 SLOWLOG_LAST_ID = Gauge(
     name="redis_slowlog_last_id",
     documentation="Last id of slowlog",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 SLOWLOG_LENGTH = Gauge(
     name="redis_slowlog_length",
     documentation="Number of of entries in the Redis slow log",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 START_TIME_SECONDS = Gauge(
     name="redis_start_time_seconds",
     documentation="Start time of the Redis instance since unix epoch in seconds",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 TARGET_SCRAPE_REQUEST_ERRORS_TOTAL = Gauge(
     name="redis_target_scrape_request_errors_total",
     documentation="Errors in requests to the exporter",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 UP = Gauge(
     name="redis_up",
     documentation="Information about the Redis instance",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CONNECTED_CLIENTS = Gauge(
     name="Redis_connected_clients",
     documentation="Number of client connections (excluding connections from slaves)",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CLIENT_LONGEST_OUTPUT_LIST = Gauge(
     name="redis_client_longest_output_list",
     documentation="当前客户端连接最大输出列表",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CLIENT_BIGGEST_INPUT_BUF = Gauge(
     name="redis_client_biggest_input_buf",
     documentation="客户端最大输入缓存",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 BLOCKED_CLIENTS = Gauge(
     name="redis_blocked_clients",
     documentation="被阻塞的客户端数",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MEM_FRAGMENTATION_RATIO = Gauge(
     name="redis_mem_fragmentation_ratio",
     documentation="内存碎片率",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_BUFFER_LENGTH = Gauge(
     name="redis_aof_buffer_length",
     documentation="aof缓冲区的大小",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_REWRITE_BUFFER_LENGTH = Gauge(
     name="redis_aof_rewrite_buffer_length",
     documentation="rewrite缓冲区大小",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 AOF_CURRENT_SIZE = Gauge(
     name="redis_aof_current_size",
     documentation="aof当前文件大小",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 RDB_CHANGES_SINCE_LAST_SAVE = Gauge(
     name="redis_rdb_changes_since_last_save",
     documentation="最近生成rdb文件后写入命令的个数",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 PUBSUB_CHANNELS = Gauge(
     name="redis_pubsub_channels",
     documentation="当前发布/订阅频道量",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 PUBSUB_PATTERNS = Gauge(
     name="redis_pubsub_patterns",
     documentation="当前发布/订阅模式数",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CONNECTED_SLAVES = Gauge(
     name="redis_connected_slaves",
     documentation="已连接slave实例数",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CONNECTED_SLAVE_OFFSET_BYTES = Gauge(
     name="redis_connected_slave_offset_bytes",
     documentation="slave的偏移量",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 CONNECTED_SLAVE_LAG_SECONDS = Gauge(
     name="redis_connected_slave_lag_seconds",
     documentation="从机的延迟时长",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MASTER_REPL_OFFSET = Gauge(
     name="redis_master_repl_offset",
     documentation="master的偏移量",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 MASTER_LAST_IO_SECONDS_AGO = Gauge(
     name="redis_master_last_io_seconds_ago",
     documentation="master延迟复制时长差值",
-    labelnames=("node", "role", "host", "port"),
+    labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
 DB_KEYS = Gauge(
     name="redis_db_keys",
     documentation="key总数",
-    labelnames=("node", "role", "db", "host", "port"),
+    labelnames=("node", "role", "db", "host", "port", "cluster_name"),
 )
 
 DB_KEYS_EXPIRING = Gauge(
     name="redis_db_keys_expiring",
     documentation="设置了ttl的 key 数量",
-    labelnames=("node", "role", "db", "host", "port"),
+    labelnames=("node", "role", "db", "host", "port", "cluster_name"),
 )
 
 API_FAILED_REQUESTS_TOTAL = Gauge(

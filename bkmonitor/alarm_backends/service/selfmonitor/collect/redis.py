@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from alarm_backends.core.cache.key import DATA_SIGNAL_KEY
+from alarm_backends.core.cluster import get_cluster
 from bkmonitor.models import CacheNode
 from core.prometheus import metrics
 
@@ -23,11 +24,17 @@ class RedisMetricCollectReport(object):
 
     def __init__(self):
         self.client = DATA_SIGNAL_KEY.client
+        # 支持按部署集群采集
+        self.cluster_name = get_cluster().name
 
     def get_redis_info(self):
-        redis_nodes = CacheNode.objects.filter(is_enable=True)
+        # 获取当前集群内节点列表
+        redis_nodes = CacheNode.objects.filter(is_enable=True, cluster_name=self.cluster_name)
         nodes_info = []
-        node_label = {"err": ""}
+        node_label = {
+            "err": "",
+            "cluster_name": self.cluster_name,
+        }
         for node in redis_nodes:
             try:
                 node_label["node"] = str(node)
@@ -49,27 +56,20 @@ class RedisMetricCollectReport(object):
         return self.client.get_client(node)
 
     def get_node_labels(self, node, client=None):
+        # 获取节点额外信息
         client = client or self.get_node_client(node)
-        labels = {}
         if node.cache_type == "SentinelRedisCache":
             host, port = client._instance.connection_pool.get_master_address()
-            labels.update(
-                {
-                    "node": str(node),
-                    "host": host,
-                    "port": port,
-                }
-            )
-        else:
-            connection_kwargs = client._instance.connection_pool.connection_kwargs
-            labels.update(
-                {
-                    "node": str(node),
-                    "host": connection_kwargs["host"],
-                    "port": connection_kwargs["port"],
-                }
-            )
-        return labels
+            return {
+                "host": host,
+                "port": port,
+            }
+
+        connection_kwargs = client._instance.connection_pool.connection_kwargs
+        return {
+            "host": connection_kwargs["host"],
+            "port": connection_kwargs["port"],
+        }
 
     def get_node_redis_info(self, node):
         real_client = self.client.get_client(node)
@@ -91,6 +91,8 @@ class RedisMetricCollectReport(object):
             "role": node_info["role"],
             "host": node_info["host"],
             "port": str(node_info["port"]),
+            # 补充部署集群信息
+            "cluster_name": self.cluster_name,
         }
 
         # redis_exporter 和 redis info指标名不一样
