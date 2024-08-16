@@ -4,8 +4,8 @@ import time
 from django.core.management.base import BaseCommand
 
 import bklog.bk_dataview.grafana.client as grafana_client
-from bklog.apps.iam.handlers import ActionEnum
-from bklog.apps.iam.management.commands.iam_upgrade_action_v2 import (
+from apps.iam.handlers import ActionEnum
+from apps.iam.management.commands.iam_upgrade_action_v2 import (
     Command as IamMigrateCommand,
 )
 
