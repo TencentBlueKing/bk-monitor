@@ -1720,7 +1720,7 @@ class DataFlowHandler(BaseAiopsHandler):
             log_count_signatures=log_count_signatures,
             table_name_no_id=table_name_no_id,
             result_table_id=result_table_id,
-            log_count_aggregation=RealTimeCls(
+            agg=RealTimeCls(
                 fields="",
                 table_name=f"bklog_{index_set_id}_agg",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_agg",
@@ -1742,7 +1742,6 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
-            cluster=self.get_model_available_storage_cluster(),
         )
 
         return log_count_aggregation_flow

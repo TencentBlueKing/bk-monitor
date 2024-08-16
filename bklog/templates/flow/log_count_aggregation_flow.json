@@ -13,15 +13,15 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT COUNT(*) as log_count, CONCAT('__', sensitivity) as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_deal_model_json(log_signature)) as T(sensitivity,signature) {{log_count_aggregation.log_count_aggregation.filter_rule}} GROUP BY sensitivity, signature{% if log_count_aggregation.log_count_aggregation.groups %}, {{log_count_aggregation.log_count_aggregation.groups}}{% endif %}",
-      "table_name": "{{log_count_aggregation.log_count_aggregation.table_name}}",
+      "sql": "SELECT COUNT(*) as log_count, '__dist_05' as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_single_signature_format_java(log_signature)) as T(signature) {{log_count_aggregation.agg.filter_rule}} GROUP BY sensitivity, signature{% if log_count_aggregation.agg.groups %}, {{log_count_aggregation.agg.groups}}{% endif %}",
+      "table_name": "{{log_count_aggregation.agg.table_name}}",
       "name": "日志数量统计",
       "count_freq": 60,
       "waiting_time": 300,
       "window_time": null,
       "window_type": "scroll",
       "counter": null,
-      "output_name": "{{log_count_aggregation.log_count_aggregation.result_table_id}}",
+      "output_name": "{{log_count_aggregation.agg.result_table_id}}",
       "session_gap": null,
       "expired_time": null,
       "window_lateness": {
@@ -47,8 +47,8 @@
       }
     },
     {
-      "name": "{{log_count_aggregation.log_count_aggregation.table_name}}({{log_count_aggregation.storage_type}})",
-      "result_table_id": "{{log_count_aggregation.log_count_aggregation.result_table_id}}",
+      "name": "{{log_count_aggregation.agg.table_name}}({{log_count_aggregation.storage_type}})",
+      "result_table_id": "{{log_count_aggregation.agg.result_table_id}}",
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
       "indexed_fields": [
         "sensitivity",
@@ -63,7 +63,7 @@
         {
           "id": 447374,
           "from_result_table_ids": [
-            "{{log_count_aggregation.log_count_aggregation.result_table_id}}"
+            "{{log_count_aggregation.agg.result_table_id}}"
           ]
         }
       ],
@@ -75,7 +75,7 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT signature_dist_05 as signature, pattern, log FROM {{log_count_aggregation.result_table_id}}, lateral table (udf_signature_format (log_signature)) as T (signature_dist_01, signature_dist_03,  signature_dist_05, signature_dist_07, signature_dist_09)",
+      "sql": "SELECT signature, pattern, log FROM {{log_count_aggregation.result_table_id}}, lateral table (udf_single_signature_format_java (log_signature)) as T (signature)",
       "table_name": "{{log_count_aggregation.signature.table_name}}",
       "name": "Signature 提取",
       "count_freq": null,
@@ -110,7 +110,7 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT  signature, pattern_dist_05 as pattern, log FROM {{log_count_aggregation.signature.result_table_id}}, lateral table (udf_signature_format (pattern)) as T (pattern_dist_01, pattern_dist_03, pattern_dist_05, pattern_dist_07, pattern_dist_09)",
+      "sql": "SELECT signature, pattern, log FROM {{log_count_aggregation.signature.result_table_id}}, lateral table (udf_single_signature_format_java (pattern)) as T (pattern)",
       "table_name": "{{log_count_aggregation.pattern.table_name}}",
       "name": "Pattern 提取",
       "count_freq": null,
