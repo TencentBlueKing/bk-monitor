@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict
-from copy import deepcopy
 from typing import List
 
 from celery.schedules import crontab
@@ -113,12 +112,11 @@ def sync_spaces():
             need_relate_space_obj = space_uid_mappings.get(need_relate_space_uid)
             if not need_relate_space_obj:
                 continue
-            properties = deepcopy(need_relate_space_obj.properties)
+            properties = need_relate_space_obj.properties
             related_space = space_uid_mappings[related_space_uid]
             properties["resources"].append(
-                {'resource_id': related_space.space_id, 'resource_type': related_space.space_type_id}
+                {"resource_id": related_space.space_id, "resource_type": related_space.space_type_id}
             )
-            need_relate_space_obj.properties = properties
 
     with transaction.atomic():
         # 把需要创建和更新的空间分类
