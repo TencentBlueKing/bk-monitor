@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 from django.db.models import Q
 
@@ -16,17 +16,7 @@ from bkmonitor.data_source.models import sql
 from bkmonitor.data_source.models.data_structure import DataPoint
 
 
-class DataQuery(object):
-    TYPE = "base"
-    """
-    Do Query
-    """
-
-    def __init__(self, using, query=None):
-        self.using = using
-        self.query = query or sql.Query(self.using)
-        self._result_cache = None
-
+class DataQueryIterMixin:
     def __getitem__(self, k):
         """
         Retrieves an item or slice from the set of results.
@@ -63,6 +53,43 @@ class DataQuery(object):
     def __bool__(self):
         self._fetch_all()
         return bool(self._result_cache)
+
+    def all(self):
+        return self.data
+
+    def limit(self, k):
+        clone = self._clone()
+        clone.query.set_limits(high=k)
+        return clone
+
+    def offset(self, o):
+        clone = self._clone()
+        clone.query.set_offset(o)
+        return clone
+
+    def _fetch_all(self):
+        if self._result_cache is None:
+            self._result_cache = list(self.iterator())
+
+    @property
+    def raw_data(self):
+        self._fetch_all()
+        return self._result_cache
+
+    def iterator(self):
+        raise NotImplementedError
+
+
+class DataQuery(DataQueryIterMixin):
+    TYPE = "base"
+    """
+    Do Query
+    """
+
+    def __init__(self, using, query=None):
+        self.using = using
+        self.query = query or sql.Query(self.using)
+        self._result_cache = None
 
     ####################################
     # METHODS THAT DO DATABASE QUERIES #
@@ -101,9 +128,6 @@ class DataQuery(object):
             clone.query.add_select(select_str)
         return clone
 
-    def all(self):
-        return self.data
-
     def agg_condition(self, agg_condition):
         clone = self._clone()
         clone.query.set_agg_condition(agg_condition)
@@ -136,18 +160,13 @@ class DataQuery(object):
         clone.query.add_ordering(*field_names)
         return clone
 
-    def limit(self, k):
-        clone = self._clone()
-        clone.query.set_limits(high=k)
-        return clone
-
-    def offset(self, o):
-        clone = self._clone()
-        clone.query.set_offset(o)
-        return clone
-
     def slimit(self, s):
         return self._clone()
+
+    def keep_columns(self, *field_names):
+        clone = self._clone()
+        clone.query.add_keep_columns(*field_names)
+        return clone
 
     def iterator(self):
         compiler = self.query.get_compiler(using=self.using)
@@ -164,11 +183,6 @@ class DataQuery(object):
         return data
 
     @property
-    def raw_data(self):
-        self._fetch_all()
-        return self._result_cache
-
-    @property
     def original_data(self):
         compiler = self.query.get_compiler(using=self.using)
         original_sql, params = compiler.as_sql()
@@ -177,9 +191,18 @@ class DataQuery(object):
     ##############################
     # METHOD THAT DO DSL QUERIES #
     ##############################
-    def dsl_raw_query_string(self, query_string):
+
+    def use_full_index_names(self, use_full_index_names: Optional[bool]):
+        clone = self._clone()
+        if use_full_index_names is not None:
+            clone.query.use_full_index_names = use_full_index_names
+        return clone
+
+    def dsl_raw_query_string(self, query_string, nested_paths=None):
         clone = self._clone()
         clone.query.raw_query_string = query_string
+        if nested_paths:
+            clone.query.nested_paths = nested_paths
         return clone
 
     def dsl_index_set_id(self, index_set_id):
@@ -192,6 +215,13 @@ class DataQuery(object):
         clone.query.group_hits_size = size
         return clone
 
+    def dsl_search_after(self, search_after_key: Optional[Dict[str, Any]]):
+        clone = self._clone()
+        if search_after_key is not None:
+            clone.query.enable_search_after = True
+            clone.query.search_after_key = search_after_key
+        return clone
+
     ###################
     # PRIVATE METHODS #
     ###################
@@ -200,7 +230,3 @@ class DataQuery(object):
         query = self.query.clone()
         c = self.__class__(using=self.using, query=query)
         return c
-
-    def _fetch_all(self):
-        if self._result_cache is None:
-            self._result_cache = list(self.iterator())

@@ -16,78 +16,60 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 
-from apm import constants
-from apm.core.handlers.query.base import EsQueryBuilderMixin
-from apm.utils.es_search import EsSearch
+import logging
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+from apm import constants, types
+from apm.core.handlers.query.base import QueryConfigBuilder, UnifyQueryBuilder
+from apm.models import TraceDataSource
 from constants.apm import OtlpKey
 
+logger = logging.getLogger("apm")
 
-class SpanQuery(EsQueryBuilderMixin):
-    DEFAULT_SORT_FIELD = "end_time"
+
+class SpanQuery(UnifyQueryBuilder):
 
     KEY_REPLACE_FIELDS = {"duration": "elapsed_time"}
 
-    def __init__(self, es_client, index_name):
-        self.client = es_client
-        self.index_name = index_name
+    def list(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        offset: int,
+        limit: int,
+        filters: Optional[List[types.Filter]] = None,
+        es_dsl: Optional[Dict[str, Any]] = None,
+        exclude_fields: Optional[List[str]] = None,
+    ) -> Tuple[List[Dict[str, Any]], int]:
 
-    @property
-    def search(self):
-        return EsSearch(using=self.client, index=self.index_name)
+        all_fields: Set[str] = {field_info["field_name"] for field_info in TraceDataSource.TRACE_FIELD_LIST}
+        select_fields: List[str] = list(all_fields - set(exclude_fields or ["attributes", "links", "events"]))
+        q: QueryConfigBuilder = (
+            self.q.filter(self.build_filters(filters))
+            .query_string(*self.parse_dsl(es_dsl))
+            .values(*select_fields)
+            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+        )
+        return list(self.time_range_queryset(start_time, end_time).add_query(q).offset(offset).limit(limit)), 0
 
-    def list(self, start_time, end_time, offset, limit, filter_params=None, es_dsl=None, exclude_field=None):
-        query = self.search
-        if es_dsl:
-            query = query.update_from_dict(es_dsl)
+    def query_option_values(
+        self, start_time: Optional[int], end_time: Optional[int], fields: List[str]
+    ) -> Dict[str, List[str]]:
+        q: QueryConfigBuilder = self.q.order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+        return self._query_option_values(q, fields, start_time, end_time)
 
-        query = self.add_time(query, start_time, end_time)
-        self.add_total_size(query, OtlpKey.SPAN_ID)
+    def query_by_trace_id(self, trace_id: str) -> List[Dict[str, Any]]:
+        q: QueryConfigBuilder = (
+            self.q.time_field(OtlpKey.START_TIME)
+            .order_by(OtlpKey.START_TIME)
+            .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
+        )
+        return list(self.time_range_queryset().add_query(q).limit(constants.DISCOVER_BATCH_SIZE))
 
-        if filter_params:
-            query = self.add_filter_params(query, filter_params)
-
-        query = self.add_sort(query)
-        if exclude_field is None:
-            query = query.source(exclude=["attributes", "links", "events"])
-        else:
-            query = query.source(exclude=exclude_field)
-
-        query = query[offset : offset + limit]
-
-        response = query.execute()
-
-        return [i.to_dict() for i in response.hits], response.aggregations.total_size.value
-
-    def query_option_values(self, start_time, end_time, fields):
-        query = self.search
-        query = self.add_time(query, start_time, end_time)
-
-        return self._query_option_values(query, fields)
-
-    def query_by_trace_id(self, trace_id):
-        query = self.search
-
-        query = self.add_filter(query, OtlpKey.TRACE_ID, trace_id)
-        query = query.extra(size=constants.DISCOVER_BATCH_SIZE).sort(OtlpKey.START_TIME)
-
-        return [i.to_dict() for i in query.execute()]
-
-    def query_by_span_id(self, span_id):
-        query = self.search
-
-        query = self.add_filter(query, OtlpKey.SPAN_ID, span_id)
-        query = query.extra(size=1).sort(f"-{OtlpKey.START_TIME}")
-
-        response = query.execute()
-
-        if response.hits.total.value:
-            return response[0].to_dict()
-
-        return None
-
-    @classmethod
-    def _translate_key(cls, key):
-        if key in cls.KEY_REPLACE_FIELDS:
-            return cls.KEY_REPLACE_FIELDS[key]
-
-        return key
+    def query_by_span_id(self, span_id) -> Optional[Dict[str, Any]]:
+        q: QueryConfigBuilder = (
+            self.q.time_field(OtlpKey.START_TIME)
+            .order_by(f"{OtlpKey.START_TIME} desc")
+            .filter(**{f"{OtlpKey.SPAN_ID}__eq": span_id})
+        )
+        return self.time_range_queryset().add_query(q).first()

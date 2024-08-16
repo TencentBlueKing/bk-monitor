@@ -15,103 +15,98 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-from elasticsearch_dsl import A, Q
+from typing import Any, Dict, List, Optional
+
+from django.db.models import Q
 from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.trace import StatusCode
 
-from apm import constants
+from apm import constants, types
 from apm.core.discover.precalculation.processor import PrecalculateProcessor
-from apm.core.handlers.query.base import EsQueryBuilderMixin
+from apm.core.handlers.query.base import (
+    QueryConfigBuilder,
+    UnifyQueryBuilder,
+    UnifyQuerySet,
+)
 from apm.utils.es_search import EsSearch
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 
 
-class OriginTraceQuery(EsQueryBuilderMixin):
-    DEFAULT_SORT_FIELD = "end_time"
+class OriginTraceQuery(UnifyQueryBuilder):
+    DEFAULT_TIME_FIELD = "end_time"
 
     KEY_REPLACE_FIELDS = {"duration": "elapsed_time"}
 
-    def __init__(self, bk_biz_id, app_name, es_client, index_name):
-        self.client = es_client
-        self.index_name = index_name
-        self.bk_biz_id = bk_biz_id
-        self.app_name = app_name
+    def __init__(self, bk_biz_id: int, app_name: str, result_table_id: str, retention: int):
+        self.app_name: str = app_name
+        super().__init__(bk_biz_id, result_table_id, retention)
 
     @property
     def search(self):
         return EsSearch(using=self.client, index=self.index_name)
 
-    def list(self, start_time, end_time, offset, limit, filter_params=None, es_dsl=None, exclude_field=None):
-        query = self.search
-        if es_dsl:
-            query = query.update_from_dict(es_dsl)
-
-        query = self.add_time(query, start_time, end_time)
-        query = self.add_sort(query, "-start_time")
-
-        if filter_params:
-            query = self.add_filter_params(query, filter_params)
-
-        query = query[offset : offset + limit]
-        query = (
-            query.extra(collapse={"field": OtlpKey.TRACE_ID}).extra(track_total_hits=True).source([OtlpKey.TRACE_ID])
+    def list(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        offset: int,
+        limit: int,
+        filters: Optional[List[types.Filter]] = None,
+        es_dsl: Optional[Dict[str, Any]] = None,
+        exclude_fields: Optional[List[str]] = None,
+    ):
+        # TODO 在跨应用场景下，parent_span_id 不为空也有可能是根，这里的过滤条件可能还要再推敲下
+        #  主要是 collapse 比较特殊，可以考虑转换为 distinct 场景
+        q: QueryConfigBuilder = (
+            self.q.filter(self.build_filters(filters))
+            .filter(parent_span_id__eq="")
+            .values(OtlpKey.TRACE_ID)
+            .query_string(*self.parse_dsl(es_dsl))
+            .order_by("start_time desc")
         )
-        query.aggs.bucket("total_size", A("cardinality", field=OtlpKey.TRACE_ID))
-        response = query.execute()
-
-        total_size = response.aggregations.total_size.value
-
-        processor = PrecalculateProcessor(None, self.bk_biz_id, self.app_name)
+        queryset: UnifyQuerySet = (
+            self.time_range_queryset(start_time, end_time).add_query(q).offset(offset).limit(limit)
+        )
 
         pool = ThreadPool()
-        trace_id_list = [(processor, getattr(trace, OtlpKey.TRACE_ID)[0]) for trace in response.hits]
-        results = pool.map_ignore_exception(self._query_trace_info, trace_id_list)
+        processor = PrecalculateProcessor(None, self.bk_biz_id, self.app_name)
+        params_list = [(processor, trace_info[OtlpKey.TRACE_ID]) for trace_info in queryset]
+        results = pool.map_ignore_exception(self._query_trace_info, params_list)
         res = []
         for result in results:
             if not result:
                 continue
             res.append(result)
 
-        return res, total_size
+        return res, 0
 
-    def _query_trace_info(self, processor, trace_id: str):
-        query = self.search
-        query = query.query("bool", filter=[Q("term", **{OtlpKey.TRACE_ID: trace_id})]).extra(
-            size=constants.DISCOVER_BATCH_SIZE
+    def _query_trace_info(self, processor, trace_id: str) -> Dict[str, Any]:
+        q: QueryConfigBuilder = (
+            self.q.time_field(OtlpKey.START_TIME)
+            .order_by(OtlpKey.START_TIME)
+            .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
         )
-        spans = []
+        span_infos: List[Dict[str, Any]] = list(
+            self.time_range_queryset().add_query(q).limit(constants.DISCOVER_BATCH_SIZE)
+        )
 
-        for span in query.execute():
-            spans.append(span.to_dict())
-
-        trace_info = processor.get_trace_info(trace_id, spans)
+        trace_info = processor.get_trace_info(trace_id, span_infos)
         trace_info.pop("collections", None)
         trace_info.pop("biz_name", None)
         trace_info.pop("root_span_id", None)
-
         return trace_info
 
     @classmethod
-    def _translate_key(cls, key):
-        if key in cls.KEY_REPLACE_FIELDS:
-            return cls.KEY_REPLACE_FIELDS[key]
-
-        return key
-
-    @classmethod
-    def _add_logic_filter(cls, query, key, value):
-        if key == "status_code":
+    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
+        if field == "status_code":
             # 表头状态码特殊查询
-            query = query.query(
-                "bool",
-                should=[
-                    Q("terms", **{OtlpKey.get_attributes_key(SpanAttributes.HTTP_STATUS_CODE): value}),
-                    Q("terms", **{OtlpKey.get_attributes_key(SpanAttributes.RPC_GRPC_STATUS_CODE): value}),
-                ],
+            return q & (
+                Q(**{OtlpKey.get_attributes_key(SpanAttributes.HTTP_STATUS_CODE): value})
+                | Q(**{OtlpKey.get_attributes_key(SpanAttributes.RPC_GRPC_STATUS_CODE): value})
             )
 
-        if key == "error":
+        if field == "error":
             # 查询错误
-            query = query.query("bool", should=[Q("term", **{OtlpKey.STATUS_CODE: StatusCode.ERROR.value})])
-        return query
+            return q & Q(**{OtlpKey.STATUS_CODE: StatusCode.ERROR.value})
+        return q

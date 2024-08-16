@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import traceback
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
@@ -344,12 +345,12 @@ class PrecalculateStorage:
 
         default_storage_id = ApplicationHelper.get_default_cluster_id(bk_biz_id)
         if not default_storage_id:
-            logger.warning(f"[PreCalculate] not found default storage, skip create config")
+            logger.warning("[PreCalculate] not found default storage, skip create config")
             return None
 
         pre_calculate_config = {"cluster": []}
 
-        prefix = f"apm_global.precalculate_storage_auto_{{index}}"
+        prefix = "apm_global.precalculate_storage_auto_{index}"
 
         for i in range(cls.DEFAULT_STORAGE_DISPERSED_COUNT):
             pre_calculate_config["cluster"].append(
@@ -364,7 +365,9 @@ class PrecalculateStorage:
         return DataLink.create_global(pre_calculate_config=pre_calculate_config)
 
     @classmethod
-    def list_nodes(cls, bk_biz_id):
+    def list_nodes(
+        cls, bk_biz_id
+    ) -> Tuple[Optional[RendezvousHash], Optional[Dict[str, Any]], Optional[Dict[str, int]]]:
         datalink = DataLink.get_data_link(bk_biz_id)
         if not datalink or not datalink.pre_calculate_config:
             try:
@@ -386,6 +389,7 @@ class PrecalculateStorage:
             key = f"{i['cluster_id']}-{i['table_name']}"
             instance = ESStorage.objects.filter(table_id=i["table_name"]).first()
 
+            # TODO 后面 ES 查询完全迁移后，这里的 get_client 可以下掉，减少重复连接
             if not instance:
                 try:
                     instance = cls.create_storage_table(i["cluster_id"], i["table_name"])
@@ -512,6 +516,15 @@ class PrecalculateStorage:
         logger.info(f"[PrecalculateStorage] save {len(data)} success")
 
     @classmethod
+    def fetch_result_table_ids(cls, bk_biz_id: int) -> List[str]:
+        result_table_ids: Set[str] = set()
+        __, node_mapping, __ = cls.list_nodes(bk_biz_id)
+        for node_key in node_mapping.keys():
+            __, result_table_id = node_key.split("-", maxsplit=1)
+            result_table_ids.add(result_table_id.replace(".", "_"))
+        return list(result_table_ids)
+
+    @classmethod
     def get_search_mapping(cls, bk_biz_id):
         def can_combine(index_names):
             """只有索引名称长度一致并且只有最后一个字符不相同 才合并名称"""
@@ -546,18 +559,17 @@ class PrecalculateStorage:
 
         cluster_mapping = {}
         for k, v in node_mapping.items():
-            parts = k.split("-", 1)
-            cluster_id = parts[0]
-            index_name = parts[-1].replace('.', '_')
+            cluster_id, result_table_id = k.split("-", maxsplit=1)
+            index_name = result_table_id.replace('.', '_')
             if cluster_id in cluster_mapping:
                 cluster_mapping[cluster_id]["tables"].append(index_name)
             else:
                 cluster_mapping[cluster_id] = {"client": v, "tables": [index_name]}
 
-        for cluster, index_info in cluster_mapping.items():
+        for __, index_info in cluster_mapping.items():
             is_combine = can_combine(index_info["tables"])
             if not is_combine:
-                logger.info(f"[PreCalculate] table_name not have common prefix, will not combine indexes")
+                logger.info("[PreCalculate] table_name not have common prefix, will not combine indexes")
                 for t in index_info["tables"]:
                     res[f"{t}*"] = index_info["client"]
             else:
@@ -594,7 +606,7 @@ class PrecalculateStorage:
                     if (
                         count_md5(json.dumps(cur_res, sort_keys=True)) != count_md5(json.dumps(pre_res, sort_keys=True))
                     ) or (instance.storage_cluster_id != j["cluster_id"]):
-                        logger.info(f"[PreCalculateStorage-CHECK_UPDATE] FIELD OR STORAGE UPDATE!")
+                        logger.info("[PreCalculateStorage-CHECK_UPDATE] FIELD OR STORAGE UPDATE!")
                         cls.update_result_table(j["table_name"], j["cluster_id"])
                     else:
                         logger.info(

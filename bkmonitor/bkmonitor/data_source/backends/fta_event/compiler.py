@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-import copy
+from typing import Any, Dict, List
 
 from bkmonitor.data_source.backends.elastic_search.compiler import (
     SQLCompiler as ElasticSearchSQLCompiler,
@@ -103,31 +103,17 @@ class SQLCompiler(ElasticSearchSQLCompiler):
             aggs = _aggs
         return aggs
 
-    def _get_buckets(self, records, record, dimensions, i, aggs, metric_alias):
-        if not aggs:
-            return
+    @classmethod
+    def handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
+        if dimension.startswith(cls.TAGS_FIELD_PREFIX):
+            return bucket["_reverse"]
 
-        if dimensions:
-            count = len(dimensions)
-            dimension = dimensions[i]
-            if dimension.startswith(self.TAGS_FIELD_PREFIX):
-                buckets = aggs[dimension]["key"]["value"]["buckets"]
-            else:
-                buckets = aggs[dimension]["buckets"]
-            for bucket in buckets:
-                record[dimension] = bucket.get("key")
-                if i + 1 == count:
-                    for alias in metric_alias:
-                        record[alias] = bucket.get(alias).get("value")
-                    records.append(copy.deepcopy(record))
-                else:
-                    if dimension.startswith(self.TAGS_FIELD_PREFIX):
-                        bucket = bucket["_reverse"]
-                    self._get_buckets(records, record, dimensions, i + 1, bucket, metric_alias)
-        else:
-            for alias in metric_alias:
-                record[alias] = aggs.get(alias).get("value")
-            records.append(copy.deepcopy(record))
+    @classmethod
+    def extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
+        try:
+            return aggs[dimension]["buckets"]
+        except KeyError:
+            return []
 
     @staticmethod
     def _operate_eq(and_map, field, values):

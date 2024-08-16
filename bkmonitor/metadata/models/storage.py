@@ -17,7 +17,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import arrow
 import curator
@@ -2127,6 +2127,37 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] no index", self.table_id)
         return False
 
+    def _get_index_infos(self, namespaced: str) -> Tuple[Dict[str, Dict[str, Any]], str]:
+        index_version = ""
+        client = self.get_client()
+        extra = {"cat": {"format": "json"}, "indices": {}}[namespaced]
+        getdata = {"cat": lambda d: {idx["index"]: idx for idx in d}, "indices": lambda d: d["indices"]}[namespaced]
+        func = {"cat": client.cat.indices, "indices": client.indices.stats}[namespaced]
+
+        index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
+        if len(index_info_map) != 0:
+            index_version = "v2"
+        else:
+            index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
+            if len(index_info_map) != 0:
+                index_version = "v1"
+
+        return index_info_map, index_version
+
+    def get_index_names(self) -> List[str]:
+        index_info_map, index_version = self._get_index_infos("cat")
+        if index_version == "v2":
+            index_re = self.index_re_v2
+        else:
+            index_re = self.index_re_v1
+
+        index_names: List[str] = []
+        for index_name in index_info_map:
+            if index_re.match(index_name) is None:
+                logger.warning("index->[%s] is not match re, maybe something go wrong?", index_name)
+            index_names.append(index_name)
+        return index_names
+
     def get_index_stats(self):
         """
         获取index的统计信息
@@ -2142,18 +2173,7 @@ class ESStorage(models.Model, StorageResultTable):
           }
         }
         """
-        client = self.get_client()
-
-        index_version = ""
-        stat_info_list = client.indices.stats(self.search_format_v2())
-        if len(stat_info_list["indices"]) != 0:
-            index_version = "v2"
-        else:
-            stat_info_list = client.indices.stats(self.search_format_v1())
-            if len(stat_info_list["indices"]) != 0:
-                index_version = "v1"
-
-        return stat_info_list["indices"], index_version
+        return self._get_index_infos("indices")
 
     def current_index_info(self):
         """

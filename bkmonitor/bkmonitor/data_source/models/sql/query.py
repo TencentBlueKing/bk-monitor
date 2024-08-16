@@ -127,16 +127,24 @@ class Query(object):
         self.agg_condition = []
         self.group_by = []
         self.order_by = []
+        self.keep_columns = []
         self.low_mark, self.high_mark = 0, None  # Used for offset/limit
         self.slimit = None
         self.offset = None
 
         # dsl
         self.index_set_id = None
-        self.raw_query_string = ""
-        self.group_hits_size = 0
-        self.time_field = ""
+        self.group_hits_size = None
         self.event_group_id = ""
+        self.raw_query_string = ""
+        self.nested_paths = []
+        # search after: https://www.elastic.co/guide/en/elasticsearch/reference/
+        # current/search-aggregations-bucket-composite-aggregation.html#_pagination
+        self.search_after_key = {}
+        self.enable_search_after = False
+        self.use_full_index_names = False
+
+        self.time_field = ""
         self.target_type = "ip"
         self.using = using
 
@@ -152,6 +160,7 @@ class Query(object):
         obj.where_class = self.where_class
         obj.group_by = self.group_by[:]
         obj.order_by = self.order_by[:]
+        obj.keep_columns = self.keep_columns[:]
         obj.time_field = self.time_field
         obj.target_type = self.target_type
         obj.agg_condition = self.agg_condition[:]
@@ -161,8 +170,14 @@ class Query(object):
 
         # dsl
         obj.index_set_id = self.index_set_id
-        obj.raw_query_string = self.raw_query_string
         obj.event_group_id = self.event_group_id
+        obj.raw_query_string = self.raw_query_string
+        obj.nested_paths = self.nested_paths[:]
+        obj.search_after_key = self.search_after_key.copy()
+        obj.enable_search_after = self.enable_search_after
+        obj.group_hits_size = self.group_hits_size
+        obj.use_full_index_names = self.use_full_index_names
+
         return obj
 
     def sql_with_params(self):
@@ -212,6 +227,10 @@ class Query(object):
     def add_grouping(self, *grouping):
         if grouping:
             self.group_by.extend([x for x in grouping if x and x.strip()])
+
+    def add_keep_columns(self, *keep_columns):
+        if keep_columns:
+            self.keep_columns.extend([x for x in keep_columns if x and x.strip()])
 
     def set_limits(self, low=None, high=None):
         if high is not None:

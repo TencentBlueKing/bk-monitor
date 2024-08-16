@@ -158,7 +158,7 @@ class ApmApplication(AbstractRecordModel):
         }
 
     @cached_property
-    def trace_datasource(self):
+    def trace_datasource(self) -> TraceDataSource:
         return TraceDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
     @cached_property
