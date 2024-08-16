@@ -37,7 +37,14 @@ import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMx
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import BaseEchart from '../monitor-base-echart';
 
-import type { ICommonCharts, ILegendItem, IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
+import type {
+  ICommonCharts,
+  ILegendItem,
+  IMenuItem,
+  LegendActionType,
+  MonitorEchartOptions,
+  PanelModel,
+} from '../../typings';
 import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './alarm-event-chart.scss';
@@ -119,6 +126,8 @@ class AlarmEventChart
 
   emptyType: EmptyStatusType = 'empty';
 
+  seriesList = [];
+
   created() {
     this.tableColumns = [
       {
@@ -196,48 +205,15 @@ class AlarmEventChart
     const names = [this.$t('无告警'), this.$t('致命'), this.$t('预警'), this.$t('提醒')];
     const series = srcData.map((item, index) => ({
       data: item.datapoints,
+      name: item.display_name,
       type: 'bar',
       itemStyle: {
         color: colors[index],
       },
       stack,
     }));
-    series[0].markArea = {
-      data: [
-        [
-          {
-            xAxis: series[0].data[2][0],
-            itemStyle: {
-              color: '#F2E8FB',
-            },
-            emphasis: {
-              itemStyle: {
-                color: '#EDE9FB',
-              },
-            },
-          },
-          {
-            xAxis: series[0].data[5][0],
-          },
-        ],
-        [
-          {
-            xAxis: series[0].data[12][0],
-            itemStyle: {
-              color: '#F2E8FB',
-            },
-            emphasis: {
-              itemStyle: {
-                color: '#EDE9FB',
-              },
-            },
-          },
-          {
-            xAxis: series[0].data[15][0],
-          },
-        ],
-      ],
-    };
+    this.seriesList = Object.freeze(series) as any;
+    this.setMarkArea(series[0]);
     const maxXInterval = getSeriesMaxInterval(srcData);
     const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
     const formatterFunc = this.handleSetFormatterFunc(srcData[0].datapoints);
@@ -329,6 +305,45 @@ class AlarmEventChart
     }, 300);
   }
 
+  setMarkArea(seriesItem) {
+    seriesItem.markArea = {
+      data: [
+        [
+          {
+            xAxis: seriesItem.data[2][0],
+            itemStyle: {
+              color: '#F2E8FB',
+            },
+            emphasis: {
+              itemStyle: {
+                color: '#EDE9FB',
+              },
+            },
+          },
+          {
+            xAxis: seriesItem.data[5][0],
+          },
+        ],
+        [
+          {
+            xAxis: seriesItem.data[12][0],
+            itemStyle: {
+              color: '#F2E8FB',
+            },
+            emphasis: {
+              itemStyle: {
+                color: '#EDE9FB',
+              },
+            },
+          },
+          {
+            xAxis: seriesItem.data[15][0],
+          },
+        ],
+      ],
+    };
+  }
+
   handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
     let formatterFunc = null;
     const [firstItem] = seriesData;
@@ -389,8 +404,35 @@ class AlarmEventChart
     }
   }
 
-  handleSelectLegend(legend) {
-    console.log(legend);
+  handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+    if (this.legendData.length < 2) {
+      return;
+    }
+    const copyOptions = { ...this.customOptions };
+    const setSeriesFilter = () => {
+      const showNames = [];
+      this.legendData.forEach(l => {
+        l.show && showNames.push(l.name);
+      });
+      copyOptions.series = this.seriesList?.filter(s => showNames.includes(s.name));
+      this.setMarkArea(copyOptions.series[0]);
+      this.customOptions = Object.freeze({ ...copyOptions });
+    };
+    if (actionType === 'shift-click') {
+      item.show = !item.show;
+      setSeriesFilter();
+      this.$emit('selectLegend', this.legendData);
+    } else if (actionType === 'click') {
+      const hasOtherShow = this.legendData.filter(item => !item.hidden).some(set => set.name !== item.name && set.show);
+      this.legendData.forEach(legend => {
+        legend.show = legend.name === item.name || !hasOtherShow;
+      });
+      setSeriesFilter();
+      this.$emit('selectLegend', this.legendData);
+    }
+    setTimeout(() => {
+      this.handleResize();
+    }, 100);
   }
 
   handleSetMarkAreaIconPosition() {
