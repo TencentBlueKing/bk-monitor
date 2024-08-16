@@ -1,6 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./src/monitor-pc/pages/home/**.tsx'],
+  content: [
+    './src/monitor-pc/pages/**/*.tsx',
+    './src/monitor-pc/components/**/*.tsx',
+    './src/monitor-pc/pages/**/*.vue',
+    './src/monitor-pc/components/**/*.vue',
+  ],
   theme: {
     extend: {
       boxShadow: {

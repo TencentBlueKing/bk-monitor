@@ -3,11 +3,9 @@
 @tailwind utilities;
 @layer utilities {
   .ellipsis {
-    /* overflow: hidden;
+    overflow: hidden;
     text-overflow: ellipsis;
-    white-space: no-wrap; */
-
-    @apply overflow-hidden text-ellipsis whitespace-nowrap;
+    white-space: no-wrap;
   }
 
   .flex-center {
