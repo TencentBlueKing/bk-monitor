@@ -99,6 +99,7 @@ class GetProjectClustersResource(BcsClusterManagerBaseResource):
                     "project_id": c["projectID"],
                     "cluster_id": c["clusterID"],
                     "bk_biz_id": c["businessID"],
+                    "cluster_type": c["clusterType"],
                 }
                 for c in clusters or []
                 if not c.get("is_shared")
@@ -110,6 +111,7 @@ class GetProjectClustersResource(BcsClusterManagerBaseResource):
                 "cluster_id": c["clusterID"],
                 "bk_biz_id": c["businessID"],
                 "is_shared": c.get("is_shared", False),
+                "cluster_type": c["clusterType"],
             }
             for c in clusters or []
         ]

@@ -37,7 +37,7 @@ import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
-import { handleSetTargetDesc } from '../../common';
+import { handleSetTargetDesc as getTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
 import { type EditModeType, type MetricDetail, MetricType, type dataModeType } from '../typings';
@@ -230,6 +230,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     }
     return true;
   }
+  get targetDesc() {
+    return this.handleSetTargetDesc(this.targetList, this.metricData?.[0]?.targetType);
+  }
   created() {
     this.modeList = [
       {
@@ -261,12 +264,12 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     };
     this.targetList = this.defaultCheckedTarget?.target_detail || [];
     // 初始化时监控目标显示
-    this.handleSetTargetDesc(
-      this.targetList,
-      this.metricData?.[0]?.targetType,
-      this.defaultCheckedTarget?.node_count || 0,
-      this.defaultCheckedTarget?.instance_count || 0
-    );
+    // this.handleSetTargetDesc(
+    //   this.targetList,
+    //   this.metricData?.[0]?.targetType,
+    //   this.defaultCheckedTarget?.node_count || 0,
+    //   this.defaultCheckedTarget?.instance_count || 0
+    // );
   }
   handleChangeTab(item) {
     if ((item.id === 'realtime' && !this.canActiveRealtime) || (item.id === 'converge' && !this.canActiveConverge)) {
@@ -347,9 +350,13 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     instance_count = 0
   ) {
     const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
-    const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
+    const result = getTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
     this.target.desc.message = result.message;
     this.target.desc.subMessage = result.subMessage;
+    return {
+      message: result.message,
+      subMessage: result.subMessage,
+    };
   }
 
   /**
@@ -710,7 +717,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           {this.supportSource && !!this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
           {this.metricData.some(item => item.canSetTarget) && (
             <div class='ip-wrapper'>
-              {!this.targetList.length && !this.target.desc.message.length
+              {!this.targetList.length && !this.targetDesc.message.length
                 ? [
                     !this.readonly ? (
                       <div
@@ -739,8 +746,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       style='color: #63656e;'
                       class='subtitle'
                     >
-                      {this.target.desc.message}
-                      {this.target.desc.subMessage}
+                      {this.targetDesc.message}
+                      {this.targetDesc.subMessage}
                     </span>,
                     this.readonly ? (
                       <span

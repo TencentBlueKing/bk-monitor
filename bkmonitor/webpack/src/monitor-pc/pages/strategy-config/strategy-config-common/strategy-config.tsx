@@ -96,6 +96,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   @Prop({ type: Array, default: null }) bkStrategyId: IStrategyConfigProps['bkStrategyId'];
   @Prop({ type: Array, default: null }) dataSource: IStrategyConfigProps['dataSource'];
   @Prop({ type: String, default: '' }) actionName: IStrategyConfigProps['actionName'];
+  @Prop({ type: String, default: '' }) strategyLabels: IStrategyConfigProps['strategyLabels'];
   @Prop({ type: [String, Array] }) scenario: string;
   @Prop({ type: [String, Array] }) strategyState: string;
   @Prop({ type: Array }) keywords: IStrategyConfigProps['keywords']; /** 支持传入自定义搜索关键词 */
@@ -276,6 +277,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   ipSelectorShow = false;
   emptyType: EmptyStatusType = 'empty'; // 空状态
   selectKey = 1;
+  firstRequest = true; // 第一次请求
   cancelFn = () => {}; // 取消监控目标接口方法
 
   get bizList() {
@@ -1237,6 +1239,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
         this.handleResetRoute('Set');
         // magic code  reflesh bk table
         this.$refs.strategyTable?.doLayout?.();
+        this.firstRequest = false;
       })
       .catch(() => {
         this.emptyType = '500';
@@ -1249,18 +1252,47 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
 
   handleResetRoute(type: 'Get' | 'Set') {
     if (type === 'Get') {
-      const { page, pageSize, keywordObj } = this.$route.query;
+      const { page, pageSize, filters } = this.$route.query;
       this.tableInstance.page = Number(page) || 1;
       this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
-      this.header.keywordObj = keywordObj ? JSON.parse(keywordObj as string) : [];
+      try {
+        this.header.condition = filters ? JSON.parse(filters as string) : [];
+      } catch {
+        this.header.condition = [];
+      }
     } else {
-      this.$router.replace({
+      const { route } = this.$router.resolve({
         name: this.$route.name,
         query: {
           page: String(this.tableInstance.page),
           pageSize: String(this.tableInstance.pageSize),
-          keywordObj: JSON.stringify(this.header.keywordObj),
+          filters: JSON.stringify(this.header.condition),
         },
+      });
+      if (this.$route.fullPath !== route.fullPath) {
+        this.$router.replace(route);
+      }
+    }
+    if (this.firstRequest) {
+      this.header.keywordObj = this.header.condition.map(item => {
+        const { id, name, data } = this.filterPanelData.find(panel => item.key === panel.id);
+        let values = [];
+        /**
+         * 因为有些筛选项需要等待列表接口请求完成后才能知道，所以这里需要判断一下
+         * 如果该筛选项没有子级，就暂时使用Url传递的值构造一个id为值的对象,等待接口返回后在进行处理
+         */
+        if (data.length) {
+          values = data.filter(child => item.value.includes(child.id));
+        } else {
+          values = item.value.map(id => ({
+            id,
+          }));
+        }
+        return {
+          id,
+          name,
+          values,
+        };
       });
     }
   }

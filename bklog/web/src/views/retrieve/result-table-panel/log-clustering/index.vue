@@ -35,16 +35,23 @@
         class="cluster-nav"
         data-test-id="cluster_div_fingerOperate"
       >
-        <div class="bk-button-group">
-          <bk-button
-            v-for="item of clusterNavList"
-            :class="active === item.id ? 'is-selected' : ''"
-            :key="item.id"
-            size="small"
-            @click="handleClickNav(item.id)"
-          >
-            {{ item.name }}
-          </bk-button>
+        <div class="left-container">
+          <div class="bk-button-group">
+            <bk-button
+              v-for="item of clusterNavList"
+              :class="active === item.id ? 'is-selected' : ''"
+              :key="item.id"
+              size="small"
+              @click="handleClickNav(item.id)"
+            >
+              {{ item.name }}
+            </bk-button>
+          </div>
+          <strategy
+            style="margin-left: 20px"
+            :signature-switch="signatureSwitch"
+            :strategy-submit-status="watchStrategySubmitStatus"
+          />
         </div>
 
         <finger-operate
@@ -53,6 +60,7 @@
           :finger-operate-data="fingerOperateData"
           :request-data="requestData"
           :total-fields="totalFields"
+          :strategy-have-submit="strategyHaveSubmit"
           @handle-finger-operate="handleFingerOperate"
         />
       </div>
@@ -184,6 +192,7 @@
   import FingerOperate from './components/finger-operate';
   import DataFingerprint from './data-fingerprint';
   import IgnoreTable from './ignore-table';
+  import Strategy from './components/strategy';
 
   export default {
     components: {
@@ -192,6 +201,7 @@
       ClusteringLoader,
       FingerOperate,
       EmptyStatus,
+      Strategy,
     },
     inheritAttrs: false,
     props: {
@@ -294,6 +304,8 @@
         isIndexSetChange: false,
         isInitPage: true, // 是否是第一次进入数据指纹
         scrollEl: null,
+        /** 是否创建过策略 */
+        strategyHaveSubmit: false,
       };
     },
     computed: {
@@ -309,7 +321,7 @@
       exhibitText() {
         return this.configID
           ? this.$t('当前无可用字段，请前往日志清洗进行设置')
-          : this.$t('当前索引集不支持字段提取设置');
+          : this.$t('当前索引集不支持日志聚类设置');
       },
       exhibitOperate() {
         return this.configID ? this.$t('跳转到日志清洗') : '';
@@ -641,6 +653,9 @@
         Object.assign(this.fingerOperateData, { yearSwitch: false });
         this.handleFingerOperate('requestData', { year_on_year_hour: 0 }, true);
       },
+      watchStrategySubmitStatus(v) {
+        this.strategyHaveSubmit = v;
+      },
     },
   };
 </script>
@@ -660,6 +675,11 @@
       color: #63656e;
 
       @include flex-justify(space-between);
+
+      .left-container {
+        flex-wrap: nowrap;
+        @include flex-justify(space-between);
+      }
     }
 
     .bk-button-group {

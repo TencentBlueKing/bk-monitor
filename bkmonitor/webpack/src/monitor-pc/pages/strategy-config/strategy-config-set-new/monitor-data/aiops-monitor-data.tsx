@@ -32,7 +32,7 @@ import { random, transformDataKey } from 'monitor-common/utils/utils';
 
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
-import { handleSetTargetDesc } from '../../common';
+import { handleSetTargetDesc as getTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
 import { type IScenarioItem, type ISceneConfig, type MetricDetail, MetricType } from '../typings';
@@ -144,7 +144,9 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   get readonlyMetrics() {
     return this.scene?.metrics?.filter(item => this.metrics.includes(item.metric_id)) || [];
   }
-
+  get targetDesc() {
+    return this.handleSetTargetDesc(this.targetList, this.metricData?.[0]?.targetType);
+  }
   @Emit('change')
   handleChange(value?) {
     if (value) {
@@ -245,7 +247,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   /** 告警变化 */
   handleLevelChange(value) {
     this.formModel.level = value;
-    if (!!this.scene) {
+    if (this.scene) {
       this.handleChange();
     }
   }
@@ -321,9 +323,13 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     instance_count = 0
   ) {
     const [{ objectType }] = this.metricData;
-    const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
+    const result = getTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
     this.target.desc.message = result.message;
     this.target.desc.subMessage = result.subMessage;
+    return {
+      message: result.message,
+      subMessage: result.subMessage,
+    };
   }
   handleTargetCancel() {
     this.showTopoSelector = false;
@@ -396,18 +402,23 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   }
 
   renderIpWrapper() {
-    if (this.targetList.length || this.target.desc.message.length) {
+    if (this.targetList.length || this.targetDesc.message.length) {
       return [
-        <i class='icon-monitor icon-mc-tv' />,
+        <i
+          key={1}
+          class='icon-monitor icon-mc-tv'
+        />,
         <span
+          key={2}
           style='color: #63656e;'
           class='subtitle'
         >
-          {this.target.desc.message}
-          {this.target.desc.subMessage}
+          {this.targetDesc.message}
+          {this.targetDesc.subMessage}
         </span>,
         this.readonly ? (
           <span
+            key={3}
             class='ip-wrapper-title'
             onClick={this.handleAddTarget}
           >
@@ -415,6 +426,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           </span>
         ) : (
           <span
+            key={4}
             class='icon-monitor icon-bianji'
             onClick={this.handleAddTarget}
           />
@@ -428,13 +440,17 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
 
     return [
       <div
+        key={1}
         class='ip-wrapper-title'
         on-click={this.handleAddTarget}
       >
         <i class='icon-monitor icon-mc-plus-fill' />
         {this.$t('添加监控目标')}
       </div>,
-      <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
+      <span
+        key={2}
+        class='subtitle ml5'
+      >{`(${this.$t('默认为本业务')})`}</span>,
     ];
   }
 
@@ -581,8 +597,11 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               {this.readonly ? (
                 this.levelList
                   .filter(item => this.formModel.level.includes(item.id))
-                  .map(item => (
-                    <span class='level-check'>
+                  .map((item, index) => (
+                    <span
+                      key={index}
+                      class='level-check'
+                    >
                       <i class={['icon-monitor', item.icon, `status-${item.id}`]} />
                       <span>{item.name}</span>
                     </span>
@@ -592,8 +611,9 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                   value={this.formModel.level}
                   onChange={this.handleLevelChange}
                 >
-                  {this.levelList.map(item => (
+                  {this.levelList.map((item, index) => (
                     <bk-checkbox
+                      key={index}
                       class='level-check'
                       value={item.id}
                     >

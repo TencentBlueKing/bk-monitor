@@ -164,6 +164,32 @@ const fieldDistinctCount = {
   url: '/field/index_set/fetch_distinct_count_list/',
   method: 'post',
 };
+/** 聚类告警列表 */
+const userGroup = {
+  url: '/clustering_monitor/search_user_groups/',
+  method: 'post',
+};
+/** 创建/更新数量突增告警 */
+const normalStrategy = {
+  url: '/clustering_monitor/:index_set_id/normal_strategy/',
+  method: 'post',
+};
+/** 创建/更新新类告警 */
+const newClsStrategy = {
+  url: '/clustering_monitor/:index_set_id/new_cls_strategy/',
+  method: 'post',
+};
+/** 获取策略详情 */
+const getClusteringInfo = {
+  url: '/clustering_monitor/:index_set_id/get_strategy/?strategy_type=:strategy_type',
+  method: 'get',
+};
+/** 删除策略详情 */
+const deleteClusteringInfo = {
+  url: '/clustering_monitor/:index_set_id/',
+  method: 'delete',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -198,4 +224,9 @@ export {
   fieldStatisticsTotal,
   fieldStatisticsGraph,
   fieldDistinctCount,
+  userGroup,
+  normalStrategy,
+  newClsStrategy,
+  getClusteringInfo,
+  deleteClusteringInfo,
 };
