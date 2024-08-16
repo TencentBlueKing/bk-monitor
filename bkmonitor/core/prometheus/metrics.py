@@ -522,7 +522,7 @@ CLUSTER_ENABLED = Gauge(
     labelnames=("node", "role", "host", "port"),
 )
 
-COMMANDS_DURATION_SECONDS_TOTAL = Counter(
+COMMANDS_DURATION_SECONDS_TOTAL = Gauge(
     name="redis_commands_duration_seconds_total",
     documentation="How many seconds spend on processing Redis commands",
     labelnames=("node", "role", "cmd", "host", "port"),
@@ -534,7 +534,7 @@ COMMANDS_PROCESSED_TOTAL = Gauge(
     labelnames=("node", "role", "host", "port"),
 )
 
-COMMANDS_TOTAL = Counter(
+COMMANDS_TOTAL = Gauge(
     name="redis_commands_total",
     documentation="Total number of calls per command",
     labelnames=("node", "role", "cmd", "host", "port"),
@@ -1047,7 +1047,7 @@ DB_KEYS = Gauge(
 
 DB_KEYS_EXPIRING = Gauge(
     name="redis_db_keys_expiring",
-    documentation="已过期，尚未删除的 key 数量",
+    documentation="设置了ttl的 key 数量",
     labelnames=("node", "role", "db", "host", "port"),
 )
 
