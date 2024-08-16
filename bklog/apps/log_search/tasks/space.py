@@ -61,8 +61,6 @@ def sync_spaces():
     space_id_list: List[int] = []
     # 有关联的空间
     have_related_space_list = []
-    # 没有关联的空间
-    not_related_space_list = []
     # id和空间映射关系
     space_mappings = {}
     # space_uid和空间映射关系
@@ -95,19 +93,18 @@ def sync_spaces():
                 properties=space,
                 is_deleted=False,
             )
+
             space_mappings[space_pk] = space_obj
             space_uid_mappings[space_uid] = space_obj
             space_id_list.append(space_pk)
             # 记录存在关联的空间, 因为只有非BKCC的业务会关联其他空间, 但是BKCC的业务不会知道他关联了哪些非BKCC业务, 所以需要记录
             if space_type_id == SpaceTypeEnum.BKCC.value or not space.get("resources", []):
-                not_related_space_list.append(
-                    {"space_uid": space_uid, "properties": space, "space_id": space_id, "space_type_id": space_type_id}
-                )
                 continue
             have_related_space_list.append(
                 {"space_uid": space_uid, "properties": space, "space_id": space_id, "space_type_id": space_type_id}
             )
-    need_relate_space_list = []
+
+    # 将BKCC的业务的resources里也添加上其他空间类型的resource, 这样就可以通过BKCC的业务找到其他空间类型的业务
     for _space in have_related_space_list:
         for resource in _space["properties"]["resources"]:
             need_relate_space_uid: str = SpaceApi.gen_space_uid(
@@ -121,8 +118,9 @@ def sync_spaces():
                 {'resource_id': _space["space_id"], 'resource_type': _space["space_type_id"]}
             )
             need_relate_space_obj.properties = properties
-            need_relate_space_list.append(need_relate_space_obj)
+
     with transaction.atomic():
+        # 把需要创建和更新的空间分类
         space_create_list = []
         space_update_list = []
         exist_space_id_list = Space.objects.values_list("id", flat=True)
@@ -131,6 +129,7 @@ def sync_spaces():
                 space_update_list.append(_space)
             else:
                 space_create_list.append(_space)
+
         # 批量创建
         Space.objects.bulk_create(space_create_list, batch_size=500)
         # 批量更新
@@ -149,8 +148,6 @@ def sync_spaces():
             ],
             batch_size=500,
         )
-        Space.objects.bulk_update(need_relate_space_list, ["properties"], batch_size=500)
-
         # 删除不存在的空间
         deleted_rows = Space.origin_objects.exclude(id__in=space_id_list).delete()
     logger.info("[sync_spaces] sync ({}), delete ({})".format(len(space_id_list), deleted_rows))
