@@ -8,14 +8,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
 
 from alarm_backends.core.cache.key import DATA_SIGNAL_KEY
 from bkmonitor.models import CacheNode
 from core.prometheus import metrics
 
+logger = logging.getLogger("self_monitor")
+
 
 class RedisMetricCollectReport(object):
-    DB_COUNT = 15
+    # 默认16个db
+    DB_COUNT = 16
 
     def __init__(self):
         self.client = DATA_SIGNAL_KEY.client
@@ -24,42 +28,46 @@ class RedisMetricCollectReport(object):
         redis_nodes = CacheNode.objects.filter(is_enable=True)
         nodes_info = []
         for node in redis_nodes:
-            real_client = self.client.get_client(node)
-            node_info = real_client.info()
-            cache_type = node.cache_type
-            redis_conf = real_client.redis_conf
+            try:
+                nodes_info.append(self.get_node_redis_info(node))
+            except Exception as e:
+                logger.exception("[collect redis error]{} detail: {}", node, e)
+                continue
+        return nodes_info
 
-            # 在info命令获取的信息基础上增加额外的信息
-            if cache_type == "SentinelRedisCache":
-                node_info.update(
-                    {
-                        "mastername": real_client.master_name,
-                        "node_type": "sentinel",
-                        "host": real_client.sentinel_host,
-                        "port": real_client.sentinel_port,
-                    }
-                )
-            else:
-                node_info.update(
-                    {
-                        "mastername": "",
-                        "node_type": "standalone",
-                        "host": redis_conf["host"],
-                        "port": redis_conf["port"],
-                    }
-                )
+    def get_node_redis_info(self, node):
+        real_client = self.client.get_client(node)
+        node_info = real_client.info()
+        # 在info命令获取的信息基础上增加额外的信息
+        if node.cache_type == "SentinelRedisCache":
+            host, port = real_client._instance.connection_pool.get_master_address()
+            node_info.update(
+                {
+                    "mastername": real_client.master_name,
+                    "node_type": "sentinel",
+                    "host": host,
+                    "port": port,
+                }
+            )
+        else:
+            connection_kwargs = real_client._instance.connection_pool.connection_kwargs
+            node_info.update(
+                {
+                    "mastername": "",
+                    "node_type": "standalone",
+                    "host": connection_kwargs["host"],
+                    "port": connection_kwargs["port"],
+                }
+            )
 
             # 获取指标config_maxclients、config_maxmemory、db的值
             node_info.update(
                 {
                     "config_maxclients": int(real_client.config_get("maxclients")["maxclients"]),
                     "config_maxmemory": int(real_client.config_get("maxmemory")["maxmemory"]),
-                    "db": redis_conf["db"],
                 }
             )
-            nodes_info.append(node_info)
-
-        return nodes_info
+        return node_info
 
     def set_redis_metric_data(self, node_info: dict):
         labels = {
@@ -69,7 +77,6 @@ class RedisMetricCollectReport(object):
             "host": node_info["host"],
             "port": str(node_info["port"]),
         }
-        db = node_info["db"]
 
         # redis_exporter 和 redis info指标名不一样
         metrics.AOF_CURRENT_REWRITE_DURATION_SEC.labels(**labels).set(node_info["aof_current_rewrite_time_sec"])
@@ -142,8 +149,9 @@ class RedisMetricCollectReport(object):
         metrics.CONNECTED_CLIENTS.labels(**labels).set(node_info["connected_clients"])
         metrics.BLOCKED_CLIENTS.labels(**labels).set(node_info["blocked_clients"])
         metrics.MEM_FRAGMENTATION_RATIO.labels(**labels).set(node_info["mem_fragmentation_ratio"])
-        metrics.AOF_BUFFER_LENGTH.labels(**labels).set(node_info["aof_buffer_length"])
-        metrics.AOF_CURRENT_SIZE.labels(**labels).set(node_info["aof_current_size"])
+        if "aof_buffer_length" in node_info:
+            metrics.AOF_BUFFER_LENGTH.labels(**labels).set(node_info["aof_buffer_length"])
+            metrics.AOF_CURRENT_SIZE.labels(**labels).set(node_info["aof_current_size"])
         metrics.RDB_CHANGES_SINCE_LAST_SAVE.labels(**labels).set(node_info["rdb_changes_since_last_save"])
         metrics.PUBSUB_CHANNELS.labels(**labels).set(node_info["pubsub_channels"])
         metrics.PUBSUB_PATTERNS.labels(**labels).set(node_info["pubsub_patterns"])
@@ -154,16 +162,15 @@ class RedisMetricCollectReport(object):
         metrics.CONFIG_MAXCLIENTS.labels(**labels).set(node_info["config_maxclients"])
         metrics.CONFIG_MAXMEMORY.labels(**labels).set(node_info["config_maxmemory"])
 
-        key_ttl = node_info.get(f"db{db}", 0)
-        key_avg_ttl = key_ttl["avg_ttl"] / 1000 if key_ttl != 0 else 0
-        metrics.DB_AVG_TTL_SECONDS.labels(**labels, db=db).set(key_avg_ttl)
-
-        for i in range(self.DB_COUNT + 1):
-            db_keys = node_info.get(f"db{i}", 0)
-            keys = db_keys["keys"] if db_keys != 0 else 0
-            expires = db_keys["expires"] if db_keys != 0 else 0
-            metrics.DB_KEYS.labels(**labels, db=i).set(keys)
-            metrics.DB_KEYS_EXPIRING.labels(**labels, db=i).set(expires)
+        # key
+        for i in range(self.DB_COUNT):
+            db_key = f"db{i}"
+            if db_key not in node_info:
+                continue
+            key_info = node_info[db_key]
+            metrics.DB_AVG_TTL_SECONDS.labels(**labels, db=i).set(key_info["avg_ttl"] / 1000)
+            metrics.DB_KEYS.labels(**labels, db=i).set(key_info["keys"])
+            metrics.DB_KEYS_EXPIRING.labels(**labels, db=i).set(key_info["expires"])
 
     def collect_report_redis_metric_data(self):
         nodes_info = self.get_redis_info()
