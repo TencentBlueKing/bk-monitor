@@ -1779,9 +1779,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
         clustering_config.log_count_aggregation_flow_id = result["flow_id"]
-        clustering_config.new_cls_pattern_rt = log_count_aggregation_flow_dict["log_count_aggregation"][
-            "result_table_id"
-        ]
+        clustering_config.new_cls_pattern_rt = log_count_aggregation_flow_dict["agg"]["result_table_id"]
         clustering_config.save()
         return result
 

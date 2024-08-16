@@ -13,7 +13,7 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT COUNT(*) as log_count, '__dist_05' as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_single_signature_format_java(log_signature)) as T(signature) {{log_count_aggregation.agg.filter_rule}} GROUP BY sensitivity, signature{% if log_count_aggregation.agg.groups %}, {{log_count_aggregation.agg.groups}}{% endif %}",
+      "sql": "SELECT COUNT(*) as log_count, '__dist_05' as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_single_signature_format_java(log_signature)) as T(signature) {{log_count_aggregation.agg.filter_rule}} GROUP BY signature{% if log_count_aggregation.agg.groups %}, {{log_count_aggregation.agg.groups}}{% endif %}",
       "table_name": "{{log_count_aggregation.agg.table_name}}",
       "name": "日志数量统计",
       "count_freq": 60,
@@ -75,7 +75,7 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT signature, pattern, log FROM {{log_count_aggregation.result_table_id}}, lateral table (udf_single_signature_format_java (log_signature)) as T (signature)",
+      "sql": "SELECT signature, pattern as log_pattern, log FROM {{log_count_aggregation.result_table_id}}, lateral table (udf_single_signature_format_java (log_signature)) as T (signature)",
       "table_name": "{{log_count_aggregation.signature.table_name}}",
       "name": "Signature 提取",
       "count_freq": null,
@@ -110,7 +110,7 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT signature, pattern, log FROM {{log_count_aggregation.signature.result_table_id}}, lateral table (udf_single_signature_format_java (pattern)) as T (pattern)",
+      "sql": "SELECT signature, pattern, log FROM {{log_count_aggregation.signature.result_table_id}}, lateral table (udf_single_signature_format_java (log_pattern)) as T (pattern)",
       "table_name": "{{log_count_aggregation.pattern.table_name}}",
       "name": "Pattern 提取",
       "count_freq": null,
