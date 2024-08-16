@@ -43,8 +43,7 @@ class RedisMetricCollectReport(object):
             host, port = real_client._instance.connection_pool.get_master_address()
             node_info.update(
                 {
-                    "mastername": real_client.master_name,
-                    "node_type": "sentinel",
+                    "node": str(node),
                     "host": host,
                     "port": port,
                 }
@@ -53,8 +52,7 @@ class RedisMetricCollectReport(object):
             connection_kwargs = real_client._instance.connection_pool.connection_kwargs
             node_info.update(
                 {
-                    "mastername": "",
-                    "node_type": "standalone",
+                    "node": str(node),
                     "host": connection_kwargs["host"],
                     "port": connection_kwargs["port"],
                 }
@@ -71,8 +69,7 @@ class RedisMetricCollectReport(object):
 
     def set_redis_metric_data(self, node_info: dict):
         labels = {
-            "node_type": node_info["node_type"],
-            "mastername": node_info["mastername"],
+            "node": node_info["node"],
             "role": node_info["role"],
             "host": node_info["host"],
             "port": str(node_info["port"]),
