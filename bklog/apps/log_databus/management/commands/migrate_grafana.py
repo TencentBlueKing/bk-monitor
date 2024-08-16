@@ -333,7 +333,7 @@ class Command(BaseCommand):
                 self.record_error(
                     failed_biz,
                     biz_id,
-                    f"folder_title {folder_title} and {folder_title}_bklog already exists in org {org_id}",
+                    f"folder_title {folder_title} and {folder_title}_bklog both already exists in org {org_id}",
                 )
                 return "", None
         else:
