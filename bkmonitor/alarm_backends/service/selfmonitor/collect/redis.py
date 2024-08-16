@@ -58,13 +58,13 @@ class RedisMetricCollectReport(object):
                 }
             )
 
-            # 获取指标config_maxclients、config_maxmemory、db的值
-            node_info.update(
-                {
-                    "config_maxclients": int(real_client.config_get("maxclients")["maxclients"]),
-                    "config_maxmemory": int(real_client.config_get("maxmemory")["maxmemory"]),
-                }
-            )
+        # 获取指标config_maxclients、config_maxmemory、db的值
+        node_info.update(
+            {
+                "config_maxclients": int(real_client.config_get("maxclients")["maxclients"]),
+                "config_maxmemory": int(real_client.config_get("maxmemory")["maxmemory"]),
+            }
+        )
         return node_info
 
     def set_redis_metric_data(self, node_info: dict):
