@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
 from copy import deepcopy
 from typing import List
 
@@ -59,13 +60,12 @@ def sync_spaces():
     type_names = {t["type_id"]: t["type_name"] for t in TransferApi.list_space_types()}
     # 记录本地同步所有的space_id, 用于删除不存在的空间
     space_id_list: List[int] = []
-    # 有关联的空间
-    have_related_space_list = []
     # id和空间映射关系
     space_mappings = {}
     # space_uid和空间映射关系
     space_uid_mappings = {}
-
+    # 关联空间uid与被关联空间的uid映射
+    relate_space_uid_mappings = defaultdict(set)
     total: int = TransferApi.list_spaces({"page": 1, "page_size": 1})["count"]
     for i in get_page_numbers(total=total, page_size=BATCH_SYNC_SPACE_COUNT):
         spaces = TransferApi.list_spaces(
@@ -100,22 +100,23 @@ def sync_spaces():
             # 记录存在关联的空间, 因为只有非BKCC的业务会关联其他空间, 但是BKCC的业务不会知道他关联了哪些非BKCC业务, 所以需要记录
             if space_type_id == SpaceTypeEnum.BKCC.value or not space.get("resources", []):
                 continue
-            have_related_space_list.append(
-                {"space_uid": space_uid, "properties": space, "space_id": space_id, "space_type_id": space_type_id}
-            )
+            # 获取关联空间与被关联空间的uid映射
+            for resource in space["resources"]:
+                need_relate_space_uid: str = SpaceApi.gen_space_uid(
+                    space_type=resource["resource_type"], space_id=resource["resource_id"]
+                )
+                relate_space_uid_mappings[need_relate_space_uid].add(space_uid)
 
     # 将BKCC的业务的resources里也添加上其他空间类型的resource, 这样就可以通过BKCC的业务找到其他空间类型的业务
-    for _space in have_related_space_list:
-        for resource in _space["properties"]["resources"]:
-            need_relate_space_uid: str = SpaceApi.gen_space_uid(
-                space_type=resource["resource_type"], space_id=resource["resource_id"]
-            )
+    for need_relate_space_uid, related_spaces_uid in relate_space_uid_mappings.items():
+        for related_space_uid in related_spaces_uid:
             need_relate_space_obj = space_uid_mappings.get(need_relate_space_uid)
             if not need_relate_space_obj:
                 continue
             properties = deepcopy(need_relate_space_obj.properties)
+            related_space = space_uid_mappings[related_space_uid]
             properties["resources"].append(
-                {'resource_id': _space["space_id"], 'resource_type': _space["space_type_id"]}
+                {'resource_id': related_space.space_id, 'resource_type': related_space.space_type_id}
             )
             need_relate_space_obj.properties = properties
 
