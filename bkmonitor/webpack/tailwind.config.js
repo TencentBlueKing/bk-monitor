@@ -1,10 +1,14 @@
 /** @type {import('tailwindcss').Config} */
+const { transformAppDir } = require('./webpack/utils');
+const appName = transformAppDir(process.env.APP);
+console.info(appName, '========');
 module.exports = {
   content: [
-    './src/monitor-pc/pages/**/*.tsx',
-    './src/monitor-pc/components/**/*.tsx',
-    './src/monitor-pc/pages/**/*.vue',
-    './src/monitor-pc/components/**/*.vue',
+    `./src/${appName}/pages/**/*.{tsx, vue}`,
+    `./src/${appName}/components/**/*.{tsx, vue}`,
+    ...(!['trace'].includes(process.env.APP)
+      ? ['./src/monitor-ui/chart-plugins/**/*.tsx', './src/monitor-ui/monitor-echarts/**/*.tsx']
+      : [`./src/${appName}/plugins/**/*.tsx`]),
   ],
   theme: {
     extend: {

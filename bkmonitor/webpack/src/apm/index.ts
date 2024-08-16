@@ -47,6 +47,7 @@ import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
 import 'monitor-static/icons/monitor-icons.css';
+import 'monitor-pc/tailwind.css';
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
