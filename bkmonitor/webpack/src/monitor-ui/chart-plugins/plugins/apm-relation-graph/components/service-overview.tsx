@@ -53,7 +53,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   panels = {
     service: [],
     log: [],
-    event: [],
+    event: [
+      {
+        type: 'alarm-event-chart',
+      },
+    ],
   };
 
   tabActive = 'service';
