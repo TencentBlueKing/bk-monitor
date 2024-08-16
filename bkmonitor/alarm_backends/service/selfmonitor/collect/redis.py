@@ -38,6 +38,7 @@ class RedisMetricCollectReport(object):
     def get_node_redis_info(self, node):
         real_client = self.client.get_client(node)
         node_info = real_client.info()
+        node_info.update(real_client.info("commandstats"))
         # 在info命令获取的信息基础上增加额外的信息
         if node.cache_type == "SentinelRedisCache":
             host, port = real_client._instance.connection_pool.get_master_address()
@@ -168,6 +169,13 @@ class RedisMetricCollectReport(object):
             metrics.DB_AVG_TTL_SECONDS.labels(**labels, db=i).set(key_info["avg_ttl"] / 1000)
             metrics.DB_KEYS.labels(**labels, db=i).set(key_info["keys"])
             metrics.DB_KEYS_EXPIRING.labels(**labels, db=i).set(key_info["expires"])
+
+        # cmd stats
+        for key in node_info:
+            if key.startswith("cmdstat_"):
+                cmd_name = key.split("_", 1)[1]
+                metrics.COMMANDS_DURATION_SECONDS_TOTAL.labels(**labels, cmd=cmd_name).inc(node_info[key]["calls"])
+                metrics.COMMANDS_TOTAL.labels(**labels, cmd=cmd_name).inc(node_info[key]["usec"])
 
     def collect_report_redis_metric_data(self):
         nodes_info = self.get_redis_info()

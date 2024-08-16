@@ -522,7 +522,7 @@ CLUSTER_ENABLED = Gauge(
     labelnames=("node", "role", "host", "port"),
 )
 
-COMMANDS_DURATION_SECONDS_TOTAL = Gauge(
+COMMANDS_DURATION_SECONDS_TOTAL = Counter(
     name="redis_commands_duration_seconds_total",
     documentation="How many seconds spend on processing Redis commands",
     labelnames=("node", "role", "cmd", "host", "port"),
@@ -534,7 +534,7 @@ COMMANDS_PROCESSED_TOTAL = Gauge(
     labelnames=("node", "role", "host", "port"),
 )
 
-COMMANDS_TOTAL = Gauge(
+COMMANDS_TOTAL = Counter(
     name="redis_commands_total",
     documentation="Total number of calls per command",
     labelnames=("node", "role", "cmd", "host", "port"),
