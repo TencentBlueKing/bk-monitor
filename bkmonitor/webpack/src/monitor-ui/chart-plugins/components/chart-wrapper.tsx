@@ -32,6 +32,7 @@ import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
+import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
@@ -511,6 +512,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         );
       case 'apm-relation-graph':
         return <ApmRelationGraph />;
+      case 'alarm-event-chart':
+        return <AlarmEventChart panel={this.panel} />;
       // 不需要报错显示
       // case 'graph':
       default:
