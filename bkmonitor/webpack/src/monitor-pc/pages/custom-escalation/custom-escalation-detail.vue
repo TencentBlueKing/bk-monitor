@@ -164,7 +164,7 @@
             >
               <span class="row-content">{{ detailData.desc || '--' }}</span>
               <i
-                v-if="!isShowEditDesc && !isReadonly"
+                v-if="!isReadonly"
                 class="icon-monitor icon-bianji edit-name"
                 @click="handleShowEditDes"
               />
@@ -172,8 +172,12 @@
             <bk-input
               v-else
               ref="describeInput"
-              style="width: 240px"
+              style="width: 440px"
+              class="form-content-textarea"
               v-model="copyDescribe"
+              :maxlength="100"
+              :rows="3"
+              type="textarea"
               @blur="handleEditDescribe"
             />
           </div>
@@ -1003,7 +1007,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   isShowRightWindow = true; // 是否显示右侧帮助栏
   isShowEditDataLabel = false; // 是否展示英文名编辑框
   isShowEditIsPlatform = false; // 是否展示平台师表
-  isShowEditDesc = false; //是否展示描述编辑框
+  isShowEditDesc = false; // 是否展示描述编辑框
   scenario = ''; // 分类
   protocol = ''; // 上报协议
   proxyInfo = []; // 云区域分类数据
@@ -1907,17 +1911,32 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.loading = false;
   }
 
+  /* 保存描述信息 */
+  async handleSaveDesc() {
+    const params = {
+      bk_biz_id: this.detailData.bk_biz_id,
+      time_series_group_id: this.detailData.time_series_group_id,
+      desc: this.copyDescribe,
+    };
+    await modifyCustomTimeSeriesDesc(params).catch(() => false);
+  }
+
   // 编辑描述
   async handleEditDescribe() {
-    const { desc } = this.detailData;
-    if (!this.copyDescribe || this.copyDescribe === desc) {
+    let { desc } = this.detailData;
+    if (!this.copyDescribe.trim() || this.copyDescribe.trim() === desc) {
       this.copyDescribe = desc;
       this.isShowEditDesc = false;
       return;
     }
-    this.detailData.desc = this.copyDescribe;
     this.isShowEditDesc = false;
-    this.loading = false;
+    const data = await this.handleSaveDesc();
+    if (data) {
+      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      desc = this.copyDescribe;
+      return;
+    }
+    this.copyDescribe = desc;
   }
 
   /** 保存自定义事件编辑 */
@@ -2087,7 +2106,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       ],
     };
     await this.handleSaveGroupManage();
-    await this.handleSaveDesc();
     const data = await this.$store.dispatch('custom-escalation/editCustomTime', params);
     if (data) {
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
@@ -2362,16 +2380,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     await modifyCustomTsGroupingRuleList(params).catch(() => false);
   }
 
-  /* 保存描述信息 */
-  async handleSaveDesc() {
-    const params = {
-      bk_biz_id: this.detailData.bk_biz_id,
-      time_series_group_id: this.detailData.time_series_group_id,
-      desc: this.copyDescribe,
-    };;
-    await modifyCustomTimeSeriesDesc(params).catch(() => false);
-  }
-
   /* 选择分组下拉框收起展开 */
   handleGroupSelectToggle(v: boolean) {
     if (!v) {
@@ -2572,6 +2580,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       &-row {
         height: 32px;
+        width: 576px;
         margin-bottom: 4px;
         display: flex;
         align-items: center;
@@ -2594,7 +2603,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         }
       }
       .last-row {
-        margin-bottom: 12px;
+        margin-bottom: 72px;
       }
     }
     .detail-list {
@@ -2888,6 +2897,10 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     // }
     .submit-div {
       display: inline-block;
+    }
+    .form-content-textarea {
+      position: relative;
+      bottom: -30px;
     }
   }
   .right-window {

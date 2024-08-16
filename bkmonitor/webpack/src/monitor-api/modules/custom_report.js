@@ -54,10 +54,6 @@ export const validateCustomTsGroupLabel = request(
 );
 export const createCustomTimeSeries = request('POST', 'rest/v2/custom_metric_report/create_custom_time_series/');
 export const modifyCustomTimeSeries = request('POST', 'rest/v2/custom_metric_report/modify_custom_time_series/');
-export const modifyCustomTimeSeriesDesc = request(
-  'POST',
-  'rest/v2/custom_metric_report/modify_custom_time_series_desc/'
-);
 export const createOrUpdateGroupingRule = request(
   'POST',
   'rest/v2/custom_metric_report/create_or_update_grouping_rule/'
@@ -93,5 +89,4 @@ export default {
   modifyCustomTsGroupingRuleList,
   deleteCustomTimeSeries,
   addCustomMetric,
-  modifyCustomTimeSeriesDesc,
 };
