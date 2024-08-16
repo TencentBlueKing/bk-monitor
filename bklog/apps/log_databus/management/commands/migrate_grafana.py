@@ -3,9 +3,9 @@ import time
 
 from django.core.management.base import BaseCommand
 
-import bklog.bk_dataview.grafana.client as grafana_client
-from bklog.apps.iam.handlers import ActionEnum
-from bklog.apps.iam.management.commands.iam_upgrade_action_v2 import (
+import bk_dataview.grafana.client as grafana_client
+from apps.iam.handlers import ActionEnum
+from apps.iam.management.commands.iam_upgrade_action_v2 import (
     Command as IamMigrateCommand,
 )
 
@@ -333,7 +333,7 @@ class Command(BaseCommand):
                 self.record_error(
                     failed_biz,
                     biz_id,
-                    f"folder_title {folder_title} and {folder_title}_bklog already exists in org {org_id}",
+                    f"folder_title {folder_title} and {folder_title}_bklog both already exists in org {org_id}",
                 )
                 return "", None
         else:
