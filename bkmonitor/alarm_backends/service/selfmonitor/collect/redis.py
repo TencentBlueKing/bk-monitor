@@ -198,8 +198,9 @@ class RedisMetricCollectReport(object):
                 )
                 metrics.COMMANDS_TOTAL.labels(**labels, cmd=cmd_name).set(node_info[key]["calls"])
 
-    def collect_report_redis_metric_data(self):
+    def collect_redis_metric_data(self):
+        # 这里不主动上报, 采集逻辑内置在异步任务中，异步任务框架执行完成后会统一调用metrics.report_all() 上报任务状态.
+        # 数据共存于： REGISTRY对象中,
         nodes_info = self.get_redis_info()
         for node_info in nodes_info:
             self.set_redis_metric_data(node_info)
-        metrics.report_all()

@@ -259,4 +259,4 @@ def report_transfer_operation_data():
 
 
 def collect_redis_metric():
-    RedisMetricCollectReport().collect_report_redis_metric_data()
+    RedisMetricCollectReport().collect_redis_metric_data()
