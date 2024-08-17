@@ -56,7 +56,7 @@ for func, cron_expr, run_type in REPORT_CRONTAB:
     if run_type == "global" and not get_cluster().is_default():
         continue
 
-    queue = ("celery_report_cron",)
+    queue = "celery_report_cron"
     cron_list = cron_expr.split()
     new_func = task_duration(func.__name__, queue_name=queue)(func)
     locals()[new_func.__name__] = periodic_task(
