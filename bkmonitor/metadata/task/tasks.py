@@ -156,7 +156,8 @@ def update_time_series_metrics(time_series_metrics):
         logger.info("metric updated of table_id: %s", json.dumps(table_id_list))
 
 
-@app.task(ignore_result=True, queue="celery_report_cron")
+# todo: es 索引管理，迁移至BMW
+@app.task(ignore_result=True, queue="celery_long_task_cron")
 def manage_es_storage(es_storages):
     """并发管理 ES 存储。"""
     with ThreadPoolExecutor(max_workers=10) as executor:

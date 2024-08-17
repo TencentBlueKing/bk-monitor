@@ -19,13 +19,12 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.lock.service_lock import share_lock
 from alarm_backends.service.new_report.tasks import new_report_detect
 from alarm_backends.service.report.tasks import (
+    collect_redis_metric,
     operation_data_custom_report_v2,
     report_mail_detect,
-    report_transfer_operation_data,
 )
 from alarm_backends.service.scheduler.tasks.cron import task_duration
 from bkmonitor.utils.custom_report_aggate import register_report_task
-from metadata.task.config_refresh import refresh_es_storage
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
@@ -37,18 +36,20 @@ def register_report_task_cron():
 
 
 REPORT_CRONTAB = [
+    # 运营数据上报
     (operation_data_custom_report_v2, "*/5 * * * *", "global"),
-    (report_transfer_operation_data, "*/5 * * * *", "global"),
-    (refresh_es_storage, "*/10 * * * *", "global"),  # NOTE: ES 周期性任务先放到当前队列中
-    # SLI指标和运营数据调整到report周期任务
+    # SLI指标周期上报(注册推送任务至agg网关)
     (register_report_task_cron, "* * * * *", "cluster"),
+    # redis 指标采集
+    (collect_redis_metric, "* * * * *", "cluster"),
+    # rabbitmq
+    # kafka
 ]
 
 if int(settings.MAIL_REPORT_BIZ):
     # 如果配置了订阅报表默认业务
     # 订阅报表定时任务 REPORT_CRONTAB
-    REPORT_CRONTAB.extend([(report_mail_detect, "*/1 * * * *", "global"),
-                           (new_report_detect,  "*/1 * * * *", "global")])
+    REPORT_CRONTAB.extend([(report_mail_detect, "*/1 * * * *", "global"), (new_report_detect, "*/1 * * * *", "global")])
 
 for func, cron_expr, run_type in REPORT_CRONTAB:
     # 全局任务在非默认集群不执行

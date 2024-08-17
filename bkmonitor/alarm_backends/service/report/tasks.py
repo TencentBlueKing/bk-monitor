@@ -19,6 +19,8 @@ from django.conf import settings
 from django.db.models import Q
 
 from alarm_backends.service.scheduler.app import app
+from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
+from alarm_backends.service.selfmonitor.collect.transfer import TransferMetricHelper
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems, ReportStatus, StatisticsMetric
 from bkmonitor.utils.custom_report_tools import custom_report_tool
@@ -28,8 +30,6 @@ from bkmonitor.utils.time_tools import localtime
 from core.prometheus import metrics
 from core.statistics.metric import Metric
 from metadata.models import DataSource
-
-from .helper import TransferMetricHelper
 
 GlobalConfig = apps.get_model("bkmonitor.GlobalConfig")
 logger = logging.getLogger("bkmonitor.cron_report")
@@ -256,3 +256,7 @@ def report_transfer_operation_data():
     h = TransferMetricHelper()
     h.fetch()
     h.report()
+
+
+def collect_redis_metric():
+    RedisMetricCollectReport().collect_report_redis_metric_data()

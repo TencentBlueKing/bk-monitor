@@ -189,8 +189,6 @@ if BCS_API_GATEWAY_HOST:
         ("api.bcs.tasks.sync_bcs_node_resource", "*/15 * * * *", "global"),
         # bcs集群安装operator信息，一天同步一次
         ("api.bcs.tasks.sync_bkmonitor_operator_info", "0 2 * * *", "global"),
-        # redis指标采集
-        ("alarm_backends.service.selfmonitor.tasks.collect_redis_metric", "* * * * *", "cluster"),
     ]
 
 ACTION_TASK_CRONTAB = [
@@ -276,6 +274,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
+    # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
+    ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds
