@@ -24,9 +24,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
+            "alias": "总数量",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -45,6 +43,112 @@
                   ],
                   "display": true,
                   "where": [
+                  ],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "${service_name}"
+                  },
+                  "functions": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "alias": "主调数量",
+            "unify_query_param": {
+              "expression": "A",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "table": "${table_id}",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_count",
+                      "method": "SUM",
+                      "alias": "A"
+                    }
+                  ],
+                  "group_by": [
+                  ],
+                  "display": true,
+                  "where": [
+                    {
+                      "key": "kind",
+                      "method": "eq",
+                      "value": [
+                        "3"
+                      ]
+                    },
+                    {
+                      "condition": "or",
+                      "key": "kind",
+                      "method": "eq",
+                      "value": [
+                        "4"
+                      ]
+                    }
+                  ],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "${service_name}"
+                  },
+                  "functions": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "alias": "被调数量",
+            "unify_query_param": {
+              "expression": "A",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "table": "${table_id}",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_count",
+                      "method": "SUM",
+                      "alias": "A"
+                    }
+                  ],
+                  "group_by": [
+                  ],
+                  "display": true,
+                  "where": [
+                    {
+                      "key": "kind",
+                      "method": "eq",
+                      "value": [
+                        "2"
+                      ]
+                    },
+                    {
+                      "condition": "or",
+                      "key": "kind",
+                      "method": "eq",
+                      "value": [
+                        "5"
+                      ]
+                    }
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
@@ -143,9 +247,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -199,13 +300,10 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "OTHER",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "unify_query_param": {
               "stack": "all",
               "expression": "A",
@@ -230,22 +328,6 @@
                       "method": "eq",
                       "value": [
                         "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
                       ],
                       "condition": "and"
                     }
@@ -287,9 +369,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -316,15 +395,15 @@
                     "service_name": "${service_name}"
                   },
                   "functions": [
-                     {
-                    "id": "rate",
-                    "params": [
-                      {
-                        "id": "window",
-                        "value": "2m"
-                      }
-                    ]
-                  },
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -348,9 +427,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -377,15 +453,15 @@
                     "service_name": "${service_name}"
                   },
                   "functions": [
-                     {
-                    "id": "rate",
-                    "params": [
-                      {
-                        "id": "window",
-                        "value": "2m"
-                      }
-                    ]
-                  },
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -409,9 +485,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -438,15 +511,15 @@
                     "service_name": "${service_name}"
                   },
                   "functions": [
-                     {
-                    "id": "rate",
-                    "params": [
-                      {
-                        "id": "window",
-                        "value": "2m"
-                      }
-                    ]
-                  },
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -470,9 +543,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -511,9 +581,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [

@@ -43,6 +43,8 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.icon import get_icon
+from apm_web.metric.constants import StatisticsMetric
+from apm_web.metric.handler.statistics import ServiceMetricStatistics
 from apm_web.metric.handler.top_n import get_top_n_query_type, load_top_n_handler
 from apm_web.metric_handler import (
     ApdexInstance,
@@ -2343,3 +2345,21 @@ class HostInstanceDetailListResource(Resource):
                 res.append(item)
 
         return res
+
+
+class MetricDetailStatisticsResource(Resource):
+    """获取指标详情表格"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+        service_name = serializers.CharField(label="服务名称过滤", required=False)
+        option_kind = serializers.CharField(label="选项主调/被调")
+        data_type = serializers.ChoiceField(label="需要统计的数据类型", choices=StatisticsMetric.get_choices())
+
+    def perform_request(self, validated_data):
+        template = ServiceMetricStatistics.get_template(validated_data["data_type"], validated_data.pop("option_kind"))
+        s = ServiceMetricStatistics(**validated_data)
+        return s.list(template)

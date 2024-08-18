@@ -19,7 +19,7 @@ from apm_web.calculation import ErrorRateCalculation
 from apm_web.constants import component_where_mapping
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.metric_handler import AvgDurationInstance, MetricHandler
+from apm_web.metric_handler import AvgDurationInstance, RequestCountInstance
 from apm_web.models import Application
 from apm_web.utils import group_by
 from constants.apm import OtlpKey
@@ -209,28 +209,16 @@ class EndpointCalledCountTopNHandler(TopNHandler):
         return item["name"].split(self.JOIN_CHAR)[-1]
 
     def _query_metric(self, override_filter_dict):
-        database_name, _ = self.application.metric_result_table_id.split(".")
         filter_dict, where_condition = self.get_condition(override_filter_dict)
 
-        handler = MetricHandler(self.application, self.start_time, self.end_time)
-
-        metrics = handler.instance_unify_query(
-            {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
-                "table": f"{database_name}.__default__",
-                "group_by": self.group_by_keys,
-                "display": True,
-                "interval": self.end_time - self.start_time,
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": filter_dict,
-                "functions": [],
-                "where": where_condition,
-                "instant": self.instant,
-            }
-        )
+        metrics = RequestCountInstance(
+            self.application,
+            self.start_time,
+            self.end_time,
+            group_by=self.group_by_keys,
+            filter_dict=filter_dict,
+            where=where_condition,
+        ).origin_query_instance()
 
         return self.collect_sum_metrics(metrics, self.group_by_keys)
 
@@ -282,7 +270,6 @@ class EndpointErrorRateTopNHandler(TopNHandler):
 
     def _query_metric(self, override_filter_dict):
         database_name, _ = self.application.metric_result_table_id.split(".")
-        handler = MetricHandler(self.application, self.start_time, self.end_time)
 
         filter_dict, where_condition = self.get_condition(override_filter_dict)
 
@@ -291,23 +278,14 @@ class EndpointErrorRateTopNHandler(TopNHandler):
             OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE),
             OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
         ]
-        metrics = handler.instance_unify_query(
-            {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
-                "table": f"{database_name}.__default__",
-                "group_by": self.group_by_keys,
-                "display": True,
-                "interval": self.end_time - self.start_time,
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": filter_dict,
-                "functions": [],
-                "where": where_condition,
-                "instant": self.instant,
-            }
-        )
+        metrics = RequestCountInstance(
+            self.application,
+            self.start_time,
+            self.end_time,
+            group_by=self.group_by_keys,
+            filter_dict=filter_dict,
+            where=where_condition,
+        ).origin_query_instance()
 
         return self.collect_sum_metrics(metrics, group_keys)
 
@@ -425,24 +403,13 @@ class ServiceCalledCountTopNHandler(TopNHandler):
 
     def _query_metric(self, override_filter_dict):
         database_name, _ = self.application.metric_result_table_id.split(".")
-        handler = MetricHandler(self.application, self.start_time, self.end_time)
-        return handler.instance_unify_query(
-            {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
-                "table": f"{database_name}.__default__",
-                "group_by": self.group_by_keys,
-                "display": True,
-                "interval": self.end_time - self.start_time,
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": self.filter_dict if not override_filter_dict else override_filter_dict,
-                "functions": [],
-                "where": [],
-                "instant": self.instant,
-            }
-        )
+        return RequestCountInstance(
+            self.application,
+            self.start_time,
+            self.end_time,
+            group_by=self.group_by_keys,
+            filter_dict=self.filter_dict if not override_filter_dict else override_filter_dict,
+        ).origin_query_instance()
 
     def top_n(self, override_filter_dict=None):
         series = self._query_metric(override_filter_dict)
@@ -484,24 +451,14 @@ class ServiceErrorCountTopNHandler(TopNHandler):
 
     def _query_metric(self, override_filter_dict):
         database_name, _ = self.application.metric_result_table_id.split(".")
-        handler = MetricHandler(self.application, self.start_time, self.end_time)
-        return handler.instance_unify_query(
-            {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
-                "table": f"{database_name}.__default__",
-                "group_by": self.group_by_keys,
-                "display": True,
-                "interval": self.end_time - self.start_time,
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": self.filter_dict if not override_filter_dict else override_filter_dict,
-                "functions": [],
-                "where": [{"key": "status_code", "method": "eq", "value": ["2"]}],
-                "instant": self.instant,
-            }
-        )
+        return RequestCountInstance(
+            self.application,
+            self.start_time,
+            self.end_time,
+            group_by=self.group_by_keys,
+            filter_dict=self.filter_dict if not override_filter_dict else override_filter_dict,
+            where=[{"key": "status_code", "method": "eq", "value": ["2"]}],
+        ).origin_query_instance()
 
     def top_n(self, override_filter_dict=None):
         series = self._query_metric(override_filter_dict)

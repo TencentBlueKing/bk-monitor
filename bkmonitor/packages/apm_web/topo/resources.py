@@ -13,6 +13,7 @@ from apm_web.topo.handle.bar_query import BarQuery
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.serializers import (
     DataTypeBarQueryRequestSerializer,
+    NodeRelationSerializer,
     TopoQueryRequestSerializer,
 )
 from core.drf_resource import Resource
@@ -39,4 +40,15 @@ class TopoViewResource(Resource):
     RequestSerializer = TopoQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        return GraphQuery(**validated_request_data).execute()
+        export_type = validated_request_data.pop("export_type")
+        edge_data_type = validated_request_data.pop("edge_data_type")
+        return GraphQuery(**validated_request_data).execute(export_type, edge_data_type)
+
+
+class NodeRelationResource(Resource):
+    """节点资源拓扑信息"""
+
+    RequestSerializer = NodeRelationSerializer
+
+    def perform_request(self, validated_request_data):
+        pass

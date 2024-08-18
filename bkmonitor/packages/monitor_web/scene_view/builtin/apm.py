@@ -341,9 +341,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         APM观测场景服务页面处:
             1. apm_app_name
             2. apm_service_name
-            3. apm_kind
-            4. apm_category
-            5. apm_predicate_value
         APM Trace检索页面处:
             1. apm_span_id
         """
@@ -358,9 +355,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
-            "kind": params.get("apm_kind"),
-            "category": params.get("apm_category"),
-            "predicate_value": params.get("apm_predicate_value"),
         }
 
     @classmethod
@@ -378,21 +372,20 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             return None
 
         class _Serializer(serializers.Serializer):
+            bk_biz_id = serializers.IntegerField()
             apm_app_name = serializers.CharField()
             apm_service_name = serializers.CharField()
-            apm_category = serializers.CharField()
-            apm_kind = serializers.CharField()
-            apm_predicate_value = serializers.CharField()
 
         if _Serializer(data=params).is_valid():
+            node = ServiceHandler.get_node(params["bk_biz_id"], params["apm_app_name"], params["apm_service_name"])
             # 此分类的具类模版
-            specific_key = f"{params['apm_kind']}-{params['apm_predicate_value']}"
+            specific_key = f"{node['extra_data']['kind']}-{node['extra_data']['predicate_value']}"
             specific_views = [i for i in views if i.id.startswith(specific_key)]
             if specific_views:
                 return specific_views
 
             # 此分类的默认模版
-            default_key = f"{params['apm_kind']}-default"
+            default_key = f"{node['extra_data']['kind']}-default"
             default_views = [i for i in views if i.id.startswith(default_key)]
             if default_views:
                 return default_views
@@ -432,9 +425,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 params.update(
                     {
                         "apm_service_name": "${service_name}",
-                        "apm_category": "${category}",
-                        "apm_kind": "${kind}",
-                        "apm_predicate_value": "${predicate_value}",
                     }
                 )
 

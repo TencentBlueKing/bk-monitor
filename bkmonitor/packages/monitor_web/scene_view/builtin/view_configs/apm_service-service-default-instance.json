@@ -681,10 +681,7 @@
           "fields": {
             "bk_instance_id": "bk_instance_id",
             "app_name": "app_name",
-            "service_name": "service_name",
-            "category": "service_category",
-            "kind": "service_kind",
-            "predicate_value": "service_predicate_value"
+            "service_name": "service_name"
           }
         }
       ]

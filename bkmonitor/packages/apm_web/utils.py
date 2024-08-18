@@ -107,6 +107,22 @@ def get_interval(start_time, end_time, interval="auto"):
     return interval
 
 
+def get_interval_number(start_time, end_time, interval=60):
+    """计算出适合的时间间隔返回 int"""
+    if not interval or interval == "auto":
+        hour_interval = (end_time - start_time) // 3600
+        if hour_interval <= 1:
+            interval = 60
+        elif hour_interval <= 6:
+            interval = 60 * 5
+        elif hour_interval <= 72:
+            interval = 60 * 60
+        else:
+            interval = 60 * 60 * 24
+
+    return interval
+
+
 def split_by_interval(start_time, end_time, interval):
     """根据 interval 对开始时间和结束时间进行分割"""
     if interval[-1] == "m":

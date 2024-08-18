@@ -221,6 +221,7 @@ class Graph:
             raise ValueError(f"Graph received an unsupported type: {type(patch)}")
 
     def __rshift__(self, other: ViewConverter) -> Dict:
+        self << other.extra_pre_convert_plugins()
         return other.convert(self._graph)
 
     @property
@@ -230,6 +231,10 @@ class Graph:
     @property
     def edges(self):
         return self._graph.edges(data=True)
+
+    @property
+    def node_mapping(self):
+        return {node_id: attrs for node_id, attrs in self.nodes}
 
     def debug(self):
         """输出 graph 到控制图和图像"""
@@ -247,29 +252,38 @@ class Graph:
 
 
 class GraphQuery(BaseQuery):
-    def __init__(self, export_type, edge_data_type, *args, **kwargs):
-        super(GraphQuery, self).__init__(*args, **kwargs)
-        self.converter = ViewConverter.new(export_type, self.filter_params)
-        self.edge_data_type = edge_data_type
+    def execute(self, export_type, edge_data_type):
+        converter = ViewConverter.new(self.bk_biz_id, self.app_name, export_type, self.filter_params)
 
-    def execute(self):
+        return (
+            self.create_graph(
+                with_plugin=True,
+                edge_data_type=edge_data_type,
+                extra_plugins=converter.extra_pre_plugins(self.common_params),
+            )
+            >> converter
+        )
+
+    def create_graph(self, with_plugin=False, edge_data_type=None, extra_plugins=None):
         db_nodes = self._list_nodes_from_db()
         flow_nodes, flow_edges = self._list_nodes_and_edges_from_flow()
 
+        plugins = PluginProvider.Container()
+        if with_plugin:
+            plugins = PluginProvider.node_plugins(self.data_type, self.common_params)
+            if edge_data_type:
+                plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params)
+            if extra_plugins:
+                plugins += extra_plugins
+
         graph = Graph(
-            plugins=PluginProvider.node_plugins(self.data_type, self.common_params)
-            + PluginProvider.edge_plugins(self.edge_data_type, self.common_params)
-            + self.converter.extra_pre_plugins(
-                self.common_params,
-            ),
+            plugins=plugins,
             data_type=self.data_type,
-            edge_data_type=self.edge_data_type,
+            edge_data_type=edge_data_type,
         )
         graph << (db_nodes | flow_nodes)
         graph << flow_edges
-        graph << self.converter.extra_post_plugins()
-
-        return graph >> self.converter
+        return graph
 
     def _list_nodes_from_db(self) -> [NodeContainer, EdgeContainer]:
         nodes = NodeContainer()

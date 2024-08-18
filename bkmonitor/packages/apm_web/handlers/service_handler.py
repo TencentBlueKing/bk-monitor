@@ -312,3 +312,8 @@ class ServiceHandler:
             return response
         except BKAPIError as e:
             raise ValueError(f"[ServiceHandler] 查询拓扑节点列表失败， 错误: {e}")
+
+    @classmethod
+    def build_url(cls, app_name, service_name):
+        """构建服务页面跳转 url"""
+        return f"/service/?filter-service_name={service_name}&filter-app_name={app_name}"

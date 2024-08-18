@@ -16,6 +16,7 @@ from typing import Dict, List, Tuple, Type, Union
 from django.utils.translation import ugettext_lazy as _
 
 from apm_web.constants import AlertLevel, Apdex, TopoNodeKind
+from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric_handler import (
     ApdexInstance,
     MetricHandler,
@@ -120,7 +121,7 @@ class ValuesPluginMixin:
 class PluginProvider:
     @dataclass
     class Container:
-        _plugins: List
+        _plugins: List = field(default_factory=list)
 
         def __iter__(self):
             pure_res = []
@@ -939,10 +940,12 @@ class NodeTips(PostPlugin):
 
 class ViewConverter:
     _extra_pre_plugins = PluginProvider.Container(_plugins=[])
-    _extra_post_plugins = PluginProvider.Container(_plugins=[])
+    _extra_pre_convert_plugins = PluginProvider.Container(_plugins=[])
 
-    def __init__(self, filter_params=None):
+    def __init__(self, bk_biz_id, app_name, filter_params=None):
         self.filter_params = filter_params or {}
+        self.bk_biz_id = bk_biz_id
+        self.app_name = app_name
 
     def convert(self, graph):
         raise NotImplementedError
@@ -950,15 +953,15 @@ class ViewConverter:
     def extra_pre_plugins(self, runtime):
         return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in self._extra_pre_plugins])
 
-    def extra_post_plugins(self):
-        return PluginProvider.Container(_plugins=[i() for i in self._extra_post_plugins])
+    def extra_pre_convert_plugins(self):
+        return PluginProvider.Container(_plugins=[i() for i in self._extra_pre_convert_plugins])
 
     @classmethod
-    def new(cls, data_type: str, filter_params=None):
+    def new(cls, bk_biz_id, app_name, data_type: str, filter_params=None):
         if data_type == GraphViewType.TOPO.value:
-            return TopoViewConverter(filter_params=filter_params)
+            return TopoViewConverter(bk_biz_id, app_name, filter_params=filter_params)
         elif data_type == GraphViewType.TABLE.value:
-            return TableViewConverter(filter_params=filter_params)
+            return TableViewConverter(bk_biz_id, app_name, filter_params=filter_params)
         raise ValueError(f"Unsupported dataType: {data_type}")
 
 
@@ -974,7 +977,7 @@ class TopoViewConverter(ViewConverter):
             NodeErrorRateCallee,
         ]
     )
-    _extra_post_plugins = PluginProvider.Container(
+    _extra_pre_convert_plugins = PluginProvider.Container(
         _plugins=[
             BreadthEdge,
             NodeColor,
@@ -1045,8 +1048,8 @@ class TableViewConverter(ViewConverter):
             },
         ]
 
-    def __init__(self, filter_params=None):
-        super(TableViewConverter, self).__init__(filter_params)
+    def __init__(self, *args, **kwargs):
+        super(TableViewConverter, self).__init__(*args, **kwargs)
         self.time_convert = load_unit("µs")
         self.percent_convert = load_unit("percent")
 
@@ -1056,7 +1059,7 @@ class TableViewConverter(ViewConverter):
                 "name": s,
                 "category": s_category,
                 "target": "self",
-                "url": "todo",
+                "url": ServiceHandler.build_url(self.app_name, s),
             },
             "other_service": {
                 "name": o_s,

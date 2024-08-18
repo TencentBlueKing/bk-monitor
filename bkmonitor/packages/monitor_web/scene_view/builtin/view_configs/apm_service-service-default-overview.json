@@ -21,6 +21,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "expression": "A",
             "query_configs": [
@@ -39,6 +40,104 @@
                 ],
                 "display": true,
                 "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}"
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "主调数量",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "kind",
+                    "method": "eq",
+                    "value": [
+                      "3"
+                    ]
+                  },
+                  {
+                    "condition": "or",
+                    "key": "kind",
+                    "method": "eq",
+                    "value": [
+                      "4"
+                    ]
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}"
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "被调数量",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "kind",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ]
+                  },
+                  {
+                    "condition": "or",
+                    "key": "kind",
+                    "method": "eq",
+                    "value": [
+                      "5"
+                    ]
+                  }
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
@@ -72,7 +171,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "HTTP 错误数",
           "data": {
             "type": "range",
             "stack": "all",
@@ -125,7 +224,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "RPC 错误数",
           "data": {
             "type": "range",
             "stack": "all",
@@ -178,7 +277,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": "OTHER",
+          "alias": "总错误数",
           "data": {
             "stack": "all",
             "expression": "A",
@@ -203,22 +302,6 @@
                     "method": "eq",
                     "value": [
                       "2"
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "http_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "rpc_grpc_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
                     ],
                     "condition": "and"
                   }

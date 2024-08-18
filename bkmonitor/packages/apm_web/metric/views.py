@@ -21,6 +21,7 @@ from apm_web.metric.resources import (
     ExceptionDetailListResource,
     HostInstanceDetailListResource,
     InstanceListResource,
+    MetricDetailStatisticsResource,
     ServiceInstancesResource,
     ServiceListAsyncResource,
     ServiceListResource,
@@ -29,7 +30,6 @@ from apm_web.metric.resources import (
     UnifyQueryResource,
 )
 from apm_web.models import Application
-
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import BusinessActionPermission, InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -61,29 +61,44 @@ class MetricViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute(
-            "POST", ServiceListResource,
+            "POST",
+            ServiceListResource,
             endpoint="service_list",
-            decorators=[user_visit_record, ]
+            decorators=[
+                user_visit_record,
+            ],
         ),
         ResourceRoute(
-            "POST", ServiceInstancesResource,
+            "POST",
+            ServiceInstancesResource,
             endpoint="service_instances",
-            decorators=[user_visit_record, ]
+            decorators=[
+                user_visit_record,
+            ],
         ),
         ResourceRoute(
-            "POST", ErrorListResource,
+            "POST",
+            ErrorListResource,
             endpoint="error_list",
-            decorators=[user_visit_record, ]
+            decorators=[
+                user_visit_record,
+            ],
         ),
         ResourceRoute(
-            "POST", EndpointListResource,
+            "POST",
+            EndpointListResource,
             endpoint="endpoint_list",
-            decorators=[user_visit_record, ]
+            decorators=[
+                user_visit_record,
+            ],
         ),
         ResourceRoute(
-            "POST", HostInstanceDetailListResource,
+            "POST",
+            HostInstanceDetailListResource,
             endpoint="host_instance_detail_list",
-            decorators=[user_visit_record, ]
+            decorators=[
+                user_visit_record,
+            ],
         ),
         ResourceRoute("GET", ApdexQueryResource, "apdex_query"),
         ResourceRoute("GET", AlertQueryResource, "alert_query"),
@@ -96,4 +111,5 @@ class MetricViewSet(ResourceViewSet):
         ResourceRoute("POST", EndpointDetailListResource, "endpoint_detail_list"),
         ResourceRoute("POST", ExceptionDetailListResource, "exception_detail_list"),
         ResourceRoute("POST", ServiceQueryExceptionResource, "service_query_exception"),
+        ResourceRoute("GET", MetricDetailStatisticsResource, "metric_statistics"),
     ]

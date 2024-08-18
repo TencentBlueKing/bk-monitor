@@ -89,8 +89,6 @@ class ConsulHandler:
         from apm.core.discover.precalculation.storage import PrecalculateStorage
 
         data_id = trace_datasource.bk_data_id
-        # 预计算任务中使用最新的索引进行查询 span
-        trace_index_name = trace_datasource.index_name.split(",")[0]
         datasource_info = resource.metadata.query_data_source(bk_data_id=data_id)
         result_table_config = datasource_info["result_table_list"][0]["shipper_list"][0]
         result_table_cluster_config = result_table_config["cluster_config"]
@@ -115,7 +113,7 @@ class ConsulHandler:
                 topic=datasource_info['mq_config']['storage_config']["topic"],
             ),
             trace_es_info=ConsulEsInfo(
-                index_name=trace_index_name,
+                index_name=trace_datasource.result_table_id.replace(".", "_"),
                 host=urlunparse(
                     (
                         result_table_cluster_config["schema"] if result_table_cluster_config["schema"] else "http",

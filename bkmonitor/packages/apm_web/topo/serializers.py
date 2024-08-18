@@ -43,3 +43,11 @@ class TopoQueryRequestSerializer(TopoBaseRequestSerializer):
     data_type = serializers.ChoiceField(label="数据类型", choices=BarChartDataType.get_choices())
     edge_data_type = serializers.ChoiceField(label="连接线数据类型", choices=TopoEdgeDataType.get_choices())
     export_type = serializers.ChoiceField(label="数据导出类型", choices=GraphViewType.get_choices())
+
+
+class NodeRelationSerializer(serializers.Serializer):
+    """资源拓扑图请求参数"""
+
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    app_name = serializers.CharField(label="应用名称")
+    service_name = serializers.CharField(label="服务名称", required=False)

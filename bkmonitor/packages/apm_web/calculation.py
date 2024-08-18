@@ -25,7 +25,7 @@ class Calculation:
 
     @classmethod
     def range_cal(cls, metric_result):
-        pass
+        return metric_result
 
     @classmethod
     def common_unify_result_cal_serie(cls, serie):

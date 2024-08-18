@@ -244,10 +244,7 @@
             "endpoint": "endpoint",
             "app_name": "app_name",
             "service_name": "service",
-            "exception_type": "exception_type",
-            "category": "service_category",
-            "kind": "service_kind",
-            "predicate_value": "service_predicate_value"
+            "exception_type": "exception_type"
           }
         }
       ]

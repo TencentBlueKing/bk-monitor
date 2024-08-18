@@ -23,12 +23,13 @@ class BaseQuery:
         self.end_time = end_time
         self.delta = self.end_time - self.start_time
         self.params = extra_params
-        self.filter_params = {
-            "service_name": service_name,
-        }
+        self.filter_params = self.convert_to_condition(service_name)
 
         self.application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         self.metrics_table = self.application.metric_result_table_id
+
+    def convert_to_condition(self, service_name) -> [dict, list]:
+        return {"service_name": service_name}
 
     def get_metric(self, metric_clz: Type[MetricHandler], **kwargs):
         return metric_clz(**self.common_params, **kwargs)

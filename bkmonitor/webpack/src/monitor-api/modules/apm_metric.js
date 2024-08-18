@@ -17,6 +17,7 @@ export const endpointDetailList = request('POST', 'apm/metric/metric/endpoint_de
 export const exceptionDetailList = request('POST', 'apm/metric/metric/exception_detail_list/');
 export const hostInstanceDetailList = request('POST', 'apm/metric/metric/host_instance_detail_list/');
 export const serviceQueryException = request('POST', 'apm/metric/metric/service_query_exception/');
+export const metricDetailStatistics = request('GET', 'apm/metric/metric/metric_statistics/');
 
 export default {
   errorListByTraceIds,
@@ -36,4 +37,5 @@ export default {
   exceptionDetailList,
   hostInstanceDetailList,
   serviceQueryException,
+  metricDetailStatistics,
 };
