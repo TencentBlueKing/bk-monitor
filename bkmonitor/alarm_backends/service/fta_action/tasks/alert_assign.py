@@ -132,7 +132,7 @@ class AlertAssigneeManager:
             self.is_matched = True
         self.matched_group = manager.matched_group_info.get("group_id")
         logger.info(
-            "[assign match] finished: alert(%s), matched_rule(%s), assign results(%s)",
+            "[assign match] finished: alert(%s), matched_rule(%s), assign_rule_id(%s)",
             self.alert.id,
             len(manager.matched_rules),
             self.matched_group,

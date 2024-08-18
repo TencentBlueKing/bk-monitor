@@ -578,6 +578,7 @@ class CreateActionProcessor:
         qos_alerts = []
         current_qos_count = 0
         for alert in self.alerts:
+            # 进行告警分派
             if not self.is_alert_status_valid(alert):
                 # 所有的通知，需要判断信号是否为有效状态
                 continue

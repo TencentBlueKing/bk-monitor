@@ -267,7 +267,8 @@ class AlertBuilder(BaseAlertProcessor):
         created_events_count = len(event_documents) - len(error_uids)
 
         self.logger.info(
-            "[alert.builder save events] finished: " "total(%d), created(%d), duplicate(%d), failed(%d), cost: %.3f",
+            "[alert.builder save event to ES] finished: "
+            "total(%d), created(%d), duplicate(%d), failed(%d), cost: %.3f",
             len(events),
             created_events_count,
             conflict_error_events_count,
