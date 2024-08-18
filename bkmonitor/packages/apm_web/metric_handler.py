@@ -395,8 +395,6 @@ class RequestCountInstance(MetricHandler):
     metric_id = CalculationMethod.REQUEST_COUNT
     aggs_method = "SUM"
     metric_field = "bk_apm_count"
-    # TODO
-    datasource_query = True
 
 
 class ErrorCountInstance(MetricHandler):

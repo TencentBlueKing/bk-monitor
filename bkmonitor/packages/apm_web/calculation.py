@@ -142,7 +142,6 @@ class ApdexCalculation(Calculation):
 
     @classmethod
     def calculate(cls, *data):
-        # TODO 测试
         satisfied_count, tolerating_count, frustrated_count, error_count, total_count = data
 
         apdex_rate = (satisfied_count * 1 + tolerating_count * 0.5 + (tolerating_count + error_count) * 0) / total_count

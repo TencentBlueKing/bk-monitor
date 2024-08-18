@@ -67,6 +67,8 @@ class PrePlugin(Plugin):
 class PostPlugin(Plugin):
     """后置插件"""
 
+    _runtime: dict = field(default_factory=dict)
+
     def process(self, data_type, edge_data_type, node_data, graph):
         raise NotImplementedError
 
@@ -836,12 +838,11 @@ class NodeMenu(PostPlugin):
                 {
                     "name": _("接口下钻"),
                     "action": "span_drilling",
-                    "url": "/todo",
                 },
                 {
                     "name": _("查看三方应用"),
                     "action": "blank",
-                    "url": "/todo",
+                    "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_data["data"]["name"]),
                 },
             ]
         else:
@@ -849,12 +850,10 @@ class NodeMenu(PostPlugin):
                 {
                     "name": _("接口下钻"),
                     "action": "span_drilling",
-                    "url": "/todo",
                 },
                 {
                     "name": _("资源拓扑"),
                     "action": "resource_drilling",
-                    "url": "/todo",
                 },
             ]
 
@@ -953,8 +952,8 @@ class ViewConverter:
     def extra_pre_plugins(self, runtime):
         return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in self._extra_pre_plugins])
 
-    def extra_pre_convert_plugins(self):
-        return PluginProvider.Container(_plugins=[i() for i in self._extra_pre_convert_plugins])
+    def extra_pre_convert_plugins(self, runtime):
+        return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in self._extra_pre_convert_plugins])
 
     @classmethod
     def new(cls, bk_biz_id, app_name, data_type: str, filter_params=None):

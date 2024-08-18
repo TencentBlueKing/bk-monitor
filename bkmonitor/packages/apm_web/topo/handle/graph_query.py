@@ -146,6 +146,7 @@ class Graph:
     data_type: str = None
     edge_data_type: str = None
     plugins: PluginProvider.Container = field(default_factory=lambda: PluginProvider.Container(_plugins=[]))
+    converter_plugins: PluginProvider.Container = field(default_factory=lambda: PluginProvider.Container(_plugins=[]))
     _graph: networkx.DiGraph = field(default_factory=networkx.DiGraph)
     _nodes_attrs: dict = field(default_factory=dict)
     _edges_attrs: dict = field(default_factory=dict)
@@ -182,7 +183,7 @@ class Graph:
         self._graph.add_nodes_from(tuple({k[0]: v for k, v in self._node_merge_attrs.items()}.items()))
         self._graph.add_edges_from(tuple([(*key, value) for key, value in self._edge_merge_attrs.items()]))
 
-    def __lshift__(self, patch: Union[NodeContainer, EdgeContainer]):
+    def __lshift__(self, patch: Union[NodeContainer, EdgeContainer, PluginProvider.Container]):
         if isinstance(patch, NodeContainer):
             self._node_merge_attrs = merge_dicts(patch.to_nodes_attrs_mapping(), self._nodes_attrs)
             self._refresh()
@@ -221,7 +222,7 @@ class Graph:
             raise ValueError(f"Graph received an unsupported type: {type(patch)}")
 
     def __rshift__(self, other: ViewConverter) -> Dict:
-        self << other.extra_pre_convert_plugins()
+        self << self.converter_plugins
         return other.convert(self._graph)
 
     @property
@@ -260,11 +261,12 @@ class GraphQuery(BaseQuery):
                 with_plugin=True,
                 edge_data_type=edge_data_type,
                 extra_plugins=converter.extra_pre_plugins(self.common_params),
+                extra_converter_plugins=converter.extra_pre_convert_plugins(self.common_params),
             )
             >> converter
         )
 
-    def create_graph(self, with_plugin=False, edge_data_type=None, extra_plugins=None):
+    def create_graph(self, with_plugin=False, edge_data_type=None, extra_plugins=None, extra_converter_plugins=None):
         db_nodes = self._list_nodes_from_db()
         flow_nodes, flow_edges = self._list_nodes_and_edges_from_flow()
 
@@ -278,6 +280,7 @@ class GraphQuery(BaseQuery):
 
         graph = Graph(
             plugins=plugins,
+            converter_plugins=extra_converter_plugins or PluginProvider.Container(_plugins=[]),
             data_type=self.data_type,
             edge_data_type=edge_data_type,
         )
@@ -314,12 +317,13 @@ class GraphQuery(BaseQuery):
             match_type=CustomServiceMatchType.MANUAL,
         )
         for i in custom_services:
-            if i.name in found_node_keys:
+            n = f"{i.type}:{i.name}"
+            if n in found_node_keys:
                 continue
             nodes.append(
                 Node(
-                    display_key=i.name,
-                    name=i.name,
+                    display_key=n,
+                    name=n,
                     category=i.type,
                     kind=TopoNodeKind.REMOTE_SERVICE,
                 )
