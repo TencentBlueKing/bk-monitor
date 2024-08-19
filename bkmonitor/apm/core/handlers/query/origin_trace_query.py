@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from django.db.models import Q
 from opentelemetry.semconv.trace import SpanAttributes
@@ -28,8 +28,7 @@ from apm.core.handlers.query.base import (
     UnifyQueryBuilder,
     UnifyQuerySet,
 )
-from apm.utils.es_search import EsSearch
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import OtlpKey
 
 
@@ -42,10 +41,6 @@ class OriginTraceQuery(UnifyQueryBuilder):
         self.app_name: str = app_name
         super().__init__(bk_biz_id, result_table_id, retention)
 
-    @property
-    def search(self):
-        return EsSearch(using=self.client, index=self.index_name)
-
     def list(
         self,
         start_time: Optional[int],
@@ -56,22 +51,31 @@ class OriginTraceQuery(UnifyQueryBuilder):
         es_dsl: Optional[Dict[str, Any]] = None,
         exclude_fields: Optional[List[str]] = None,
     ):
-        # TODO 在跨应用场景下，parent_span_id 不为空也有可能是根，这里的过滤条件可能还要再推敲下
-        #  主要是 collapse 比较特殊，可以考虑转换为 distinct 场景
-        q: QueryConfigBuilder = (
-            self.q.filter(self.build_filters(filters))
-            .filter(parent_span_id__eq="")
-            .values(OtlpKey.TRACE_ID)
-            .query_string(*self.parse_dsl(es_dsl))
-            .order_by("start_time desc")
+        page_data: Dict[str, Union[int, List[str]]] = {}
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
+        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters)).query_string(
+            *self.parse_query_string_from_dsl(es_dsl)
         )
-        queryset: UnifyQuerySet = (
-            self.time_range_queryset(start_time, end_time).add_query(q).offset(offset).limit(limit)
-        )
+
+        def _fill_total():
+            _q: QueryConfigBuilder = q.metric(field=OtlpKey.TRACE_ID, method="distinct", alias="total")
+            page_data["total"] = queryset.add_query(_q)[0]["total"]
+
+        def _fill_data():
+            _trace_ids: List[str] = []
+            _q: QueryConfigBuilder = q.distinct(OtlpKey.TRACE_ID)
+            for _info in queryset.add_query(_q).offset(offset).limit(limit):
+                _trace_id: Union[str, List[str]] = _info[OtlpKey.TRACE_ID]
+                if isinstance(_trace_id, list):
+                    _trace_id = _trace_id[0]
+                _trace_ids.append(_trace_id)
+            page_data["data"] = _trace_ids
+
+        run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
 
         pool = ThreadPool()
         processor = PrecalculateProcessor(None, self.bk_biz_id, self.app_name)
-        params_list = [(processor, trace_info[OtlpKey.TRACE_ID]) for trace_info in queryset]
+        params_list = [(processor, trace_id) for trace_id in page_data["data"]]
         results = pool.map_ignore_exception(self._query_trace_info, params_list)
         res = []
         for result in results:
@@ -79,7 +83,7 @@ class OriginTraceQuery(UnifyQueryBuilder):
                 continue
             res.append(result)
 
-        return res, 0
+        return res, page_data["total"]
 
     def _query_trace_info(self, processor, trace_id: str) -> Dict[str, Any]:
         q: QueryConfigBuilder = (

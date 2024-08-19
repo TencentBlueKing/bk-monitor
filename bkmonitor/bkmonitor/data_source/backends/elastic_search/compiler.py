@@ -134,6 +134,9 @@ class SQLCompiler(compiler.SQLCompiler):
         if self.query.use_full_index_names:
             dsl["use_full_index_names"] = True
 
+        if self.query.distinct:
+            dsl.update({"track_total_hits": True, "collapse": {"field": self.query.distinct}})
+
         return self.query.table_name, dsl
 
     def _parser_order_by(self):

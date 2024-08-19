@@ -29,6 +29,7 @@ from elasticsearch_dsl import A
 from elasticsearch_dsl import Q as ESQ
 
 from apm import types
+from apm.utils.base import normalize_rt_id
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.data_source import DataSource, q_to_dict
 from bkmonitor.data_source.models.query import DataQueryIterMixin
@@ -70,6 +71,7 @@ class QueryConfig:
         self.table: str = ""
         self.reference_name: str = ""
         self.time_field: str = ""
+        self.distinct: str = ""
         self.select: List[str] = []
         self.where: WhereNode = WhereNode()
         self.metrics: List[Dict[str, Any]] = []
@@ -86,6 +88,7 @@ class QueryConfig:
         obj.table = self.table
         obj.reference_name = self.reference_name
         obj.time_field = self.time_field
+        obj.distinct = self.distinct
         obj.select = self.select[:]
         obj.where = self.where.clone()
         obj.metrics = self.metrics[:]
@@ -106,6 +109,11 @@ class QueryConfig:
     def set_time_field(self, time_field: Optional[str]):
         if time_field:
             self.time_field = time_field
+
+    def set_distinct(self, field: Optional[str]):
+        if field:
+            self.select = [field]
+            self.distinct = field
 
     def set_query_string(self, query_string: Optional[str], nested_paths: Optional[List[str]] = None):
         if query_string:
@@ -162,6 +170,11 @@ class QueryConfigBuilder:
             clone.query_config.add_select(col)
         return clone
 
+    def distinct(self, field: Optional[str]):
+        clone = self.clone()
+        clone.query_config.set_distinct(field)
+        return clone
+
     def filter(self, *args, **kwargs):
         clone = self.clone()
         clone.query_config.add_q(Q(*args, **kwargs))
@@ -216,7 +229,11 @@ class UnifyQueryCompiler(BaseCompiler):
     @classmethod
     def query_data(cls, unify_query: UnifyQuery, params: Dict[str, Any]) -> List[Dict[str, Any]]:
         data = unify_query.query_data(
-            start_time=params["start_time"], end_time=params["end_time"], limit=params["limit"], offset=params["offset"]
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+            limit=params["limit"],
+            offset=params["offset"],
+            search_after_key=params["search_after_key"],
         )
         return data
 
@@ -234,6 +251,7 @@ class UnifyQueryCompiler(BaseCompiler):
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_source = data_source_class(
                 bk_biz_id=params["bk_biz_id"],
+                use_full_index_names=True,
                 enable_dimension_completion=False,
                 enable_builtin_dimension_expansion=False,
                 **query_config,
@@ -261,6 +279,7 @@ class UnifyQueryCompiler(BaseCompiler):
                 "reference_name": query_config_obj.reference_name or "a",
                 "table": query_config_obj.table,
                 "time_field": query_config_obj.time_field,
+                "distinct": query_config_obj.distinct,
                 "where": [],
                 "metrics": query_config_obj.metrics,
                 "group_by": query_config_obj.group_by,
@@ -454,8 +473,7 @@ class UnifyQueryBuilder:
 
     def __init__(self, bk_biz_id: int, result_table_id: str, retention: int):
         self.bk_biz_id: int = bk_biz_id
-        # TODO 这个 . -> _ 替换逻辑散落在各处，感觉可以搞个 normalize_rt_id 公共方法
-        self.result_table_id: str = result_table_id.replace(".", "_")
+        self.result_table_id: str = normalize_rt_id(result_table_id)
         self.retention: int = retention
 
     @classproperty
@@ -544,7 +562,7 @@ class UnifyQueryBuilder:
         return start_time, end_time
 
     @classmethod
-    def parse_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, List[str]]:
         """
         【待废弃】在 dsl 中提取检索关键字，保留该逻辑主要是兼容前端的 lucene 查询，后续兼容不同 DB，该逻辑大概率会下掉
         :param dsl:
@@ -570,6 +588,34 @@ class UnifyQueryBuilder:
                 continue
 
         return query_string, nested_paths
+
+    @classmethod
+    def parse_ordering_from_dsl(cls, dsl: Dict[str, Any]) -> List[str]:
+        """
+        【待废弃】在 dsl 中提取字段排序信息
+        :param dsl:
+        :return:
+        """
+
+        ordering: List[str] = []
+        try:
+            for sort_item in dsl["sort"]:
+                if isinstance(sort_item, str):
+                    # handle case: 'start_time'
+                    ordering.append(sort_item)
+
+                elif isinstance(sort_item, dict):
+                    for field, option in sort_item.items():
+                        if isinstance(option, str):
+                            # handle case: {'end_time': 'desc'}
+                            ordering.append(f"{field} {option}")
+                        elif isinstance(option, dict):
+                            # handle case: {'hierarchy_count': {'order': 'desc'}}
+                            ordering.append(f"{field} {option['order']}")
+        except (KeyError, TypeError, IndexError):
+            pass
+
+        return ordering
 
 
 class EsQueryBuilderMixin:

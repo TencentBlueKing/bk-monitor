@@ -132,8 +132,8 @@ class StatisticsQuery(UnifyQueryBuilder):
         logic_fields, filters = self._parse_filters(filters)
         q: QueryConfigBuilder = (
             self.q.filter(self.build_filters(filters))
-            .query_string(*self.parse_dsl(es_dsl))
-            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+            .query_string(*self.parse_query_string_from_dsl(es_dsl))
+            .order_by(*(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"]))
         )
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
@@ -229,9 +229,9 @@ class StatisticsQuery(UnifyQueryBuilder):
             groups_filter = groups_filter | Q(**group_filter_params)
 
         if after_key:
-            redis_cli.set(
-                f"{params_key}:{offset + queryset.query.high_mark}", json.dumps(after_key), AFTER_CACHE_KEY_EXPIRE
-            )
+            cache_key: str = f"{params_key}:{offset + queryset.query.high_mark}"
+            redis_cli.set(cache_key, json.dumps(after_key), AFTER_CACHE_KEY_EXPIRE)
+            logger.info("[StatisticsQuery] set cache: cache_key -> %s, after_key -> %s", cache_key, after_key)
 
         error_q: QueryConfigBuilder = (
             q.filter(groups_filter)
@@ -253,6 +253,7 @@ class StatisticsQuery(UnifyQueryBuilder):
         if offset != 0:
             cache_key: str = f"{params_key}:{offset}"
             if not redis_cli.exists(cache_key):
+                logger.warning("[StatisticsQuery] lost cache_key -> %s", cache_key)
                 raise ValueError(_("参数丢失 需要重新从第一页获取"))
             cache_value = redis_cli.get(cache_key)
             if cache_value:

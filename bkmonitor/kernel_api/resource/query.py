@@ -49,7 +49,7 @@ class QueryEsResource(Resource):
                     "version": storage_info["cluster_config"]["version"],
                 }
             )
-            extra["index_names"] = storage.get_index_names()
+            extra["full_index_names"] = storage.get_index_names()
 
         data = GetEsDataResource().request(
             index_name=validated_request_data["table_id"],

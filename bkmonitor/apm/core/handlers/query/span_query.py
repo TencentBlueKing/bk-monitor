@@ -17,11 +17,16 @@ to the current version of the project delivered to anyone in the future.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from apm import constants, types
-from apm.core.handlers.query.base import QueryConfigBuilder, UnifyQueryBuilder
+from apm.core.handlers.query.base import (
+    QueryConfigBuilder,
+    UnifyQueryBuilder,
+    UnifyQuerySet,
+)
 from apm.models import TraceDataSource
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
@@ -42,15 +47,29 @@ class SpanQuery(UnifyQueryBuilder):
         exclude_fields: Optional[List[str]] = None,
     ) -> Tuple[List[Dict[str, Any]], int]:
 
+        logger.info("[SpanQuery] list: es_dsl -> %s", es_dsl)
+
+        page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {}
         all_fields: Set[str] = {field_info["field_name"] for field_info in TraceDataSource.TRACE_FIELD_LIST}
         select_fields: List[str] = list(all_fields - set(exclude_fields or ["attributes", "links", "events"]))
         q: QueryConfigBuilder = (
             self.q.filter(self.build_filters(filters))
-            .query_string(*self.parse_dsl(es_dsl))
-            .values(*select_fields)
-            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+            .query_string(*self.parse_query_string_from_dsl(es_dsl))
+            .order_by(*(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"]))
         )
-        return list(self.time_range_queryset(start_time, end_time).add_query(q).offset(offset).limit(limit)), 0
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
+
+        def _fill_total():
+            _q: QueryConfigBuilder = q.metric(field=OtlpKey.SPAN_ID, method="count", alias="total")
+            page_data["total"] = queryset.add_query(_q)[0]["total"]
+
+        def _fill_data():
+            _q: QueryConfigBuilder = q.values(*select_fields)
+            page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
+
+        run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
+
+        return page_data["data"], page_data["total"]
 
     def query_option_values(
         self, start_time: Optional[int], end_time: Optional[int], fields: List[str]

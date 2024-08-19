@@ -373,6 +373,7 @@ class DataSource(metaclass=ABCMeta):
         where: Dict = None,
         group_by: List[str] = None,
         keep_columns: List[str] = None,
+        distinct: Optional[str] = None,
         index_set_id: int = None,
         query_string: str = "",
         nested_paths: List[str] = None,
@@ -438,6 +439,7 @@ class DataSource(metaclass=ABCMeta):
             .use_full_index_names(use_full_index_names)
             .order_by(*order_by)
             .keep_columns(*keep_columns)
+            .distinct(distinct)
             .limit(limit)
             .slimit(slimit)
             .offset(offset)
@@ -1367,6 +1369,7 @@ class BkMonitorLogDataSource(DataSource):
         time_field: str = None,
         topo_nodes: Dict[str, List] = None,
         keep_columns: Optional[List[str]] = None,
+        distinct: Optional[str] = None,
         use_full_index_names: bool = False,
         enable_dimension_completion: bool = True,
         enable_builtin_dimension_expansion: bool = True,
@@ -1384,6 +1387,7 @@ class BkMonitorLogDataSource(DataSource):
         self.time_field = time_field or self.DEFAULT_TIME_FIELD
         self.order_by = order_by or [f"{self.time_field} desc"]
         self.keep_columns = keep_columns or []
+        self.distinct = distinct
         # 是否使用索引全名进行检索
         self.use_full_index_names = use_full_index_names
         # 是否启用维度字段 `dimensions.` 补全
@@ -1684,6 +1688,7 @@ class BkMonitorLogDataSource(DataSource):
             offset=offset,
             order_by=self.order_by,
             time_field=self.time_field,
+            distinct=self.distinct,
             start_time=start_time,
             end_time=end_time,
             query_string=self.query_string,

@@ -68,7 +68,7 @@ class QueryProxy:
 
     @cached_property
     def trace_query(self):
-        precalculate = PrecalculateStorage(self.bk_biz_id, self.app_name)
+        precalculate = PrecalculateStorage(self.bk_biz_id, self.app_name, need_client=False)
         if not precalculate.is_valid:
             logger.info(f"[QueryProxy] {self.bk_biz_id} - {self.app_name} use fake trace query")
             trace_query = FakeQuery()
@@ -117,7 +117,6 @@ class QueryProxy:
         exclude_fields: Optional[List[str]] = None,
     ):
         """查询列表"""
-        # TODO size 没用上，可以下掉
         data, size = self.query_mode[query_mode].list(
             start_time, end_time, offset, limit, filters, es_dsl, exclude_fields
         )
@@ -144,7 +143,7 @@ class QueryProxy:
         trace_relation = self._get_trace_relation(trace_id)
         if trace_relation:
             relation_app: ApmApplication = ApmApplication.objects.filter(
-                bk_biz_id=trace_relation["biz_id"], app_name=trace_relation["app_name"]
+                bk_biz_id=trace_relation["bk_biz_id"], app_name=trace_relation["app_name"]
             ).first()
             if relation_app:
                 span_query = SpanQuery(
@@ -160,10 +159,10 @@ class QueryProxy:
                 )
                 relation_mapping = {
                     i[OtlpKey.PARENT_SPAN_ID]: {
-                        "bk_biz_id": trace_relation["biz_id"],
+                        "bk_biz_id": trace_relation["bk_biz_id"],
                         "app_name": trace_relation["app_name"],
                         "bk_biz_name": trace_relation["biz_name"],
-                        "app_id": trace_relation["app_id"],
+                        "app_id": trace_relation["bk_app_code"],
                         "trace_id": trace_id,
                         "permission": permission,
                     }
@@ -199,7 +198,7 @@ class QueryProxy:
             )
             relation = trace_query.query_relation_by_trace_id(trace_id, start_time, end_time)
             if relation:
-                logger.info(f"[QueryProxy] find relation on {trace_id}({relation['biz_id']}:{relation['app_name']})")
+                logger.info(f"[QueryProxy] find relation on {trace_id}({relation['bk_biz_id']}:{relation['app_name']})")
                 return relation
 
         return None

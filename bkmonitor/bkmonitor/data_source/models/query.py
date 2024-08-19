@@ -168,6 +168,12 @@ class DataQuery(DataQueryIterMixin):
         clone.query.add_keep_columns(*field_names)
         return clone
 
+    def distinct(self, field: Optional[str]):
+        clone = self._clone()
+        if field:
+            clone.query.distinct = field
+        return clone
+
     def iterator(self):
         compiler = self.query.get_compiler(using=self.using)
         results = compiler.execute_sql()

@@ -128,6 +128,7 @@ class Query(object):
         self.group_by = []
         self.order_by = []
         self.keep_columns = []
+        self.distinct = ""
         self.low_mark, self.high_mark = 0, None  # Used for offset/limit
         self.slimit = None
         self.offset = None
@@ -161,6 +162,9 @@ class Query(object):
         obj.group_by = self.group_by[:]
         obj.order_by = self.order_by[:]
         obj.keep_columns = self.keep_columns[:]
+        # mysql: https://stackoverflow.com/questions/34312757/
+        # es: https://www.elastic.co/guide/en/elasticsearch/reference/current/collapse-search-results.html
+        obj.distinct = self.distinct
         obj.time_field = self.time_field
         obj.target_type = self.target_type
         obj.agg_condition = self.agg_condition[:]

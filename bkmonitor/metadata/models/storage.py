@@ -2154,7 +2154,8 @@ class ESStorage(models.Model, StorageResultTable):
         index_names: List[str] = []
         for index_name in index_info_map:
             if index_re.match(index_name) is None:
-                logger.warning("index->[%s] is not match re, maybe something go wrong?", index_name)
+                logger.warning("index->[%s] is not match re, skipped", index_name)
+                continue
             index_names.append(index_name)
         return index_names
 

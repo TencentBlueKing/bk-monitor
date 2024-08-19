@@ -16,7 +16,7 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 from django.db.models import Q
 
@@ -29,6 +29,7 @@ from apm.core.handlers.query.base import (
     UnifyQuerySet,
 )
 from apm.models import ApmApplication
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
@@ -67,21 +68,31 @@ class TraceQuery(UnifyQueryBuilder):
         es_dsl: Optional[Dict[str, Any]] = None,
         exclude_fields: Optional[List[str]] = None,
     ):
+        logger.info("[TraceQuery] list: es_dsl -> %s", es_dsl)
+
+        page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {}
         all_fields: Set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
         select_fields: List[str] = list(
             all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
         )
         q: QueryConfigBuilder = (
             self.q.filter(self.build_filters(filters) & self.build_app_filter())
-            .query_string(*self.parse_dsl(es_dsl))
-            .values(*select_fields)
-            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+            .order_by(*(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"]))
+            .query_string(*self.parse_query_string_from_dsl(es_dsl))
         )
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
 
-        queryset: UnifyQuerySet = (
-            self.time_range_queryset(start_time, end_time).add_query(q).offset(offset).limit(limit)
-        )
-        return list(queryset), 0
+        def _fill_total():
+            _q: QueryConfigBuilder = q.metric(field=OtlpKey.TRACE_ID, method="count", alias="total")
+            page_data["total"] = queryset.add_query(_q)[0]["total"]
+
+        def _fill_data():
+            _q: QueryConfigBuilder = q.values(*select_fields)
+            page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
+
+        run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
+
+        return page_data["data"], page_data["total"]
 
     def query_relation_by_trace_id(self, trace_id: str, start_time: Optional[int], end_time: Optional[int]):
         """查询此traceId是否有跨应用关联（需要排除此业务下的EBPF应用）"""
@@ -95,7 +106,7 @@ class TraceQuery(UnifyQueryBuilder):
         q: QueryConfigBuilder = (
             self.q.order_by("time desc")
             .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
-            .filter(biz_id__neq=exclude_biz_id, app_name__neq=exclude_app_names)
+            .filter(app_name__neq=exclude_app_names, bk_biz_id__neq=exclude_biz_id)
         )
 
         # 以此TraceId 开始-结束时间为范围 在此时间范围内才为跨应用
