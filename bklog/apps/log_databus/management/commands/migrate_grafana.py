@@ -17,29 +17,29 @@ ACTIONS_TO_MIGRATE = [
 
 
 class Command(BaseCommand):
-    help = 'export config json for Migrate grafana 8.x(bk-log) configuration to grafana 9.x(bk-monitor)'
+    help = "export config json for Migrate grafana 8.x(bk-log) configuration to grafana 9.x(bk-monitor)"
 
     def add_arguments(self, parser):
         """添加命令行参数"""
         parser.add_argument(
-            '--grafana_url', type=str, help='URL of the Grafana instance where the configuration will be written'
+            "--grafana_url", type=str, help="URL of the Grafana instance where the configuration will be written"
         )
         parser.add_argument(
-            '--selected_biz',
+            "--selected_biz",
             type=str,
-            default='all',
-            help='Comma-separated list of biz_ids for migration. Default is "all", which includes ' 'every biz_id.',
+            default="all",
+            help="Comma-separated list of biz_ids for migration. Default is 'all', which includes every biz_id",
         )
-        parser.add_argument('--app_code', type=str, default='bk_monitorv3', help='app_code for migrate permission')
+        parser.add_argument("--app_code", type=str, default="bk_monitorv3", help="app_code for migrate permission")
 
     def handle(self, *args, **options):
         start_time = time.time()
         """ 执行命令 """
-        self.stdout.write('[migrate_grafana] #### START ####')
+        self.stdout.write("[migrate_grafana] #### START ####")
         # 获取命令行参数
-        grafana_url = options['grafana_url']
-        selected_biz = options['selected_biz']
-        app_code = options['app_code']
+        grafana_url = options["grafana_url"]
+        selected_biz = options["selected_biz"]
+        app_code = options["app_code"]
 
         # 从 bk_log 获取 grafana 配置数据
         grafana_data, extract_failed_biz = self.get_grafana_config(grafana_client, selected_biz)
@@ -92,9 +92,9 @@ class Command(BaseCommand):
             self.stdout.write(f"selected_biz is 'all': get all biz from bk_log")
             return orgs
         self.stdout.write(f"get selected biz from bk_log: {selected_biz}")
-        selected_biz_ids = selected_biz.split(',')
+        selected_biz_ids = selected_biz.split(",")
 
-        return [org for org in orgs if org['name'] in selected_biz_ids]
+        return [org for org in orgs if org["name"] in selected_biz_ids]
 
     def extract_grafana_config(self, orgs):
         """提取 bk_log grafana 配置数据"""
@@ -104,13 +104,13 @@ class Command(BaseCommand):
         failed_biz = {}
 
         for org in orgs:
-            org_id, org_name = org['id'], org['name']
+            org_id, org_name = org["id"], org["name"]
             is_legal_org_name = self.check_org_name(org_id, org_name, failed_biz)
             if not is_legal_org_name:
                 continue
 
             # 获取当前业务下所有 dashboard
-            dashboards_resp = grafana_client.search_dashboard(org_id=org['id'])
+            dashboards_resp = grafana_client.search_dashboard(org_id=org["id"])
             if dashboards_resp.status_code != 200:
                 self.show_error(f"FAILED to get dashboards for org {org_name}: {dashboards_resp.json()}")
                 self.record_error(failed_biz, org_name, f"failed to get dashboards: {dashboards_resp.json()}")
@@ -123,7 +123,7 @@ class Command(BaseCommand):
         return all_data, failed_biz
 
     def check_org_name(self, org_id, org_name, failed_biz):
-        if not re.match(r'^-?\d+$', org_name):
+        if not re.match(r"^-?\d+$", org_name):
             self.show_error(f"SKIP process org_id {org_id} -- org_name(biz_id) {org_name}: invalid biz_id")
             self.record_error(failed_biz, org_name, "org_name is illegal")
             return False
@@ -137,31 +137,31 @@ class Command(BaseCommand):
         folder_item = {}
 
         for dashboard in dashboards:
-            folder_title = dashboard.get('folderTitle', 'General')
+            folder_title = dashboard.get("folderTitle", "General")
 
             if folder_title not in folder_item:
                 folder_item[folder_title] = {"folder_title": folder_title, "dashboards": []}
 
-            dashboard_detail_resp = grafana_client.get_dashboard_by_uid(org_id=org_id, dashboard_uid=dashboard['uid'])
+            dashboard_detail_resp = grafana_client.get_dashboard_by_uid(org_id=org_id, dashboard_uid=dashboard["uid"])
             if dashboard_detail_resp.status_code != 200:
                 self.show_error(f"failed to get dashboard info in biz {org_name}: {dashboard_detail_resp.json()}")
                 self.record_error(failed_biz, org_name, f"failed to get dashboard info: {dashboard_detail_resp.json()}")
                 continue
 
             dashboard_detail = dashboard_detail_resp.json()
-            panel_info = dashboard_detail['dashboard']['panels']
+            panel_info = dashboard_detail["dashboard"]["panels"]
 
             dashboard_data = {
                 "dashboard_title": dashboard['title'],
                 "panels": panel_info,
-                "refresh": dashboard_detail.get('dashboard', {}).get('refresh', ''),
-                "tags": dashboard_detail.get('dashboard', {}).get('tags', []),
-                "timezone": dashboard_detail.get('dashboard', {}).get('timezone', 'browser'),
+                "refresh": dashboard_detail.get("dashboard", {}).get("refresh", ""),
+                "tags": dashboard_detail.get("dashboard", {}).get("tags", []),
+                "timezone": dashboard_detail.get("dashboard", {}).get("timezone", "browser"),
             }
-            folder_item[folder_title]['dashboards'].append(dashboard_data)
+            folder_item[folder_title]["dashboards"].append(dashboard_data)
 
         for folder in folder_item.values():
-            org_data['folders'].append(folder)
+            org_data["folders"].append(folder)
 
         return org_data
 
@@ -175,11 +175,11 @@ class Command(BaseCommand):
             raise ValueError(f"Failed to get orgs from {grafana_url}")
 
         orgs = orgs_resp.json()
-        biz_to_org_mapping = {str(org['name']): org['id'] for org in orgs}
+        biz_to_org_mapping = {str(org["name"]): org["id"] for org in orgs}
 
-        self.stdout.write('START change datasource to bk_log_search')
+        self.stdout.write("START change datasource to bk_log_search")
         for data in grafana_data:
-            biz_id = data['biz_id']
+            biz_id = data["biz_id"]
             self.update_datasource_in_data(grafana_url, biz_id, data, biz_to_org_mapping, failed_biz)
 
         self.stdout.write("END change the datasource to bk_log_search")
@@ -193,9 +193,9 @@ class Command(BaseCommand):
             self.show_error(f"failed to get datasource for biz_id {biz_id}, will use default datasource")
             return
 
-        for folder in data['folders']:
-            for dashboard in folder['dashboards']:
-                for panel in dashboard['panels']:
+        for folder in data["folders"]:
+            for dashboard in folder["dashboards"]:
+                for panel in dashboard["panels"]:
                     self.update_panel_datasource(panel, bk_log_datasource_uid)
 
     def ensure_datasource(self, grafana_url, biz_id, biz_to_org_mapping, failed_biz):
@@ -219,8 +219,8 @@ class Command(BaseCommand):
             return None
 
         for ds in bk_monitor_ds_resp.json():
-            if ds['type'] == 'bk_log_datasource':
-                return ds['uid']
+            if ds["type"] == "bk_log_datasource":
+                return ds["uid"]
         return None
 
     def create_organization(self, grafana_url, biz_id, failed_biz):
@@ -228,12 +228,12 @@ class Command(BaseCommand):
         resp = grafana_client.create_organization(biz_id, grafana_url)
         if resp.status_code == 200:
             if (
-                'message' in resp.json()
-                and 'message' in resp.json()
-                and resp.json()['message'] == 'Organization created'
+                "message" in resp.json()
+                and "message" in resp.json()
+                and resp.json()["message"] == "Organization created"
             ):
                 self.stdout.write(f"create organization success for biz_id {biz_id}")
-                return resp.json()['orgId']
+                return resp.json()["orgId"]
         else:
             self.show_error(f"failed create organization for biz_id {biz_id}: {resp.json}")
             self.record_error(failed_biz, biz_id, f"failed create organization: {resp.json()}")
@@ -241,17 +241,17 @@ class Command(BaseCommand):
 
     def update_panel_datasource(self, panel, bk_log_datasource_uid):
         """为单一面板更新数据源信息"""
-        if 'collapsed' in panel:
-            for collapsed_panel in panel['panels']:
-                if 'datasource' in collapsed_panel:
-                    collapsed_panel['datasource'] = {
-                        'type': 'bk_log_datasource',
-                        'uid': bk_log_datasource_uid,
+        if "collapsed" in panel:
+            for collapsed_panel in panel["panels"]:
+                if "datasource" in collapsed_panel:
+                    collapsed_panel["datasource"] = {
+                        "type": "bk_log_datasource",
+                        "uid": bk_log_datasource_uid,
                     }
-        if 'datasource' in panel:
-            panel['datasource'] = {
-                'type': 'bk_log_datasource',
-                'uid': bk_log_datasource_uid,
+        if "datasource" in panel:
+            panel["datasource"] = {
+                "type": "bk_log_datasource",
+                "uid": bk_log_datasource_uid,
             }
         else:
             self.show_error(f"panel {panel['title']} has no datasource")
@@ -262,7 +262,7 @@ class Command(BaseCommand):
         failed_biz = {}
         self.stdout.write(f"START write config to grafana")
         for data in grafana_data:
-            biz_id = data['biz_id']
+            biz_id = data["biz_id"]
             org_id = biz_to_org_mapping.get(biz_id, None)
             if not org_id:
                 self.show_error(f"write failed for biz_id {biz_id}: need to be created")
@@ -279,7 +279,7 @@ class Command(BaseCommand):
 
     def process_folders_and_dashboards(self, grafana_url, biz_id, org_id, data, failed_biz):
         """处理 folder 和 dashboard 的配置与创建"""
-        folders = data['folders']
+        folders = data["folders"]
         all_folders = self.get_all_folders(grafana_url, org_id, biz_id)
 
         for folder in folders:
@@ -291,34 +291,34 @@ class Command(BaseCommand):
             if folder_uid == "1":
                 folder_uid = None
 
-            for dashboard in folder['dashboards']:
+            for dashboard in folder["dashboards"]:
                 self.create_dashboard(grafana_url, biz_id, org_id, dashboard, folder_title, folder_uid, failed_biz)
 
     def get_all_folders(self, grafana_url, org_id, biz_id):
         all_folders_resp = grafana_client.get_folders(org_id, grafana_url)
         if all_folders_resp.status_code == 200:
             all_folders = all_folders_resp.json()
-            return [folder['title'] for folder in all_folders]
+            return [folder["title"] for folder in all_folders]
         else:
             self.show_error(f"write failed for biz_id {biz_id}: failed to get all folders")
             raise ValueError(f"Failed to get all folders for org {org_id} -- biz {biz_id}")
 
     def ensure_folder(self, grafana_url, biz_id, org_id, folder, all_folders, failed_biz):
         """确保文件夹存在并返回"""
-        folder_title = folder['folder_title']
-        parent_uid = folder.get('parent_uid', None)
+        folder_title = folder["folder_title"]
+        parent_uid = folder.get("parent_uid", None)
 
         if folder_title != "General":
             resp = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
             if resp.status_code == 200:
-                folder_uid = resp.json()['uid']
+                folder_uid = resp.json()["uid"]
                 self.stdout.write(f"create folder success in org {org_id} with folder_title {folder_title}")
                 return folder_title, folder_uid
             elif not folder_title.endswith("_bklog") and f"{folder_title}_bklog" not in all_folders:
                 folder_title = folder_title + "_bklog"
                 resp_copy = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
                 if resp_copy.status_code == 200:
-                    folder_uid = resp_copy.json()['uid']
+                    folder_uid = resp_copy.json()["uid"]
                     self.stdout.write(f"create folder success in org {org_id} with folder_title {folder_title}")
                     return folder_title, folder_uid
                 else:
@@ -345,12 +345,12 @@ class Command(BaseCommand):
     def create_dashboard(self, grafana_url, biz_id, org_id, dashboard, folder_title, folder_uid, failed_biz):
         """创建仪表盘"""
         dashboard_info = {
-            'title': dashboard['dashboard_title'],
-            'tags': dashboard['tags'],
-            'timezone': dashboard['timezone'],
-            'refresh': dashboard['refresh'],
+            "title": dashboard["dashboard_title"],
+            "tags": dashboard["tags"],
+            "timezone": dashboard["timezone"],
+            "refresh": dashboard["refresh"],
         }
-        resp = grafana_client.create_dashboard(org_id, dashboard_info, dashboard['panels'], folder_uid, grafana_url)
+        resp = grafana_client.create_dashboard(org_id, dashboard_info, dashboard["panels"], folder_uid, grafana_url)
         if resp.status_code == 200:
             self.stdout.write(
                 f"create dashboard success {dashboard_info['title']} in org {org_id} "
@@ -387,7 +387,7 @@ class Command(BaseCommand):
                 resources.append(resource)
 
             for resource in resources:
-                resource['system'] = app_code
+                resource["system"] = app_code
                 resp = migrate_command.grant_resource(resource)
                 if resp is not None:
                     progress += 1
