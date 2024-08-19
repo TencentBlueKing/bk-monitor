@@ -53,10 +53,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         """
         查询空间列表
         """
-        func = api.metadata.list_spaces
-        if refresh:
-            func = api.metadata.list_spaces.request.refresh
-        space_list = batch_request(func, params={}, get_data=lambda x: x["list"], app="metadata")
+        space_list = cls.list_spaces_dict(refresh=refresh)
 
         # 获得支持的空间类型
         space_type_list = api.metadata.list_space_types()
@@ -76,8 +73,5 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return result
 
     @classmethod
-    def list_spaces_dict(cls, refresh=True) -> List[dict]:
-        func = api.metadata.list_spaces
-        if refresh:
-            func = api.metadata.list_spaces.request.refresh
-        return batch_request(func, params={}, get_data=lambda x: x["list"], app="metadata")
+    def list_spaces_dict(cls, refresh=False) -> List[dict]:
+        return batch_request(api.metadata.list_spaces, params={}, get_data=lambda x: x["list"], app="metadata")
