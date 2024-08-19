@@ -1,0 +1,102 @@
+/* stylelint-disable declaration-no-important */
+.alarm-event-chart {
+  background-color: rgba(0, 0, 0, 0) !important;
+
+  .chart-instance {
+    position: relative;
+    height: 80px;
+
+    .mark-area-icon {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+      height: 12px;
+      pointer-events: none;
+      background: #C464FF;
+      border-radius: 50%;
+
+      .icon-monitor {
+        font-size: 12px;
+        color: #fff;
+        transform: scale(.6) translateY(-1.5px);
+      }
+    }
+  }
+
+  .common-legend-item {
+    .legend-icon {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  .table-wrap {
+    margin-top: 16px;
+
+    .event-name {
+      color: #3A84FF;
+      cursor: pointer;
+    }
+  }
+
+  .mt-12 {
+    margin-top: 12px;
+  }
+}
+
+.alarm-event-chart-tooltip {
+  background: #000000cc !important;
+
+  .time-text {
+    color: #FFFFFF;
+  }
+
+  .alarm-title {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #C4C6CC;
+
+    .icon-monitor {
+      margin-right: 4px;
+      font-size: 16px;
+    }
+  }
+
+  .alarm-list {
+    padding: 0 0 0 4px;
+    color: #FFFFFF;
+
+    .alarm-item {
+      display: flex;
+      align-items: center;
+      margin-top: 8px;
+
+      .alarm-item-point {
+        width: 8px;
+        height: 8px;
+        margin-right: 4px;
+      }
+
+      .alarm-item-name {
+        margin-right: 8px;
+      }
+
+      .alarm-item-count {
+        margin: 0 0 0 auto;
+      }
+    }
+  }
+
+  .split-line {
+    width: 100%;
+    height: 1px;
+    margin-top: 8px;
+    background: #63656E;
+  }
+}

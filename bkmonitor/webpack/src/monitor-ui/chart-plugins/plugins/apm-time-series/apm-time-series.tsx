@@ -57,7 +57,6 @@ const eventHasId = (event: Event | any, id: string) => {
   }
   return has;
 };
-
 @Component
 export default class ApmTimeSeries extends TimeSeries {
   contextmenuInfo = {
@@ -350,19 +349,22 @@ export default class ApmTimeSeries extends TimeSeries {
    * @param params
    */
   handleContextmenu(params) {
-    const { offsetX, offsetY } = params.event;
-    const { pageX, pageY } = params.event.event;
-    const { clientHeight, clientWidth } = document.documentElement;
-    this.contextmenuInfo = {
-      ...this.contextmenuInfo,
-      x: offsetX + 4,
-      y: offsetY + 4,
-      show: true,
-      nearOutRight: pageX > clientWidth - 120,
-      nearOutBottom: pageY > clientHeight - 80,
-      seriesIndex: params.seriesIndex,
-      dataIndex: params.dataIndex,
-    };
+    if (!this.panel.options.disableContextmenu) {
+      const { offsetX, offsetY } = params.event;
+      const { pageX, pageY } = params.event.event;
+      const { clientHeight, clientWidth } = document.documentElement;
+      this.contextmenuInfo = {
+        ...this.contextmenuInfo,
+        x: offsetX + 4,
+        y: offsetY + 4,
+        show: true,
+        nearOutRight: pageX > clientWidth - 120,
+        nearOutBottom: pageY > clientHeight - 80,
+        seriesIndex: params.seriesIndex,
+        dataIndex: params.dataIndex,
+      };
+      document.addEventListener('click', this.handleHideContextmenu);
+    }
     setTimeout(() => {
       this.$refs.baseChart?.dispatchAction({
         type: 'highlight',
@@ -370,8 +372,6 @@ export default class ApmTimeSeries extends TimeSeries {
         dataIndex: params.dataIndex,
       });
     }, 200);
-
-    document.addEventListener('click', this.handleHideContextmenu);
   }
 
   /**
@@ -441,6 +441,18 @@ export default class ApmTimeSeries extends TimeSeries {
             onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
+        {this.panel.options?.logHeader && (
+          <div class='log-header'>
+            <div
+              class='chart-name'
+              v-bk-tooltips={{ content: this.$t('跳转查看详情') }}
+            >
+              {this.panel.title}
+              <i class='icon-monitor icon-fenxiang' />
+            </div>
+            <bk-checkbox>Error</bk-checkbox>
+          </div>
+        )}
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
@@ -504,10 +516,12 @@ export default class ApmTimeSeries extends TimeSeries {
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
         )}
-        <DetailsSide
-          show={this.detailsSideData.show}
-          onClose={this.handleCloseDetails}
-        />
+        {!this.panel.options?.disableContextmenu && (
+          <DetailsSide
+            show={this.detailsSideData.show}
+            onClose={this.handleCloseDetails}
+          />
+        )}
       </div>
     );
   }

@@ -1,0 +1,69 @@
+.apm-relation-graph-content {
+  position: relative;
+  height: calc(100% - 52px);
+
+  .apm-relation-graph-charts {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+
+    &.col-resize {
+      cursor: col-resize;
+    }
+
+    .main-content {
+      flex: 1;
+      height: 100%;
+    }
+
+    .side-content {
+      position: relative;
+      box-sizing: content-box;
+      height: 100%;
+      border-left: 1px solid #DCDEE5;
+      transition: width .3s;
+
+      .side-drop-wrap {
+        position: absolute;
+        top: 0;
+        left: -6px;
+        width: 8px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+
+        .drop-point {
+          position: absolute;
+          top: 50%;
+          left: -4px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          transform: translateY(-50%);
+
+          .point {
+            width: 2px;
+            height: 2px;
+            margin-top: 2px;
+            margin-right: 8px;
+            background: #63656E;
+          }
+        }
+      }
+
+      &.drop-active {
+        border-left: 2px solid #3A84FF;
+        transition: width 0s;
+
+        .side-drop-wrap {
+          .drop-point {
+            .point {
+              background: #3A84FF;
+            }
+          }
+        }
+      }
+    }
+  }
+}

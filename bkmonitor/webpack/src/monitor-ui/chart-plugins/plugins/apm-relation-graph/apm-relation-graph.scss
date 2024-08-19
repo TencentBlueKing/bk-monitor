@@ -1,0 +1,207 @@
+.apm-relation-graph {
+  position: relative;
+  height: 100%;
+  background: #fff;
+
+  .apm-relation-graph-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 52px;
+    background: #ffffff;
+    box-shadow: 0 1px 0 0 #dcdee5;
+
+    .ml-24 {
+      margin-left: 24px;
+    }
+
+    .bk-form-checkbox {
+      display: inline-flex;
+      overflow: visible;
+
+      .bk-checkbox-text {
+        font-size: 12px;
+        white-space: nowrap;
+      }
+    }
+
+    .header-select-wrap {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      border-right: 1px solid #dcdee5;
+
+      .data-type-select {
+        display: flex;
+        align-items: center;
+        width: 68px;
+        height: 32px;
+        padding: 0 2px;
+        margin-left: 24px;
+        background: #ffffff;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+
+        .data-type-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 28px;
+          cursor: pointer;
+
+          .icon-monitor {
+            font-size: 16px;
+            color: #63656e;
+          }
+
+          &.active {
+            cursor: auto;
+            background: #3a84ff;
+            border-radius: 2px;
+
+            .icon-monitor {
+              color: #fff;
+            }
+          }
+        }
+      }
+
+      .type-selector {
+        min-width: 102px;
+        margin: 0 24px 0 16px;
+        background: #f5f7fa;
+        border: 1px solid #f5f7fa;
+      }
+    }
+
+    .header-alarm-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 337px;
+      height: 100%;
+      padding: 0 24px;
+      border-right: 1px solid #dcdee5;
+    }
+
+    .header-search-wrap {
+      display: flex;
+      align-items: center;
+    }
+
+    .header-tool-wrap {
+      display: flex;
+      align-items: center;
+      margin: 0 24px 0 auto;
+
+      .tool-btns {
+        display: flex;
+        align-items: center;
+        width: 70px;
+        height: 32px;
+        padding: 2px 0 2px 2px;
+        background: #f0f1f5;
+        border-radius: 4px;
+
+        .tool-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 28px;
+          margin-right: 2px;
+          cursor: pointer;
+          background: #f0f1f5;
+          border-radius: 3px;
+
+          .icon-monitor {
+            font-size: 16px;
+            color: #63656e;
+          }
+
+          &.active {
+            background: #979ba5;
+
+            .icon-monitor {
+              color: #fff;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .apm-relation-graph-table-wrap {
+    position: relative;
+    width: 100%;
+    height: calc(100% - 52px);
+    overflow-y: auto;
+    background: #F5F7FA;
+
+    .table-wrap {
+      padding: 16px;
+      margin: 24px;
+      background: #fff;
+    }
+  }
+
+  .side-wrap {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+
+    .service-overview {
+      width: 320px;
+      border-left: 1px solid #DCDEE5;
+
+      .content-wrap {
+        height: calc(100% - 52px);
+      }
+    }
+
+    .source-topo {
+      flex: 1;
+    }
+
+    .source-topo, .service-overview {
+      height: 100%;
+
+      &.no-border {
+        border-left: none;
+      }
+
+      .header-wrap {
+        display: flex;
+        align-items: center;
+        height: 52px;
+        margin-top: 1px;
+        background: #ffffff;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        .title {
+          margin-left: 20px;
+          font-size: 14px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .expand-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          margin: 0 12px 0 auto;
+          font-size: 18px;
+
+          &:hover {
+            cursor: pointer;
+            background: #f0f1f5;
+            border-radius: 2px;
+          }
+        }
+      }
+    }
+  }
+}

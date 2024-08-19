@@ -1,0 +1,119 @@
+/* stylelint-disable declaration-no-important */
+.bar-alarm-chart {
+  position: relative;
+
+  .alarm-header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 24px;
+    margin-bottom: 4px;
+
+    .header-left {
+      font-size: 12px;
+      color: #313238;
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 24px;
+      font-size: 12px;
+      color: #63656E;
+      cursor: pointer;
+      background: #FFFFFF;
+      border: 1px solid #C4C6CC;
+      border-radius: 2px;
+    }
+
+    .header-right {
+      color: #3A84FF;
+    }
+  }
+
+  .alarm-chart-wrap {
+    display: flex;
+    align-items: center;
+
+    .time-cube {
+      width: 6px;
+      min-width: 6px;
+      margin-right: 2px;
+      cursor: pointer;
+      user-select: none;
+      background: #2DCB56;
+      transition: all .1s;
+
+      &.adaptive-width {
+        flex: 1;
+      }
+
+      &:last-of-type {
+        margin-right: 0;
+      }
+    }
+  }
+
+  .alarm-footer-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+
+    .x-axis-item {
+      font-size: 12px;
+      color: #979BA5;
+      white-space: nowrap;
+      user-select: none;
+    }
+  }
+
+  .box-selector {
+    position: absolute;
+    background: #3a84ff26;
+    border: 1px solid #A3C5FD;
+  }
+}
+
+.bar-alarm-chart-tooltip-theme-theme {
+  padding: 0;
+  border-radius: 5px;
+
+  .tippy-content {
+    border-radius: 5px;
+  }
+
+  .tippy-arrow {
+    border-top: 8px solid #000000cc !important;
+  }
+
+  .bar-alarm-chart-tooltip {
+    min-width: 137px;
+    padding: 8px;
+    font-size: 12px;
+    background: #000000cc;
+    border-radius: 5px;
+
+    .time-text {
+      color: #FFF;
+    }
+
+    .status-wrap {
+      display: flex;
+      align-items: center;
+      margin-top: 8px;
+
+      .status-color {
+        width: 8px;
+        height: 8px;
+        margin-right: 4px;
+      }
+
+      .status-text {
+        color: #fff;
+      }
+    }
+  }
+}

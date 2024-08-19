@@ -35,6 +35,7 @@ interface IProps {
   needAll?: boolean;
   statusList: ITableFilterItem[];
   disabledClickZero?: boolean;
+  needExpand?: boolean;
 }
 interface IEvents {
   onChange: string;
@@ -46,6 +47,8 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   /** 数据为零时候点击事件不生效 */
   @Prop({ type: Boolean, default: false }) disabledClickZero: boolean;
   @Prop({ type: Array, default: () => [] }) statusList: ITableFilterItem[];
+  /* 是否可收缩 */
+  @Prop({ type: Boolean, default: false }) needExpand: boolean;
   @Model('change', { type: String, default: 'all' }) value: string;
 
   defaultList: ITableFilterItem[] = [
@@ -54,6 +57,8 @@ export default class StatusTab extends tsc<IProps, IEvents> {
       name: window.i18n.tc('全部'),
     },
   ];
+
+  isExpand = false;
 
   @Emit('change')
   valueChange(val: string) {
@@ -69,7 +74,11 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   }
 
   get localStatusList(): ITableFilterItem[] {
-    return [...(this.needAll ? this.defaultList : []), ...this.statusList];
+    const list = [...(this.needAll ? this.defaultList : []), ...this.statusList];
+    if (this.needExpand) {
+      return this.isExpand ? list : list.slice(0, 1);
+    }
+    return list;
   }
 
   render() {
@@ -77,6 +86,7 @@ export default class StatusTab extends tsc<IProps, IEvents> {
       <div class='status-tab-wrap'>
         {this.localStatusList.map(item => (
           <span
+            key={item.id}
             class={['common-status-wrap status-tab-item', { active: this.value === item.id }]}
             v-bk-tooltips={{
               content: item.tips,
@@ -93,6 +103,16 @@ export default class StatusTab extends tsc<IProps, IEvents> {
             {(!!item.name || item.name === 0) && <span class='status-count'>{item.name}</span>}
           </span>
         ))}
+        {this.needExpand && (
+          <div
+            class={['expand-btn', { expand: this.isExpand }]}
+            onClick={() => {
+              this.isExpand = !this.isExpand;
+            }}
+          >
+            <span class='icon-monitor icon-arrow-right' />
+          </div>
+        )}
       </div>
     );
   }
