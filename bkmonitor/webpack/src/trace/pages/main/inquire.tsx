@@ -72,6 +72,7 @@ import {
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
   VIEWOPTIONS_KEY,
+  useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
@@ -263,6 +264,8 @@ export default defineComponent({
       }
     };
     setSelectedTypeByRoute();
+
+    useIsEnabledProfilingProvider(enableProfiling);
 
     const handleLeftHiddenAndShow = (val: boolean) => {
       state.showLeft = val;
@@ -1617,7 +1620,6 @@ export default defineComponent({
                 appList={appList.value}
                 appName={state.app}
                 emptyApp={isEmptyApp.value}
-                enableProfiling={enableProfiling.value}
                 isAlreadyAccurateQuery={state.isAlreadyAccurateQuery}
                 isAlreadyScopeQuery={state.isAlreadyScopeQuery}
                 queryType={state.searchType}

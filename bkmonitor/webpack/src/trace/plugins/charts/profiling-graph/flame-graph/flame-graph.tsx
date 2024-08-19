@@ -49,6 +49,7 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
+import { useIsEnabledProfilingInject } from '../../../hooks';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
 
@@ -123,13 +124,11 @@ export default defineComponent({
       type: String as () => ProfileDataUnit,
       default: 'nanoseconds',
     },
-    enableProfiling: {
-      type: Boolean,
-      default: false,
-    },
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
   setup(props, { emit, expose }) {
+    // 注入响应式变量
+    const enableProfiling = useIsEnabledProfilingInject();
     const chartRef = ref<HTMLElement>(null);
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
@@ -170,7 +169,7 @@ export default defineComponent({
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data = props.data
             ? props.data
-            : props.enableProfiling &&
+            : enableProfiling.value &&
               ((
                 await query(
                   {
@@ -523,6 +522,7 @@ export default defineComponent({
       handleShowLegend,
       diffPercentList,
       localIsCompared,
+      enableProfiling,
     };
   },
   render() {

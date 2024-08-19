@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, computed, defineComponent, provide, inject, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
@@ -133,9 +133,6 @@ export default defineComponent({
     provide('originSpanStartTime', originSpanStartTime);
     const originSpanEndTime = ref(0);
     provide('originSpanEndTime', originSpanEndTime);
-
-    // 接收提供的值
-    const enableProfiling = inject<Ref<boolean>>('enable_profiling');
 
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
@@ -1238,7 +1235,6 @@ export default defineComponent({
                           <ProfilingFlameGraph
                             appName={appName.value}
                             bizId={bizId.value}
-                            enableProfiling={enableProfiling.value}
                             end={profilingRerieveEndTime}
                             profileId={originalData.value.span_id}
                             serviceName={serviceNameProvider.value}
