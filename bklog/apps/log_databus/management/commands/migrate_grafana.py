@@ -1,4 +1,5 @@
 import inspect
+import re
 import time
 
 from django.core.management.base import BaseCommand
@@ -122,7 +123,7 @@ class Command(BaseCommand):
         return all_data, failed_biz
 
     def check_org_name(self, org_id, org_name, failed_biz):
-        if not org_name.isdigit():
+        if not re.match(r'^-?\d+$', org_name):
             self.show_error(f"SKIP process org_id {org_id} -- org_name(biz_id) {org_name}: invalid biz_id")
             self.record_error(failed_biz, org_name, "org_name is illegal")
             return False
