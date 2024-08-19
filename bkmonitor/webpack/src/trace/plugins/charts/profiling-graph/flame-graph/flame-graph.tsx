@@ -123,6 +123,10 @@ export default defineComponent({
       type: String as () => ProfileDataUnit,
       default: 'nanoseconds',
     },
+    enableProfiling: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
   setup(props, { emit, expose }) {
@@ -166,7 +170,8 @@ export default defineComponent({
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data = props.data
             ? props.data
-            : (
+            : props.enableProfiling &&
+              ((
                 await query(
                   {
                     bk_biz_id: bizId,
@@ -181,7 +186,8 @@ export default defineComponent({
                     needCancel: true,
                   }
                 ).catch(() => false)
-              )?.flame_data ?? false;
+              )?.flame_data ??
+                false);
 
           if (data) {
             if (props.diffTraceId) {
@@ -520,6 +526,17 @@ export default defineComponent({
     };
   },
   render() {
+    if (!this.enableProfiling)
+      return (
+        <div class='exception-guide-wrap'>
+          <Exception type='building'>
+            <span>{this.$t('暂未开启 Profiling 功能')}</span>
+            <div class='text-wrap'>
+              <pre class='text-row'>{this.$t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
+            </div>
+          </Exception>
+        </div>
+      );
     if (this.showException)
       return (
         <Exception

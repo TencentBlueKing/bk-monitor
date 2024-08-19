@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, ref, watch, provide } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -84,6 +84,10 @@ export default defineComponent({
       type: Object as PropType<Span>,
       default: () => null,
     },
+    enableProfiling: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: [
     'changeQuery',
@@ -103,6 +107,19 @@ export default defineComponent({
     const emptyTextMap = {
       'empty-app': t('暂无应用'),
     };
+
+    const enableProfiling = ref(props.enableProfiling);
+
+    // 监听 props.enableProfiling 的变化
+    watch(
+      () => props.enableProfiling,
+      newVal => {
+        enableProfiling.value = newVal;
+      }
+    );
+
+    // 将 enableProfiling 提供给后代组件
+    provide('enable_profiling', enableProfiling);
 
     const store = useTraceStore();
 
