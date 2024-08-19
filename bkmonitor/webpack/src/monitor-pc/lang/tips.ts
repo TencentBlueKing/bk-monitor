@@ -113,7 +113,7 @@ export default {
     'Provides metrics such as single point availability, response time, and expected response code',
   '直接进行{0}，定位到 Trace 详情': 'Directly perform {0}, locate Trace details',
   '自定义上报指标和插件采集指标请勾选映射规则，K8S系统指标可以不勾选。':
-    'Please check the mapping rules for custom reporting metrics and plug-in collection metrics, and K8s system metrics can not be checked. ', // 确定位置
+    'Please check the mapping rules for custom reporting metrics and plugin collection metrics, and K8s system metrics can not be checked. ', // 确定位置
   '若不同时删除掉，相关联的策略配置则会成为失效策略':
     'if not deleted at the same time, the associated rule will become an invalid rule',
   '该指标需设置期望返回码/期望响应信息后才可选取':
@@ -253,6 +253,7 @@ export default {
     'The export YAML function is used for As Code. If you need to import and export policies, please go to {0} to perform operations.',
   // 故障
   节点图例: 'Node Legend',
+  标签图例: 'Tag Legend',
   反馈的根因: 'Feedback Root',
   边图例: 'Edge Legend',
   从属关系: 'Subordinate',
@@ -264,8 +265,10 @@ export default {
   不聚合: 'No',
   聚合异常: 'Error ',
   查看资源: 'View Resource',
+  查看从属: 'View Dependencies',
   反馈新根因: 'New Feedback',
   所属业务: 'Business',
+  '已恢复 / 已解决 / 已失效告警': 'Recovered / Resolved / Expired Alerts',
   包含告警: 'Alarm',
   '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
 

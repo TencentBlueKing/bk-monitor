@@ -4,7 +4,7 @@
 import abc
 import json
 import logging
-from typing import List
+from typing import List, Optional
 
 import six
 from django.conf import settings
@@ -179,3 +179,74 @@ class GetProjectsResource(BcsApiBaseResource):
             }
             for p in project_list
         ]
+
+
+class GetFederationClustersResource(BcsApiBaseResource):
+    """查询联邦集群信息"""
+
+    action = "/federationmanager/v1/clusters/all/sub_clusters"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        fed_project_code = serializers.CharField(required=False, allow_blank=True)
+        fed_cluster_id = serializers.CharField(required=False, allow_blank=True)
+        sub_project_code = serializers.CharField(required=False, allow_blank=True)
+        sub_cluster_id = serializers.CharField(required=False, allow_blank=True)
+
+    def full_request_data(self, validated_request_data):
+        return validated_request_data
+
+    def perform_request(self, validated_request_data):
+        data = self._get_request_data(validated_request_data)
+        resp = super(GetFederationClustersResource, self).perform_request(data)
+        return self._refine_cluster(resp)
+
+    def _refine_cluster(self, resp: Optional[List] = None):
+        """处理返回的集群信息
+        格式:
+        {
+            "{federation_cluster_id}": {
+                "host_cluster_id": "{host_cluster_id}",
+                "sub_clusters": {
+                    "{sub_cluster_id}": [namespace1, namespace2, namespace3]
+                }
+            }
+        }
+        """
+        if resp is None:
+            return {}
+        resp_data = {}
+        for data in resp:
+            sub_item = {}
+            for sub in data["sub_clusters"]:
+                sub_item.setdefault(sub["sub_cluster_id"], []).extend(sub.get("federation_namespaces", []))
+            resp_data.setdefault(data["federation_cluster_id"], {}).update(
+                {
+                    "host_cluster_id": data["host_cluster_id"],
+                    "sub_clusters": sub_item,
+                }
+            )
+        return resp_data
+
+    def _get_request_data(self, validated_request_data):
+        data = {}
+        fed_project_code = validated_request_data.get("fed_project_code")
+        fed_cluster_id = validated_request_data.get("fed_cluster_id")
+        # 添加联邦集群的查询条件
+        if fed_project_code or fed_cluster_id:
+            data["conditions"] = {}
+            if fed_project_code:
+                data["conditions"]["project_code"] = fed_project_code
+            if fed_cluster_id:
+                data["conditions"]["cluster_id"] = fed_cluster_id
+        # 添加子集群的查询条件
+        sub_project_code = validated_request_data.get("sub_project_code")
+        sub_cluster_id = validated_request_data.get("sub_cluster_id")
+        if sub_project_code or sub_cluster_id:
+            data["sub_conditions"] = {}
+            if sub_project_code:
+                data["sub_conditions"]["project_code"] = sub_project_code
+            if sub_cluster_id:
+                data["sub_conditions"]["sub_cluster_id"] = sub_cluster_id
+
+        return data

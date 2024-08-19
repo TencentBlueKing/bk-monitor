@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 
 from alarm_backends.constants import (
+    CONST_HALF_MINUTE,
     CONST_MINUTES,
     CONST_ONE_DAY,
     CONST_ONE_HOUR,
@@ -527,16 +528,6 @@ ALERT_FIRST_HANDLE_RECORD = register_key_with_config(
     }
 )
 
-ALERT_CONTENT_KEY = register_key_with_config(
-    {
-        "label": "[alert]当前正在产生的告警内容",
-        "key_type": "string",
-        "key_tpl": "alert.builder.{dedupe_md5}.content",
-        "ttl": 2 * CONST_ONE_HOUR,
-        "backend": "service",
-    }
-)
-
 ALERT_DEDUPE_CONTENT_KEY = register_key_with_config(
     {
         "label": "[alert]当前正在产生的告警内容",
@@ -583,6 +574,16 @@ ALERT_UUID_SEQUENCE = register_key_with_config(
         "key_type": "string",
         "key_tpl": "alert.uuid_sequence",
         "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+ALERT_SHIELD_SNAPSHOT = register_key_with_config(
+    {
+        "label": "[alert] 告警对应当前业务的屏蔽匹配结果",
+        "key_type": "string",
+        "key_tpl": "alert.shield.result.{strategy_id}.{alert_id}",
+        "ttl": CONST_HALF_MINUTE,
         "backend": "service",
     }
 )

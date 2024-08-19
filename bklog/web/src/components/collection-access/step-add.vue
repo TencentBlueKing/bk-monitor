@@ -398,13 +398,9 @@
                     <template #title>
                       <div>
                         <i class="bk-icon icon-info"></i>
-                        <i18n path="采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。">
-                          <span
-                            class="tips-btn"
-                            @click="handleUpdateCollector"
-                            >{{ $t('升级') }}</span
-                          >
-                        </i18n>
+                        <span>
+                          {{ $t('采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本') }}
+                        </span>
                       </div>
                     </template>
                   </bk-alert>
@@ -1259,7 +1255,7 @@
           this.$nextTick(() => {
             // 克隆时不缓存初始数据
             // 编辑采集项时缓存初始数据 用于对比提交时是否发生变化 未修改则不重新提交 update 接口
-            this.localParams = this.handleParams(true);
+            this.localParams = this.handleParams();
             const { description, collector_config_name, ...otherVal } = this.localParams;
             this.editComparedData = otherVal;
           });
@@ -1593,15 +1589,14 @@
           })
           .finally(() => {
             this.isHandle = false;
-            this.$emit('update:containerLoading', false);
+            this.$emit('update:container-loading', false);
           });
       },
       /**
        * @desc: 获取提交参数
-       * @param {Boolean} isEdit 是否时编辑的参数
        * @returns {Object} 返回提交参数数据
        */
-      handleParams(isEdit = false) {
+      handleParams() {
         const formData = deepClone(this.formData);
         const {
           collector_config_name,
@@ -1679,7 +1674,7 @@
               item.params.paths = [];
               item.params.exclude_files = [];
             }
-            item.params = this.filterParams(item.params, isEdit);
+            item.params = this.filterParams(item.params);
           });
           containerFromData.extra_labels = extraLabels.filter(item => !(item.key === '' && item.value === ''));
           return Object.assign(containerFromData, {
@@ -1687,7 +1682,7 @@
             bk_biz_id: this.bkBizId,
           });
         }
-        const physicsParams = this.filterParams(params, isEdit);
+        const physicsParams = this.filterParams(params);
         // 物理环境
         Object.assign(physicsFromData, publicFromData, {
           target_node_type,
@@ -1720,6 +1715,11 @@
             delete params.multiline_pattern;
             delete params.multiline_max_lines;
             delete params.multiline_timeout;
+          }
+          const { separator, separator_filters, type } = params.conditions;
+          params.conditions = { type };
+          if (type !== 'none') {
+            Object.assign(params.conditions, { separator, separator_filters });
           }
           params.paths = params.paths.map(item => (typeof item === 'object' ? item.value : item)) || [];
           params.exclude_files =
@@ -2279,12 +2279,6 @@
       isShowContainerTips(configItem) {
         const { containerExclude, namespacesExclude } = configItem.noQuestParams;
         return [containerExclude, namespacesExclude].includes('!=');
-      },
-      handleUpdateCollector() {
-        const projectItem = this.localClusterList.find(item => item.id === this.formData.bcs_cluster_id);
-        const findSpace = this.mySpaceList.find(item => item.space_code === projectItem.project_id);
-        const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_id}/log-collector`;
-        window.open(url, '_blank');
       },
       /** 判断除基本信息外是否有更改过值 */
       isUpdateIssuedShowValue() {

@@ -17,14 +17,22 @@ from typing import Dict
 from pika.adapters.blocking_connection import BlockingChannel
 from pika.spec import Basic
 
+from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
 from bkmonitor.aiops.incident.models import IncidentSnapshot
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
+from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentDocument, IncidentSnapshotDocument
-from constants.incident import IncidentStatus, IncidentSyncType
+from constants.alert import EventStatus
+from constants.incident import (
+    IncidentGraphComponentType,
+    IncidentStatus,
+    IncidentSyncType,
+)
 from core.drf_resource import api
+from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("access.incident")
 
@@ -94,8 +102,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             # 补充快照记录并写入ES
             incident_document.snapshot = snapshot
+            incident_document.alert_count = len(snapshot.alerts)
             snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
-            incident_document.generate_labels(snapshot_model)
+            self.generate_incident_labels(incident_document, snapshot_model)
             incident_document.generate_handlers(snapshot_model)
             incident_document.generate_assignees(snapshot_model)
             api.bkdata.update_incident_detail(
@@ -133,7 +142,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         try:
             incident_info = sync_info["incident_info"]
             incident_info["incident_id"] = sync_info["incident_id"]
-            incident_document = IncidentDocument(**incident_info)
+            incident_document = IncidentDocument.get(
+                f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
+            )
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"]:
                 snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
 
@@ -149,6 +160,10 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 )
 
             logger.info(f"[UPDATE]Success to init incident[{sync_info['incident_id']}] data")
+        except IncidentNotFoundError as e:
+            logger.warn(f"[UPDATE]Access incident error: {e}, CREATE IT", exc_info=True)
+            self.create_incident(sync_info)
+            return
         except Exception as e:
             logger.error(f"[UPDATE]Access incident error: {e}", exc_info=True)
             return
@@ -159,9 +174,11 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
 
                 # 补充快照记录并写入ES
+                self.generate_alert_operations(incident_document.snapshot, snapshot)
                 incident_document.snapshot = snapshot
+                incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
-                incident_document.generate_labels(snapshot_model)
+                self.generate_incident_labels(incident_document, snapshot_model)
                 incident_document.generate_handlers(snapshot_model)
                 incident_document.generate_assignees(snapshot_model)
                 api.bkdata.update_incident_detail(
@@ -195,7 +212,56 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                             incident_id=sync_info["incident_id"],
                             end_time=incident_document.end_time,
                         )
-                        IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
+                setattr(incident_document, incident_key, update_info["to"])
+
+            IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
             return
+
+    def generate_incident_labels(self, incident, snapshot) -> None:
+        """生成故障标签
+
+        :param snapshot: 故障分析结果图谱快照信息
+        """
+        strategy_ids = set()
+        for incident_alert in snapshot.alert_entity_mapping.values():
+            if incident_alert.entity.component_type == IncidentGraphComponentType.PRIMARY:
+                strategy_ids.add(incident_alert.strategy_id)
+
+        strategies = StrategyCacheManager.get_strategy_by_ids(list(strategy_ids))
+        labels = []
+        for strategy in strategies:
+            labels.extend(strategy["labels"])
+        whole_labels = list(set(labels) | set(incident.labels))
+        incident.labels = whole_labels
+
+    def generate_alert_operations(
+        self, last_snapshot: IncidentSnapshotDocument, snapshot: IncidentSnapshotDocument
+    ) -> None:
+        """生成故障快照记录的告警操作记录."""
+        last_snapshot_alerts = {item["id"]: item for item in last_snapshot.content.incident_alerts}
+        for item in snapshot.content.incident_alerts:
+            alert_doc = AlertDocument.get(item["id"])
+            if item["id"] not in last_snapshot_alerts:
+                IncidentOperationManager.record_incident_alert_trigger(
+                    last_snapshot.incident_id,
+                    int(int(item["alert_time"]) / 1000),
+                    alert_doc.alert_name,
+                    item["id"],
+                )
+            elif (
+                item["id"] in last_snapshot_alerts
+                and last_snapshot_alerts[item["id"]]["alert_status"] != item["alert_status"]
+            ):
+                operation = {
+                    EventStatus.RECOVERED: IncidentOperationManager.record_incident_alert_recover,
+                    EventStatus.CLOSED: IncidentOperationManager.record_incident_alert_invalid,
+                }.get(item["alert_status"])
+                if operation:
+                    operation(
+                        last_snapshot.incident_id,
+                        int(int(item["alert_time"]) / 1000),
+                        alert_doc.alert_name,
+                        item["id"],
+                    )

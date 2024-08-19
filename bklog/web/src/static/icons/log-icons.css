@@ -421,3 +421,11 @@
 .icon-log-trend:before {
   content: '\e18c';
 }
+
+.icon-new-alarm:before {
+  content: '\e18d';
+}
+
+.icon-sudden-increase:before {
+  content: '\e18e';
+}

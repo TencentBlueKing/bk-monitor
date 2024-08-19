@@ -744,6 +744,7 @@ class DutyArrange(AbstractRecordModel):
         # update old duty arranges
         for duty_hash, duty_data in existed_duty.items():
             duty = existed_duty_instances[duty_hash]
+            duty_data[instance_id_key] = instance.id
             for attr, value in duty_data.items():
                 setattr(duty, attr, value)
             duty.save()

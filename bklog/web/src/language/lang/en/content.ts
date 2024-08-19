@@ -98,12 +98,12 @@ export default {
   设置显示字段: 'Set display fields',
   暂未进行检索: 'No search yet',
   优化查询语句: 'Optimize query statements',
-  近24H新增: 'Added in the last 24 hours',
+  仅查看新类: 'Just view new class strategy',
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
   上次检测时间: 'Last time',
-  腾讯蓝鲸智云: 'Tencent BlueKing',
+  蓝鲸智云: 'BlueKing',
   业务DEMO: 'Demo',
   体验DEMO: 'Demo',
   最大字段长度: 'Maximum field length',
@@ -326,7 +326,7 @@ export default {
   '字段名匹配(*代表通配符)：': 'Field name matching (* stands for wildcard):',
   '当前业务没有接入调用链日志，': 'The current business has not accessed the trace logs,',
   '文本类型不支持 {n} 操作': 'Text type does not support {n} operation',
-  当前索引集不支持字段提取设置: 'The current index set does not support field extraction settings',
+  当前索引集不支持日志聚类设置: 'The current index set does not support log cluster settings',
   '{n}不规范, 包含特殊符号': '{n} is not standard, contains special characters',
   查询命中pattern的日志: 'Query logs that hit the pattern',
   日志数据已进入数据平台或ES: 'The log data has entered the data platform or es',
@@ -378,7 +378,7 @@ export default {
   '当前仓库名称为{n}，确认要删除？': 'The current store name is {n}, confirm to delete?',
   '当前是否有数据源，如果没有请 {0}': 'Is there a data source currently? if not, please {0}',
   '无分词字段 请前往 {0} 调整清洗': 'No tokenization field. please go to {0} to adjust parsing',
-  '显示字段（已选 {0} / {1})': 'Display fields (selected {0} / {1})',
+  '显示字段（已选 {0} 条)': 'Display fields ({0} selected)',
   设置了时间格式后将替换默认的数据时间: 'Setting a time format will replace the default data time',
   '未部署基础计算平台，无法进行高级清洗': 'Advanced parsing cannot be performed without basic BK-Base deployment',
   '按行过滤: 从第{0}行到第{1}行': 'Filter by line: from line {0} to line {1}',
@@ -425,8 +425,8 @@ export default {
     'Supports drag and drop to change order, those above have a higher sorting weight',
   '只能设置一个数据时间，如果要更改请先取消原来的':
     'Only one data time can be set, if you want to change it, please cancel the previous one first',
-  '您当前没有业务--${n}的权限，请先申请吧！':
-    'You currently do not have permission for business--${n}, please apply first!',
+  '您当前没有业务--{n}的权限，请先申请吧！':
+    'You currently do not have permission for business--{n}, please apply first!',
   '平台默认的集群不允许编辑和删除，请联系管理员。':
     'Editing and deletion are not allowed for default clusters, please contact the administrator',
   '支持拖拽更改顺序，从上向下对应列表列从左到右顺序':
@@ -662,8 +662,8 @@ export default {
   当前显示全部字段: 'Currently showing all fields',
   显示全部字段: 'Currently showing all fields',
   新开标签页: 'New tab',
-  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。':
-    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本':
+    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please ensure that the collector has been upgraded to the latest version.',
   '输入自定义同比，按 Enter 确认': 'Enter custom year-on-year and press enter to confirm',
   将分组作为列展示: 'Display groups as columns',
   '如需根据某些维度拆分聚类结果，可将字段设置为维度。':
@@ -808,12 +808,34 @@ export default {
   不等于: 'Not equal to',
   正则不匹配: 'Regular expression mismatch',
   路径黑名单: 'Path blacklist',
-  '设定排除路径，路径之间为或的关系': 'Set exclusion paths, the relationship between paths is OR',
-  '过滤器支持采集时过滤不符合的日志内容，需采集器版本 7.7.2及以上版本':
-    'The filter supports filtering non-conforming log content during collection, requires collector version 7.7.2 and above',
+  '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
+  '过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本':
+    'The filter supports filtering non-conforming log content during collection, please ensure that the collector has been upgraded to the latest version.',
   操作符: 'Operator',
   新增过滤组: 'Add filter group',
   请输入列数: 'Please enter the number of columns',
   请输入日志样例: 'Please enter a log sample',
   '第{n}行': '{n} line',
+  '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
+  分隔符匹配: 'Delimiter match',
+  默认定位: 'Default target',
+  上下文命中: 'Context hit',
+  高亮: 'Highlight',
+  '当前页面提供快速配置，如需完整配置，请前往{0}':
+    'The current page provides quick configuration. For complete configuration, please go to {0}',
+  新建完整策略: 'Create a new complete strategy',
+  低: 'Low',
+  高: 'High',
+  致命: 'Fatal',
+  预警: 'Warning',
+  提醒: 'Remind',
+  变化敏感度: 'Change sensitivity',
+  数量突增告警策略: 'Volume surge strategy',
+  '策略：': 'Strategy: ',
+  '是否删除该策略？': 'Has this policy been deleted?',
+  请先删除策略: 'Please delete the strategy first.',
+  '每隔 n（整数）天数，再次产生的日志模式将视为新类':
+    'Every n (integer) days, the log pattern generated again will be treated as a new class.',
+  新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
+  请先新建新类告警策略: 'Please create a new category strategy first',
 };

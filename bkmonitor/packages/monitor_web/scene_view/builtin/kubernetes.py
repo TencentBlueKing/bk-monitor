@@ -547,10 +547,14 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
             else:
                 # 添加新的面板，追加到之前的面板后面
                 panels = order_groups_map[group_id]["panels"]
-                old_panel_id_set = {panel["id"] for panel in panels}
+                old_panel_id_set = {panel["id"]: index for index, panel in enumerate(panels)}
+                panel_ids_set |= set(old_panel_id_set.keys())
                 new_panels = copy.deepcopy(panels)
                 for panel in group["panels"]:
-                    if panel["id"] not in old_panel_id_set:
+                    if panel["id"] in old_panel_id_set:
+                        index = old_panel_id_set[panel["id"]]
+                        new_panels[index] = panel
+                    else:
                         new_panels.append(panel)
                         panel_ids_set.add(panel["id"])
                 order_groups_map[group_id]["panels"] = new_panels

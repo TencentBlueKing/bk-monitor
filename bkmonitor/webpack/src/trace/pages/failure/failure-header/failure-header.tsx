@@ -94,6 +94,7 @@ export default defineComponent({
       incidentAlertAggregate({
         id: incidentId.value,
         aggregate_bys: [],
+        bk_biz_ids: [-1],
       })
         .then(res => {
           alertAggregateData.value = res;
@@ -109,7 +110,10 @@ export default defineComponent({
         .finally(() => (listLoading.value = false));
     };
     const handleBack = () => {
-      router.go(-1);
+      const { bk_biz_id } = incidentDetail.value;
+      const { origin, pathname } = location;
+      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident`;
+      window.location.href = url;
     };
     /** 一期先不展示 */
     // const tipsItem = (val: number) => (
@@ -383,6 +387,7 @@ export default defineComponent({
           alertIds={this.chatGroupDialog.alertIds}
           assignee={this.chatGroupDialog.assignee}
           data={this.incidentDetailData}
+          type={'incident'}
           show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />

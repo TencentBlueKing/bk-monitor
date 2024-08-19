@@ -794,6 +794,7 @@ class Shield(AbstractRecordModel):
         ("ip", "IP"),
         ("node", _lazy("节点")),
         ("biz", _lazy("业务")),
+        ("dynamic_group", _lazy("动态分组")),
     )
 
     bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
@@ -849,6 +850,7 @@ class CacheNode(Model):
     is_enable = models.BooleanField("是否启用", default=True)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     is_default = models.BooleanField("默认节点", default=False)
+    node_alias = models.CharField(verbose_name="节点别名", max_length=128, default="")
 
     class Meta:
         verbose_name = "后台缓存节点"
@@ -927,7 +929,7 @@ class CacheNode(Model):
         return node
 
     def __str__(self):
-        node_id = f"{self.cache_type}-{self.host}:{self.port}"
+        node_id = f"[{self.node_alias}]{self.cache_type}-{self.host}:{self.port}"
         if self.cache_type == "SentinelRedisCache":
             node_id += f"-{self.connection_kwargs.get('master_name')}"
         return node_id
@@ -957,6 +959,17 @@ class CacheRouter(Model):
         verbose_name = "后台缓存路由"
         verbose_name_plural = "后台缓存路由"
         db_table = "alarm_cacherouter"
+
+    @classmethod
+    def list_router(cls):
+        from alarm_backends.core.cluster import get_cluster
+
+        cluster_name = get_cluster().name
+        query = cls.objects.filter(cluster_name=cluster_name)
+        routers = list(query.values("id", "strategy_score", "node_id"))
+        for router in routers:
+            router["node_name"] = CacheNode.objects.get(id=router["node_id"]).node_alias
+        return routers
 
     @classmethod
     def add_router(cls, node, score_floor=0, score_ceil=2**20):

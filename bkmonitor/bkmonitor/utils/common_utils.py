@@ -41,6 +41,7 @@ from bkmonitor.utils import time_tools
 from bkmonitor.utils.text import camel_to_underscore
 from constants.cmdb import BIZ_ID_FIELD_NAMES
 from constants.result_table import RT_RESERVED_WORD_EXACT, RT_RESERVED_WORD_FUZZY
+from core.errors import ErrorDetails
 from core.errors.dataapi import TSDBParseError
 
 logger = logging.getLogger(__name__)
@@ -152,12 +153,37 @@ def ok(message="", **options):
     return result
 
 
-def failed(message="", **options):
+def failed(message="", error_code=None, error_name=None, exc_type=None, popup_type=None, **options):
+    """
+    生成标准化错误响应字典
+    :param message: 错误信息，可以是任何类型。它将被转换为字符串。
+    :param error_code 错误编码
+    :param error_name 错误名称
+    :param exc_type 错误类型
+    :param popup_type 弹窗类型（danger为红框，warn为黄框）
+    :param options: 附加的键值对，将包含在响应字典中。
+
+    :return: 包含错误响应的字典，键包括：'code' 'name' 'result', 'message', 'data', 'msg' 'error_details'。
+    """
     if not isinstance(message, str):
         if isinstance(message, str):
             message = message.encode("utf-8")
         message = str(message)
-    result = {"result": False, "message": message, "data": {}, "msg": message}
+    result = {
+        "code": error_code,
+        "name": error_name,
+        "result": False,
+        "message": message,
+        "data": {},
+        "msg": message,
+        "error_details": ErrorDetails(
+            exc_type=exc_type,
+            exc_code=error_code,
+            overview=message,
+            detail=message,
+            popup_message=popup_type if popup_type else "warn",  # 默认均为warn
+        ).to_dict(),
+    }
     result.update(**options)
     return result
 

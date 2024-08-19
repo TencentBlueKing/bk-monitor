@@ -35,7 +35,7 @@
 			],
 			"settings": {
 				"python.analysis.autoFormatStrings": true,
-				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"python.defaultInterpreterPath": "/app/code/venv/bin/python",
 				"python.languageServer": "Pylance",
 				"python.analysis.importFormat": "absolute",
 				"python.analysis.autoImportCompletions": true,

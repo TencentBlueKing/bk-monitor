@@ -291,7 +291,7 @@ export default defineComponent({
           await getQueryOptions();
         }
         if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery)) {
-          if (state.isAlreadyScopeQuery) reGetFieldOptionValues(); 
+          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
           handleQueryScopeDebounce();
         }
 
@@ -414,18 +414,16 @@ export default defineComponent({
           if (item.value.length) filters.push(item);
         });
       } else {
-        const {
-          conditionList: conditionListStringify,
-        } = route.query;
-        if(conditionListStringify) {
+        const { conditionList: conditionListStringify } = route.query;
+        if (conditionListStringify) {
           const result = JSON.parse(conditionListStringify as string);
-          for(const key in result) {
-            if(result[key]?.selectedConditionValue?.length) {
+          for (const key in result) {
+            if (result[key]?.selectedConditionValue?.length) {
               filters.push({
                 key,
                 operator: result[key].selectedCondition.value,
                 value: result[key].selectedConditionValue,
-              })
+              });
             }
           }
         }
@@ -788,7 +786,7 @@ export default defineComponent({
     function handleSelectCollect(id: number) {
       state.searchType = 'scope';
       const collectItem = collectList.value.find(item => String(item.id) === String(id));
-      const { componentData } = collectItem?.config;
+      const { componentData } = collectItem.config;
       state.app = componentData.app;
       if (componentData.scopeSelects) {
         Object.keys(componentData.scopeSelects).forEach(key => {
@@ -1333,7 +1331,7 @@ export default defineComponent({
       selectedConditions.value.length = 0;
 
       // 添加条件列表
-      Object.keys(result).forEach(key => {
+      for (const key of Object.keys(result)) {
         const singleCondition = {
           selectedCondition: {
             label: '=',
@@ -1366,7 +1364,7 @@ export default defineComponent({
         };
         if (conditionListInQuery[key]) Object.assign(singleCondition, conditionListInQuery[key]);
         conditionList.push(singleCondition);
-      });
+      }
     };
 
     const handleConditionValueChange = (index, v) => {

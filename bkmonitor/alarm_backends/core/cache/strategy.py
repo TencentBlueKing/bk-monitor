@@ -268,6 +268,10 @@ class StrategyCacheManager(CacheManager):
         2. 伪事件型策略的metric_id处理
         """
         for query_config in item["query_configs"]:
+            # promql类型策略无需处理
+            if query_config.get("promql"):
+                continue
+
             data_source_label = query_config["data_source_label"]
             data_type_label = query_config["data_type_label"]
 
@@ -1118,7 +1122,7 @@ class TargetShieldProcessor:
         self.dynamic_nodes = self.get_dynamic_nodes()
         self.cmdb_levels = cmdb_levels
 
-    def get_static_nodes(self) -> Set[Tuple]:
+    def get_static_nodes(self) -> List[Dict]:
         """
         静态节点所属模块列表
         """
@@ -1132,8 +1136,19 @@ class TargetShieldProcessor:
             for host in target["value"]:
                 ip = host.get("bk_target_ip") or host.get("ip", "")
                 bk_cloud_id = host.get("bk_target_cloud_id") or host.get("bk_cloud_id", 0)
-                nodes.add((ip, bk_cloud_id))
-        return nodes
+                bk_host_id = host.get("bk_host_id")
+                nodes.add((ip, bk_cloud_id, bk_host_id))
+
+        records = []
+        for node in nodes:
+            record = {}
+            if node[0]:
+                record.update({"bk_target_ip": node[0], "bk_target_cloud_id": node[1]})
+            if node[2]:
+                record["bk_host_id"] = node[2]
+            if record:
+                records.append(record)
+        return records
 
     def get_dynamic_nodes(self) -> Set[Tuple]:
         """
@@ -1163,7 +1178,7 @@ class TargetShieldProcessor:
         # 将监控目标按节点类型进行条件分组，比分组节点类型层级低的抑制条件会被加入
         # 如同时存在set和module两种节点，则分为两组条件，set分组条件内会加入module类型的抑制条件
         new_conditions: List[List[Dict]] = []
-        if self.dynamic_nodes:
+        if self.dynamic_nodes and target["field"] != TargetFieldType.dynamic_group:
             # 将监控目标节点及抑制节点分别按节点类型分组
             eq_targets: Dict[str, Set] = defaultdict(set)
             neq_targets: Dict[str, Set] = defaultdict(set)
@@ -1220,21 +1235,17 @@ class TargetShieldProcessor:
 
                     new_conditions.append(new_condition)
 
+        # 动态分组处理
+        if target["field"] == TargetFieldType.dynamic_group:
+            new_conditions.append([target])
+
         # 静态节点直接抑制
         if not new_conditions:
             new_conditions = [[]]
 
         if self.static_nodes:
             for condition in new_conditions:
-                condition.append(
-                    {
-                        "field": "bk_target_ip",
-                        "method": "neq",
-                        "value": [
-                            {"bk_target_ip": node[0], "bk_target_cloud_id": node[1]} for node in self.static_nodes
-                        ],
-                    }
-                )
+                condition.append({"field": "bk_target_ip", "method": "neq", "value": self.static_nodes})
 
         strategy["items"][0]["target"] = new_conditions
 

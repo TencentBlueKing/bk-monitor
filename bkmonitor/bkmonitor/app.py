@@ -83,6 +83,11 @@ def _refresh_cache_node(sender, **kwargs):
 
 
 def _migrate_iam(sender, **kwargs):
+    if settings.SKIP_IAM_PERMISSION_CHECK:
+        return
+
     from bkmonitor.migrate import Migrator
 
+    if settings.RUN_MODE == "DEVELOP":
+        return
     Migrator("iam", "bkmonitor.iam.migrations").migrate()

@@ -19,142 +19,171 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from rest_framework.response import Response
+
+from apps.api import MonitorApi
 from apps.generic import APIViewSet
 from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.models import SignatureStrategySettings
 from apps.log_clustering.serializers import (
-    UpdateNewClsStrategySerializer,
-    UpdateStrategiesSerializer,
+    NewClsStrategySerializer,
+    NormalStrategySerializer,
+    StrategyTypeSerializer,
+    UserGroupsSerializer,
 )
-from apps.utils.drf import detail_route
-from rest_framework.response import Response
+from apps.utils.drf import detail_route, list_route
 
 
 class ClusteringMonitorViewSet(APIViewSet):
     lookup_field = "index_set_id"
 
-    @detail_route(methods=["POST"], url_path="update_strategies")
-    def update_strategies(self, request, *args, index_set_id=None, **kwargs):
+    @list_route(methods=["post"], url_path="search_user_groups")
+    def search_user_groups(self, request):
         """
-        @api {post} /clustering_monitor/$index_set_id/update_strategies 6_聚类告警策略-更改
-        @apiName update_strategies
+        @api {get} clustering_monitor/search_user_groups/ 查询通知组
+        @apiName search user groups
         @apiGroup log_clustering
-        @apiParam {str} pattern_level 聚类级别
-        @apiParam {int} bk_biz_id 业务id
-        @apiParam {List} actions 操作列表
-        @apiParam {str} actions.signature 数据指纹
-        @apiParam {str} actions.pattern pattern
-        @apiParam {Int} [actions.strategy_id] 策略id 当更新与删除的时候必传
-        @apiParam {Str} actions.action  update or create or delete 标识创建或更新
-        @apiParam {Str} [actions.operator] 表达式
-        @apiParam {Int} [actions.value] 阈值(暂留)
-        @apiSuccessExample {json} 全部成功
+        @apiSuccessExample {json} 成功返回:
         {
-            "message":"",
-            "code":0,
-            "data":{
-                "result":true,
-                "operators":[
+        "result": true,
+        "data": [
+            {
+                "id": 12,
+                "name": "Kafka_1",
+                "bk_biz_id": 12,
+                "need_duty": false,
+                "channels": [
+                    "user"
+                ],
+                "desc": "",
+                "timezone": "Asia/Shanghai",
+                "update_user": "admin",
+                "update_time": "2024-07-22 11:05:28+0800",
+                "create_user": "db",
+                "create_time": "2023-10-24 14:32:30+0800",
+                "duty_rules": [],
+                "mention_list": [],
+                "mention_type": 1,
+                "app": "",
+                "users": [
                     {
-                        "signature:":"xxx",
-                        "strategy_id":1,
-                        "operator_result":true,
-                        "operator_msg":""
+                        "id": "admin",
+                        "display_name": "admin",
+                        "type": "user"
                     }
-                ]
-            },
-            "result":true
-        }
-        @apiSuccessExample {json} 部分成功
-        {
-            "message":"",
-            "code":0,
-            "data":{
-                "result":false,
-                "operators":[
-                    {
-                        "signature:":"xxx",
-                        "strategy_id":1,
-                        "operator_result":true,
-                        "operator_msg":""
-                    },
-                    {
-                        "signature:":"xxx",
-                        "strategy_id":2,
-                        "operator_result":false,
-                        "operator_msg":"xxx"
-                    }
-                ]
-            },
-            "result":true
+                ],
+                "strategy_count": 0,
+                "rules_count": 1,
+                "delete_allowed": false,
+                "edit_allowed": true,
+                "config_source": "UI"
+                }
+            ]
         }
         """
-        params = self.params_valid(UpdateStrategiesSerializer)
-        return Response(
-            ClusteringMonitorHandler(index_set_id=index_set_id).update_strategies(
-                pattern_level=params["pattern_level"], actions=params["actions"]
-            )
-        )
+        params = self.params_valid(UserGroupsSerializer)
+        data = MonitorApi.search_user_groups({"bk_biz_ids": [params["bk_biz_id"]], "ids": params["ids"]})
+        return Response(data)
 
-    @detail_route(methods=["get"], url_path="get_new_cls_strategy")
-    def get_new_cls_strategy(self, request, *args, index_set_id=None, **kwargs):
+    @detail_route(methods=["get"], url_path="get_strategy")
+    def get_strategy(self, request, index_set_id=None):
         """
-        @api {get} /clustering_monitor/$index_set_id/get_new_cls_strategy 7_聚类告警策略-查询新类告警
-        @apiName get_new_cls_strategy
+        @api {get} clustering_monitor/$index_set_id/get_strategy?strategy_type=$strategy_type 获取告警策略信息
+        @apiName get_strategies
         @apiGroup log_clustering
-        @apiSuccessExample {json} 开启新类告警
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiParams {Str} strategy_type 策略类型
+        @apiSuccessExample {json} 成功返回:
         {
-            "message":"",
-            "code":0,
-            "data":{
-                "is_active": true,
-                "strategy_id": 1
-            },
-            "result":true
-        }
-        @apiSuccessExample {json} 未开启聚类
-        {
-            "message":"",
-            "code":0,
-            "data":{
-                "is_active": false,
-                "strategy_id": null
-            },
-            "result":true
+        "result": true,
+        "data": {
+             "strategy_id": 123,
+             "interval": "7",
+             "threshold": 1,
+             "level": "8",
+             "user_groups": [1,2]
+          }
+          }
+         },
+        "code": 0,
+        "message": ""
         }
         """
-        signature_strategy_setting = SignatureStrategySettings.objects.filter(
-            index_set_id=index_set_id, strategy_type=StrategiesType.NEW_CLS_strategy
+        params = self.params_valid(StrategyTypeSerializer)
+        strategy_type = params["strategy_type"]
+        obj = SignatureStrategySettings.objects.filter(
+            index_set_id=index_set_id,
+            strategy_type=strategy_type,
+            signature="",
         ).first()
-        if not signature_strategy_setting:
-            return Response({"is_active": False, "strategy_id": None})
-        return Response({"is_active": True, "strategy_id": signature_strategy_setting.strategy_id})
+        if not obj or not obj.strategy_id:
+            return Response({})
+        strategy_id = obj.strategy_id
+        return Response(ClusteringMonitorHandler(index_set_id=index_set_id).get_strategy(strategy_type, strategy_id))
 
-    @detail_route(methods=["post"], url_path="update_new_cls_strategy")
-    def update_new_cls_strategy(self, request, *args, index_set_id=None, **kwargs):
+    @detail_route(methods=["post"], url_path="new_cls_strategy")
+    def create_or_update_new_cls_strategy(self, request, index_set_id=None):
         """
-        @api {get} /clustering_monitor/$index_set_id/update_new_cls_strategy 8_聚类告警策略-更新新类告警
-        @apiName update_new_cls_strategy
+        @api {get} clustering_monitor/$index_set_id/new_cls_strategy/ 更新或创建新类告警策略
+        @apiName new_cls_strategy
         @apiGroup log_clustering
-        @apiParam {int} bk_biz_id 业务id
-        @apiParam {Int} [strategy_id] 策略id 当更新与删除的时候必传
-        @apiParam {Str} action  update or create or delete 标识创建或更新
-        @apiParam {Str} [operator] 表达式(暂留)
-        @apiParam {Int} [value] 阈值(暂留)
-        @apiSuccessExample {json} 成功
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiSuccessExample {json} 成功返回:
         {
-            "message":"",
-            "code":0,
-            "data":{
-                "strategy_id": 1
-            },
-            "result":true
+            "result": true,
+            "data": 12345
+            "code": 0,
+            "message": ""
         }
         """
-        params = self.params_valid(UpdateNewClsStrategySerializer)
+        strategy_type = StrategiesType.NEW_CLS_strategy
+        params = self.params_valid(NewClsStrategySerializer)
         return Response(
-            ClusteringMonitorHandler(index_set_id=index_set_id).update_new_cls_strategy(
-                action=params["action"], strategy_id=params.get("strategy_id")
+            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
+                params, strategy_type
             )
         )
+
+    @detail_route(methods=["post"], url_path="normal_strategy")
+    def create_or_update_normal_strategy(self, request, index_set_id=None):
+        """
+        @api {get} clustering_monitor/$index_set_id/new_cls_strategy/ 更新或创建数量突增告警策略
+        @apiName normal_strategy
+        @apiGroup log_clustering
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": 12345
+            "code": 0,
+            "message": ""
+        }
+        """
+        strategy_type = StrategiesType.NORMAL_STRATEGY
+        params = self.params_valid(NormalStrategySerializer)
+
+        return Response(
+            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
+                params, strategy_type
+            )
+        )
+
+    def destroy(self, request, index_set_id=None):
+        """
+        @api {delete} clustering_monitor/$index_set_id/ 删除告警策略
+        @apiName delete_strategy
+        @apiGroup log_clustering
+        @apiSuccess {Str} index_set_id 索引集ID
+        @apiParams {Str} strategy_type 策略类型
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "26",
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(StrategyTypeSerializer)
+        strategy_type = params["strategy_type"]
+        return Response(ClusteringMonitorHandler(index_set_id=index_set_id).delete_strategy(strategy_type))

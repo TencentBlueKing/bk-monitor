@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import DatePicker from '@blueking/date-picker/vue2';
 
-import { updateTimezone } from '../../i18n/dayjs';
+import { isValidTimeZone, updateTimezone } from '../../i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from './utils';
 
 import type { Dayjs } from 'dayjs';
@@ -78,7 +78,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           commonUseList={this.commonUseList}
           modelValue={this.value}
           needTimezone={this.needTimezone}
-          timezone={this.timezone}
+          timezone={isValidTimeZone(this.timezone) ? this.timezone : undefined}
           onChange={this.handleModelValueChange}
           onTimezoneChange={this.handleTimezoneChange}
         />

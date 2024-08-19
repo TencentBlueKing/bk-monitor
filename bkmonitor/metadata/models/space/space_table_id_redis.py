@@ -19,7 +19,7 @@ from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
 from metadata import models
-from metadata.models.constants import DEFAULT_MEASUREMENT, EsSourceType
+from metadata.models.constants import DEFAULT_MEASUREMENT
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -224,17 +224,23 @@ class SpaceTableIDRedis:
             )
             # 查询结果表选项
             tid_options = models.ResultTableOption.objects.filter(table_id__in=table_id_list).values(
-                "table_id", "name", "value"
+                "table_id", "name", "value", "value_type"
             )
         else:
             table_ids = models.ESStorage.objects.values("table_id", "storage_cluster_id", "source_type", "index_set")
             tids = [obj["table_id"] for obj in table_ids]
-            tid_options = models.ResultTableOption.objects.filter(table_id__in=tids).values("table_id", "name", "value")
+            tid_options = models.ResultTableOption.objects.filter(table_id__in=tids).values(
+                "table_id", "name", "value", "value_type"
+            )
 
         tid_options_map = {}
         for option in tid_options:
             try:
-                _option = {option["name"]: json.loads(option["value"])}
+                _option = (
+                    {option["name"]: option["value"]}
+                    if option["value_type"] == models.ResultTableOption.TYPE_STRING
+                    else {option["name"]: json.loads(option["value"])}
+                )
             except Exception:
                 _option = {}
 
@@ -248,14 +254,8 @@ class SpaceTableIDRedis:
             index_set = record["index_set"]
             tid = record["table_id"]
             table_id_db = index_set
-            # 三个场景进行查询规则处理
-            if source_type == EsSourceType.LOG.value:
-                _index_list = index_set.split(",") if index_set else [tid]
-                table_id_db = ",".join([f"{index.replace('.', '_')}_*_read" for index in _index_list])
-            elif source_type == EsSourceType.BKDATA.value:
-                _index_list = index_set.split(",")
-                table_id_db = ",".join([f"{index}_*" for index in _index_list])
 
+            # 索引集，直接按照存储进行路由
             data[tid] = json.dumps(
                 {
                     "storage_id": record.get("storage_cluster_id", 0),
