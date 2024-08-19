@@ -139,13 +139,16 @@ class ServiceInfoResource(Resource):
         app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not app:
             raise ValueError("应用不存在")
+        res["application_id"] = app.application_id
 
         res["is_enabled_profiling"] = app.is_enabled_profiling
+        if app.is_enabled_profiling:
+            # 获取此服务是否有 Profiling 数据
+            count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
+            res["is_profiling_data_normal"] = bool(count)
+        else:
+            res["is_profiling_data_normal"] = False
 
-        # 获取此服务是否有 Profiling 数据
-        count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
-        res["is_profiling_data_normal"] = bool(count)
-        res["application_id"] = app.application_id
         return res
 
     def perform_request(self, validate_data):

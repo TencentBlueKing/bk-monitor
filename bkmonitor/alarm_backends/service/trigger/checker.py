@@ -77,7 +77,9 @@ class AnomalyChecker(object):
         anomaly_records = self.gen_anomaly_records()
         event_record = self.gen_event_record(anomaly_level, anomaly_timestamps)
 
-        result_message = _("[处理结果] ({result}) record({record_id}), " "strategy({strategy_id}), item({item_id})").format(
+        result_message = _(
+            "[trigger 处理结果] ({result}) record({record_id}), " "strategy({strategy_id}), item({item_id})"
+        ).format(
             strategy_id=self.strategy_id,
             item_id=self.item_id,
             record_id=self.point["data"]["record_id"],

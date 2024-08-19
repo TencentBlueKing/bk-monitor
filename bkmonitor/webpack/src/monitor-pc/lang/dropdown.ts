@@ -100,4 +100,7 @@ export default {
   我申请的: 'My Application',
   我的订阅: 'My Subscription',
   基本设置: 'Basic Settings',
+  已通知: 'Notified',
+  已流控: 'Throttled',
+  字段设置: 'Field Settings',
 };

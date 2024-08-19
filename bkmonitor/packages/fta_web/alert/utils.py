@@ -9,6 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import re
+
+from elasticsearch_dsl import Q
 
 
 def slice_by_interval_seconds(start_time: int, end_time: int, interval_seconds: int) -> list:
@@ -65,3 +68,81 @@ def add_aggs(agg_id_map: dict, result: dict, sliced_result: dict):
                 for res_child in result["aggs"][index]["children"]:
                     if res_child["id"] == child["id"]:
                         res_child["count"] += child["count"]
+
+
+def process_stage_string(query_string):
+    patterns = [
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已通知",
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已确认",
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已屏蔽",
+        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已流控",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_handled",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_ack",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_shielded",
+        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_blocked",
+    ]
+    stage_mapping = {
+        "已通知": "is_handled",
+        "已确认": "is_ack",
+        "已屏蔽": "is_shielded",
+        "已流控": "is_blocked",
+        "is_handled": "is_handled",
+        "is_ack": "is_ack",
+        "is_shielded": "is_shielded",
+        "is_blocked": "is_blocked",
+    }
+
+    combined_pattern = '|'.join(patterns)
+    matches = list(re.finditer(combined_pattern, query_string, re.IGNORECASE))
+    extracted_parts = [match.group(0) for match in matches]
+
+    query_string = re.sub(combined_pattern, "", query_string, flags=re.IGNORECASE)
+
+    stage_conditions = []
+    for stage in extracted_parts:
+        if "处理阶段" in stage or "stage" in stage:
+            stage_value = stage.split(":")[1].strip()
+            stage_conditions.append(
+                {
+                    "key": "stage",
+                    "value": [stage_mapping.get(stage_value.lower(), stage_value)],
+                    "condition": stage.split("处理阶段")[0].strip().lower()
+                    if "处理阶段" in stage
+                    else stage.split("stage")[0].strip().lower(),
+                    "method": "eq",
+                }
+            )
+
+    return query_string, stage_conditions
+
+
+def parse_query_str(query_str: str) -> Q:
+    """解析查询字符串，指标ID支持模糊查询，并将其转换为 Elasticsearch 查询对象"""
+
+    def _parse(query_str):
+        """递归解析嵌套的 AND 和 OR 条件"""
+        # 先处理 OR 条件
+        if "OR" in query_str:
+            or_conditions = [cond.strip() for cond in query_str.split("OR")]
+            return Q('bool', should=[_parse(cond) for cond in or_conditions], minimum_should_match=1)
+
+        # 处理 AND 条件
+        and_conditions = [cond.strip() for cond in query_str.split("AND")]
+        must_queries = []
+        for condition in and_conditions:
+            field, value = re.split(r":", condition)
+            field = field.strip()
+            value = value.strip()
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
+
+            # 如果是 event.metric 字段，则使用 wildcard 模糊查询
+            if field == "event.metric":
+                must_queries.append(Q("wildcard", **{field: f"*{value}*"}))
+            else:
+                # 其他字段使用 term 精确查询
+                must_queries.append(Q("term", **{field: value}))
+
+        return Q("bool", must=must_queries)
+
+    return _parse(query_str)

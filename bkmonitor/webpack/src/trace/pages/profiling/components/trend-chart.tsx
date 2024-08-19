@@ -115,8 +115,8 @@ export default defineComponent({
           /** 文件信息的时间单位为 μs（微秒），图表插件需要统一单位为 s（秒），故在此做转换 */
           ...(searchType.value === SearchType.Upload
             ? {
-                start_time: Number.parseInt(String(start / Math.pow(10, 6)), 10),
-                end_time: Number.parseInt(String(end / Math.pow(10, 6)), 10),
+                start_time: Number.parseInt(String(start / 10 ** 6), 10),
+                end_time: Number.parseInt(String(end / 10 ** 6), 10),
               }
             : {}),
         };
@@ -194,6 +194,7 @@ export default defineComponent({
             {this.loading ? (
               <img
                 class='chart-loading-icon'
+                alt='loading'
                 src={loadingIcon}
               />
             ) : undefined}

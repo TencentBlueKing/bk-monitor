@@ -35,7 +35,7 @@ export default {
  - Docs Text：说明文档，主要是大段介绍功能，例如“指标策略指的是可以通过对时序数据进行数据查询和检测，更多请查看文档”
  */
   '自定义上报是一种最灵活和自由的方式上报数据。如果是通过HTTP上报，agent和插件都不需要安装；如果是通过SDK和命令行上报，依赖bkmonitorbeat采集器。':
-    'Custom reporting is the most flexible and free way to report data. If it is reported through HTTP, neither agent nor plug-in needs to be installed; if it is reported through SDK and command line, it depends on the bkmonitorbeat collector. ',
+    'Custom reporting is the most flexible and free way to report data. If it is reported through HTTP, neither agent nor plugin needs to be installed; if it is reported through SDK and command line, it depends on the bkmonitorbeat collector. ',
   '研发项目主要是满足日常的研发代码提交和构建， 在研发项目中提供了构建机监控、APM、自定义指标上报等功能。 研发项目与蓝盾项目直接建立绑定关系，新建研发项目会同步到蓝盾项目。':
     'The R&D project is mainly to meet the daily R&D code submission And construction, in the R&D project, it provides functions such as construction machine monitoring, APM, and custom metric reporting. The R&D project and the Blue Shield project directly establish a binding relationship, and the new R&D project will be synchronized to the Blue Shield project. ',
   '容器项目当前主要指 kubernetes，基于容器管理平台(TKEx-IEG), 接入容器项目后能够满足容器相关的监控和日志采集等。同时蓝盾的研发项目，可以直接开启容器项目能力':
@@ -110,7 +110,7 @@ export default {
   '2、仅对迁移状态为“准备”或“失败”的配置项进行迁移，已经迁移成功的配置项将被忽略':
     '2. Only the migration status is "preparation" or "failed" configuration items to be migrated, configuration items that have been successfully migrated will be ignored',
   '2） 通过插件采集，在Client端进行日志关键字匹配产生事件进行上报。':
-    '2) Through plug-in collection, log keyword matching is performed on the client side to generate events for reporting. ',
+    '2) Through plugin collection, log keyword matching is performed on the client side to generate events for reporting. ',
   提供基于配置平台节点的动态扩缩容:
     'Provides dynamic capacity expansion and contraction based on configuration platform nodes',
   提供开箱即用的K8s服务组件的各种监控视角:
@@ -129,16 +129,16 @@ export default {
   'BK-pull主要是解决那些只暴露了端口服务的数据源。 通过pull拉取目标的数据':
     'BK-pull mainly solves those data sources that only expose port services. Pull target data through pull',
   'Datadog的采集Agent，可以快速的转化为蓝鲸的插件。更多介绍':
-    "Datadog's collection Agent can be quickly converted into a BK plug-in. More introduction",
+    "Datadog's collection Agent can be quickly converted into a BK plugin. More introduction",
   'Exporter 类型插件参数默认值必须包含 ${host} 和 ${port} 变量模板':
-    'Exporter type plug-in parameter default value must contain ${host} and ${port} variable template',
+    'Exporter type plugin parameter default value must contain ${host} and ${port} variable template',
   'Exporter是用于暴露第三方服务的metrics给Prometheus。是Prometheus中重要的一个组件。按蓝鲸监控插件的规范就可以将开源的Exporter插件变成蓝鲸监控的采集能力。 运行的Exporter是go的二进制程序，需要启动进程和占用端口':
-    'Exporter is used to expose the metrics of third-party services to Prometheus. It is an important component in Prometheus. According to the specifications of the BKMonitor plug-in, the open source Exporter plug-in can be turned into the collection capability of BKMonitor. The running Exporter is a go binary program, which needs to start the process and occupy the port ',
+    'Exporter is used to expose the metrics of third-party services to Prometheus. It is an important component in Prometheus. According to the specifications of the BKMonitor plugin, the open source Exporter plugin can be turned into the collection capability of BKMonitor. The running Exporter is a go binary program, which needs to start the process and occupy the port ',
   'Exporter的类型插件需要使用${host} ${port}来定义启动参数。 如 --listen=${host}:${port}':
-    'Exporter type plug-in needs to use ${ host} ${port} to define startup parameters. Such as --listen=${host}:${port}',
+    'Exporter type plugin needs to use ${ host} ${port} to define startup parameters. Such as --listen=${host}:${port}',
   'Prometheus Metrics 标准格式': 'Prometheus Metrics standard format',
   'Prometheus的Exporter采集组件，可以快速转化为蓝鲸的插件。 更多介绍':
-    'The Exporter collection component of Prometheus can be quickly converted into a BK plug-in. More introduction',
+    'The Exporter collection component of Prometheus can be quickly converted into a BK plugin. More introduction',
   'Script就是由用户自定义脚本进行Metrics采集。只要符合监控的标准格式就可以把数据采集上来。 支持的脚本有：':
     'Script is a user-defined script for Metrics collection. As long as it conforms to the standard format of monitoring, the data can be collected. Supported scripts are: ',
   'JMX可以采集任何开启了JMX服务端口的java进程的服务状态，通过jmx采集java进程的jvm信息，包括gc耗时、gc次数、gc吞吐、老年代使用率、新生代晋升大小、活跃线程数等信息':
@@ -201,7 +201,7 @@ export default {
   '可以制作插件、批量导出导入配置、可自定义数据采集':
     'Can create plugins, batch export and import configurations, and customize data collection.',
   '可以定义远程拉取的插件，如拉取pushgateway的数据。更多介绍':
-    'You can define the plug-in for remote pulling, such as pulling the data of pushgateway. More introduction',
+    'You can define the plugin for remote pulling, such as pulling the data of pushgateway. More introduction',
   '可以批量导入插件,采集配置,策略配置等. 建议:导入的监控目标相同.':
     'Can import plug-ins, collection configurations, alert rules, etc. in batches. Suggestion: The imported monitoring targets are the same.',
   '可以批量导出采集配置,策略配置和相应的依赖. 注意:不包括监控目标.':
@@ -214,7 +214,7 @@ export default {
   '日志即通过日志关键字匹配的数量进行告警，主要有两种':
     'The log is used to alert based on the number of log keyword matches. There are two main types',
   '日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。':
-    'Log keyword plug-in counts the key matches of log files , and store the latest original log content. ',
+    'Log keyword plugin counts the key matches of log files , and store the latest original log content. ',
   '日志关键字：日志关键字能力有两种，日志平台基于ES存储判断的日志关键字和基于Agent端进行日志关键字匹配的事件。':
     'Log keyword: There are two kinds of log keyword capabilities, the log platform stores and judges the log keyword based on ES, and the event matches the log keyword based on the Agent side. ',
   'event_type 为非必须项，用于标记事件类型，默认为异常事件':
@@ -243,7 +243,7 @@ export default {
   '注入的维度信息将追加进采集的指标数据中，基于配置平台的服务实例自定义标签及主机字段获取':
     'injected dimension information in Shell will be added to the collected metric data, and the custom label and service instance based on the configuration platform Host Field Acquisition',
   '插件类型是蓝鲸监控丰富支持采集能力的一种表现，插件的类型将越来越丰富。 往下具体介绍当前每种类型特点':
-    'The plug-in type is a manifestation of the rich support and collection capabilities of BlueKing Monitoring, and the types of plug-ins will become more and more abundant. The following describes the current characteristics of each type in detail ',
+    'The plugin type is a manifestation of the rich support and collection capabilities of BlueKing Monitoring, and the types of plug-ins will become more and more abundant. The following describes the current characteristics of each type in detail ',
   '自定义是直接执行，不用解释器进行执行。 如 ./脚本':
     'Customization is executed directly, without the need for an interpreter. Such as, ./script.',
   'API频率限制 1000/min，单次上报Body最大为500KB':
@@ -271,7 +271,7 @@ export default {
     'Data collection is implemented by delivering monitoring plug-ins or configurations, and provides lifecycle management of plug-ins and configurations. Therefore, the bkmonitorbeat collector is installed on the server.',
   '精确匹配(支持AND、OR)：': 'Exact match (supports AND, OR):',
   '说明运行该插件的环境依赖，如运行在哪个版本上，只支持哪些版本的采集等':
-    'Indicates the environment dependency of running this plug-in, such as which version it is running on, Which versions of collection are only supported',
+    'Indicates the environment dependency of running this plugin, such as which version it is running on, Which versions of collection are only supported',
   '采集的数据为CMDB中服务模块下的服务实例数据，可以支持多实例的采集，如mysql redis。':
     'The collected data is the service instance data under the service module in CMDB, which can support the collection of multiple instances, such as mysql redis. ',
   '最常用的参数使用方式。如 --port 3306': 'The most commonly used parameter usage. Such as: --port 3306',
@@ -316,7 +316,7 @@ export default {
     'Acquisition of variables is based on the order of parameter passing, which is determined by the order of adding parameters. Such as, the common echo $1',
   参数的填写也可以使用CMDB变量: 'CMDB variables can also be used to fill in parameters',
   '运行该插件需要进行哪些配置。如Apache的status的设置':
-    "what configurations are required to run the plug-in. Such as, Apache's status setting",
+    "what configurations are required to run the plugin. Such as, Apache's status setting",
   '通过调用次数、耗时、错误率等指标可以了解服务本身的运行状况':
     'Metrics such as the number of calls, time taken, and error rate give you an idea of the health of the service itself',
   '采集的数据为主机操作系统相关的，如CPU NET。':

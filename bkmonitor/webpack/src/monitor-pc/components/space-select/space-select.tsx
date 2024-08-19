@@ -62,6 +62,7 @@ interface IProps {
   hasAuthApply?: boolean;
   currentSpace?: number | string;
   isCommonStyle?: boolean;
+  needIncidentOption?: boolean;
   onChange?: (value: number[]) => void;
 }
 
@@ -110,6 +111,8 @@ export default class SpaceSelect extends tsc<
   @Prop({ default: false, type: Boolean }) hasAuthApply: boolean;
   /*  */
   @Prop({ default: true, type: Boolean }) isCommonStyle: boolean;
+  /* 是否包含我有故障的选项 */
+  @Prop({ default: false, type: Boolean }) needIncidentOption: boolean;
 
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('select') selectRef: HTMLDivElement;
@@ -198,7 +201,8 @@ export default class SpaceSelect extends tsc<
     return this.localValue;
   }
 
-  created() {
+  /** 初始化空间列表 */
+  initLocalSpaceList() {
     this.localSpaceList = this.getSpaceList(this.spaceList);
     const nullItem = {
       space_name: '',
@@ -237,6 +241,19 @@ export default class SpaceSelect extends tsc<
       }
       this.setPaginationData(true);
     }
+  }
+  @Watch('needAlarmOption')
+  handleWatchNeedAlarmOption() {
+    this.initLocalSpaceList();
+  }
+  @Watch('needIncidentOption')
+  handleWatchNeedIncidentOption(v: boolean) {
+    const hasSpace: IlocalSpaceList = this.localSpaceList.find(space => space.id === hasDataBizId) as IlocalSpaceList;
+    hasSpace.name = (v ? this.$t('-我有故障的空间-') : this.$t('-我有告警的空间-')) as string;
+  }
+
+  created() {
+    this.initLocalSpaceList();
   }
 
   /* 获取权限信息 */

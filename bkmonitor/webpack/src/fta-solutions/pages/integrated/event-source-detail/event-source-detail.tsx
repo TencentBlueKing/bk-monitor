@@ -282,7 +282,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
   }
   viewEvent() {
     const url = location.href.replace(location.hash, '#/event-center');
-    window.open(`${url}?queryString=${i18n.t('告警源')} : "${this.baseInfo.pluginId}"`, '_blank');
+    window.open(`${url}?queryString=${i18n.t('告警来源')} : "${this.baseInfo.pluginId}"`, '_blank');
   }
 
   @Emit('install')
@@ -339,6 +339,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
             <div class='content-tab-wrap'>
               {this.tabList.map(tab => (
                 <div
+                  key={tab.id}
                   class={['content-tab-item', { 'content-tab-item-active': this.tabActive === tab.id }]}
                   onClick={() => this.tabChange(tab)}
                 >

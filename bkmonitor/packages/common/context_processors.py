@@ -170,6 +170,8 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             "SHOW_REALTIME_STRATEGY": settings.SHOW_REALTIME_STRATEGY,
             # APM 是否开启 EBPF 功能
             "APM_EBPF_ENABLED": "true" if settings.APM_EBPF_ENABLED else "false",
+            # 是否开启AI助手
+            "ENABLE_AI_ASSISTANT": "true" if settings.BK_MONITOR_AI_API_URL else "false",
         }
     )
 

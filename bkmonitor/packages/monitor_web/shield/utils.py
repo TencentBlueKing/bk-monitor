@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import functools
+from typing import Dict, List
 
 import arrow
 
@@ -16,7 +17,7 @@ from bkmonitor.models import Shield
 from bkmonitor.utils.shield import BaseShieldDisplayManager
 from bkmonitor.utils.time_tools import localtime, now, str2datetime
 from constants.shield import ShieldCategory, ShieldCycleType
-from core.drf_resource import resource
+from core.drf_resource import api, resource
 from monitor_web.commons.cc.utils import CmdbUtil
 
 
@@ -158,12 +159,31 @@ class ShieldDisplayManager(BaseShieldDisplayManager):
     def __init__(self, bk_biz_id=None):
         super(ShieldDisplayManager, self).__init__()
         self.node_manager = CmdbUtil(bk_biz_id)
+        self.dynamic_group_name_mapping: Dict[int, Dict[str, str]] = {}
+
+    def _get_dynamic_group_name_mapping(self, bk_biz_id: int):
+        if bk_biz_id in self.dynamic_group_name_mapping:
+            return self.dynamic_group_name_mapping[bk_biz_id]
+
+        dynamic_group_name_mapping = {}
+        dynamic_groups = api.cmdb.search_dynamic_group(bk_biz_id=bk_biz_id, bk_obj_id="host")
+        for dynamic_group in dynamic_groups:
+            dynamic_group_name_mapping[dynamic_group["id"]] = dynamic_group["name"]
+        self.dynamic_group_name_mapping[bk_biz_id] = dynamic_group_name_mapping
+        return dynamic_group_name_mapping
 
     def get_service_name_list(self, bk_biz_id, service_instance_id_list):
         return self.node_manager.get_service_name(bk_biz_id, service_instance_id_list)
 
     def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
         return self.node_manager.get_node_path(bk_biz_id, bk_topo_node_list)
+
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: List[Dict]) -> List:
+        dynamic_group_name_mapping = self._get_dynamic_group_name_mapping(bk_biz_id)
+        return [
+            dynamic_group_name_mapping.get(dynamic_group["dynamic_group_id"], dynamic_group["dynamic_group_id"])
+            for dynamic_group in dynamic_group_list
+        ]
 
     @functools.lru_cache(maxsize=128)
     def get_business_name(self, bk_biz_id):

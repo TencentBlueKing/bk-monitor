@@ -4283,6 +4283,7 @@ class CollectorHandler(object):
         collector_config_fields = [
             "collector_config_name",
             "description",
+            "target_object_type",
             "target_node_type",
             "target_nodes",
             "params",

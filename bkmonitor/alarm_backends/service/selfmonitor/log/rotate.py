@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 import os
 import re
@@ -46,11 +45,11 @@ class TimeAndSizeRotateFile(object):
         self.rollover_next_time = self.compute_next_day(t)
 
         self.suffix = ""
-        self.ext_reg = r"^\d{4}-\d{2}-\d{2}.\d+$"
+        self.ext_reg = r"^(\d{4}-\d{2}-\d{2}).(\d+)$"
         self.gzip = gzip
         if self.gzip:
             self.suffix = ".gz"
-            self.ext_reg = r"^\d{4}-\d{2}-\d{2}.\d+\.gz$"
+            self.ext_reg = r"^(\d{4}-\d{2}-\d{2}).(\d+)\.gz$"
         self.ext_reg = re.compile(self.ext_reg)
 
     def compute_next_day(self, cur_time):
@@ -124,20 +123,30 @@ class TimeAndSizeRotateFile(object):
         dir_name, basename = os.path.split(self.base_filename)
         file_names = os.listdir(dir_name)
 
-        result = []
+        def sort_key(file):
+            match = self.ext_reg.match(file)
+            if match:
+                return match.group(1), -int(match.group(2))
+            else:
+                return "9999-99-99", 0
+
+        suffix_list = []
+        suffix_file_map = {}
         prefix = basename + "."
         plen = len(prefix)
         for file_name in file_names:
             if file_name[:plen] == prefix:
                 suffix = file_name[plen:]
                 if self.ext_reg.match(suffix):
-                    result.append(os.path.join(dir_name, file_name))
+                    suffix_list.append(suffix)
+                    suffix_file_map[suffix] = os.path.join(dir_name, file_name)
 
-        result.sort()
-        if len(result) < self.backup_count:
+        suffix_list.sort(key=sort_key)
+        file_path_list = [suffix_file_map[suffix] for suffix in suffix_list]
+        if len(file_path_list) < self.backup_count:
             result = []
         else:
-            result = result[: len(result) - self.backup_count]
+            result = file_path_list[: len(file_path_list) - self.backup_count]
         return result
 
     def handle(self):

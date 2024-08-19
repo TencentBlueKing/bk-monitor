@@ -18,13 +18,13 @@ from elasticsearch_dsl import InnerDoc, Search, field
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BaseDocument, Date
-from bkmonitor.models.strategy import StrategyLabel
-from constants.incident import IncidentGraphComponentType, IncidentStatus
+from constants.incident import IncidentStatus
 from core.drf_resource import api
 from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("action")
 MAX_INCIDENT_CONTENTS_SIZE = 10000
+MAX_INCIDENT_ALERT_SIZE = 10000
 
 
 class IncidentBaseDocument(BaseDocument):
@@ -81,7 +81,7 @@ class IncidentItemsMixin:
         else:
             search = cls.search(all_indices=True)
         search = search.filter("term", incident_id=incident_id)
-        search = search.sort(order_by).params(size=limit)
+        search = search.sort(order_by).params(size=limit or MAX_INCIDENT_CONTENTS_SIZE)
         hits = search.execute().hits
         return [cls(**hit.to_dict()) for hit in hits]
 
@@ -152,6 +152,9 @@ class IncidentDocument(IncidentBaseDocument):
     # 反馈根因的信息
     feedback = field.Object(enabled=False)
 
+    # 检索或者排序需要的字段
+    alert_count = field.Long()
+
     class Index:
         name = "bkmonitor_aiops_incident_info"
         settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
@@ -185,20 +188,6 @@ class IncidentDocument(IncidentBaseDocument):
             handlers = handlers | set(alert_doc.assignee)
 
         self.handlers = list(handlers)
-
-    def generate_labels(self, snapshot) -> None:
-        """生成故障标签
-
-        :param snapshot: 故障分析结果图谱快照信息
-        """
-        strategy_ids = set()
-        for incident_alert in snapshot.alert_entity_mapping.values():
-            if incident_alert.entity.component_type == IncidentGraphComponentType.PRIMARY:
-                strategy_ids.add(incident_alert.strategy_id)
-
-        labels = StrategyLabel.objects.filter(strategy_id__in=strategy_ids).values_list("label_name", flat=True)
-        whole_labels = list(set(labels) | set(self.labels))
-        self.labels = whole_labels
 
     @classmethod
     def get(cls, id: str, fetch_remote: bool = True) -> "IncidentDocument":

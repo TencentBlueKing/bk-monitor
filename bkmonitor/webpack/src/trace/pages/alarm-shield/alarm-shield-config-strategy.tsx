@@ -238,6 +238,7 @@ export default defineComponent({
             const isPrometheus = queryConfig?.data_source_label === PROMETHEUS;
             // promql数据需要通过接口转换为metric数据
             if (isPrometheus) {
+              // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
               const getPromqlData = new Promise(async (resolve, _reject) => {
                 const promqlData = await promqlToQueryConfig('', {
                   promql: queryConfig.promql,
@@ -288,7 +289,7 @@ export default defineComponent({
           } else {
             dimensionCondition.metricMeta = null;
           }
-          dimensionList = !!metricList.length
+          dimensionList = metricList.length
             ? metricList.reduce((pre, cur) => {
                 const dimensionList = pre.concat(
                   cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
@@ -381,6 +382,11 @@ export default defineComponent({
       return Object.keys(errMsg).every(key => !errMsg[key]);
     }
 
+    // 自定义过滤函数
+    const customFilter = (input: string, option: { id: number; name: string }) => {
+      return option.name.toLowerCase().includes(input.toLowerCase()) || option.id.toString().includes(input);
+    };
+
     return {
       strategyList,
       dimensionCondition,
@@ -400,6 +406,7 @@ export default defineComponent({
       handleScopeChange,
       handleLevelChange,
       handleClear,
+      customFilter,
     };
   },
   render() {
@@ -415,6 +422,8 @@ export default defineComponent({
             <div>
               <Select
                 class='width-940'
+                disabled={this.isEdit}
+                filterOption={this.customFilter}
                 filterable={true}
                 modelValue={this.strategyId}
                 multiple={true}
@@ -494,7 +503,7 @@ export default defineComponent({
           )}
           {!!this.isShowDetail && (
             <AlarmShieldConfigScope
-              filterTypes={['ip', 'node']}
+              filterTypes={['ip', 'node', 'dynamic_group']}
               isEdit={this.isEdit}
               require={false}
               show={true}

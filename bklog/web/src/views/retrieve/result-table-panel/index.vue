@@ -100,10 +100,17 @@
       isAiopsToggle() {
         // 日志聚类总开关
         if (this.isExternal || this.isUnionSearch) return false; // 外部版或联合查询时不包含日志聚类
-        if (window.FEATURE_TOGGLE.bkdata_aiops_toggle !== 'on') return false;
+        const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
         const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
-        return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
+        switch (bkdataAiopsToggle) {
+          case 'on':
+            return true;
+          case 'off':
+            return false;
+          default:
+            return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
+        }
       },
       panelList() {
         const list = [{ name: 'origin', label: this.$t('原始日志') }];

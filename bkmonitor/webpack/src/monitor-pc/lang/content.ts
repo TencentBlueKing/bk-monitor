@@ -94,6 +94,7 @@ export default {
   '{0}个拓扑节点': '{0} topology nodes',
   '{0}个服务模板': '{0} service templates',
   '{0}个集群模板': '{0} set templates',
+  '{0}个动态分组': '{0} dynamic groups',
   '指标值,数值 ； ': 'Metric value, Numeric;',
   '失败{0}台主机': 'hosts(failed: {0})',
   '失败{0}个实例': 'instances(failed: {0})',
@@ -131,6 +132,7 @@ export default {
   '已选择 {n}': 'selected {n}',
   '已选择{0}个策略': '{0} rules selected',
   '已选择 {n} 个主机': 'Selected {n} hosts',
+  '已选择 {n} 个动态分组': 'Selected {n} dynamic groups',
   '已选择{count}条': 'Selected {count} Items',
   '当前已选择{0}条数据': 'Currently selected {0} pieces of data',
   '第{step}步，共{total}步': 'Step {step} of {total}',
@@ -243,4 +245,7 @@ export default {
   故障开始时间: 'Fault Start Time',
   故障结束时间: 'Fault End Time',
   故障图谱快照: 'Fault Topology Snapshot',
+  处理的告警: 'Processed alarms',
+  的告警: 'alarms',
+  将通过企业微信把当前故障相关人员邀请到一个群里面进行讨论: 'The current fault related personnel will be invited to a group chat via WeChat Work for discussion',
 };
