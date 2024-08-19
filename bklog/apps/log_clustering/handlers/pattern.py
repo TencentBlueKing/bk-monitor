@@ -100,18 +100,19 @@ class PatternHandler:
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
         # 同步的pattern保存信息
-        if self._clustering_config.model_output_rt:
+        if self._clustering_config.signature_pattern_rt:
+            pattern_map = self._get_pattern_data()
+        elif self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
                 model_id=self._clustering_config.model_output_rt
-            ).values("signature", "pattern", "origin_pattern", "label")
+            ).values("signature", "pattern", "origin_pattern")
         else:
             pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
-                "signature", "pattern", "origin_pattern", "label"
+                "signature", "pattern", "origin_pattern"
             )
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
         signature_map_origin_pattern = array_hash(pattern_map, "signature", "origin_pattern")
-        signature_map_label = array_hash(pattern_map, "signature", "label")
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
@@ -133,7 +134,7 @@ class PatternHandler:
             if not signature:
                 continue
             signature_pattern = signature_map_pattern.get(signature, "")
-            signature_origin_pattern = signature_map_origin_pattern.get(signature, "")
+            signature_origin_pattern = signature_map_origin_pattern.get(signature) or signature_pattern
             group_key = f"{signature}|{pattern.get('group', '')}"
             year_on_year_compare = year_on_year_result.get(group_key, MIN_COUNT)
 
@@ -162,7 +163,6 @@ class PatternHandler:
                 {
                     "pattern": signature_pattern,
                     "origin_pattern": signature_origin_pattern,
-                    "label": signature_map_label.get(signature, ""),
                     "remark": remark,
                     "owners": owners,
                     "count": count,
@@ -317,6 +317,15 @@ class PatternHandler:
                 .query()
             )
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
+
+    def _get_pattern_data(self):
+        records = (
+            BkData(self._clustering_config.signature_pattern_rt)
+            .select("signature", "pattern")
+            .time_range(start_time=arrow.get("2024-01-01").timestamp)  # 此处只为查出全量，只需大于当前时间即可
+            .query()
+        )
+        return {record["signature"]: record["pattern"] for record in records}
 
     def set_clustering_owner(self, params: dict):
         """
