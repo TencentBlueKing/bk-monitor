@@ -66,7 +66,7 @@ type PopoverInstance = {
   [key: string]: any;
 };
 
-interface IOperateRow {
+interface IOpetateRow {
   status?: string;
   is_ack?: boolean;
   ack_operator?: string;
@@ -154,7 +154,7 @@ export default defineComponent({
     const incidentDetailData = computed(() => {
       return incidentDetail.value;
     });
-    /** 一键拉群弹窗 */
+    /** 一键拉群弹窗  */
     const chatGroupDialog = reactive({
       show: false,
       alertName: '',
@@ -164,9 +164,9 @@ export default defineComponent({
     });
     const collapseId = ref('');
     const moreItems = ref<HTMLDivElement>();
-    const popoverOperateInstance = ref<PopoverInstance>(null);
-    const operateRow = ref<IOperateRow>({});
-    const popoverOperateIndex = ref(-1);
+    const popoperOperateInstance = ref<PopoverInstance>(null);
+    const opetateRow = ref<IOpetateRow>({});
+    const popoperOperateIndex = ref(-1);
     const hoverRowIndex = ref(999999);
     const tableToolList = ref([]);
     const enableCreateChatGroup = ref((window as any).enable_create_chat_group || false);
@@ -239,8 +239,7 @@ export default defineComponent({
     const chatGroupShowChange = (show: boolean) => {
       chatGroupDialog.show = show;
     };
-    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
-    const feedbackIncidentRootApi = (isCancel = false, data) => {
+    const feedbackIncidentRootApi = (isCancel, data) => {
       const { bk_biz_id } = data;
       const params = {
         id: incidentId.value,
@@ -460,13 +459,13 @@ export default defineComponent({
               <span>{data.duration}</span>
               <div
                 style={{
-                  display: hoverRowIndex.value === $index || popoverOperateIndex.value === $index ? 'flex' : 'none',
+                  display: hoverRowIndex.value === $index || popoperOperateIndex.value === $index ? 'flex' : 'none',
                 }}
                 class='operate-panel-border'
               />
               <div
                 style={{
-                  display: hoverRowIndex.value === $index || popoverOperateIndex.value === $index ? 'flex' : 'none',
+                  display: hoverRowIndex.value === $index || popoperOperateIndex.value === $index ? 'flex' : 'none',
                 }}
                 class='operate-panel'
               >
@@ -495,7 +494,7 @@ export default defineComponent({
                   <i class='icon-monitor icon-fenpai' />
                 </span>
                 <span
-                  class={['operate-more', { active: popoverOperateIndex.value === $index }]}
+                  class={['operate-more', { active: popoperOperateIndex.value === $index }]}
                   onClick={e => handleShowMoreOperate(e, $index, data)}
                 >
                   <span class='icon-monitor icon-mc-more' />
@@ -520,7 +519,7 @@ export default defineComponent({
       trigger: 'manual' as const,
     });
     const getMoreOperate = () => {
-      const { status, is_ack: isAck, ack_operator: ackOperator } = operateRow.value;
+      const { status, is_ack: isAck, ack_operator: ackOperator } = opetateRow.value;
       return (
         <div style={{ display: 'none' }}>
           <div
@@ -529,7 +528,7 @@ export default defineComponent({
           >
             <div
               class={['more-item', { 'is-disable': false }]}
-              onClick={() => handleChatGroup(operateRow.value)}
+              onClick={() => handleChatGroup(opetateRow.value)}
             >
               <span class='icon-monitor icon-we-com' />
               <span>{window.i18n.t('一键拉群')}</span>
@@ -544,7 +543,7 @@ export default defineComponent({
                 zIndex: 9999999,
               }}
               onClick={() =>
-                !isAck && !['RECOVERED', 'CLOSED'].includes(status) && handleAlertConfirm(operateRow.value)
+                !isAck && !['RECOVERED', 'CLOSED'].includes(status) && handleAlertConfirm(opetateRow.value)
               }
             >
               <span class='icon-monitor icon-duihao' />
@@ -552,22 +551,22 @@ export default defineComponent({
             </div>
             <div
               class={['more-item', { 'is-disable': false }]}
-              onClick={() => handleManualProcess(operateRow.value)}
+              onClick={() => handleManualProcess(opetateRow.value)}
             >
               <span class='icon-monitor icon-chuli' />
               <span>{window.i18n.t('手动处理')}</span>
             </div>
             <div
-              class={['more-item', { 'is-disable': operateRow.value?.is_shielded }]}
+              class={['more-item', { 'is-disable': opetateRow.value?.is_shielded }]}
               v-bk-tooltips={{
-                disabled: !operateRow.value?.is_shielded,
-                content: operateRow?.value?.is_shielded
-                  ? `${operateRow?.value.shield_operator?.[0] || ''}${t('已屏蔽')}`
+                disabled: !opetateRow.value?.is_shielded,
+                content: opetateRow?.value?.is_shielded
+                  ? `${opetateRow?.value.shield_operator?.[0] || ''}${t('已屏蔽')}`
                   : '',
                 delay: 200,
                 appendTo: () => document.body,
               }}
-              onClick={() => !operateRow.value?.is_shielded && handleQuickShield(operateRow.value)}
+              onClick={() => !opetateRow.value?.is_shielded && handleQuickShield(opetateRow.value)}
             >
               <span class='icon-monitor icon-mc-notice-shield' />
               <span>{window.i18n.t('快捷屏蔽')}</span>
@@ -577,7 +576,7 @@ export default defineComponent({
       );
     };
     const handleHideMoreOperate = (e?: Event) => {
-      if (!popoverOperateInstance.value) {
+      if (!popoperOperateInstance.value) {
         return;
       }
       if (e) {
@@ -586,16 +585,16 @@ export default defineComponent({
           return;
         }
       }
-      popoverOperateInstance.value.hide();
-      popoverOperateInstance.value.close();
-      popoverOperateInstance.value = null;
-      popoverOperateIndex.value = -1;
+      popoperOperateInstance.value.hide();
+      popoperOperateInstance.value.close();
+      popoperOperateInstance.value = null;
+      popoperOperateIndex.value = -1;
     };
     const handleShowMoreOperate = (e, index, data) => {
-      popoverOperateIndex.value = index;
-      operateRow.value = data;
-      if (!popoverOperateInstance.value) {
-        popoverOperateInstance.value = $bkPopover({
+      popoperOperateIndex.value = index;
+      opetateRow.value = data;
+      if (!popoperOperateInstance.value) {
+        popoperOperateInstance.value = $bkPopover({
           target: e.target,
           content: moreItems.value,
           arrow: false,
@@ -626,12 +625,12 @@ export default defineComponent({
           forceClickoutside: false,
           immediate: false,
         });
-        popoverOperateInstance.value.install();
+        popoperOperateInstance.value.install();
         setTimeout(() => {
-          popoverOperateInstance.value?.vm?.show();
+          popoperOperateInstance.value?.vm?.show();
         }, 100);
       } else {
-        popoverOperateInstance.value.update(e.target, {
+        popoperOperateInstance.value.update(e.target, {
           target: e.target,
           content: moreItems.value,
         });
@@ -662,7 +661,7 @@ export default defineComponent({
      * @param {boolean} v
      * @return {*}
      */
-    const quickShieldSuccess = (v: boolean) => {
+    const quickShieldSucces = (v: boolean) => {
       if (v) {
         // tableData.value.value.forEach(item => {
         //   if (dialog.quickShield.ids.includes(item.id)) {
@@ -704,6 +703,7 @@ export default defineComponent({
       document.body.addEventListener('click', handleHideMoreOperate);
     });
     onUnmounted(() => {
+      handleHideMoreOperate();
       document.body.removeEventListener('click', handleHideMoreOperate);
     });
     const handleAlarmDispatchSuccess = () => {};
@@ -731,9 +731,8 @@ export default defineComponent({
     watch(
       () => props.alertIdsObject,
       val => {
-        if (val) {
-          props.searchValidate && handleGetTable();
-        }
+        alertIdsData.value = val;
+        props.searchValidate && handleGetTable();
       },
       { deep: true }
     );
@@ -743,7 +742,7 @@ export default defineComponent({
       moreItems,
       collapseId,
       dialog,
-      operateRow,
+      opetateRow,
       tableLoading,
       hoverRowIndex,
       columns,
@@ -756,7 +755,7 @@ export default defineComponent({
       getMoreOperate,
       handleChangeCollapse,
       alarmConfirmChange,
-      quickShieldSuccess,
+      quickShieldSucces,
       handleConfirmAfter,
       handleFeedbackChange,
       handleRootCauseConfirm,
@@ -818,7 +817,7 @@ export default defineComponent({
               show={this.dialog.quickShield.show}
               onChange={this.quickShieldChange}
               onRefresh={this.refresh}
-              onSuccess={this.quickShieldSuccess}
+              onSuccess={this.quickShieldSucces}
             />
             <ManualProcess
               alertIds={this.currentIds}
@@ -868,7 +867,9 @@ export default defineComponent({
                       settings={this.settings}
                       show-overflow-tooltip={true}
                       onRowMouseEnter={this.handleEnter}
-                      onRowMouseLeave={() => (this.hoverRowIndex = -1)}
+                      onRowMouseLeave={() => {
+                        this.hoverRowIndex = -1;
+                      }}
                       onSettingChange={this.handleSettingChange}
                       // onScrollBottom={this.handleLoadData}
                     />
