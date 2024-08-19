@@ -88,7 +88,7 @@ class FrontendShieldListResource(Resource):
             if page and page_size:
                 shields = shields[(page - 1) * page_size : page * page_size]
 
-        return {"count": len(shields), "shield_list": shields}
+        return {"count": result["count"], "shield_list": shields}
 
     @staticmethod
     def search(search_terms: Set[str], shields: list, is_active: bool) -> list:

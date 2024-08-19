@@ -76,11 +76,7 @@
     "vue-template-compiler": "^2.7.16"
   },
   "nodemonConfig": {
-    "watch": [
-      "local.settings.js",
-      "webpack.config.js",
-      "pnpm-lock.yaml"
-    ]
+    "watch": ["local.settings.js", "webpack.config.js", "pnpm-lock.yaml"]
   },
   "engines": {
     "node": ">= 18.16"
@@ -88,7 +84,7 @@
   "pnpm": {
     "overrides": {
       "@blueking/user-selector>vue": "v2-latest",
-      "bk-magic-vue": "2.5.8",
+      "bk-magic-vue": "2.5.9-beta.38",
       "eslint": "$eslint",
       "monaco-editor": "0.44.0",
       "monaco-editor-webpack-plugin>monaco-editor": "0.44.0",

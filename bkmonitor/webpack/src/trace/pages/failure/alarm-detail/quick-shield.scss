@@ -14,17 +14,12 @@
     }
 
     .item-label {
-      width: 68px;
+      width: 90px;
       margin-bottom: 8px;
     }
 
     .item-before {
-      position: relative;
-
-      &::before {
-        position: absolute;
-        top: 0;
-        right: 4px;
+      &::after {
         color: #ea3636;
         content: '*';
       }

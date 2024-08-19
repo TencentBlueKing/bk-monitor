@@ -880,7 +880,7 @@ class GetStrategyListV2Resource(Resource):
             },
             {
                 "id": "INVALID",
-                "name": _("已失效"),
+                "name": _("策略已失效"),
                 "count": 0,
             },
             {"id": "OFF", "name": _("已停用"), "count": 0},

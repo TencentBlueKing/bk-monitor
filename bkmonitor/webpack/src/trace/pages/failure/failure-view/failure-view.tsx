@@ -73,10 +73,8 @@ export default defineComponent({
     };
     watch(
       () => props.alertIdsObject,
-      val => {
-        if (val) {
-          props.searchValidate && getIncidentAlertView();
-        }
+      () => {
+        props.searchValidate && getIncidentAlertView();
       },
       { deep: true }
     );

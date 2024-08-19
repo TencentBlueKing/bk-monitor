@@ -128,3 +128,28 @@ export const getNodeAttrs = (node: ITopoNode): typeof normalNodeAttrs => {
   }
   return { ...normalNodeAttrs };
 };
+
+/**
+ * 手动裁剪文本内容
+ * @param {string} text - 原始文本
+ * @param {number} maxWidth - 最大宽度
+ * @param {number} fontSize - 字体大小
+ * @param {string} fontFamily - 字体
+ * @returns {string} - 裁剪后的文本
+ */
+export const truncateText = (text, maxWidth, fontSize, fontFamily) => {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = `${fontSize}px ${fontFamily}`;
+
+  let width = context.measureText(text).width;
+  if (width <= maxWidth) return text;
+
+  let truncated = text;
+  while (width > maxWidth) {
+    truncated = truncated.slice(0, -1);
+    width = context.measureText(truncated).width;
+  }
+
+  return truncated;
+};

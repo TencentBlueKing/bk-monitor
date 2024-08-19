@@ -84,7 +84,9 @@
     color: #63656E;
     border-left: 1px solid #c4c6cc;
     border-radius: 0 2px 2px 0;
-
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     &.en-lang {
       width: 86px;
       padding: 0 6px
