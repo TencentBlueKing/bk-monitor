@@ -25,8 +25,6 @@ from django.db.models import Q
 from django.db.models.sql import AND
 from django.utils.functional import classproperty
 from django.utils.translation import ugettext_lazy as _
-from elasticsearch_dsl import A
-from elasticsearch_dsl import Q as ESQ
 
 from apm import types
 from apm.utils.base import normalize_rt_id
@@ -616,116 +614,6 @@ class UnifyQueryBuilder:
             pass
 
         return ordering
-
-
-class EsQueryBuilderMixin:
-    DEFAULT_SORT_FIELD = None
-
-    # 字段候选值最多获取500个
-    OPTION_VALUES_MAX_SIZE = 500
-
-    # 时间字段精 用于时间字段查询时做乘法
-    TIME_FIELD_ACCURACY = 1000000
-
-    @classproperty
-    def operator_mapping(self):
-        return {
-            FilterOperator.EXISTS: lambda q, k, v: q.query("bool", filter=[ESQ("exists", field=k)]),
-            FilterOperator.NOT_EXISTS: lambda q, k, v: q.query("bool", must_not=[ESQ("exists", field=k)]),
-            FilterOperator.EQUAL: lambda q, k, v: q.query("bool", filter=[ESQ("terms", **{k: v})]),
-            FilterOperator.NOT_EQUAL: lambda q, k, v: q.query("bool", must_not=[ESQ("terms", **{k: v})]),
-            FilterOperator.BETWEEN: lambda q, k, v: q.query(
-                "bool", filter=[ESQ("range", **{k: {"gte": v[0], "lte": v[1]}})]
-            ),
-            FilterOperator.LIKE: lambda q, k, v: q.query("bool", filter=[ESQ("wildcard", **{k: f'*{v[0]}*'})]),
-            LogicSupportOperator.LOGIC: lambda q, k, v: self._add_logic_filter(q, k, v),
-        }
-
-    @classmethod
-    def add_time(cls, query, start_time=None, end_time=None, time_field=None):
-        if not start_time and not end_time:
-            return query
-
-        time_query = {}
-        if start_time:
-            time_query["gt"] = start_time * cls.TIME_FIELD_ACCURACY
-        if end_time:
-            time_query["lte"] = end_time * cls.TIME_FIELD_ACCURACY
-
-        if not time_field:
-            time_field = cls.DEFAULT_SORT_FIELD
-
-        return query.filter("range", **{time_field: time_query})
-
-    @classmethod
-    def add_sort(cls, query, sort_field=None):
-
-        if "sort" in query.to_dict():
-            return query
-
-        if not sort_field:
-            return query.sort(f"-{cls.DEFAULT_SORT_FIELD}")
-
-        return query.sort(sort_field)
-
-    @classmethod
-    def add_filter_params(cls, query, filter_params):
-
-        for i in filter_params:
-            query = cls.add_filter_param(query, i)
-
-        return query
-
-    @classmethod
-    def add_filter_param(cls, query, filter_param):
-
-        if filter_param["operator"] not in cls.operator_mapping:
-            raise ValueError(_("不支持的查询操作符: %s") % (filter_param['operator']))
-
-        key = cls._translate_key(filter_param["key"])
-        return cls.operator_mapping[filter_param["operator"]](query, key, filter_param["value"])
-
-    @classmethod
-    def _add_logic_filter(cls, query, key, value):
-        """生成特殊处理的Filters参数"""
-        return query
-
-    @classmethod
-    def _translate_key(cls, key):
-        return key
-
-    @classmethod
-    def distinct_fields(cls, query, field):
-
-        query = query.extra(collapse={"field": field}, track_total_hits=True)
-        cls.add_total_size(query, field)
-        return query
-
-    @classmethod
-    def add_total_size(cls, query, field):
-        query.aggs.bucket("total_size", A("cardinality", field=field))
-
-    @classmethod
-    def add_filter(cls, query, key, value):
-        return query.query("bool", filter=[ESQ("term", **{key: value})])
-
-    @classmethod
-    def _query_option_values(cls, query, fields):
-
-        for i in fields:
-            query.aggs.bucket(f"{i}_values", A("terms", field=i, size=cls.OPTION_VALUES_MAX_SIZE))
-
-        # 不返回文档，只返回聚合结果
-        query = query.extra(size=0)
-        print(f"[{cls.__name__}] query_option_values: {query.to_dict()}")
-        response = query.execute()
-
-        res = {}
-        for field in fields:
-            values = getattr(response.aggregations, f"{field}_values")
-            res[field] = [i["key"] for i in values.buckets]
-
-        return res
 
 
 class FakeQuery:

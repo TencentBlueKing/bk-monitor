@@ -99,7 +99,11 @@ class QueryProxy:
         if EbpfHandler.is_ebpf_application(self.application):
             return FakeQuery()
 
-        return EbpfQuery(app.trace_datasource.es_client, app.trace_datasource.index_name)
+        return EbpfQuery(
+            self.bk_biz_id,
+            self.application.trace_datasource.result_table_id,
+            self.application.trace_datasource.retention,
+        )
 
     @cached_property
     def is_trace_query_valid(self):

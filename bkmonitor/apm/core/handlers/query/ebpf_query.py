@@ -16,36 +16,21 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 import logging
+from typing import Any, Dict, List
 
 from apm import constants
 from apm.core.deepflow.base import EBPFHandler
-from apm.core.handlers.query.base import EsQueryBuilderMixin
-from apm.utils.es_search import EsSearch
+from apm.core.handlers.query.base import QueryConfigBuilder, UnifyQueryBuilder
 from apm_ebpf.resource import TraceQueryResource
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
 
 
-class EbpfQuery(EsQueryBuilderMixin):
-    DEFAULT_SORT_FIELD = "end_time"
-
-    def __init__(self, es_client, index_name):
-        self.client = es_client
-        self.client = es_client
-        self.index_name = index_name
-
-    @property
-    def search(self):
-        return EsSearch(using=self.client, index=self.index_name)
-
-    def query_by_trace_id(self, trace_id):
-        query = self.search
-
-        query = self.add_filter(query, OtlpKey.TRACE_ID, trace_id)
-        query = query.extra(size=constants.DISCOVER_BATCH_SIZE).sort(OtlpKey.START_TIME)
-
-        return [i.to_dict() for i in query.execute()]
+class EbpfQuery(UnifyQueryBuilder):
+    def query_by_trace_id(self, trace_id: str) -> List[Dict[str, Any]]:
+        q: QueryConfigBuilder = self.q.filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id}).order_by(OtlpKey.START_TIME)
+        return list(self.time_range_queryset().add_query(q).limit(constants.DISCOVER_BATCH_SIZE))
 
 
 class DeepFlowQuery:
