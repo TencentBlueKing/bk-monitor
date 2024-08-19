@@ -74,3 +74,10 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             result.append(space_obj)
 
         return result
+
+    @classmethod
+    def list_spaces_dict(cls, refresh=True) -> List[dict]:
+        func = api.metadata.list_spaces
+        if refresh:
+            func = api.metadata.list_spaces.request.refresh
+        return batch_request(func, params={}, get_data=lambda x: x["list"], app="metadata")
