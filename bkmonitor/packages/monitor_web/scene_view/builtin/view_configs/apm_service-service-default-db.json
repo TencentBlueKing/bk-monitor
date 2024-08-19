@@ -61,6 +61,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -769,6 +770,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",

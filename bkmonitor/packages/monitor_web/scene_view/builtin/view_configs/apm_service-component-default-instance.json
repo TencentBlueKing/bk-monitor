@@ -54,7 +54,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -343,7 +343,7 @@
             "filter_params": {
               "resource.service.name": "$service_name"
             },
-            "component_instance_id": "${instance_view_bk_instance_id}"
+            "component_instance_id": "${bk_instance_id}"
           }
         }
       ],
@@ -378,11 +378,11 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "CALLED_COUNT",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "component_instance_id": "${instance_view_bk_instance_id}",
+            "component_instance_id": "${bk_instance_id}",
             "unify_query_param": {
               "expression": "A",
               "start_time": "$start_time",
@@ -440,7 +440,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "component_instance_id": "${instance_view_bk_instance_id}",
+            "component_instance_id": "${bk_instance_id}",
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -498,7 +498,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "component_instance_id": "${instance_view_bk_instance_id}",
+            "component_instance_id": "${bk_instance_id}",
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -556,7 +556,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "component_instance_id": "${instance_view_bk_instance_id}",
+            "component_instance_id": "${bk_instance_id}",
             "unify_query_param": {
               "stack": "all",
               "expression": "B",
@@ -618,15 +618,13 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "AVG_DURATION",
+          "alias": "P50",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "component_instance_id": "${instance_view_bk_instance_id}",
+            "component_instance_id": "${bk_instance_id}",
             "unify_query_param": {
               "expression": "A",
-              "start_time": "$start_time",
-              "end_time": "$end_time",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -634,12 +632,14 @@
                   "data_type_label": "time_series",
                   "metrics": [
                     {
-                      "field": "bk_apm_duration",
-                      "method": "AVG",
+                      "field": "bk_apm_duration_bucket",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
-                  "group_by": [],
+                  "group_by": [
+                    "le"
+                  ],
                   "display": true,
                   "where": [
                   ],
@@ -648,7 +648,224 @@
                   "filter_dict": {
                     "service_name": "$service_name"
                   },
-                  "functions": []
+                  "functions": [
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "histogram_quantile",
+                      "params": [
+                        {
+                          "id": "scalar",
+                          "value": 0.5
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
+          "alias": "P95",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "component_instance_id": "${bk_instance_id}",
+            "unify_query_param": {
+              "expression": "A",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "table": "${table_id}",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_duration_bucket",
+                      "method": "SUM",
+                      "alias": "A"
+                    }
+                  ],
+                  "group_by": [
+                    "le"
+                  ],
+                  "display": true,
+                  "where": [
+                  ],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "$service_name"
+                  },
+                  "functions": [
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "histogram_quantile",
+                      "params": [
+                        {
+                          "id": "scalar",
+                          "value": 0.95
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
+          "alias": "P99",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "component_instance_id": "${bk_instance_id}",
+            "unify_query_param": {
+              "expression": "A",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "table": "${table_id}",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_duration_bucket",
+                      "method": "SUM",
+                      "alias": "A"
+                    }
+                  ],
+                  "group_by": [
+                    "le"
+                  ],
+                  "display": true,
+                  "where": [
+                  ],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "$service_name"
+                  },
+                  "functions": [
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "histogram_quantile",
+                      "params": [
+                        {
+                          "id": "scalar",
+                          "value": 0.99
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
+          "alias": "MAX",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "component_instance_id": "${bk_instance_id}",
+            "unify_query_param": {
+              "expression": "A",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "table": "${table_id}",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_duration_max",
+                      "method": "MAX",
+                      "alias": "A"
+                    }
+                  ],
+                  "group_by": [
+                  ],
+                  "display": true,
+                  "where": [
+                  ],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "$service_name"
+                  },
+                  "functions": [
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
+          "alias": "MIN",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "component_instance_id": "${bk_instance_id}",
+            "unify_query_param": {
+              "expression": "A",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "table": "${table_id}",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_duration_min",
+                      "method": "MIN",
+                      "alias": "A"
+                    }
+                  ],
+                  "group_by": [
+                  ],
+                  "display": true,
+                  "where": [
+                  ],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "$service_name"
+                  },
+                  "functions": [
+                  ]
                 }
               ]
             }
@@ -687,12 +904,9 @@
             "service_name": "$service_name"
           },
           "fields": {
-            "instance_view_bk_instance_id": "bk_instance_id",
+            "bk_instance_id": "bk_instance_id",
             "app_name": "app_name",
-            "service_name": "component_service_name",
-            "category": "component_category",
-            "kind": "component_kind",
-            "predicate_value": "component_predicate_value"
+            "service_name": "component_service_name"
           }
         }
       ]

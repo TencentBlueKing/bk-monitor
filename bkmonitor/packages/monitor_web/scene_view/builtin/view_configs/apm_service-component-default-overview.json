@@ -21,10 +21,10 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "alias": "总数量",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -59,10 +59,10 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "主调数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "alias": "主调数量",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -112,10 +112,10 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "被调数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "alias": "被调数量",
             "unify_query_param": {
               "expression": "A",
               "query_configs": [

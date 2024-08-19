@@ -2030,14 +2030,15 @@ class QueryEndpointStatisticsResource(PageListResource):
         match_res = []
         no_match_res = []
         for summary, items in summary_mappings.items():
-            request_count = len(items)
+            request_count = sum(i.get("doc_count", 0) for i in items)
+            sum_duration = sum(i["sum_duration"]["value"] for i in items)
 
             (no_match_res, match_res)[summary[-1]].append(
                 {
                     "summary": summary[0],
                     "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
                     "request_count": request_count,
-                    "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
+                    "average": round(sum_duration / request_count / 1000, 2),
                     "max_elapsed": round(max([item["max_duration"]["value"] for item in items]) / 1000, 2),
                     "min_elapsed": round(min([item["min_duration"]["value"] for item in items]) / 1000, 2),
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},

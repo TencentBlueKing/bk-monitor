@@ -307,6 +307,10 @@ class EndpointErrorRateTopNHandler(TopNHandler):
         result = []
         for keys, value in endpoint_map.items():
             error_count, sum_count = ErrorRateCalculation.common_unify_series_cal(value)
+            if not error_count:
+                # 如果没有错误 则不显示
+                continue
+
             rate = round(ErrorRateCalculation.calculate(error_count, sum_count), 2)
 
             result.append(

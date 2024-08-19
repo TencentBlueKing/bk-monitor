@@ -70,6 +70,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "expression": "A",
             "query_configs": [
@@ -614,6 +615,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "expression": "A",
             "query_configs": [

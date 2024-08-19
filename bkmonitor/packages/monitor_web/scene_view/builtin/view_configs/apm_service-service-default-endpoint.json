@@ -70,6 +70,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "expression": "A",
             "query_configs": [
@@ -230,7 +231,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": "OTHER",
+          "alias": "总数量",
           "data": {
             "stack": "all",
             "expression": "A",
@@ -255,22 +256,6 @@
                     "method": "eq",
                     "value": [
                       "2"
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "http_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "rpc_grpc_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
                     ],
                     "condition": "and"
                   }
@@ -623,6 +608,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "expression": "A",
             "query_configs": [
@@ -786,7 +772,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": "OTHER",
+          "alias": "总数量",
           "data": {
             "stack": "all",
             "expression": "A",
@@ -811,22 +797,6 @@
                     "method": "eq",
                     "value": [
                       "2"
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "http_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "rpc_grpc_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
                     ],
                     "condition": "and"
                   }

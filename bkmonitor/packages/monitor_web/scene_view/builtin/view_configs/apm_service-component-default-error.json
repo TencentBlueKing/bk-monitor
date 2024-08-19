@@ -245,9 +245,6 @@
             "app_name": "app_name",
             "exception_type": "exception_type",
             "service_name": "component_service_name",
-            "category": "component_category",
-            "kind": "component_kind",
-            "predicate_value": "component_predicate_value"
           }
         }
       ]

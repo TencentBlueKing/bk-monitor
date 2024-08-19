@@ -33,7 +33,8 @@
                 "request_count",
                 "error_rate",
                 "avg_duration",
-                "profiling_data_count"
+                "profiling_data_count",
+                "profiling_data_status"
               ]
             }
           }

@@ -59,6 +59,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -683,6 +684,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -1335,10 +1337,7 @@
           "fields": {
             "endpoint_name": "endpoint_name",
             "app_name": "app_name",
-            "service_name": "component_service_name",
-            "category": "component_category",
-            "kind": "component_kind",
-            "predicate_value": "component_predicate_value"
+            "service_name": "component_service_name"
           }
         }
       ]

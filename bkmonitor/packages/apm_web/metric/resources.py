@@ -351,28 +351,42 @@ class ServiceListResource(PageListResource):
         strategy_alert_map: dict,
         request_count_info: dict,
     ):
-        return [
-            {
-                "collect": service["topo_key"] in config.config_value,
-                "service_name": service["topo_key"],
-                "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
-                "language": service["extra_data"]["service_language"],
-                "strategy_count": strategy_service_map.get(service["topo_key"], DEFAULT_EMPTY_NUMBER),
-                "alert_status": strategy_alert_map.get(service["topo_key"], ServiceStatus.NORMAL),
-                "category": service["extra_data"]["category"],
-                "kind": service["extra_data"]["kind"],
-                "operation": {
-                    "config": _lazy("配置"),
-                    "relation": _lazy("关联"),
-                },
-                "app_name": app_name,
-                "predicate_value": service["extra_data"]["predicate_value"],
-                "status": DataStatus.NORMAL
-                if request_count_info.get(service["topo_key"], {}).get("request_count")
-                else DataStatus.NO_DATA,
-            }
-            for service in services
-        ]
+        res = []
+        for service in services:
+            kind = service["extra_data"]["kind"]
+            if kind == TopoNodeKind.REMOTE_SERVICE:
+                if request_count_info.get(service["topo_key"].split(":")[-1], {}).get("request_count"):
+                    status = DataStatus.NORMAL
+                else:
+                    status = DataStatus.NO_DATA
+            elif kind in [TopoNodeKind.SERVICE, TopoNodeKind.COMPONENT]:
+                if request_count_info.get(service["topo_key"], {}).get("request_count"):
+                    status = DataStatus.NORMAL
+                else:
+                    status = DataStatus.NO_DATA
+            else:
+                status = DataStatus.NO_DATA
+
+            res.append(
+                {
+                    "collect": service["topo_key"] in config.config_value,
+                    "service_name": service["topo_key"],
+                    "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
+                    "language": service["extra_data"]["service_language"],
+                    "strategy_count": strategy_service_map.get(service["topo_key"], DEFAULT_EMPTY_NUMBER),
+                    "alert_status": strategy_alert_map.get(service["topo_key"], ServiceStatus.NORMAL),
+                    "category": service["extra_data"]["category"],
+                    "kind": service["extra_data"]["kind"],
+                    "operation": {
+                        "config": _lazy("配置"),
+                        "relation": _lazy("关联"),
+                    },
+                    "app_name": app_name,
+                    "predicate_value": service["extra_data"]["predicate_value"],
+                    "status": status,
+                }
+            )
+        return res
 
     def keyword_filter(self, data: List, keyword: str = None, filter_param: str = None):
         if not keyword and not filter_param:
@@ -1371,8 +1385,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             target="blank",
             filterable=True,
             event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}"
-            + "&filter-app_name={app_name}",
+            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
         )
         if column_type:
             service_format = ServiceComponentAdaptLinkFormat(
@@ -1383,7 +1396,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 target="event",
                 filterable=True,
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-                url_format="/service/?filter-service_name={service}" + "&filter-app_name={app_name}&"
+                url_format="/service/?filter-service_name={service}&filter-app_name={app_name}&"
                 "dashboardId=service-default-overview&sceneId=apm_service&sceneType=overview",
             )
         # columns 默认顺序: 接口、调用类型、调用次数、错误次数、错误率、平均响应时间、状态、类型、分类、服务、操作
@@ -1747,7 +1760,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             endpoint["service"] = endpoint["service_name"]
             if metric.get("apdex"):
                 endpoint["apdex"] = metric.get("apdex")
-            if metric.get("error_rate"):
+            if metric.get("error_rate") is not None:
                 endpoint["error_rate"] = metric.get("error_rate")
 
         return endpoints, endpoints_metric

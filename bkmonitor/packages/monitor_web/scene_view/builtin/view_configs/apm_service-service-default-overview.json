@@ -171,7 +171,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": "HTTP 错误数",
+          "alias": null,
           "data": {
             "type": "range",
             "stack": "all",
@@ -224,7 +224,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": "RPC 错误数",
+          "alias": null,
           "data": {
             "type": "range",
             "stack": "all",
@@ -277,7 +277,7 @@
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",
           "datasource": "time_series",
-          "alias": "总错误数",
+          "alias": "总数量",
           "data": {
             "stack": "all",
             "expression": "A",
