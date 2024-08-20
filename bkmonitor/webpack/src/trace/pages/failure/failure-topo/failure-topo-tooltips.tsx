@@ -33,7 +33,7 @@ import { copyText } from 'monitor-common/utils/utils';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
-import { getNodeAttrs } from './utils';
+import { getNodeAttrs, truncateText } from './utils';
 
 import type { IEdge, ITopoNode } from './types';
 
@@ -670,7 +670,7 @@ export default defineComponent({
                 }}
                 class='root-mark'
               >
-                {this.$t('根因')}
+                {truncateText(this.$t('根因'), 28, 11, 'PingFangSC-Medium')}
               </span>
             )}
             {this.showViewResource &&

@@ -50,6 +50,7 @@ export default defineComponent({
     const { t } = useI18n();
     const isShowList = ref(false);
     const textStyle = 'font-size: 12px;line-height: 20px;font-weight: 400; cursor: pointer;';
+    const widthStyle = 'width:110px;display:inline-block;text-align:right;';
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const incidentId = useIncidentInject();
     const iconFontSize = '16px';
@@ -369,7 +370,7 @@ export default defineComponent({
             slots.content()
           ) : (
             <BkLink
-              style={textStyle}
+              style={[textStyle, widthStyle]}
               theme='primary'
               onClick={handleClick}
             >

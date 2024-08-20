@@ -40,7 +40,7 @@ export default defineComponent({
       type: Boolean,
       required: false,
     },
-    /** 节点信息 */
+    /** 节点信息  */
     data: {
       type: Object,
       default: () => ({}),
@@ -126,7 +126,7 @@ export default defineComponent({
         const parts: Array<JSX.Element | string> = [];
         const regex = /{(.*?)}/g;
         let lastIndex = 0;
-        let match;
+        let match: any;
 
         while ((match = regex.exec(template)) !== null) {
           const [placeholder, key] = match;
@@ -163,6 +163,7 @@ export default defineComponent({
             class={['item-info']}
             title={tips.join('')}
           >
+            {/* biome-ignore lint/correctness/useJsxKeyInIterable: <explanation> */}
             {processedContentArray.map(part => (typeof part === 'string' ? part : <>{part}</>))}
           </span>
         );
@@ -191,6 +192,7 @@ export default defineComponent({
             <Input
               v-model={this.formData.feedbackContent}
               maxlength={300}
+              placeholder={this.$tc('请输入')}
               type='textarea'
             />
           </Form.FormItem>

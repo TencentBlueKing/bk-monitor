@@ -133,7 +133,8 @@ export default defineComponent({
         <div class='header-status-tips'>
           <div class='tips-head'>
             {t('故障内的告警：共')}
-            <b> {total} </b> 个
+            <b> {total} </b>
+            {t('个')}
           </div>
           {list.map((item: any, ind: number) => (
             <span
