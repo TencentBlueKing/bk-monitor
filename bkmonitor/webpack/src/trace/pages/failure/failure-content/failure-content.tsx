@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch, nextTick } from 'vue';
+import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch, nextTick, provide } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
@@ -90,6 +90,7 @@ export default defineComponent({
     const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');
+    provide('activeName', active);
     const searchValidate = ref<boolean>(true);
     const tabList = [
       {
@@ -148,13 +149,13 @@ export default defineComponent({
         chooseOperation.value = data;
       });
     };
-    watch(
-      () => route.query,
-      val => {
-        val.tab && handleChangeActive(val.tab as string);
-      },
-      { immediate: true }
-    );
+    // watch(
+    //   () => route.query,
+    //   val => {
+    //     val.tab && handleChangeActive(val.tab as string);
+    //   },
+    //   { immediate: true }
+    // );
     watch(
       () => currentNodeData.value,
       () => {
@@ -234,6 +235,7 @@ export default defineComponent({
               scrollTop={this.$props.scrollTop}
               onGoAlertDetail={this.goAlertDetail}
               onRefresh={this.refresh}
+              onChangeTab={this.goAlertDetail}
             />
           )}
           {this.active === FailureContentTabView.FAILURE_VIEW && (
