@@ -23,16 +23,12 @@ from opentelemetry.trace import StatusCode
 
 from apm import constants, types
 from apm.core.discover.precalculation.processor import PrecalculateProcessor
-from apm.core.handlers.query.base import (
-    QueryConfigBuilder,
-    UnifyQueryBuilder,
-    UnifyQuerySet,
-)
+from apm.core.handlers.query.base import BaseQuery, QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import OtlpKey
 
 
-class OriginTraceQuery(UnifyQueryBuilder):
+class OriginTraceQuery(BaseQuery):
     DEFAULT_TIME_FIELD = "end_time"
 
     KEY_REPLACE_FIELDS = {"duration": "elapsed_time"}

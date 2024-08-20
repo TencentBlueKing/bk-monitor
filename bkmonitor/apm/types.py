@@ -8,10 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import typing
+from typing import Any, Dict, List, Union
 
-Literal = typing.Union[int, str, float]
+Literal = Union[int, str, float]
 
-FilterValue = typing.Union[Literal, typing.List[Literal]]
+FilterValue = Union[Literal, List[Literal]]
 
-Filter = typing.Dict[str, FilterValue]
+Filter = Dict[str, FilterValue]
+
+Page = Dict[str, Union[int, List[Dict[str, Any]]]]

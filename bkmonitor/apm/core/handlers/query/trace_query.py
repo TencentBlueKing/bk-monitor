@@ -16,26 +16,22 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 import logging
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.db.models import Q
 
 from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.handlers.ebpf.base import EbpfHandler
-from apm.core.handlers.query.base import (
-    QueryConfigBuilder,
-    UnifyQueryBuilder,
-    UnifyQuerySet,
-)
+from apm.core.handlers.query.base import BaseQuery
+from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmApplication
-from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
 
 
-class TraceQuery(UnifyQueryBuilder):
+class TraceQuery(BaseQuery):
 
     DEFAULT_TIME_FIELD = "min_start_time"
 
@@ -67,34 +63,26 @@ class TraceQuery(UnifyQueryBuilder):
         filters: Optional[List[types.Filter]] = None,
         es_dsl: Optional[Dict[str, Any]] = None,
         exclude_fields: Optional[List[str]] = None,
-    ):
+    ) -> Tuple[List[Dict[str, Any]], int]:
+
         logger.info("[TraceQuery] list: es_dsl -> %s", es_dsl)
 
-        page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {}
         all_fields: Set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
         select_fields: List[str] = list(
             all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
         )
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
         q: QueryConfigBuilder = (
             self.q.filter(self.build_filters(filters) & self.build_app_filter())
             .order_by(*(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"]))
             .query_string(*self.parse_query_string_from_dsl(es_dsl))
         )
-        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-
-        def _fill_total():
-            _q: QueryConfigBuilder = q.metric(field=OtlpKey.TRACE_ID, method="count", alias="total")
-            page_data["total"] = queryset.add_query(_q)[0]["total"]
-
-        def _fill_data():
-            _q: QueryConfigBuilder = q.values(*select_fields)
-            page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
-
-        run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
-
+        page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
         return page_data["data"], page_data["total"]
 
-    def query_relation_by_trace_id(self, trace_id: str, start_time: Optional[int], end_time: Optional[int]):
+    def query_relation_by_trace_id(
+        self, trace_id: str, start_time: Optional[int], end_time: Optional[int]
+    ) -> Optional[Dict[str, Any]]:
         """查询此traceId是否有跨应用关联（需要排除此业务下的EBPF应用）"""
 
         exclude_biz_id: int = self.bk_biz_id
@@ -106,7 +94,7 @@ class TraceQuery(UnifyQueryBuilder):
         q: QueryConfigBuilder = (
             self.q.order_by("time desc")
             .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
-            .filter(app_name__neq=exclude_app_names, bk_biz_id__neq=exclude_biz_id)
+            .filter(Q(app_name__neq=exclude_app_names) | Q(biz_id__neq=exclude_biz_id))
         )
 
         # 以此TraceId 开始-结束时间为范围 在此时间范围内才为跨应用
@@ -118,13 +106,15 @@ class TraceQuery(UnifyQueryBuilder):
 
         return self.time_range_queryset().add_query(q).first()
 
-    def query_latest(self, trace_id):
+    def query_latest(self, trace_id: str) -> Optional[Dict[str, Any]]:
         q: QueryConfigBuilder = (
             self.q.filter(self.build_app_filter()).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id}).order_by("time desc")
         )
         return self.time_range_queryset().add_query(q).first()
 
-    def query_option_values(self, start_time: Optional[int], end_time: Optional[int], fields: List[str]):
+    def query_option_values(
+        self, start_time: Optional[int], end_time: Optional[int], fields: List[str]
+    ) -> Dict[str, List[str]]:
         q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
         return self._query_option_values(q, fields, start_time, end_time)
 
@@ -149,7 +139,7 @@ class TraceQuery(UnifyQueryBuilder):
         retention: int,
         start_time: Optional[int],
         end_time: Optional[int],
-    ):
+    ) -> List[Dict[str, Any]]:
         base_q: QueryConfigBuilder = (
             QueryConfigBuilder(cls.USING)
             .filter(trace_id__eq=trace_ids)
@@ -170,11 +160,12 @@ class TraceQuery(UnifyQueryBuilder):
         # TODO 这里大概率后面对接 UnifyQuery 还需要微调和扩展
         return list(queryset.expression(" or ".join(aliases)).limit(len(trace_ids)))
 
-    def query_simple_info(self, start_time: Optional[int], end_time: Optional[int], offset: int, limit: int):
+    def query_simple_info(
+        self, start_time: Optional[int], end_time: Optional[int], offset: int, limit: int
+    ) -> Tuple[List[Dict[str, Any]], int]:
         """查询App下的简单Trace信息"""
-        q: QueryConfigBuilder = (
-            self.q.filter(self.build_app_filter())
-            .values("trace_id", "app_name", "error", "trace_duration", "root_service_category")
-            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
-        )
-        return list(self.time_range_queryset(start_time, end_time).add_query(q).offset(offset).limit(limit)), 0
+        select_fields: List[str] = ["trace_id", "app_name", "error", "trace_duration", "root_service_category"]
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
+        q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+        page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
+        return page_data["data"], page_data["total"]

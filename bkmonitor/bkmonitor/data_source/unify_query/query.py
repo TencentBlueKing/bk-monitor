@@ -362,8 +362,8 @@ class UnifyQuery:
                 start_time=start_time, end_time=end_time, limit=limit, offset=offset, search_after_key=search_after_key
             )
 
-        # if len(self.data_sources) <= 1:
-        #     return _query_log(self.data_sources[0])
+        if len(self.data_sources) <= 1:
+            return _query_log(self.data_sources[0])
 
         total: int = 0
         data: List[Dict[str, Any]] = []

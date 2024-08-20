@@ -26,12 +26,8 @@ from django.utils.translation import gettext_lazy as _
 from alarm_backends.core.storage.redis import Cache
 from apm import types
 from apm.constants import DISCOVER_BATCH_SIZE
-from apm.core.handlers.query.base import (
-    LogicSupportOperator,
-    QueryConfigBuilder,
-    UnifyQueryBuilder,
-    UnifyQuerySet,
-)
+from apm.core.handlers.query.base import BaseQuery, LogicSupportOperator
+from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.core.handlers.query.define import QueryStatisticsMode
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.trace_query import TraceQuery
@@ -80,7 +76,7 @@ class Deque:
         return [json.loads(i) for i in list_data]
 
 
-class StatisticsQuery(UnifyQueryBuilder):
+class StatisticsQuery(BaseQuery):
     LOGIC_FILTER_ALLOW_KEYS = ["root_span", "root_service_span"]
     LOGIC_FILTER_KEY_MAPPING = {
         "root_span": {"span_name": "root_span_name", "service_name": "root_span_service", "kind": "root_span_kind"},
@@ -228,6 +224,9 @@ class StatisticsQuery(UnifyQueryBuilder):
             group__bucket_map[tuple(group_values)] = bucket
             groups_filter = groups_filter | Q(**group_filter_params)
 
+        if not group__bucket_map:
+            return []
+
         if after_key:
             cache_key: str = f"{params_key}:{offset + queryset.query.high_mark}"
             redis_cli.set(cache_key, json.dumps(after_key), AFTER_CACHE_KEY_EXPIRE)
@@ -240,10 +239,16 @@ class StatisticsQuery(UnifyQueryBuilder):
         )
         for err_bucket in queryset.add_query(error_q).after({}):
             group: Tuple = tuple([err_bucket[field] for field in group_fields])
-            group__bucket_map[group]["error_count"] = err_bucket["error_count"]
-            group__bucket_map[group]["error_rate"] = round(
-                err_bucket["error_count"] / group__bucket_map[group]["span_count"], 2
-            )
+            bucket: Optional[Dict[str, Any]] = group__bucket_map.get(group)
+            if not bucket:
+                logger.info("StatisticsQuery: %s, %s", err_bucket, group__bucket_map)
+                logger.warning(
+                    "[StatisticsQuery] _query_metric_data failed to add error_count, group -> %s not found", group
+                )
+                continue
+
+            bucket["error_count"] = err_bucket["error_count"]
+            bucket["error_rate"] = round(err_bucket["error_count"] / bucket["span_count"], 2)
 
         return list(group__bucket_map.values())
 
