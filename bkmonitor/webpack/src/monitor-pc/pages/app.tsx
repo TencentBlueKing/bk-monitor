@@ -372,20 +372,20 @@ export default class App extends tsc<object> {
       hasRouteChange = location.hash !== item.href;
     }
     if (hasRouteChange && !!item.href) {
-      await this.$nextTick();
-      if (!(this.$router as any).history.pending) {
-        const route = item.usePath ? { path: item.path } : { name: item.id };
-        !item.noCache &&
-          this.setUserStoreMenu({
-            [this.headerNav]: route,
-          });
-        if (isMicroApp) {
-          location.hash = item.href;
-        } else this.$router.push(route);
-      }
-      setTimeout(() => {
-        (this.$router as any).history.pending = null;
-      }, 2000);
+      // await this.$nextTick();
+      // if (!(this.$router as any).history.pending) {
+      const route = item.usePath ? { path: item.path } : { name: item.id };
+      !item.noCache &&
+        this.setUserStoreMenu({
+          [this.headerNav]: route,
+        });
+      if (isMicroApp) {
+        location.hash = item.href;
+      } else this.$router.push(route);
+      // }
+      // setTimeout(() => {
+      //   (this.$router as any).history.pending = null;
+      // }, 2000);
     }
   }
   /**
@@ -394,17 +394,17 @@ export default class App extends tsc<object> {
    * @param {*} oldId
    * @return {*}
    */
-  handleBeforeNavChange(newId: string, oldId: string) {
+  handleBeforeNavChange() {
     this.handleHeaderSettingShowChange(false);
     if (changeNoticeRouteList.includes(this.$route.name)) {
-      if (newId !== oldId) {
-        this.$router.push({
-          name: newId,
-        });
-      }
+      // if (newId !== oldId) {
+      //   this.$router.push({
+      //     name: newId,
+      //   });
+      // }
       return false;
     }
-    (this.$router as any).history.pending = null;
+    // (this.$router as any).history.pending = null;
     return true;
   }
   // 切换业务
