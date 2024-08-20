@@ -45,7 +45,7 @@ class EventStatus:
 EVENT_STATUS = (
     (EventStatus.ABNORMAL, _("未恢复")),
     (EventStatus.RECOVERED, _("已恢复")),
-    (EventStatus.CLOSED, _("已关闭")),
+    (EventStatus.CLOSED, _("已失效")),
 )
 
 EVENT_STATUS_DICT = {status: desc for (status, desc) in EVENT_STATUS}

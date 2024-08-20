@@ -405,14 +405,14 @@ msgstr "Strategic filtering conditions have been modified, the alarm is closed"
 msgid "无数据告警设置被关闭，告警关闭"
 msgstr "No data is set off the alarm, the alarm off"
 
-msgid "当前维度存在更新的告警事件({})，告警已关闭"
+msgid "当前维度存在更新的告警事件({})，告警已失效"
 msgstr "The current dimension has a updated alarm ({}), the alarm has been closed"
 
-msgid "在恢复检测周期内无数据上报，告警已关闭"
+msgid "在恢复检测周期内无数据上报，告警已失效"
 msgstr "No recovery in the detection data reporting period, the alarm is turned off"
 
 #, python-format
-msgid "在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已关闭"
+msgid "在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已失效"
 msgstr "During the recovery detection cycle, there are already %s that has not produced countless related events, and the alarm has been closed."
 
 msgid "CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭"
@@ -1911,8 +1911,8 @@ msgstr "Already Fixed"
 msgid "异常中"
 msgstr "Exception"
 
-msgid "已关闭"
-msgstr "Closed"
+msgid "已失效"
+msgstr "CLOSED"
 
 msgid "告警确认"
 msgstr "Alarm Confirmation"
@@ -11377,8 +11377,8 @@ msgstr "- Not Configured"
 msgid "告警中"
 msgstr "Alerting"
 
-msgid "已失效"
-msgstr "Expired"
+msgid "策略已失效"
+msgstr "INVALID"
 
 msgid "监控条件包含or语句时无法转换为PromQL语句"
 msgstr "The monitoring condition cannot be converted to the PROMQL statement when it contains the OR statement"
