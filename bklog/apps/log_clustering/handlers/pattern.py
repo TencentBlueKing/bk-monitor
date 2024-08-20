@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import re
 from typing import List
 
 import arrow
@@ -54,6 +55,7 @@ from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
 from apps.utils.local import get_local_param, get_request_username
+from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range, generate_time_range_shift
 
@@ -319,13 +321,24 @@ class PatternHandler:
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
     def _get_pattern_data(self):
-        records = (
-            BkData(self._clustering_config.signature_pattern_rt)
-            .select("signature", "pattern")
-            .time_range(start_time=arrow.get("2024-01-01").timestamp)  # 此处只为查出全量，只需大于当前时间即可
-            .query()
-        )
-        return {record["signature"]: record["pattern"] for record in records}
+        try:
+            records = (
+                BkData(self._clustering_config.signature_pattern_rt)
+                .select("signature", "pattern")
+                .time_range(start_time=arrow.get("2024-01-01").timestamp)  # 此处只为查出全量，只需大于当前时间即可
+                .query()
+            )
+        except Exception as e:
+            logger.exception(
+                "IndexSet(%s) get pattern data error for RT(%s): {%s}",
+                self._index_set_id,
+                self._clustering_config.signature_pattern_rt,
+                e,
+            )
+            records = []
+        for record in records:
+            record["pattern"] = re.sub(r'\$([a-zA-Z-_]+)', r'#\1#', record["pattern"])
+        return records
 
     def set_clustering_owner(self, params: dict):
         """
