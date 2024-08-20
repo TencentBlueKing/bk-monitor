@@ -4,7 +4,7 @@ module.exports = {
     require('tailwindcss'),
     require('tailwindcss/nesting'),
     require('postcss-preset-env')({
-      stage: 3,
+      stage: 2,
       features: {
         'nesting-rules': false,
       },

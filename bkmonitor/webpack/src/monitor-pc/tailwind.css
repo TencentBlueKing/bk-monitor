@@ -80,4 +80,8 @@
   a {
     text-decoration: none;
   }
+
+  img {
+    display: inline;
+  }
 }

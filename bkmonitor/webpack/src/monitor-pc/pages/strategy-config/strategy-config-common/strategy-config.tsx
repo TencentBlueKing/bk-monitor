@@ -1834,7 +1834,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     const titleStr = this.$t(title);
     return (
       <span
-        class={{ 'dropdown-trigger': true, ' plugin-label': true, selected: active }}
+        class={{ 'dropdown-trigger': true, 'plugin-label': true, selected: active }}
         slot='dropdown-trigger'
         onClick={e => this.handleShowTableFilter(e, type, title)}
       >
