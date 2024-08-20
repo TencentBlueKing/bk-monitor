@@ -80,7 +80,7 @@ export default defineComponent({
     const operations = computed(() => {
       return operationsList.value;
     });
-    /** 前端搜索 */
+    /** 前端搜索  */
     const searchOperations = computed(() => {
       let result = operations.value;
       if (checkedNodes.value.length > 0) {
@@ -112,7 +112,9 @@ export default defineComponent({
               operationTypeMap.value[type.id] = type.name;
             });
             const isAddLineIndex = item.operation_types.findIndex(type => type.id.startsWith('alert'));
-            isAddLineIndex > 0 && (item.operation_types[isAddLineIndex - 1].isAddLine = true);
+            if (isAddLineIndex > 0) {
+              item.operation_types[isAddLineIndex - 1].isAddLine = true;
+            }
           });
           operationTypes.value = res;
           const defaultCheckNodeIds = [];
@@ -124,7 +126,9 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => (tableLoading.value = false));
+        .finally(() => {
+          tableLoading.value = false;
+        });
     };
     const handleClearSearch = () => {
       queryString.value = '';
@@ -211,6 +215,7 @@ export default defineComponent({
                 <div class='failure-process-search-setting-tree'>
                   <Tree
                     checked={this.checkedNodes}
+                    // biome-ignore lint/correctness/noChildrenProp: <explanation>
                     children='operation_types'
                     data={this.operationTypes}
                     expand-all={true}
@@ -236,7 +241,7 @@ export default defineComponent({
                                 ]}
                               />
                             )}
-                            {data.name}
+                            {this.$t(data.name)}
                             {data.isAddLine ? <span class='node-line' /> : ''}
                           </span>
                         );
@@ -278,7 +283,7 @@ export default defineComponent({
                       <p>
                         <span class='failure-process-item-time'>{this.formatterTime(operation.create_time)}</span>
                         <span class='failure-process-item-title'>
-                          {this.operationTypeMap[operation.operation_type] || '--'}
+                          {this.$t(this.operationTypeMap[operation.operation_type]) || '--'}
                         </span>
                       </p>
                       <p class='failure-process-item-flex'>

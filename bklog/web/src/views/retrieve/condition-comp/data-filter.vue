@@ -159,9 +159,7 @@
       },
       changeLightList() {
         // 找出未显示的颜色
-        const colorIndex = contextHighlightColor.findIndex(
-          (item, index) => !this.catchColorIndexList.includes(index),
-        );
+        const colorIndex = contextHighlightColor.findIndex((item, index) => !this.catchColorIndexList.includes(index));
         const catchCloneColorList = deepClone(this.colorHighlightList);
         // 给高亮颜色重新赋值
         this.colorHighlightList = this.highlightList.map(item => {

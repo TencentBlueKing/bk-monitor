@@ -51,20 +51,34 @@ class DynamicGroupHandler:
         ]
         return groups
 
-    def execute(self, dynamic_group_id: str, start: int, page_size: int) -> List[Dict]:
+    def execute(self, dynamic_group_id: str, start: int, page_size: int) -> Dict:
         """执行动态分组"""
-        result = {"start": start, "page_size": page_size, "total": 0}
+        result = {"start": start, "page_size": page_size, "total": 0, "data": []}
 
-        execute_dynamic_group_result = BkApi.execute_dynamic_group(
-            {
-                "bk_biz_id": self.bk_biz_id,
-                "id": dynamic_group_id,
-                "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
-                "page": {"start": start, "limit": page_size},
-            }
-        )
-        if not execute_dynamic_group_result or not execute_dynamic_group_result["info"]:
-            return result
+        if page_size > 0:
+            execute_dynamic_group_result = BkApi.execute_dynamic_group(
+                {
+                    "bk_biz_id": self.bk_biz_id,
+                    "id": dynamic_group_id,
+                    "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
+                    "page": {"start": start, "limit": page_size},
+                }
+            )
+            if not execute_dynamic_group_result or not execute_dynamic_group_result["info"]:
+                return result
+        else:
+            host_list = batch_request(
+                func=BkApi.execute_dynamic_group,
+                params={
+                    "bk_biz_id": self.bk_biz_id,
+                    "id": dynamic_group_id,
+                    "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
+                },
+            )
+            if not host_list:
+                return result
+            execute_dynamic_group_result = {"info": host_list, "count": len(host_list)}
+
         # count预留给分页使用
         # TODO: 当动态分组为集群时, 暂不支持
         result["total"] = execute_dynamic_group_result["count"]
@@ -103,10 +117,7 @@ class DynamicGroupHandler:
             "fields": constants.CommonEnum.SIMPLE_HOST_FIELDS.value,
             "no_request": True,
         }
-        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params)
-        if not hosts:
-            return result
-
+        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params) or []
         result["host_count"] = len(hosts)
         TopoHandler.fill_agent_status(hosts, self.bk_biz_id)
         agent_statistics = TopoHandler.count_agent_status(hosts)

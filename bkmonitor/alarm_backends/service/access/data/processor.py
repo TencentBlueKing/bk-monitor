@@ -22,7 +22,6 @@ from typing import Dict, List
 
 import arrow
 import pytz
-import redis
 from django.conf import settings
 from django.utils.functional import cached_property
 from kafka import KafkaConsumer
@@ -756,19 +755,12 @@ class AccessBatchDataProcess(AccessDataProcess):
             strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
         )
         cache_key.strategy_id = self.items[0].strategy.id
-
-        try:
-            raw_points: List[str] = client.lrange(cache_key, 0, -1)
-            points: List[Dict] = [json.loads(point) for point in raw_points]
-        except redis.ResponseError:
-            data = client.get(cache_key)
-            if data:
-                points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
-            else:
-                points = []
-
+        data = client.get(cache_key)
+        if data:
+            points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+        else:
+            points = []
         client.delete(cache_key)
-
         self.filter_duplicates(points)
 
     def process(self):

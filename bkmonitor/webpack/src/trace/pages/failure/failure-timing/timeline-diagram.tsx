@@ -132,6 +132,7 @@ export default defineComponent({
     const currentBizIds = ref<number[]>([]);
     const isDragging = ref<boolean>(false);
     const mouseRatio = ref<number>();
+    const keyIdList = ref<string[]>([]);
     const processPopoverRefs = ref<HTMLDivElement[]>([]);
     const actionList = ref([
       {
@@ -167,7 +168,7 @@ export default defineComponent({
     ]);
     const ratio = ref<number>(0);
     const processRef = ref<HTMLDivElement>();
-    const feedbackIncidentRootApi = (isCancel = false, data) => {
+    const feedbackIncidentRootApi = (isCancel, data) => {
       const { bk_biz_id, id } = data;
       const params = {
         id: incidentId.value,
@@ -307,7 +308,7 @@ export default defineComponent({
     };
     /** 获取开始的时间点和小时跨度 */
     const getDateAndHour = (time: number) => {
-      const date = !!time ? formatTime(time * 1000) : formatTime(new Date());
+      const date = time ? formatTime(time * 1000) : formatTime(new Date());
       const startDay = (date || '').split(' ')[0];
       if (tickArr.value.findIndex(ele => ele === startDay) === -1) {
         tickArr.value.push(startDay);
@@ -431,7 +432,7 @@ export default defineComponent({
     watch(
       () => treeDataList.value,
       val => {
-        if (!!val) {
+        if (val) {
           treeData.value = [];
           handleData(val);
         }
@@ -477,8 +478,10 @@ export default defineComponent({
     watch(
       () => props.chooseOperation,
       val => {
+        keyIdList.value.map(item => processPopoverRefs.value[`process${item}`]?.hide());
         circleOnClick([val]);
-        processPopoverRefs.value[`process${val.id}`]?.show();
+        const key = keyIdList.value.filter(item => item.indexOf(val.id) !== -1);
+        setTimeout(() => processPopoverRefs.value[`process${key[0]}`]?.show(), 100);
         if (percentage.value !== 0) {
           nextTick(() => {
             const activeElements: any = processRef.value.querySelectorAll('.active');
@@ -566,7 +569,7 @@ export default defineComponent({
         begin_time: { label: t('告警开始时间'), renderFn: time => formatTime(time * 1000) },
         end_time: {
           label: t('告警结束时间'),
-          renderFn: time => (!!time ? formatTime(time * 1000) : formatTime(new Date())),
+          renderFn: time => (time ? formatTime(time * 1000) : formatTime(new Date())),
         },
         assignee: { label: t('负责人') },
         dimension_message: { label: t('维度信息') },
@@ -593,6 +596,7 @@ export default defineComponent({
               <div class='more-list'>
                 {actionList.value.map(item => (
                   <div
+                    key={item.id}
                     class={[
                       'list-item',
                       {
@@ -625,7 +629,10 @@ export default defineComponent({
             Object.keys(infoConfig).map(key => {
               const info = infoConfig[key];
               return (
-                <div class='tool-text'>
+                <div
+                  key={key}
+                  class='tool-text'
+                >
                   <label class='tool-label'>{info.label}：</label>
                   <span class='tool-info'>
                     {info?.renderFn ? info.renderFn(alert_example[key]) : alert_example[key] || '--'}
@@ -677,19 +684,21 @@ export default defineComponent({
         return Object.assign(item, { isActive });
       });
     };
+    const handleCallback = () => {
+      keyIdList.value.map(item => processPopoverRefs.value[`process${item}`]?.hide());
+    };
     const renderPopoverContent = ele => (
       <div class='operations-tips'>
         <span class='tips-item'>{formatTime(ele.create_time * 1000)}</span>
-        <span class='tips-type'>{operationTypeMapData.value[ele.operation_type] || '--'}</span>
-        <span class='tips-item'>{renderMap[ele.operation_type]?.(
-          ele,
-          incidentId.value,
-          incidentDetail.value?.bk_biz_id
-        ) || '--'}</span>
+        <span class='tips-type'>{t(operationTypeMapData.value[ele.operation_type]) || '--'}</span>
+        <span class='tips-item'>
+          {renderMap[ele.operation_type]?.(ele, incidentId.value, incidentDetail.value?.bk_biz_id, handleCallback) ||
+            '--'}
+        </span>
       </div>
     );
     /** 绘制流转的圆 */
-    const renderCircle = (isMore = false, ele, index: number) => {
+    const renderCircle = (isMore, ele, index: number) => {
       const step = mainWidth.value / (segmentDuration.value * showTickArr.value.length);
       const daysDiff = ele[0].create_time * 1000 - Number(showTickArr.value[index]);
       const offset = daysDiff * step;
@@ -724,14 +733,17 @@ export default defineComponent({
       );
     };
     /** 绘制流转的圆popover */
-    const renderPopover = (isMore = true, ele, index) => {
+    const renderPopover = (isMore, ele, index) => {
       const len = ele.length;
       const setItemRef = (el, key) => {
         el && (processPopoverRefs.value[key] = el);
       };
+      const keyId = ele.map(item => item.id).join('');
+      const isHas = keyIdList.value.find(item => item === keyId);
+      !isHas && keyIdList.value.push(keyId);
       return (
         <Popover
-          ref={(el) => setItemRef(el, `process${ele[0].id}`)}
+          ref={el => setItemRef(el, `process${keyId}`)}
           extCls={`operations-popover${len > 1 ? '-more' : ''}`}
           v-slots={{
             content: () => {
@@ -845,7 +857,7 @@ export default defineComponent({
       const values = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
       return Number.parseFloat(values[4]);
     }
-    /** 时序图位置变化处理方法 */
+    /** 时序图位置变化处理方法  */
     const onTimeLineMouseHandle = (deltaX: number) => {
       const selection: any = timeLineMainRef.value;
       const startTransform = getTransformX(selection);
@@ -855,7 +867,7 @@ export default defineComponent({
       const ratio = newPos / maxTransformX;
       mainLeft.value = newPos > 0 ? 0 : newPos;
       mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
-    }
+    };
     const onTimeLineMainMouseDown = (event: MouseEvent) => {
       if (percentage.value === 0) {
         return;
@@ -884,7 +896,7 @@ export default defineComponent({
       }
       const { deltaX } = e;
       const sensitivity = 2; // 设置滚动灵敏度
-      let dx = -deltaX * sensitivity;
+      const dx = -deltaX * sensitivity;
       onTimeLineMouseHandle(dx);
     };
     return {
@@ -1013,6 +1025,7 @@ export default defineComponent({
               const time = !this.isHour ? this.formatTime(item).split(' ')[0] : this.formatTime(item, 'YY-MM-DD HH:mm');
               return (
                 <li
+                  key={item}
                   style={{ width: `${this.tickWidth}px` }}
                   class='time-view-tick'
                 >
@@ -1023,8 +1036,9 @@ export default defineComponent({
             })}
           </ul>
           <div class='time-view'>
-            {(this.showTickArr || []).map(() => (
+            {(this.showTickArr || []).map(item => (
               <span
+                key={item}
                 style={{ width: `${this.tickWidth}px` }}
                 class='time-view-tick'
               >
@@ -1077,6 +1091,7 @@ export default defineComponent({
           show={this.dialog.manualProcess.show}
           onDebugStatus={this.handleDebugStatus}
           onMealInfo={this.handleMealInfo}
+          onRefresh={this.refresh}
           onShowChange={this.manualProcessShowChange}
         />
         <AlarmDispatch
@@ -1084,6 +1099,7 @@ export default defineComponent({
           bizIds={this.currentBizIds}
           data={this.currentSpan}
           show={this.dialog.alarmDispatch.show}
+          onRefresh={this.refresh}
           onShow={this.handleAlarmDispatchShowChange}
         />
         <AlarmConfirm
@@ -1092,6 +1108,7 @@ export default defineComponent({
           ids={this.currentIds}
           show={this.dialog.alarmConfirm.show}
           onChange={this.alarmConfirmChange}
+          onRefresh={this.refresh}
         />
       </div>
     );

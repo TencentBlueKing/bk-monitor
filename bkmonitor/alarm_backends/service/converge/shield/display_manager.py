@@ -8,9 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Dict, List
 
-
-from alarm_backends.core.cache.cmdb import BusinessManager, ServiceInstanceManager, TopoManager
+from alarm_backends.core.cache.cmdb import (
+    BusinessManager,
+    ServiceInstanceManager,
+    TopoManager,
+)
+from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from bkmonitor.utils.shield import BaseShieldDisplayManager
 
 
@@ -18,6 +23,14 @@ class DisplayManager(BaseShieldDisplayManager):
     def get_business_name(self, bk_biz_id):
         business = BusinessManager.get(bk_biz_id)
         return business.bk_biz_name if business else str(bk_biz_id)
+
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: List[Dict]) -> List:
+        dynamic_group_ids = [dynamic_group["dynamic_group_id"] for dynamic_group in dynamic_group_list]
+        dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
+        return [
+            group.name if group else dynamic_group_id
+            for dynamic_group_id, group in zip(dynamic_group_ids, dynamic_groups)
+        ]
 
     def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
         keys = []

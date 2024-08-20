@@ -198,7 +198,7 @@ ACTION_TASK_CRONTAB = [
     # 定期检测异常告警
     ("alarm_backends.service.alert.manager.tasks.check_abnormal_alert", "* * * * *", "cluster"),
     # 定期关闭流控告警，避免与整点之类的任务并发，设置每12分钟执行一次
-    ("alarm_backends.service.alert.manager.tasks.check_blocked_alert", "*/12 * * * *", "cluster"),
+    ("alarm_backends.service.alert.manager.tasks.check_blocked_alert", "* */1 * * *", "cluster"),
     # 定期检测屏蔽策略，进行告警的屏蔽
     ("alarm_backends.service.converge.shield.tasks.check_and_send_shield_notice", "* * * * *", "cluster"),
     # 全局任务
@@ -274,6 +274,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
+    # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
+    ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds

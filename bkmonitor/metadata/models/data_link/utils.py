@@ -15,6 +15,7 @@ from typing import Dict, Optional
 
 from jinja2 import Template
 
+from metadata import models
 from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 
 logger = logging.getLogger("metadata")
@@ -24,6 +25,7 @@ def get_bkdata_table_id(table_id: str) -> str:
     """获取计算平台结果表"""
     # NOTE: 按照 '__default__'截断，则取前半部分
     table_id = table_id.split(".__default__")[0]
+    table_id = table_id.lower()
     # 转换中划线为下划线，
     # NOTE: 不能以数字开头，添加一个默认前缀
     return f"bkm_{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
@@ -44,3 +46,14 @@ def get_bkdata_data_id_name(data_name: str) -> str:
     refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
     # 截取长度为45的字符串，同时拼装前缀
     return f"bkm_{refine_data_name[-45:].lower()}"
+
+
+def is_k8s_metric_data_id(data_name: str) -> bool:
+    """判断是否为k8s指标数据源"""
+    try:
+        obj = models.DataSource.objects.get(data_name=data_name)
+    except models.DataSource.DoesNotExist:
+        raise ValueError(f"data_name {data_name} not exist")
+    data_id = obj.bk_data_id
+
+    return models.BCSClusterInfo.objects.filter(K8sMetricDataID=data_id).exists()

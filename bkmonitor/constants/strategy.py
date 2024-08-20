@@ -155,7 +155,8 @@ class TargetFieldType(object):
     host_set_template = "host_set_template"
     service_set_template = "service_set_template"
     host_service_template = "host_service_template"
-    service_service_template = "service_service_template"  # 通过服务模板下发的服务实例
+    service_service_template = "service_service_template"
+    dynamic_group = "dynamic_group"
 
 
 class TargetMethodType(object):

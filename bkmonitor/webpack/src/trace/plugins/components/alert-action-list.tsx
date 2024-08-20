@@ -77,6 +77,12 @@ export default defineComponent({
 
     const actionList = reactive([
       {
+        id: 'alert_detail',
+        name: t('告警详情'),
+        icon: 'icon-mc-list',
+        onClick: e => actionClickFn(e, handleAlertDetail),
+      },
+      {
         id: 'alert_confirm',
         name: t('告警确认'),
         icon: 'icon-duihao',
@@ -103,7 +109,7 @@ export default defineComponent({
       {
         id: 'feedback_new_root_cause',
         // name: t('反馈新根因'),
-        // icon: 'icon-fankuixingenyin',
+        // icon: ' icon-fankuixingenyin',
         name: !isRootCause.value ? t('反馈根因') : t('取消反馈根因'),
         icon: !isRootCause.value ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
         onClick: e => actionClickFn(e, handleRootCauseConfirm),
@@ -194,7 +200,7 @@ export default defineComponent({
       }
     };
 
-    const feedbackIncidentRootApi = (isCancel = false, data) => {
+    const feedbackIncidentRootApi = (isCancel, data) => {
       const { bk_biz_id, id } = data;
       const params = {
         id: incidentId.value,
@@ -235,6 +241,9 @@ export default defineComponent({
       setDialogData(v);
       dialog.rootCauseConfirm.data = v;
       dialog.rootCauseConfirm.show = true;
+    };
+    const handleAlertDetail = v => {
+      window.__BK_WEWEB_DATA__?.showDetailSlider?.(JSON.parse(JSON.stringify({ ...v })));
     };
     const handleAlertConfirm = v => {
       setDialogData(v);
@@ -285,22 +294,6 @@ export default defineComponent({
     const handleGetTable = () => {
       emit('successLoad');
     };
-
-    /**
-     * @description: 屏蔽成功
-     * @param {boolean} v
-     * @return {*}
-     */
-    const quickShieldSucces = (v: boolean) => {
-      if (v) {
-        // tableData.value.value.forEach(item => {
-        //   if (dialog.quickShield.ids.includes(item.id)) {
-        //     item.is_shielded = true;
-        //     item.shield_operator = [window.username || window.user_name];
-        //   }
-        // });
-      }
-    };
     /* 搜索条件包含action_id 且 打开批量搜索则更新url状态 */
     const batchUrlUpdate = () => {
       return;
@@ -345,27 +338,29 @@ export default defineComponent({
       <div>
         <BkDropdown
           v-slots={{
-            content: () => (
-              !isActionFocus.value && <BkDropdownMenu>
-                {actionList.map(item => (
-                  <BkDropdownItem
-                    style={`font-size: 12px;color: #63656E; ${getDisabled(item) ? style : ''}`}
-                    onClick={e => {
-                      if (getDisabled(item)) {
-                        return;
-                      }
-                      item.onClick(e, currentData.value);
-                    }}
-                  >
-                    <i
-                      style='margin-right: 4px;'
-                      class={['icon-monitor', item.icon]}
-                    />
-                    {item.name}
-                  </BkDropdownItem>
-                ))}
-              </BkDropdownMenu>
-            ),
+            content: () =>
+              !isActionFocus.value && (
+                <BkDropdownMenu>
+                  {actionList.map(item => (
+                    <BkDropdownItem
+                      key={item.id}
+                      style={`font-size: 12px;color: #63656E; ${getDisabled(item) ? style : ''}`}
+                      onClick={e => {
+                        if (getDisabled(item)) {
+                          return;
+                        }
+                        item.onClick(e, currentData.value);
+                      }}
+                    >
+                      <i
+                        style='margin-right: 4px;'
+                        class={['icon-monitor', item.icon]}
+                      />
+                      {item.name}
+                    </BkDropdownItem>
+                  ))}
+                </BkDropdownMenu>
+              ),
           }}
           onHide={handleMouseEnter}
           onShow={handleMouseEnter}
@@ -397,6 +392,7 @@ export default defineComponent({
           data={currentData.value}
           visible={dialog.rootCauseConfirm.show}
           onEditSuccess={handleGetTable}
+          onRefresh={handleGetTable}
           onUpdate:isShow={handleFeedbackChange}
         />
         <QuickShield
@@ -406,7 +402,7 @@ export default defineComponent({
           ids={currentIds.value}
           show={dialog.quickShield.show}
           onChange={quickShieldChange}
-          onSucces={quickShieldSucces}
+          onRefresh={handleGetTable}
         />
         <ManualProcess
           alertIds={currentIds.value}
@@ -415,6 +411,7 @@ export default defineComponent({
           show={dialog.manualProcess.show}
           onDebugStatus={handleDebugStatus}
           onMealInfo={handleMealInfo}
+          onRefresh={handleGetTable}
           onShowChange={manualProcessShowChange}
         />
         <AlarmDispatch
@@ -422,6 +419,7 @@ export default defineComponent({
           bizIds={currentBizIds.value}
           data={currentData.value}
           show={dialog.alarmDispatch.show}
+          onRefresh={handleGetTable}
           onShow={handleAlarmDispatchShowChange}
           onSuccess={handleAlarmDispatchSuccess}
         />
@@ -432,6 +430,7 @@ export default defineComponent({
           show={dialog.alarmConfirm.show}
           onChange={alarmConfirmChange}
           onConfirm={handleConfirmAfter}
+          onRefresh={handleGetTable}
         />
       </div>
     );

@@ -19,6 +19,8 @@ from django.conf import settings
 from django.db.models import Q
 
 from alarm_backends.service.scheduler.app import app
+from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
+from alarm_backends.service.selfmonitor.collect.transfer import TransferMetricHelper
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems, ReportStatus, StatisticsMetric
 from bkmonitor.utils.custom_report_tools import custom_report_tool
@@ -28,8 +30,6 @@ from bkmonitor.utils.time_tools import localtime
 from core.prometheus import metrics
 from core.statistics.metric import Metric
 from metadata.models import DataSource
-
-from .helper import TransferMetricHelper
 
 GlobalConfig = apps.get_model("bkmonitor.GlobalConfig")
 logger = logging.getLogger("bkmonitor.cron_report")
@@ -194,8 +194,8 @@ def render_mails(
             # 获取订阅者的业务列表
             perm_client = Permission(receivers[0])
             perm_client.skip_check = False
-            business_list = perm_client.filter_business_list_by_action(ActionEnum.VIEW_BUSINESS)
-            bk_biz_ids = [biz.bk_biz_id for biz in business_list]
+            spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+            bk_biz_ids = [s["bk_biz_id"] for s in spaces]
         except Exception as error:
             logger.exception(
                 "[mail_report] get business info of report_item(%s)" " failed: %s", report_item.id, str(error)
@@ -256,3 +256,7 @@ def report_transfer_operation_data():
     h = TransferMetricHelper()
     h.fetch()
     h.report()
+
+
+def collect_redis_metric():
+    RedisMetricCollectReport().collect_redis_metric_data()

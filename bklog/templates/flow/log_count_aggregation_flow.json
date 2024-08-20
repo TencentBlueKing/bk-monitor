@@ -13,15 +13,15 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT COUNT(*) as log_count, CONCAT('__', sensitivity) as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_deal_model_json(log_signature)) as T(sensitivity,signature) {{log_count_aggregation.log_count_aggregation.filter_rule}} GROUP BY sensitivity, signature{% if log_count_aggregation.log_count_aggregation.groups %}, {{log_count_aggregation.log_count_aggregation.groups}}{% endif %}",
-      "table_name": "{{log_count_aggregation.log_count_aggregation.table_name}}",
+      "sql": "SELECT COUNT(*) as log_count, '__dist_05' as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_single_signature_format_java(log_signature)) as T(signature) {{log_count_aggregation.agg.filter_rule}} GROUP BY signature{% if log_count_aggregation.agg.groups %}, {{log_count_aggregation.agg.groups}}{% endif %}",
+      "table_name": "{{log_count_aggregation.agg.table_name}}",
       "name": "日志数量统计",
       "count_freq": 60,
       "waiting_time": 300,
       "window_time": null,
       "window_type": "scroll",
       "counter": null,
-      "output_name": "{{log_count_aggregation.log_count_aggregation.result_table_id}}",
+      "output_name": "{{log_count_aggregation.agg.result_table_id}}",
       "session_gap": null,
       "expired_time": null,
       "window_lateness": {
@@ -47,8 +47,8 @@
       }
     },
     {
-      "name": "{{log_count_aggregation.log_count_aggregation.table_name}}({{log_count_aggregation.storage_type}})",
-      "result_table_id": "{{log_count_aggregation.log_count_aggregation.result_table_id}}",
+      "name": "{{log_count_aggregation.agg.table_name}}({{log_count_aggregation.storage_type}})",
+      "result_table_id": "{{log_count_aggregation.agg.result_table_id}}",
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
       "indexed_fields": [
         "sensitivity",
@@ -63,7 +63,7 @@
         {
           "id": 447374,
           "from_result_table_ids": [
-            "{{log_count_aggregation.log_count_aggregation.result_table_id}}"
+            "{{log_count_aggregation.agg.result_table_id}}"
           ]
         }
       ],
@@ -71,6 +71,104 @@
       "frontend_info": {
         "x": 796,
         "y": 172
+      }
+    },
+    {
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "sql": "SELECT signature, pattern as log_pattern, log FROM {{log_count_aggregation.result_table_id}}, lateral table (udf_single_signature_format_java (log_signature)) as T (signature)",
+      "table_name": "{{log_count_aggregation.signature.table_name}}",
+      "name": "Signature 提取",
+      "count_freq": null,
+      "waiting_time": null,
+      "window_time": null,
+      "window_type": "none",
+      "counter": null,
+      "output_name": "{{log_count_aggregation.signature.result_table_id}}",
+      "session_gap": null,
+      "expired_time": null,
+      "window_lateness": {
+          "allowed_lateness": false,
+          "lateness_time": 1,
+          "lateness_count_freq": 60
+      },
+      "correct_config_id": null,
+      "is_open_correct": false,
+      "id": 587866,
+      "from_nodes": [
+          {
+              "id": 447364,
+              "from_result_table_ids": [
+                  "{{log_count_aggregation.result_table_id}}"
+              ]
+          }
+      ],
+      "node_type": "realtime",
+      "frontend_info": {
+          "x": 473,
+          "y": 297
+      }
+    },
+    {
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "sql": "SELECT signature, pattern, log FROM {{log_count_aggregation.signature.result_table_id}}, lateral table (udf_single_signature_format_java (log_pattern)) as T (pattern)",
+      "table_name": "{{log_count_aggregation.pattern.table_name}}",
+      "name": "Pattern 提取",
+      "count_freq": null,
+      "waiting_time": null,
+      "window_time": null,
+      "window_type": "none",
+      "counter": null,
+      "output_name": "{{log_count_aggregation.pattern.result_table_id}}",
+      "session_gap": null,
+      "expired_time": null,
+      "window_lateness": {
+          "allowed_lateness": false,
+          "lateness_time": 1,
+          "lateness_count_freq": 60
+      },
+      "correct_config_id": null,
+      "is_open_correct": false,
+      "id": 587868,
+      "from_nodes": [
+          {
+              "id": 587866,
+              "from_result_table_ids": [
+                  "{{log_count_aggregation.signature.result_table_id}}"
+              ]
+          }
+      ],
+      "node_type": "realtime",
+      "frontend_info": {
+          "x": 799,
+          "y": 292
+      }
+    },
+    {
+      "name": "{{log_count_aggregation.pattern.table_name}}({{log_count_aggregation.storage_type}})",
+      "result_table_id": "{{log_count_aggregation.pattern.result_table_id}}",
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "indexed_fields": [
+        "signature"
+      ],
+      "cluster": "{{log_count_aggregation.tspider_storage.cluster}}",
+      "expires": {{log_count_aggregation.pattern.expires}},
+      "has_unique_key": true,
+      "storage_keys": [
+          "signature"
+      ],
+      "id": 589424,
+      "from_nodes": [
+          {
+              "id": 587868,
+              "from_result_table_ids": [
+                  "{{log_count_aggregation.pattern.result_table_id}}"
+              ]
+          }
+      ],
+      "node_type": "{{log_count_aggregation.storage_type}}",
+      "frontend_info": {
+          "x": 1085,
+          "y": 280
       }
     }
 ]

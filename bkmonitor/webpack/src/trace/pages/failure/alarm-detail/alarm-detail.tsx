@@ -154,7 +154,7 @@ export default defineComponent({
     const incidentDetailData = computed(() => {
       return incidentDetail.value;
     });
-    /** 一键拉群弹窗 */
+    /** 一键拉群弹窗  */
     const chatGroupDialog = reactive({
       show: false,
       alertName: '',
@@ -239,8 +239,7 @@ export default defineComponent({
     const chatGroupShowChange = (show: boolean) => {
       chatGroupDialog.show = show;
     };
-    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
-    const feedbackIncidentRootApi = (isCancel = false, data) => {
+    const feedbackIncidentRootApi = (isCancel, data) => {
       const { bk_biz_id } = data;
       const params = {
         id: incidentId.value,
@@ -704,6 +703,7 @@ export default defineComponent({
       document.body.addEventListener('click', handleHideMoreOperate);
     });
     onUnmounted(() => {
+      handleHideMoreOperate();
       document.body.removeEventListener('click', handleHideMoreOperate);
     });
     const handleAlarmDispatchSuccess = () => {};
@@ -731,9 +731,8 @@ export default defineComponent({
     watch(
       () => props.alertIdsObject,
       val => {
-        if (val) {
-          props.searchValidate && handleGetTable();
-        }
+        alertIdsData.value = val;
+        props.searchValidate && handleGetTable();
       },
       { deep: true }
     );
@@ -868,7 +867,9 @@ export default defineComponent({
                       settings={this.settings}
                       show-overflow-tooltip={true}
                       onRowMouseEnter={this.handleEnter}
-                      onRowMouseLeave={() => (this.hoverRowIndex = -1)}
+                      onRowMouseLeave={() => {
+                        this.hoverRowIndex = -1;
+                      }}
                       onSettingChange={this.handleSettingChange}
                       // onScrollBottom={this.handleLoadData}
                     />

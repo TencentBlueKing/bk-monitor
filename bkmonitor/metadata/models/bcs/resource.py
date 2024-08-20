@@ -16,7 +16,7 @@ from bkmonitor.utils.consul import BKConsul
 from metadata import config
 from metadata.utils import consul_tools
 
-from .cluster import BCSClusterInfo
+from .cluster import BCSClusterInfo, BcsFederalClusterInfo
 from .replace import ReplaceConfig
 from .utils import ensure_data_id_resource, is_equal_config
 
@@ -236,7 +236,6 @@ class BCSResource(models.Model):
 
     @cached_property
     def config_name(self) -> str:
-
         prefix = "common" if self.is_common_data_id else "custom"
         end = "custom" if self.is_custom_resource else "system"
 
@@ -305,7 +304,10 @@ class BCSResource(models.Model):
 
         # 0.检查cluster的公共dataid信息，判断是否与传入的dataid发生重复了,阻挡重复的情况
         cluster = BCSClusterInfo.objects.get(cluster_id=self.cluster_id)
+        is_federal_cluster = BcsFederalClusterInfo.objects.filter(fed_cluster_id=self.cluster_id).exists()
         for usage, register_info in cluster.DATASOURCE_REGISTER_INFO.items():
+            if is_federal_cluster and usage == cluster.DATA_TYPE_CUSTOM_METRIC:
+                continue
             common_data_id = getattr(cluster, register_info["datasource_name"])
             if common_data_id == data_id:
                 logger.error(

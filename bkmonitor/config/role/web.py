@@ -99,7 +99,6 @@ MIDDLEWARE = (
     # 用户登录验证middleware
     "bkmonitor.middlewares.authentication.ApiTokenAuthenticationMiddleware",
     # 应用流控保护，放在用户登录验证之后
-    "bkmonitor.middlewares.application_protection.ProtectionMiddleware",
     "blueapps.middleware.xss.middlewares.CheckXssMiddleware",
     # APIGW JWT验证中间件
     "bkmonitor.middlewares.authentication.ApiGatewayJWTExternalMiddleware",

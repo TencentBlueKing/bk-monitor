@@ -252,6 +252,7 @@ export default defineComponent({
     const handleToLink = node => {
       console.log(node, '.....');
       if (node.entity.entity_type !== 'BcsPod') return;
+      const timestamp = new Date().getTime();
       const query = {
         dashboardId: 'pod',
         sceneId: 'kubernetes',
@@ -277,7 +278,7 @@ export default defineComponent({
       const { origin, pathname } = window.location;
       // 使用原始 URL 的协议、主机名和路径部分构建新的 URL
       const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
-      window.open(`${baseUrl}#/k8s?${queryString.toString()}`, '__blank');
+      window.open(`${baseUrl}#/k8s?${queryString.toString()}`, timestamp.toString());
     };
     /** 拷贝操作 */
     const handleCopy = (text: string) => {
@@ -314,10 +315,13 @@ export default defineComponent({
   render() {
     if (!this.model) return undefined;
     const { aggregated_nodes } = this.model;
-    /** 创建边的node展示 */
+    /** 创建边的node展示  */
     const createEdgeNodeItem = (node: ITopoNode) => {
       return [
-        <div class='node-source-wrap'>
+        <div
+          key={`${node?.entity?.entity_id}-${node?.entity?.entity_name}`}
+          class='node-source-wrap'
+        >
           <div
             class={[
               'node-source',
@@ -429,6 +433,7 @@ export default defineComponent({
     };
     /** 边的tips详情 */
     const createEdgeToolTip = (nodes: ITopoNode[]) => {
+      console.log(this.activeEdge, '....');
       const linkMap: { direction_0?: IEdge; direction_1?: IEdge } = {};
       /** 最多展示2个，分别在线的左右两侧 */
       const { events } = this.activeEdge;
@@ -439,6 +444,7 @@ export default defineComponent({
       });
       return [
         <div
+          key={`edge-tooltip-${this.activeEdge.id}`}
           class={[
             'edge-tooltip-content',
             this.activeEdge.edge_type !== 'ebpf_call' && 'dependency-tooltip-content',
@@ -543,18 +549,20 @@ export default defineComponent({
                     {isEdge
                       ? [
                           <span
+                            key={`${node.id}-edge`}
                             class={[
                               'item-edge',
                               edge_type === 'ebpf_call' && 'call-edge',
                               node.is_anomaly && 'anomaly-edge',
                             ]}
                           />,
-                          <span>
+                          <span key={`${node.id}-edge-text`}>
                             {`${node.source_type} ${node.source_name}`}-{`${node.target_type} ${node.target_name}`}
                           </span>,
                         ]
                       : [
                           <span
+                            key={`${node.id}-edge-icon-source`}
                             style={{ backgroundColor: groupAttrs.fill, border: `1px solid ${groupAttrs.stroke}` }}
                             class='item-source'
                           >
@@ -570,7 +578,7 @@ export default defineComponent({
                               ]}
                             />
                           </span>,
-                          <span>{node?.entity?.entity_name}</span>,
+                          <span key={`${node.id}-edge-name`}>{node?.entity?.entity_name}</span>,
                         ]}
                   </span>
                   <i class='icon-monitor icon-arrow-right' />
@@ -701,7 +709,7 @@ export default defineComponent({
           </div>
           <div class='node-tooltip-content'>
             {node.alert_display.alert_name &&
-              createCommonForm(this.$t('包含告警') + '：', () => (
+              createCommonForm(`${this.$t('包含告警')}：`, () => (
                 <>
                   <span
                     class='flex-label'
@@ -741,19 +749,19 @@ export default defineComponent({
                   )}
                 </>
               ))}
-            {createCommonForm(this.$t('分类') + '：', () => (
+            {createCommonForm(`${this.$t('分类')}：`, () => (
               <>{node.entity.rank.rank_category.category_alias}</>
             ))}
-            {createCommonForm(this.$t('节点类型') + '：', () => (
+            {createCommonForm(`${this.$t('节点类型')}：`, () => (
               <>{node.entity.entity_type}</>
             ))}
-            {createCommonForm(this.$t('所属业务') + '：', () => (
+            {createCommonForm(`${this.$t('所属业务')}：`, () => (
               <>
                 [{node.bk_biz_id}] {node.bk_biz_name}
               </>
             ))}
             {node.entity?.tags?.BcsService &&
-              createCommonForm(this.$t('所属服务') + '：', () => <>{node.entity.tags.BcsService.name}</>)}
+              createCommonForm(`${this.$t('所属服务')}：`, () => <>{node.entity.tags.BcsService.name}</>)}
           </div>
         </div>
       );

@@ -105,7 +105,7 @@ export default defineComponent({
         label: t('告警'),
       },
     ];
-    /** 告警Tab中二级tab列表 */
+    /** 告警Tab中二级tab列表  */
     const tabViewList = [
       {
         name: 'FailureView',
@@ -154,6 +154,12 @@ export default defineComponent({
         val.tab && handleChangeActive(val.tab as string);
       },
       { immediate: true }
+    );
+    watch(
+      () => currentNodeData.value,
+      () => {
+        handleChangeActive(FailureContentTabView.FAILURE_TOPO);
+      }
     );
     const handleChangeSelectNode = (nodeId: string) => {
       emit('changeSelectNode', nodeId);
@@ -217,6 +223,7 @@ export default defineComponent({
               selectNode={this.currentNodeData || []}
               onChangeSelectNode={this.handleChangeSelectNode}
               onPlaying={this.playingHandle}
+              onRefresh={this.refresh}
               onToDetailTab={this.goAlertDetail}
             />
           )}

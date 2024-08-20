@@ -94,6 +94,7 @@ export default {
   '{0}个拓扑节点': '{0} topology nodes',
   '{0}个服务模板': '{0} service templates',
   '{0}个集群模板': '{0} set templates',
+  '{0}个动态分组': '{0} dynamic groups',
   '指标值,数值 ； ': 'Metric value, Numeric;',
   '失败{0}台主机': 'hosts(failed: {0})',
   '失败{0}个实例': 'instances(failed: {0})',
@@ -131,6 +132,7 @@ export default {
   '已选择 {n}': 'selected {n}',
   '已选择{0}个策略': '{0} rules selected',
   '已选择 {n} 个主机': 'Selected {n} hosts',
+  '已选择 {n} 个动态分组': 'Selected {n} dynamic groups',
   '已选择{count}条': 'Selected {count} Items',
   '当前已选择{0}条数据': 'Currently selected {0} pieces of data',
   '第{step}步，共{total}步': 'Step {step} of {total}',
@@ -223,6 +225,7 @@ export default {
 
   // 故障
   影响空间: 'Affected space',
+  故障根因: 'Fault root cause',
   故障根因描述: 'Fault root cause description',
   原故障根因: 'Original fault root cause',
   '针对指定时间点和类型的内容进行处理，传递用户组信息作为处理内容，如工单生成等。':
@@ -231,6 +234,7 @@ export default {
   报警恢复时执行: 'When alarm is restored',
   报警关闭时执行: 'When alarm is closed',
   报警确认时执行: 'When alarm is acknowledged',
+  故障ID: 'Fault ID',
   故障UUID: 'Fault UUID',
   故障内部ID: 'Internal Fault ID',
   故障名称: 'Fault Name',
@@ -238,6 +242,7 @@ export default {
   故障状态: 'Fault Status',
   故障级别: 'Fault Level',
   处理人: 'Handler',
+  '开始时间 / 结束时间': 'Start / End Time',
   故障检出时间: 'Fault Detection Time',
   故障更新时间: 'Fault Update Time',
   故障开始时间: 'Fault Start Time',
@@ -245,5 +250,9 @@ export default {
   故障图谱快照: 'Fault Topology Snapshot',
   处理的告警: 'Processed alarms',
   的告警: 'alarms',
-  将通过企业微信把当前故障相关人员邀请到一个群里面进行讨论: 'The current fault related personnel will be invited to a group chat via WeChat Work for discussion',
+  将通过企业微信把当前故障相关人员邀请到一个群里面进行讨论:
+    'The current fault related personnel will be invited to a group chat via WeChat Work for discussion',
+  编辑故障属性: 'Edit Fault Attribute',
+  故障负责人: 'Fault Person in Charge',
+  故障标签: 'Fault Label',
 };

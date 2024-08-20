@@ -1767,7 +1767,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     };
     switch (id) {
       // 批量确认告警
-      case 'comfirm':
+      case 'confirm':
       case EBatchAction.alarmConfirm: {
         if (isMoreThenOneOfBiz) {
           messsage();
@@ -2283,7 +2283,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const isOpen = this.commonFilterDataIdMap[item.id].includes(this.listOpenId);
     return [
       <div
-        key='list-title'
+        key={`${item.id}list-title`}
         class={['list-title', { 'item-active': item.id === this.activeFilterId }]}
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >

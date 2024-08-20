@@ -113,7 +113,7 @@ export default {
     'Provides metrics such as single point availability, response time, and expected response code',
   '直接进行{0}，定位到 Trace 详情': 'Directly perform {0}, locate Trace details',
   '自定义上报指标和插件采集指标请勾选映射规则，K8S系统指标可以不勾选。':
-    'Please check the mapping rules for custom reporting metrics and plug-in collection metrics, and K8s system metrics can not be checked. ', // 确定位置
+    'Please check the mapping rules for custom reporting metrics and plugin collection metrics, and K8s system metrics can not be checked. ', // 确定位置
   '若不同时删除掉，相关联的策略配置则会成为失效策略':
     'if not deleted at the same time, the associated rule will become an invalid rule',
   '该指标需设置期望返回码/期望响应信息后才可选取':
@@ -284,4 +284,6 @@ export default {
     'The current data has not been loaded yet. If the data has not been loaded for a long time, {0}',
   '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html':
     'By default, the URI in the URL is taken for statistics. In actual production, many IDs are applied to the URI, so it is necessary to manually set and classify the same type of URI for statistics. For example:/user/{ID}/index.com',
+  '在“故障处理”展开折叠告警拓扑，会对应展开收起时序图块；在“故障流转”点击事件，会高亮对应的时间节点。':
+    'Expanding the folded alarm topology in "Fault Handling" will expand and collapse the timing diagram accordingly; clicking an event in "Fault Flow" will highlight the corresponding time node.',
 };
