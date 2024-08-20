@@ -284,7 +284,7 @@ export default defineComponent({
     };
     /* 保存 */
     const handleConfirm = async () => {
-      if (!Boolean(mealId.value)) {
+      if (!mealId.value) {
         return;
       }
       let paramsData = null;
@@ -493,6 +493,7 @@ export default defineComponent({
                     <Select
                       class='wrap-select'
                       v-model={this.templateData.id}
+                      placeholder={this.$tc('请选择')}
                       v-slots={{
                         default: () => {
                           return (this.templateData.allList?.[this.curMeal?.plugin_id] || []).map(item => {
@@ -535,7 +536,15 @@ export default defineComponent({
                               noAutoInput={true}
                             />
                           ) : (
-                            [<span class='nodata'>{this.$t('当前无需填写参数')}</span>, <br />]
+                            [
+                              <span
+                                key='no-data'
+                                class='nodata'
+                              >
+                                {this.$t('当前无需填写参数')}
+                              </span>,
+                              <br key='line-break' />,
+                            ]
                           );
                         },
                       }}
@@ -564,12 +573,14 @@ export default defineComponent({
             <Button
               loading={this.confirmLoading}
               theme='primary'
+              key='confirm-button'
               onClick={() => !this.confirmLoading && this.handleConfirm()}
             >
               {window.i18n.t('确定')}
             </Button>,
             <Button
               style={{ marginLeft: '10px' }}
+              key='cancel-button'
               onClick={() => this.handleCancel()}
             >
               {window.i18n.t('取消')}

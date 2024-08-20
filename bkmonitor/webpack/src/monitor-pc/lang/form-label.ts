@@ -79,6 +79,7 @@ export default {
   告警屏蔽详情: 'Alarm Mute Details',
   告警风暴: 'Alarm Storm',
   告警阶段: 'Alarm Stage',
+  '告警开始/结束时间': 'Alarm Start/End Time',
   告警标题: 'Alarm Title',
   告警通知模板: 'Message Template',
   告警组名称: 'Alarm Team Name',
