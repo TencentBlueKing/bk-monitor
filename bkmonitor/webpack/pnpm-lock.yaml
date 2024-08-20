@@ -24,8 +24,8 @@ importers:
         specifier: ^1.8.3
         version: 1.8.3
       '@blueking/bkmonitor-cli':
-        specifier: 5.0.0-beta.14
-        version: 5.0.0-beta.14(@types/node@22.3.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16)
+        specifier: 5.0.0-beta.15
+        version: 5.0.0-beta.15(@types/node@22.3.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16)
       '@blueking/stylelint-config':
         specifier: 0.0.3
         version: 0.0.3
@@ -2413,8 +2413,8 @@ packages:
     engines: {node: '>=14.18.1'}
     dev: false
 
-  /@blueking/bkmonitor-cli@5.0.0-beta.14(@types/node@22.3.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16):
-    resolution: {integrity: sha512-UQq5g2QA8OlM4nC0TqMqBoSHIhOrL6YZTJdDzcz8fI9P1asTOSO6457TLPqvqxha8W+6qtGCl4JojxhQ1AKMBw==}
+  /@blueking/bkmonitor-cli@5.0.0-beta.15(@types/node@22.3.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16):
+    resolution: {integrity: sha512-VtoHWErdbzLff8XtmQR7OEQIYLcCsSQSd0KYDeBF6TUTp6agpdt0QwvTIw8ztn6rgdMdSaqZic5en93knCzQ9Q==}
     engines: {node: '>= 18'}
     hasBin: true
     dependencies:
