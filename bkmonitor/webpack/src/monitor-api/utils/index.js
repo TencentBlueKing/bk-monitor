@@ -33,13 +33,11 @@ export const bkMessage = (message, theme = 'error') => {
     vue.prototype.$bkMessage({
       message,
       theme,
-      ellipsisLine: 0,
     });
   } else {
     vue.config.globalProperties.$Message({
       message,
       theme,
-      ellipsisLine: 0,
     });
   }
 };
@@ -59,7 +57,7 @@ export const makeMessage = (message, traceparent, needTraceId) => {
   }
   const resMsg = needTraceId
     ? `
-    ${traceId} ：                                               
+    ${traceId} ：
     ${message}
   `
     : message;
