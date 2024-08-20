@@ -328,7 +328,7 @@ class PatternHandler:
                 .time_range(start_time=arrow.get("2024-01-01").timestamp)  # 此处只为查出全量，只需大于当前时间即可
                 .query()
             )
-        except Exception as e:
+        except Exception as e:  # pylint:disable=broad-except
             logger.exception(
                 "IndexSet(%s) get pattern data error for RT(%s): {%s}",
                 self._index_set_id,
