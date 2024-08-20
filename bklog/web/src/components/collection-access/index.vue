@@ -285,7 +285,7 @@
           try {
             const detailRes = await this.getDetail();
             // 是否完成过一次完整的步骤
-            this.isFinishCreateStep = !!detailRes.table_id;
+            this.isFinishCreateStep = !!detailRes.table_id && type !== 'clone';
             this.operateType = routeType;
           } catch (e) {
             console.warn(e);
