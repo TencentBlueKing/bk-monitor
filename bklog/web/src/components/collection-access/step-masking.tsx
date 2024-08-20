@@ -60,13 +60,13 @@ export default class StepMasking extends tsc<IProps> {
     return this.$route.query?.type !== 'masking';
   }
 
-  @Emit('stepChange')
+  @Emit('step-change')
   emitStepChange() {
     if (this.isApplicationSubmit && !this.isShowJump) (this as any).messageSuccess(this.$t('保存成功'));
     return this.isShowJump ? '' : 'back';
   }
 
-  @Emit('changeSubmit')
+  @Emit('change-submit')
   emitSubmitChange(val: boolean) {
     return val;
   }
