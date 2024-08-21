@@ -126,17 +126,17 @@ export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
     name: window.i18n.t('Span 详情'),
-    icon: 'icon-menu-view',
+    icon: 'icon-mc-copy',
   },
   {
     id: 'reset',
     name: window.i18n.t('重置图表'),
-    icon: 'icon-menu-view',
+    icon: 'icon-zhongzhi1',
   },
   {
     id: 'highlight',
     name: window.i18n.t('高亮相似 Span'),
-    icon: 'icon-menu-view',
+    icon: 'icon-beauty',
   },
 ];
 // 用于标识根节点
