@@ -33,6 +33,7 @@ import { menuArr } from '../components/nav/complete-menu';
 export default {
   data() {
     return {
+      isRouteInit: true,
       routeMap: {
         // 后端返回的导航id映射
         search: 'retrieve',
@@ -283,13 +284,15 @@ export default {
           '$route.name',
           () => {
             const matchedList = this.$route.matched;
-            const activeTopMenu =
-              menuList.find(item => {
-                return matchedList.some(record => record.name === item.id);
-              }) || {};
-            this.$store.commit('updateActiveTopMenu', activeTopMenu);
+            if (this.isRouteInit) {
+              const activeTopMenu =
+                menuList.find(item => {
+                  return matchedList.some(record => record.name === item.id);
+                }) || {};
+              this.$store.commit('updateActiveTopMenu', activeTopMenu);
+            }
 
-            const topMenuList = activeTopMenu.children?.length ? activeTopMenu.children : [];
+            const topMenuList = this.activeTopMenu?.children ?? [];
             const topMenuChildren = topMenuList.reduce((pre, cur) => {
               if (cur.children?.length) {
                 pre.push(...cur.children);
@@ -363,6 +366,7 @@ export default {
         setTimeout(() => {
           this.$store.commit('setPageLoading', false);
           this.isFirstLoad = false;
+          this.isRouteInit = false;
           this.$store.commit('updateRouterLeaveTip', false);
         }, 0);
       }
