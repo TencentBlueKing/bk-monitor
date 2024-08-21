@@ -85,7 +85,7 @@ export default class App extends VuexModule implements IAppState {
         });
         this.spaceUidMap = new Map(this.bizList.map(item => [item.space_uid, item]));
         this.bizIdMap = new Map(this.bizList.map(item => [item.bk_biz_id, item]));
-        return;
+        continue;
       }
       this[key] = value;
     }

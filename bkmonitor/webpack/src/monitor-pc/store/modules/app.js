@@ -118,7 +118,7 @@ const mutations = {
         });
         state.spaceUidMap = new Map(state.bizList.map(item => [item.space_uid, item]));
         state.bizIdMap = new Map(state.bizList.map(item => [item.bk_biz_id, item]));
-        return;
+        continue;
       }
       state[key] = value;
     }
