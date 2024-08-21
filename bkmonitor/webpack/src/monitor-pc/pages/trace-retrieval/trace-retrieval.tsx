@@ -35,7 +35,7 @@ Component.registerHooks(['beforeRouteLeave']);
 export default class TraceRetrieval extends tsc<object> {
   @Prop() a: number;
   get traceHost() {
-    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7003` : location.origin;
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
   get traceUrl() {
     return process.env.NODE_ENV === 'development'
