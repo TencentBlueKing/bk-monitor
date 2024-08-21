@@ -633,7 +633,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   on-click={this.handleEditModeChange}
                 >
                   <i class='icon-monitor icon-switch' />
-                  {this.editMode === 'Edit' ? 'PromQL' : 'UI'}
+                  {this.editMode === 'Edit' ? 'PromQL' : this.$t('表单')}
                 </span>
               </div>
             </div>
