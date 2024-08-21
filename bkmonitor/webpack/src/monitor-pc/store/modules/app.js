@@ -78,6 +78,7 @@ const state = {
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
   bizIdChangePedding: '', // 业务id是否切换
+  spaceUidMap: new Map(), // 业务id是否切换
 };
 
 const mutations = {
@@ -99,9 +100,9 @@ const mutations = {
     !isDemo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${id}`);
   },
   [SET_APP_STATE](state, data) {
-    Object.keys(data).forEach(key => {
+    for (const [key, value] of Object.entries(data)) {
       if (key === 'bizList') {
-        state[key] = data[key].map(item => {
+        state[key] = value.map(item => {
           const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
           const pyText = pinyinStr.replace(/,/g, '');
           const pyfText = pinyinStr
@@ -114,26 +115,11 @@ const mutations = {
             pyf_text: pyfText,
           };
         });
+        state.spaceUidMap = new Map(state.bizList.map(item => [item.space_uid, item]));
         return;
       }
-      state[key] = data[key];
-    });
-    // state.userName = data.userName;
-    // state.bizId = data.bizId;
-    // state.isSuperUser = data.isSuperUser;
-    // // eslint-disable-next-line max-len
-    // state.bizList = data.bizList.map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
-    // state.siteUrl = data.siteUrl;
-    // state.bkPaasHost = data.bkPaasHost;
-    // state.maxAvailableDurationLimit = data.maxAvailableDurationLimit;
-    // state.cmdbUrl = data.cmdbUrl;
-    // state.bkLogSearchUrl = data.bkLogSearchUrl;
-    // state.bkUrl = data.bkUrl;
-    // state.bkNodemanHost = data.bkNodemanHost;
-    // state.collectingConfigFileMaxSize = data.collectingConfigFileMaxSize;
-    // state.enable_cmdb_level = data.enable_cmdb_level;
-    // state.jobUrl = data.jobUrl;
-    // state.bkBcsUrl = data.bkBcsUrl;
+      state[key] = value;
+    }
   },
   [SET_NAV_ID](state, id) {
     state.navId = id;
