@@ -476,7 +476,7 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    const handlePopover = (val) => {
+    const handlePopover = val => {
       keyIdList.value.map(item => processPopoverRefs.value[`process${item}`]?.hide());
       circleOnClick([val]);
       const key = keyIdList.value.filter(item => item.indexOf(val.id) !== -1);
@@ -501,8 +501,8 @@ export default defineComponent({
     );
     watch(
       () => activeName.value,
-      val => {
-        setTimeout(() => handlePopover(props.chooseOperation), 100)
+      () => {
+        setTimeout(() => handlePopover(props.chooseOperation), 100);
       },
       { immediate: true }
     );
@@ -695,9 +695,9 @@ export default defineComponent({
         return Object.assign(item, { isActive });
       });
     };
-    const handleCallback = (type) => {
+    const handleCallback = type => {
       if (type === 'incident_create') {
-        emit('changeTab')
+        emit('changeTab');
       }
       keyIdList.value.map(item => processPopoverRefs.value[`process${item}`]?.hide());
     };
@@ -706,8 +706,9 @@ export default defineComponent({
         <span class='tips-item'>{formatTime(ele.create_time * 1000)}</span>
         <span class='tips-type'>{t(operationTypeMapData.value[ele.operation_type]) || '--'}</span>
         <span class='tips-item'>
-          {renderMap[ele.operation_type]?.(ele, incidentId.value, incidentDetail.value?.bk_biz_id, () => handleCallback(ele.operation_type)) ||
-            '--'}
+          {renderMap[ele.operation_type]?.(ele, incidentId.value, incidentDetail.value?.bk_biz_id, () =>
+            handleCallback(ele.operation_type)
+          ) || '--'}
         </span>
       </div>
     );
@@ -779,7 +780,7 @@ export default defineComponent({
           placement='right-start'
           theme='light'
           trigger='click'
-          zIndex={3025}
+          zIndex={1025}
         >
           {renderCircle(isMore, ele, index)}
         </Popover>
