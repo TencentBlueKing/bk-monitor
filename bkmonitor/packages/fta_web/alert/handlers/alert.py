@@ -343,7 +343,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             list(chain(*[alert["metric_display"] for alert in alerts])), "id", "name"
         )
         StrategyTranslator().translate_from_dict(alerts, "strategy_id", "strategy_name")
-        BizTranslator().translate_from_dict(alerts, "bk_biz_id", "display_name")
+        BizTranslator().translate_from_dict(alerts, "bk_biz_id", "bk_biz_name")
         CategoryTranslator().translate_from_dict(alerts, "category", "category_display")
         PluginTranslator().translate_from_dict(alerts, "plugin_id", "plugin_display_name")
 
