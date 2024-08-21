@@ -91,17 +91,17 @@ const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
     name: window.i18n.t('Span 详情'),
-    icon: 'icon-menu-view',
+    icon: 'icon-xiangqing1',
   },
   {
     id: 'reset',
     name: window.i18n.t('重置图表'),
-    icon: 'icon-menu-view',
+    icon: 'icon-zhongzhi1',
   },
   {
     id: 'highlight',
     name: window.i18n.t('高亮相似 Span'),
-    icon: 'icon-menu-view',
+    icon: 'icon-beauty',
   },
 ];
 // const width = ref(300);
@@ -311,7 +311,7 @@ export default defineComponent({
           type: 'text',
           style: {
             textAlign: 'right',
-            text: `${`${api.value(3)} (` + `${api.value(4).toFixed(2)}%` + ', '}${text}${suffix})`,
+            text: `${api.value(3)} (${api.value(4).toFixed(2)}%, ${text}${suffix})`,
             fill: '#000',
             width: textWidth,
             overflow: 'truncate',
