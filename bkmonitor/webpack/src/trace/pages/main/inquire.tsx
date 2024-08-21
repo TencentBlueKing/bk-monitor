@@ -55,30 +55,38 @@ import {
   traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
-import { debounce, deepClone, random } from 'monitor-common/utils/utils';
-import { type IEventRetrieval, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { handleGotoLink } from 'monitor-pc/common/constant';
+import { debounce } from 'throttle-debounce';
 
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
-import { ISelectMenuOption } from '../../components/select-menu/select-menu';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, type TimeRangeType, handleTransformToTimestamp } from '../../components/time-range/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
-import { type Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
+  TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  TIMEZONE_KEY,
   VIEWOPTIONS_KEY,
 } from '../../plugins/hooks';
-import { IViewOptions } from '../../plugins/typings';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
-import { IServiceStatisticsType, ListType, useTraceStore } from '../../store/modules/trace';
-import {
+import { type IServiceStatisticsType, type ListType, useTraceStore } from '../../store/modules/trace';
+import { monitorDrag } from '../../utils/drag-directive';
+import DurationFilter from './duration-filter/duration-filter';
+import HandleBtn from './handle-btn/handle-btn';
+import InquireContent from './inquire-content';
+import SearchHeader from './search-header/search-header';
+import SearchLeft, { formItem } from './search-left/search-left';
+
+import type { ISelectMenuOption } from '../../components/select-menu/select-menu';
+import type { Span } from '../../components/trace-view/typings';
+import type { IViewOptions } from '../../plugins/typings';
+import type {
   IAppItem,
   IFavoriteItem,
   IScopeSelect,
@@ -87,12 +95,7 @@ import {
   ITraceData,
   SearchType,
 } from '../../typings';
-import { monitorDrag } from '../../utils/drag-directive';
-import DurationFilter from './duration-filter/duration-filter';
-import HandleBtn from './handle-btn/handle-btn';
-import InquireContent from './inquire-content';
-import SearchHeader from './search-header/search-header';
-import SearchLeft, { formItem } from './search-left/search-left';
+import type { IEventRetrieval, IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import './inquire.scss';
 
@@ -161,14 +164,13 @@ export default defineComponent({
             const defaultApp = appList.value.find(app => app.permission?.[authorityMap.VIEW_AUTH])?.app_name;
             state.app = defaultApp || '';
           }
-
           handleAppSelectChange(state.app);
         }
       }, 100);
     };
     getAppList();
     const timeRange = ref<TimeRangeType>(DEFAULT_TIME_RANGE);
-    const timezone = ref<string>(getDefautTimezone());
+    const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
     const curTimestamp = ref<number[]>(handleTransformToTimestamp(timeRange.value));
@@ -305,31 +307,6 @@ export default defineComponent({
         scopeSelects.value[item.id] = { ...item, key: random(8), value: [] };
       });
     };
-    /** 获取范围查询条件候选值 */
-    const getQueryOptionsValues = async (queryOptionValue: any) => {
-      setTimeout(() => {
-        /** 重新获取候选值时 需要清空原来所选项 */
-        Object.keys(scopeSelects.value).forEach(key => {
-          // queryOptionValue 路由带条件查询
-          if (queryOptionValue?.[key]) {
-            if (key === 'service') {
-              scopeSelects.value[key].value = queryOptionValue[key];
-            } else {
-              const curOptions = searchSelectData.value.find(item => item.id === key);
-              if (curOptions) {
-                searchSelectValue.value.push({
-                  id: key,
-                  name: curOptions.name,
-                  values: curOptions.children.filter(val => queryOptionValue[key].includes(val.id)),
-                });
-              }
-            }
-          } else {
-            scopeSelects.value[key].value = [];
-          }
-        });
-      }, 100);
-    };
     /** 切换ID精确查询类型 */
     const handleChangeSearchIdType = () => {
       traceIDSearchValue.value = '';
@@ -436,6 +413,20 @@ export default defineComponent({
         conditionFilter.forEach(item => {
           if (item.value.length) filters.push(item);
         });
+      } else {
+        const { conditionList: conditionListStringify } = route.query;
+        if (conditionListStringify) {
+          const result = JSON.parse(conditionListStringify as string);
+          for (const key in result) {
+            if (result[key]?.selectedConditionValue?.length) {
+              filters.push({
+                key,
+                operator: result[key].selectedCondition.value,
+                value: result[key].selectedConditionValue,
+              });
+            }
+          }
+        }
       }
 
       if (selectedListType.value === 'trace') {
@@ -720,7 +711,7 @@ export default defineComponent({
         query,
       });
     };
-    const handleQueryScopeDebounce = debounce(handleQueryScope, 300, false);
+    const handleQueryScopeDebounce = debounce(300, handleQueryScope);
     /* 范围查询动态参数更新 */
     function handleScopeQueryChange() {
       traceListPagination.offset = 0;
@@ -795,7 +786,7 @@ export default defineComponent({
     function handleSelectCollect(id: number) {
       state.searchType = 'scope';
       const collectItem = collectList.value.find(item => String(item.id) === String(id));
-      const { componentData } = collectItem?.config;
+      const { componentData } = collectItem.config;
       state.app = componentData.app;
       if (componentData.scopeSelects) {
         Object.keys(componentData.scopeSelects).forEach(key => {
@@ -931,16 +922,12 @@ export default defineComponent({
     /* 时间切换 */
     function handleTimeRangeChange(value: TimeRangeType) {
       timeRange.value = value;
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
     function handleTimezoneChange(v: string) {
       timezone.value = v;
       window.timezone = v;
       updateTimezone(v);
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
 
@@ -1136,11 +1123,11 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <a
             class='link'
-            href='/'
             target='_blank'
+            onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {t('查看语法')}
-            <i class='icon-monitor icon-mc-link'></i>
+            <i class='icon-monitor icon-mc-link' />
           </a>
         </div>
         <ul class='tips-content-list'>
@@ -1344,7 +1331,7 @@ export default defineComponent({
       selectedConditions.value.length = 0;
 
       // 添加条件列表
-      Object.keys(result).forEach(key => {
+      for (const key of Object.keys(result)) {
         const singleCondition = {
           selectedCondition: {
             label: '=',
@@ -1377,7 +1364,7 @@ export default defineComponent({
         };
         if (conditionListInQuery[key]) Object.assign(singleCondition, conditionListInQuery[key]);
         conditionList.push(singleCondition);
-      });
+      }
     };
 
     const handleConditionValueChange = (index, v) => {
@@ -1458,7 +1445,7 @@ export default defineComponent({
                 theme='light'
                 trigger='click'
               >
-                <span class='icon-monitor icon-mc-help-fill'></span>
+                <span class='icon-monitor icon-mc-help-fill' />
               </Popover>
             </div>
           ) as any,
@@ -1521,7 +1508,7 @@ export default defineComponent({
             <i
               style='margin-right: 6px;'
               class='icon-monitor icon-plus-line'
-            ></i>
+            />
             <span>{t('添加条件')}</span>
           </Button>
 
@@ -1531,7 +1518,7 @@ export default defineComponent({
             disabled={isAddConditionButtonLoading.value}
             list={standardFieldList.value}
             onChange={handleCascaderChange}
-          ></Cascader>
+          />
         </div>
         <HandleBtn
           autoQuery={state.autoQuery}
@@ -1566,7 +1553,7 @@ export default defineComponent({
                 <span
                   class='icon-monitor icon-double-down'
                   onClick={() => handleLeftHiddenAndShow(false)}
-                ></span>
+                />
               </div>
             </div>
             {/* 查询操作表单 */}
@@ -1616,7 +1603,7 @@ export default defineComponent({
               onSelectCollect={handleSelectCollect}
               onTimeRangeChange={handleTimeRangeChange}
               onTimezoneChange={handleTimezoneChange}
-            ></SearchHeader>
+            />
             <div
               style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
               class='inquire-right-main'
@@ -1654,7 +1641,7 @@ export default defineComponent({
                 name={collectDialog.name}
                 subtitle={t('收藏名')}
                 title={t('确认删除该收藏？')}
-              ></DeleteDialogContent>
+              />
             ),
           }}
           footerAlign={'center'}
@@ -1665,7 +1652,7 @@ export default defineComponent({
             collectDialog.show = false;
           }}
           onConfirm={() => deleteCollect()}
-        ></Dialog>
+        />
       </div>
     );
     return {

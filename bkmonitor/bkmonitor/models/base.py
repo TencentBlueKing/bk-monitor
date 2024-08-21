@@ -466,7 +466,7 @@ class AnomalyRecord(Model):
 
 class Event(Model):
     """
-    事件
+    事件（已废弃）
 
     经过检测范围匹配，收敛等判断后，生成事件
     """
@@ -514,7 +514,7 @@ class Event(Model):
     origin_alarm = JsonField(verbose_name="原始的异常内容", default=None)
     origin_config = JsonField(verbose_name="告警策略原始配置", default=None)
     level = models.IntegerField(verbose_name="级别", choices=EVENT_LEVEL, default=0)
-    status = EventStatusField(verbose_name="状态", choices=EVENT_STATUS, default=EventStatus.ABNORMAL)  # 异常中、已恢复、已关闭
+    status = EventStatusField(verbose_name="状态", choices=EVENT_STATUS, default=EventStatus.ABNORMAL)  # 异常中、已恢复、已失效
     is_ack = models.BooleanField(verbose_name="是否确认", default=False)
     p_event_id = models.CharField(verbose_name="父事件ID", default="", blank=True, max_length=255)  # 保留字段，给事件关联用
     is_shielded = models.BooleanField(verbose_name="是否处于屏蔽状态", default=False)
@@ -794,6 +794,7 @@ class Shield(AbstractRecordModel):
         ("ip", "IP"),
         ("node", _lazy("节点")),
         ("biz", _lazy("业务")),
+        ("dynamic_group", _lazy("动态分组")),
     )
 
     bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
@@ -822,15 +823,13 @@ class Shield(AbstractRecordModel):
 
     @property
     def status(self):
-        now_time = time_tools.localtime(time_tools.now())
-        end_time = time_tools.localtime(self.end_time)
-        if self.is_enabled:
-            if now_time > end_time:
-                return ShieldStatus.EXPIRED
-            else:
-                return ShieldStatus.SHIELDED
-        else:
+        if not self.is_enabled:
             return ShieldStatus.REMOVED
+
+        if time_tools.now() > self.end_time:
+            return ShieldStatus.EXPIRED
+
+        return ShieldStatus.SHIELDED
 
 
 class CacheNode(Model):
@@ -851,6 +850,7 @@ class CacheNode(Model):
     is_enable = models.BooleanField("是否启用", default=True)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     is_default = models.BooleanField("默认节点", default=False)
+    node_alias = models.CharField(verbose_name="节点别名", max_length=128, default="")
 
     class Meta:
         verbose_name = "后台缓存节点"
@@ -929,7 +929,7 @@ class CacheNode(Model):
         return node
 
     def __str__(self):
-        node_id = f"{self.cache_type}-{self.host}:{self.port}"
+        node_id = f"[{self.node_alias}]{self.cache_type}-{self.host}:{self.port}"
         if self.cache_type == "SentinelRedisCache":
             node_id += f"-{self.connection_kwargs.get('master_name')}"
         return node_id
@@ -959,6 +959,17 @@ class CacheRouter(Model):
         verbose_name = "后台缓存路由"
         verbose_name_plural = "后台缓存路由"
         db_table = "alarm_cacherouter"
+
+    @classmethod
+    def list_router(cls):
+        from alarm_backends.core.cluster import get_cluster
+
+        cluster_name = get_cluster().name
+        query = cls.objects.filter(cluster_name=cluster_name)
+        routers = list(query.values("id", "strategy_score", "node_id"))
+        for router in routers:
+            router["node_name"] = CacheNode.objects.get(id=router["node_id"]).node_alias
+        return routers
 
     @classmethod
     def add_router(cls, node, score_floor=0, score_ceil=2**20):

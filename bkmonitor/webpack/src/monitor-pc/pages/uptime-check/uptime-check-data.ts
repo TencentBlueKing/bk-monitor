@@ -23,12 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { commonPageSizeGet } from 'monitor-common/utils';
 import { padIPv6 } from 'monitor-common/utils/ip-utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { ICommonTableProps } from '../monitor-k8s/components/common-table';
-import { IData as IGroupData, ITaskItem as IGroupDataTaskItem } from './components/group-card';
-import { IData as ITaskCardData } from './components/task-card';
+import { allSpaceRegex, emojiRegex } from '../../utils/index';
+
+import type { ICommonTableProps } from '../monitor-k8s/components/common-table';
+import type { IData as IGroupData, ITaskItem as IGroupDataTaskItem } from './components/group-card';
+import type { IData as ITaskCardData } from './components/task-card';
 
 export interface ITaskData {
   group_data: IGroupData[]; // 任务组数据
@@ -61,7 +64,7 @@ export const groupNameValidate = (
     message: '',
   };
   // 字符长度校验
-  if (!targetStr.length) {
+  if (!targetStr.length || allSpaceRegex(targetStr)) {
     validateStatus.validate = true;
     validateStatus.message = window.i18n.tc('输入拨测任务组名称');
   }
@@ -77,6 +80,11 @@ export const groupNameValidate = (
   if (allName.map(item => item.toLowerCase()).indexOf(targetStr.toLowerCase(), 0) > -1) {
     validateStatus.validate = true;
     validateStatus.message = window.i18n.tc('注意: 名字冲突');
+    return validateStatus;
+  }
+  if (emojiRegex(targetStr)) {
+    validateStatus.validate = true;
+    validateStatus.message = window.i18n.tc('不能输入emoji表情');
     return validateStatus;
   }
   return validateStatus;
@@ -256,7 +264,7 @@ export const taskTableDataInit = (
   pagination = {
     count: tasks.length,
     current: 1,
-    limit: 10,
+    limit: commonPageSizeGet(),
   }
 ): ITaskTableData => ({
   ...taskCommonTableProps,
@@ -342,7 +350,7 @@ export const nodesToTableDataInit = (
   pagination = {
     count: nodes.length,
     current: 1,
-    limit: 10,
+    limit: commonPageSizeGet(),
   }
 ): INodesTableData => ({
   ...nodesCommonTableProps,

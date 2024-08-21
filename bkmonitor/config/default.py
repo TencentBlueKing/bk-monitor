@@ -336,6 +336,8 @@ ACTIVE_VIEWS = {
         "promql_import": "monitor_web.promql_import.views",
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
+        "incident": "monitor_web.incident.views",
+        "ai_assistant": "monitor_web.ai_assistant.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -408,13 +410,16 @@ IS_ALLOW_ALL_CMDB_LEVEL = False
 # 是否开启AIOPS功能，业务ID白名单
 AIOPS_BIZ_WHITE_LIST = []
 
+# 是否开启AIOPS根因故障定位功能，业务白名单
+AIOPS_INCIDENT_BIZ_WHITE_LIST = []
+
 # 是否由GSE分配dataid，默认是False，由监控自身来负责分配
 IS_ASSIGN_DATAID_BY_GSE = True
 
 DEMO_BIZ_ID = 0
 DEMO_BIZ_WRITE_PERMISSION = False
 DEMO_BIZ_APPLY = ""
-DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/document/6.0/142/8600"
+DEFAULT_COMMUNITY_BIZ_APPLY = "https://bk.tencent.com/docs/markdown/ZH/QuickStart/7.0/quick-start-v7.0-monitor.md"
 
 # 企业微信群通知webhook_url
 WXWORK_BOT_WEBHOOK_URL = ""
@@ -490,6 +495,11 @@ CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
+# 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
+BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
+    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:build_in_result_table_detail"
+)
+
 # APM config
 APM_ACCESS_URL = ""
 APM_BEST_PRACTICE_URL = ""
@@ -541,6 +551,8 @@ APM_TRPC_ENABLED = False
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
+# 拓扑发现允许的最大 Span 数量(预估值)
+PER_ROUND_SPAN_MAX_SIZE = 1000
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
@@ -874,6 +886,13 @@ BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX = "metric_recommendation"
 
 BK_DATA_METRIC_RECOMMEND_SOURCE_PROCESSING_ID = "ieod_system_multivariate_delay"
 
+# 故障增删事件同步配置
+BK_DATA_AIOPS_INCIDENT_BROKER_URL = os.getenv(
+    "BK_DATA_AIOPS_INCIDENT_BROKER_URL", "amqp://127.0.0.1:5672/aiops_incident"
+)
+BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE = os.getenv("BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE", "aiops_incident")
+
+
 # 表后缀(字母或数字([A-Za-z0-9]), 不能有下划线"_", 且最好不超过10个字符)
 BK_DATA_RAW_TABLE_SUFFIX = "raw"  # 数据接入
 BK_DATA_CMDB_FULL_TABLE_SUFFIX = "full"  # 补充cmdb节点信息后的表后缀
@@ -1045,10 +1064,13 @@ BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
+# 通过 apigw 访问日志平台 api 的地址
+BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
+APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1078,9 +1100,9 @@ BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
 BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", "{}/o/bk_itsm/".format(BK_PAAS_HOST))
 BK_SOPS_HOST = os.getenv("BK_SOPS_URL", "{}/o/bk_sops/".format(BK_PAAS_HOST))
-# todo  新增BK_CI_HOST 需要在bin/environ.sh 模板中定义
+# todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", "{}/o/bk_bcs_app/".format(BK_PAAS_HOST))
-BK_CI_HOST = os.getenv("BK_CI_HOST") or os.getenv("BKAPP_BK_CI_HOST", "")
+BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
 ACTION_DETAIL_URL = "%s?bizId={bk_biz_id}/#/event-center/action-detail/{action_id}" % BK_MONITOR_HOST
 EVENT_CENTER_URL = urljoin(
@@ -1179,8 +1201,6 @@ SHOW_REALTIME_STRATEGY = False
 # 强制使用数据平台查询的cmdb层级表
 BKDATA_CMDB_LEVEL_TABLES = []
 
-# 查询 vm 的空间列表
-QUERY_VM_SPACE_UID_LIST = []
 
 # 邮件报表整屏渲染等待时间
 MAIL_REPORT_FULL_PAGE_WAIT_TIME = 60
@@ -1297,7 +1317,7 @@ ENABLE_INFLUXDB_STORAGE = True
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
-    os.environ["BK_API_URL_TMPL"] = ""
+    os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
 
 # 内网collector域名
 INNER_COLLOCTOR_HOST = ""
@@ -1307,6 +1327,7 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+ES_CLUSTER_BLACKLIST = []
 
 # BCS 数据合流配置， 默认为 不启用
 BCS_DATA_CONVERGENCE_CONFIG = {}
@@ -1326,12 +1347,24 @@ BKCI_SPACE_ACCESS_PLUGIN_LIST = []
 # 禁用告警CMDB缓存刷新
 DISABLE_ALARM_CMDB_CACHE_REFRESH = []
 
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
 # 需要base64编码的特殊字符
 BASE64_ENCODE_TRIGGER_CHARS = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
+# 是否启用新版的数据链路
+# 是否启用通过计算平台获取GSE data_id 资源，默认不启用
+ENABLE_V2_BKDATA_GSE_RESOURCE = False
+# 是否启用新版的 vm 链路，默认不启用
+ENABLE_V2_VM_DATA_LINK = False
+ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
+
+# 创建 vm 链路资源所属的命名空间
+DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
 ENABLE_DATA_LABEL_EXPORT = True
 
@@ -1343,3 +1376,24 @@ ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
 # metadta请求es超时配置, 单位为秒，默认10秒
 # 格式: {default: 10, 集群域名: 20}
 METADATA_REQUEST_ES_TIMEOUT = {}
+
+# 是否启用自定义事件休眠
+ENABLE_CUSTOM_EVENT_SLEEP = False
+
+# 平台全局配置
+BK_SHARED_RES_URL = os.environ.get("BK_SHARED_RES_URL", os.environ.get("BKPAAS_SHARED_RES_URL", ""))
+
+# 跳过写入influxdb的结果表
+SKIP_INFLUXDB_TABLE_ID_LIST = []
+
+# 是否开启拨测联通性测试
+ENABLE_UPTIMECHECK_TEST = True
+
+# 检测结果缓存 TTL(小时)
+CHECK_RESULT_TTL_HOURS = 1
+
+# LLM 接口地址
+BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
+
+# 监控平台apigw代码
+BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")

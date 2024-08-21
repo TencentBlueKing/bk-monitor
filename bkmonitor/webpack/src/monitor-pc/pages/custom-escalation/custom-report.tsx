@@ -557,7 +557,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
               <TableSkeleton
                 class='mt-16'
                 type={2}
-              ></TableSkeleton>
+              />
             ) : (
               <CommonTable
                 class='content-left-table'
@@ -565,7 +565,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 scopedSlots={{
                   name: (row: IEventItem) => (
                     <span>
-                      {!!row?.is_readonly ? (
+                      {row?.is_readonly ? (
                         <span>{row.name}</span>
                       ) : (
                         <span
@@ -575,7 +575,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                           {row.name}
                         </span>
                       )}
-                      {!!row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
+                      {row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
                     </span>
                   ),
                   related: (row: IEventItem) => (
@@ -613,7 +613,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                             name: window.i18n.tc('删除'),
                             authority: this.hasManageAuth,
                             authorityDetail: this.manageAuthDetail,
-                            tip: !!row?.is_readonly ? this.$tc('非当前业务，不允许操作') : '',
+                            tip: row?.is_readonly ? this.$tc('非当前业务，不允许操作') : '',
                             disable: row.related_strategy_count !== 0 || !!row?.is_readonly,
                           },
                         ],

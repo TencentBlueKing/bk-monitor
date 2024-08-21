@@ -31,16 +31,17 @@ import { deepClone } from 'monitor-common/utils';
 
 import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
 import {
+  getPanelListByObjectType,
+  transformMonitorToValue,
+  transformValueToMonitor,
+} from '../../../components/monitor-ip-selector/utils';
+
+import type {
   CoutIntanceName,
   IIpV6Value,
   INodeType,
   TargetObjectType,
 } from '../../../components/monitor-ip-selector/typing';
-import {
-  getPanelListByObjectType,
-  transformMonitorToValue,
-  transformValueToMonitor,
-} from '../../../components/monitor-ip-selector/utils';
 
 interface IStrategyIpv6Props {
   showDialog: boolean;
@@ -136,7 +137,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
     this.loading = false;
     const [strategyId] = this.strategyIds;
     const data = await getTargetDetail({ strategy_ids: [strategyId] }).catch(() => []);
-    if (typeof strategyId !== undefined) {
+    if (typeof strategyId !== 'undefined') {
       const { target_detail, node_type, instance_type } = data[strategyId];
       // 单策略增删目标
       if (this.strategyIds.length === 1) {

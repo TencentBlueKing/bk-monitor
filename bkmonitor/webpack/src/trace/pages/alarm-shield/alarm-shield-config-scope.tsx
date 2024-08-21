@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Popover, Radio, Table } from 'bkui-vue';
@@ -48,6 +48,7 @@ export const scopeData = () => {
       ip: window.i18n.t('主机'),
       instance: window.i18n.t('服务实例'),
       node: window.i18n.t('节点名称'),
+      dynamic_group: window.i18n.t('动态分组'),
       biz: window.i18n.t('业务'),
     },
     shieldDesc: '',
@@ -56,6 +57,7 @@ export const scopeData = () => {
         { name: window.i18n.t('button-服务实例'), id: 'instance' },
         { name: window.i18n.t('button-主机'), id: 'ip' },
         { name: window.i18n.t('button-拓扑节点'), id: 'node' },
+        { name: window.i18n.t('动态分组'), id: 'node' },
         { name: window.i18n.t('button-业务'), id: 'biz' },
       ],
       value: '',
@@ -103,6 +105,7 @@ export default defineComponent({
       instance: t('服务实例屏蔽: 屏蔽告警中包含该实例的通知'),
       ip: t('主机屏蔽: 屏蔽告警中包含该IP通知,包含对应的实例'),
       node: t('节点屏蔽: 屏蔽告警中包含该节点下的所有IP和实例的通知'),
+      dynamic_group: t('动态分组屏蔽: 屏蔽告警中包含该动态分组下的所有IP和实例的通知'),
       biz: t('本空间屏蔽: 屏蔽告警中包含该空间的所有通知'),
     };
     const scopeList = [
@@ -117,6 +120,10 @@ export default defineComponent({
       {
         id: 'node',
         name: t('CMDB拓扑'),
+      },
+      {
+        id: 'dynamic_group',
+        name: t('动态分组'),
       },
       // {
       //   id: 'k8s',
@@ -136,6 +143,9 @@ export default defineComponent({
         show: false,
       },
       node: {
+        show: false,
+      },
+      dynamic_group: {
         show: false,
       },
       biz: {
@@ -181,7 +191,7 @@ export default defineComponent({
       } else {
         clearErrMsg();
         isBiz.value = false;
-        if (!!radioRef.value) {
+        if (radioRef.value) {
           radioRef.value.isChecked = false;
         }
         scopeState.bkGroup.value = id;
@@ -278,7 +288,7 @@ export default defineComponent({
       } else {
         ipv6Init();
         isBiz.value = false;
-        if (!!radioRef.value) {
+        if (radioRef.value) {
           radioRef.value.isChecked = false;
         }
         scopeState.bkGroup.value = id;
@@ -359,7 +369,7 @@ export default defineComponent({
                                 class='scope-list-item'
                                 onClick={() => this.handleChangeScope(item.id)}
                               >
-                                <span class='icon-monitor icon-jia'></span>
+                                <span class='icon-monitor icon-jia' />
                                 <span class='item-text'>{item.name}</span>
                               </span>
                             );
@@ -396,7 +406,7 @@ export default defineComponent({
               <CommonTip
                 class='mt8 min-w940'
                 content={this.tipsMap[this.scopeState.bkGroup.value] || ''}
-              ></CommonTip>
+              />
             )}
             {this.scopeState.bkGroup.value !== 'biz' && !this.isEdit && !!this.scopeState.inited && (
               <AlarmShieldIpv6
@@ -407,7 +417,7 @@ export default defineComponent({
                 showViewDiff={this.isClone}
                 onChange={this.handleValueChange}
                 onCloseDialog={this.handleIpv6DialogChange}
-              ></AlarmShieldIpv6>
+              />
             )}
             {!!this.isEdit &&
               (this.scopeState.bkGroup.value !== 'biz' ? (
@@ -423,7 +433,7 @@ export default defineComponent({
                     border={['outer']}
                     data={this.scopeState.tableData}
                     maxHeight={450}
-                  ></Table>
+                  />
                 </div>
               ) : (
                 <span>{this.t('业务')}</span>

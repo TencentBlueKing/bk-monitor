@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import tNil from './TNil';
+import type tNil from './TNil';
 
 export type TNil = tNil;
 
@@ -98,6 +98,8 @@ export type SpanData = {
   ebpf_tap_port_name?: string;
   group_info: GroupInfo; // 折叠分组信息
   is_expand: boolean; // 折叠节点当前被展开
+  mark?: string;
+  bgColor?: string;
 };
 
 export type Span = SpanData & {

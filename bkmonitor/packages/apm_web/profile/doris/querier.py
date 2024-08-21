@@ -40,6 +40,15 @@ class APIType(Enum):
     SELECT_COUNT = "select_aggregate"
 
 
+class ConverterType:
+    """Bkbase 原始 profile 可以转换的数据类型"""
+
+    # Profile 类型使用 DorisConverter 转换
+    Profile = "profile"
+    # Tree 类型使用 TreeConverter
+    Tree = "tree"
+
+
 @dataclass
 class APIParams:
     biz_id: str
@@ -134,6 +143,8 @@ class Query:
                 span.set_attribute("profile.query.url", url)
                 span.set_attribute("profile.query.params", json.dumps(params))
                 response = requests.post(url=url, json=params, headers={"Content-Type": "application/json"})
+                logger.info(f"[ProfileDatasource] request elapsed: {response.elapsed.total_seconds()}s")
+                span.set_attribute("profile.query.elapsed", response.elapsed.total_seconds())
                 span.set_attribute("profile.query.curl", curlify.to_curl(response.request))
                 res = response.json()
             except RequestException as e:
@@ -316,7 +327,7 @@ class QueryTemplate:
             result_table_id=self.result_table_id,
         ).execute()
         if not res or not res.get("list", []):
-            return None
+            return []
         return [[i["count(*)"], int(i["time"])] for i in res["list"] if "time" in i]
 
     def list_labels(

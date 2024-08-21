@@ -29,24 +29,23 @@
  * @Description:
  */
 
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
-import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
-import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
-import PromqlMonacoEditor from '../../../../components/promql-editor/promql-editor';
-import { handleSetTargetDesc } from '../../common';
+import { handleSetTargetDesc as getTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
-import { dataModeType, EditModeType, MetricDetail, MetricType } from '../typings';
-import { IFunctionsValue } from './function-select';
+import { type EditModeType, type MetricDetail, MetricType, type dataModeType } from '../typings';
 import MonitorDataInput from './monitor-data-input';
+
+import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
+import type { IFunctionsValue } from './function-select';
+import type { TranslateResult } from 'vue-i18n';
 
 import './monitor-data.scss';
 
@@ -72,7 +71,7 @@ interface IMonitorDataEvent {
   onModeChange: dataModeType;
   onSourceChange: string;
   onExpressionChange: string;
-  onDelete: void;
+  onDelete: () => void;
   onAddMetric: { type: MetricType };
   onAddNullMetric: { type: MetricType };
   onTargetChange: any;
@@ -83,7 +82,7 @@ interface IMonitorDataEvent {
   onEditModeChange: { mode: EditModeType; hasError: boolean };
   onPromqlEnter: boolean;
   onPromqlBlur: boolean;
-  onPromqlFocus: void;
+  onPromqlFocus: () => void;
   onExpFunctionsChange: IFunctionsValue[];
   onShowExpress: boolean;
   onSouceStepChange: number;
@@ -94,6 +93,8 @@ interface IMonitorDataEvent {
   components: {
     MonitorDialog,
     StrategyTargetTable,
+    PromqlMonacoEditor: () =>
+      import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../../components/promql-editor/promql-editor'),
   },
 })
 export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEvent> {
@@ -123,7 +124,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   /* 是否展示实时选项 */
   @Prop({ default: false, type: Boolean }) showRealtimeStrategy: boolean;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
-  @Ref('promql-editor') promqlEditorRef: PromqlEditor;
+  @Ref('promql-editor') promqlEditorRef: any;
   modeList: { id: string; name: TranslateResult }[];
   // editMode: EditModeType = 'Edit'
   showTopoSelector = false;
@@ -229,6 +230,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     }
     return true;
   }
+  get targetDesc() {
+    return this.handleSetTargetDesc(this.targetList, this.metricData?.[0]?.targetType);
+  }
   created() {
     this.modeList = [
       {
@@ -260,12 +264,12 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     };
     this.targetList = this.defaultCheckedTarget?.target_detail || [];
     // 初始化时监控目标显示
-    this.handleSetTargetDesc(
-      this.targetList,
-      this.metricData?.[0]?.targetType,
-      this.defaultCheckedTarget?.node_count || 0,
-      this.defaultCheckedTarget?.instance_count || 0
-    );
+    // this.handleSetTargetDesc(
+    //   this.targetList,
+    //   this.metricData?.[0]?.targetType,
+    //   this.defaultCheckedTarget?.node_count || 0,
+    //   this.defaultCheckedTarget?.instance_count || 0
+    // );
   }
   handleChangeTab(item) {
     if ((item.id === 'realtime' && !this.canActiveRealtime) || (item.id === 'converge' && !this.canActiveConverge)) {
@@ -346,9 +350,13 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     instance_count = 0
   ) {
     const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
-    const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
+    const result = getTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
     this.target.desc.message = result.message;
     this.target.desc.subMessage = result.subMessage;
+    return {
+      message: result.message,
+      subMessage: result.subMessage,
+    };
   }
 
   /**
@@ -439,7 +447,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           objectType={objectType as TargetObjectType}
           showDialog={this.showTopoSelector}
           onChange={this.handleTopoCheckedChange}
-          onCloseDialog={v => (this.showTopoSelector = v)}
+          onCloseDialog={v => {
+            this.showTopoSelector = v;
+          }}
         />
       );
     }
@@ -451,7 +461,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         need-footer={false}
         title={this.$t('监控目标')}
         zIndex={1002}
-        on-change={v => (this.showTopoSelector = v)}
+        on-change={v => {
+          this.showTopoSelector = v;
+        }}
         on-on-cancel={this.handleTargetCancel}
       >
         <strategy-target-table
@@ -538,6 +550,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     <span
                       key={item.id}
                       style={{ marginLeft: index > 0 ? '-1px' : '' }}
+                      v-en-style='width: 80px'
                       class={[
                         'tab-item',
                         {
@@ -566,7 +579,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly
                       }}
-                      v-en-style='width: 80px'
                       on-click={() => !this.readonly && !isTabDisabled(item.id) && this.handleChangeTab(item)}
                     >
                       <span class='bd-hover'>{item.name}</span>
@@ -597,7 +609,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     onClick={() => this.handleMetricSelectShow(true)}
                   >
                     <span>{this.$t('指标选择')}</span>
-                    <span class='icon-monitor icon-arrow-down'></span>
+                    <span class='icon-monitor icon-arrow-down' />
                   </div>
                 )}
                 <MetricSelector
@@ -607,7 +619,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   type={MetricType.TimeSeries}
                   onSelected={this.handleSelectMetric}
                   onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
-                ></MetricSelector>
+                />
               </div>
               <div class='tool-right'>
                 <span
@@ -662,7 +674,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 //   // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
                 //   onChange={this.handlePromsqlChange}
                 // />
-                <PromqlMonacoEditor
+                <promql-monaco-editor
                   ref='promql-editor'
                   class='mt-16'
                   executeQuery={this.handlePromqlEnter}
@@ -674,7 +686,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 />
               )}
               {/* <div class={['metric-source', { 'is-error': this.promqlError }]}>
-                
+
               </div> */}
               <div class='source-options-wrap'>
                 <bk-input
@@ -696,7 +708,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         content: this.$t('数据步长'),
                         placements: ['top'],
                       }}
-                    ></span>
+                    />
                   </div>
                 </bk-input>
               </div>
@@ -705,32 +717,41 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           {this.supportSource && !!this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
           {this.metricData.some(item => item.canSetTarget) && (
             <div class='ip-wrapper'>
-              {!this.targetList.length && !this.target.desc.message.length
+              {!this.targetList.length && !this.targetDesc.message.length
                 ? [
                     !this.readonly ? (
                       <div
+                        key={1}
                         class='ip-wrapper-title'
                         on-click={this.handleAddTarget}
                       >
-                        <i class='icon-monitor icon-mc-plus-fill'></i>
+                        <i class='icon-monitor icon-mc-plus-fill' />
                         {this.$t('添加监控目标')}
                       </div>
                     ) : (
-                      <span>{this.$t('未添加监控目标')}</span>
+                      <span key={2}>{this.$t('未添加监控目标')}</span>
                     ),
-                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
+                    <span
+                      key={3}
+                      class='subtitle ml5'
+                    >{`(${this.$t('默认为本业务')})`}</span>,
                   ]
                 : [
-                    <i class='icon-monitor icon-mc-tv'></i>,
+                    <i
+                      key={4}
+                      class='icon-monitor icon-mc-tv'
+                    />,
                     <span
+                      key={5}
                       style='color: #63656e;'
                       class='subtitle'
                     >
-                      {this.target.desc.message}
-                      {this.target.desc.subMessage}
+                      {this.targetDesc.message}
+                      {this.targetDesc.subMessage}
                     </span>,
                     this.readonly ? (
                       <span
+                        key={6}
                         class='ip-wrapper-title'
                         onClick={this.handleAddTarget}
                       >
@@ -738,18 +759,21 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       </span>
                     ) : (
                       <span
+                        key={7}
                         class='icon-monitor icon-bianji'
                         onClick={this.handleAddTarget}
-                      ></span>
+                      />
                     ),
                     this.showTargetMessageTip && (
                       <span class='ip-dimension-tip'>
-                        <span class='icon-monitor icon-remind'></span>
+                        <span class='icon-monitor icon-remind' />
                         <span>{this.$t('当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效')}</span>
                         <span
                           class='icon-monitor icon-mc-close'
-                          onClick={() => (this.showTargetMessageTip = false)}
-                        ></span>
+                          onClick={() => {
+                            this.showTargetMessageTip = false;
+                          }}
+                        />
                       </span>
                     ),
                   ]}
@@ -762,14 +786,15 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             (item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') && (
               <div class='monitor-event'>
                 <span
-                  class='monitor-event-title'
                   v-en-style='width: 105px'
+                  class='monitor-event-title'
                 >
                   {this.$t('告警级别')} :
                 </span>
                 <bk-radio-group v-model={item.level}>
                   {this.levelList.map(radio => (
                     <bk-radio
+                      key={radio.id}
                       class='monitor-event-radio'
                       value={radio.id}
                     >

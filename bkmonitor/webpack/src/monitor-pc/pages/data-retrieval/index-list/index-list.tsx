@@ -27,7 +27,8 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 
 import './index-list.scss';
 

@@ -57,42 +57,43 @@ import { deepClone, getUrlParam, random, transformDataKey, typeTools } from 'mon
 import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
-import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
-import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import IntelligentModelsStore from '../../../store/modules/intelligent-models';
-import { ISpaceItem } from '../../../types';
-import { IOptionsItem } from '../../calendar/types';
-import { IDataRetrieval } from '../../data-retrieval/typings';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
-import { actionConfigGroupList, IAllDefense, IValue as IAlarmItem } from './alarm-handling/alarm-handling';
+import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
 import AlarmHandlingList from './alarm-handling/alarm-handling-list';
-import BaseConfig, { IBaseConfig } from './base-config/base-config';
+import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
-import { ChartType } from './detection-rules/components/intelligent-detect/intelligent-detect';
-import { IModelData } from './detection-rules/components/time-series-forecast/time-series-forecast';
 import DetectionRules from './detection-rules/detection-rules';
-import JudgingCondition, { DEFAULT_TIME_RANGES, IJudgingData } from './judging-condition/judging-condition';
+import JudgingCondition, { DEFAULT_TIME_RANGES, type IJudgingData } from './judging-condition/judging-condition';
 import AiopsMonitorData from './monitor-data/aiops-monitor-data';
-import { IFunctionsValue } from './monitor-data/function-select';
 import MonitorData from './monitor-data/monitor-data';
 import MonitorDataEmpty from './monitor-data/monitor-data-empty';
-import NoticeConfigNew, { INoticeValue } from './notice-config/notice-config';
-import { IActionConfig } from './type';
+import NoticeConfigNew, { type INoticeValue } from './notice-config/notice-config';
 import {
-  dataModeType,
-  EditModeType,
-  IBaseInfoRouteParams,
-  IDetectionConfig,
-  IMetricDetail,
-  IScenarioItem,
-  ISourceData,
+  type EditModeType,
+  type IBaseInfoRouteParams,
+  type IDetectionConfig,
+  type IMetricDetail,
+  type IScenarioItem,
+  type ISourceData,
   MetricDetail,
   MetricType,
-  strategyType,
+  type dataModeType,
+  type strategyType,
 } from './typings';
+
+import type { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
+import type { ISpaceItem } from '../../../types';
+import type { IOptionsItem } from '../../calendar/types';
+import type { IDataRetrieval } from '../../data-retrieval/typings';
+import type { ChartType } from './detection-rules/components/intelligent-detect/intelligent-detect';
+import type { IModelData } from './detection-rules/components/time-series-forecast/time-series-forecast';
+import type { IFunctionsValue } from './monitor-data/function-select';
+import type { IActionConfig } from './type';
 
 import './strategy-config-set.scss';
 
@@ -103,11 +104,13 @@ const hostTargetFieldType = {
   INSTANCE: 'ip',
   SERVICE_TEMPLATE: 'host_service_template',
   SET_TEMPLATE: 'host_set_template',
+  DYNAMIC_GROUP: 'dynamic_group',
 };
 const serviceTargetFieldType = {
   TOPO: 'service_topo_node',
   SERVICE_TEMPLATE: 'service_service_template',
   SET_TEMPLATE: 'service_set_template',
+  DYNAMIC_GROUP: 'dynamic_group',
 };
 interface IStrategyConfigSetProps {
   fromRouteName: string;
@@ -116,7 +119,7 @@ interface IStrategyConfigSetProps {
 
 interface IStrategyConfigSetEvent {
   onCancel: boolean;
-  onSave: void;
+  onSave: () => void;
 }
 
 export interface IAlarmGroupList {
@@ -160,6 +163,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @Ref('noticeConfigPanel') noticeConfigPanelRef: InstanceType<typeof GroupPanel>;
   @Ref() contentRef: HTMLElement;
   @Ref('aiopsMonitorData') aiopsMonitorDataRef: InstanceType<typeof AiopsMonitorData>;
+  @Ref('setFooterRef') setFooterRef: HTMLDivElement;
+  @Ref('setFooterBottomRef') setFooterBottomRef: HTMLDivElement;
 
   /** 导航面包屑 */
   routeList = [
@@ -387,16 +392,16 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
   /* 时区 */
-  timezone = getDefautTimezone();
+  timezone = getDefaultTimezone();
   /* 是否可编辑 */
   editAllowed = true;
-
+  stickyObserver: IntersectionObserver | null = null;
   get isEdit(): boolean {
     return !!this.$route.params.id;
   }
 
   get bizList(): ISpaceItem[] {
-    return this.$store.getters.bizList;
+    return this.$store.getters.bizList?.filter(item => +item.bk_biz_id === +this.bizId) || [];
   }
   get bizId(): number | string {
     return this.$store.getters.bizId;
@@ -448,8 +453,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const list = deepClone(this.scenarioList);
     const res = list.reduce((total, cur) => {
       const child = cur.children || [];
-      total = total.concat(child);
-      return total;
+      return total.concat(child);
     }, []);
     return res;
   }
@@ -519,11 +523,28 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.strategyView.rightWidth = Math.ceil(width / 3);
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
     // 异步初始化所有ai模型列表 用于判断是否展示功能依赖 以及前置后面选择ai模型的初始化数据
-    IntelligentModelsStore.initAllListIntelligentModels();
+    if (window.enable_aiops) IntelligentModelsStore.initAllListIntelligentModels();
+  }
+  activated() {
+    this.stickyObserver = new IntersectionObserver(
+      ([entry]) => {
+        this.setFooterRef.classList.toggle('is-sticky', entry.intersectionRatio < 1);
+      },
+      {
+        threshold: 1,
+      }
+    );
+    this.stickyObserver.observe(this.setFooterBottomRef);
+  }
+  deactivated() {
+    this.clearErrorMsg();
+    (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
+    this.stickyObserver.unobserve(this.setFooterBottomRef);
   }
   beforeDestroy() {
     bus.$off(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
+
   @Watch('fromRouteName', { immediate: true })
   async handleRouteChange(v: string) {
     if (!v) return;
@@ -549,10 +570,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       }
     }
     // this.addDefaultAlarmHandling();
-  }
-  deactivated() {
-    this.clearErrorMsg();
-    (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
   handleUpdateCalendarList(settings: string) {
     if (settings === 'calendar') {
@@ -679,7 +696,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       const expList = metric.expressionList || [];
       if (expList.length) {
         const item = expList.find(item => item.active);
-        if (!!item) {
+        if (item) {
           this.expression = item.expression?.toLocaleLowerCase?.() || this.metricData[0]?.alias;
           this.localExpress = this.expression;
           this.localExpFunctions = item.functions;
@@ -1182,9 +1199,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       }
       const { metric_list: metricList = [] } = await getMetricListV2({
         bk_biz_id: bizId,
-        // page: 1,
-        // page_size: queryConfigs.length,
-        // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
         conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }],
       }).catch(() => ({}));
       this.metricData = queryConfigs.map(
@@ -1197,7 +1211,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           index_set_id,
           functions,
           intelligent_detect,
-
           metric_field,
           metric_id,
           agg_method,
@@ -1824,13 +1837,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         metric_id: item.metric_id,
       };
 
+      // biome-ignore lint/performance/noDelete: <explanation>
       !common.data_label && delete common.data_label;
 
       // 提交所需参数
       const submit = {
         index_set_id: item.index_set_id,
         query_string: item.keywords_query_string,
-        custom_event_name: item.metric_field || item.custom_event_name,
+        custom_event_name: item.custom_event_name,
         functions: hasIntelligentDetect ? [] : item.functions,
         intelligent_detect: this.id && hasIntelligentDetect ? item.intelligent_detect : undefined,
         time_field: (hasIntelligentDetect ? 'dtEventTimeStamp' : item.time_field) || 'time',
@@ -1997,22 +2011,28 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 简化参数给后端，不然会报错
   handleCheckedData(type: string, data: any[]) {
     const checkedData = [];
-    if (type === 'INSTANCE') {
-      data.forEach(item => {
+    if (type === 'DYNAMIC_GROUP') {
+      for (const item of data) {
+        checkedData.push({
+          dynamic_group_id: item.dynamic_group_id || item.id,
+        });
+      }
+    } else if (type === 'INSTANCE') {
+      for (const item of data) {
         checkedData.push({
           ip: item.ip,
           bk_cloud_id: item.bk_cloud_id,
           bk_host_id: item.bk_host_id,
           bk_supplier_id: item.bk_supplier_id,
         });
-      });
+      }
     } else {
-      data.forEach(item => {
+      for (const item of data) {
         checkedData.push({
           bk_inst_id: item.bk_inst_id,
           bk_obj_id: item.bk_obj_id,
         });
-      });
+      }
     }
     return checkedData;
   }
@@ -2236,7 +2256,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           result_table_name: resultTableIdList[1],
           data_label: item.data_label,
         };
-        if (!!this.targetType) {
+        if (this.targetType) {
           curMetric.targetType = this.targetType;
         }
         return new MetricDetail({
@@ -2250,28 +2270,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         });
       });
     } else {
-      // const { metric_list: metricList = [] } = await getMetricListV2({
-      //   // page: 1,
-      //   // page_size: res.query_configs.length,
-      //   conditions: [],
-      //   data_type_label: this.metricData?.[0]?.data_type_label || 'time_series',
-      //   page: 1,
-      //   page_size: 1
-      // }).catch(() => {
-      //   this.monitorDataLoading = false;
-      //   return {};
-      // });
-      // if (metricList.length) {
-      //   this.metricData = metricList.map(item => new MetricDetail({
-      //     ...item,
-      //     agg_method: item.agg_method,
-      //     agg_condition: item.agg_condition,
-      //     agg_dimension: item.agg_dimension,
-      //     agg_interval: item.agg_interval,
-      //     alias: item.alias?.toLocaleLowerCase?.() || LETTERS.at(0),
-      //     functions: item.functions || []
-      //   }));
-      // }
       const metricIds = targetRes.query_configs.map(item => item.metric_id);
       this.sourceData.errorMsg = `${metricIds.join('、')}${this.$t('指标不存在')}`;
       this.monitorDataLoading = false;
@@ -2318,7 +2316,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         return;
       }
       const success = await this.handleQueryConfigToPromsql();
-      if (!!success) this.monitorDataEditMode = mode;
+      if (success) this.monitorDataEditMode = mode;
     } else {
       if (!this.sourceData.sourceCode) {
         this.sourceData.promqlError = false;
@@ -2462,8 +2460,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
           onMetricChange={this.handleSceneConfigMetricChange}
+          onModelChange={this.handleModelChange}
           onTargetChange={this.handleTargetChange}
-        ></AiopsMonitorData>
+          onTargetTypeChange={this.handleTargetTypeChange}
+        />
       );
     }
     return (
@@ -2565,6 +2565,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               title={this.$t('基本信息')}
             >
               <BaseConfig
+                id={this.id && !this.isClone ? this.id : ''}
                 ref='base-config'
                 scenarioReadonly={
                   this.monitorDataEditMode === 'Source' ? false : !!this.metricData.some(item => !!item.metric_id)
@@ -2632,7 +2633,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   onModelChange={this.handleModelChange}
                   onRuleClick={this.handleRuleClick}
                   onUnitChange={this.handleUnitChange}
-                ></DetectionRules>
+                />
               </GroupPanel>
             ) : undefined}
             {
@@ -2661,7 +2662,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   onChange={this.handleJudgingChange}
                   // onTimeChange={(v: string[]) => this.judgeTimeRange = v}
                   onValidatorErr={this.judgingValidatorErr}
-                ></JudgingCondition>
+                />
               </GroupPanel>
             }
             <GroupPanel
@@ -2679,7 +2680,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 value={this.actionsData}
                 onAddMeal={(v: number) => (this.actionIndex = v)}
                 onChange={v => (this.actionsData = v)}
-              ></AlarmHandlingList>
+              />
             </GroupPanel>
             <GroupPanel
               ref='noticeConfigPanel'
@@ -2703,11 +2704,15 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   userList={this.alarmGroupList}
                   value={this.noticeData}
                   onChange={(data: INoticeValue) => (this.noticeData = data)}
-                ></NoticeConfigNew>
+                />
               )}
             </GroupPanel>
-            {!this.isDetailMode && (
-              <div class='set-footer mt20 mb20'>
+            {!this.isDetailMode && [
+              <div
+                key='set-foote'
+                ref='setFooterRef'
+                class='set-footer'
+              >
                 <div
                   v-bk-tooltips={{
                     disabled: this.submitBtnTipDisabled,
@@ -2724,15 +2729,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                     {this.$t('提交')}
                   </bk-button>
                 </div>
-                <bk-button
-                  class='btn cancel'
-                  on-click={this.handleCancel}
-                >
-                  {this.$t('取消')}
-                </bk-button>
-              </div>
-            )}
-            <div style='padding-top: 16px;'></div>
+                <bk-button on-click={this.handleCancel}>{this.$t('取消')}</bk-button>
+              </div>,
+              <div
+                key='setFooterBottomRef'
+                ref='setFooterBottomRef'
+              />,
+            ]}
           </div>
           {/* <!-- 策略辅助视图 --> */}
           <div
@@ -2746,7 +2749,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               <div
                 class={['drag', { active: this.strategyView.isActive }]}
                 on-mousedown={this.handleMouseDown}
-              ></div>
+              />
               <StrategyView
                 activeModelMd={this.activeModelIndex}
                 aiopsChartType={this.localAiopsChartType}
@@ -2777,7 +2780,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           // defaultScenario={this.baseConfig.scenario}
           onSelected={this.handleAddMetric}
           onShowChange={val => (this.metricSelector.show = val)}
-        ></MetricSelector>
+        />
         {/* <StrategyMetricSelector
           type={this.metricSelector.type}
           show={this.metricSelector.show}

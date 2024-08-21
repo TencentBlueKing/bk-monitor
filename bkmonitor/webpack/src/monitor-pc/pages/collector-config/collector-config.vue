@@ -405,12 +405,12 @@ import {
   // cloneCollectConfig,
   fetchCollectConfigStat,
 } from 'monitor-api/modules/collecting';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 // import { isCancel } from 'axios'
 import { debounce } from 'throttle-debounce';
 import { createNamespacedHelpers } from 'vuex';
 
 import introduce from '../../common/introduce';
-import { commonPageSizeMixin } from '../../common/mixins';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
 import GuidePage from '../../components/guide-page/guide-page';
 import pageTips from '../../components/pageTips/pageTips';
@@ -435,7 +435,7 @@ export default {
     GuidePage,
     TableSkeleton,
   },
-  mixins: [commonPageSizeMixin, authorityMixinCreate(collectAuth)],
+  mixins: [authorityMixinCreate(collectAuth)],
   provide() {
     return {
       authority: this.authority,
@@ -589,7 +589,7 @@ export default {
       // 表格分页数据
       pagination: {
         page: 1,
-        pageSize: +localStorage.getItem('__common_page_size__') || 10,
+        pageSize: commonPageSizeGet(),
         total: 0,
       },
       // 头部筛选卡片数据
@@ -1091,9 +1091,11 @@ export default {
       const tempPageSize = this.pagination.pageSize;
       this.pagination.page = 1;
       this.pagination.pageSize = limit;
+      commonPageSizeSet(limit);
       this.getCollectionConfigList(false, true).catch(() => {
         this.pagination.page = tempPage;
         this.pagination.pageSize = tempPageSize;
+        commonPageSizeSet(tempPageSize);
       });
     },
     /**

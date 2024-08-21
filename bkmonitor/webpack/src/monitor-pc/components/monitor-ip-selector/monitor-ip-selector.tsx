@@ -42,9 +42,14 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
+  executeIpChooserDynamicGroup,
+  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
-import {
+import { PanelTargetMap } from './utils';
+
+import type {
   CommomParams,
   CoutIntanceName,
   IFetchNode,
@@ -52,12 +57,6 @@ import {
   IIpV6Value,
   INode,
   INodeType,
-  IpSelectorConfig,
-  IpSelectorHostMemuExtend,
-  IpSelectorHostTableCustomColumn,
-  IpSelectorMode,
-  IpSelectorNameStyle,
-  IpSelectorService,
   IQuery,
   IScopeItme,
   IStatistics,
@@ -65,8 +64,13 @@ import {
   ITemplateItem,
   ITemplateNode,
   ITreeItem,
+  IpSelectorConfig,
+  IpSelectorHostMemuExtend,
+  IpSelectorHostTableCustomColumn,
+  IpSelectorMode,
+  IpSelectorNameStyle,
+  IpSelectorService,
 } from './typing';
-import { PanelTargetMap } from './utils';
 
 import '@blueking/ip-selector/dist/styles/index.css';
 
@@ -91,8 +95,8 @@ export interface IMonitorIpSelectorProps {
   showView?: boolean;
   showViewDiff?: boolean;
   readonly?: boolean;
-  disableDialogSubmitMethod?: Function;
-  disableHostMethod?: Function;
+  disableDialogSubmitMethod?: () => void;
+  disableHostMethod?: () => void;
   viewSearchKey?: string;
   service?: IpSelectorService;
   height?: number;
@@ -153,9 +157,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   // 静态拓扑主机单选
   @Prop({ default: false, type: Boolean }) singleHostSelect: boolean;
   // Dialog 确定按钮是否禁用
-  @Prop({ type: Function }) disableDialogSubmitMethod: Function;
+  @Prop({ type: Function }) disableDialogSubmitMethod: () => void;
   // 静态拓扑主机是否禁用
-  @Prop({ type: Function }) disableHostMethod: Function;
+  @Prop({ type: Function }) disableHostMethod: () => void;
   // 在选择结果面板搜索主机
   @Prop({ default: '', type: String }) viewSearchKey: string;
   @Prop({ default: 'host', type: String }) countInstanceType: string;
@@ -207,6 +211,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       fetchCustomSettings: this.fetchCustomSettings,
       updateCustomSettings: this.updateCustomSettings,
       fetchConfig: this.fetchConfig,
+      fetchDynamicGroups: this.fetchDynamicGroups, // 动态分组列表
+      fetchHostsDynamicGroup: this.fetchHostsDynamicGroup, // 动态分组下的节点
+      fetchHostAgentStatisticsDynamicGroups: this.fetchHostAgentStatisticsDynamicGroups,
       ...this.service,
     };
     this.ipSelectorConfig = {
@@ -237,6 +244,37 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       serviceConfigError: true,
     };
   }
+  // 动态分组api
+  async fetchDynamicGroups(p) {
+    const data = await groupsIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    return data;
+  }
+  async fetchHostsDynamicGroup(p) {
+    const data = await executeIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    console.info('fetchHostsDynamicGroup', p, data);
+    return data;
+  }
+  async fetchHostAgentStatisticsDynamicGroups(p) {
+    const data = await agentStatisticsIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    console.info('fetchHostAgentStatisticsDynamicGroups', p, data);
+    return data;
+  }
+
   // 拉取topology
   async fetchTopologyHostCount(): Promise<ITreeItem[]> {
     return await treesIpChooserTopo(this.transformParams({ scope_list: this.scopeList })).catch(() => []);

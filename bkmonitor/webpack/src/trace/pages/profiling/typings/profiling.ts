@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { DataTypeItem, RetrievalFormData } from './profiling-retrieval';
+import type { DataTypeItem, RetrievalFormData } from './profiling-retrieval';
 
 export interface SearchState {
   /** 是否展示查询面板 */

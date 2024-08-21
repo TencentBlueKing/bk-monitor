@@ -11,21 +11,6 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   overflow-x: hidden;
   overflow-y: auto;
 
-  .icon-page-close {
-    font-size: 116px;
-    color: #fff;
-    cursor: pointer;
-
-    &:hover {
-      color: #3a84ff;
-    }
-
-    &.fullscreen-close {
-      top: 0;
-      right: 28px;
-    }
-  }
-
   .header {
     position: relative;
     margin-top: 12px;
@@ -180,7 +165,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       top: 0;
       z-index: 90;
       background-color: #f5f6fa;
-      
+
       .tab-label {
         display: flex;
         align-items: center;
@@ -241,7 +226,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       &.hide-tools {
         padding: 8px;
       }
-      
+
       .span-kind-filters {
         white-space: nowrap;
 
@@ -349,12 +334,11 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 
   .tab-setting {
-    padding-left: 12px;
     width: 100%;
+    padding-left: 12px;
     overflow: hidden;
 
     @include flex-justify(flex-end);
-
 
     .ellipsis-direction {
       width: 56px;
@@ -364,18 +348,18 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       cursor: pointer;
       background: #f0f1f5;
       border-radius: 2px;
-  
+
       @include flex-center;
-  
+
       .item {
         width: 24px;
         height: 24px;
         font-size: 16px;
         color: #979ba5;
         border-radius: 2px;
-  
+
         @include flex-center;
-  
+
         &.active {
           color: #3a84ff;
           background-color: #fff;
@@ -406,7 +390,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     cursor: pointer;
     background-color: #3a84ff;
     border-radius: 50%;
-    
+
     @include flex-center;
 
     .icon-monitor {
@@ -421,6 +405,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
         flex: 1;
         overflow-x: visible;
       }
+
       .bk-tab-header-setting {
         flex: 1;
         overflow: hidden;
@@ -447,5 +432,22 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     pointer-events: all;
     background-color: #fff;
     border: 0;
+  }
+}
+
+.trace-duration-pop {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  margin: -2px;
+  color: #979ba5;
+
+  .bk-switcher {
+    margin: 0 8px;
+  }
+
+  .icon-monitor {
+    margin-right: 6px;
+    font-size: 16px;
   }
 }

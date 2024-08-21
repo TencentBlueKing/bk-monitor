@@ -227,25 +227,25 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { DEFAULT_REFLESH_LIST } from '../../../common/constant';
 import MonitorDateRange from '../../../components/monitor-date-range/monitor-date-range.vue';
 import DropDownMenu from '../../../components/monitor-dropdown/dropdown-menu.vue';
-import TimeRange, { TimeRangeType } from '../../../components/time-range/time-range';
+import TimeRange, { type TimeRangeType } from '../../../components/time-range/time-range';
 import { PERFORMANCE_CHART_TYPE } from '../../../constant/constant';
 import { getRandomId } from '../../../utils';
 import FavoritesList from '../../data-retrieval/favorites-list/favorites-list';
-import { IDataRetrieval, IFavList } from '../../data-retrieval/typings';
-import {
+import type { IDataRetrieval, IFavList } from '../../data-retrieval/typings';
+import type {
   ChartType,
   ICompareChangeType,
   ICompareOption,
   IOption,
   ISearchSelectList,
-  IToolsOption
+  IToolsOption,
 } from '../performance-type';
 
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -253,20 +253,20 @@ import '@blueking/search-select-v3/vue2/vue2.css';
 const DEAULT_TIME_RANGE = [
   {
     name: window.i18n.t('1 小时'),
-    value: 1 * 60 * 60 * 1000
+    value: 1 * 60 * 60 * 1000,
   },
   {
     name: window.i18n.t('1 天'),
-    value: 24 * 60 * 60 * 1000
+    value: 24 * 60 * 60 * 1000,
   },
   {
     name: window.i18n.t('7 天'),
-    value: 168 * 60 * 60 * 1000
+    value: 168 * 60 * 60 * 1000,
   },
   {
     name: window.i18n.t('1 个月'),
-    value: 720 * 60 * 60 * 1000
-  }
+    value: 720 * 60 * 60 * 1000,
+  },
 ];
 @Component({
   name: 'compare-panel',
@@ -275,8 +275,8 @@ const DEAULT_TIME_RANGE = [
     MonitorDateRange,
     FavoritesList,
     TimeRange,
-    SearchSelect
-  }
+    SearchSelect,
+  },
 })
 export default class ComparePanel extends Vue {
   @Ref('panelWrap') refPanelWrap: HTMLDivElement;
@@ -289,18 +289,18 @@ export default class ComparePanel extends Vue {
     default: () => [
       {
         id: 'none',
-        name: window.i18n.t('不对比')
+        name: window.i18n.t('不对比'),
       },
       {
         id: 'target',
-        name: window.i18n.t('目标对比')
+        name: window.i18n.t('目标对比'),
       },
       {
         id: 'time',
-        name: window.i18n.t('时间对比')
-      }
+        name: window.i18n.t('时间对比'),
+      },
     ],
-    type: Array
+    type: Array,
   })
   readonly compareList: IOption[];
   // 对比时间list
@@ -308,36 +308,36 @@ export default class ComparePanel extends Vue {
     default: () => [
       {
         id: '1h',
-        name: window.i18n.t('1 小时前')
+        name: window.i18n.t('1 小时前'),
       },
       {
         id: '1d',
-        name: window.i18n.t('昨天')
+        name: window.i18n.t('昨天'),
       },
       {
         id: '1w',
-        name: window.i18n.t('上周')
+        name: window.i18n.t('上周'),
       },
       {
         id: '1M',
-        name: window.i18n.t('一月前')
-      }
+        name: window.i18n.t('一月前'),
+      },
     ],
-    type: Array
+    type: Array,
   })
   readonly timeshiftList: IOption[];
   // 目标对比 ip列表
   @Prop({
     default() {
       return [];
-    }
+    },
   })
   readonly targetList: IOption[];
   // 工具栏时间间隔列表
   @Prop({
     default() {
       return DEAULT_TIME_RANGE;
-    }
+    },
   })
   readonly timerangeList: IOption[];
 
@@ -345,7 +345,7 @@ export default class ComparePanel extends Vue {
   @Prop({
     default() {
       return DEFAULT_REFLESH_LIST;
-    }
+    },
   })
   readonly refleshList: IOption[];
   // 是否需要拆分视图
@@ -372,7 +372,7 @@ export default class ComparePanel extends Vue {
   iconList = ['icon-mc-one-column', 'icon-mc-two-column', 'icon-mc-three-column'];
   custom = {
     show: false,
-    value: ''
+    value: '',
   };
 
   get dateRangeKey() {
@@ -439,7 +439,7 @@ export default class ComparePanel extends Vue {
     return {
       compare: { ...this.compare },
       tools: { ...this.tools },
-      type
+      type,
     };
   }
   @Emit('chart-change')
@@ -460,7 +460,7 @@ export default class ComparePanel extends Vue {
       this.$bkMessage({
         theme: 'warning',
         message: this.$t('按照提示输入'),
-        offsetY: 40
+        offsetY: 40,
       });
     }
   }

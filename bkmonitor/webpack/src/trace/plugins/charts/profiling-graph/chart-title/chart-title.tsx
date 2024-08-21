@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Dropdown, Input } from 'bkui-vue';
-import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
+import { type ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
 
-import { DirectionType } from '../../../../typings';
+import type { DirectionType } from '../../../../typings';
 
 import './chart-title.scss';
 
@@ -108,6 +108,7 @@ export default defineComponent({
         <div class='view-mode button-group'>
           {this.viewModeList.map(mode => (
             <div
+              key={mode.id}
               class={`button-group-item ${this.activeMode === mode.id ? 'active' : ''}`}
               v-bk-tooltips={{
                 content: mode.label,
@@ -116,7 +117,7 @@ export default defineComponent({
               }}
               onClick={() => this.handleModeChange(mode.id)}
             >
-              <i class={`icon-monitor icon-${mode.icon}`}></i>
+              <i class={`icon-monitor icon-${mode.icon}`} />
             </div>
           ))}
         </div>
@@ -130,13 +131,13 @@ export default defineComponent({
             class={`button-group-item ${this.textDirection === 'ltr' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('ltr')}
           >
-            <i class='icon-monitor icon-AB'></i>
+            <i class='icon-monitor icon-AB' />
           </div>
           <div
             class={`button-group-item ${this.textDirection === 'rtl' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('rtl')}
           >
-            <i class='icon-monitor icon-YZ'></i>
+            <i class='icon-monitor icon-YZ' />
           </div>
         </div>
         {/* <div class='download-button'>
@@ -147,8 +148,9 @@ export default defineComponent({
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
-                {this.downloadTypeMaps.map(item => (
+                {this.downloadTypeMaps.map((item, index) => (
                   <Dropdown.DropdownItem
+                    key={index}
                     class='profiling-view-download-menu-item'
                     onClick={() => this.menuClick(item)}
                   >
@@ -161,7 +163,7 @@ export default defineComponent({
           placement='bottom-end'
         >
           <div class='download-button'>
-            <i class='icon-monitor icon-xiazai1'></i>
+            <i class='icon-monitor icon-xiazai1' />
           </div>
         </Dropdown>
       </div>

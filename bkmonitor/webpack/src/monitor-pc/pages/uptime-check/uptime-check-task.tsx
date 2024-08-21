@@ -683,7 +683,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           onSearch={(v: string) => this.handleSearch(v)}
         />
         {this.loading ? (
-          <TableSkeleton class='mt-16'></TableSkeleton>
+          <TableSkeleton class='mt-16' />
         ) : (
           <CommonTable
             style={{ marginTop: '16px' }}
@@ -792,6 +792,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             </span>
             {this.searchGroupToTaskData?.map(item => (
               <TaskCard
+                key={item.id}
                 data={item}
                 onCardClick={(id: number) => this.handleTaskCardClick(id)}
                 onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
@@ -801,14 +802,16 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
         ) : (
           [
             <CardsContainer
+              key='task'
               style={{ marginTop: '20px' }}
               title={this.$tc('拨测任务组')}
               showSeeAll
             >
               {this.loading
-                ? new Array(2).fill(null).map((_item, index) => <TaskCardSkeleton key={index}></TaskCardSkeleton>)
+                ? new Array(2).fill(null).map((_item, index) => <TaskCardSkeleton key={index} />)
                 : this.searchGroupData.map(item => (
                     <GroupCard
+                      key={item.id}
                       data={item}
                       dragStatus={this.dragStatus}
                       onCardClick={(id: number) => this.handleGroupCardClick(id)}
@@ -819,6 +822,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             </CardsContainer>,
             this.searchTaskData.length ? (
               <CardsContainer
+                key='task'
                 style={{ marginTop: '12px' }}
                 title={this.$tc('拨测任务')}
               >
@@ -827,10 +831,11 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                       <TaskCardSkeleton
                         key={index}
                         type={2}
-                      ></TaskCardSkeleton>
+                      />
                     ))
                   : this.searchTaskData.map(item => (
                       <TaskCard
+                        key={item.id}
                         data={item}
                         onCardClick={(id: number) => this.handleTaskCardClick(id)}
                         onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}

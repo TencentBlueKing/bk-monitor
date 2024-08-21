@@ -49,12 +49,9 @@ import {
   queryConfigToPromql,
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
-import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+import { Debounce, copyText, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
 
-// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
-import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
-import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
@@ -64,11 +61,10 @@ import {
   handleTransformToTimestamp,
   timestampTransformStr,
 } from '../../components/time-range/utils';
-import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
-import { PanelToolsType } from '../monitor-k8s/typings';
 import StrategyIpv6 from '../strategy-config/strategy-ipv6/strategy-ipv6';
 import DataRetrievalItem from './data-retrieval-item/data-retrieval-item';
 import DataRetrievalView from './data-retrieval-view/data-retrieval-view';
@@ -77,20 +73,24 @@ import ExpressionItem from './expression-item/expression-item';
 import AddCollectDialog from './favorite-container/add-collect-dialog';
 import FavoriteIndex from './favorite-container/collect-index';
 import HandleBtn from './handle-btn/handle-btn';
-import { IIndexListItem } from './index-list/index-list';
 import {
   DataRetrievalPromqlItem,
   DataRetrievalQueryItem,
-  EventRetrievalViewType,
-  IDataRetrieval,
-  IDataRetrievalItem,
-  IDataRetrievalView,
-  IFavList,
-  IFilterCondition,
-  TEditMode,
+  type EventRetrievalViewType,
+  type IDataRetrieval,
+  type IDataRetrievalItem,
+  type IDataRetrievalView,
+  type IFavList,
+  type IFilterCondition,
+  type TEditMode,
 } from './typings';
 
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+import type { EmptyStatusType } from '../../components/empty-status/types';
+import type { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import type { TimeRangeType } from '../../components/time-range/time-range';
+import type { PanelToolsType } from '../monitor-k8s/typings';
+import type { IIndexListItem } from './index-list/index-list';
 import type { RawLocation, Route } from 'vue-router';
 
 import './data-retrieval.scss';
@@ -207,7 +207,7 @@ export default class DataRetrieval extends tsc<object> {
     tools: {
       refleshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: getDefautTimezone(),
+      timezone: getDefaultTimezone(),
     },
   };
 
@@ -335,7 +335,9 @@ export default class DataRetrieval extends tsc<object> {
 
   @Watch('loading')
   loadingChange(val: boolean) {
-    setTimeout(() => (this.delayLoading = val ? this.loading : false), 200);
+    setTimeout(() => {
+      this.delayLoading = val ? this.loading : false;
+    }, 200);
   }
 
   @Watch('queryResult')
@@ -477,13 +479,13 @@ export default class DataRetrieval extends tsc<object> {
   get canToPromql() {
     if (this.editMode === 'UI') {
       return this.localValue
-        .filter(item => !!item.metric_id)
+        .filter(item => item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
   }
 
-  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false | void) => void) {
+  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
       let targetsList = [];
@@ -537,17 +539,12 @@ export default class DataRetrieval extends tsc<object> {
   }
   /** 非路由组件无法触发 BeforeRouteEnter 钩子 在其父组件触发后跳用此方法 */
   handleBeforeRouteEnter(to: Route, from: Route) {
-    const {
-      targets,
-      type,
-      from: fromTime,
-      to: toTime,
-      timezone,
-    } = this.$route.query.targets ? this.$route.query : this.$route.params;
+    const { targets, type, timezone } = this.$route.query.targets ? this.$route.query : this.$route.params;
+    const { from: fromTime, to: toTime } = this.$route.query.from ? this.$route.query : this.$route.params;
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
-    this.compareValue.tools.timezone = getDefautTimezone();
-    if (timezone) {
+    this.compareValue.tools.timezone = getDefaultTimezone();
+    if (timezone && timezone !== 'undefined') {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);
     }
@@ -671,7 +668,7 @@ export default class DataRetrieval extends tsc<object> {
           const urlFavoriteID = this.$route.query.favorite_id;
           for (const gItem of res) {
             const favorite = gItem.favorites.find(item => String(item.id) === urlFavoriteID);
-            if (!!favorite) {
+            if (favorite) {
               this.handleSelectFavProxy(favorite);
               break;
             }
@@ -689,7 +686,7 @@ export default class DataRetrieval extends tsc<object> {
           let isFindCheckValue = false; // 是否从列表中找到匹配当前收藏的id
           for (const gItem of this.favList[this.tabActive]) {
             const findFavorites = gItem.favorites.find(item => item.id === this.favCheckedValue.id);
-            if (!!findFavorites) {
+            if (findFavorites) {
               isFindCheckValue = true; // 找到 中断循环
               break;
             }
@@ -810,6 +807,15 @@ export default class DataRetrieval extends tsc<object> {
     } else if (opt === 'delete') {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
+        const promqlExpandedData = [];
+        this.promqlData.forEach(item => {
+          const key = random(8);
+          if (this.promqlExpandedData.includes(item.key)) {
+            promqlExpandedData.push(key);
+          }
+          item.key = key;
+        });
+        this.promqlExpandedData = promqlExpandedData;
       } else if (this.promqlData.length === 1) {
         this.promqlData[0].code = '';
       }
@@ -974,7 +980,7 @@ export default class DataRetrieval extends tsc<object> {
   handleShowMetricSelector(val: boolean, index?: number) {
     if (val) {
       const curItem = this.localValue[index] as DataRetrievalQueryItem;
-      this.metricData = !!curItem.metric_id ? [curItem] : [];
+      this.metricData = curItem.metric_id ? [curItem] : [];
       this.curLocalValueIndex = index;
       this.metricSelectorMetricId = curItem.metric_id;
     }
@@ -1158,6 +1164,8 @@ export default class DataRetrieval extends tsc<object> {
         .filter(item => item);
       const str = list.map(item => `${item.count} ${item.name}`).join('、');
       targetDes = this.$t('已选择 {n}', { n: str }) as string;
+    } else if ('dynamic_group_id' in cloneTarget[0]) {
+      targetDes = this.$t('已选择 {n} 个动态分组', { n: cloneTarget.length }) as string;
     } else {
       // 静态目标
       targetDes = this.$t('已选择 {n} 个主机', { n: cloneTarget.length }) as string;
@@ -1449,7 +1457,7 @@ export default class DataRetrieval extends tsc<object> {
             agg_method: item?.agg_method,
             agg_interval: item?.agg_interval,
             agg_dimension: item?.agg_dimension,
-            agg_condition: item?.agg_condition,
+            agg_condition: item?.agg_condition || [],
             functions: item?.functions,
           }
         : {
@@ -1471,7 +1479,7 @@ export default class DataRetrieval extends tsc<object> {
   async handleSubmitFavorite({ value, hideCallback, isEdit }) {
     const type = this.tabActive === 'event' ? 'event' : 'metric';
     const { group_id, name, id } = value;
-    let config;
+    let config = undefined;
     // 若是当前是编辑收藏, 且非更新收藏config的情况下 不改变config
     if (this.isUpdateFavoriteConfig) {
       if (this.tabActive === 'event') {
@@ -1532,7 +1540,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   getFavoriteDialogKeywords(replaceData?: any) {
     let currentFavoriteKeywordsData: any;
-    if (!!replaceData) {
+    if (replaceData) {
       currentFavoriteKeywordsData = replaceData;
     } else {
       if (this.tabActive === 'event') {
@@ -1917,19 +1925,27 @@ export default class DataRetrieval extends tsc<object> {
       TOPO: 'host_topo_node',
       SERVICE_TEMPLATE: 'host_template_node',
       SET_TEMPLATE: 'host_template_node',
+      DYNAMIC_GROUP: 'dynamic_group',
     };
-    const value =
-      this.target.targetType === 'INSTANCE'
-        ? this.target.value.map((item: any) => ({
-            ip: item.ip,
-            bk_cloud_id: item.bk_cloud_id,
-            bk_host_id: item.bk_host_id,
-            bk_supplier_id: item.bk_supplier_id,
-          }))
-        : this.target.value.map((item: any) => ({
-            bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id,
-          }));
+    let value = [];
+    if (this.target.targetType === 'DYNAMIC_GROUP') {
+      value = this.target.value.map((item: any) => ({
+        dynamic_group_id: item.dynamic_group_id || item.id,
+      }));
+    } else {
+      value =
+        this.target.targetType === 'INSTANCE'
+          ? this.target.value.map((item: any) => ({
+              ip: item.ip,
+              bk_cloud_id: item.bk_cloud_id,
+              bk_host_id: item.bk_host_id,
+              bk_supplier_id: item.bk_supplier_id,
+            }))
+          : this.target.value.map((item: any) => ({
+              bk_inst_id: item.bk_inst_id,
+              bk_obj_id: item.bk_obj_id,
+            }));
+    }
     // 监控目标格式转换
     const targets = [
       [
@@ -2989,7 +3005,7 @@ export default class DataRetrieval extends tsc<object> {
     const titleSlot = (item: IDataRetrieval.ILocalValue, index: number) => (
       <div class='collapse-item-title'>
         <span class='title-left'>
-          <i class={['bk-icon', 'icon-play-shape', { acitve: this.expandedData.includes(item.key) }]}></i>
+          <i class={['bk-icon', 'icon-play-shape', { acitve: this.expandedData.includes(item.key) }]} />
           <span class='title-name'>{item.alias}</span>
           <span class='title-desc'>{item.isMetric ? this.$t('（查询项）') : this.$t('（表达式）')}</span>
         </span>
@@ -3083,7 +3099,7 @@ export default class DataRetrieval extends tsc<object> {
               <span
                 class='edit icon-monitor icon-bianji'
                 onClick={() => this.handleClickEditFav()}
-              ></span>
+              />
             ) : undefined}
           </div>
           <div class='title-operate'>
@@ -3098,7 +3114,7 @@ export default class DataRetrieval extends tsc<object> {
                 }}
                 onClick={this.handleEditModeChange}
               >
-                <span class='icon-monitor icon-switch'></span>
+                <span class='icon-monitor icon-switch' />
                 <span>{this.editMode === 'PromQL' ? 'UI' : 'PromQL'}</span>
               </span>
             )}
@@ -3107,7 +3123,7 @@ export default class DataRetrieval extends tsc<object> {
                 style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
                 class='icon-monitor icon-mc-expand expand-icon'
                 onClick={this.handleExpandAll}
-              ></i>
+              />
             )}
             {/* <bk-popover
               ref="autoQueryPopover"
@@ -3135,7 +3151,15 @@ export default class DataRetrieval extends tsc<object> {
               class='target-add-btn-content'
               onClick={this.handleShowTargetSelector}
             >
-              {this.target.desc ? this.target.desc : [<i class='icon-monitor icon-plus-line' />, this.$t('IP目标')]}
+              {this.target.desc
+                ? this.target.desc
+                : [
+                    <i
+                      key={1}
+                      class='icon-monitor icon-plus-line'
+                    />,
+                    this.$t('IP目标'),
+                  ]}
             </span>
           </div>
         )}
@@ -3143,6 +3167,7 @@ export default class DataRetrieval extends tsc<object> {
     );
     const metricRetrieval = () => [
       <bk-collapse
+        key={1}
         class='collapse-wrap collapse-wrap-data'
         vModel={this.expandedData}
       >
@@ -3169,12 +3194,15 @@ export default class DataRetrieval extends tsc<object> {
                   content: () => contentSlot(item, index),
                 }}
                 name={item.key}
-              ></bk-collapse-item>
+              />
             </li>
           ))}
         </transition-group>
       </bk-collapse>,
-      <div class='query-add-btn-wrap'>
+      <div
+        key={2}
+        class='query-add-btn-wrap'
+      >
         <span
           class='query-add-btn'
           onClick={this.handleAddQuery}
@@ -3191,6 +3219,7 @@ export default class DataRetrieval extends tsc<object> {
         </span>
       </div>,
       <HandleBtn
+        key={3}
         class='search-group'
         autoQuery={this.autoQuery}
         canQuery={this.canQuery && !this.loading}
@@ -3211,7 +3240,7 @@ export default class DataRetrieval extends tsc<object> {
           onClick={() => this.handleMetricSelectShow(true)}
         >
           <span>{this.$t('指标选择')}</span>
-          <span class='icon-monitor icon-arrow-down'></span>
+          <span class='icon-monitor icon-arrow-down' />
         </div>
         <MetricSelector
           isPromql={true}
@@ -3220,7 +3249,7 @@ export default class DataRetrieval extends tsc<object> {
           type={MetricType.TimeSeries}
           onSelected={this.handleSelectMetric}
           onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
-        ></MetricSelector>
+        />
         <bk-collapse
           class='collapse-wrap collapse-wrap-data'
           v-model={this.promqlExpandedData}
@@ -3238,7 +3267,7 @@ export default class DataRetrieval extends tsc<object> {
                       <span class='title-left'>
                         <i
                           class={['bk-icon', 'icon-play-shape', { acitve: this.promqlExpandedData.includes(item.key) }]}
-                        ></i>
+                        />
                         <span class='title-name'>{item.alias}</span>
                         <span class='title-desc'>{this.$t('（查询项）')}</span>
                       </span>
@@ -3296,7 +3325,7 @@ export default class DataRetrieval extends tsc<object> {
                                 content: this.$t('数据步长'),
                                 placements: ['top'],
                               }}
-                            ></span>
+                            />
                           </div>
                         </bk-input>
                       </span>
@@ -3305,7 +3334,7 @@ export default class DataRetrieval extends tsc<object> {
                   ),
                 }}
                 name={item.key}
-              ></bk-collapse-item>
+              />
             </li>
           ))}
         </bk-collapse>
@@ -3337,7 +3366,7 @@ export default class DataRetrieval extends tsc<object> {
         {
           // 日志检索
           this.logShow ? (
-            <LogRetrieval></LogRetrieval>
+            <LogRetrieval />
           ) : (
             <div class='data-retrieval-container'>
               {!this.onlyShowView && (
@@ -3374,7 +3403,7 @@ export default class DataRetrieval extends tsc<object> {
                           }}
                           onClick={() => this.handleClickResultIcon('favorite')}
                         >
-                          <span class='bk-icon icon-star'></span>
+                          <span class='bk-icon icon-star' />
                         </div>
                         <div
                           class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
@@ -3385,7 +3414,7 @@ export default class DataRetrieval extends tsc<object> {
                           }}
                           onClick={() => this.handleClickResultIcon('search')}
                         >
-                          <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
+                          <span class='bk-icon icon-monitor icon-mc-search-favorites' />
                         </div>
                       </div>
                     </div>
@@ -3416,7 +3445,7 @@ export default class DataRetrieval extends tsc<object> {
                     isShowFavorite={this.isShowFavorite}
                     onGetFavoritesList={this.getListByGroupFavorite}
                     onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
-                  ></FavoriteIndex>
+                  />
                 </div>
                 {/* 监控数据检索 */}
                 <div

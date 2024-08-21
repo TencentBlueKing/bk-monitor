@@ -31,12 +31,13 @@ import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-a
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
-import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
-import { BoundType } from '../form/alarm-threshold-select';
+import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
 import Form from '../form/form';
-import { FormItem, IFormDataItem } from '../form/utils';
-import { ITipsData } from '../intelligent-detect/intelligent-detect';
-import { IItem, IThresholdSelectValue } from '../threshold/threshold-select';
+import { FormItem, type IFormDataItem } from '../form/utils';
+
+import type { BoundType } from '../form/alarm-threshold-select';
+import type { ITipsData } from '../intelligent-detect/intelligent-detect';
+import type { IItem, IThresholdSelectValue } from '../threshold/threshold-select';
 
 import './time-series-forecast.scss';
 
@@ -425,7 +426,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
               class='alert-message-number'
               slot='title'
               domPropsInnerHTML={this.tipsData.message}
-            ></div>
+            />
           </bk-alert>
         )}
         <Form
@@ -436,7 +437,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
           readonly={this.readonly}
           rules={this.rules}
           onChange={this.handleFormValueChange}
-        ></Form>
+        />
       </div>
     );
   }

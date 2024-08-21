@@ -69,6 +69,7 @@ export default {
   '提交文件，文件大小不能超过{num}M！': 'Submit the file, the file size cannot exceed {num}M!',
   '长度限制2-32字符': 'Length limit 2-32 characters',
   '最大时间（ms）': 'Max Time (ms)',
+  长度不能超过32个字符: 'The length cannot exceed 32 characters',
 
   最大副本数不能超过: 'Maximum number of copies cannot exceed', // 查看位置
   最大分片数不能超过: 'Maximum number of shards cannot be exceeded', // 查看位置
@@ -167,8 +168,6 @@ export default {
 
   检测到你的多个主机监控指标未配置告警策略:
     'It has been detected that you have not configured an alarm rule for multiple host monitoring metrics',
-  '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
-    'There is no solution available under the current business, please go to the {0} page to configure',
   '退出当前窗口可前往{0}查看结果': 'Exit the current window to view the results on {0}',
   '未选择采集目标，但并不影响本次操作': 'No collection target selected, but it does not affect this operation',
   未选择任何内容: 'No Selection Made',
@@ -202,7 +201,7 @@ export default {
   '可能存在运行参数变动，请检查并确认运行参数！':
     'There may be changes in operating parameters, please check and confirm the operating parameters! ',
   '插件{name}最新版本{version}可能存在运行参数变动，请检查并确认运行参数！':
-    'The latest version {version} of plug-in {name} may have running parameter changes, please check and confirm the running parameters!',
+    'The latest version {version} of plugin {name} may have running parameter changes, please check and confirm the running parameters!',
   '插件已变更，请先升级': 'Plugin has been changed, please upgrade first',
   '文本不符合 {type} 格式': 'Text does not conform to {type} format',
   '本次对插件的编辑不影响采集进程，可以跳过调度阶段直接进行保存。':
@@ -280,4 +279,8 @@ export default {
   '标签长度不能超过 120 字符': 'The label length cannot exceed 120 characters',
   各数据源的可用算法不兼容: 'The available algorithms of each data source are incompatible',
   至少选择2个指标: 'Select at least 2 metrics',
+  策略名已存在: 'Strategy name already exists',
+  配置名称不能为空: 'Configuration name cannot be empty',
+  必填: 'Required',
+  当前未配置URI信息: 'Currently unconfigured URI information',
 };

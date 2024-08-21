@@ -32,7 +32,7 @@ import { listUsersUser } from 'monitor-api/modules/model';
 import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { CONDITIONS, ICondtionItem } from './index';
+import { CONDITIONS, type ICondtionItem } from './index';
 
 /* 通知人员需支持远程搜索 */
 export const NOTICE_USERS_KEY = 'notice_users';
@@ -96,6 +96,7 @@ export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
   const leftValues = JSON.parse(JSON.stringify(left?.value || [])).sort();
   const rightValues = JSON.parse(JSON.stringify(right?.value || [])).sort();
   return (
+    // biome-ignore lint/suspicious/noSelfCompare: <explanation>
     (left.condition || CONDITIONS[0].id) === (left.condition || CONDITIONS[0].id) &&
     left.field === right.field &&
     left.method === right.method &&
@@ -201,28 +202,14 @@ export async function allKVOptions(
   // 获取key (todo)
   getAssignConditionKeys()
     .then(keyRes => {
-      const keySet = new Set();
       const keys = keyRes
         .map(item => {
-          keySet.add(item.key);
           return {
             id: item.key,
             name: item.display_key,
           };
         })
         .filter(item => item.id !== 'tags');
-      if (!keySet.has(NOTICE_USERS_KEY)) {
-        keys.push({
-          id: NOTICE_USERS_KEY,
-          name: window.i18n.tc('通知人员'),
-        });
-      }
-      if (!keySet.has(STRATEGY_LABELS)) {
-        keys.push({
-          id: STRATEGY_LABELS,
-          name: window.i18n.tc('策略标签'),
-        });
-      }
       setData('keys', '', keys);
       awaitAll();
     })
@@ -466,6 +453,7 @@ export async function allKVOptions(
     status: [],
     start_time: startTime,
     end_time: endTime,
+    bk_biz_ids: bkBizIds,
   }).catch(() => []);
   setData('groupKeys', 'dimensions', tags);
   // topN数据

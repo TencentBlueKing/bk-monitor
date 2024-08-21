@@ -27,7 +27,7 @@ import { defineComponent, provide, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
+import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
@@ -333,7 +333,7 @@ export default defineComponent({
           type: '',
         };
         tableData.columns.forEach(item => {
-          if (!!item?.sort) {
+          if (item?.sort) {
             item.sort.value = '';
           }
         });
@@ -365,7 +365,7 @@ export default defineComponent({
         })(),
         search: '',
         order: (() => {
-          if (!!tableData.sort.type) {
+          if (tableData.sort.type) {
             if (tableData.sort.type === 'asc') {
               return (tableData.sort as any).column;
             }
@@ -633,6 +633,7 @@ export default defineComponent({
               {shieldStatus.value === 0
                 ? [
                     <Button
+                      key='edit'
                       class='mr-8'
                       v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       text={true}
@@ -646,6 +647,7 @@ export default defineComponent({
                       {t('编辑')}
                     </Button>,
                     <Button
+                      key='delete'
                       v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       text={true}
                       theme='primary'

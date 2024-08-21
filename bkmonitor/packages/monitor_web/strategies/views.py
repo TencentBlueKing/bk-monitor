@@ -39,7 +39,12 @@ class StrategiesViewSet(ResourceViewSet):
             "get_target_detail",
         ]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
-        if self.action in ["get_metric_list", "v2/get_metric_list", "query_config_to_promql"]:
+        if self.action in [
+            "get_metric_list",
+            "v2/get_metric_list",
+            "query_config_to_promql",
+            "update_metric_list_by_biz",
+        ]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE, ActionEnum.EXPLORE_METRIC])]
         if self.action in ["v2/get_plain_strategy_list"]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE, ActionEnum.VIEW_DOWNTIME])]
@@ -103,6 +108,8 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.strategies.get_strategy_v2, endpoint="v2/get_strategy"),
         # 删除策略
         ResourceRoute("POST", resource.strategies.delete_strategy_v2, endpoint="v2/delete_strategy"),
+        # 校验策略名
+        ResourceRoute("POST", resource.strategies.verify_strategy_name, endpoint="v2/verify_strategy_name"),
         # 保存/创建策略
         ResourceRoute("POST", resource.strategies.save_strategy_v2, endpoint="v2/save_strategy"),
         # 批量更新策略

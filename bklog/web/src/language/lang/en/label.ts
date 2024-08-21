@@ -1,3 +1,29 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
 export default {
   从: 'From',
   至: 'To',
@@ -142,7 +168,7 @@ export default {
   第几列: 'Column',
   '增/删': 'Add/delete',
   显示前: 'Before',
-  显示后: 'After',
+  ', 后': 'After',
   不包含: 'Exclude',
   个成功: 'Successes',
   个失败: 'Failures',
@@ -253,7 +279,7 @@ export default {
   问题反馈: 'Feedback',
   产品文档: 'Documentation',
   版本日志: 'Release note',
-  日志平台: 'Log platform',
+  日志平台: 'BK Log',
   有权限的: 'Has permission',
   暂无内容: 'No content available',
   接入指引: 'access guide',
@@ -615,5 +641,26 @@ export default {
   任务有效期: 'Task validity period',
   '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
     'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
-  '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm'
+  '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm',
+  'label-正常': 'SUCCESS',
+  'label-失败': 'FAILED',
+  'label-部署中': 'RUNNING',
+  'label-已停用': 'TERMINATED',
+  'label-未知': 'UNKNOWN',
+  'label-准备中': 'PREPARE',
+  展开长字段: 'Expand long field',
+  过滤参数: 'Filter parameter',
+  日志过滤: 'Log Filtration',
+  'label-高亮': 'Highlight',
+  代码: 'Code',
+  新建策略: 'New Strategy',
+  编辑策略: 'Edit Strategy',
+  查看策略: 'View Strategy',
+  新类告警策略: 'New type of alarm',
+  数量突增告警: 'Alarm for sudden increase',
+  新类告警间隔: 'New alarm interval',
+  新类告警阈值: 'New alarm threshold',
+  '新类告警间隔（天）': 'New alarm interval (days)',
+  告警级别: 'Alarm level',
+  告警组: 'Alarm group',
 };

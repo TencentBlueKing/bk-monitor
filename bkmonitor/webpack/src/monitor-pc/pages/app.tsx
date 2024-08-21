@@ -29,7 +29,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { getFooter, listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
+import { listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
@@ -40,18 +40,20 @@ import AuthorityModal from 'monitor-ui/authority-modal';
 import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
-import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import { GLOAB_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
-import { ISpaceItem } from '../types';
+import type { ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
 import DashboardContainer from './grafana/dashboard-container/dashboard-container';
 import { getDashboardCache } from './grafana/utils';
 import CommonNavBar from './monitor-k8s/components/common-nav-bar';
 import NavTools from './nav-tools';
-
+import IntelligentModelsStore from '../store/modules/intelligent-models';
+import platformConfigStore from '../store/modules/platform-config';
+import monitorLogo from '../static/images/svg/monitor-logo.svg';
 // #if APP !== 'external'
 import BizSelect from '../components/biz-select/biz-select';
-import NoticeGuide, { IStepItem } from '../components/novice-guide/notice-guide';
+import NoticeGuide, { type IStepItem } from '../components/novice-guide/notice-guide';
 import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
 import HeaderSettingModal from './header-setting-modal';
 // #endif
@@ -68,6 +70,10 @@ const changeNoticeRouteList = [
   'plugin-add',
   'plugin-edit',
 ];
+
+/** 顶部导航栏点击自身跳回对应首页特殊处理的路由路径 */
+const PATCH_ROUTES = ['event-center-detail', 'incident-detail'];
+
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
@@ -86,9 +92,8 @@ if (currentLang === 'en') {
   },
 })
 export default class App extends tsc<object> {
-  @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
-  @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
+  @Ref('headerDropdownMenu') headerDropdownMenuRef: { hide: () => void };
   routeList = getRouteConfig();
   showBizList = false;
   keyword = '';
@@ -116,6 +121,15 @@ export default class App extends tsc<object> {
   routeViewKey = random(10);
   get bizId() {
     return this.$store.getters.bizId;
+  }
+  get platformData() {
+    const { appLogo, footerCopyrightContent, i18n } = platformConfigStore.publicConfig;
+    return {
+      logo: appLogo || monitorLogo,
+      name: this.$t('监控平台'),
+      contact: i18n?.footerInfoHTML ?? '',
+      copyright: footerCopyrightContent,
+    };
   }
   get navActive() {
     let routeId = this.routeId || 'home';
@@ -187,10 +201,7 @@ export default class App extends tsc<object> {
     return excludesKey.some(key => this.$route.path?.indexOf?.(key) > -1);
   }
   @Watch('$route.name', { immediate: true })
-  async handlerRouteChange(v: string) {
-    if (v === 'home' && !this.footerHtml) {
-      this.footerHtml = await getFooter().catch(() => '');
-    }
+  async handlerRouteChange() {
     this.handleSowNav();
     this.headerNav = this.navActive;
   }
@@ -234,6 +245,7 @@ export default class App extends tsc<object> {
     this.needNewUserGuide = !value;
   }
   mounted() {
+    platformConfigStore.fetchConfig();
     this.handleGetNewUserGuide();
     this.needMenu && this.handleNavHeaderResize();
     this.needMenu && addListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -360,20 +372,20 @@ export default class App extends tsc<object> {
       hasRouteChange = location.hash !== item.href;
     }
     if (hasRouteChange && !!item.href) {
-      await this.$nextTick();
-      if (!(this.$router as any).history.pending) {
-        const route = item.usePath ? { path: item.path } : { name: item.id };
-        !item.noCache &&
-          this.setUserStoreMenu({
-            [this.headerNav]: route,
-          });
-        if (isMicroApp) {
-          location.hash = item.href;
-        } else this.$router.push(route);
-      }
-      setTimeout(() => {
-        (this.$router as any).history.pending = null;
-      }, 2000);
+      // await this.$nextTick();
+      // if (!(this.$router as any).history.pending) {
+      const route = item.usePath ? { path: item.path } : { name: item.id };
+      !item.noCache &&
+        this.setUserStoreMenu({
+          [this.headerNav]: route,
+        });
+      if (isMicroApp) {
+        location.hash = item.href;
+      } else this.$router.push(route);
+      // }
+      // setTimeout(() => {
+      //   (this.$router as any).history.pending = null;
+      // }, 2000);
     }
   }
   /**
@@ -382,17 +394,17 @@ export default class App extends tsc<object> {
    * @param {*} oldId
    * @return {*}
    */
-  handleBeforeNavChange(newId: string, oldId: string) {
+  handleBeforeNavChange() {
     this.handleHeaderSettingShowChange(false);
     if (changeNoticeRouteList.includes(this.$route.name)) {
-      if (newId !== oldId) {
-        this.$router.push({
-          name: newId,
-        });
-      }
+      // if (newId !== oldId) {
+      //   this.$router.push({
+      //     name: newId,
+      //   });
+      // }
       return false;
     }
-    (this.$router as any).history.pending = null;
+    // (this.$router as any).history.pending = null;
     return true;
   }
   // 切换业务
@@ -401,6 +413,7 @@ export default class App extends tsc<object> {
     this.showBizList = false;
     this.$store.commit('app/SET_BIZ_ID', +v);
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+    IntelligentModelsStore.clearIntelligentMap();
     const { navId } = this.$route.meta;
     // 处理页面引导页信息
     introduce.clear();
@@ -435,19 +448,25 @@ export default class App extends tsc<object> {
         const hasAuth = await this.handleUpdateRoute({ bizId: `${v}` }, promise);
         hasAuth &&
           this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
+            this.routeViewKey = random(10);
             this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
           });
         if (!hasAuth) {
           this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
         }
+        setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
         return;
       }
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
-        hasAuth && (this.routeViewKey = random(10));
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
       });
     } else {
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
-        hasAuth && (this.routeViewKey = random(10));
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
       });
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -490,12 +509,6 @@ export default class App extends tsc<object> {
     await Promise.all(promiseList);
     return true;
   }
-  handleClickBizSelect() {
-    this.showBizList = !this.showBizList;
-    setTimeout(() => {
-      this.menuSearchInputRef.focus();
-    }, 100);
-  }
   @debounce(300)
   handleBizSearch(v: string) {
     this.keyword = v;
@@ -509,7 +522,7 @@ export default class App extends tsc<object> {
     userConfigModal.handleSetUserConfig(NEW_UER_GUDE_KEY, JSON.stringify(['done']));
   }
   handleHeaderNavClick(id: string) {
-    this.headerNavChange = this.$route.name === 'event-center-detail' ? true : this.headerNav !== id;
+    this.headerNavChange = PATCH_ROUTES.includes(this.$route.name) ? true : this.headerNav !== id;
     this.headerNav = id;
   }
   /**
@@ -520,7 +533,7 @@ export default class App extends tsc<object> {
    */
   handleClickHeaderMenu(e: MouseEvent, name: string, id?: string) {
     this.handleHeaderSettingShowChange(false);
-    this.headerDrowdownMenuRef?.hide?.();
+    this.headerDropdownMenuRef?.hide?.();
     if (e.ctrlKey || e.metaKey) {
       return;
     }
@@ -528,7 +541,9 @@ export default class App extends tsc<object> {
     this.globalSettingShow = false;
     e.preventDefault();
     if (!this.headerNavChange) return;
-    id && (this.headerNav = id);
+    if (id) {
+      this.headerNav = id;
+    }
     const { route } = this.$router.resolve({ name }, this.$route, false);
     let storeVal: any = this.getUserStoreMenu();
     if (storeVal) {
@@ -656,27 +671,30 @@ export default class App extends tsc<object> {
           needBack={this.needBack}
           needCopyLink={this.needCopyLink}
           routeList={this.navRouteList}
-        ></CommonNavBar>
+        />
       ),
       <div
         key={this.routeViewKey}
-        style={{ height: this.showNav ? 'calc(100% - 52px - var(--notice-alert-height))' : '100%' }}
+        style={{ height: this.showNav ? 'calc(100% - 52px)' : '100%' }}
         class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
       >
         <keep-alive>
-          <router-view class='page-wrapper'></router-view>
+          <router-view class='page-wrapper' />
         </keep-alive>
         <router-view
           key='noCache'
           class='page-wrapper'
           name='noCache'
-        ></router-view>
-        {this.$route.name === 'home' && this.footerHtml ? (
-          <div
-            class='monitor-footer'
-            domPropsInnerHTML={this.footerHtml}
-          ></div>
+        />
+        {this.$route.name === 'home' ? (
+          <div class='monitor-footer'>
+            <div
+              class='footer-link'
+              domPropsInnerHTML={this.platformData.contact}
+            />
+            <div>{this.platformData.copyright}</div>
+          </div>
         ) : undefined}
       </div>,
     ];
@@ -689,8 +707,8 @@ export default class App extends tsc<object> {
       >
         {process.env.NODE_ENV !== 'development' && (
           <notice-component
-            apiUrl='/notice/announcements'
-            onShowAlertChange={this.showAlertChange}
+            apiUrl='/notice/announcements/'
+            on-show-alert-change={this.showAlertChange}
           />
         )}
         <bk-navigation
@@ -701,7 +719,7 @@ export default class App extends tsc<object> {
           head-height={this.isFullScreen ? 0 : 52}
           navigation-type='top-bottom'
           need-menu={!!this.menuList?.length && this.needMenu && !this.isFullScreen && this.$route.name !== 'share'}
-          side-title={this.$t('监控平台')}
+          side-title={this.platformData.name}
           themeColor='#2c354d'
           on-toggle={this.handleToggle}
           on-toggle-click={this.handleToggleClick}
@@ -735,7 +753,7 @@ export default class App extends tsc<object> {
                 )}
                 {this.hideNavCount > 0 && (
                   <bk-dropdown-menu
-                    ref='headerDrowdownMenu'
+                    ref='headerDropdownMenu'
                     style='height: inherit'
                     class='header-more-dropdown'
                     position-fixed
@@ -885,7 +903,9 @@ export default class App extends tsc<object> {
               <HeaderSettingModal
                 show={this.headerSettingShow}
                 onChange={this.handleHeaderSettingShowChange}
-                onStoreRoutesChange={v => (this.userStoreRoutes = v)}
+                onStoreRoutesChange={v => {
+                  this.userStoreRoutes = v;
+                }}
               />
             )
             // #endif
@@ -901,6 +921,7 @@ export default class App extends tsc<object> {
             // #endif
           }
           <div
+            style={`background-image: url(${this.platformData.logo})`}
             class='monitor-logo'
             slot='side-icon'
           />
@@ -910,7 +931,7 @@ export default class App extends tsc<object> {
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&
             this.$route.name &&
             !AI_WHALE_EXCLUED_ROUTES.includes(this.$route.name) &&
-            this.hasBusinessAuth && <AiWhale></AiWhale>
+            this.hasBusinessAuth && <AiWhale key={this.bizId} />
           // #endif
         }
       </div>

@@ -231,7 +231,9 @@ export default {
   无数据: 'No data',
   暂无权限: 'No permission',
   暂无数据: 'No Data',
+  没有数据: 'No Data',
   查无数据: 'No data',
+  暂无进程: 'No Process',
   暂无收藏: 'No favorite',
   暂无搜索: 'No search result',
   无需认证: 'No authentication',
@@ -284,6 +286,7 @@ export default {
   '当前数据无维度，所以没有变量选择': 'No variables available as there are no dimensions for the current data',
   '你当前有 {0} 个业务权限，暂无告警事件':
     'You currently have {0} business permissions, and there are no alarm events temporarily',
+  '你当前有 {0} 个业务权限，暂无故障': 'You currently have {0} business permissions and there are no faults yet.',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
   无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',
@@ -293,7 +296,7 @@ export default {
     'No-Data alarm triggered when {0} data is lost continuously for {1} cycles',
   只有监控指标及日志关键字可配置无数据: 'Only monitoring metrics and log keywords can be configured without data',
   '由于插件定义时未定义参数，此处无需填写。':
-    'Because there is no parameter defined when the plug-in is defined, there is no need to fill in here. ',
+    'Because there is no parameter defined when the plugin is defined, there is no need to fill in here. ',
   '可能出现下发失败或无数据上报，是否继续下发':
     'There may be issuance failures or no data reported, do you want to continue issuing?',
   '已配置全天24小时生效时段，无需额外添加生效时段':
@@ -446,4 +449,17 @@ export default {
   '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
   取消订阅成功: 'Unsubscribe successful',
   重新订阅成功: 'Re-subscribe successful',
+
+  标记成功: 'Marked successfully',
+  分派成功: 'Dispatched successfully',
+
+  取消反馈成功: 'Feedback canceled successfully',
+  '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
+    'There are no available handling packages under the current business, please go to the {0} page for configuration',
+  '按通知次数的指数递增，依次按N，2N，4N，8N,依次类推执行，最大24小时':
+    '按通知次数的指数递增，依次按N，2N，4N，8N, accordingly executing, maximum 24 hours',
+  暂无告警视图: 'No views',
+  观察中: 'Under observation',
+  已解决: 'Resolved',
+  暂无更多数据: 'No more data',
 };

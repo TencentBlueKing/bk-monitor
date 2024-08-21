@@ -1,7 +1,8 @@
 from abc import ABC
 
-from apps.api import BkDataQueryApi
 from django.conf import settings
+
+from apps.api import BkDataQueryApi
 
 
 class Sql(ABC):
@@ -46,7 +47,7 @@ class BkData(Sql):
 
     TIME_RANGE_FIELD = "dtEventTimeStamp"
     TIMESTAMP_S_TO_MS = 1000
-    DEFAULT_LIMIT = 10000
+    DEFAULT_LIMIT = 200000
 
     def __init__(self, rt: str = ""):
         self._rt = rt
@@ -67,16 +68,17 @@ class BkData(Sql):
         self._fields.extend(list(fields))
         return self
 
-    def time_range(self, start_time, end_time) -> "BkData":
+    def time_range(self, start_time=None, end_time=None) -> "BkData":
         """
 
         :param start_time: 时间戳 秒
         :param end_time: 时间戳秒
         :return:
         """
-        self.where(self.TIME_RANGE_FIELD, ">=", start_time * self.TIMESTAMP_S_TO_MS).where(
-            self.TIME_RANGE_FIELD, "<=", end_time * self.TIMESTAMP_S_TO_MS
-        )
+        if start_time:
+            self.where(self.TIME_RANGE_FIELD, ">=", start_time * self.TIMESTAMP_S_TO_MS)
+        if end_time:
+            self.where(self.TIME_RANGE_FIELD, "<=", end_time * self.TIMESTAMP_S_TO_MS)
         self.order_by(self.TIME_RANGE_FIELD)
         return self
 

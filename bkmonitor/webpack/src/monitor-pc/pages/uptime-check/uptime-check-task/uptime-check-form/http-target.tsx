@@ -26,12 +26,13 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MethodType } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
 import { isHttpUrl, isIpv6Url } from 'monitor-common/regex/url';
 
 import AddBtn from './add-btn';
 import CommonAddDialog from './common-add-dialog';
 import HttpUrlInput from './http-url-input';
+
+import type { MethodType } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
 
 import './http-target.scss';
 
@@ -102,7 +103,7 @@ export default class HttpTarget extends tsc<IHttpTargetProps, IHttpTargetEvents>
                 id={option}
                 key={option}
                 name={option}
-              ></bk-option>
+              />
             ))}
           </bk-select>
           <AddBtn

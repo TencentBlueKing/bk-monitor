@@ -129,7 +129,7 @@ MIDDLEWARE = (
     # Auth middleware
     # "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",   # 与下面的 apigw_manager 中间件冲突，需要去掉
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
-    "apigw_manager.apigw.authentication.ApiGatewayJWTGenericMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
+    "apps.middleware.apigw.ApiGatewayJWTMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",  # 根据 request.jwt，获取 request.app 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTUserMiddleware",  # 根据 request.jwt，获取 request.user 对象
     # "blueapps.account.middlewares.LoginRequiredMiddleware",
@@ -357,6 +357,7 @@ OTLP_GRPC_HOST = os.getenv("BKAPP_OTLP_GRPC_HOST", "http://localhost:4317")
 OTLP_BK_DATA_ID = int(os.getenv("BKAPP_OTLP_BK_DATA_ID", -1))
 OTLP_BK_DATA_TOKEN = os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", "")
 OTLP_BK_LOG_TOKEN = os.getenv("BKAPP_OTLP_BK_LOG_TOKEN", "")
+
 # ===============================================================================
 # 项目配置
 # ===============================================================================
@@ -386,6 +387,7 @@ APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split("
 BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
+BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"
 
 # 日志归档文档
 BK_ARCHIVE_DOC_URL = os.getenv("BKAPP_ARCHIVE_DOC_URL", "")
@@ -631,7 +633,7 @@ MENUS = [
                 "keyword": _("仪表盘"),
                 "children": [
                     {"id": "default_dashboard", "name": _("默认仪表盘"), "feature": "on", "icon": "block-shape"},
-                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "plus-circle-shape"},
+                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "log-plus-circle-shape"},
                     {"id": "create_folder", "name": _("新建目录"), "feature": "on", "icon": "folder-fill"},
                     {"id": "import_dashboard", "name": _("导入仪表盘"), "feature": "on", "icon": "topping-fill"},
                 ],
@@ -1008,12 +1010,19 @@ if REDIS_MODE == "single" and BKAPP_IS_BKLOG_API:
     REDIS_PORT = int(os.getenv("BK_BKLOG_REDIS_PORT", os.getenv("REDIS_PORT", 6379)))
     REDIS_PASSWD = os.getenv("BK_BKLOG_REDIS_PASSWORD", os.getenv("REDIS_PASSWORD", ""))
 
-if REDIS_MODE == "sentinel":
+if REDIS_MODE == "sentinel" and BKAPP_IS_BKLOG_API:
     REDIS_PASSWD = os.getenv("BK_BKLOG_REDIS_PASSWORD", os.getenv("REDIS_PASSWORD", ""))
     REDIS_SENTINEL_HOST = os.getenv("BK_BKLOG_REDIS_SENTINEL_HOST", "")
     REDIS_SENTINEL_PORT = int(os.getenv("BK_BKLOG_REDIS_SENTINEL_PORT", 26379))
     REDIS_SENTINEL_MASTER_NAME = os.getenv("BK_BKLOG_REDIS_SENTINEL_MASTER_NAME", "mymaster")
     REDIS_SENTINEL_PASSWORD = os.getenv("BK_BKLOG_REDIS_SENTINEL_MASTER_PASSWORD", "")
+
+if REDIS_MODE == "sentinel" and not BKAPP_IS_BKLOG_API:
+    REDIS_PASSWD = os.getenv("BKAPP_REDIS_PASSWORD", os.getenv("REDIS_PASSWORD", ""))
+    REDIS_SENTINEL_HOST = os.getenv("BKAPP_REDIS_SENTINEL_HOST", "")
+    REDIS_SENTINEL_PORT = int(os.getenv("BKAPP_REDIS_SENTINEL_PORT", 26379))
+    REDIS_SENTINEL_MASTER_NAME = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_NAME", "mymaster")
+    REDIS_SENTINEL_PASSWORD = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_PASSWORD", "")
 
 # BKLOG 后台QOS配置
 BKLOG_QOS_USE = os.getenv("BKAPP_QOS_USE", "on") == "on"
@@ -1070,6 +1079,12 @@ ITSM_EXTERNAL_PERMISSION_SERVICE_ID = int(os.getenv("BKAPP_ITSM_EXTERNAL_PERMISS
 BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
 # 外部版PAAS地址
 EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
+
+# 监控网关地址（新）
+MONITOR_APIGATEWAY_ROOT_NEW = os.getenv("BKAPP_BKMONITOR_APIGW_HOST", "")
+
+# 外部版网关密钥
+EXTERNAL_APIGW_PUBLIC_KEY = os.getenv("BKAPP_EXTERNAL_APIGW_PUBLIC_KEY", "")
 
 # ==============================================================================
 # Templates
@@ -1142,7 +1157,7 @@ if USE_REDIS:
     CACHES["default"] = CACHES["redis"]
     CACHES["login_db"] = CACHES["redis"]
 
-if BKAPP_IS_BKLOG_API and REDIS_MODE == "sentinel" and USE_REDIS:
+if REDIS_MODE == "sentinel" and USE_REDIS:
     DJANGO_REDIS_CONNECTION_FACTORY = "apps.utils.sentinel.SentinelConnectionFactory"
     CACHES["redis_sentinel"] = {
         "BACKEND": "django_prometheus.cache.backends.redis.RedisCache",
@@ -1162,6 +1177,7 @@ if BKAPP_IS_BKLOG_API and REDIS_MODE == "sentinel" and USE_REDIS:
     }
     CACHES["default"] = CACHES["redis_sentinel"]
     CACHES["login_db"] = CACHES["redis_sentinel"]
+    CACHES["redis"] = CACHES["redis_sentinel"]
 
 # ==============================================================================
 # Prometheus metrics token
@@ -1204,6 +1220,15 @@ BK_NOTICE = {
     # 添加默认值防止本地调试无法启动
     "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
 }
+
+# 平台全局配置
+BK_SHARED_RES_URL = os.environ.get("BKPAAS_SHARED_RES_URL", "")
+
+# UNIFYQUERY 日志数据源标签
+UNIFY_QUERY_DATA_SOURCE = "bklog"
+# UNIFYQUERY APIGW HOST
+UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
+
 
 """
 以下为框架代码 请勿修改

@@ -48,6 +48,10 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
         return json.loads(string) if string else []
 
     @classmethod
+    def serialize(cls, obj):
+        return json.dumps(obj)
+
+    @classmethod
     def refresh_by_biz(cls, bk_biz_id):
         """
         按业务ID刷新缓存

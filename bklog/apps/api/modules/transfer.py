@@ -26,7 +26,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
-from config.domains import MONITOR_APIGATEWAY_ROOT
+from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
 
 
 def get_cluster_info_after(response_result):
@@ -88,15 +88,16 @@ def parse_cluster_info(cluster_obj):
         cluster_obj["cluster_config"]["custom_option"] = (
             json.loads(custom_option) if custom_option else {"bk_biz_id": ""}
         )
-
-        cluster_obj["auth_info"] = json.loads(base64.b64decode(cluster_obj["auth_info"]))
-
         # bk_biz_id str to int
         biz_id = str(cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"])
         if biz_id.isdigit():
             cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"] = int(biz_id)
     except (ValueError, TypeError):
         cluster_obj["cluster_config"]["custom_option"] = {}
+
+    if cluster_obj["auth_info"] and isinstance(cluster_obj["auth_info"], str):
+        cluster_obj["auth_info"] = json.loads(base64.b64decode(cluster_obj["auth_info"]))
+    else:
         cluster_obj["auth_info"] = {}
     return cluster_obj
 
@@ -424,6 +425,13 @@ class _TransferApi(object):
             url=MONITOR_APIGATEWAY_ROOT + "metadata_get_log_group/",
             module=self.MODULE,
             description=_("获取自定义日志组"),
+            before_request=add_esb_info_before_request,
+        )
+        self.create_or_update_es_router = DataAPI(
+            method="POST",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "metadata_create_or_update_es_router/",
+            module=self.MODULE,
+            description=_("创建或更新es路由"),
             before_request=add_esb_info_before_request,
         )
 

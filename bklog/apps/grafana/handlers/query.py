@@ -314,7 +314,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in query_dict.get("where", [])
@@ -359,7 +359,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in query_dict.get("where", [])
@@ -368,6 +368,7 @@ class GrafanaQueryHandler:
             "size": query_dict.get("size", 10),
             "bk_biz_id": self.bk_biz_id,
             "keyword": query_dict.get("query_string", ""),
+            "sort_list": query_dict.get("sort_list", []),
         }
         search_handler = SearchHandler(query_dict["result_table_id"], search_dict)
         result = search_handler.search(search_type=None)
@@ -741,7 +742,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in where_conditions

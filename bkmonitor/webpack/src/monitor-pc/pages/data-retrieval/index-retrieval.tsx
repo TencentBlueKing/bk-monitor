@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
-import { Route } from 'vue-router';
 
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
 import * as dataRetrievalAuthMap from './authority-map';
 import DataRetrieval from './data-retrieval';
+
+import type { Route } from 'vue-router';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const authMap = {

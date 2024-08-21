@@ -222,6 +222,46 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "keyword": """number < 83063 and title: "The Right Way" AND log: OR""",
         "expect": """number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
     },
+    {
+        "keyword": """log: "lineno=1" and number < 83063 and title: "The Right Way" AND log: OR""",
+        "expect": """log: "lineno=1" AND number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """log:"r_e.cp|Add , root_id=0\n, item_id=20" and number < 83 and title: "The Way" AND log: OR""",
+        "expect": """log:"r_e.cp|Add , root_id=0\n, item_id=20" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """log:"operateSm:fail:not supported" and number < 83 and title: "The Way" AND log: OR""",
+        "expect": """log:"operateSm:fail:not supported" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """log: lineno=1 and title: "The Right Way" AND log: OR""",
+        "expect": """log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """log: or or /x and x/ and log: lineno=1 and title: "The Right Way" AND log: OR""",
+        "expect": """log: \"or\" OR /x and x/ AND log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """/a and b or c, lo=1 xx:not/ and log: lineno=1 and title: "The Right Way" AND log: OR""",
+        "expect": """/a and b or c, lo=1 xx:not/ AND log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+    },
+    {
+        "keyword": """number >=83063 or levelname:\"a and b or c\" AND log: and""",
+        "expect": """number: >=83063 OR levelname:\"a and b or c\" AND log: \"and\"""",
+    },
+    {
+        "keyword": """number >=83063 or levelname: a and \"b or c\" AND log: and""",
+        "expect": """number: >=83063 OR levelname: a AND \"b or c\" AND log: \"and\"""",
+    },
+    {
+        "keyword": """number < 83063 and levelname : \"a and b or c not d\" or lineno : [1 to 1000] AND log: and""",
+        "expect": """number: <83063 AND levelname : \"a and b or c not d\" OR lineno : [1 TO 1000] AND log: \"and\"""",
+    },
+    {
+        "keyword": """number >=83063 and log:\"go to some\" and lineno:[1 to 10] AND log: and""",
+        "expect": """number: >=83063 AND log:\"go to some\" AND lineno:[1 TO 10] AND log: \"and\"""",
+    },
 ]
 
 ENHANCE_KEYWORD_INSPECT_RESULT = {

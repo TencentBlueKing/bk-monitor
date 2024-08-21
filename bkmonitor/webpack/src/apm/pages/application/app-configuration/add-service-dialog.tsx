@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { customServiceConfig, customServiceDataSource, customServiceMatchList } from 'monitor-api/modules/apm_meta';
 
-import { ICustomServiceInfo } from './type';
+import type { ICustomServiceInfo } from './type';
 
 interface IProps {
   value?: boolean;
@@ -334,7 +334,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
           class='icon-monitor icon-mc-close'
           slot='tools'
           onClick={() => this.handleCancel()}
-        ></span>
+        />
         <div class='add-dialog-main'>
           <div
             class='uri-source-content'
@@ -348,7 +348,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 slot='headerTool'
                 onClick={() => this.getUriSourceData()}
               >
-                <i class='icon-monitor icon-shuaxin'></i>
+                <i class='icon-monitor icon-shuaxin' />
                 {this.$t('button-刷新')}
               </span>
             </div>
@@ -381,14 +381,13 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               <bk-select
                 vModel={this.formData.type}
                 clearable={false}
-                z-index={3001}
               >
                 {this.serviceTypeList.map(option => (
                   <bk-option
                     id={option.id}
                     key={option.id}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             </bk-form-item>
@@ -500,10 +499,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                         class='name-input'
                         vModel={param.name}
                       />
-                      <bk-select
-                        vModel={param.operator}
-                        z-index={3001}
-                      >
+                      <bk-select vModel={param.operator}>
                         {Object.keys(this.operatorMaps).map(operator => (
                           <bk-option
                             id={operator}
@@ -530,7 +526,15 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               </div>
             ) : (
               <div class='auto-match-wrap'>
-                <div class='desc-contnet'>{this.$t('说明文案')}</div>
+                <div class='desc-contnet'>
+                  {`${this.$t('匹配规则支持通过在正则表达式中配置 `peer_service` 和 `span_name` 参数来提取自定义服务名称和 span_name。例如配置正则：')}`}
+                  <br />
+                  {'https://(?P<peer_service>[^/]+)/(?P<span_name>.*)'}
+                  <br />
+                  {this.$t(
+                    '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs`'
+                  )}
+                </div>
                 <bk-form-item
                   error-display-type='normal'
                   label={this.$t('匹配规则')}
@@ -556,14 +560,12 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 <div>
                   {this.isDebugging ? (
                     <span class='status-wrap'>
-                      <bk-spin></bk-spin>
+                      <bk-spin />
                       <span style='margin-left:6px;'>{this.$t('调试中')}</span>
                     </span>
                   ) : (
                     <span class='status-wrap'>
-                      <i
-                        class={`icon-monitor ${this.debuggerResult ? 'icon-mc-check-fill' : 'icon-mc-close-fill'}`}
-                      ></i>
+                      <i class={`icon-monitor ${this.debuggerResult ? 'icon-mc-check-fill' : 'icon-mc-close-fill'}`} />
                       <span>{this.debuggerResult ? this.$t('调试成功') : this.$t('调试失败')}</span>
                     </span>
                   )}

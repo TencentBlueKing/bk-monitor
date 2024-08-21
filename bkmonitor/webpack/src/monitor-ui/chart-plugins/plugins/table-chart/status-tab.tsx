@@ -26,7 +26,7 @@
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
 
@@ -88,8 +88,8 @@ export default class StatusTab extends tsc<IProps, IEvents> {
             }}
             onClick={() => this.handleClickItem(item)}
           >
-            {item.status && <span class={['common-status-icon', `status-${item.status}`]}></span>}
-            {item.icon && <i class={['icon-monitor', item.icon]}></i>}
+            {item.status && <span class={['common-status-icon', `status-${item.status}`]} />}
+            {item.icon && <i class={['icon-monitor', item.icon]} />}
             {(!!item.name || item.name === 0) && <span class='status-count'>{item.name}</span>}
           </span>
         ))}

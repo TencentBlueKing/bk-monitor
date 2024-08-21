@@ -54,7 +54,7 @@ dayjs.locale({
 // window.timezone = dayjs.tz.guess();
 // dayjs.tz.setDefault(window.timezone);
 export const updateTimezone = (tz: string) => {
-  if (!tz) return;
+  if (!tz || tz === 'undefined' || !isValidTimeZone(tz)) return;
   window.timezone = tz || dayjs.tz.guess();
   sessionStorage.setItem(TIMEZONE_STORE_KEY, window.timezone);
   dayjs.tz.setDefault(window.timezone);
@@ -63,9 +63,19 @@ export const destroyTimezone = () => {
   window.timezone = dayjs.tz.guess();
   dayjs.tz.setDefault(window.timezone);
 };
-export const getDefautTimezone = () => {
-  const timezone = sessionStorage.getItem(TIMEZONE_STORE_KEY) || dayjs.tz.guess();
+export const getDefaultTimezone = () => {
+  const storeVal = sessionStorage.getItem(TIMEZONE_STORE_KEY);
+  const timezone = storeVal && storeVal !== 'undefined' && isValidTimeZone(storeVal) ? storeVal : dayjs.tz.guess();
   window.timezone = timezone;
   dayjs.tz.setDefault(window.timezone);
   return timezone;
+};
+
+export const isValidTimeZone = (timeZone: string) => {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch (e) {
+    return false;
+  }
 };

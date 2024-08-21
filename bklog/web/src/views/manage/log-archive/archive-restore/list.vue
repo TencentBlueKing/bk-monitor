@@ -1,24 +1,28 @@
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <section
@@ -28,8 +32,8 @@
     <section class="top-operation">
       <bk-button
         class="fl"
-        theme="primary"
         data-test-id="restoreContainer_button_addNewRestore"
+        theme="primary"
         @click="handleCreate"
       >
         {{ $t('回溯') }}
@@ -40,20 +44,20 @@
           :clearable="true"
           :right-icon="'bk-icon icon-search'"
           data-test-id="restoreContainer_input_searchRestoreItem"
-          @enter="search"
           @change="handleSearchChange"
+          @enter="search"
         >
         </bk-input>
       </div>
     </section>
     <section class="log-restore-table">
       <bk-table
-        v-bkloading="{ isLoading: isTableLoading }"
         class="restore-table"
-        data-test-id="restoreContainer_div_restoreTable"
+        v-bkloading="{ isLoading: isTableLoading }"
         :data="dataList"
-        :pagination="pagination"
         :limit-list="pagination.limitList"
+        :pagination="pagination"
+        data-test-id="restoreContainer_div_restoreTable"
         @page-change="handlePageChange"
         @page-limit-change="handleLimitChange"
       >
@@ -62,7 +66,7 @@
           :render-header="$renderHeader"
           min-width="200"
         >
-          <template slot-scope="props">
+          <template #default="props">
             {{ props.row.index_set_name }}
           </template>
         </bk-table-column>
@@ -70,7 +74,7 @@
           :label="$t('归档项')"
           :render-header="$renderHeader"
         >
-          <template slot-scope="props">
+          <template #default="props">
             {{ props.row.instance_name }}
           </template>
         </bk-table-column>
@@ -79,7 +83,7 @@
           :render-header="$renderHeader"
           min-width="240"
         >
-          <template slot-scope="props">
+          <template #default="props">
             {{ `${props.row.start_time} - ${props.row.end_time}` }}
           </template>
         </bk-table-column>
@@ -88,7 +92,7 @@
           :render-header="$renderHeader"
           class-name="filter-column"
         >
-          <template slot-scope="props">
+          <template #default="props">
             {{ getFileSize(props.row.total_store_size) }}
           </template>
         </bk-table-column>
@@ -97,7 +101,7 @@
           :render-header="$renderHeader"
           min-width="120"
         >
-          <template slot-scope="props">
+          <template #default="props">
             {{ props.row.expired_time }}
           </template>
         </bk-table-column>
@@ -105,7 +109,7 @@
           :label="$t('回溯状态')"
           :render-header="$renderHeader"
         >
-          <template slot-scope="props">
+          <template #default="props">
             <div class="restore-status">
               <span :class="`status-icon is-${props.row.status}`"></span>
               <span class="status-text">{{ props.row.status_name }}</span>
@@ -116,449 +120,451 @@
           :label="$t('是否过期')"
           :render-header="$renderHeader"
         >
-          <template slot-scope="props">
+          <template #default="props">
             {{ props.row.is_expired ? $t('是') : $t('否') }}
           </template>
         </bk-table-column>
         <bk-table-column
+          width="180"
           :label="$t('操作')"
           :render-header="$renderHeader"
-          width="180"
         >
-          <div
-            slot-scope="props"
-            class="restore-table-operate"
-          >
-            <!-- 检索 -->
-            <log-button
-              theme="primary"
-              text
-              ext-cls="mr10 king-button"
-              :button-text="$t('检索')"
-              :disabled="props.row.is_expired"
-              :cursor-active="!(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH])"
-              @on-click="operateHandler(props.row, 'search')"
-            >
-            </log-button>
-            <!-- 编辑 -->
-            <bk-button
-              v-cursor="{
-                active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-              }"
-              theme="primary"
-              text
-              class="mr10 king-button"
-              :disabled="props.row.is_expired"
-              @click.stop="operateHandler(props.row, 'edit')"
-            >
-              {{ $t('编辑') }}
-            </bk-button>
-            <!-- 删除 -->
-            <bk-button
-              v-cursor="{
-                active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-              }"
-              theme="primary"
-              text
-              class="mr10 king-button"
-              :disabled="props.row.is_expired"
-              @click.stop="operateHandler(props.row, 'delete')"
-            >
-              {{ $t('删除') }}
-            </bk-button>
-          </div>
+          <template #default="props">
+            <div class="restore-table-operate">
+              <!-- 检索 -->
+              <log-button
+                ext-cls="mr10 king-button"
+                :button-text="$t('检索')"
+                :cursor-active="!(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH])"
+                :disabled="props.row.is_expired"
+                theme="primary"
+                text
+                @on-click="operateHandler(props.row, 'search')"
+              >
+              </log-button>
+              <!-- 编辑 -->
+              <bk-button
+                class="mr10 king-button"
+                v-cursor="{
+                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                }"
+                :disabled="props.row.is_expired"
+                theme="primary"
+                text
+                @click.stop="operateHandler(props.row, 'edit')"
+              >
+                {{ $t('编辑') }}
+              </bk-button>
+              <!-- 删除 -->
+              <bk-button
+                class="mr10 king-button"
+                v-cursor="{
+                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                }"
+                :disabled="props.row.is_expired"
+                theme="primary"
+                text
+                @click.stop="operateHandler(props.row, 'delete')"
+              >
+                {{ $t('删除') }}
+              </bk-button>
+            </div>
+          </template>
         </bk-table-column>
-        <div slot="empty">
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
-        </div>
+        <template #empty>
+          <div>
+            <empty-status
+              :empty-type="emptyType"
+              @operation="handleOperation"
+            />
+          </div>
+        </template>
       </bk-table>
     </section>
     <!-- 新增/编辑回溯 -->
     <RestoreSlider
       v-if="isRenderSlider"
-      :show-slider.sync="showSlider"
       :edit-restore="editRestore"
+      :show-slider.sync="showSlider"
       @updated="handleUpdated"
     />
   </section>
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
-import RestoreSlider from './restore-slider';
-import { formatFileSize } from '@/common/util';
-import * as authorityMap from '../../../../common/authority-map';
-import EmptyStatus from '@/components/empty-status';
+  import { formatFileSize } from '@/common/util';
+  import EmptyStatus from '@/components/empty-status';
+  import { mapGetters } from 'vuex';
 
-export default {
-  name: 'ArchiveRestore',
-  components: {
-    RestoreSlider,
-    EmptyStatus
-  },
-  data() {
-    return {
-      isTableLoading: false,
-      isRenderSlider: true,
-      showSlider: false,
-      editRestore: null,
-      timer: null,
-      timerNum: 0,
-      keyword: '',
-      dataList: [],
-      restoreIds: [], // 异步获取状态参数
-      pagination: {
-        current: 1,
-        count: 0,
-        limit: 10,
-        limitList: [10, 20, 50, 100]
-      },
-      params: {
-        keyword: ''
-      },
-      emptyType: 'empty'
-    };
-  },
-  computed: {
-    ...mapGetters({
-      bkBizId: 'bkBizId'
-    }),
-    authorityMap() {
-      return authorityMap;
-    }
-  },
-  created() {
-    this.search();
-  },
-  beforeDestroy() {
-    this.timerNum = -1;
-    this.stopStatusPolling();
-  },
-  methods: {
-    search() {
-      this.pagination.current = 1;
-      this.stopStatusPolling();
-      this.requestData();
+  import * as authorityMap from '../../../../common/authority-map';
+  import RestoreSlider from './restore-slider';
+
+  export default {
+    name: 'ArchiveRestore',
+    components: {
+      RestoreSlider,
+      EmptyStatus,
     },
-    handleFilterChange(data) {
-      Object.keys(data).forEach(item => {
-        this.params[item] = data[item].join('');
-      });
-      this.pagination.current = 1;
+    data() {
+      return {
+        isTableLoading: false,
+        isRenderSlider: true,
+        showSlider: false,
+        editRestore: null,
+        timer: null,
+        timerNum: 0,
+        keyword: '',
+        dataList: [],
+        restoreIds: [], // 异步获取状态参数
+        pagination: {
+          current: 1,
+          count: 0,
+          limit: 10,
+          limitList: [10, 20, 50, 100],
+        },
+        params: {
+          keyword: '',
+        },
+        emptyType: 'empty',
+      };
+    },
+    computed: {
+      ...mapGetters({
+        bkBizId: 'bkBizId',
+      }),
+      authorityMap() {
+        return authorityMap;
+      },
+    },
+    created() {
       this.search();
     },
-    handleCreate() {
-      this.showSlider = true;
-      this.editRestore = null;
-    },
-    /**
-     * 分页变换
-     * @param  {Number} page 当前页码
-     * @return {[type]}      [description]
-     */
-    handlePageChange(page) {
-      if (this.pagination.current !== page) {
-        this.pagination.current = page;
-        this.stopStatusPolling();
-        this.requestData();
-      }
-    },
-    /**
-     * 分页限制
-     * @param  {Number} page 当前页码
-     * @return {[type]}      [description]
-     */
-    handleLimitChange(page) {
-      if (this.pagination.limit !== page) {
-        this.pagination.current = 1;
-        this.pagination.limit = page;
-        this.stopStatusPolling();
-        this.requestData();
-      }
-    },
-    // 轮询
-    startStatusPolling() {
-      this.timerNum += 1;
-      const { timerNum } = this;
+    beforeUnmount() {
+      this.timerNum = -1;
       this.stopStatusPolling();
-      this.timer = setTimeout(() => {
-        timerNum === this.timerNum && this.restoreIds && this.requestRestoreStatus(true);
-      }, 10000);
     },
-    stopStatusPolling() {
-      clearTimeout(this.timer);
-    },
-    requestRestoreList() {
-      return new Promise((resolve, reject) => {
-        this.$http
-          .request('archive/restoreList', {
-            query: {
-              ...this.params,
-              bk_biz_id: this.bkBizId,
-              page: this.pagination.current,
-              pagesize: this.pagination.limit
+    methods: {
+      search() {
+        this.pagination.current = 1;
+        this.stopStatusPolling();
+        this.requestData();
+      },
+      handleFilterChange(data) {
+        Object.keys(data).forEach(item => {
+          this.params[item] = data[item].join('');
+        });
+        this.pagination.current = 1;
+        this.search();
+      },
+      handleCreate() {
+        this.showSlider = true;
+        this.editRestore = null;
+      },
+      /**
+       * 分页变换
+       * @param  {Number} page 当前页码
+       * @return {[type]}      [description]
+       */
+      handlePageChange(page) {
+        if (this.pagination.current !== page) {
+          this.pagination.current = page;
+          this.stopStatusPolling();
+          this.requestData();
+        }
+      },
+      /**
+       * 分页限制
+       * @param  {Number} page 当前页码
+       * @return {[type]}      [description]
+       */
+      handleLimitChange(page) {
+        if (this.pagination.limit !== page) {
+          this.pagination.current = 1;
+          this.pagination.limit = page;
+          this.stopStatusPolling();
+          this.requestData();
+        }
+      },
+      // 轮询
+      startStatusPolling() {
+        this.timerNum += 1;
+        const { timerNum } = this;
+        this.stopStatusPolling();
+        this.timer = setTimeout(() => {
+          timerNum === this.timerNum && this.restoreIds && this.requestRestoreStatus(true);
+        }, 10000);
+      },
+      stopStatusPolling() {
+        clearTimeout(this.timer);
+      },
+      requestRestoreList() {
+        return new Promise((resolve, reject) => {
+          this.$http
+            .request('archive/restoreList', {
+              query: {
+                ...this.params,
+                bk_biz_id: this.bkBizId,
+                page: this.pagination.current,
+                pagesize: this.pagination.limit,
+              },
+            })
+            .then(res => {
+              const { data } = res;
+              this.restoreIds = [];
+              this.pagination.count = data.total;
+              this.restoreIds = [];
+              data.list.forEach(row => {
+                row.status = '';
+                row.status_name = '';
+                this.restoreIds.push(row.restore_config_id);
+              });
+              this.dataList.splice(0, this.dataList.length, ...data.list);
+              resolve(res);
+            })
+            .catch(err => {
+              reject(err);
+            })
+            .finally(() => {
+              this.isTableLoading = false;
+            });
+        });
+      },
+      requestData() {
+        this.isTableLoading = true;
+        this.emptyType = this.params.keyword ? 'search-empty' : 'empty';
+        Promise.all([this.requestRestoreList()])
+          .then(() => {
+            if (this.restoreIds.length) {
+              this.requestRestoreStatus();
             }
           })
-          .then(res => {
-            const { data } = res;
-            this.restoreIds = [];
-            this.pagination.count = data.total;
-            this.restoreIds = [];
-            data.list.forEach(row => {
-              row.status = '';
-              row.status_name = '';
-              this.restoreIds.push(row.restore_config_id);
-            });
-            this.dataList.splice(0, this.dataList.length, ...data.list);
-            resolve(res);
-          })
-          .catch(err => {
-            reject(err);
+          .catch(() => {
+            this.emptyType = '500';
           })
           .finally(() => {
             this.isTableLoading = false;
           });
-      });
-    },
-    requestData() {
-      this.isTableLoading = true;
-      this.emptyType = this.params.keyword ? 'search-empty' : 'empty';
-      Promise.all([this.requestRestoreList()])
-        .then(() => {
-          if (this.restoreIds.length) {
-            this.requestRestoreStatus();
+      },
+      requestRestoreStatus(isPrivate) {
+        const { timerNum } = this;
+        this.$http
+          .request('archive/getRestoreStatus', {
+            data: {
+              restore_config_ids: this.restoreIds,
+            },
+          })
+          .then(res => {
+            if (timerNum === this.timerNum) {
+              this.statusHandler(res.data || []);
+              this.startStatusPolling();
+            }
+            if (!isPrivate) {
+              this.loadingStatus = true;
+            }
+          })
+          .catch(() => {
+            if (isPrivate) {
+              this.stopStatusPolling();
+            }
+          });
+      },
+      statusHandler(data) {
+        data.forEach(item => {
+          this.dataList.forEach(row => {
+            if (row.restore_config_id === item.restore_config_id) {
+              const completeCount = item.complete_doc_count;
+              const totalCount = item.total_doc_count;
+
+              if (completeCount >= totalCount) {
+                row.status = 'finish';
+                row.status_name = this.$t('完成');
+              }
+              if (completeCount === 0) {
+                row.statusHandler = 'unStart';
+                row.status_name = this.$t('未开始');
+              }
+              if (completeCount > 0 && completeCount < totalCount) {
+                const precent = `${Math.round((completeCount / totalCount) * 100)}%`;
+                row.status = 'restoring';
+                row.status_name = `${this.$t('回溯中')}(${precent})`;
+              }
+            }
+          });
+        });
+      },
+      handleUpdated() {
+        this.showSlider = false;
+        this.search();
+      },
+      operateHandler(row, operateType) {
+        if (operateType === 'search') {
+          if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+            return this.getOptionApplyData({
+              action_ids: [authorityMap.SEARCH_LOG_AUTH],
+              resources: [
+                {
+                  type: 'indices',
+                  id: row.index_set_id,
+                },
+              ],
+            });
           }
-        })
-        .catch(() => {
-          this.emptyType = '500';
-        })
-        .finally(() => {
+        }
+
+        if (operateType === 'edit' || operateType === 'delete') {
+          if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
+            return this.getOptionApplyData({
+              action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+              resources: [
+                {
+                  type: 'collection',
+                  id: row.instance_id,
+                },
+              ],
+            });
+          }
+        }
+
+        if (operateType === 'search') {
+          this.$router.push({
+            name: 'retrieve',
+            params: {
+              indexId: row.index_set_id,
+            },
+          });
+          return;
+        }
+
+        if (operateType === 'edit') {
+          this.editRestore = row;
+          this.showSlider = true;
+          return;
+        }
+
+        if (operateType === 'delete') {
+          this.$bkInfo({
+            type: 'warning',
+            title: this.$t('确认删除该回溯？'),
+            confirmFn: () => {
+              this.requestDelete(row);
+            },
+          });
+        }
+      },
+      requestDelete(row) {
+        this.$http
+          .request('archive/deleteRestore', {
+            params: {
+              restore_config_id: row.restore_config_id,
+            },
+          })
+          .then(res => {
+            if (res.result) {
+              const page =
+                this.dataList.length <= 1
+                  ? this.pagination.current > 1
+                    ? this.pagination.current - 1
+                    : 1
+                  : this.pagination.current;
+              this.messageSuccess(this.$t('删除成功'));
+              if (page !== this.pagination.current) {
+                this.handlePageChange(page);
+              } else {
+                this.requestData();
+              }
+            }
+          })
+          .catch(() => {});
+      },
+      getFileSize(size) {
+        return formatFileSize(size);
+      },
+      async getOptionApplyData(paramData) {
+        try {
+          this.isTableLoading = true;
+          const res = await this.$store.dispatch('getApplyData', paramData);
+          this.$store.commit('updateAuthDialogData', res.data);
+        } catch (err) {
+          console.warn(err);
+        } finally {
           this.isTableLoading = false;
-        });
-    },
-    requestRestoreStatus(isPrivate) {
-      const { timerNum } = this;
-      this.$http
-        .request('archive/getRestoreStatus', {
-          data: {
-            restore_config_ids: this.restoreIds
-          }
-        })
-        .then(res => {
-          if (timerNum === this.timerNum) {
-            this.statusHandler(res.data || []);
-            this.startStatusPolling();
-          }
-          if (!isPrivate) {
-            this.loadingStatus = true;
-          }
-        })
-        .catch(() => {
-          if (isPrivate) {
-            this.stopStatusPolling();
-          }
-        });
-    },
-    statusHandler(data) {
-      data.forEach(item => {
-        this.dataList.forEach(row => {
-          if (row.restore_config_id === item.restore_config_id) {
-            const completeCount = item.complete_doc_count;
-            const totalCount = item.total_doc_count;
-
-            if (completeCount >= totalCount) {
-              row.status = 'finish';
-              row.status_name = this.$t('完成');
-            }
-            if (completeCount === 0) {
-              row.statusHandler = 'unStart';
-              row.status_name = this.$t('未开始');
-            }
-            if (completeCount > 0 && completeCount < totalCount) {
-              const precent = `${Math.round((completeCount / totalCount) * 100)}%`;
-              row.status = 'restoring';
-              row.status_name = `${this.$t('回溯中')}(${precent})`;
-            }
-          }
-        });
-      });
-    },
-    handleUpdated() {
-      this.showSlider = false;
-      this.search();
-    },
-    operateHandler(row, operateType) {
-      if (operateType === 'search') {
-        if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-          return this.getOptionApplyData({
-            action_ids: [authorityMap.SEARCH_LOG_AUTH],
-            resources: [
-              {
-                type: 'indices',
-                id: row.index_set_id
-              }
-            ]
-          });
         }
-      }
-
-      if (operateType === 'edit' || operateType === 'delete') {
-        if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
-          return this.getOptionApplyData({
-            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-            resources: [
-              {
-                type: 'collection',
-                id: row.instance_id
-              }
-            ]
-          });
+      },
+      handleSearchChange(val) {
+        if (val === '' && !this.isTableLoading) {
+          this.search();
         }
-      }
+      },
+      handleOperation(type) {
+        if (type === 'clear-filter') {
+          this.params.keyword = '';
+          this.search();
+          return;
+        }
 
-      if (operateType === 'search') {
-        this.$router.push({
-          name: 'retrieve',
-          params: {
-            indexId: row.index_set_id
-          }
-        });
-        return;
-      }
-
-      if (operateType === 'edit') {
-        this.editRestore = row;
-        this.showSlider = true;
-        return;
-      }
-
-      if (operateType === 'delete') {
-        this.$bkInfo({
-          type: 'warning',
-          title: this.$t('确认删除该回溯？'),
-          confirmFn: () => {
-            this.requestDelete(row);
-          }
-        });
-      }
+        if (type === 'refresh') {
+          this.emptyType = 'empty';
+          this.search();
+          return;
+        }
+      },
     },
-    requestDelete(row) {
-      this.$http
-        .request('archive/deleteRestore', {
-          params: {
-            restore_config_id: row.restore_config_id
-          }
-        })
-        .then(res => {
-          if (res.result) {
-            const page =
-              this.dataList.length <= 1
-                ? this.pagination.current > 1
-                  ? this.pagination.current - 1
-                  : 1
-                : this.pagination.current;
-            this.messageSuccess(this.$t('删除成功'));
-            if (page !== this.pagination.current) {
-              this.handlePageChange(page);
-            } else {
-              this.requestData();
-            }
-          }
-        })
-        .catch(() => {});
-    },
-    getFileSize(size) {
-      return formatFileSize(size);
-    },
-    async getOptionApplyData(paramData) {
-      try {
-        this.isTableLoading = true;
-        const res = await this.$store.dispatch('getApplyData', paramData);
-        this.$store.commit('updateAuthDialogData', res.data);
-      } catch (err) {
-        console.warn(err);
-      } finally {
-        this.isTableLoading = false;
-      }
-    },
-    handleSearchChange(val) {
-      if (val === '' && !this.isTableLoading) {
-        this.search();
-      }
-    },
-    handleOperation(type) {
-      if (type === 'clear-filter') {
-        this.params.keyword = '';
-        this.search();
-        return;
-      }
-
-      if (type === 'refresh') {
-        this.emptyType = 'empty';
-        this.search();
-        return;
-      }
-    }
-  }
-};
+  };
 </script>
 
 <style lang="scss">
-@import '@/scss/mixins/clearfix';
-@import '@/scss/conf';
-@import '@/scss/devops-common.scss';
+  @import '@/scss/mixins/clearfix';
+  @import '@/scss/conf';
+  @import '@/scss/devops-common.scss';
 
-.log-archive-restore {
-  padding: 20px 24px;
+  .log-archive-restore {
+    padding: 20px 24px;
 
-  .top-operation {
-    margin-bottom: 20px;
+    .top-operation {
+      margin-bottom: 20px;
 
-    @include clearfix;
+      @include clearfix;
 
-    .bk-button {
-      width: 120px;
+      .bk-button {
+        width: 120px;
+      }
     }
-  }
 
-  .restore-search {
-    width: 320px;
-  }
+    .restore-search {
+      width: 320px;
+    }
 
-  .restore-table {
-    .filter-column {
-      .cell {
+    .restore-table {
+      .filter-column {
+        .cell {
+          display: flex;
+        }
+      }
+
+      .restore-status {
         display: flex;
-      }
-    }
-
-    .restore-status {
-      display: flex;
-      align-items: center;
-    }
-
-    .status-icon {
-      display: inline-block;
-      width: 4px;
-      height: 4px;
-      margin-right: 6px;
-      border-radius: 50%;
-
-      &.is-finish {
-        background: #6dd400;
+        align-items: center;
       }
 
-      &.is-unStart {
-        background: #e02020;
-      }
+      .status-icon {
+        display: inline-block;
+        width: 4px;
+        height: 4px;
+        margin-right: 6px;
+        border-radius: 50%;
 
-      &.is-restoring {
-        background: #fe9c00;
+        &.is-finish {
+          background: #6dd400;
+        }
+
+        &.is-unStart {
+          background: #e02020;
+        }
+
+        &.is-restoring {
+          background: #fe9c00;
+        }
       }
     }
   }
-}
 </style>

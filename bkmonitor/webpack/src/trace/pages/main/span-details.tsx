@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, provide, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
@@ -33,9 +33,8 @@ import dayjs from 'dayjs';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
-import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exception-guide';
+import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
-import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
@@ -46,13 +45,15 @@ import { useAppStore } from '../../store/modules/app';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
-  IInfo,
-  IStageTimeItem,
-  IStageTimeItemContent,
-  ITagContent,
-  ITagsItem,
+  type IInfo,
+  type IStageTimeItem,
+  type IStageTimeItemContent,
+  type ITagContent,
+  type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+
+import type { Span } from '../../components/trace-view/typings';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -289,7 +290,7 @@ export default defineComponent({
             label: t('类型'),
             content: (
               <span>
-                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`}></i>}
+                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />}
                 <span>{getTypeText()}</span>
               </span>
             ),
@@ -639,6 +640,7 @@ export default defineComponent({
       isExpan: boolean,
       title: string | undefined,
       content: any,
+      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -647,7 +649,7 @@ export default defineComponent({
           class='expan-item-head'
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]}></span>
+          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]} />
           <span class='expan-item-title'>{title}</span>
           {subTitle || undefined}
         </div>
@@ -660,6 +662,7 @@ export default defineComponent({
       isExpan: boolean,
       title: string,
       content: any,
+      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -668,7 +671,7 @@ export default defineComponent({
           class={['expan-item-small-head', 'grey']}
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-arrow-down', { active: isExpan }]}></span>
+          <span class={['icon-monitor icon-arrow-down', { active: isExpan }]} />
           <span
             class='title'
             title={title}
@@ -695,8 +698,8 @@ export default defineComponent({
     };
 
     const formatContent = (content?: string, isFormat?: boolean) => {
-      if (!isJson(content)) return content;
-
+      if (typeof content === 'number' || typeof content === 'undefined') return content;
+      if (!isJson(content)) return typeof content === 'string' ? content : JSON.stringify(content);
       const data = JSON.parse(content || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
@@ -712,54 +715,60 @@ export default defineComponent({
     };
 
     /* kv 结构数据展示 */
-    const tagsTemplate = (data: ITagsItem['list']) => (
-      <div class='tags-template'>
-        {data.map((item, index) => (
-          <div class={['tags-row', { grey: !(index % 2) }]}>
-            <span class='left'>
-              {item.label}
-              <div class='operator'>
-                <EnlargeLine
-                  class='icon-add-query'
-                  onClick={() => handleKvQuery(item)}
-                />
-                <span
-                  class='icon-monitor icon-mc-copy'
-                  onClick={() => handleCopy(item)}
-                ></span>
-              </div>
-            </span>
-            {item.type === 'error' ? (
-              <div class='right'>
-                <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
-                <span class='icon-monitor icon-mind-fill'></span>
-              </div>
-            ) : (
-              <div class='right'>{formatContent(item.content, item.isFormat)}</div>
-            )}
-            {isJson(item.content) && (
-              <Button
-                class='format-button'
-                outline={!item.isFormat}
-                size='small'
-                theme='primary'
-                onClick={() => (item.isFormat = !item.isFormat)}
-              >
-                <i class='icon-monitor icon-code'></i>
-                {t('格式化')}
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-    );
+    const tagsTemplate = (data: ITagsItem['list']) => {
+      return (
+        <div class='tags-template'>
+          {data.map((item, index) => (
+            <div
+              key={index}
+              class={['tags-row', { grey: !(index % 2) }]}
+            >
+              <span class='left'>
+                {item.label}
+                <div class='operator'>
+                  <EnlargeLine
+                    class='icon-add-query'
+                    onClick={() => handleKvQuery(item)}
+                  />
+                  <span
+                    class='icon-monitor icon-mc-copy'
+                    onClick={() => handleCopy(item)}
+                  />
+                </div>
+              </span>
+              {item.type === 'error' ? (
+                <div class='right'>
+                  <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
+                  <span class='icon-monitor icon-mind-fill' />
+                </div>
+              ) : (
+                <div class='right'>{formatContent(item.content, item.isFormat)}</div>
+              )}
+              {isJson(item.content) && (
+                <Button
+                  class='format-button'
+                  outline={!item.isFormat}
+                  size='small'
+                  theme='primary'
+                  onClick={() => (item.isFormat = !item.isFormat)}
+                >
+                  <i class='icon-monitor icon-code' />
+                  {t('格式化')}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    };
 
     /* 阶段耗时 */
     const stageTimeTemplate = (active: string, list: IStageTimeItem['list'], content: IStageTimeItemContent[]) => (
       <div class='stage-time'>
         <div class='stage-time-list'>
-          {list.map(item => (
+          {list.map((item, index) => (
             <Popover
+              key={index}
               content={item.errorMsg}
               disabled={!item.error || !item.errorMsg}
               placement={'left'}
@@ -769,7 +778,7 @@ export default defineComponent({
                 <div class='content'>
                   {item.error ? (
                     <span class='err-point'>
-                      <span class='red-point'></span>
+                      <span class='red-point' />
                     </span>
                   ) : undefined}
                   {item.label}
@@ -788,14 +797,36 @@ export default defineComponent({
                   <span class='center'>
                     {times.gap.type === 'toLeft'
                       ? [
-                          <span class='to-left'></span>,
-                          <span class='center-text'>{times.gap.value}</span>,
-                          <span class='line'></span>,
+                          <span
+                            key={1}
+                            class='to-left'
+                          />,
+                          <span
+                            key={2}
+                            class='center-text'
+                          >
+                            {times.gap.value}
+                          </span>,
+                          <span
+                            key={3}
+                            class='line'
+                          />,
                         ]
                       : [
-                          <span class='line'></span>,
-                          <span class='center-text'>{times.gap.value}</span>,
-                          <span class='to-right'></span>,
+                          <span
+                            key={1}
+                            class='line'
+                          />,
+                          <span
+                            key={2}
+                            class='center-text'
+                          >
+                            {times.gap.value}
+                          </span>,
+                          <span
+                            key={3}
+                            class='to-right'
+                          />,
                         ]}
                   </span>
                   <span class='right'>{times.tags[1]}</span>
@@ -805,9 +836,9 @@ export default defineComponent({
             if (item.type === 'gapTime') {
               return (
                 <div class='gap-time'>
-                  <div class='top'></div>
+                  <div class='top' />
                   <div class='center'>{item[item.type]}</div>
-                  <div class='bottom'></div>
+                  <div class='bottom' />
                 </div>
               );
             }
@@ -938,7 +969,7 @@ export default defineComponent({
     }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
-      const halfHour = 18 * Math.pow(10, 8);
+      const halfHour = 18 * 10 ** 8;
       const profilingRerieveStartTime = originalData.value.start_time - halfHour;
       const profilingRerieveEndTime = originalData.value.start_time + halfHour;
       return (
@@ -967,7 +998,7 @@ export default defineComponent({
                     size='small'
                     onClick={handleExportOriginData}
                   >
-                    <i class='icon-monitor icon-xiazai1'></i>
+                    <i class='icon-monitor icon-xiazai1' />
                     <span>{t('下载')}</span>
                   </Button>
                 </div>
@@ -981,7 +1012,10 @@ export default defineComponent({
                 </div>
               ) : (
                 [
-                  <div class='header'>
+                  <div
+                    key='header'
+                    class='header'
+                  >
                     {props.withSideSlider ? (
                       <div class='title'>
                         <span
@@ -996,8 +1030,11 @@ export default defineComponent({
                       titleInfoElem()
                     )}
                     <div class='others'>
-                      {info.header.others.map(item => (
-                        <span class='other-item'>
+                      {info.header.others.map((item, index) => (
+                        <span
+                          key={index}
+                          class='other-item'
+                        >
                           <span class='label'>{`${item.label}: `}</span>
                           <span
                             class='content'
@@ -1009,8 +1046,8 @@ export default defineComponent({
                       ))}
                     </div>
                   </div>,
-
                   <MonitorTab
+                    key='info-tab'
                     class='info-tab'
                     active={activeTab.value}
                     onTabChange={v => {
@@ -1018,8 +1055,9 @@ export default defineComponent({
                       handleActiveTabChange();
                     }}
                   >
-                    {tabList.map(item => (
+                    {tabList.map((item, index) => (
                       <Tab.TabPanel
+                        key={index}
                         v-slots={{
                           label: () => (
                             <div style='display: flex;'>
@@ -1043,8 +1081,8 @@ export default defineComponent({
                       />
                     ))}
                   </MonitorTab>,
-
                   <div
+                    key='content-list'
                     class={{
                       'content-list': true,
                       // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
@@ -1080,7 +1118,7 @@ export default defineComponent({
                                 <span
                                   style='margin-left: 8px;'
                                   class='icon-monitor icon-fenxiang'
-                                ></span>
+                                />
                               </Button>
                             )}
                             {content.list.map((child, childIndex) => {
@@ -1090,14 +1128,31 @@ export default defineComponent({
                                 handleSmallExpanChange(false, index, childIndex);
                               }
                               return (
-                                <div style='margin-top: 16px;'>
+                                <div
+                                  key={childIndex}
+                                  style='margin-top: 16px;'
+                                >
                                   {expanItemSmall(
                                     child.isExpan,
                                     child.header.name,
                                     tagsTemplate(child.content),
                                     [
-                                      <span class='time'>{child.header.date}</span>,
-                                      child.header.duration ? <span class='tag'>{child.header.duration}</span> : '',
+                                      <span
+                                        key='time'
+                                        class='time'
+                                      >
+                                        {child.header.date}
+                                      </span>,
+                                      child.header.duration ? (
+                                        <span
+                                          key='tag'
+                                          class='tag'
+                                        >
+                                          {child.header.duration}
+                                        </span>
+                                      ) : (
+                                        ''
+                                      ),
                                     ],
                                     isExpan => handleSmallExpanChange(isExpan, index, childIndex)
                                   )}
@@ -1141,7 +1196,7 @@ export default defineComponent({
                                 isSingleChart={isSingleChart.value}
                                 needOverviewBtn={!!sceneData.value?.list?.length}
                                 panels={sceneData.value.overview_panels}
-                              ></FlexDashboardPanel>
+                              />
                             </div>
                           )}
                         </Loading>
@@ -1164,7 +1219,7 @@ export default defineComponent({
                                 isSingleChart={isSingleChart.value}
                                 needOverviewBtn={!!sceneData.value?.list?.length}
                                 panels={sceneData.value.overview_panels}
-                              ></FlexDashboardPanel>
+                              />
                             </div>
                           )}
                         </Loading>
@@ -1222,7 +1277,7 @@ export default defineComponent({
                   size='small'
                   onClick={handleExportOriginData}
                 >
-                  <i class='icon-monitor icon-xiazai1'></i>
+                  <i class='icon-monitor icon-xiazai1' />
                   <span>{t('下载')}</span>
                 </Button>
               </div>

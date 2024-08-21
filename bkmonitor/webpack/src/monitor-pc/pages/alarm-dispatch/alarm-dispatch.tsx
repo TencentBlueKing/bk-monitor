@@ -692,7 +692,7 @@ export default class AlarmDispatch extends tsc<object> {
                       <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
                         {this.groupLoading ? (
                           <div class='item-content-skeleton'>
-                            <TableSkeleton type={3}></TableSkeleton>
+                            <TableSkeleton type={3} />
                           </div>
                         ) : (
                           <bk-table
@@ -706,6 +706,7 @@ export default class AlarmDispatch extends tsc<object> {
                                   <div class='alarm-group-list'>
                                     {row.user_groups.map(groupId => (
                                       <bk-tag
+                                        key={groupId}
                                         class='alarm-tag'
                                         v-bk-overflow-tips
                                         onClick={() => {
@@ -812,6 +813,7 @@ export default class AlarmDispatch extends tsc<object> {
                     </div>
                   )),
                   <div
+                    key={'footer'}
                     ref='itemFooterRef'
                     style={{
                       display: this.hiddenFooter ? 'none' : 'flex',
@@ -828,18 +830,18 @@ export default class AlarmDispatch extends tsc<object> {
                       >
                         <div class='expan-item-header'>
                           <div class='expan-status'>
-                            <i class='icon-monitor icon-mc-triangle-down'></i>
+                            <i class='icon-monitor icon-mc-triangle-down' />
                           </div>
-                          <div class='head-skeleton skeleton-element'></div>
+                          <div class='head-skeleton skeleton-element' />
                           <div class='edit-btn-wrap edit-btn-disabled'>
-                            <span class='icon-monitor icon-bianji'></span>
+                            <span class='icon-monitor icon-bianji' />
                             <span>{this.$t('配置规则')}</span>
                           </div>
                           <div class='del-btn-wrap del-btn-disabled'>
-                            <span class='icon-monitor icon-mc-delete-line'></span>
+                            <span class='icon-monitor icon-mc-delete-line' />
                           </div>
                         </div>
-                        <div class='expan-item-content'></div>
+                        <div class='expan-item-content' />
                       </div>
                     ));
                   }

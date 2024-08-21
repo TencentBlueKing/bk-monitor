@@ -32,7 +32,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsCcApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -151,12 +151,16 @@ class SearchHandler(object):
         can_highlight=True,
         export_fields=None,
         export_log: bool = False,
+        only_for_agg: bool = False,
     ):
         # 请求用户名
         self.request_username = get_request_external_username() or get_request_username()
 
         self.search_dict: dict = search_dict
         self.export_log = export_log
+
+        # 是否只用于聚合，可以简化某些查询语句
+        self.only_for_agg = only_for_agg
 
         # 透传查询类型
         self.index_set_id = index_set_id
@@ -189,6 +193,7 @@ class SearchHandler(object):
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
+        self.from_favorite_id = self.search_dict.get("from_favorite_id", 0)
 
         self.use_time_range = search_dict.get("use_time_range", True)
         # 构建时间字段
@@ -786,12 +791,16 @@ class SearchHandler(object):
                         "params": history_params,
                         "index_set_id": self.index_set_id,
                         "search_type": search_type,
+                        "from_favorite_id": self.from_favorite_id,
                     }
                 }
             )
         else:
             UserIndexSetSearchHistory.objects.create(
-                index_set_id=self.index_set_id, params=history_params, search_type=search_type
+                index_set_id=self.index_set_id,
+                params=history_params,
+                search_type=search_type,
+                from_favorite_id=self.from_favorite_id,
             )
 
     def _can_scroll(self, result) -> bool:
@@ -983,8 +992,8 @@ class SearchHandler(object):
         @param container_id:
         @return:
         """
-        bcs_cluster_info = BcsCcApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
-        space = Space.objects.filter(space_code=bcs_cluster_info["project_id"]).first()
+        bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
+        space = Space.objects.filter(space_code=bcs_cluster_info["projectID"]).first()
         project_code = ""
         if space:
             project_code = space.space_id
@@ -1469,6 +1478,7 @@ class SearchHandler(object):
 
                 body: Dict = DslCreateSearchTailBodyCustomField(
                     start=self.start,
+                    size=self.size,
                     zero=self.zero,
                     time_field=self.time_field,
                     target_fields=target_fields,
@@ -1553,6 +1563,10 @@ class SearchHandler(object):
             return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
 
     def _init_sort(self) -> list:
+        if self.only_for_agg:
+            # 仅聚合时无需排序
+            return []
+
         index_set_id = self.search_dict.get("index_set_id")
         # 获取用户对sort的排序需求
         sort_list: List = self.search_dict.get("sort_list", [])
@@ -1814,6 +1828,18 @@ class SearchHandler(object):
                     # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
                     if _export_field in log:
                         new_origin_log[_export_field] = log[_export_field]
+                    # 处理a.b.c的情况
+                    elif "." in _export_field:
+                        # 在log中找不到时,去log的子级查找
+                        key, *field_list = _export_field.split(".")
+                        _result = log.get(key, {})
+                        for _field in field_list:
+                            if isinstance(_result, dict) and _field in _result:
+                                _result = _result[_field]
+                            else:
+                                _result = ""
+                                break
+                        new_origin_log[_export_field] = _result
                     else:
                         new_origin_log[_export_field] = log.get(_export_field, "")
                 origin_log = new_origin_log
@@ -1849,6 +1875,8 @@ class SearchHandler(object):
         """
         递归更新嵌套字典
         """
+        if not isinstance(base_dict, dict):
+            return base_dict
         for key, value in update_dict.items():
             if isinstance(value, dict):
                 base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
@@ -2144,7 +2172,9 @@ class SearchHandler(object):
             value = _add.get("value")
             new_value: list = []
             # 对于前端传递为空字符串的场景需要放行过去
-            if isinstance(value, str) or value:
+            if isinstance(value, list):
+                new_value = value
+            elif isinstance(value, str) or value:
                 new_value = self._deal_normal_addition(value, _operator)
             new_addition.append(
                 {"field": field, "operator": _operator, "value": new_value, "condition": _add.get("condition", "and")}
@@ -2248,6 +2278,24 @@ class UnionSearchHandler(object):
             "is_union_search": True,
         }
 
+        # 数据排序处理  兼容第三方ES检索排序
+        time_fields = set()
+        time_fields_type = set()
+        time_fields_unit = set()
+        for index_set_obj in index_set_objs:
+            if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
+                raise SearchUnKnowTimeField()
+            time_fields.add(index_set_obj.time_field)
+            time_fields_type.add(index_set_obj.time_field_type)
+            time_fields_unit.add(index_set_obj.time_field_unit)
+
+        diff_fields = set()
+        export_fields = self.search_dict.get("export_fields")
+        # 在做导出操作时,记录time_fields比export_fields多的字段
+        if export_fields:
+            diff_fields = time_fields - set(export_fields)
+            self.search_dict["export_fields"].extend(diff_fields)
+
         multi_execute_func = MultiExecuteFunc()
         if is_export:
             for index_set_id in self.index_set_ids:
@@ -2300,17 +2348,6 @@ class UnionSearchHandler(object):
                 else:
                     fields[key]["max_length"] = max(fields[key].get("max_length", 0), value.get("max_length", 0))
 
-        # 数据排序处理  兼容第三方ES检索排序
-        time_fields = set()
-        time_fields_type = set()
-        time_fields_unit = set()
-        for index_set_obj in index_set_objs:
-            if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
-                raise SearchUnKnowTimeField()
-            time_fields.add(index_set_obj.time_field)
-            time_fields_type.add(index_set_obj.time_field_type)
-            time_fields_unit.add(index_set_obj.time_field_unit)
-
         is_use_custom_time_field = False
 
         if len(time_fields) != 1 or len(time_fields_type) != 1 or len(time_fields_unit) != 1:
@@ -2349,7 +2386,12 @@ class UnionSearchHandler(object):
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
             result_origin_log_list = sort_func(data=result_origin_log_list, sort_list=self.sort_list)
-
+        # 在导出结果中删除查询时补充的字段
+        if diff_fields:
+            tmp_list = []
+            for dic in result_origin_log_list:
+                tmp_list.append({k: v for k, v in dic.items() if k not in diff_fields})
+            result_origin_log_list = tmp_list
         # 处理分页
         result_log_list = result_log_list[: self.search_dict.get("size")]
         result_origin_log_list = result_origin_log_list[: self.search_dict.get("size")]
@@ -2394,6 +2436,7 @@ class UnionSearchHandler(object):
                     "params": params,
                     "index_set_ids": sorted(self.index_set_ids),
                     "search_type": search_type,
+                    "from_favorite_id": self.search_dict.get("from_favorite_id", 0),
                 }
             }
         )

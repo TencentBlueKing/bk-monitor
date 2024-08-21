@@ -79,6 +79,7 @@ export default {
   告警屏蔽详情: 'Alarm Mute Details',
   告警风暴: 'Alarm Storm',
   告警阶段: 'Alarm Stage',
+  '告警开始/结束时间': 'Alarm Start/End Time',
   告警标题: 'Alarm Title',
   告警通知模板: 'Message Template',
   告警组名称: 'Alarm Team Name',
@@ -105,7 +106,10 @@ export default {
   告警次数: 'Alarms',
   告警状态: 'Alarm Status',
   告警处理: 'Alarm Handling',
+  告警屏蔽: 'Alarm Blocking',
+  告警失效: 'Alarm Invalid',
   告警级别: 'Alarm Severity',
+  告警操作: 'Alarm Operation',
   较多告警: 'More alarms',
   较少告警: 'Less alarms',
   历史告警: 'Alarm History',
@@ -167,7 +171,7 @@ export default {
   日志路径: 'Log Path',
   日志字符集: 'Character Set',
   日志关键字: 'Log Keywords',
-  日志数据: 'Log Data',
+  日志数据: 'Log',
   日志: 'Log',
   源日志: 'Source Log',
   操作日志: 'Record',
@@ -350,7 +354,6 @@ export default {
 
   // 业务
   '-我有告警的业务-': '-Alarming Business-',
-  业务ID: 'Business ID',
   新业务接入详情: 'Access Details',
   业务拓扑: 'Business Topology',
   业务数: 'Businesses',
@@ -501,8 +504,8 @@ export default {
   按月: 'Monthly',
   上周: 'Last week',
   分: 'min', // 如果这个只用于指标检索的周期单位没有问题， 如果还有其他地方需要确认
-  '工作日(周一至周五)': 'Every working day (Monday to Friday)',
-  '周末(周六、周日)': 'Every weekend (Saturday, Sunday)',
+  '每工作日(周一至周五)': 'Every working day (Monday to Friday)',
+  '每周末(周六、周日)': 'Every weekend (Saturday, Sunday)',
   次日: 'Next Day',
 
   '1 小时前': '1 hour ago',
@@ -687,7 +690,7 @@ export default {
   每个小时整点发送: 'Send every hour on the hour',
   每个工作日重复: 'Repeat Every Workday',
 
-  当前版本: 'Latest',
+  当前版本: 'Current',
   所属: 'Spaces',
   是否启用: 'Enabled',
   触发条件: 'Trigger Condition',
@@ -1003,6 +1006,9 @@ export default {
   新开页: 'New Tab',
   不重复: 'No Repeat',
   未恢复: 'Active',
+  我负责的: 'My Assigned',
+  我处理的: 'My Handling',
+  故障: 'Fault',
   被收敛: 'Converged',
   可选择: 'Selectable',
   不包含: 'Exclude',
@@ -1274,7 +1280,7 @@ export default {
   '插件名称(ID或别名)': 'Plugin Name (ID or Alias)',
   环境变量参数: 'Environment Variable Parameters',
   非官方插件: 'Unofficial Plugin',
-  结合插件提供本地和远程采集两种方式: 'Combined with the plug-in to provide local and remote collection two ways', // 确定位置
+  结合插件提供本地和远程采集两种方式: 'Combined with the plugin to provide local and remote collection two ways', // 确定位置
   '设置指标&维度': 'Set metrics & dimensions',
   服务实例标签: 'Service instance tags',
 
@@ -1847,4 +1853,20 @@ export default {
   方案: 'Plan',
   关闭通知的对象: 'Object for closing notifications',
   默认敏感度: 'Default sensitivity',
+  系统恢复: 'System recovery',
+  系统关闭: 'System closed',
+  生成告警级别: 'Generate alarm levels',
+  // 故障
+  根因所属节点: 'Root Node',
+  标准提示: 'Type',
+  屏蔽类型: 'Mute type',
+  执行时间: 'Execution time',
+  语言: 'Language',
+  关联服务类型: 'Associated service type',
+  Apdex阈值T: 'Apdex threshold T',
+  替换为: 'Replace with',
+
+  故障关注人: 'Fault Follower',
+  故障链接: 'Fault Link',
+  故障内告警: 'Fault Internal Alarm',
 };

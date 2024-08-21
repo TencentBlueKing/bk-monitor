@@ -257,7 +257,7 @@ export default {
   离群检测和其他算法互斥: 'Outlier detection and other algorithms are mutually exclusive.',
   一个策略不能同时添加两个相同的智能检测:
     'One rule cannot have two identical intelligent detections added simultaneously.',
-  只支持监控平台和计算平台的单指标数据: 'Only supports single indicator data for monitoring and computing platforms',
+  只支持计算平台的单指标数据: 'Only supports single indicator data for bk base',
   常规算法不同等级只能各添加一种:
     'For regular detections of different levels, only one type can be added for each level.',
   变量示例: 'Example',
@@ -270,10 +270,18 @@ export default {
   起始日: 'Start date',
   设为起始日: 'Set as start date',
   AI设置: 'AI settings',
-  智能生成告警级别: 'Intelligent generation of alarm levels',
-  '将根据指标的异常程度、发生异常的指标数，为告警自动分配级别。':
-    'Alarm levels will be automatically assigned based on the degree of anomaly in the indicators and the number of indicators that have experienced anomalies.',
+  '告警生成后，将根据指标的异常程度、发生异常的指标数，为告警自动评级':
+    'After the alarm is generated, it will be automatically rated based on the degree of abnormality of the indicators and the number of abnormal indicators that have occurred',
   内置的分派规则组不允许修改: 'The built-in assignment rule group does not allow modification',
   内置策略不允许修改: 'The built-in strategy does not allow modification',
   关注人禁用此操作: 'The follower disables this action',
+  暂未开启主机智能异常检测: 'Host intelligent anomaly detection has not been enabled yet',
+  '主机场景检测数据源正在接入中，请稍后重试':
+    'The host scene detection data source is currently being connected, please try again later',
+  '存在关联的策略，不可删除': 'There are associated policies that cannot be deleted',
+  '若添加进程，请前往配置平台 - 业务拓扑，在对应模块下新增':
+    'If adding a process, please go to the configuration platform - business topology and add it under the corresponding module',
+
+  告警系统事件: 'Alarm System Event',
+  故障系统事件: 'Fault System Event',
 };

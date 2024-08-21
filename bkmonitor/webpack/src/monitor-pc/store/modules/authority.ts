@@ -25,7 +25,7 @@
  */
 import { checkAllowedByActionIds, getAuthorityDetail, getAuthorityMeta } from 'monitor-api/modules/iam';
 import { transformDataKey } from 'monitor-common/utils/utils';
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
 
 import store from '../store';
 
@@ -54,7 +54,11 @@ class Authority extends VuexModule {
       ...params,
       bk_biz_id: store.getters.bizId || window.cc_biz_id,
       space_uid: window.space_uid,
-    }).catch(() => []);
+    }).catch(err => {
+      console.error(err);
+      console.info(params, `权限id判断出错链接：${location.href}`);
+      return [];
+    });
     return transformDataKey(data);
   }
   @Action // 通过actionId获取对应权限及依赖的权限的详情，及申请权限的跳转Url

@@ -26,11 +26,9 @@ from constants.data_source import KubernetesResultTableLabel
 
 
 class TestProcessor(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self):
-
         CacheNode.refresh_from_settings()
         ALERT_DEDUPE_CONTENT_KEY.client.flushall()
         AlertUIDManager.SEQUENCE_REDIS_KEY.client.flushall()
@@ -729,7 +727,8 @@ class TestProcessor(TestCase):
         self.assertEqual([], processor.save_events([]))
         self.assertEqual([], processor.build_alerts([]))
         self.assertEqual([], processor.save_alerts([]))
-        self.assertEqual(None, processor.update_alert_cache([]))
+        self.assertEqual((0, 0), processor.update_alert_cache([]))
+        self.assertEqual(0, processor.update_alert_snapshot([]))
 
     @staticmethod
     def get_alert_processor(event_data=None):
@@ -791,6 +790,13 @@ class TestProcessor(TestCase):
         relation_mock.stop()
 
     def test_enrich_kubernetes_alerts_notin_white_biz_list(self):
+        relation_mock = mock.patch(
+            "bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception",
+            return_value=[
+                {"data": [{"code": 200, "source_type": "pod", "target_list": [{"bk_target_ip": "127.0.0.1"}]}]}
+            ],
+        )
+        relation_mock.start()
         settings.KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = [3]
         processor, alerts = self.get_alert_processor(
             {
@@ -806,6 +812,7 @@ class TestProcessor(TestCase):
         # 没有在灰度列表中，不进行丰富
         self.assertFalse("ip" in dimensions)
         settings.KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = []
+        relation_mock.stop()
 
     def test_enrich_kubernetes_alerts_without_biz_ip(self):
         # 没有对应业务下ip， 将不会做丰富

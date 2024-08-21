@@ -91,7 +91,7 @@ DATABASE_CONNECTION_NAME = getattr(settings, "BACKEND_DATABASE_NAME", "monitor_a
 ES_CLUSTER_VERSION_DEFAULT = 7
 
 ES_SHARDS_CONFIG = os.environ.get("ES_SHARDS_NUMBER", 1)
-ES_REPLICAS_CONFIG = os.environ.get("ES_REPLICAS_CONFIG", 1)
+ES_REPLICAS_CONFIG = os.environ.get("ES_REPLICAS_CONFIG", 0)
 
 BCS_TABLE_ID_PREFIX = "bkmonitor_bcs"
 
@@ -108,6 +108,14 @@ BCS_RESOURCE_DATA_ID_RESOURCE_PLURAL = "dataids"
 # 周期任务锁的超时时间
 PERIODIC_TASK_DEFAULT_TTL = 7200
 
+# 创建记录时，默认用户名为system
+DEFAULT_USERNAME = "system"
+
 # 默认kafka sasl配置
 KAFKA_SASL_MECHANISM = "SCRAM-SHA-512"
 KAFKA_SASL_PROTOCOL = "SASL_PLAINTEXT"
+
+# vm 存储类型
+VM_STORAGE_TYPE = "vm"
+# metadata 结果表白名单 key
+METADATA_RESULT_TABLE_WHITE_LIST = "metadata:query_metric:table_id_list"

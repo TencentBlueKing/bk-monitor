@@ -8,11 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.constants import CustomServiceMatchType, CustomServiceType
-from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.fields import empty
+
+from apm_web.constants import CustomServiceMatchType, CustomServiceType
+from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
 
 
 class ApplicationListSerializer(serializers.ModelSerializer):
@@ -104,7 +105,7 @@ class CustomServiceConfigSerializer(serializers.Serializer):
 class ApplicationCacheSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
-        fields = ["application_id", "bk_biz_id", "app_name", "metric_result_table_id"]
+        fields = ["application_id", "bk_biz_id", "app_name", "metric_result_table_id", "is_enabled_profiling"]
 
 
 class AsyncSerializer(serializers.Serializer):
@@ -113,9 +114,9 @@ class AsyncSerializer(serializers.Serializer):
 
 
 class ServiceParamsSerializer(serializers.Serializer):
-    category = serializers.CharField(label="分类")
-    kind = serializers.CharField(label="类型")
-    predicate_value = serializers.CharField(label="分类具体值", allow_blank=True, default="")
+    category = serializers.CharField(label="分类", required=False, default="")
+    kind = serializers.CharField(label="类型", required=False, default="")
+    predicate_value = serializers.CharField(label="分类具体值", allow_blank=True, required=False, default="")
 
 
 class ComponentInstanceIdDynamicField(serializers.Field):

@@ -18,6 +18,8 @@ from alarm_backends.core.context import ActionContext
 from alarm_backends.core.i18n import i18n
 from alarm_backends.service.fta_action.common import BaseActionProcessor
 from bkmonitor.models import ActionInstance, ActionStatus
+from constants.action import ActionPluginType, ActionSignal
+from constants.alert import EventStatus
 
 from .client import get_client
 
@@ -37,6 +39,24 @@ class ActionProcessor(BaseActionProcessor):
         i18n.set_biz(self.action.bk_biz_id)
         self.alerts = alerts
         self.context = ActionContext(self.action, alerts=self.alerts).get_dictionary()
+        if self.action.signal == ActionSignal.RECOVERED:
+            # 判断告警状态是否为恢复
+            if self.context["alert"].status != EventStatus.RECOVERED:
+                # action状态为恢复，但告警状态不是恢复， 当前数据冲突， 记录日志并后续重试
+                snap_alert = alerts[0] if alerts else None
+                from alarm_backends.service.fta_action.tasks import run_webhook_action
+                from bkmonitor.documents import AlertDocument
+
+                logger.warning(
+                    f"[message queue conflict] action{action_id} alert({self.context['alert'].id})"
+                    f"[params status]: {snap_alert.status if snap_alert else None}"
+                    f"[redis status]: {self.context['alert'].status}"
+                    f"[es status]: {AlertDocument.get(self.context['alert'].id).status}"
+                )
+                if snap_alert and snap_alert.status == EventStatus.RECOVERED:
+                    self.context = ActionContext(self.action, alerts=alerts, use_alert_snap=True).get_dictionary()
+                else:
+                    run_webhook_action.delay((ActionPluginType.MESSAGE_QUEUE, {"id": action_id}), countdown=5)
 
     def execute(self):
         if not settings.ENABLE_MESSAGE_QUEUE or not settings.MESSAGE_QUEUE_DSN:
@@ -60,6 +80,7 @@ class ActionProcessor(BaseActionProcessor):
 
         send_message = self.context["alarm"].alert_info
         if settings.COMPATIBLE_ALARM_FORMAT:
+            # COMPATIBLE_ALARM_FORMAT 表示是否使用老版本告警格式（设置为True的话，推送的字段会少一些）
             send_message = self.context["alarm"].callback_message
         try:
             self.client.send(send_message)

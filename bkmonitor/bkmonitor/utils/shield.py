@@ -11,17 +11,32 @@ specific language governing permissions and limitations under the License.
 
 import abc
 from datetime import datetime
+from typing import Dict, List
 
 import six
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.time_tools import str2datetime, utc2biz_str
-from constants.shield import ScopeType, ShieldCategory
+from constants.shield import (
+    SCOPE_TYPE_NAME_MAPPING,
+    SHIELD_CATEGORY_NAME_MAPPING,
+    ScopeType,
+    ShieldCategory,
+)
+
+STRATEGY_NAME_TEMPLATE = _("策略名称：{}")
+STRATEGY_ALREADY_DELETED_MESSAGE = _("该策略已经被删除")
+CYCLE_ONCE = _("次")
+CYCLE_DAILY = _("天")
+CYCLE_WEEKLY = _("周")
+CYCLE_MONTHLY = _("月")
+LESS_THAN_AN_HOUR_TEMPLATE = _("<1小时/{}")
+HOURS_TEMPLATE = _("{}小时/{}")
 
 
 class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
-    def get_shield_content(self, shield):
+    def get_shield_content(self, shield, strategy_id_to_name=None):
         """
         获取屏蔽的内容
         """
@@ -50,16 +65,18 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
             return content
 
         if category == ShieldCategory.STRATEGY:
-            strategy_ids = dimension_config["strategy_id"]
-            strategy_ids = strategy_ids if isinstance(strategy_ids, list) else [strategy_ids]
-            strategy_list = StrategyModel.objects.filter(id__in=strategy_ids)
-            if strategy_list:
-                names = ""
-                for strategy in strategy_list:
-                    names += strategy.name + " "
-                content = _("策略名称：{}").format(names.strip()) + " - "
+            strategy_ids = self.get_strategy_ids(shield)
+            # 目前仅在前端屏蔽列表会传入 strategy_id_to_name
+            if strategy_id_to_name:
+                strategy_names = [strategy_id_to_name.get(strategy_id, "") for strategy_id in strategy_ids]
             else:
-                return _("该策略已经被删除")
+                strategy_names = StrategyModel.objects.filter(id__in=strategy_ids).values_list("name", flat=True)
+
+            if strategy_names:
+                names = " ".join(strategy_names)
+                content = STRATEGY_NAME_TEMPLATE.format(names.strip()) + " - "
+            else:
+                return STRATEGY_ALREADY_DELETED_MESSAGE
 
         if scope_type == ScopeType.INSTANCE:
             service_list = self.get_service_name_list(bk_biz_id, dimension_config.get("service_instance_id"))
@@ -69,10 +86,23 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         elif scope_type == ScopeType.NODE:
             node_path_list = self.get_node_path_list(bk_biz_id, dimension_config.get("bk_topo_node"))
             content += ",".join(["/".join(item) for item in node_path_list])
+        elif scope_type == ScopeType.DYNAMIC_GROUP:
+            dynamic_group_names = self.get_dynamic_group_name_list(
+                bk_biz_id, dimension_config.get("dynamic_group") or []
+            )
+            content += ",".join(dynamic_group_names)
         else:
             content += self.get_business_name(bk_biz_id)
 
         return content
+
+    @staticmethod
+    def get_strategy_ids(shield):
+        if shield["category"] != ShieldCategory.STRATEGY:
+            return []
+
+        strategy_ids = shield["dimension_config"]["strategy_id"]
+        return strategy_ids if isinstance(strategy_ids, list) else [strategy_ids]
 
     @abc.abstractmethod
     def get_service_name_list(self, bk_biz_id, service_instance_id_list):
@@ -95,6 +125,13 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         return []
 
     @abc.abstractmethod
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: List[Dict]) -> List:
+        """
+        根据动态分组id列表返回动态分组名称列表，需要子类实现
+        """
+        return []
+
+    @abc.abstractmethod
     def get_business_name(self, bk_biz_id):
         """
         根据业务id获得业务名称，需要子类实现
@@ -108,7 +145,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         """
         获取屏蔽的持续周期及市场
         """
-        cycle_mapping = {1: _("次"), 2: _("天"), 3: _("周"), 4: _("月")}
+        cycle_mapping = {1: CYCLE_ONCE, 2: CYCLE_DAILY, 3: CYCLE_WEEKLY, 4: CYCLE_MONTHLY}
         cycle_config = shield["cycle_config"]
         begin_time = shield["begin_time"]
         begin_time = utc2biz_str(begin_time) if isinstance(begin_time, datetime) else begin_time
@@ -136,7 +173,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
 
         # 补充单位
         unit = cycle_mapping[cycle_config.get("type", 1)]
-        cycle_duration = _("<1小时/{}").format(unit) if hours == 0 else _("{}小时/{}").format(hours, unit)
+        cycle_duration = LESS_THAN_AN_HOUR_TEMPLATE.format(unit) if hours == 0 else HOURS_TEMPLATE.format(hours, unit)
 
         return cycle_duration
 
@@ -145,23 +182,10 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         获取屏蔽的分类
         """
         category = shield["category"]
-        scope_type = shield["scope_type"]
-        shield_category_name_mapping = {
-            ShieldCategory.SCOPE: _("范围屏蔽"),
-            ShieldCategory.DIMENSION: _("维度屏蔽"),
-            ShieldCategory.STRATEGY: _("策略屏蔽"),
-            ShieldCategory.ALERT: _("告警事件屏蔽"),
-        }
-        scope_name_mapping = {
-            ScopeType.INSTANCE: _("服务实例"),
-            ScopeType.IP: _("主机"),
-            ScopeType.NODE: _("节点"),
-            ScopeType.BIZ: _("业务"),
-        }
+        category_name = SHIELD_CATEGORY_NAME_MAPPING.get(category)
+        scope_type_name = SCOPE_TYPE_NAME_MAPPING.get(shield["scope_type"])
+
         if category == ShieldCategory.SCOPE:
-            category_name = "{}（ {} ）".format(
-                shield_category_name_mapping.get(category), scope_name_mapping.get(scope_type)
-            )
-        else:
-            category_name = shield_category_name_mapping.get(category)
+            return f"{category_name}（ {scope_type_name} ）"
+
         return category_name

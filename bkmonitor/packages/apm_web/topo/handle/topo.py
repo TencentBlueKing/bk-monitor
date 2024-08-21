@@ -297,6 +297,10 @@ class TopoHandler:
             TOPO_REMOTE_SERVICE_METRIC, kwds=topo_remote_service_metric_param
         )
         custom_services_res = pool.apply_async(ApplicationCustomService.objects.filter, kwds=custom_services_param)
+
+        root_endpoints_res = pool.apply_async(
+            api.apm_api.query_root_endpoint, kwds={"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
+        )
         pool.close()
         pool.join()
 
@@ -316,7 +320,8 @@ class TopoHandler:
         }
         # 获取服务下组件指标
         self.service_components_metric = service_components_metric_res.get()
-        self.original_nodes_mapping = group_by(self.original_nodes, operator.itemgetter("topo_key"))
+
+        self.root_endpoints = root_endpoints_res.get()
 
         self.custom_services = custom_services_res.get()
 
@@ -759,10 +764,7 @@ class TopoHandler:
         return [node for node in nodes if node["name"].lower().find(keyword.lower()) != -1]
 
     def process_root_service(self, nodes):
-        root_endpoints = api.apm_api.query_root_endpoint(
-            {"bk_biz_id": self.application.bk_biz_id, "app_name": self.application.app_name}
-        )
-        root_services = {root_endpoint["service_name"] for root_endpoint in root_endpoints}
+        root_services = {root_endpoint["service_name"] for root_endpoint in self.root_endpoints}
         for node in nodes:
             node.is_root_service = node.id in root_services
 

@@ -10,13 +10,15 @@ specific language governing permissions and limitations under the License.
 """
 import calendar
 import logging
-import time
 import typing
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+from datetime import time as dt_time
+from datetime import timedelta, timezone
+from itertools import groupby
+from operator import attrgetter
 
 from dateutil.relativedelta import relativedelta
-from django.db import OperationalError, transaction
 from django.db.models import Q
 
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
@@ -27,9 +29,6 @@ from constants.action import NoticeWay
 from constants.common import DutyGroupType, RotationType, WorkTimeType
 
 logger = logging.getLogger("fta_action.run")
-
-MAX_RETRIES = 3  # 最大重试次数
-BATCH_SIZE = 1000  # 每批次更新的记录数量
 
 
 class DutyCalendar:
@@ -108,17 +107,23 @@ class DutyRuleManager:
     """
 
     def __init__(
-        self, duty_rule, begin_time: str = None, days=0, last_user_index=0, last_time_index=0, end_time: str = None
+        self,
+        duty_rule,
+        begin_time: str = None,
+        days=0,
+        last_user_index=0,
+        last_time_index=0,
+        end_time: str = None,
+        snap_end_time: str = "",
     ):
         self.duty_arranges = duty_rule["duty_arranges"]
         self.category = duty_rule.get("category")
         begin_time = begin_time or ""
         self.begin_time = time_tools.str2datetime(max(begin_time, duty_rule["effective_time"]))
-        self.end_time = None
         self.enabled = bool(duty_rule.get("enabled"))
         self.last_user_index = last_user_index
         self.last_time_index = last_time_index
-        self.rule_end_time = time_tools.str2datetime(duty_rule.get("end_time") or "9999-12-31 23:59:59")
+        # end_time 可视为预览/当次排班结束时间，不包括最后一天
         if end_time:
             self.end_time = time_tools.str2datetime(end_time)
         else:
@@ -126,9 +131,20 @@ class DutyRuleManager:
             days = days or 30
             self.end_time = self.begin_time + timedelta(days=days)
 
-        if self.rule_end_time:
-            # 真实的结束时间，以配置时间和预览结束时间的最小值为准
-            self.end_time = min(self.rule_end_time, self.end_time)
+        # end_date 为规则/快照的结束日期，包括这天
+        self.end_date = self._calculate_end_date(duty_rule.get("end_time"), snap_end_time)
+
+    @staticmethod
+    def _calculate_end_date(rule_end_time: typing.Optional[str], snap_end_time: typing.Optional[str]) -> datetime.date:
+        """结束日期，包括这一天，除非是一天的开始。"""
+        rule_end_datetime = end_time_to_datetime(rule_end_time)
+        snap_end_datetime = end_time_to_datetime(snap_end_time)
+        final_end_datetime = min(rule_end_datetime, snap_end_datetime)
+
+        if final_end_datetime.time() == dt_time.min:
+            final_end_datetime -= timedelta(microseconds=1)
+
+        return final_end_datetime.date()
 
     def get_duty_plan(self):
         """
@@ -170,7 +186,8 @@ class DutyRuleManager:
         period_dates = []
         # 标记最近一次交接时间
         last_handoff_time = self.end_time - timedelta(days=1)
-        while begin_time <= last_handoff_time and begin_time < self.rule_end_time:
+        # 只比较日期，包括结束日期
+        while begin_time.date() <= min(last_handoff_time.date(), self.end_date):
             # 在有效的时间范围内，获取有效的排期
             is_valid = False
             # 如果是指定
@@ -542,88 +559,69 @@ class GroupDutyRuleManager:
         """
         # task_time需要提前定义, 这个可以是七天以后的一个时间
 
-        new_duty_snaps = {}
         logger.info("[manage_duty_rule_snap] begin to manage duty snap for current_time(%s)", task_time)
-        for duty_rule_snap in self.duty_rules:
-            #  将已经生效的轮值规则存快照
-            if not duty_rule_snap["enabled"]:
-                # 如果当前是禁用状态，忽略
-                continue
-            next_plan_time = max(duty_rule_snap["effective_time"], task_time)
-            new_duty_snaps.update(
-                {
-                    f"{self.user_group.id}--{duty_rule_snap['id']}": DutyRuleSnap(
-                        enabled=duty_rule_snap["enabled"],
-                        next_plan_time=next_plan_time,
-                        next_user_index=0,
-                        end_time=duty_rule_snap["end_time"],
-                        user_group_id=self.user_group.id,
-                        first_effective_time=next_plan_time,
-                        duty_rule_id=duty_rule_snap["id"],
-                        rule_snap=duty_rule_snap,
-                    )
-                }
-            )
-        no_changed_duties = []
-        changed_duties = []
-        duty_rule_ids = self.user_group.duty_rules
-        for rule_snap in DutyRuleSnap.objects.filter(
-            duty_rule_id__in=duty_rule_ids, user_group_id=self.user_group.id, enabled=True
-        ):
-            if not new_duty_snaps.get(f"{self.user_group.id}--{rule_snap.duty_rule_id}"):
-                # 如果对应的duty_rule不存在，则表示已删除或者被禁用
-                continue
-            new_snap = new_duty_snaps.get(f"{self.user_group.id}--{rule_snap.duty_rule_id}").rule_snap
-            if new_snap["hash"] == rule_snap.rule_snap["hash"]:
-                # 如果hash没有发生任何变化，不做改动
-                no_changed_duties.append(f"{rule_snap.user_group_id}--{rule_snap.duty_rule_id}")
-            else:
-                changed_duties.append(rule_snap)
 
-        # 过滤出已经被禁用的规则, 如果被禁用了， 需要及时删除
-        disabled_duty_rules = DutyRule.objects.filter(enabled=False, bk_biz_id=self.user_group.bk_biz_id).values_list(
-            "id", flat=True
-        )
-        if disabled_duty_rules:
-            # 如果有有禁用的，需要删除掉
-            DutyRuleSnap.objects.filter(duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id).delete()
+        snaps = DutyRuleSnap.objects.filter(
+            duty_rule_id__in=self.user_group.duty_rules, user_group_id=self.user_group.id, enabled=True
+        ).order_by("duty_rule_id")
+        rule_id_to_snaps = {rule_id: list(snaps) for rule_id, snaps in groupby(snaps, key=attrgetter("duty_rule_id"))}
 
-            # 已经设置的好的排班计划，也需要设置为不生效
-            for retry_count in range(MAX_RETRIES):
-                try:
-                    self.update_duty_plan(disabled_duty_rules, self.user_group.id)
-                    break  # 成功执行，跳出循环
-                except OperationalError as e:
-                    if 'Deadlock' in str(e):
-                        # 如果已达到最大重试次数，抛出异常
-                        if retry_count == MAX_RETRIES - 1:
-                            raise e
-                        time.sleep(0.5)  # 一段时间后重试
-                        continue
-                    else:
-                        # 非死锁异常,直接抛出
-                        raise e
-
-        # 排除掉没有发生变化的，其他的都需要重新生效
-        new_group_rule_snaps = [
-            snap_object for key, snap_object in new_duty_snaps.items() if key not in no_changed_duties
-        ]
-        expired_snaps = []
+        rules_for_snap_creation = []
         updated_rule_snaps = []
-        # 如果有快照已经修改过，需要更改或删除原有的的的快照
-        for duty_rule_snap in changed_duties:
-            # 已有的duty snaps
-            current_duty_rule = new_duty_snaps[f'{self.user_group.id}--{duty_rule_snap.duty_rule_id}']
+        expired_snaps = []
+        for duty_rule in self.duty_rules:
+            if not duty_rule["enabled"]:
+                continue
 
-            if duty_rule_snap.next_plan_time >= current_duty_rule.next_plan_time:
-                # 如果原来的下一次安排时间晚于当前的生效时间，说明原有的将会过期
-                expired_snaps.append(duty_rule_snap.id)
-            else:
-                # 如果原有的快照晚于当前的安排时间， 则设置最新快照的首次安排时间为当前的结束时间
-                duty_rule_snap.end_time = current_duty_rule.next_plan_time
-                updated_rule_snaps.append(duty_rule_snap)
+            # 规则为新关联的，创建快照
+            rule_id = duty_rule["id"]
+            if rule_id not in rule_id_to_snaps:
+                rules_for_snap_creation.append(duty_rule)
+                continue
+
+            old_snaps: typing.List[DutyRuleSnap] = rule_id_to_snaps[rule_id]
+
+            # 规则没有变化，跳过
+            old_hashes = {snap.rule_snap["hash"] for snap in old_snaps}
+            if duty_rule["hash"] in old_hashes:
+                continue
+
+            # 规则被修改，创建新快照，处理旧快照，更新旧计划
+            new_snap_start_time = max(duty_rule["effective_time"], task_time)
+            self.update_outdated_plans_by_rule(rule_id, new_snap_start_time)
+            rules_for_snap_creation.append(duty_rule)
+
+            for old_snap in old_snaps:
+                if old_snap.end_time and old_snap.end_time <= new_snap_start_time:
+                    # 如果新快照在旧快照结束后生效，啥也不做
+                    pass
+                elif old_snap.next_plan_time >= new_snap_start_time:
+                    # 否则，如果已排完班，直接删除
+                    expired_snaps.append(old_snap.id)
+                else:
+                    # 否则，修改旧快照的 end_time，让它们负责的时间段不重叠
+                    old_snap.end_time = new_snap_start_time
+                    updated_rule_snaps.append(old_snap)
+
+        # 禁用规则管理：删除快照、禁用计划
+        self.manage_disabled_rules()
 
         # step1 先创建一波新的snap
+        new_group_rule_snaps = []
+        for duty_rule in rules_for_snap_creation:
+            first_effective_time = max(duty_rule["effective_time"], task_time)
+            new_group_rule_snaps.append(
+                DutyRuleSnap(
+                    enabled=duty_rule["enabled"],
+                    next_plan_time=first_effective_time,
+                    next_user_index=0,
+                    end_time=duty_rule["end_time"],
+                    user_group_id=self.user_group.id,
+                    first_effective_time=first_effective_time,
+                    duty_rule_id=duty_rule["id"],
+                    rule_snap=duty_rule,
+                )
+            )
         if new_group_rule_snaps:
             # Q：为什么不在上方 DutyRuleSnap 初始化时就执行 effective_time ~ task_time 的刷新？
             # A：只有「新建 / 快照变更」场景需要根据 effective_time 刷对顺序，如果 DutyRuleSnap 已存在，排班顺序是有保障的
@@ -644,7 +642,7 @@ class GroupDutyRuleManager:
 
         # step2 然后再来一波更新
         if updated_rule_snaps:
-            DutyRuleSnap.objects.bulk_update(updated_rule_snaps, fields=['next_plan_time'])
+            DutyRuleSnap.objects.bulk_update(updated_rule_snaps, fields=["end_time"])
 
         # step 3 删除掉过期的
         if expired_snaps:
@@ -657,21 +655,35 @@ class GroupDutyRuleManager:
         ):
             self.manage_duty_plan(rule_snap=rule_snap)
 
-    def update_duty_plan(self, disabled_duty_rules, user_group_id):
-        """
-        分批更新失效的排班计划
-        """
-        with transaction.atomic():
-            # 使用 select_for_update() 锁定相关记录
-            duty_plans = DutyPlan.objects.select_for_update().filter(
-                duty_rule_id__in=disabled_duty_rules, user_group_id=user_group_id, is_effective=1
-            )
+    def update_outdated_plans_by_rule(self, rule_id: int, new_start_time: str) -> None:
+        """规则修改后，更新旧计划。"""
+        duty_plan_queryset = DutyPlan.objects.filter(
+            duty_rule_id=rule_id, user_group_id=self.user_group.id, is_effective=1
+        )
+        # 在指定日期之前生效的需要取消
+        duty_plan_queryset.filter(Q(start_time__gte=new_start_time)).update(is_effective=0)
+        # 在开始时间之后还生效的部分，设置结束时间为开始时间
+        duty_plan_queryset.filter(
+            Q(finished_time__gt=new_start_time) | Q(finished_time=None) | Q(finished_time="")
+        ).update(finished_time=new_start_time)
 
-            # 分批更新记录
-            for i in range(0, len(duty_plans), BATCH_SIZE):
-                duty_plan_batch = duty_plans[i : i + BATCH_SIZE]
-                duty_plan_ids = [duty_plan.id for duty_plan in duty_plan_batch]
-                DutyPlan.objects.filter(id__in=duty_plan_ids).update(is_effective=0)
+    def manage_disabled_rules(self) -> None:
+        """被禁用规则处理。
+
+        只关注当前用户组关联的，解除关联的已在用户组保存接口处理（直接删除快照和计划）
+        增：如果规则在关联前已经是禁用状态，则快照和计划都不会创建（下面是空处理）
+        改：如果规则在关联后变为禁用状态，规则保存接口已经部分处理（禁用快照和计划）"""
+
+        rule_ids = self.user_group.duty_rules
+        disabled_duty_rules = DutyRule.objects.filter(id__in=rule_ids, enabled=False).values_list("id", flat=True)
+        if disabled_duty_rules:
+            # 如果有有禁用的，需要删除掉
+            DutyRuleSnap.objects.filter(duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id).delete()
+
+            # 已经设置的好的排班计划，也需要设置为不生效
+            DutyPlan.objects.filter(
+                duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id, is_effective=1
+            ).update(is_effective=0)
 
     def manage_duty_plan(self, rule_snap: DutyRuleSnap):
         """
@@ -692,26 +704,18 @@ class GroupDutyRuleManager:
         # step 2 根据当前的轮值模式生成新的计划
         begin_time = rule_snap.next_plan_time
 
-        duty_manager = DutyRuleManager(rule_snap.rule_snap, begin_time=begin_time)
-        duty_plan_queryset = DutyPlan.objects.filter(
-            duty_rule_id=rule_snap.duty_rule_id, user_group_id=self.user_group.id, is_effective=1
-        )
-        # 在指定日期之前生效的需要取消
-        duty_plan_queryset.filter(Q(start_time__gte=begin_time)).update(is_effective=0)
-
-        # 在开始时间之后还生效的部分，设置结束时间为开始时间
-        duty_plan_queryset.filter(Q(finished_time__gt=begin_time) | Q(finished_time=None) | Q(finished_time="")).update(
-            finished_time=begin_time
-        )
+        duty_manager = DutyRuleManager(rule_snap.rule_snap, begin_time=begin_time, snap_end_time=rule_snap.end_time)
 
         duty_plans = []
         for duty_plan in duty_manager.get_duty_plan():
             duty_end_times = [f'{work_time["end_time"]}:59' for work_time in duty_plan["work_times"]]
             duty_start_times = [f'{work_time["start_time"]}:00' for work_time in duty_plan["work_times"]]
-            # 结束时间获取当前有效的排班时间最后一天即可
-            finished_time = max(duty_end_times)
-            # 开始时间取当前时间取当前排班内容里的最小一位
-            start_time = min(duty_start_times)
+            # 结束时间获取当前有效的排班时间最后一天即可，不能大于结束时间
+            rule_end_time = rule_snap.rule_snap.get("end_time") or time_tools.MAX_DATETIME_STR
+            snap_end_time = rule_snap.end_time or time_tools.MAX_DATETIME_STR
+            finished_time = min(max(duty_end_times), rule_end_time, snap_end_time)
+            # 开始时间取当前时间取当前排班内容里的最小一位，不能小于生效时间
+            start_time = max(min(duty_start_times), rule_snap.rule_snap["effective_time"])
             duty_plans.append(
                 DutyPlan(
                     start_time=start_time,
@@ -729,10 +733,15 @@ class GroupDutyRuleManager:
         # 创建排班计划
         DutyPlan.objects.bulk_create(duty_plans)
 
-        # 更新对应的rule_snap的下一次管理计划任务时间
-        rule_snap.next_plan_time = duty_manager.end_time
-        rule_snap.next_user_index = duty_manager.last_user_index
-        rule_snap.save(update_fields=["next_plan_time", "next_user_index", "rule_snap"])
+        next_plan_time = time_tools.datetime2str(duty_manager.end_time)
+        if rule_snap.end_time and next_plan_time >= rule_snap.end_time:
+            # 如果已生成负责的所有计划，则删除快照
+            rule_snap.delete()
+        else:
+            # 否则保存下次排班的上下文信息
+            rule_snap.next_plan_time = next_plan_time
+            rule_snap.next_user_index = duty_manager.last_user_index
+            rule_snap.save(update_fields=["next_plan_time", "next_user_index", "rule_snap"])
 
         logger.info("[manage_duty_plan] finished for user group(%s) snap(%s)", self.user_group.id, snap_id)
 
@@ -990,3 +999,10 @@ class GroupDutyRuleManager:
             succeed_list,
             failed_list,
         )
+
+
+def end_time_to_datetime(end_time: typing.Optional[str]) -> datetime:
+    """返回 datetime 类型的结束时间。"""
+    if not end_time:
+        return datetime.max
+    return time_tools.str2datetime(end_time)

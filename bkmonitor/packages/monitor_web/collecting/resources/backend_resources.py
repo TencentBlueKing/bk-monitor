@@ -313,7 +313,7 @@ class CollectConfigListResource(Resource):
                 filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
             else:
                 plugin_ids = []
-                user_biz_ids = [biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
+                user_biz_ids = resource.space.get_bk_biz_ids_by_user(get_request().user)
                 space_uid_set = set()
                 for biz_id in user_biz_ids:
                     space = bk_biz_id_space_dict.get(biz_id)
@@ -890,7 +890,7 @@ class SaveCollectConfigResource(Resource):
             {% if metric_relabel_configs %}
                 metric_relabel_configs:
             {% for config in metric_relabel_configs %}
-                  - source_labels: [{{ config.source_labels | join: "', '" }}]
+                 - source_labels: [{{ config.source_labels | join("', '") }}]
                     {% if config.regex %}regex: '{{ config.regex }}'{% endif %}
                     action: {{ config.action }}
                     {% if config.target_label %}target_label: '{{ config.target_label }}'{% endif %}
@@ -1206,15 +1206,15 @@ class UpgradeCollectPluginResource(Resource):
         return collect_config.switch_config_version(deployment_config)
 
     def perform_request(self, data):
-        try:
-            collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(pk=data["id"])
-        except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": data["id"]})
-
         # 判断是否需要实时刷新缓存
         if data["realtime"]:
             # 调用 collect_config_list 接口刷新采集配置的缓存，避免外部调接口可能会无法更新插件
             resource.collecting.collect_config_list(page=-1, refresh_status=True, search={"id": data["id"]})
+
+        try:
+            collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(pk=data["id"])
+        except CollectConfigMeta.DoesNotExist:
+            raise CollectConfigNotExist({"msg": data["id"]})
 
         # 判断采集配置是否需要升级
         if not collect_config.need_upgrade:
@@ -1858,7 +1858,7 @@ class CollectTargetStatusResource(BaseCollectTargetStatusResource):
             contained_modules = topo_tree_tools.get_module_by_node(inst)
 
             instance_category = defaultdict(list)
-            if target_object_type == "host":
+            if target_object_type == TargetObjectType.HOST:
                 # 遍历全业务下的主机，先找到归属该节点下的主机，然后若节点管理下有该主机的运行数据，根据主机的action进行分类
                 for host in extra_info["host_list"]:
                     if not set(host.bk_module_ids) & contained_modules:

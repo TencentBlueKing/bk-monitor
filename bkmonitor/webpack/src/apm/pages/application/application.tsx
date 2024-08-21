@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
@@ -31,14 +30,13 @@ import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonAlert from 'monitor-pc/pages/monitor-k8s/components/common-alert';
-import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
 
 import ApmCommonNavBar, {
   type INavItem,
   type ISelectItem,
 } from '../../components/apm-common-nav-bar/apm-common-nav-bar';
-import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
+import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import applicationStore from '../../store/modules/application';
 import AppAddForm from '../home/app-add-form';
@@ -46,6 +44,8 @@ import * as authorityMap from './../home/authority-map';
 import NoDataGuide from './app-add/no-data-guide';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './application.scss';
 
@@ -346,13 +346,14 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
                       size='mini'
                       theme='warning'
                     />
-                    {this.$t('当前数据还未加载完成，如数据长时间未加载出来可')}
-                    <span
-                      class='link'
-                      onClick={() => (this.showGuideDialog = true)}
-                    >
-                      {this.$t('查看操作指引')}
-                    </span>
+                    <i18n path='当前数据还未加载完成，如数据长时间未加载出来可{0}'>
+                      <span
+                        class='link'
+                        onClick={() => (this.showGuideDialog = true)}
+                      >
+                        {this.$t('查看操作指引')}
+                      </span>
+                    </i18n>
                   </div>
                 </CommonAlert>
               </div>
@@ -368,7 +369,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
                   onClick={this.handleAddService}
                 >
                   <span class='add-service-btn'>
-                    <i class='icon-monitor icon-mc-add add-service-icon'></i>
+                    <i class='icon-monitor icon-mc-add add-service-icon' />
                     <span>{this.$t('接入服务')}</span>
                   </span>
                 </bk-button>
@@ -385,7 +386,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
         <AppAddForm
           v-model={this.showAddDialog}
           pluginId={this.pluginId}
-        ></AppAddForm>
+        />
         <bk-dialog
           width={1280}
           ext-cls='no-data-guide-dialog'

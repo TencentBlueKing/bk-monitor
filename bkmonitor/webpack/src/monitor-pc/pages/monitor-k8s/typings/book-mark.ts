@@ -27,15 +27,14 @@
 
 import { random } from 'monitor-common/utils/utils';
 import {
-  IPanelModel,
-  IVariableModel,
+  type IPanelModel,
+  type IVariableModel,
   PanelModel,
   VariableModel,
 } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
-import { IMenuItem } from '.';
-import { type SceneType } from '../components/common-page-new';
-
+import type { IMenuItem } from '.';
+import type { SceneType } from '../components/common-page-new';
 import type { TranslateResult } from 'vue-i18n';
 
 // 视图模式 auto：平铺模式 custom：自定义模式
@@ -185,9 +184,9 @@ export class BookMarkModel implements IBookMark {
     if (this.options?.detail_panel) {
       this.detailPanel = new PanelModel(this.options.detail_panel);
     }
-    if (this.options?.ai_panel) {
-      this.aiPanel = new PanelModel(this.options.ai_panel);
-    }
+    // if (this.options?.ai_panel) {
+    //   this.aiPanel = new PanelModel(this.options.ai_panel);
+    // }
     if (this.options?.overview_detail_panel) {
       this.overviewDetailPanel = new PanelModel(this.options.overview_detail_panel);
     }
@@ -208,24 +207,24 @@ export class BookMarkModel implements IBookMark {
     if (this.overview_panels?.length) {
       this.updatePanels('overview');
     }
-    if (!!bookmark.variables?.length) {
+    if (bookmark.variables?.length) {
       this.variables = bookmark.variables.map(item => new VariableModel(item));
     }
   }
   // 所有视图ID
-  get allPanelId() {
-    const tempSet = new Set();
-    this.panels.forEach(panel => {
-      if (panel.type === 'row') {
-        panel?.panels?.forEach(p => {
-          tempSet.add(p.id);
-        });
-      } else {
-        tempSet.add(panel.id);
-      }
-    });
-    return Array.from(tempSet) as string[];
-  }
+  // get allPanelId() {
+  //   const tempSet = new Set();
+  //   this.panels.forEach(panel => {
+  //     if (panel.type === 'row') {
+  //       panel?.panels?.forEach(p => {
+  //         tempSet.add(p.id);
+  //       });
+  //     } else {
+  //       tempSet.add(panel.id);
+  //     }
+  //   });
+  //   return Array.from(tempSet) as string[];
+  // }
   // dashbord tool menu list
   get dasbordToolMenuList(): IMenuItem[] {
     return [
@@ -444,6 +443,8 @@ export interface IViewOptions {
   bk_target_ip?: string;
   // 用于动态判断panel是否显示
   matchFields?: Record<string, any>;
+  // 策略id 用于hostIntelligenAnomalyRange接口
+  strategy_id?: number | string;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式

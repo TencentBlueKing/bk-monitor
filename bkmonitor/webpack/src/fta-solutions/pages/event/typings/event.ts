@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 
 export interface ICommonTreeItem {
   id: SearchType | string;
@@ -50,6 +50,7 @@ export interface IEventItem {
   begin_time: number;
   bk_biz_id: number;
   bizName: string;
+  bk_biz_name: string;
   bk_cloud_id: number;
   bk_service_instance_id: string;
   category: string;
@@ -112,7 +113,7 @@ export interface IChatGroupDialogOptions {
   alertIds?: string[];
 }
 
-export type SearchType = 'action' | 'alert' | 'event';
+export type SearchType = 'action' | 'alert' | 'event' | 'incident';
 export type FilterInputStatus = 'error' | 'success';
 export type anlyzeChartType = 'pie' | 'process';
 export type eventPanelType = 'analyze' | 'list';

@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
 import { useDocumentLink } from '../../../hooks';
-import { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
+
+import type { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
 
 import './application-cascade.scss';
 
@@ -117,6 +118,10 @@ export default defineComponent({
 
     const showPopover = ref(false);
     function handlePopoverShowChange({ isShow }) {
+      if (isShow) {
+        selectValue.appName = props.value[0] || '';
+        selectValue.serviceName = props.value[1] || '';
+      }
       showPopover.value = isShow;
     }
 
@@ -127,7 +132,11 @@ export default defineComponent({
     function handleAppClick(val: ApplicationItem) {
       if (val.app_name === selectValue.appName) return;
       selectValue.appName = val.app_name;
-      selectValue.serviceName = null;
+      if (selectValue.appName === (props.value[0] || '')) {
+        selectValue.serviceName = props.value[1] || '';
+      } else {
+        selectValue.serviceName = null;
+      }
       token.value = '';
     }
     /**
@@ -158,7 +167,7 @@ export default defineComponent({
 
     /** 新增接入 */
     function jumpToApp() {
-      const hash = `#/apm/home?is_enabled_profiling=false`;
+      const hash = '#/apm/home?is_enabled_profiling=false';
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_self');
     }
@@ -204,7 +213,7 @@ export default defineComponent({
                   placeholder={this.t('选择应用/服务')}
                   readonly
                 >
-                  {{ suffix: () => <span class='icon-monitor icon-arrow-down'></span> }}
+                  {{ suffix: () => <span class='icon-monitor icon-arrow-down' /> }}
                 </Input>
               </div>
             ),
@@ -213,12 +222,12 @@ export default defineComponent({
                 {!this.loading ? (
                   <>
                     <div class='search-wrap'>
-                      <i class='icon-monitor icon-mc-search search-icon'></i>
+                      <i class='icon-monitor icon-mc-search search-icon' />
                       <Input
                         class='search-input'
                         v-model={this.searchKey}
                         placeholder={this.t('输入关键字')}
-                      ></Input>
+                      />
                     </div>
                     <div class='select-wrap'>
                       <div class='first panel'>
@@ -230,7 +239,7 @@ export default defineComponent({
                               class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                               onClick={() => this.handleAppClick(item)}
                             >
-                              <i class='icon-monitor icon-mc-menu-apm'></i>
+                              <i class='icon-monitor icon-mc-menu-apm' />
                               <span
                                 class='name'
                                 v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
@@ -239,7 +248,7 @@ export default defineComponent({
                                 <span class='desc'>({item.app_alias})</span>
                               </span>
 
-                              <i class='icon-monitor icon-arrow-right'></i>
+                              <i class='icon-monitor icon-arrow-right' />
                             </div>
                           ))}
                         </div>
@@ -250,7 +259,7 @@ export default defineComponent({
                             class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                             onClick={() => this.handleAppClick(item)}
                           >
-                            <i class='icon-monitor icon-mc-menu-apm'></i>
+                            <i class='icon-monitor icon-mc-menu-apm' />
                             <span
                               class='name'
                               v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
@@ -265,12 +274,13 @@ export default defineComponent({
                         <div class='second panel'>
                           {this.hasData ? (
                             <div class='has-data-wrap'>
-                              {this.serviceList.map(item => (
+                              {this.serviceList.map((item, index) => (
                                 <div
+                                  key={index}
                                   class={{ 'group-item': true, active: item.name === this.selectValue.serviceName }}
                                   onClick={() => this.handleServiceClick(item)}
                                 >
-                                  <i class='icon-monitor icon-mc-grafana-home'></i>
+                                  <i class='icon-monitor icon-mc-grafana-home' />
                                   <span class='name'>{item.name}</span>
                                 </div>
                               ))}
@@ -299,22 +309,19 @@ export default defineComponent({
                                     )}
                                   </Form.FormItem>
                                 </Form>
-                                <div class='btn'>
-                                  <a
-                                    class='link'
-                                    target='_blank'
-                                    onClick={() => this.handleGotoLink('profiling_docs')}
-                                  >
-                                    {this.t('Profile 接入指引')}
-                                  </a>
-                                  <i class='icon-monitor icon-fenxiang'></i>
+                                <div
+                                  class='btn'
+                                  onClick={() => this.handleGotoLink('profiling_docs')}
+                                >
+                                  <span class='link'>{this.t('Profile 接入指引')}</span>
+                                  <i class='icon-monitor icon-fenxiang' />
                                 </div>
                                 <div
                                   class='btn'
                                   onClick={this.handleViewApp}
                                 >
                                   <span>{this.t('查看应用')}</span>
-                                  <i class='icon-monitor icon-fenxiang'></i>
+                                  <i class='icon-monitor icon-fenxiang' />
                                 </div>
                               </Loading>
                             </div>
@@ -335,7 +342,7 @@ export default defineComponent({
                       size='small'
                       theme='primary'
                     >
-                      <div class='loading-spin'></div>
+                      <div class='loading-spin' />
                     </Loading>
                     <div class='loading-text'>{this.$t('应用加载中，请耐心等候…')}</div>
                   </div>
@@ -345,7 +352,7 @@ export default defineComponent({
                     class='jump-btn'
                     onClick={this.jumpToApp}
                   >
-                    <i class='icon-monitor icon-jia'></i>
+                    <i class='icon-monitor icon-jia' />
                     <span>{this.t('新增接入')}</span>
                   </div>
                 </div>

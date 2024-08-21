@@ -32,7 +32,7 @@ import {
   searchHostInfo,
   searchHostMetric,
 } from 'monitor-api/modules/performance';
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
 
 // import { savePanelOrder, deletePanelOrder } from 'monitor-api/modules/data_explorer';
 import store from '../store';

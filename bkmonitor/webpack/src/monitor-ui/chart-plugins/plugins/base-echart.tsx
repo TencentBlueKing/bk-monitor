@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { echarts, MonitorEchartOptions } from '../typings/index';
+import { type MonitorEchartOptions, echarts } from '../typings/index';
 import { getTimeSeriesXInterval } from '../utils/axis';
 
 import './base-echart.scss';
@@ -38,6 +38,8 @@ export interface IChartProps {
   width?: number;
   // echart 配置
   options: MonitorEchartOptions;
+  // hover是显示所有图标tooltips
+  hoverAllTooltips?: boolean;
 }
 export interface IChartEvent {
   // mouseover 事件
@@ -94,8 +96,8 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     const instance = (this as any).instance;
     const width = instance?.getWidth() || 0;
     if (!width || Math.abs(width - v) < 1) return;
-    const maxXInterval = instance.getOption().customData?.maxXInterval;
-    const xInterval = getTimeSeriesXInterval(maxXInterval, v);
+    const { maxXInterval, maxSeriesCount } = instance.getOption().customData || {};
+    const xInterval = getTimeSeriesXInterval(maxXInterval, v, maxSeriesCount);
     instance?.setOption({
       xAxis: {
         ...xInterval,

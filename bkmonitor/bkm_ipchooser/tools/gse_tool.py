@@ -1,95 +1,40 @@
 import logging
 from typing import Dict, List
 
-from django.conf import settings
-
-from bkm_ipchooser.api import BkApi
-from bkm_ipchooser.constants import AgentStatusType, GSEV2AgentStatusType
+from bkm_ipchooser.constants import ScopeType
+from core.drf_resource import api
 
 logger = logging.getLogger("bkm_ipchooser")
 
 
-class GseAdapter:
-    """GSE适配器"""
-
-    @classmethod
-    def fill_agent_status(cls, cc_hosts: List[Dict]) -> List[Dict]:
-        """
-        填充主机agent状态
-        params:
-            cc_hosts: CC list_biz_hosts接口获取到的主机列表
-        """
-        raise NotImplementedError
-
-
-class GseAdapterV1(GseAdapter):
-    """GSE适配器V1, bk_cloud_id:ip为唯一标识版本"""
-
-    @classmethod
-    def fill_agent_status(cls, cc_hosts: List[Dict]) -> List[Dict]:
-        """填充主机agent状态"""
-        if not cc_hosts:
-            return cc_hosts
-
-        index = 0
-        hosts, host_map = [], {}
-        for cc_host in cc_hosts:
-            ip, bk_cloud_id = cc_host["bk_host_innerip"], cc_host["bk_cloud_id"]
-            hosts.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
-
-            host_map[f"{bk_cloud_id}:{ip}"] = index
-            index += 1
-
-        try:
-            # 添加no_request参数, 多线程调用时，保证用户信息不漏传
-            status_map = BkApi.get_agent_status({"hosts": hosts, "no_request": True})
-
-            for ip_cloud, detail in status_map.items():
-                cc_hosts[host_map[ip_cloud]]["status"] = detail["bk_agent_alive"]
-        except KeyError as e:
-            logger.exception("fill_agent_status exception: %s", e)
-
+def fill_agent_status(cc_hosts: List[Dict], bk_biz_id: int) -> List[Dict]:
+    """填充主机agent状态"""
+    if not cc_hosts:
         return cc_hosts
 
+    host_map = {}
+    for index, cc_host in enumerate(cc_hosts):
+        host_map[cc_host["bk_host_id"]] = index
 
-class GseAdapterV2(GseAdapter):
-    """GSE适配器V2, bk_agent_id为唯一标识版本"""
-
-    @classmethod
-    def fill_agent_status(cls, cc_hosts: List[Dict]) -> List[Dict]:
-        """填充主机agent状态"""
-        if not cc_hosts:
-            return cc_hosts
-
-        agent_id_list, host_map = [], {}
-        for index, cc_host in enumerate(cc_hosts):
-            bk_agent_id = cc_host.get("bk_agent_id", "")
-            cc_host["status"] = AgentStatusType.NO_ALIVE.value
-            if not bk_agent_id:
-                continue
-            agent_id_list.append(bk_agent_id)
-            host_map[bk_agent_id] = index
-
-        try:
-            # 添加no_request参数, 多线程调用时，保证用户信息不漏传
-            agents = BkApi.get_agent_status_v2({"agent_id_list": agent_id_list, "no_request": True})
-            for agent in agents:
-                bk_agent_id = agent["bk_agent_id"]
-                if agent["status_code"] == GSEV2AgentStatusType.RUNNING.value:
-                    cc_hosts[host_map[bk_agent_id]]["status"] = AgentStatusType.ALIVE.value
-
-        except KeyError as e:
-            logger.exception("fill_agent_status exception: %s", e)
-
+    meta = {"scope_type": ScopeType.BIZ.value, "scope_id": str(bk_biz_id), "bk_biz_id": bk_biz_id}
+    host_list = [{"host_id": host["bk_host_id"], "meta": meta} for host in cc_hosts]
+    scope_list = [{"scope_type": ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
+    # 添加no_request参数, 多线程调用时，保证用户信息不漏传
+    request_params = {
+        "no_request": True,
+        "host_list": host_list,
+        "scope_list": scope_list,
+        "agent_realtime_state": True,
+    }
+    try:
+        host_info = api.node_man.ipchooser_host_detail(request_params)
+    except Exception as e:
+        logger.error("获取主机agent状态失败: %s", e)
         return cc_hosts
 
-
-class GseTool:
-    """GSE Tool"""
-
-    @classmethod
-    def get_adapter(cls) -> GseAdapter:
-        """获取GSE适配器"""
-        if getattr(settings, "USE_GSE_AGENT_STATUS_NEW_API", False):
-            return GseAdapterV2()
-        return GseAdapterV1()
+    for status in host_info:
+        host_id = status.get("host_id")
+        if host_id in host_map and "alive" in status:
+            # status["alive"]为 1 时表示 ALIVE，为 0 时表示 NO_ALIVE
+            cc_hosts[host_map[host_id]]["status"] = status["alive"]
+    return cc_hosts

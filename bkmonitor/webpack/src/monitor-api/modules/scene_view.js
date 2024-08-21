@@ -145,5 +145,5 @@ export default {
   getKubernetesNodeDiskSpaceUsage,
   getKubernetesNodeDiskIoUsage,
   getIndexSetLogSeries,
-  listIndexSetLog
+  listIndexSetLog,
 };

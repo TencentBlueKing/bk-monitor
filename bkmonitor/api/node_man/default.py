@@ -665,3 +665,53 @@ class BatchTaskResultResource(Resource):
         for instance in response_data:
             adapter_nodeman_bk_cloud_id(instance)
         return response_data
+
+
+class IpchooserHostDetailResource(NodeManAPIGWResource):
+    action = "core/api/ipchooser_host/details/"
+    method = "POST"
+
+    @property
+    def bk_username(self):
+        return settings.COMMON_USERNAME
+
+    class RequestSerializer(serializers.Serializer):
+        class HostSerializer(serializers.Serializer):
+            class MetaSerializer(serializers.Serializer):
+                scope_type = serializers.CharField(label="资源范围类型")
+                scope_id = serializers.CharField(label="资源范围ID")
+                bk_biz_id = serializers.IntegerField(label="业务ID")
+
+                def validate(self, attrs):
+                    bk_biz_id = attrs["bk_biz_id"]
+                    if bk_biz_id < 0:
+                        attrs["bk_biz_id"] = validate_bk_biz_id(bk_biz_id)
+                    if attrs["scope_type"] == "biz":
+                        attrs["scope_id"] = str(attrs["bk_biz_id"])
+                    return attrs
+
+            host_id = serializers.IntegerField(label="主机ID")
+            meta = MetaSerializer()
+
+        class ScopeListSerializer(serializers.Serializer):
+            scope_type = serializers.CharField(label="资源范围类型")
+            scope_id = serializers.CharField(label="资源范围ID")
+
+            def validate(self, attrs):
+                bk_biz_id = attrs["scope_id"]
+                if attrs["scope_type"] == "biz":
+                    if int(bk_biz_id) < 0:
+                        attrs["scope_id"] = str(validate_bk_biz_id(bk_biz_id))
+                return attrs
+
+        host_list = serializers.ListField(child=HostSerializer(), required=True, label="主机列表")
+        all_scope = serializers.BooleanField(required=False, label="是否获取所有资源范围的拓扑结构", default=False)
+        scope_list = serializers.ListField(child=ScopeListSerializer(), required=False, label="资源范围列表")
+        agent_realtime_state = serializers.BooleanField(label="是否查询Agent实时状态", default=True)
+
+        def validate(self, attrs):
+            all_scope = attrs.get('all_scope', None)
+            scope_list = attrs.get('scope_list', None)
+            if all_scope is None and scope_list is None:
+                raise serializers.ValidationError("all_scope 和 scope_list 至少存在一个")
+            return super().validate(attrs)

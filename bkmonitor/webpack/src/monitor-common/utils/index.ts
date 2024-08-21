@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { ISpaceItem } from '../typings';
-import { LOCAL_BIZ_STORE_KEY } from './constant';
+import { type ISpaceItem } from '../typings';
+import { LOCAL_BIZ_STORE_KEY, COMMON_PAGE_SIZE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
 // merge space list width biz list
@@ -58,6 +58,9 @@ export const setGlobalBizId = () => {
   const isDemo = id => bizList.some(item => +item.bk_biz_id === +id && item.is_demo);
   const spaceUid = getUrlParam('space_uid');
   const spaceItem = spaceUid ? bizList.find(item => item.space_uid === spaceUid) : undefined;
+  if (spaceItem?.bk_biz_id) {
+    bizId = spaceItem.bk_biz_id;
+  }
   const isCanAllIn =
     ['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
     /^#\/(event-center\/detail|share)\//.test(location.hash) ||
@@ -188,6 +191,28 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
   // 返回修改后的颜色，格式与输入颜色相同（"#" 开头或不带 "#"）
   return (color.startsWith('#') ? '#' : '') + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 };
+
+/**
+ * @description 设置通用分页大小
+ * @param size
+ */
+export const commonPageSizeSet = (size: number) => {
+  localStorage.setItem(COMMON_PAGE_SIZE_KEY, `${size || 10}`);
+};
+
+/**
+ * @description 获取通用分页大小
+ */
+export const commonPageSizeGet = () => {
+  const size = localStorage.getItem(COMMON_PAGE_SIZE_KEY);
+  const sizeNum = Number(size);
+  if (size && !isNaN(sizeNum)) {
+    return sizeNum;
+  }
+  commonPageSizeSet(10);
+  return 10;
+};
+
 export * from './constant';
 export * from './docs-link';
 export * from './utils';

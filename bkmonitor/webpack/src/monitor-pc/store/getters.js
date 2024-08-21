@@ -60,6 +60,7 @@ const getters = {
   bizBgColor: state => state.app.bizBgColor,
   lang: state => state.app.lang,
   bizIdChangePedding: state => state.app.bizIdChangePedding,
+  spaceUidMap: state => state.app.spaceUidMap,
 };
 
 export default getters;

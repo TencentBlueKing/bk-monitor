@@ -16,6 +16,7 @@ import kafka
 from kafka.admin import KafkaAdminClient, NewPartitions
 
 from metadata import config, models
+from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
@@ -142,3 +143,24 @@ def query_biz_plugin_data_id_list(biz_id_list: List) -> Dict:
         biz_data_ids.setdefault(biz_id, []).append(data_id)
 
     return biz_data_ids
+
+
+def modify_data_id_source(data_id_list: List[int], source_type: str) -> bool:
+    """更新数据源的来源平台"""
+    datasources = models.DataSource.objects.filter(bk_data_id__in=data_id_list)
+    exist_data_ids = set(datasources.values_list("bk_data_id", flat=True))
+    diff_data_ids = set(data_id_list) - exist_data_ids
+    # 如果存在不匹配的数据源，则需要返回
+    if diff_data_ids:
+        raise ValueError(f"data_ids: {json.dumps(diff_data_ids)} not found")
+    # 如果source_type为bkdata，则表示链路迁移，需要删除 consul 中配置
+    if source_type == DataIdCreatedFromSystem.BKDATA.value:
+        datasources.update(created_from=source_type)
+        for datasource in datasources:
+            datasource.delete_consul_config()
+            logger.info("delete data_id: %s consul config", datasource.bk_data_id)
+    elif source_type == DataIdCreatedFromSystem.BKGSE.value:
+        datasources.update(created_from=source_type)
+        for datasource in datasources:
+            datasource.refresh_outer_config()
+    return True

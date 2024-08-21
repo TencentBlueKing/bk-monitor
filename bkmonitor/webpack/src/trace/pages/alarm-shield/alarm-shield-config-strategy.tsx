@@ -27,16 +27,25 @@ import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Checkbox, Loading, Select, Table } from 'bkui-vue';
-import { getMetricListV2, getStrategyListV2, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
+import {
+  getMetricListV2,
+  getStrategyListV2,
+  getStrategyV2,
+  plainStrategyList,
+  promqlToQueryConfig,
+} from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
 
 import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
-import DimensionConditionInput from './components/dimension-input';
+import DimensionConditionInput from './components/dimension-input/dimension-input';
 import FormItem from './components/form-item';
 import StrategyDetail from './components/strategy-detail';
 import WhereDisplay from './components/where-display';
 
 import './alarm-shield-config-strategy.scss';
+
+/* data_source_label 为 prometheus 监控数据模式显示为source模式 */
+const PROMETHEUS = 'prometheus';
 
 export const strategyDataProp = () => ({
   key: random(8),
@@ -169,8 +178,11 @@ export default defineComponent({
      * @description 策略选择
      * @returns
      */
-    function handleStrategyChange(isInit = false) {
+    function handleStrategyChange(isInit = false, isToggle = false) {
       clearErrMsg();
+      if (isToggle) {
+        return;
+      }
       if (JSON.stringify(localValue.value.id) !== JSON.stringify(strategyId.value) && !isInit) {
         handleLevelChange([]);
       }
@@ -199,6 +211,7 @@ export default defineComponent({
         isShowDetail.value = true;
       }
     }
+
     function handleClear() {
       handleLevelChange([]);
     }
@@ -216,42 +229,79 @@ export default defineComponent({
      * @param strategys
      */
     async function setDimensionConditionParams(strategys: any[]) {
+      const promqlPromiseList = [];
+      const promqlDimensions = [];
       if (strategys.length) {
         const metricIds = [];
         strategys.forEach(item => {
           item.items?.[0].query_configs.forEach(queryConfig => {
-            if (!metricIds.includes(queryConfig.metric_id)) {
-              metricIds.push(queryConfig.metric_id);
+            const isPrometheus = queryConfig?.data_source_label === PROMETHEUS;
+            // promql数据需要通过接口转换为metric数据
+            if (isPrometheus) {
+              // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
+              const getPromqlData = new Promise(async (resolve, _reject) => {
+                const promqlData = await promqlToQueryConfig('', {
+                  promql: queryConfig.promql,
+                }).catch(() => null);
+                if (promqlData) {
+                  const metricItem = promqlData.query_configs?.[0];
+                  if (metricItem) {
+                    dimensionCondition.metricMeta = {
+                      dataSourceLabel: metricItem.data_source_label,
+                      dataTypeLabel: metricItem.data_type_label,
+                      metricField: metricItem.metric_field,
+                      resultTableId: metricItem.result_table_id,
+                      indexSetId: metricItem.index_set_id,
+                    };
+                    const dimension = metricItem?.agg_dimension || [];
+                    promqlDimensions.push(...dimension.map(d => ({ id: d, name: d })));
+                  } else {
+                    dimensionCondition.metricMeta = null;
+                  }
+                }
+                resolve(promqlData);
+              });
+              promqlPromiseList.push(getPromqlData);
+            } else {
+              if (!metricIds.includes(queryConfig.metric_id)) {
+                metricIds.push(queryConfig.metric_id);
+              }
             }
           });
         });
-        const { metric_list: metricList = [] } = await getMetricListV2({
-          page: 1,
-          page_size: metricIds.length,
-          conditions: [{ key: 'metric_id', value: metricIds }],
-        }).catch(() => ({}));
-        const [metricItem] = metricList;
-        if (metricItem) {
-          dimensionCondition.metricMeta = {
-            dataSourceLabel: metricItem.data_source_label,
-            dataTypeLabel: metricItem.data_type_label,
-            metricField: metricItem.metric_field,
-            resultTableId: metricItem.result_table_id,
-            indexSetId: metricItem.index_set_id,
-          };
-        } else {
-          dimensionCondition.metricMeta = null;
-        }
-        dimensionCondition.dimensionList = (
-          !!metricList.length
+        await Promise.all(promqlPromiseList);
+        let dimensionList = [];
+        if (metricIds.length) {
+          const { metric_list: metricList = [] } = await getMetricListV2({
+            page: 1,
+            page_size: metricIds.length,
+            conditions: [{ key: 'metric_id', value: metricIds }],
+          }).catch(() => ({}));
+          const [metricItem] = metricList;
+          if (metricItem) {
+            dimensionCondition.metricMeta = {
+              dataSourceLabel: metricItem.data_source_label,
+              dataTypeLabel: metricItem.data_type_label,
+              metricField: metricItem.metric_field,
+              resultTableId: metricItem.result_table_id,
+              indexSetId: metricItem.index_set_id,
+            };
+          } else {
+            dimensionCondition.metricMeta = null;
+          }
+          dimensionList = metricList.length
             ? metricList.reduce((pre, cur) => {
-                const dimensionList = pre
-                  .concat(cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension))
-                  .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
+                const dimensionList = pre.concat(
+                  cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
+                );
                 return dimensionList;
               }, [])
-            : []
-        ).filter(item => !['bk_target_ip', 'bk_target_cloud_id', 'bk_topo_node'].includes(item.id));
+            : [];
+        }
+        dimensionCondition.dimensionList = dimensionList
+          .concat(promqlDimensions)
+          .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index)
+          .filter(item => !['bk_target_ip', 'bk_target_cloud_id', 'bk_topo_node'].includes(item.id));
         dimensionCondition.conditionKey = random(8);
       }
     }
@@ -332,6 +382,11 @@ export default defineComponent({
       return Object.keys(errMsg).every(key => !errMsg[key]);
     }
 
+    // 自定义过滤函数
+    const customFilter = (input: string, option: { id: number; name: string }) => {
+      return option.name.toLowerCase().includes(input.toLowerCase()) || option.id.toString().includes(input);
+    };
+
     return {
       strategyList,
       dimensionCondition,
@@ -351,6 +406,7 @@ export default defineComponent({
       handleScopeChange,
       handleLevelChange,
       handleClear,
+      customFilter,
     };
   },
   render() {
@@ -366,12 +422,14 @@ export default defineComponent({
             <div>
               <Select
                 class='width-940'
+                disabled={this.isEdit}
+                filterOption={this.customFilter}
                 filterable={true}
                 modelValue={this.strategyId}
                 multiple={true}
                 selectedStyle={'checkbox'}
                 onClear={this.handleClear}
-                onToggle={() => this.handleStrategyChange()}
+                onToggle={v => this.handleStrategyChange(false, v)}
                 onUpdate:modelValue={v => (this.strategyId = v)}
               >
                 {this.strategyList.map(item => (
@@ -396,7 +454,7 @@ export default defineComponent({
               <StrategyDetail
                 class='mt10'
                 strategyData={this.strategyData}
-              ></StrategyDetail>
+              />
             )}
           </FormItem>
           {!!this.isShowDetail && (
@@ -420,7 +478,7 @@ export default defineComponent({
                                   allNames={this.dimensionCondition.allNames}
                                   readonly={true}
                                   value={this.dimensionCondition.conditionList}
-                                ></WhereDisplay>
+                                />
                               );
                             }
                             return '--';
@@ -430,7 +488,7 @@ export default defineComponent({
                     border={['outer']}
                     data={[{}]}
                     maxHeight={450}
-                  ></Table>
+                  />
                 </div>
               ) : (
                 <DimensionConditionInput
@@ -439,19 +497,19 @@ export default defineComponent({
                   dimensionsList={this.dimensionCondition.dimensionList}
                   metricMeta={this.dimensionCondition.metricMeta}
                   onChange={v => this.handleDimensionConditionChange(v)}
-                ></DimensionConditionInput>
+                />
               )}
             </FormItem>
           )}
           {!!this.isShowDetail && (
             <AlarmShieldConfigScope
-              filterTypes={['ip', 'node']}
+              filterTypes={['ip', 'node', 'dynamic_group']}
               isEdit={this.isEdit}
               require={false}
               show={true}
               value={this.localValue.scopeData}
               onChange={v => this.handleScopeChange(v)}
-            ></AlarmShieldConfigScope>
+            />
           )}
           <FormItem
             class='mt24'

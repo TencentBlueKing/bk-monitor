@@ -40,12 +40,12 @@ import { copyText } from 'monitor-common/utils/utils.js';
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
 import { transformJobUrl } from '../../../utils/index';
 import {
-  colorMap,
   EStatus,
   FILTER_TYPE_LIST,
-  IContentsItem,
-  labelMap,
+  type IContentsItem,
   STATUS_LIST,
+  colorMap,
+  labelMap,
   statusMap,
 } from '../collector-host-detail/utils';
 import AlertHistogram from './components/alert-histogram';
@@ -121,10 +121,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
 
   get haveDeploying() {
     const resArr = [];
-    this.contents.forEach(item => {
+    for (const item of this.contents) {
       const res = item.child.some(one => ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(one.status));
       resArr.push(res);
-    });
+    }
     return resArr.some(item => item);
   }
 
@@ -133,7 +133,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
    */
   @Watch('updateKey')
   handleUpdate() {
-    if (!!this.data) {
+    if (this.data) {
       const sumData = {
         pending: {},
         success: {},
@@ -141,7 +141,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       };
       this.config = this.data.config_info;
       this.targetNodeType = this.data.config_info?.target_node_type || '';
-      this.contents = this.data.contents.map(item => {
+      this.contents = this.data.contents.map((item, index) => {
         const table = [];
         const nums = {
           failedNum: 0,
@@ -149,7 +149,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           successNum: 0,
         };
         let showAlertHistogram = true;
-        item.child.forEach(set => {
+        for (const set of item.child) {
           // const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
           const alertHistogram = set?.alert_histogram || [];
           showAlertHistogram = !!set?.alert_histogram;
@@ -175,13 +175,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             nums.failedNum += 1;
             sumData.failed[set.instance_id] = set.instance_id;
           }
-        });
+        }
         return {
           ...item,
           ...nums,
           table,
           showAlertHistogram,
-          isExpan: true,
+          isExpand: index < 1,
         };
       });
       const headerData: any = {};
@@ -237,10 +237,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
    */
   handleFilterChange(id) {
     this.header.status = id;
-    this.contents.forEach(item => {
+    for (const item of this.contents) {
       const table = [];
       let showAlertHistogram = true;
-      item.child.forEach(set => {
+      for (const set of item.child) {
         if ((id === EStatus.RUNNING && STATUS_LIST.includes(set.status)) || set.status === id || id === EStatus.ALL) {
           // const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
           const alertHistogram = set?.alert_histogram || [];
@@ -250,10 +250,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             alertHistogram,
           });
         }
-      });
+      }
       item.showAlertHistogram = showAlertHistogram;
       item.table = table;
-    });
+    }
   }
 
   /**
@@ -266,7 +266,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     if (this.side.title === data.instance_name) {
       this.side.title = '';
     }
-    this.contents.forEach(content => {
+    for (const content of this.contents) {
       if (content.child?.length) {
         const setData = content.child.find(
           set => set.instance_id === data.instance_id && set.status === EStatus.FAILED
@@ -277,7 +277,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           content.failedNum -= 1;
         }
       }
-    });
+    }
     this.header.data.pendingNum += 1;
     this.header.data.failedNum -= 1;
     this.handleFilterChange(this.header.status);
@@ -333,6 +333,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     let timer = null;
     clearTimeout(timer);
 
+    // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
     return new Promise(async resolve => {
       const isShow = await isTaskReady({ collect_config_id: id }).catch(() => false);
       if (isShow) {
@@ -446,7 +447,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                 onClick={() => this.handleFilterChange(item.id)}
               >
                 {(() => {
-                  if (!!item.color) {
+                  if (item.color) {
                     return (
                       <span
                         style={{ background: item.color[0] }}
@@ -455,16 +456,16 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                         <span
                           style={{ background: item.color[1] }}
                           class='s-point'
-                        ></span>
+                        />
                       </span>
                     );
                   }
-                  if (item.id === EStatus.RUNNING) {
+                  if (item.id === EStatus.RUNNING && this.header.data.pendingNum > 0) {
                     return (
                       <bk-spin
                         class='mr-3'
                         size='mini'
-                      ></bk-spin>
+                      />
                     );
                   }
                   return undefined;
@@ -491,7 +492,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               hover-theme='primary'
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchRetry() : this.handleShowAuthorityDetail())}
             >
-              <span class='icon-monitor icon-zhongzhi1 mr-6'></span>
+              <span class='icon-monitor icon-zhongzhi1 mr-6' />
               <span>{this.$t('批量重试')}</span>
             </bk-button>
             <bk-button
@@ -513,12 +514,17 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   class='bk-dropdown-list'
                   slot='dropdown-content'
                 >
-                  <li>
-                    <a onClick={() => this.handleCopyTargets('ip')}>{this.$t('复制主机IP')}</a>
-                  </li>
-                  <li>
-                    <a onClick={() => this.handleCopyTargets('instance')}>{this.$t('复制服务实例')}</a>
-                  </li>
+                  {this.config?.target_object_type === 'HOST' ? (
+                    <li>
+                      {/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
+                      <a onClick={() => this.handleCopyTargets('ip')}>{this.$t('复制主机IP')}</a>
+                    </li>
+                  ) : (
+                    <li>
+                      {/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
+                      <a onClick={() => this.handleCopyTargets('instance')}>{this.$t('复制服务实例')}</a>
+                    </li>
+                  )}
                 </ul>
               </bk-dropdown-menu>
             ) : (
@@ -534,11 +540,12 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         <div class='table-content'>
           {this.contents
             .filter(content => !!content.table?.length)
-            .map(content => (
+            .map((content, index) => (
               <ExpandWrapper
+                key={index}
                 class='mt-20'
-                value={content.isExpan}
-                onChange={v => (content.isExpan = v)}
+                value={content.isExpand}
+                onChange={v => (content.isExpand = v)}
               >
                 {!!content.is_label && (
                   <span slot='pre-header'>
@@ -555,7 +562,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                         borderColor: labelMap[content.label_name].color,
                       }}
                       class='pre-panel-mark fix-same-code'
-                    ></span>
+                    />
                   </span>
                 )}
                 <span slot='header'>
@@ -624,124 +631,136 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                     );
                   })()}
                 </span>
-                <div
-                  class='table-content-wrap'
-                  slot='content'
-                >
-                  <bk-table
-                    {...{
-                      props: {
-                        data: content.table,
-                      },
-                    }}
+                {content.isExpand && (
+                  <div
+                    class='table-content-wrap'
+                    slot='content'
                   >
-                    {this.tableColumns
-                      .filter(column => (column.id === EColumn.alert ? !!content?.showAlertHistogram : true))
-                      .map(column => {
-                        const key = `column_${column.id}`;
-                        return (
-                          <bk-table-column
-                            key={key}
-                            width={column.width}
-                            formatter={(row: any) => {
-                              switch (column.id) {
-                                case EColumn.name: {
-                                  return <span>{row.instance_name}</span>;
-                                }
-                                case EColumn.alert: {
-                                  return <AlertHistogram value={row.alertHistogram}></AlertHistogram>;
-                                }
-                                case EColumn.status: {
-                                  return (
-                                    <span class='col-status'>
-                                      {[
-                                        this.isRunning && STATUS_LIST.includes(row.status) ? (
-                                          <bk-spin
-                                            class='mr-3'
-                                            size='mini'
-                                          ></bk-spin>
-                                        ) : undefined,
-                                        this.isRunning &&
-                                        [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
-                                          row.status
-                                        ) ? (
-                                          <span
-                                            style={{ background: colorMap[row.status][0] }}
-                                            class='point mr-3'
-                                          >
+                    <bk-table
+                      {...{
+                        props: {
+                          data: content.table,
+                        },
+                      }}
+                    >
+                      {this.tableColumns
+                        .filter(column => (column.id === EColumn.alert ? !!content?.showAlertHistogram : true))
+                        .map(column => {
+                          const key = `column_${column.id}`;
+                          return (
+                            <bk-table-column
+                              key={key}
+                              width={column.width}
+                              formatter={(row: any) => {
+                                switch (column.id) {
+                                  case EColumn.name: {
+                                    return <span>{row.instance_name}</span>;
+                                  }
+                                  case EColumn.alert: {
+                                    return <AlertHistogram value={row.alertHistogram} />;
+                                  }
+                                  case EColumn.status: {
+                                    return (
+                                      <span class='col-status'>
+                                        {[
+                                          this.isRunning && STATUS_LIST.includes(row.status) ? (
+                                            <bk-spin
+                                              key='bk-spin'
+                                              class='mr-3'
+                                              size='mini'
+                                            />
+                                          ) : undefined,
+                                          this.isRunning &&
+                                          [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
+                                            row.status
+                                          ) ? (
                                             <span
-                                              style={{ background: colorMap[row.status][1] }}
-                                              class='s-point'
-                                            ></span>
+                                              key='point'
+                                              style={{ background: colorMap[row.status][0] }}
+                                              class='point mr-3'
+                                            >
+                                              <span
+                                                style={{ background: colorMap[row.status][1] }}
+                                                class='s-point'
+                                              />
+                                            </span>
+                                          ) : undefined,
+                                          this.isRunning ? (
+                                            <span
+                                              key='content-panel-span'
+                                              class='content-panel-span'
+                                            >
+                                              {statusMap[row.status].name}
+                                            </span>
+                                          ) : (
+                                            <span key='--'>--</span>
+                                          ),
+                                        ]}
+                                      </span>
+                                    );
+                                  }
+                                  case EColumn.version: {
+                                    return <span>{row.plugin_version}</span>;
+                                  }
+                                  case EColumn.detail: {
+                                    return (
+                                      <span class='col-detail'>
+                                        <span class='col-detail-data'>{row.log || '--'}</span>
+                                        {this.isRunning && row.status === EStatus.FAILED && (
+                                          <span
+                                            class='col-detail-more fix-same-code'
+                                            onClick={() => this.handleGetMoreDetail(row)}
+                                          >
+                                            {this.$t('详情')}
                                           </span>
-                                        ) : undefined,
-                                        this.isRunning ? (
-                                          <span class='content-panel-span'>{statusMap[row.status].name}</span>
-                                        ) : (
-                                          <span>--</span>
-                                        ),
-                                      ]}
-                                    </span>
-                                  );
-                                }
-                                case EColumn.version: {
-                                  return <span>{row.plugin_version}</span>;
-                                }
-                                case EColumn.detail: {
-                                  return (
-                                    <span class='col-detail'>
-                                      <span class='col-detail-data'>{row.log || '--'}</span>
-                                      {this.isRunning && row.status === EStatus.FAILED && (
-                                        <span
-                                          class='col-detail-more fix-same-code'
-                                          onClick={() => this.handleGetMoreDetail(row)}
+                                        )}
+                                      </span>
+                                    );
+                                  }
+                                  case EColumn.operate: {
+                                    return [
+                                      this.isRunning && row.status === EStatus.FAILED ? (
+                                        <div
+                                          key='col-retry'
+                                          class='col-retry'
+                                          onClick={() =>
+                                            this.authority.MANAGE_AUTH
+                                              ? this.handleRetry(row, content)
+                                              : this.handleShowAuthorityDetail()
+                                          }
                                         >
-                                          {this.$t('详情')}
-                                        </span>
-                                      )}
-                                    </span>
-                                  );
+                                          {this.$t('重试')}
+                                        </div>
+                                      ) : undefined,
+                                      this.isRunning &&
+                                      ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
+                                        <div
+                                          key='col-retry'
+                                          class='col-retry fix-same-code'
+                                          onClick={() =>
+                                            ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
+                                            this.handleRevoke(row, content)
+                                          }
+                                        >
+                                          {this.$t('终止')}
+                                        </div>
+                                      ) : undefined,
+                                    ];
+                                  }
+                                  default: {
+                                    return <span>--</span>;
+                                  }
                                 }
-                                case EColumn.operate: {
-                                  return [
-                                    this.isRunning && row.status === EStatus.FAILED ? (
-                                      <div
-                                        class='col-retry'
-                                        onClick={() =>
-                                          this.authority.MANAGE_AUTH
-                                            ? this.handleRetry(row, content)
-                                            : this.handleShowAuthorityDetail()
-                                        }
-                                      >
-                                        {this.$t('重试')}
-                                      </div>
-                                    ) : undefined,
-                                    this.isRunning && ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
-                                      <div
-                                        class='col-retry fix-same-code'
-                                        onClick={() =>
-                                          ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
-                                          this.handleRevoke(row, content)
-                                        }
-                                      >
-                                        {this.$t('终止')}
-                                      </div>
-                                    ) : undefined,
-                                  ];
-                                }
-                                default: {
-                                  return <span>--</span>;
-                                }
-                              }
-                            }}
-                            label={column.name}
-                            minWidth={column?.minWidth}
-                            prop={column.id}
-                          ></bk-table-column>
-                        );
-                      })}
-                  </bk-table>
-                </div>
+                              }}
+                              label={column.name}
+                              minWidth={column?.minWidth}
+                              prop={column.id}
+                            />
+                          );
+                        })}
+                    </bk-table>
+                  </div>
+                )}
               </ExpandWrapper>
             ))}
         </div>
@@ -763,7 +782,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               domProps={{
                 innerHTML: transformJobUrl(this.side.detail),
               }}
-            ></pre>
+            />
           </div>
         </bk-sideslider>
       </div>

@@ -32,7 +32,8 @@ import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/c
 
 import { toPerformanceDetail } from '../../../common/go-link';
 import { getOperatorDisabled } from '../utils';
-import { IDetail } from './type';
+
+import type { IDetail } from './type';
 
 import './basic-info.scss';
 
@@ -138,7 +139,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       CLOSED: 'bar-closed',
     };
     const className = eventStatus ? classList[eventStatus] : '';
-    return <div class={[className, { 'bar-small': isShielded }]}></div>;
+    return <div class={[className, { 'bar-small': isShielded }]} />;
   }
   // 告警级别标签
   getTagComponent(severity) {
@@ -190,7 +191,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             onClick={this.handleToCollectDetail}
           >
             <span>{this.$t('变更')}</span>
-            <span class='icon-monitor icon-fenxiang'></span>
+            <span class='icon-monitor icon-fenxiang' />
           </span>
         )}
       </span>
@@ -227,13 +228,13 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             class='icon-monitor icon-chuli'
             v-bk-tooltips={{ content: this.$t('手动处理') }}
             onClick={() => this.$emit('manual-process')}
-          ></span>,
+          />,
           <span
             class='alarm-dispatch'
             v-bk-tooltips={{ content: this.$t('告警分派') }}
             onClick={this.handleAlarmDispatch}
           >
-            <span class='icon-monitor icon-fenpai'></span>
+            <span class='icon-monitor icon-fenpai' />
           </span>,
         ]}
       </span>
@@ -429,15 +430,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       /* 已恢复 */
       iconName = 'icon-mc-check-fill';
       iconColor = '#2dcb56';
-      if (!isShielded) {
-        /* 已恢复未屏蔽 */
-        iconText = `${this.$t('已恢复')}`;
-        operateDom = <div class='status-operate'>{shieldedDom()}</div>;
-      } else {
-        /* 已恢复已屏蔽 */
-        iconText = `${this.$t('已恢复')}（${this.$t('已屏蔽')}）`;
-        operateDom = null;
-      }
+      iconText = `${this.$t('已恢复')}`;
+      operateDom = null;
     } else if (eventStatus === status[1]) {
       /* 未恢复 */
       if (!isAck && !isShielded) {
@@ -467,7 +461,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               onClick={this.handleToShield}
             >
               {this.$t('屏蔽策略')}
-              <span class='icon-monitor icon-fenxiang'></span>
+              <span class='icon-monitor icon-fenxiang' />
             </div>
           ) : undefined,
         ];
@@ -482,26 +476,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       /* 已关闭 */
       iconName = 'icon-mc-close-fill';
       iconColor = '#dcdee5';
-      if (!isShielded) {
-        /* 已关闭未屏蔽 */
-        iconText = `${this.$t('已关闭')}`;
-        operateDom = !this.readonly ? (
-          <div class='status-operate'>
-            <bk-button
-              outline={true}
-              size='small'
-              theme='primary'
-              on-click={this.handleQuickShield}
-            >
-              {this.$t('快捷屏蔽')}
-            </bk-button>
-          </div>
-        ) : undefined;
-      } else {
-        /* 已关闭已屏蔽 */
-        iconText = `${this.$t('已关闭')}（${this.$t('已屏蔽')}）`;
-        operateDom = null;
-      }
+      iconText = `${this.$t('已关闭')}`;
+      operateDom = null;
     }
     return (
       <div class='right-status'>
@@ -509,7 +485,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           <span
             style={{ color: iconColor }}
             class={['icon-monitor', iconName]}
-          ></span>
+          />
           <div class='status-text'>{iconText}</div>
         </div>
         {!this.followerDisabled ? operateDom || undefined : undefined}
@@ -538,7 +514,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                   onClick={this.toStrategyDetail}
                 >
                   <span>{this.$t('来源：{0}', [this.basicInfo.plugin_display_name])}</span>
-                  <i class='icon-monitor icon-fenxiang icon-float'></i>
+                  <i class='icon-monitor icon-fenxiang icon-float' />
                 </span>
               ) : undefined}
             </div>

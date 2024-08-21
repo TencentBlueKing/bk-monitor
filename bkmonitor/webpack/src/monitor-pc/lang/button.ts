@@ -372,6 +372,7 @@ export default {
   // 导出
   导出CSV: 'Export CSV',
   导出Yaml: 'Export Yaml',
+  '导出Yaml（As Code功能）': 'Export YAML (As Code function)',
 
   // 设置
   设为公共插件: 'Public Plugin',
@@ -419,7 +420,7 @@ export default {
   更新执行历史: 'Update Execution History',
   告警分析: 'Analysis',
   关联事件: 'Related Events',
-  告警确认: 'Confirm',
+  告警确认: 'Alarm Confirm',
   解除: 'Unmute',
   拉群: 'WeCom',
   连通性测试: 'Connectivity test',
@@ -464,4 +465,24 @@ export default {
   跳转至场景查看: 'Jump to Scene View',
   发送给自己: 'Send to yourself',
   查看单据详情: 'View document details',
+
+  // 故障根因
+  请调整筛选条件: 'Please adjust filter criteria',
+  设置聚合维度: 'Set aggregate dimension',
+  标记已解决: 'Marked as resolved',
+  故障已解决: 'The issue has been solved',
+  查看操作指引: 'View operation instructions',
+
+  '故障已恢复，才可以标记已解决': 'The fault can be marked as resolved only after it has been restored',
+  '故障持续时间：': 'Fault duration:',
+  故障群: 'Fault Group',
+  故障处理: 'Fault Handle',
+  故障流转: 'Fault Flow',
+  我处理: 'I handled ',
+
+  // 故障流转
+  修改故障属性: 'Modify Fault Attribute',
+  '反馈/取消反馈根因': 'Feedback/Cancel feedback root cause',
+  故障生成: 'Generate Fault',
+  人工操作: 'Manual Operation',
 };

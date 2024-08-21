@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 
 export interface IStrategyConfigProps {
   fromRouteName?: string;
@@ -42,6 +42,7 @@ export interface IStrategyConfigProps {
   actionName?: string;
   keywords?: string[];
   resultTableId?: string;
+  strategyLabels?: string;
 }
 export interface IHeader {
   value?: number;

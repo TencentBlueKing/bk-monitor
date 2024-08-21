@@ -8,6 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
+
+from bkmonitor.utils.thread_backend import ThreadPool
+
 """
 DRF 插件
 """
@@ -22,6 +26,8 @@ from iam import Resource
 from . import Permission
 from .action import ActionEnum, ActionMeta
 from .resource import ResourceEnum, ResourceMeta
+
+logger = logging.getLogger("apm")
 
 
 class IAMPermission(permissions.BasePermission):
@@ -154,6 +160,7 @@ def insert_permission_field(
     always_allowed: Callable = lambda item: False,
     many: bool = True,
     instance_create_func: Optional[Callable[[dict], Resource]] = None,
+    batch_create: bool = False,
 ):
     """
     数据返回后，插入权限相关字段
@@ -164,6 +171,7 @@ def insert_permission_field(
     :param instance_create_func: 自定义创建资源实例的函数
     :param always_allowed: 满足一定条件进行权限豁免
     :param many: 是否为列表数据
+    :param batch_create: 是否批量创建资源实例
     """
 
     def wrapper(view_func):
@@ -175,22 +183,21 @@ def insert_permission_field(
             if not many:
                 result_list = [result_list]
 
-            resources = []
-            for item in result_list:
-                if not id_field(item):
-                    continue
-                attribute = {}
-                if "bk_biz_id" in item:
-                    attribute["bk_biz_id"] = item["bk_biz_id"]
-                if "space_uid" in item:
-                    attribute["space_uid"] = item["space_uid"]
+            if batch_create:
+                resources = batch_create_instance(result_list, resource_meta, id_field, instance_create_func)
+            else:
+                resources = []
+                for item in result_list:
+                    if not id_field(item):
+                        continue
+                    attribute = extract_attribute(item)
 
-                if instance_create_func:
-                    resources.append([instance_create_func(item)])
-                else:
-                    resources.append(
-                        [resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)]
-                    )
+                    if instance_create_func:
+                        resources.append([instance_create_func(item)])
+                    else:
+                        resources.append(
+                            [resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)]
+                        )
 
             if not resources:
                 return response
@@ -216,3 +223,48 @@ def insert_permission_field(
         return wrapped_view
 
     return wrapper
+
+
+def batch_create_instance(
+    result_list: list,
+    resource_meta: ResourceMeta,
+    id_field: Callable = lambda item: item["id"],
+    instance_create_func: Optional[Callable[[dict], Resource]] = None,
+):
+    """
+    批量创建实例
+    :param result_list: 结果列表
+    :param resource_meta: 资源类型
+    :param id_field: 从结果集获取ID字段的方式
+    :param instance_create_func: 自定义创建资源实例的函数
+    """
+    resources = []
+    futures = []
+    pool = ThreadPool()
+    for item in result_list:
+        if not id_field(item):
+            continue
+        attribute = extract_attribute(item)
+        if instance_create_func:
+            future = futures.append(pool.apply_async(instance_create_func, kwds=item))
+        else:
+            kwargs = {"instance_id": id_field(item), "attribute": attribute}
+            future = futures.append(pool.apply_async(resource_meta.create_simple_instance, kwds=kwargs))
+        futures.append(future)
+
+    for future in futures:
+        try:
+            resources.append([future.get()])
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"[APM] batch_create_instance error: {e}")
+
+    return resources
+
+
+def extract_attribute(item):
+    attribute = {}
+    if "bk_biz_id" in item:
+        attribute["bk_biz_id"] = item["bk_biz_id"]
+    if "space_uid" in item:
+        attribute["space_uid"] = item["space_uid"]
+    return attribute

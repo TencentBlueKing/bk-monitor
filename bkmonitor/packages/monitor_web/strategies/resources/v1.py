@@ -299,11 +299,8 @@ class GetMetricListResource(Resource):
             ]
         elif metric["metric_field"] == "gse_custom_event":
             return [
-                _("【不推荐】"),
-                _(
-                    "通过蓝鲸Agent目录中的gsecmdline命令上报自定义字符型告警。"
-                    '用法：{}plugins/bin/gsecmdline -d {} -l "This service is offline."'
-                ).format(settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID),
+                _("【已废弃】"),
+                _("功能通过上报 自定义事件 覆盖").format(settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID),
             ]
         elif metric["metric_field"] == "agent-gse":
             return [_("gse每隔60秒检查一次agent心跳数据。"), _("心跳数据持续未更新，24小时后将不再上报失联事件。")]
@@ -994,7 +991,7 @@ class StrategyConfigListResource(Resource):
             all_strategy = all_strategy.filter(bk_biz_id=bk_biz_id).order_by(order)
         else:
             all_strategy = all_strategy.filter(
-                bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
+                bk_biz_id__in=resource.space.get_bk_biz_ids_by_user(get_request().user)
             ).order_by(order)
 
         # 模糊搜索
@@ -2001,7 +1998,7 @@ class PlainStrategyListResource(StrategyConfigListResource):
             all_strategy = all_strategy.filter(bk_biz_id=bk_biz_id, is_enabled=True).order_by("-update_time")
         else:
             all_strategy = all_strategy.filter(
-                bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)], is_enabled=True
+                bk_biz_id__in=resource.space.get_bk_biz_ids_by_user(get_request().user), is_enabled=True
             ).order_by("-update_time")
 
         strategy_list = []

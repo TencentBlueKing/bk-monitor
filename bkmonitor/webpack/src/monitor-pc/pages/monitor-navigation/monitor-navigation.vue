@@ -226,7 +226,7 @@ import Vue from 'vue';
 
 import BkPaasLogin from '@blueking/paas-login';
 import { getFooter } from 'monitor-api/modules/commons';
-import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/utils';
+import { LOCAL_BIZ_STORE_KEY, copyText, deleteCookie, getUrlParam } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
 import { createNamespacedHelpers } from 'vuex';
 
@@ -867,7 +867,7 @@ export default {
     @include popover-panel-mxin(170px #63656e);
   }
 
-  :deep(.monitor-navigation-footer) {
+  :deep(.monitor-footer) {
     display: flex;
     flex-direction: column;
     align-items: center;

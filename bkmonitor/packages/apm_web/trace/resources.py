@@ -50,6 +50,7 @@ from monitor_web.statistics.v2.query import unify_query_count
 
 from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
+from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
 
 logger = logging.getLogger(__name__)
@@ -247,7 +248,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "data_type_label": "time_series",
                                     "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "B"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "B"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -255,7 +256,8 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
-                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.99}]}
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
+                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.99}]},
                                     ],
                                 }
                             ],
@@ -273,7 +275,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "table": f"{database}.__default__",
                                     "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -281,7 +283,8 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
-                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.95}]}
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
+                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.95}]},
                                     ],
                                 }
                             ],
@@ -299,7 +302,7 @@ class TraceChatsResource(Resource):
                                     "data_source_label": "custom",
                                     "table": f"{database}.__default__",
                                     "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "AVG", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
                                     "group_by": ["le"],
                                     "display": True,
                                     "where": [],
@@ -307,7 +310,8 @@ class TraceChatsResource(Resource):
                                     "time_field": "time",
                                     "filter_dict": {},
                                     "functions": [
-                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.5}]}
+                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
+                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.5}]},
                                     ],
                                 }
                             ],
@@ -514,6 +518,7 @@ class TraceDetailResource(Resource):
             required=False,
         )
         query_trace_relation_app = serializers.BooleanField(required=False, default=False)
+        enabled_time_alignment = serializers.BooleanField(required=False, default=False, label="是否开启时间对齐")
 
     def perform_request(self, validated_request_data):
         data = api.apm_api.query_trace_detail(
@@ -533,6 +538,7 @@ class TraceDetailResource(Resource):
             validated_request_data["trace_id"],
             data["relation_mapping"],
             validated_request_data.get("displays"),
+            validated_request_data.get("enabled_time_alignment"),
         )
         if not handled_data.get("original_data", []):
             raise ValueError(_lazy("trace_id: {} 没有有效的 trace 数据").format(validated_request_data['trace_id']))
@@ -540,6 +546,8 @@ class TraceDetailResource(Resource):
         topo_data = trace_data_to_topo_data(handled_data["original_data"])
         handled_data["topo_relation"] = topo_data["relations"]
         handled_data["topo_nodes"] = topo_data["nodes"]
+        service_topo_data = trace_data_to_service_topo(handled_data["original_data"])
+        handled_data.update(service_topo_data)
         return handled_data
 
 

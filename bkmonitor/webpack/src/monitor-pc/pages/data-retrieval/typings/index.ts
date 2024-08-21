@@ -1,4 +1,14 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { random } from 'monitor-common/utils/utils';
+
+import { type IMetricDetail, MetricDetail } from '../../strategy-config/strategy-config-set-new/typings';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { PanelHeaderType, PanelToolsType } from '../../monitor-k8s/typings';
+import type { IFunctionItem } from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import type { IFunctionsValue } from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
+import type { IIndexListItem } from '../index-list/index-list';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,18 +34,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
-
-import { random } from 'monitor-common/utils/utils';
-
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { PanelHeaderType, PanelToolsType } from '../../monitor-k8s/typings';
-import { IFunctionItem } from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
-import { IFunctionsValue } from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { IMetricDetail, MetricDetail } from '../../strategy-config/strategy-config-set-new/typings';
-import { IIndexListItem } from '../index-list/index-list';
-
-import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TranslateResult } from 'vue-i18n';
 
 export interface whereItem {
   condition: 'and' | 'or';
@@ -118,7 +117,7 @@ export declare namespace IDataRetrieval {
   // 目前跳转检索的两种数据结构分类分别以 仪表盘grafana图表 | 主机详情图表 为代表，但不仅包含其一
   type fromRouteNameType = 'grafana' | 'performance-detail';
 
-  type TargetType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+  type TargetType = 'DYNAMIC_GROUP' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
   interface ITarget {
     show: boolean;
     objectType: 'HOST';
@@ -170,8 +169,8 @@ export declare namespace IDataRetrievalItem {
 
   interface IEvent {
     onChange?: onChange;
-    onShowMetricSelector?: void;
-    onClearMetric?: void;
+    onShowMetricSelector?: () => void;
+    onClearMetric?: () => void;
     onLoadingChange?: boolean;
   }
 }
@@ -220,7 +219,7 @@ export declare namespace IDataRetrievalView {
     onDeleteFav: number;
     onSplitChange: boolean;
     onSelectFav: IDataRetrieval.ILocalValue[];
-    onAddStrategy: void;
+    onAddStrategy: () => void;
     onEventIntervalChange: EventRetrievalViewType.intervalType;
     onTimeRangeChangeEvent: EventRetrievalViewType.IEvent['onTimeRangeChange'];
     onAddEventStrategy: IFilterCondition.VarParams;
@@ -334,7 +333,7 @@ export declare namespace IEventRetrieval {
     onCountChange: number;
     onChartTitleChange: string;
     onAutoQueryChange?: (v: boolean) => void;
-    onClearDrillKeywords: void;
+    onClearDrillKeywords: () => void;
     onEmptyStatusChange: (val: EmptyStatusType) => void;
     onChange?: (value: ILocalValue) => void;
   }
@@ -519,7 +518,7 @@ export declare namespace EventRetrievalViewType {
     onIntervalChange: intervalType;
     onAddStrategy?: IFilterCondition.VarParams;
     onTimeRangeChange: [number, number];
-    onExportDataRetrieval?: void;
+    onExportDataRetrieval?: () => void;
   }
   interface IDrill {
     data: object;
@@ -542,8 +541,8 @@ export declare namespace HandleBtnType {
     favCheckedValue?: IFavList.favList;
   }
   interface IEvent {
-    onQuery: void;
-    onClear: void;
+    onQuery: () => void;
+    onClear: () => void;
     onQueryTypeChange?: boolean;
     onAddFav: boolean;
   }

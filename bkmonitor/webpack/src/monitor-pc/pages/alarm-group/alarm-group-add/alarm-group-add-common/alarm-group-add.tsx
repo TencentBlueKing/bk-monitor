@@ -23,14 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import Schema, { ErrorList, Rules, ValidateSource } from 'async-validator';
-import CustomTab, { IPanels } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import Schema, { type ErrorList, type Rules, type ValidateSource } from 'async-validator';
+import CustomTab, { type IPanels } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import NoticeModeNew, {
-  INoticeWayValue,
+  type INoticeWayValue,
   robot,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
 import {
@@ -48,9 +47,11 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 
 // import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
-import { IDutyItem } from '../../duty-arranges/duty-arranges';
 import RotationConfig from '../../rotation/rotation-config';
 import MemberSelector from '../member-selector.vue';
+
+import type { IDutyItem } from '../../duty-arranges/duty-arranges';
+import type { VNode } from 'vue';
 
 import './alarm-group-add.scss';
 
@@ -500,7 +501,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   noticeValidate() {
     return new Promise((resolve, reject) => {
       const validate = [ALERT_NOTICE, ACTION_NOTICE].every((type: NoticeType) => {
-        const allNoticeValidator = this.formData[type].some(noticeItem => {
+        this.formData[type].some(noticeItem => {
           const isPass = noticeItem.notify_config.every(item => {
             if (!item.notice_ways?.length) return false;
             return true;
@@ -510,14 +511,11 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           }
           return !isPass;
         });
-        this.$nextTick(() => {
-          const refs = {
-            [ALERT_NOTICE]: this.alertNoticeRef,
-            [ACTION_NOTICE]: this.actionNoticeRef,
-          };
-          refs[type].validator();
-        });
-        return !allNoticeValidator;
+        const refs = {
+          [ALERT_NOTICE]: this.alertNoticeRef,
+          [ACTION_NOTICE]: this.actionNoticeRef,
+        };
+        return refs[type].validator();
       });
       if (validate) {
         resolve(true);
@@ -888,7 +886,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                   id={opt.id}
                   key={opt.id}
                   name={opt.text}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </bk-form-item>
@@ -901,7 +899,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               <bk-input
                 v-model={this.formData.name}
                 onFocus={() => (this.errorsMsg.name = '')}
-              ></bk-input>
+              />
               {this.errorsMsg.name && <div class='error-msg'>{this.errorsMsg.name}</div>}
             </div>
           </bk-form-item>
@@ -1063,7 +1061,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 rendreKey={this.rotationData.rendreKey}
                 onDutyChange={v => (this.rotationData.dutyArranges = v)}
                 onNoticeChange={v => (this.rotationData.dutyNotice = v)}
-              ></RotationConfig>
+              />
             </bk-form-item>
           )}
           {this.channels.includes('wxwork-bot') && (
@@ -1095,7 +1093,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                   onChange={v => this.handleChangeTimeRang(v, ALERT_NOTICE)}
                   onDel={v => this.handleDelTimeRang(v, ALERT_NOTICE)}
                   onTimeChange={v => this.handleEditTimeRang(v, ALERT_NOTICE)}
-                ></CustomTab>
+                />
                 <div class='wrap-bottom'>
                   <span class='bottom-title'>{this.$t('每个告警级别至少选择一种通知方式')}</span>
                   <NoticeModeNew
@@ -1110,7 +1108,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                     showlevelMark={true}
                     onChange={v => this.noticeConfigChange(v, ALERT_NOTICE)}
                     onRefreshKeyChange={() => (this.refreshKey.alertKey = false)}
-                  ></NoticeModeNew>
+                  />
                 </div>
               </div>
               <div
@@ -1134,7 +1132,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                   onChange={v => this.handleChangeTimeRang(v, ACTION_NOTICE)}
                   onDel={v => this.handleDelTimeRang(v, ACTION_NOTICE)}
                   onTimeChange={v => this.handleEditTimeRang(v, ACTION_NOTICE)}
-                ></CustomTab>
+                />
                 <div class='wrap-bottom'>
                   <span class='bottom-title'>{this.$t('每个执行阶段至少选择一种通知方式')}</span>
                   <NoticeModeNew
@@ -1148,7 +1146,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                     type={1}
                     onChange={v => this.noticeConfigChange(v, ACTION_NOTICE)}
                     onRefreshKeyChange={() => (this.refreshKey.actionKey = false)}
-                  ></NoticeModeNew>
+                  />
                 </div>
               </div>
             </div>
@@ -1160,7 +1158,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               maxlength={100}
               placeholder={this.$t('输入')}
               type='textarea'
-            ></bk-input>
+            />
           </bk-form-item>
         </bk-form>
         <div class='footer'>

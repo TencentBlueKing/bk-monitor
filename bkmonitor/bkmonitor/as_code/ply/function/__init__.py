@@ -21,7 +21,7 @@ t_COMMA = r","
 t_FUNCTION = r"[a-zA-Z][a-zA-Z_0-9]*"
 t_NUMBER = r"\d+"
 t_FLOAT = r"\d+\.\d+"
-t_TIME = r"\d+[smhdw]"
+t_TIME = r"(\d+[smhdw])+"
 t_STRING = r'("([^"]|\\")*")|(\'([^\']|\\\')*\')'
 
 

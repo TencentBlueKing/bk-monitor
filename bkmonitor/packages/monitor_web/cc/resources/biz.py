@@ -14,19 +14,14 @@ specific language governing permissions and limitations under the License.
 
 
 import logging
-from typing import List
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
-from bkm_space.define import Space
-from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
-from bkmonitor.utils.user import get_global_user
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
-from monitor_web.commons.biz.resources import ListSpacesResource
 
 logger = logging.getLogger(__name__)
 
@@ -91,50 +86,13 @@ def _get_application():
     return data
 
 
-def get_biz_map(use_cache=True):
-    """
-    获取所有业务信息
-    :return: dict
-    """
-    if use_cache:
-        biz_list = _get_application()
-    else:
-        biz_list = _get_application.refresh()
-
-    data = {}
-    for biz_info in biz_list:
-        biz = _init(biz_info)
-        data[biz.id] = biz
-
-    return data
-
-
 def get_app_by_user(user=None, use_cache=True):
     """
+    停用
     获取用户拥有的业务列表
     :return: list
     """
-    if user is None:
-        username = get_global_user()
-    else:
-        username = user.username
-    biz_map = get_biz_map(use_cache)
-
-    # 根据权限中心的【业务访问】权限，对业务列表进行过滤
-    perm_client = Permission(username)
-    business_list = perm_client.filter_business_list_by_action(ActionEnum.VIEW_BUSINESS, list(biz_map.values()))
-
-    return business_list
-
-
-def get_app_ids_by_user(user=None, use_cache=True):
-    """
-    获取用户拥有的业务id列表
-    :return: list
-    """
-    biz_list = get_app_by_user(user, use_cache)
-    biz_id_list = [biz.id for biz in biz_list]
-    return biz_id_list
+    raise Exception("get_app_by_user method is deprecated")
 
 
 @using_cache(CacheType.BIZ)
@@ -178,9 +136,3 @@ def get_notify_roles():
         ):
             roles[attr["bk_property_id"]] = attr["bk_property_name"]
     return roles
-
-
-@using_cache(CacheType.OVERVIEW(60 * 2))
-def fetch_allow_biz_ids_by_user(username: str) -> List[int]:
-    spaces: List[Space] = ListSpacesResource.get_space_by_user(username)
-    return [space.bk_biz_id for space in spaces]

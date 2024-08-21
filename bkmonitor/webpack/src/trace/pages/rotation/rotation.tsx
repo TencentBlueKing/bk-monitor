@@ -28,7 +28,7 @@ import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
+import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
@@ -553,10 +553,10 @@ export default defineComponent({
           return <span>{row.category === Ecategory.regular ? t('日常值班') : t('交替轮值')}</span>;
         }
         case EColunm.label: {
-          return row.labels.length ? row.labels.map(label => <Tag>{label}</Tag>) : '--';
+          return row.labels.length ? row.labels.map((label, index) => <Tag key={index}>{label}</Tag>) : '--';
         }
         case EColunm.relation: {
-          return !!row.user_groups_count ? (
+          return row.user_groups_count ? (
             <Button
               theme='primary'
               text
@@ -722,6 +722,7 @@ export default defineComponent({
               {!this.loading ? (
                 [
                   <Table
+                    key={'rotation-table'}
                     columns={this.tableData.columns
                       .filter(item => this.settings.checked.includes(item.id))
                       .map(item => {
@@ -741,6 +742,7 @@ export default defineComponent({
                     onSettingChange={this.handleSettingChange}
                   />,
                   <Pagination
+                    key={'rotation-pagination'}
                     class='mt-14'
                     align={'right'}
                     count={this.tableData.pagination.count}

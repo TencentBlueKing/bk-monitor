@@ -424,6 +424,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 >
                   {addTypes.map(item => (
                     <li
+                      key={item.id}
                       class='list-item'
                       onClick={() => this.handleAdd(item.id)}
                     >
@@ -443,7 +444,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
               />
             </div>
             {this.loading ? (
-              <TableSkeleton></TableSkeleton>
+              <TableSkeleton />
             ) : (
               <CommonTable
                 scopedSlots={{
@@ -505,6 +506,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                   operate: (row: ITableItem) => [
                     row.scene_type === ESceneType.plugin ? (
                       <bk-button
+                        key='add'
                         style={{ marginLeft: '10px' }}
                         text
                         onClick={() => this.handleAddItem(row)}

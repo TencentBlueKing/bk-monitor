@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
 import re
 from collections import defaultdict
 from typing import Optional
@@ -200,7 +201,7 @@ class IndexSetHandler(APIModel):
     @classmethod
     def post_list(cls, index_sets):
         """
-        补充存储集数据分类、数据源、集群名称字段、标签信息
+        补充存储集数据分类、数据源、集群名称字段、标签信息、es集群端口号 、es集群域名
         :param index_sets:
         :return:
         """
@@ -226,7 +227,12 @@ class IndexSetHandler(APIModel):
             _index["category_name"] = GlobalCategoriesEnum.get_display(_index["category_id"])
             _index["scenario_name"] = scenario_choices.get(_index["scenario_id"])
             _index["storage_cluster_name"] = ",".join(
-                {storage_name for storage_name in cluster_map.get(_index["storage_cluster_id"], "").split(",")}
+                {
+                    storage_name
+                    for storage_name in cluster_map.get(_index["storage_cluster_id"], {})
+                    .get("cluster_name", "")
+                    .split(",")
+                }
             )
 
             normal_idx = [idx for idx in _index["indexes"] if idx["apply_status"] == LogIndexSetData.Status.NORMAL]
@@ -284,6 +290,17 @@ class IndexSetHandler(APIModel):
                         .split(",")
                     }
                 )
+                # 补充集群的port和domain信息
+                _index["storage_cluster_port"] = result.get(_index["index_set_id"], {}).get("storage_cluster_port", "")
+                _index["storage_cluster_domain_name"] = result.get(_index["index_set_id"], {}).get(
+                    "storage_cluster_domain_name", ""
+                )
+            else:
+                storage_cluster_id = _index["storage_cluster_id"]
+                _index["storage_cluster_port"] = cluster_map.get(storage_cluster_id, {}).get("cluster_port", "")
+                _index["storage_cluster_domain_name"] = cluster_map.get(storage_cluster_id, {}).get(
+                    "cluster_domain_name", ""
+                )
 
             # 补充标签信息
             _index.pop("tag_ids")
@@ -301,14 +318,21 @@ class IndexSetHandler(APIModel):
     @staticmethod
     def get_cluster_map():
         """
-        集群ID和集群名称映射关系
+        集群ID和集群名称映射、集群port、集群domain映射关系
         :return:
         """
         cluster_data = TransferApi.get_cluster_info()
         cluster_map = {}
         for cluster_obj in cluster_data:
+            cluster_config = cluster_obj["cluster_config"]
             cluster_map.update(
-                {cluster_obj["cluster_config"]["cluster_id"]: cluster_obj["cluster_config"]["cluster_name"]}
+                {
+                    cluster_config["cluster_id"]: {
+                        "cluster_name": cluster_config["cluster_name"],
+                        "cluster_domain_name": cluster_config["domain_name"],
+                        "cluster_port": cluster_config["port"],
+                    }
+                }
             )
         return cluster_map
 
@@ -1302,6 +1326,16 @@ class BaseIndexSetHandler(object):
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
         return self.index_set_obj
 
+    @staticmethod
+    def get_rt_id(index_set_id, collector_config_id, indexes):
+        if collector_config_id:
+            return ",".join([index["result_table_id"] for index in indexes])
+        return f"bklog_index_set_{str(index_set_id)}.__default__"
+
+    @staticmethod
+    def get_data_label(scenario_id, index_set_id):
+        return f"{scenario_id}_index_set_{str(index_set_id)}"
+
     def post_create(self, index_set):
         # 新建授权
         Permission(username=self.username).grant_creator_action(
@@ -1310,7 +1344,40 @@ class BaseIndexSetHandler(object):
             ),
             creator=index_set.created_by,
         )
-
+        # 创建结果表路由信息
+        try:
+            TransferApi.create_or_update_es_router(
+                {
+                    "cluster_id": index_set.storage_cluster_id,
+                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
+                    "source_type": index_set.scenario_id,
+                    "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
+                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
+                    "space_id": index_set.space_uid.split("__")[-1],
+                    "space_type": index_set.space_uid.split("__")[0],
+                    "options": [
+                        {
+                            "name": "time_field",
+                            "value_type": "dict",
+                            "value": json.dumps(
+                                {
+                                    "name": index_set.time_field,
+                                    "type": index_set.time_field_type,
+                                    "unit": index_set.time_field_unit
+                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                    else TimeFieldUnitEnum.MILLISECOND.value,
+                                }
+                            ),
+                        }, {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(index_set.scenario_id != Scenario.ES),
+                        }
+                    ],
+                }
+            )
+        except Exception as e:
+            logger.exception(f"创建/更新索引({index_set.index_set_id})es路由失败，原因：{e}")
         return True
 
     def pre_update(self):

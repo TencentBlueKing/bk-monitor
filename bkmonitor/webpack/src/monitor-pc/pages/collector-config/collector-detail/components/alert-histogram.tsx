@@ -177,7 +177,7 @@ export default class AlertHistogram extends tsc<IProps> {
             class={['histogram-item', classMap[item.level]]}
             onMouseenter={e => this.handleMouseenter(e, item)}
             onMouseleave={() => this.handleMouseleave()}
-          ></div>
+          />
         ))}
         <div style={{ display: 'none' }}>
           <div

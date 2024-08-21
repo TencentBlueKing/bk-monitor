@@ -55,6 +55,7 @@ import 'monitor-static/icons/monitor-icons.css';
 window.source_app = 'monitor';
 // 全局图表数量变量
 window.slimit = 500;
+Vue.config.ignoredElements = ['custom-incident-detail'];
 setVue(Vue);
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');
@@ -79,6 +80,7 @@ if (hasRouteHash) {
   if (process.env.APP !== 'external' && !window.__POWERED_BY_BK_WEWEB__ && pathname !== window.site_url) {
     location.pathname = window.site_url || '/';
   } else {
+    const appLoadingNode: HTMLDivElement = document.body.querySelector('#__app_loading__');
     Api.model
       .enhancedContext({
         space_uid: spaceUid || undefined,
@@ -86,6 +88,7 @@ if (hasRouteHash) {
         context_type: 'basic',
       })
       .then(data => {
+        appLoadingNode && (appLoadingNode.style.display = 'none');
         Object.keys(data).forEach(key => {
           window[key.toLocaleLowerCase()] = data[key];
         });
@@ -97,7 +100,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
-        document.title = window.page_title;
+        // document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
           isSuperUser: window.is_superuser,
@@ -145,6 +148,7 @@ if (hasRouteHash) {
       .catch(e => console.error(e))
       .finally(() => {
         immediateRegister();
+        appLoadingNode && appLoadingNode.remove();
       });
   }
 }

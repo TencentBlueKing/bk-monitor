@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
-import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
+import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
-import { TimeRangeType } from '../../../components/time-range/utils';
-import { getDefautTimezone } from '../../../i18n/dayjs';
-import { IFavoriteItem } from '../../../typings';
+import { getDefaultTimezone } from '../../../i18n/dayjs';
 import FavoritesList from '../favorites-list/favorites-list';
+
+import type { TimeRangeType } from '../../../components/time-range/utils';
+import type { IFavoriteItem } from '../../../typings';
 
 import './search-header.scss';
 
@@ -53,7 +54,7 @@ export default defineComponent({
     },
     timezone: {
       type: String,
-      default: getDefautTimezone(),
+      default: getDefaultTimezone(),
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
@@ -100,7 +101,7 @@ export default defineComponent({
               class='tool-icon right'
               onClick={() => emit('update:showLeft', true)}
             >
-              <i class='arrow-right icon-monitor icon-double-up'></i>
+              <i class='arrow-right icon-monitor icon-double-up' />
             </span>
           )}
         </div>
@@ -138,7 +139,7 @@ export default defineComponent({
               list={props.menuList}
               onSelect={val => emit('menuSelectChange', val)}
             >
-              <i class='icon-monitor icon-mc-more-tool'></i>
+              <i class='icon-monitor icon-mc-more-tool' />
             </SelectMenu>
           </span>
         </div>

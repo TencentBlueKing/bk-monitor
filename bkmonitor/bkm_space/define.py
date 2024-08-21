@@ -53,17 +53,18 @@ class Space:
     is_demo: bool = False
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data, cleaned=False):
         init_fields = {f.name for f in fields(cls) if f.init}
         filtered_data = {k: data.pop(k, None) for k in init_fields}
-        if filtered_data["space_type_id"] == SpaceTypeEnum.BKCC.value:
-            filtered_data["bk_biz_id"] = int(filtered_data["space_id"])
-        else:
-            filtered_data["bk_biz_id"] = -int(filtered_data["id"])
-        if filtered_data["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0):
-            filtered_data["is_demo"] = True
-        else:
-            filtered_data["is_demo"] = False
+        if not cleaned:
+            if filtered_data["space_type_id"] == SpaceTypeEnum.BKCC.value:
+                filtered_data["bk_biz_id"] = int(filtered_data["space_id"])
+            else:
+                filtered_data["bk_biz_id"] = -int(filtered_data["id"])
+            if filtered_data["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0):
+                filtered_data["is_demo"] = True
+            else:
+                filtered_data["is_demo"] = False
         instance = cls(**filtered_data)
         setattr(instance, "extend", data)
         return instance

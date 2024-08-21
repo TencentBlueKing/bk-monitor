@@ -37,6 +37,7 @@ component_where_mapping = {
 }
 
 COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
+COLUMN_KEY_PROFILING_DATA_STATUS = "profiling_data_status"
 
 
 class TraceKind:
@@ -337,7 +338,7 @@ class AlertStatus:
     ABNORMAL = "ABNORMAL"
     # 已恢复
     RECOVERED = "RECOVERED"
-    # 已关闭
+    # 已失效
     CLOSED = "CLOSED"
 
 

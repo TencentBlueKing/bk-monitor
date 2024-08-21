@@ -1,5 +1,5 @@
 # web server
-gunicorn==19.6.0
+gunicorn==20.1.0
 gevent==22.10.2
 
 # django
@@ -64,7 +64,7 @@ google-auth==2.4.0
 cryptography==3.3.2
 blueapps[opentelemetry]==4.7.1
 bkstorages==1.0.8
-bk-iam==1.1.14
+bk-iam==1.3.6
 whitenoise==5.0
 bk-notice-sdk==1.2.0
 
@@ -131,3 +131,8 @@ graphviz==0.19.1
 
 # kafka with sasl
 confluent-kafka==2.4.0
+
+# incident
+pika==1.3.1
+
+python-dotenv==0.20.0

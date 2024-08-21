@@ -28,7 +28,7 @@ from bkmonitor.dataflow.node.processor import (
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import HDFSStorageNode, TSpiderStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
-from constants.aiops import SceneSet
+from constants.aiops import SCENE_NAME_MAPPING, SceneSet
 from core.drf_resource import api
 
 
@@ -194,8 +194,6 @@ class MultivariateAnomalyAggIntelligentModelDetectTask(BaseTask):
 class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
     FLOW_NAME_KEY = _("多指标异常检测")
 
-    SCENE_NAME_MAPPING = {SceneSet.HOST: _("主机场景")}
-
     def __init__(
         self,
         access_bk_biz_id,
@@ -274,7 +272,7 @@ class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
     @property
     def flow_name(self):
         # 模型名称如果有变更，需要同步修改维护dataflow的定时任务逻辑
-        return self.build_flow_name(self.access_bk_biz_id, self.SCENE_NAME_MAPPING[self.scene_name])
+        return self.build_flow_name(self.access_bk_biz_id, SCENE_NAME_MAPPING[self.scene_name])
 
     @classmethod
     def build_flow_name(cls, access_bk_biz_id, scene_name):
@@ -342,20 +340,40 @@ class MetricRecommendTask(BaseTask):
 class HostAnomalyIntelligentDetectTask(BaseTask):
     FLOW_NAME_KEY = "主机异常检测结果评级"
 
-    def __init__(self, strategy_id, access_bk_biz_id, scene_id, plan_id, metric_field, agg_dimensions, plan_args):
+    def __init__(
+        self,
+        strategy_id,
+        access_bk_biz_id,
+        rt_id,
+        strategy_sql,
+        scene_id,
+        plan_id,
+        metric_field,
+        agg_dimensions,
+        plan_args,
+    ):
         self.strategy_id = strategy_id
         self.access_bk_biz_id = access_bk_biz_id
         self.node_list = []
 
-        source_rt_id = self.get_stream_source_from_host_scene_flow(access_bk_biz_id)
-        system_stream_source_node = StreamSourceNode(source_rt_id)
+        stream_source_node = StreamSourceNode(rt_id)
+
+        strategy_process_node = BusinessSceneNode(
+            access_bk_biz_id=self.access_bk_biz_id,
+            bk_biz_id=settings.BK_DATA_BK_BIZ_ID,
+            scene_name=SceneSet.HOST,
+            source_rt_id=rt_id,
+            sql=strategy_sql,
+            parent=stream_source_node,
+            strategy_id=strategy_id,
+        )
 
         plan_args.update({"$ignore_periodic": 1})
         scene_service_node = HostAnomalySceneServiceNode(
-            source_rt_id=system_stream_source_node.output_table_name,
+            source_rt_id=strategy_process_node.output_table_name,
             metric_field=metric_field,
             agg_dimensions=agg_dimensions,
-            parent=system_stream_source_node,
+            parent=strategy_process_node,
             plan_args=plan_args,
             plan_id=plan_id,
             scene_id=scene_id,
@@ -369,7 +387,8 @@ class HostAnomalyIntelligentDetectTask(BaseTask):
         )
 
         self.node_list = [
-            system_stream_source_node,
+            stream_source_node,
+            strategy_process_node,
             scene_service_node,
             scene_service_node_storage_node,
         ]

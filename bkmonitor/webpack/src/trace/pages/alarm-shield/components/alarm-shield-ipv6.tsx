@@ -23,10 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineAsyncComponent, defineComponent, nextTick, PropType, ref, watch } from 'vue';
+import { type PropType, defineAsyncComponent, defineComponent, nextTick, ref, watch } from 'vue';
 
-import { IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 import { Ipv6FieldMap } from '../typing';
+
+import type { IIpV6Value } from '../../../components/monitor-ip-selector/typing';
+
+import './alarm-shield-ipv6.scss';
 const MonitorIpSelector = defineAsyncComponent(
   () => import('../../../components/monitor-ip-selector/monitor-ip-selector')
 );
@@ -78,6 +81,7 @@ export default defineComponent({
       if (v === 'instance') return ['serviceInstance'];
       if (v === 'ip') return ['staticTopo', 'manualInput'];
       if (v === 'node') return ['dynamicTopo'];
+      if (v === 'dynamic_group') return ['dynamicGroup'];
       return [];
     }
     function clearMask() {

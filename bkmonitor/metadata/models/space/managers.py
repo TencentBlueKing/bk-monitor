@@ -160,7 +160,7 @@ class SpaceManager(models.Manager):
         except self.model.DoesNotExist:
             return None
         if space_type == constants.SpaceTypes.BKCC.value:
-            return obj.space_id
+            return int(obj.space_id)
         # 非bkcc空间类型，返回负值
         return -obj.id
 

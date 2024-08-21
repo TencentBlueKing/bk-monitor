@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
 
 import store from '../store';
 
@@ -55,6 +55,10 @@ class IntelligentModels extends VuexModule {
       window.enable_aiops && this.intelligentModelsMap.get(IntelligentModelsType.TimeSeriesForecasting)?.length > 0
     );
   }
+  @Mutation
+  public clearIntelligentMap() {
+    this.intelligentModelsMap = new Map();
+  }
   @Action
   public async getListIntelligentModels(params: Record<'algorithm', IntelligentModelsType>) {
     const models = this.intelligentModelsMap.get(params.algorithm);
@@ -78,11 +82,11 @@ class IntelligentModels extends VuexModule {
       });
     });
   }
+
   @Action
   isEnableIntelligentRule(algorithm: IntelligentModelsType) {
     return window.enable_aiops && this.intelligentModelsMap.get(algorithm)?.length > 0;
   }
-
   @Mutation
   public setIntelligentModels({ key, data }: { key: IntelligentModelsType; data: Array<Record<string, any>> }) {
     this.intelligentModelsMap.set(key, data);

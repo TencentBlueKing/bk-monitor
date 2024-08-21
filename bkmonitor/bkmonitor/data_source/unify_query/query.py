@@ -140,7 +140,7 @@ class UnifyQuery:
                     record["_result_"] = record[params["query_list"][0]["reference_name"]]
 
                 # 如果是最后一条数据，且时间戳等于结束时间，不返回
-                if end_time and record.get("_time_") == end_time:
+                if not params.get("instant") and end_time and record.get("_time_") == end_time:
                     continue
 
                 records.append(record)
@@ -249,12 +249,16 @@ class UnifyQuery:
         slimit: Optional[int] = None,
         down_sample_range: Optional[int] = "",
         time_alignment: bool = True,
+        instant: bool = None,
     ) -> List[Dict]:
         """
         使用统一查询模块进行查询
         """
         params = self.get_unify_query_params(start_time, end_time, time_alignment)
         params.update(dict(down_sample_range=down_sample_range, timezone=timezone.get_current_timezone_name()))
+
+        if instant:
+            params["instant"] = instant
 
         logger.info(f"UNIFY_QUERY: {json.dumps(params)}")
 
@@ -357,6 +361,7 @@ class UnifyQuery:
                         slimit=slimit,
                         down_sample_range=down_sample_range,
                         time_alignment=kwargs.get("time_alignment", True),
+                        instant=kwargs.get("instant"),
                     )
             except Exception as e:
                 exc = e

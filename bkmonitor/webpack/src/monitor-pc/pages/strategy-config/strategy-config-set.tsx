@@ -31,7 +31,8 @@ import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as ruleAuth from './authority-map';
 import StrategyConfigSet from './strategy-config-set-new/strategy-config-set';
-import { strategyType } from './strategy-config-set-new/typings';
+
+import type { strategyType } from './strategy-config-set-new/typings';
 
 import './strategy-config-set.scss';
 const allowJumpMap = ['alarm-group-add', 'alarm-group-edit', 'set-meal-add', 'set-meal-edit'];
@@ -42,7 +43,9 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
   @Prop({ type: [String, Number] }) readonly id: number | string;
   needCheck = true;
   fromRouteName = '';
-  refleshKey = random(10);
+  refreshKey = random(10);
+  isActivated = false;
+  showCancel = false;
   @ProvideReactive('authority') authority: Record<string, boolean> = {};
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;
@@ -51,8 +54,8 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     next((vm: MonitorStrategyConfigSet) => {
       vm.needCheck = to.name !== 'strategy-config-detail';
       vm.fromRouteName = `${from.name}-${random(10)}`;
-      if (!allowJumpMap.includes(from.name)) {
-        vm.refleshKey = random(10);
+      if (!allowJumpMap.includes(from.name) && vm.isActivated) {
+        vm.refreshKey = random(10);
       }
     });
   }
@@ -87,11 +90,15 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     this.needCheck = false;
     this.$router.push({ name: 'strategy-config' });
   }
+  async activated() {
+    await this.$nextTick();
+    this.isActivated = true;
+  }
   render() {
     return (
       <StrategyConfigSet
         id={this.id}
-        key={this.refleshKey}
+        key={this.refreshKey}
         class={`strategy-config-set ${this.$route.name === 'strategy-config-detail' ? 'is-detail' : ''}`}
         fromRouteName={this.fromRouteName}
         onCancel={this.handleCancel}

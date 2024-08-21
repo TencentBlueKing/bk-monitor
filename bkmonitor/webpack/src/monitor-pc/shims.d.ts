@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import VueI18n, { TranslateResult } from 'vue-i18n';
-
-import * as base from 'vue-tsx-support/types/base';
-import * as builtin from 'vue-tsx-support/types/builtin-components';
-
-import { IBizItem, ISpaceItem } from './types';
+import type { IBizItem, ISpaceItem } from './types';
+import type VueI18n from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
+import type * as base from 'vue-tsx-support/types/base';
+import type * as builtin from 'vue-tsx-support/types/builtin-components';
 
 interface IBkInfoProps {
   title: unknown;
   zIndex: number;
   width: number | string;
   type: string;
+  container: Element | string;
   maskClose: boolean;
   confirmLoading: boolean;
   subHeader?: any;
@@ -50,9 +50,9 @@ interface IBkInfoProps {
 }
 declare module 'vue/types/vue' {
   interface Vue {
-    $bkInfo?: (p: Partial<IBkInfoProps>) => void;
+    $bkInfo?: (p: Partial<IBkInfoProps>) => { close: () => void };
     $bkMessage?: (p: Partial<object>) => void;
-    $bkPopover?: (...Object) => void;
+    $bkPopover?: (...object) => void;
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
     $bkLoading?: any;
     $api?: any;
@@ -132,6 +132,8 @@ declare global {
     wxwork_bot_send_image?: boolean;
     showLoginModal: (option: ShowLoginModalOption) => void;
     BLUEKING?: Record<string, any>;
+    bk_shared_res_url: string;
+    footer_version: string;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

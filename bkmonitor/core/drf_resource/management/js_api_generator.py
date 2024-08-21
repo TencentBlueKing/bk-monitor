@@ -262,9 +262,7 @@ NEW_TEMPLATE = """import { request } from '../base';
 
 {% for resource in resources %}export const {{ resource.function_name }} = request('{{ resource.method }}', '{{ resource.request_url | safe }}');
 {% endfor %}
-export default {
-  {% for resource in resources %}{{ resource.function_name }},
-  {% endif %}{% endfor %}
+export default {{% for resource in resources %}\n  {{ resource.function_name }},{% endfor %}
 };
 """  # noqa
 
@@ -399,7 +397,9 @@ class ResourceViewSetParser(BaseParser):
             if api_description:
                 api_description = api_description.strip()
 
-            resource_name = route.resource_class.get_resource_name()
+            resource_name = route.resource_class.get_resource_name().split(".")[-1]
+            if resource_name.endswith("Resource"):
+                resource_name = resource_name[:-8]
             resource_name = underscore_to_camel(camel_to_underscore(resource_name))
             function_name = resource_name[0].lower() + resource_name[1:]
 

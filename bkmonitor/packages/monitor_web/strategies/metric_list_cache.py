@@ -18,6 +18,7 @@ from datetime import datetime
 from functools import reduce
 from typing import Dict, Generator, List
 
+import requests
 from django.conf import settings
 from django.db.models import Count, Max, Q
 from django.utils.translation import ugettext as _
@@ -46,6 +47,7 @@ from constants.data_source import (
     OthersResultTableLabel,
     ResultTableLabelObj,
 )
+from constants.event import ALL_EVENT_PLUGIN_METRIC, EVENT_PLUGIN_METRIC_PREFIX
 from constants.strategy import (
     HOST_SCENARIO,
     SERVICE_SCENARIO,
@@ -649,7 +651,9 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
             dimensions.append(
                 {
                     "id": field["field_name"],
-                    "name": field["field_alias"] if field["field_alias"] else field["field_name"],
+                    "name": f'{field["field_alias"]}({field["field_name"]})'
+                    if field["field_alias"]
+                    else field["field_name"],
                     "type": field_type,
                     "is_dimension": is_dimensions,
                 }
@@ -679,7 +683,9 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
 
             if field["field_type"] in TIME_SERIES_FIELD_TYPE:
                 field_dict["metric_field"] = field["field_name"]
-                field_dict["metric_field_name"] = field["field_alias"] if field["field_alias"] else field["field_name"]
+                field_dict["metric_field_name"] = (
+                    f'{field["field_alias"]}({field["field_name"]})' if field["field_alias"] else field["field_name"],
+                )
                 field_dict["unit"] = field.get("unit", "") or self.unit_metric_mapping.get(field["field_name"], "")
                 field_dict["unit_conversion"] = field.get("unit_conversion", 1.0)
                 yield field_dict
@@ -938,7 +944,8 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
-            custom_event.bk_event_group_id for custom_event in CustomEventGroup.objects.filter(type="custom_event")
+            custom_event.bk_event_group_id
+            for custom_event in CustomEventGroup.objects.filter(type="custom_event").only("bk_event_group_id")
         ]
         # 增加自定义事件筛选，不在监控创建的策略配置时不展示
         for result in custom_event_result:
@@ -947,7 +954,15 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
-        bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+        try:
+            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+        except (requests.exceptions.ConnectionError, BKAPIError) as err:
+            logger.exception("[CustomEventCacheManager] fetch bcs_clusters error: %s" % err)
+            # bcs 未就绪，不影响自定义事件
+            bcs_clusters = []
+
+        if not bcs_clusters:
+            return
         # 启动监控的集群id 列表
         alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(bk_biz_id=self.bk_biz_id)
         cluster_map = {bcs_cluster["cluster_id"]: bcs_cluster for bcs_cluster in bcs_clusters}
@@ -961,7 +976,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     # 补充k8s事件对应dataid的用途:
                     # bcs_${cluster_id}_custom_event: 自定义(custom)
                     # bcs_${cluster_id}_k8s_event：k8s系统(system)
-                    usage = "custom" if result["event_group_name"].endswith("_custom_event") else "system"
+                    usage = "custom" if result["event_group_name"].endswith("_custom_event") else "k8s"
                     extend_cluster_info["usage"] = usage
                     # 更新补充信息
                     cluster_map[cluster_id].update(extend_cluster_info)
@@ -977,9 +992,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             table_display_name = (
                 f"{pre_fix}{table['k8s_cluster_info']['name']}" f"({table['k8s_cluster_info']['cluster_id']})"
             )
-            # todo k8s要区分系统事件和自定义事件。当前前端统一将系统事件内置，因此全放到自定义分类下先。
-            # if table["k8s_cluster_info"]["usage"] == "system":
-            #     data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
+            table_display_name = f"[{table['k8s_cluster_info']['usage']}]{table_display_name}"
 
         base_dict = {
             "result_table_id": table["table_id"],
@@ -1030,15 +1043,15 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             metric_detail = {
                 "default_dimensions": [],
                 "default_condition": [],
-                "metric_field": table_display_name,
-                "metric_field_name": f'{table_display_name}',
+                # "__INDEX__" 表示整个事件源索引
+                "metric_field": "__INDEX__",
+                "metric_field_name": f'{table_display_name}({table["bk_data_id"]})',
                 "dimensions": [{"id": "event_name", "name": "event_name"}],
                 "extend_fields": {
                     # 全局自定义事件指标， 不预定义事件名称
                     "custom_event_name": "",
                     "bk_data_id": table["bk_data_id"],
                     "bk_event_group_id": table["event_group_id"],
-                    "bk_event_id": metric_msg.get("event_id", 0),
                 },
             }
             metric_detail.update(base_dict)
@@ -1185,11 +1198,12 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
 
         # 增加额外的系统事件指标
         extend_metrics = [
-            {
-                "metric_field": "gse_custom_event",
-                "metric_field_name": _("自定义字符型告警"),
-                "dimensions": DefaultDimensions.host,
-            },
+            # deprecated
+            # {
+            #     "metric_field": "gse_custom_event",
+            #     "metric_field_name": _("自定义字符型告警"),
+            #     "dimensions": DefaultDimensions.host,
+            # },
             {
                 "metric_field": "proc_port",
                 "metric_field_name": _("进程端口"),
@@ -1549,11 +1563,16 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
 
     # 内置k8s指标映射维度，用于重名指标维度合并
     _build_in_metrics = None
+    IGNORE_DIMENSIONS = ["bk_instance", "bk_job"]
 
     @property
     def build_in_metrics(self):
         if self._build_in_metrics is None:
-            self._build_in_metrics = {metric["field_name"]: metric["tag_list"] for metric in get_built_in_k8s_metrics()}
+            self._build_in_metrics = {}
+            for metric in get_built_in_k8s_metrics():
+                self._build_in_metrics[metric["field_name"]] = [
+                    tag for tag in metric["tag_list"] if tag["field_name"] not in self.IGNORE_DIMENSIONS
+                ]
         return self._build_in_metrics
 
     def get_metric_pool(self):
@@ -1810,6 +1829,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         """获取系统内置的告警配置表信息"""
         tables = defaultdict()
         plugins = EventPluginV2.objects.filter(bk_biz_id=bk_biz_id)
+        plugin_names = {plugin.plugin_id: plugin.plugin_display_name for plugin in plugins}
 
         alert_names = set()
 
@@ -1825,6 +1845,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                     "target_type": DataTarget.HOST_TARGET,
                     "result_table_label": OthersResultTableLabel.other_rt,
                     "bk_biz_id": bk_biz_id,
+                    "alert_name_alias": f"[{plugin_names[alert_config.plugin_id]}] {alert_config.name}",
                 }
                 tables[alert_config.name] = table
         return tables
@@ -1833,6 +1854,25 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         tables = default_tables = self.get_config_tables(bk_biz_id=0)
         if self.bk_biz_id:
             tables = self.get_config_tables(bk_biz_id=self.bk_biz_id)
+        else:
+            tables[ALL_EVENT_PLUGIN_METRIC] = {
+                "dimensions": [],
+                "plugin_ids": set(),
+                "target_type": DataTarget.HOST_TARGET,
+                "result_table_label": OthersResultTableLabel.other_rt,
+                "bk_biz_id": 0,
+                "alert_name_alias": "ALL EVENT PLUGIN",
+            }
+            plugins = EventPluginV2.objects.filter(bk_biz_id=0)
+            for plugin in plugins:
+                tables[f"{EVENT_PLUGIN_METRIC_PREFIX}{plugin.plugin_id}"] = {
+                    "dimensions": [],
+                    "plugin_ids": {plugin.plugin_id},
+                    "target_type": DataTarget.HOST_TARGET,
+                    "result_table_label": OthersResultTableLabel.other_rt,
+                    "bk_biz_id": 0,
+                    "alert_name_alias": f"[{plugin.plugin_display_name}] ALL EVENT",
+                }
 
         alerts_info = self.search_alerts()
         alert_tags = alerts_info["alert_tags"]
@@ -1902,6 +1942,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                     "target_type": table["target_type"],
                     "result_table_label": table["result_table_label"],
                     "bk_biz_id": self.bk_biz_id,
+                    "alert_name_alias": table.get("alert_name_alias", alert_name),
                 }
             )
 
@@ -1921,12 +1962,10 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
                 "bk_biz_id": table["bk_biz_id"],
                 "data_target": table["target_type"],
                 "collect_config_ids": [],
-                "default_dimensions": [
-                    dimension["id"] for dimension in table["dimensions"] if dimension.get("is_dimension", True)
-                ],
+                "default_dimensions": [],
                 "default_condition": [],
                 "metric_field": table["alert_name"],
-                "metric_field_name": table["alert_name"],
+                "metric_field_name": table.get("alert_name_alias", table["alert_name"]),
                 "dimensions": table["dimensions"],
                 "extend_fields": {
                     "plugin_ids": table["plugin_ids"],

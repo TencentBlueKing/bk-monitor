@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, watch } from 'vue';
+import { type PropType, defineComponent, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
-import { ISelectMenuOption } from '../../../components/select-menu/select-menu';
-import { DEFAULT_TIME_RANGE, TimeRangeType } from '../../../components/time-range/utils';
-import { MenuEnum, PanelType, ToolsFormData } from '../typings';
+import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../../components/time-range/utils';
+import { MenuEnum, PanelType, type ToolsFormData } from '../typings';
+
+import type { ISelectMenuOption } from '../../../components/select-menu/select-menu';
 
 import './page-header.scss';
 
@@ -57,7 +58,7 @@ export default defineComponent({
     const menuList = [{ name: t('查看大图'), id: MenuEnum.FullScreen }];
     const toolsFormData = reactive<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: getDefautTimezone(),
+      timezone: getDefaultTimezone(),
       refreshInterval: -1,
     });
     watch(
@@ -157,7 +158,7 @@ export default defineComponent({
                   }}
                   onClick={() => this.handleShowTypeChange(PanelType.Search, !this.isShowSearch)}
                 >
-                  <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
+                  <span class='bk-icon icon-monitor icon-mc-search-favorites' />
                 </div>
               </div>
             </div>

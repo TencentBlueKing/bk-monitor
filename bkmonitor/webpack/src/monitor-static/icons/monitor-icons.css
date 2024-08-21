@@ -3,9 +3,10 @@
 /* stylelint-disable indentation */
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1705908796951') format('woff2'),
-       url('monitor-icons.woff?t=1705908796951') format('woff'),
-       url('monitor-icons.ttf?t=1705908796951') format('truetype');
+  src:
+    url('monitor-icons.woff2?t=1719478024705') format('woff2'),
+    url('monitor-icons.woff?t=1719478024705') format('woff'),
+    url('monitor-icons.ttf?t=1719478024705') format('truetype');
   font-display: swap;
 }
 
@@ -15,6 +16,14 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-paixu:before {
+  content: '\e7a7';
+}
+
+.icon-line:before {
+  content: '\e7a6';
 }
 
 .icon-profiling:before {
@@ -1724,4 +1733,3 @@
 .icon-CPU:before {
   content: '\e66a';
 }
-

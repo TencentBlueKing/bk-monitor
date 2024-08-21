@@ -27,13 +27,13 @@
   <bk-sideslider
     class="collector-config-detail"
     :is-show="sideShow"
-    :width="900"
     :quick-close="true"
+    :width="900"
     @update:isShow="handleHidden"
   >
     <div
-      slot="header"
       class="detail-header"
+      slot="header"
     >
       <span
         v-if="!loading && basicInfo"
@@ -61,11 +61,11 @@
       >
         <bk-button
           v-if="basicInfo && basicInfo.bk_biz_id === $store.getters.bizId"
-          v-authority="{ active: !authority.MANAGE_AUTH && sideData.status !== 'STOPPED' }"
-          theme="primary"
-          :outline="true"
           style="width: 88px; margin-right: 8px"
+          v-authority="{ active: !authority.MANAGE_AUTH && sideData.status !== 'STOPPED' }"
           :disabled="sideData.status === 'STOPPED'"
+          :outline="true"
+          theme="primary"
           @click="
             authority.MANAGE_AUTH || sideData.status === 'STOPPED'
               ? sideData.status !== 'STOPPED' && handleToEdit()
@@ -81,9 +81,9 @@
       </div>
     </div>
     <div
+      class="detail-content"
       slot="content"
       v-bkloading="{ isLoading: loading }"
-      class="detail-content"
     >
       <div class="detail-content-tab clearfix">
         <span
@@ -105,8 +105,8 @@
       </div>
       <div class="detail-content-wrap">
         <div
-          v-show="active === 0"
           class="basic-info"
+          v-show="active === 0"
         >
           <ul
             v-if="basicInfo"
@@ -114,8 +114,8 @@
           >
             <li
               v-for="(item, key) in basicInfoMap"
-              :key="key"
               class="detail-item"
+              :key="key"
             >
               <div
                 v-en-style="'width: 120px'"
@@ -126,9 +126,9 @@
               </div>
               <span
                 v-if="key === 'name'"
-                v-authority="{ active: !authority.MANAGE_AUTH }"
-                class="detail-item-val"
                 style="line-height: 32px"
+                class="detail-item-val"
+                v-authority="{ active: !authority.MANAGE_AUTH }"
                 @click="authority.MANAGE_AUTH ? handleEditLabel(key) : handleShowAuthorityDetail()"
               >
                 <span
@@ -136,8 +136,8 @@
                   class="name-wrapper"
                 >
                   <span
-                    v-bk-tooltips.top="basicInfo[key]"
                     class="config-name"
+                    v-bk-tooltips.top="basicInfo[key]"
                     >{{ basicInfo[key] }}
                   </span>
                   <i
@@ -147,11 +147,11 @@
                 </span>
                 <bk-input
                   v-if="input.show"
-                  :ref="'input' + key"
+                  style="width: 150px"
                   v-model="input.copyName"
                   v-bk-clickoutside="handleTagClickout"
-                  style="width: 150px"
                   :maxlength="50"
+                  :ref="'input' + key"
                   @keydown="handleLabelKey"
                 />
               </span>
@@ -176,16 +176,16 @@
               <template v-if="key === 'plugin_display_name'">
                 <template v-if="basicInfo && basicInfo.collect_type !== 'Log'">
                   <span
-                    v-bk-tooltips.top="basicInfo['plugin_id'] + '(' + basicInfo[key] + ')'"
                     class="detail-item-val plugin-id"
+                    v-bk-tooltips.top="basicInfo['plugin_id'] + '(' + basicInfo[key] + ')'"
                   >
                     {{ basicInfo['plugin_id'] + '(' + basicInfo[key] + ')' }}
                   </span>
                   <i
                     v-if="!input.show"
-                    v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
-                    class="icon-monitor icon-bianji col-name-icon"
                     style="margin-top: -4px"
+                    class="icon-monitor icon-bianji col-name-icon"
+                    v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
                     @click="handleToEditPlugin"
                   />
                 </template>
@@ -296,8 +296,8 @@
           >
             <li
               v-for="(item, index) in runtimeParams"
-              :key="index"
               class="param-list-item"
+              :key="index"
             >
               <span class="item-name">{{ item.name }}</span>
               <span
@@ -315,23 +315,23 @@
             </li>
           </ul>
           <div
-            class="metric-label"
             :style="{ marginTop: runtimeParams.length ? '24px' : '14px' }"
+            class="metric-label"
           >
             {{ $t('预览') }} :
           </div>
           <right-panel
             v-for="(table, index) in metricList"
-            :key="index"
             class="metric-wrap"
-            need-border
             :class="{ 'no-bottom': table.collapse }"
             :collapse="table.collapse"
+            :key="index"
+            need-border
             @change="handleCollapseChange(index)"
           >
             <div
-              slot="title"
               class="metric-wrap-title"
+              slot="title"
             >
               {{ getTitle(table) }}
             </div>
@@ -341,8 +341,8 @@
               :empty-text="$t('无数据')"
             >
               <bk-table-column
-                :label="$t('指标/维度')"
                 width="150"
+                :label="$t('指标/维度')"
               >
                 <template slot-scope="scope">
                   {{ scope.row.metric === 'metric' ? $t('指标（Metric）') : $t('维度（Dimension）') }}
@@ -365,16 +365,16 @@
                 </template>
               </bk-table-column>
               <bk-table-column
-                :label="$t('类型')"
                 width="80"
+                :label="$t('类型')"
               >
                 <template slot-scope="scope">
                   <span :title="scope.row.type">{{ scope.row.type || '--' }}</span>
                 </template>
               </bk-table-column>
               <bk-table-column
-                :label="$t('单位')"
                 width="100"
+                :label="$t('单位')"
               >
                 <template slot-scope="scope">
                   <span :title="scope.row.unit">{{ scope.row.unit || '--' }}</span>
@@ -384,8 +384,8 @@
           </right-panel>
         </div>
         <div
-          v-show="active === 1"
           class="collect-target"
+          v-show="active === 1"
         >
           <!-- <right-panel need-border> -->
           <!-- 复制目标 -->
@@ -395,8 +395,8 @@
           >
             <bk-button
               :text="true"
-              theme="primary"
               size="small"
+              theme="primary"
               @click="handleCopyTarget"
               >{{ $t('复制目标') }}</bk-button
             >
@@ -407,15 +407,15 @@
             :empty-text="$t('无数据')"
           >
             <bk-table-column
-              :label="$t('节点名称')"
               width="140"
+              :label="$t('节点名称')"
               prop="bk_inst_name"
             />
             <bk-table-column
-              :label="basicInfo.target_object_type === 'SERVICE' ? $t('实例数') : $t('主机数')"
-              prop="count"
               width="100"
+              :label="basicInfo.target_object_type === 'SERVICE' ? $t('实例数') : $t('主机数')"
               align="right"
+              prop="count"
             >
               <template slot-scope="scope">
                 <div style="padding-right: 10px">
@@ -431,8 +431,8 @@
                 <template v-if="scope.row.labels.length">
                   <span
                     v-for="(item, index) in scope.row.labels"
-                    :key="index"
                     class="classifiy-label"
+                    :key="index"
                   >
                     <span class="label-name">{{ item.first }}</span>
                     <span class="label-name">{{ item.second }}</span>
@@ -448,15 +448,15 @@
             :empty-text="$t('无数据')"
           >
             <bk-table-column
-              label="IP"
               width="320"
+              label="IP"
               prop="display_name"
               show-overflow-tooltip
             />
             <bk-table-column
+              width="100"
               :label="$t('Agent状态')"
               prop="agent_status"
-              width="100"
             >
               <template slot-scope="scope">
                 <span :style="{ color: scope.row.agent_status === 'normal' ? '#2DCB56' : '#EA3636' }">
@@ -566,7 +566,7 @@ export default {
     getDetailData() {
       if (!this.sideShow) return;
       this.loading = true;
-      frontendCollectConfigDetail({ id: this.sideData.id }, { needMessage: true })
+      frontendCollectConfigDetail({ id: this.sideData.id })
         .then(data => {
           const sideDataId = { id: this.sideData.id };
           this.basicInfo = { ...data.basic_info, ...sideDataId };

@@ -1,35 +1,44 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
-import './condition.scss';
+
 import { Debounce } from '../../../common/util';
 
-const INTEGER_MIN_NUMBER = -Math.pow(2, 31) + 1;
-const INTEGER_MAX_NUMBER = Math.pow(2, 31) - 1;
-const LONG_MIN_NUMBER = -Math.pow(2, 63) + 1;
-const LONG_MAX_NUMBER = Math.pow(2, 63) - 1;
+import './condition.scss';
+
+// 使用 Number 类型处理的 32 位整数范围是安全的
+const INTEGER_MIN_NUMBER = -2147483648;
+const INTEGER_MAX_NUMBER = 2147483647;
+// 使用 BigInt 类型来处理 64 位整数范围，避免精度丢失
+const LONG_MIN_NUMBER = -9223372036854775808n;
+const LONG_MAX_NUMBER = 9223372036854775807n;
 
 interface ITextTypeOperatorData {
   andOrVal?: string;
@@ -38,7 +47,7 @@ interface ITextTypeOperatorData {
 }
 
 @Component
-export default class Condition extends tsc<{}> {
+export default class Condition extends tsc<object> {
   @Prop({ type: Array, required: true }) operatorList; // 操作列表
   @Prop({ type: Object, required: true }) operatorItem; // 当前操作元素
   @Prop({ type: Boolean, required: true }) isInclude: boolean; // 是否包含
@@ -72,12 +81,12 @@ export default class Condition extends tsc<{}> {
     // number类型最大值
     long: {
       max: LONG_MAX_NUMBER,
-      min: LONG_MIN_NUMBER
+      min: LONG_MIN_NUMBER,
     },
     integer: {
       max: INTEGER_MAX_NUMBER,
-      min: INTEGER_MIN_NUMBER
-    }
+      min: INTEGER_MIN_NUMBER,
+    },
   };
   tips = {
     trigger: 'mouseenter',
@@ -85,19 +94,19 @@ export default class Condition extends tsc<{}> {
     allowHtml: true,
     content: '#match-tips-content',
     placement: 'top',
-    distance: 9
+    distance: 9,
   };
 
   /** 或和且下拉选择列表 */
   andOrList = [
     {
       id: 'or',
-      name: window.mainComponent.$t('或')
+      name: window.mainComponent.$t('或'),
     },
     {
       id: 'and',
-      name: window.mainComponent.$t('且')
-    }
+      name: window.mainComponent.$t('且'),
+    },
   ];
 
   get ipSelectLength() {
@@ -122,7 +131,7 @@ export default class Condition extends tsc<{}> {
       host_list: window.mainComponent.$t('IP'),
       service_template_list: window.mainComponent.$t('服务模板'),
       set_template_list: window.mainComponent.$t('集群模板'),
-      dynamic_group_list: window.mainComponent.$t('动态分组')
+      dynamic_group_list: window.mainComponent.$t('动态分组'),
     };
     return nodeTypeTextMap[this.nodeType] || '';
   }
@@ -202,7 +211,7 @@ export default class Condition extends tsc<{}> {
 
     this.tagInputValueList = val.map(item => ({
       id: item.toString(),
-      name: item.toString()
+      name: item.toString(),
     }));
   }
 
@@ -292,7 +301,8 @@ export default class Condition extends tsc<{}> {
         this.localValue.splice(this.localValue.length - 1, 1);
         return;
       }
-      const matchVal = Number(matchList.join(',')); // 拿到数字的值进行一个大小对比
+      // 注意这里取决于是否需要处理BigInt，如果值可能会很大，使用BigInt，否则使用Number
+      const matchVal = this.fieldType === 'long' ? BigInt(matchList.join('')) : Number(matchList.join(''));
       this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType); // 判断数字最大值 超出则使用最大值
     }
 
@@ -301,14 +311,17 @@ export default class Condition extends tsc<{}> {
 
   /**
    * @desc: 数字类型大小对比
-   * @param {Number} value 对比的值
+   * @param {BigInt | Number} value 对比的值
    * @param {String} numberType 对比的字段类型
    * @returns {String} 返回数字的字符串
    */
-  getResetValue(value: number, numberType = 'integer') {
+  getResetValue(value: bigint | number, numberType = 'integer') {
     const valMap = this.valueScopeMap[numberType];
-    if (value > valMap.max) return String(valMap.max);
-    if (value < valMap.min) return String(valMap.min);
+    const maxVal = valMap.max;
+    const minVal = valMap.min;
+
+    if (value > maxVal) return String(maxVal);
+    if (value < minVal) return String(minVal);
     return String(value);
   }
 
@@ -325,6 +338,12 @@ export default class Condition extends tsc<{}> {
     this.emitInputChange('');
     this.localValue = [];
     this.handleAdditionChange({ value: [] });
+  }
+
+  /** 选中数据时，清空缓存的输入字符 */
+  handleValueSelect() {
+    this.catchTagInputStr = '';
+    this.emitInputChange('');
   }
 
   /**
@@ -351,9 +370,9 @@ export default class Condition extends tsc<{}> {
       {
         value: isExists ? [''] : queryValue, // 更新值
         operatorItem, // 更新操作元素
-        operator: newOperator // 更新操作符
+        operator: newOperator, // 更新操作符
       },
-      isQuery
+      isQuery,
     );
   }
 
@@ -438,35 +457,35 @@ export default class Condition extends tsc<{}> {
                 label: true,
                 'label-hover': this.labelHoverStatus,
                 'label-active': this.labelActiveStatus,
-                'label-disabled': !this.isInclude
+                'label-disabled': !this.isInclude,
               }}
             >
               {this.name}
             </span>
             {
               <div
-                onMouseover={() => this.setLabelHoverStatus(true)}
                 onMouseout={() => this.setLabelHoverStatus(false)}
+                onMouseover={() => this.setLabelHoverStatus(true)}
               >
                 <Select
-                  searchable
-                  v-model={this.localFiledID}
                   class='inquire-cascader'
+                  v-model={this.localFiledID}
                   disabled={!this.isInclude}
                   popover-min-width={400}
+                  searchable
                   onToggle={this.handleFiledSelectChange}
                 >
                   {this.filterFields.map(option => (
                     <Option
+                      id={option.id}
+                      key={option.id}
                       v-bk-tooltips={{
                         content: option.disabledContent,
                         placement: 'right',
-                        disabled: !option.disabled
+                        disabled: !option.disabled,
                       }}
-                      key={option.id}
-                      id={option.id}
-                      name={option.fullName}
                       disabled={option.disabled}
+                      name={option.fullName}
                     ></Option>
                   ))}
                 </Select>
@@ -474,12 +493,12 @@ export default class Condition extends tsc<{}> {
             }
           </div>
           <DropdownMenu
-            disabled={!this.isInclude}
-            trigger='click'
-            placement='bottom-start'
             style='margin-right: 4px;'
-            onShow={() => (this.conditionTypeActiveStatus = true)}
+            disabled={!this.isInclude}
+            placement='bottom-start'
+            trigger='click'
             onHide={() => (this.conditionTypeActiveStatus = false)}
+            onShow={() => (this.conditionTypeActiveStatus = true)}
           >
             <div slot='dropdown-trigger'>
               {/* 这里是 操作符 选择器 */}
@@ -488,7 +507,7 @@ export default class Condition extends tsc<{}> {
                   class={{
                     'condition-type': true,
                     'condition-type-active': this.conditionTypeActiveStatus,
-                    'condition-type-disabled': !this.isInclude
+                    'condition-type-disabled': !this.isInclude,
                   }}
                 >
                   {this.operatorItem.label}
@@ -506,12 +525,12 @@ export default class Condition extends tsc<{}> {
           </DropdownMenu>
           {this.isShowAndOrSelect && (
             <DropdownMenu
-              disabled={!this.isInclude}
-              trigger='click'
-              placement='bottom-start'
               style='margin-right: 4px;'
-              onShow={() => (this.andOrTypeActiveStatus = true)}
+              disabled={!this.isInclude}
+              placement='bottom-start'
+              trigger='click'
               onHide={() => (this.andOrTypeActiveStatus = false)}
+              onShow={() => (this.andOrTypeActiveStatus = true)}
             >
               <div slot='dropdown-trigger'>
                 {/* 这里是 操作符 选择器 */}
@@ -521,7 +540,7 @@ export default class Condition extends tsc<{}> {
                       'condition-type': true,
                       'and-or-type': true,
                       'condition-type-active': this.andOrTypeActiveStatus,
-                      'condition-type-disabled': !this.isInclude
+                      'condition-type-disabled': !this.isInclude,
                     }}
                   >
                     {this.getAndOrValue === 'or' ? this.$t('或') : this.$t('且')}
@@ -542,19 +561,19 @@ export default class Condition extends tsc<{}> {
             <span
               class={{
                 'vague-match': true,
-                'show-checkbox': this.isShowMatchSwitcher
+                'show-checkbox': this.isShowMatchSwitcher,
               }}
             >
               <Checkbox
-                value={this.matchSwitch}
+                disabled={!this.isInclude}
                 size='small'
                 theme='primary'
-                disabled={!this.isInclude}
+                value={this.matchSwitch}
                 onChange={() => this.handleMatchChange(!this.matchSwitch)}
               >
                 <span
-                  v-bk-tooltips={this.tips}
                   class='match-title'
+                  v-bk-tooltips={this.tips}
                 >
                   {this.$t('使用通配符')}
                 </span>
@@ -566,41 +585,42 @@ export default class Condition extends tsc<{}> {
             onClick={() => this.handleDelete(this.conditionType)}
           ></i>
           <i
+            class={['bk-icon include-icon', `${this.isInclude ? 'icon-eye' : 'icon-eye-slash'}`]}
             v-bk-tooltips={{
               content: this.isInclude ? this.$t('参与查询') : this.$t('不参与查询'),
-              delay: 200
+              delay: 200,
             }}
-            class={['bk-icon include-icon', `${this.isInclude ? 'icon-eye' : 'icon-eye-slash'}`]}
             onClick={() => this.handleIsIncludeChange(!this.isInclude)}
           ></i>
         </div>
         {this.conditionType === 'filed' && !this.isHiddenInput && (
           <TagInput
-            style='margin-top: 4px;'
             ref='tagInput'
-            free-paste
-            content-width={340}
+            style='margin-top: 4px;'
             v-model={this.localValue}
+            content-width={340}
             data-test-id='addConditions_input_valueFilter'
-            allow-create
-            allow-auto-match
-            tpl={this.tpl}
-            placeholder={this.inputPlaceholder}
             list={this.tagInputValueList}
             max-data={this.getInputLength}
-            onChange={this.handleValueChange}
-            onBlur={this.handleValueBlur}
-            onRemoveAll={this.handleValueRemoveAll}
-            onInputchange={v => (this.catchTagInputStr = v)}
+            placeholder={this.inputPlaceholder}
+            tpl={this.tpl}
             trigger='focus'
+            allow-auto-match
+            allow-create
+            free-paste
+            onBlur={this.handleValueBlur}
+            onChange={this.handleValueChange}
+            onInputchange={v => (this.catchTagInputStr = v)}
+            onRemoveAll={this.handleValueRemoveAll}
+            onSelect={this.handleValueSelect}
           ></TagInput>
         )}
         {this.conditionType === 'ip-select' && (
           <div id='ip-filter-container'>
             {!this.ipSelectLength ? (
               <Button
-                text
                 class='add-ip-button'
+                text
                 onClick={() => this.handleIpChange()}
               >
                 <i class='bk-icon icon-plus'></i>
@@ -608,8 +628,8 @@ export default class Condition extends tsc<{}> {
               </Button>
             ) : (
               <Button
-                text
                 class='add-ip-button'
+                text
                 onClick={() => this.handleIpChange()}
               >
                 <i18n path='已选择 {0} 个{1}'>

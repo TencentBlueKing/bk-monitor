@@ -27,7 +27,7 @@ import { Component, Prop, Vue } from 'vue-property-decorator';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { ILegendItem, LegendActionType, MonitorEchartOptions } from '../typings';
+import type { ILegendItem, LegendActionType, MonitorEchartOptions } from '../typings';
 
 @Component
 export default class ResizeMixin extends Vue {

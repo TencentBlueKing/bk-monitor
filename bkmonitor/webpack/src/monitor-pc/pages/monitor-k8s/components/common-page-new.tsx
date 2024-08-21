@@ -32,7 +32,12 @@ import bus from 'monitor-common/utils/event-bus';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
-import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import {
+  BookMarkModel,
+  type DashboardMode,
+  type IPanelModel,
+  type IViewOptions,
+} from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import introduce from '../../../common/introduce';
@@ -41,30 +46,31 @@ import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
-import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
-import { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 // import { CHART_INTERVAL } from '../../../constant/constant';
 import HostList from '../../performance/performance-detail/host-list/host-list';
-import HostTree, { FilterDictType, TreeNodeItem } from '../../performance/performance-detail/host-tree/host-tree';
+import HostTree, {
+  type FilterDictType,
+  type TreeNodeItem,
+} from '../../performance/performance-detail/host-tree/host-tree';
 import SettingModal from '../../setting-modal';
-import SettingsWrapper from '../settings/settings';
 import {
   DASHBOARD_PANEL_COLUMN_KEY,
-  IBookMark,
-  IMenuId,
-  IMenuItem,
-  IOption,
-  IQueryData,
-  IQueryDataSearch,
-  ISearchItem,
-  ITabItem,
-  ITableItem,
+  type IBookMark,
+  type IMenuId,
+  type IMenuItem,
+  type IOption,
+  type IQueryData,
+  type IQueryDataSearch,
+  type ISearchItem,
+  type ITabItem,
+  type ITableItem,
   METHOD_LIST,
-  PanelToolsType,
-  SearchType,
+  type PanelToolsType,
   SPLIT_MAX_WIDTH,
   SPLIT_MIN_WIDTH,
+  type SearchType,
 } from '../typings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
 import AlarmTools from './alarm-tools';
@@ -85,6 +91,8 @@ import SplitPanel from './split-panel';
 import { getPanelData } from './utils';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { IIndexListItem } from '../../data-retrieval/index-list/index-list';
+import type SettingsWrapper from '../settings/settings';
 
 import './common-page.scss';
 
@@ -472,7 +480,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
-  @ProvideReactive('timezone') timezone: string = getDefautTimezone();
+  @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
   @ProvideReactive('refleshInterval') refleshInterval = -1;
   // 视图变量
@@ -516,7 +524,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.showRestore = false;
   }
   mounted() {
-    this.timezone = getDefautTimezone();
+    this.timezone = getDefaultTimezone();
     this.initData();
     bus.$on('dashboardModeChange', this.handleDashboardModeChange);
     bus.$on('switch_scenes_type', this.handleLinkToDetail);
@@ -1532,7 +1540,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             onListChange={this.compareHostchange}
             onOverviewChange={this.handleOverviewChange}
             onTitleChange={this.headerTitleChange}
-          ></HostList>
+          />
         );
       case 'table': // 宽窄表
         // case 'apm_topo': // 测试 TODO
@@ -1612,7 +1620,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               <DashboardTools
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
-                menuList={this.sceneData.dasbordToolMenuList}
+                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dasbordToolMenuList}
                 refleshInterval={this.refleshInterval}
                 showDownSampleRange={false}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}
@@ -1663,7 +1671,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   onShowChange={show => !show && (this.isSelectPanelActive = false)}
                   onShrink={() => (this.isSelectPanelActive = !this.isSelectPanelActive)}
                   onWidthChange={this.handleLeftPanelWidthChange}
-                ></CommonDetail>
+                />
               )}
             </keep-alive>
             {this.showMode !== 'list' &&

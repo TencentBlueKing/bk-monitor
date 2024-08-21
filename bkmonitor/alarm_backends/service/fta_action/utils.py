@@ -102,9 +102,10 @@ class PushActionProcessor:
                 # 从策略中匹配防御规则
                 # TODO 当没有策略的情况下的告警推送
                 strategy = action_instance.strategy
-                for action in strategy.get("actions", []) + [strategy.get("notice")]:
-                    if action and action["id"] == action_instance.strategy_relation_id:
-                        converge_config = action["options"].get("converge_config")
+                if strategy:
+                    for action in strategy.get("actions", []) + [strategy.get("notice")]:
+                        if action and action["id"] == action_instance.strategy_relation_id:
+                            converge_config = action["options"].get("converge_config")
 
                 if (
                     not converge_config
@@ -491,7 +492,7 @@ class AlertAssignee:
                         group_users.append(user["id"])
             if is_rule_matched:
                 # 适配到了对应的轮值规则，中止
-                logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id)
+                logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id, self.alert.id)
                 return
 
     def get_assignee_by_user_groups(self, by_group=False, user_type=UserGroupType.MAIN):
@@ -625,16 +626,15 @@ class AlertAssignee:
             }
         )
         try:
-            if self.alert.event.bk_host_id:
-                host = HostManager.get_by_id(self.alert.event.bk_host_id)
-            else:
-                ip = self.alert.event.ip
-                bk_cloud_id = self.alert.event.bk_cloud_id
-                host = HostManager.get(ip, bk_cloud_id)
+            if not self.alert.event.target_type:
+                # 无监控对象， 不需要获取负责人
+                return group_users
+
+            host = HostManager.get_by_id(self.alert.event.bk_host_id)
             for operator_attr in ["operator", "bk_bak_operator"]:
                 group_users[operator_attr] = self.get_host_operator(host, operator_attr)
-        except BaseException as error:
-            logger.info("Get ip  of alert(%s) from event failed : %s", self.alert.id, str(error))
+        except AttributeError:
+            pass
         return group_users
 
     @classmethod

@@ -30,6 +30,7 @@ import { renameCollectConfig } from 'monitor-api/modules/collecting';
 import { copyText } from 'monitor-common/utils/utils.js';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
+import { allSpaceRegex, emojiRegex } from '../../../utils/index';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 
 import './collector-configuration.scss';
@@ -94,6 +95,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
   input = {
     show: false,
     copyName: '',
+  };
+  errMsg = {
+    name: '',
   };
   name = '';
 
@@ -168,6 +172,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @param e
    */
   handleLabelKey(v, e) {
+    this.errMsg.name = '';
     if (e.code === 'Enter' || e.code === 'NumpadEnter') {
       this.handleTagClickout();
     }
@@ -176,6 +181,14 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @description 隐藏输入框
    */
   handleTagClickout() {
+    if (allSpaceRegex(this.input.copyName) && !!this.input.copyName) {
+      this.errMsg.name = this.$tc('配置名称不能为空');
+      return;
+    }
+    if (emojiRegex(this.input.copyName)) {
+      this.errMsg.name = this.$tc('不能输入emoji表情');
+      return;
+    }
     const data = this.basicInfo;
     const { copyName } = this.input;
     if (copyName.length && copyName !== data.name) {
@@ -183,6 +196,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
     } else {
       data.copyName = data.name;
       this.input.show = false;
+      this.errMsg.name = '';
     }
   }
   /**
@@ -210,6 +224,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
       })
       .finally(() => {
         this.input.show = false;
+        this.errMsg.name = '';
         this.loading = false;
       });
   }
@@ -311,7 +326,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
           >
             {this.$t('编辑')}
           </bk-button>
-          <HistoryDialog list={this.historyList}></HistoryDialog>
+          <HistoryDialog list={this.historyList} />
         </div>
         <div class='detail-wrap-item'>
           <div class='wrap-item-title'>{this.$t('基本信息')}</div>
@@ -321,7 +336,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 this.basicInfoMap?.[key],
                 (() => {
                   if (key === 'name') {
-                    return (
+                    return [
                       <span>
                         {this.input.show ? (
                           <bk-input
@@ -331,18 +346,19 @@ export default class CollectorConfiguration extends tsc<IProps> {
                             maxlength={50}
                             onBlur={this.handleTagClickout}
                             onKeydown={this.handleLabelKey}
-                          ></bk-input>
+                          />
                         ) : (
                           <span
                             class='edit-span'
                             onClick={() => this.handleEditLabel(key)}
                           >
                             <span>{this.basicInfo?.[key]}</span>
-                            <span class='icon-monitor icon-bianji'></span>
+                            <span class='icon-monitor icon-bianji' />
                           </span>
                         )}
-                      </span>
-                    );
+                      </span>,
+                      !!this.errMsg.name && <div class='err-msg'>{this.errMsg.name}</div>,
+                    ];
                   }
                   if (key === 'plugin_display_name' && this.basicInfo?.collect_type !== 'Log') {
                     return (
@@ -351,7 +367,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         <span
                           class='icon-monitor icon-bianji'
                           onClick={this.handleToEditPlugin}
-                        ></span>
+                        />
                       </span>
                     );
                   }
@@ -409,7 +425,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         key={index}
                         class='param-list-item'
                       >
-                        <span class='item-name'>{item.name}</span>
+                        <span class='item-name'>
+                          <span class={{ 'name-text': true, required: item.required }}>{item.name}</span>
+                        </span>
                         {['password', 'encrypt'].includes(item.type) ? (
                           <span class='item-content'>******</span>
                         ) : (
@@ -424,7 +442,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
               : undefined}
           </div>
         </div>
-        <div class='split-line mt-24'></div>
+        <div class='split-line mt-24' />
         <div class='detail-wrap-item'>
           <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
           {!!this.targetInfo?.table_data?.length && (
@@ -489,7 +507,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         return column.name;
                       })()}
                       prop={column.id}
-                    ></bk-table-column>
+                    />
                   );
                 })}
               </bk-table>
@@ -529,7 +547,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                       }}
                       label={column.name}
                       prop={column.id}
-                    ></bk-table-column>
+                    />
                   );
                 })}
               </bk-table>

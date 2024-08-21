@@ -290,6 +290,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   cellHandle(row) {
     return [
       <bk-button
+        key='1'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
         disabled={!row.edit_allowed}
@@ -303,6 +304,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
         {this.$t('button-编辑')}
       </bk-button>,
       <bk-button
+        key='2'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
         disabled={!row.delete_allowed}
@@ -401,7 +403,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     }
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = commonPageSizeGet();
-    if (!!this.$route.query?.dutyRule) {
+    if (this.$route.query?.dutyRule) {
       const dutyId = this.$route.query.dutyRule;
       const searchCondition = [
         {
@@ -542,8 +544,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
             allowHTML: false,
           }}
         >
-          {rules.map(item => (
-            <span class='wrap-label'>
+          {rules.map((item, index) => (
+            <span
+              key={index}
+              class='wrap-label'
+            >
               <span class='text-overflow'>{item.name}</span>
             </span>
           ))}
@@ -608,10 +613,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
           ></bk-input> */}
             </div>
             {this.loading ? (
-              <TableSkeleton class='mt-16'></TableSkeleton>
+              <TableSkeleton class='mt-16' />
             ) : (
               [
                 <bk-table
+                  key='alarm-group-table'
                   class='alarm-group-table'
                   data={this.tableData}
                   header-border={false}
@@ -650,7 +656,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     />
                   </bk-table-column>
                 </bk-table>,
-                <div class='alarm-group-pagination'>
+                <div
+                  key={'alarm-group-pagination'}
+                  class='alarm-group-pagination'
+                >
                   {this.tableInstance ? (
                     <bk-pagination
                       class='config-pagination list-pagination'

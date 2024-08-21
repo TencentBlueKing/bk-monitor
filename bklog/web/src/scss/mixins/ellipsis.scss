@@ -1,4 +1,4 @@
-@mixin ellipsis ($max-width: auto) {
+@mixin ellipsis($max-width: auto) {
   display: inline-block;
   max-width: $max-width;
   overflow: hidden;

@@ -47,9 +47,9 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         try:
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("bkdata_es_query") as span:
-                # 暂时不支持传入track_total_hits, 因为无法获取计算平台索引集所在的集群版本
-                # if track_total_hits:
-                #     body.update({"track_total_hits": True})
+                # bkdata情景下,当且仅当用户主动传了 track_total_hits: true 时，才允许往 body 中注入该参数
+                if track_total_hits:
+                    body.update({"track_total_hits": True})
                 params = {"prefer_storage": "es", "sql": json.dumps({"index": index, "body": body})}
                 span.set_attribute("db.statement", str(params))
                 span.set_attribute("db.system", "elasticsearch")
@@ -107,7 +107,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
             return {}
         indices = [item.lower() for item in indices]
         result = {}
-        for (index, mapping) in indices_mapping.items():
+        for index, mapping in indices_mapping.items():
             if len(index) <= 11:
                 continue
             rt_name = index[0:-11]
@@ -149,6 +149,8 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         result_table_ids: list = result_table_id.split(",")
         storage_cluster_ids = []
         storage_cluster_names = []
+        storage_cluster_domains = []
+        storage_cluster_ports = []
         for rt_id in result_table_ids:
             cluster_info = BkDataMetaApi.result_tables.storages({"result_table_id": rt_id})
             es_info = cluster_info.get("es")
@@ -156,9 +158,14 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 continue
             storage_cluster_ids.append(str(es_info["storage_cluster"]["id"]))
             storage_cluster_names.append(es_info["storage_cluster"]["cluster_name"])
+            cluster_connection_info = json.loads(es_info["storage_cluster"]["connection_info"])
+            storage_cluster_domains.append(cluster_connection_info["host"])
+            storage_cluster_ports.append(str(cluster_connection_info["port"]))
         return {
             "storage_cluster_id": ",".join(storage_cluster_ids),
             "storage_cluster_name": ",".join(storage_cluster_names),
+            "storage_cluster_port": ",".join(storage_cluster_ports),
+            "storage_cluster_domain_name": ",".join(storage_cluster_domains),
         }
 
     def _get_cluster_name(self, index):

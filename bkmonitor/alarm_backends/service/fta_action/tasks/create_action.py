@@ -13,6 +13,7 @@ from alarm_backends.constants import CONST_SECOND
 from alarm_backends.core.alert import Alert, AlertCache
 from alarm_backends.core.alert.alert import AlertKey
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
+from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.cache.key import ACTION_POLL_KEY_LOCK
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
 from alarm_backends.core.control.strategy import Strategy
@@ -82,7 +83,7 @@ def create_actions(
     public_labels = {"strategy_id": metrics.TOTAL_TAG, "signal": signal, "run_type": "once", "notice_type": notice_type}
 
     alert_id = alerts[0].id if alerts else alert_ids[0]
-    logger.info("do create actions(%s) for alert(%s)", notice_type, alert_id)
+    logger.info("[create actions](%s) for alert(%s)", notice_type, alert_id)
 
     try:
         with metrics.ACTION_CREATE_PROCESS_TIME.labels(**public_labels).time():
@@ -99,7 +100,7 @@ def create_actions(
                 is_unshielded,
                 notice_type,
             ).do_create_actions()
-        logger.info("do create actions(%s) end for alert(%s), action count(%s)", notice_type, alert_id, len(actions))
+        logger.info("[create actions](%s) end for alert(%s), action count(%s)", notice_type, alert_id, len(actions))
     except BaseException as e:
         exc = e
         logger.exception("create actions for alert(%s) failed: %s", alert_id, e)
@@ -364,7 +365,7 @@ class CreateActionProcessor:
         self.relation_id = relation_id
         self.execute_times = execute_times
         self.is_unshielded = is_unshielded
-        self.strategy = Strategy(strategy_id).config or self.alerts[0].strategy or {}
+        self.strategy = Strategy(strategy_id).config or (self.alerts[0].strategy if self.alerts else {})
         self.generate_uuid = self.get_generate_uuid()
         self.noise_reduce_result = False
         self.notice = {}
@@ -470,6 +471,7 @@ class CreateActionProcessor:
         }
         with metrics.ALERT_ASSIGN_PROCESS_TIME.labels(**assign_labels).time():
             exc = None
+            assignee_manager = None
             try:
                 assignee_manager = AlertAssigneeManager(
                     alert,
@@ -486,7 +488,7 @@ class CreateActionProcessor:
             assign_labels["status"] = metrics.StatusEnum.from_exc(exc)
 
         metrics.ALERT_ASSIGN_PROCESS_COUNT.labels(**assign_labels).inc()
-        if self.execute_times == 0 and self.notice_type != ActionNoticeType.UPGRADE:
+        if self.execute_times == 0 and self.notice_type != ActionNoticeType.UPGRADE and exc is None:
             # 创建流程单据，仅第一次分派的时候进行操作
             for itsm_action_id in assignee_manager.itsm_actions.keys():
                 if str(itsm_action_id) not in action_configs:
@@ -550,10 +552,10 @@ class CreateActionProcessor:
 
         if not actions:
             logger.info(
-                "create actions error: empty config, strategy_id %s, alerts %s, signal %s",
+                "[ignore create action]: empty config for signal(%s), strategy(%s), alerts %s",
+                self.signal,
                 self.strategy_id,
                 self.alert_ids,
-                self.signal,
             )
             return new_actions
 
@@ -578,6 +580,7 @@ class CreateActionProcessor:
         qos_alerts = []
         current_qos_count = 0
         for alert in self.alerts:
+            # 进行告警分派
             if not self.is_alert_status_valid(alert):
                 # 所有的通知，需要判断信号是否为有效状态
                 continue
@@ -587,6 +590,8 @@ class CreateActionProcessor:
             # 手动分派的情况下直接覆盖
             supervisors = []
             assignees = []
+            if not assignee_manager:
+                continue
             if not assignee_manager.is_matched and not self.strategy_id:
                 # 第三方告警如果没有适配到的规则，直接忽略
                 continue
@@ -639,6 +644,7 @@ class CreateActionProcessor:
                 alert_log = assignee_manager.match_manager.get_alert_log()
                 if alert_log:
                     alert_logs.append(AlertLog(**alert_log))
+        AssignCacheManager.clear()
         if action_instances:
             ActionInstance.objects.bulk_create(action_instances)
             new_actions.extend(

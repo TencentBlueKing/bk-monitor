@@ -2965,12 +2965,13 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
                 </bk-popover>
               </div>
               {this.table.loading || this.loading ? (
-                <TableSkeleton type={2}></TableSkeleton>
+                <TableSkeleton type={2} />
               ) : (
                 [
                   this.getTableComponent(),
                   this.table.data?.length ? (
                     <bk-pagination
+                      key='table-pagination'
                       class='strategy-pagination list-pagination'
                       v-show={this.tableInstance.total}
                       align='right'

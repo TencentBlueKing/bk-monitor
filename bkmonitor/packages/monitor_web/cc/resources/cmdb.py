@@ -13,9 +13,8 @@ import time
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
 
-from django.conf import settings
-
 from api.cmdb.define import Host, ServiceInstance, TopoTree
+from bkm_ipchooser import constants
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
@@ -79,52 +78,35 @@ def get_agent_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, int]:
             status[bk_host_id] = AGENT_STATUS.ON
 
     # 后续只查询没数据的主机
-    hosts = [host for host in hosts if host.bk_host_id not in status]
-
-    # 获取Agent状态，兼容新旧版gse api
+    meta = {"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id), "bk_biz_id": bk_biz_id}
+    host_list = [{"host_id": host["bk_host_id"], "meta": meta} for host in hosts if host.bk_host_id not in status]
+    scope_list = [{"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
     pool = ThreadPool()
     futures = []
-    if settings.USE_GSE_AGENT_STATUS_NEW_API:
-        agent_id_to_host_id = {}
-        for host in hosts:
-            if host.bk_agent_id:
-                agent_id_to_host_id[host.bk_agent_id] = host.bk_host_id
-            else:
-                agent_id = f"{host.bk_cloud_id}:{host.bk_host_innerip}"
-                agent_id_to_host_id[agent_id] = host.bk_host_id
-
-        # 并发请求
-        agent_id_list = list(agent_id_to_host_id.keys())
-        for index in range(0, len(agent_id_list), 1000):
-            futures.append(
-                pool.apply_async(api.gse.list_agent_state, kwds={"agent_id_list": agent_id_list[index : index + 1000]})
+    for index in range(0, len(host_list), 1000):
+        futures.append(
+            pool.apply_async(
+                api.node_man.ipchooser_host_detail,
+                kwds={
+                    "host_list": host_list[index : index + 1000],
+                    "scope_list": scope_list,
+                    "agent_realtime_state": True,
+                },
             )
-        pool.close()
-        pool.join()
-        result = []
-        for future in futures:
+        )
+    pool.close()
+    pool.join()
+    result = []
+    for future in futures:
+        try:
             result.extend(future.get())
+        except Exception as e:
+            logger.error("get_agent_status error: %s", e)
 
-        for record in result:
-            if record["bk_agent_id"] not in agent_id_to_host_id:
-                continue
-            if record["status_code"] == 2:
-                status[agent_id_to_host_id[record["bk_agent_id"]]] = AGENT_STATUS.NO_DATA
-    else:
-        ips = [{"ip": host.bk_host_innerip, "bk_cloud_id": host.bk_cloud_id} for host in hosts if host.bk_host_innerip]
-        for index in range(0, len(ips), 1000):
-            futures.append(pool.apply_async(api.gse.get_agent_status, kwds={"hosts": ips[index : index + 1000]}))
-        pool.close()
-        pool.join()
-
-        result = {}
-        for future in futures:
-            result.update(future.get())
-
-        for agent_id, record in result.items():
-            bk_cloud_id, ip = agent_id.split(":")
-            if record["bk_agent_alive"] == 1 and (ip, int(bk_cloud_id)) in ip_to_host_id:
-                status[ip_to_host_id[(ip, int(bk_cloud_id))]] = AGENT_STATUS.NO_DATA
+    for info in result:
+        host_id = info["host_id"]
+        if info["alive"] == 1:
+            status[host_id] = AGENT_STATUS.NO_DATA
 
     for host in hosts:
         if host.bk_host_id not in status:
@@ -525,6 +507,7 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
     service_template_id = []
     set_template_id = []
     bk_host_ids = []
+    dynamic_group_ids = []
 
     for node in target:
         if "bk_inst_id" in node and "bk_obj_id" in node:
@@ -548,6 +531,8 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
             ip = node.get("bk_target_ip") or node["ip"]
             bk_cloud_id = str(node.get("bk_cloud_id") or node.get("bk_target_cloud_id", 0))
             result["ip"][str(bk_cloud_id)].add(ip)
+        elif "dynamic_group_id" in node:
+            dynamic_group_ids.append(node["dynamic_group_id"])
 
     # 处理主机ID
     if bk_host_ids:
@@ -583,6 +568,14 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
                 bk_biz_id=bk_biz_id, bk_obj_id=TargetNodeType.SERVICE_TEMPLATE, template_ids=service_template_id
             )
         )
+
+    # 根据动态分组查询主机
+    if dynamic_group_ids and (is_ip or is_host_id):
+        dynamic_group_hosts = api.cmdb.batch_execute_dynamic_group(
+            bk_biz_id=bk_biz_id, ids=dynamic_group_ids, bk_obj_id="host"
+        )
+        for dynamic_group_host in dynamic_group_hosts.values():
+            instance_nodes.extend(dynamic_group_host)
 
     for node in instance_nodes:
         if is_service_instance:

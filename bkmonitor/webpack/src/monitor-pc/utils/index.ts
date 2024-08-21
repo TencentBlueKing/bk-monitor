@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 import dayjs from 'dayjs';
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
-import { IOption } from '../pages/monitor-k8s/typings';
+import type { IOption } from '../pages/monitor-k8s/typings';
+import type { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符
@@ -372,3 +372,21 @@ export const createOnlyId = (len = 6, keywords = 'abcdefghijklmnopqrstuvwxyz1234
 };
 
 export const isEnFn = () => docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+
+/**
+ * @description 是否包含emoji
+ * @param value
+ * @returns
+ */
+export function emojiRegex(value: string) {
+  return /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value);
+}
+
+/**
+ * @description 是否为连续空格
+ * @param value
+ * @returns
+ */
+export function allSpaceRegex(value: string) {
+  return /^\s*$/.test(value);
+}

@@ -338,7 +338,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
           class='integrated-filter'
         >
           {this.loading ? (
-            <IntegratedFilterSkeleton></IntegratedFilterSkeleton>
+            <IntegratedFilterSkeleton />
           ) : (
             <Group
               scopedSlots={{
@@ -349,7 +349,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
               theme='filter'
               onActiveChange={v => (this.defaultActiveFilterGroup = v)}
               onClear={this.handleClearChecked}
-            ></Group>
+            />
           )}
           <MonitorDrag on-move={this.handleDragFilter} />
         </div>
@@ -366,7 +366,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
           {/* 过滤空组 */}
           {(() => {
             if (this.loading) {
-              return <IntegratedCardSkeleton></IntegratedCardSkeleton>;
+              return <IntegratedCardSkeleton />;
             }
             return this.listPluginData?.length ? (
               <Group

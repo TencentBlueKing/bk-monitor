@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
   computed,
   defineComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
-  PropType,
   provide,
   reactive,
   ref,
@@ -51,15 +51,17 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRanceInject } from '../../../plugins/hooks';
-import { PanelModel } from '../../../plugins/typings';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
-import { ListType, useTraceStore } from '../../../store/modules/trace';
-import { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
+import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
 import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
+import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
+
+import type { PanelModel } from '../../../plugins/typings';
+import type { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
 
 import './trace-list.scss';
 
@@ -75,8 +77,6 @@ const fieldQueryKeyMaps: AliasMapType = {
   service_name: 'resource.service.name',
   status_code: 'status.code',
 };
-
-const TRACE_TABLE_ROW_HEIGHR = 60; // trace 表格行高
 
 enum TraceFilter {
   Error = 'error',
@@ -167,6 +167,7 @@ export default defineComponent({
     const traceTableElem = ref<HTMLDivElement>();
     const traceTableContainer = ref<HTMLDivElement>();
     const traceDetailElem = ref(TraceDetail);
+    const simpleListElem = ref(SimpleList);
     const isFullscreen = ref(false);
     const height = ref<number>(0);
     const curTraceId = ref<string>('');
@@ -253,6 +254,14 @@ export default defineComponent({
     );
     const filterTableData = computed(() => store.filterTraceList);
     const localTableData = computed(() => (filterTableData.value?.length ? filterTableData.value : tableData.value));
+    const simpleTraceList = computed(() => {
+      return (localTableData.value || []).map(item => ({
+        id: item.trace_id,
+        duration: item.duration,
+        startTime: `${formatDate(item.min_start_time)} ${formatTime(item.min_start_time)}`,
+        isError: item.error,
+      }));
+    });
     const showTraceDetail = computed(() => store.showTraceDetail);
     const totalCount = computed(() => store.totalCount);
     const isPreCalculationMode = computed(() => store.traceListMode === 'pre_calculation');
@@ -278,7 +287,7 @@ export default defineComponent({
         render: ({ cell, data, index }: { cell: string; data: ITraceListItem; index: number }) => (
           <div
             style={`width:${showTraceDetail.value ? '232px' : 'auto'}`}
-            class={['trace-id-column', { 'expand-row': showTraceDetail.value && cell === curTraceId.value }]}
+            class='trace-id-column'
             onClick={() => handleTraceDetail(data.trace_id, index)}
           >
             <div
@@ -287,14 +296,6 @@ export default defineComponent({
             >
               {cell}
             </div>
-            {/* 20230522 暂时不要 */}
-            {showTraceDetail.value && (
-              <div>
-                <span class='duration'>{data.duration}</span>
-                <span class='time'>{`${formatDate(data.min_start_time)} ${formatTime(data.min_start_time)}`}</span>
-                {showTraceDetail.value && data.error && <span class='icon-monitor icon-mind-fill'></span>}
-              </div>
-            )}
           </div>
         ),
       },
@@ -346,7 +347,7 @@ export default defineComponent({
             >
               <span title={cell}>{cell}</span>
             </span>
-            <i class='icon-monitor icon-fenxiang'></i>
+            <i class='icon-monitor icon-fenxiang' />
           </div>
         ),
       },
@@ -372,15 +373,18 @@ export default defineComponent({
           : false,
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => [
           cell ? (
-            <div class='link-column'>
+            <div
+              key={cell}
+              class='link-column'
+            >
               <span
                 class='link-text link-server'
                 onClick={() => handleOpenService(cell)}
               >
-                {data.error ? <span class='icon-monitor icon-mind-fill'></span> : undefined}
+                {data.error ? <span class='icon-monitor icon-mind-fill' /> : undefined}
                 <span title={cell}>{cell}</span>
               </span>
-              <i class='icon-monitor icon-fenxiang'></i>
+              <i class='icon-monitor icon-fenxiang' />
             </div>
           ) : (
             '--'
@@ -409,14 +413,17 @@ export default defineComponent({
           : false,
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => [
           cell ? (
-            <div class='link-column'>
+            <div
+              key={cell}
+              class='link-column'
+            >
               <span
                 class='link-text link-server'
                 onClick={() => handleOpenEndpoint(cell, data?.root_service)}
               >
                 <span title={cell}>{cell}</span>
               </span>
-              <i class='icon-monitor icon-fenxiang'></i>
+              <i class='icon-monitor icon-fenxiang' />
             </div>
           ) : (
             '--'
@@ -1052,19 +1059,6 @@ export default defineComponent({
         }
       }
     );
-    watch(
-      () => isFullscreen.value,
-      val => {
-        if (val) {
-          setTimeout(() => {
-            // 将全屏弹窗内表格当前选中项滚动至可视区内
-            traceTableElem.value?.scrollTo?.({
-              top: (curTraceIndex.value - 1) * TRACE_TABLE_ROW_HEIGHR,
-            });
-          }, 10);
-        }
-      }
-    );
 
     const handleListPageKeydown = (evt: KeyboardEvent) => {
       if (evt.code === 'Escape') handleColseDetail();
@@ -1225,7 +1219,7 @@ export default defineComponent({
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           // TODO: 需要补上 圆点 样式
           <div style='display: flex; align-items: center'>
-            <span class={`span-status-code-${data.status_code.type}`}></span>
+            <span class={`span-status-code-${data.status_code.type}`} />
             <span>{data.status_code.value}</span>
           </div>
         ),
@@ -1277,7 +1271,7 @@ export default defineComponent({
             onClick={() => handleOpenService(data.resource['service.name'])}
           >
             <span title={data.resource['service.name']}>{data.resource['service.name']}</span>
-            <i class='icon-monitor icon-fenxiang'></i>
+            <i class='icon-monitor icon-fenxiang' />
           </div>
         ),
       },
@@ -1371,7 +1365,7 @@ export default defineComponent({
             >
               {cell}
             </span>
-            <i class='icon-monitor icon-fenxiang'></i>
+            <i class='icon-monitor icon-fenxiang' />
           </div>
         ),
       },
@@ -1434,6 +1428,7 @@ export default defineComponent({
       traceTableMain,
       traceTableElem,
       traceDetailElem,
+      simpleListElem,
       traceTableContainer,
       statusList,
       handleSpanFilter,
@@ -1445,6 +1440,7 @@ export default defineComponent({
       chartList,
       isFullscreen,
       localTableData,
+      simpleTraceList,
       curTraceId,
       showTraceDetail,
       totalCount,
@@ -1479,6 +1475,7 @@ export default defineComponent({
       handleTraceTableSettingsChange,
       handleSpanTableSettingsChange,
       store,
+      handleTraceDetail,
     };
   },
 
@@ -1514,12 +1511,12 @@ export default defineComponent({
             class='description link'
           >
             {this.$t('查看更多语法规则')}
-            <span class='icon-monitor icon-fenxiang'></span>
+            <span class='icon-monitor icon-fenxiang' />
           </div>
         </div>
       </EmptyStatus>
     );
-    const traceTableContent = (showDetail: boolean) => (
+    const traceTableContent = () => (
       <div
         key={this.renderKey}
         ref='traceTableContainer'
@@ -1547,17 +1544,6 @@ export default defineComponent({
           onScrollBottom={this.handleScrollBottom}
           onSettingChange={this.handleTraceTableSettingsChange}
         />
-        {showDetail && this.showTraceDetail && (
-          <div class={`detail-box ${this.isFullscreen ? 'fullsreen-box' : ''}`}>
-            <TraceDetail
-              ref='traceDetailElem'
-              appName={appName}
-              traceID={this.curTraceId}
-              isInTable
-              onClose={this.handleColseDetail}
-            />
-          </div>
-        )}
       </div>
     );
     const spanTableContent = () => (
@@ -1594,7 +1580,7 @@ export default defineComponent({
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
           // onColumnSort={this.handleTraceColumnSort}
-        ></InterfaceStatistics>
+        />
       </div>
     );
 
@@ -1609,7 +1595,7 @@ export default defineComponent({
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
           // onColumnSort={this.handleTraceColumnSort}
-        ></ServiceStatistics>
+        />
       </div>
     );
 
@@ -1626,7 +1612,7 @@ export default defineComponent({
             class={`collapse-title ${this.collapseActive ? 'collapse-active' : ''}`}
             onClick={this.handleCollapse}
           >
-            <span class='icon-monitor icon-mc-triangle-down'></span>
+            <span class='icon-monitor icon-mc-triangle-down' />
             <span>{this.$t('总览')}</span>
           </div>
           {this.collapseActive && (
@@ -1808,7 +1794,7 @@ export default defineComponent({
                 </div>
               )}
             </div>
-            {this.selectedListType === 'trace' && traceTableContent(false)}
+            {this.selectedListType === 'trace' && traceTableContent()}
             {this.selectedListType === 'span' && spanTableContent()}
             {this.selectedListType === 'interfaceStatistics' && interfaceStatisticsTableContent()}
             {this.selectedListType === 'serviceStatistics' && serviceStatisticsTableContent()}
@@ -1821,7 +1807,7 @@ export default defineComponent({
           show={this.isShowSpanDetail}
           spanDetails={this.spanDetails}
           onShow={v => (this.isShowSpanDetail = v)}
-        ></SpanDetails>
+        />
 
         <Dialog
           class='trace-info-fullscreen-dialog'
@@ -1831,7 +1817,25 @@ export default defineComponent({
           multi-instance
           onClosed={this.handleDialogClose}
         >
-          {traceTableContent(true)}
+          <div style='height: 100%'>
+            <SimpleList
+              ref='simpleListElem'
+              data={this.simpleTraceList}
+              loading={this.tableLoading}
+              selectedId={this.curTraceId}
+              onChange={this.handleTraceDetail}
+              onLoadMore={() => this.$emit('scrollBottom')}
+            />
+            <div class='detail-box fullsreen-box'>
+              <TraceDetail
+                ref='traceDetailElem'
+                appName={appName}
+                traceID={this.curTraceId}
+                isInTable
+                onClose={this.handleColseDetail}
+              />
+            </div>
+          </div>
         </Dialog>
 
         <div class={`monitor-trace-alert ${this.isFullscreen ? 'fadeout' : ''}`}>

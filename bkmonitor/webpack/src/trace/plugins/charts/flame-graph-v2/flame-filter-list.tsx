@@ -153,7 +153,7 @@ export default defineComponent({
     };
   },
   render() {
-    if (!this.data?.length) return <div></div>;
+    if (!this.data?.length) return <div />;
     const columns = [
       {
         label: () => (

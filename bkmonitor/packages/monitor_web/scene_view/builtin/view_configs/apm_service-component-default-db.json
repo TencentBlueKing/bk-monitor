@@ -352,7 +352,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -369,6 +369,15 @@
                     "span_name": "$endpoint_name"
                   },
                   "functions": [
+                    {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -406,7 +415,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -423,6 +432,15 @@
                     "span_name": "$endpoint_name"
                   },
                   "functions": [
+                    {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -460,7 +478,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "B"
                     }
                   ],
@@ -477,6 +495,15 @@
                     "span_name": "$endpoint_name"
                   },
                   "functions": [
+                    {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -1003,7 +1030,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -1019,6 +1046,15 @@
                     "service_name": "${service_name}"
                   },
                   "functions": [
+                    {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -1056,7 +1092,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -1072,6 +1108,15 @@
                     "service_name": "${service_name}"
                   },
                   "functions": [
+                    {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -1109,7 +1154,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "B"
                     }
                   ],
@@ -1125,6 +1170,15 @@
                     "service_name": "${service_name}"
                   },
                   "functions": [
+                    {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
                     {
                       "id": "histogram_quantile",
                       "params": [

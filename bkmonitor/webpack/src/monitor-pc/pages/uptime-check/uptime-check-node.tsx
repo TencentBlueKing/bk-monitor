@@ -285,7 +285,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
             onSearch={(v: string) => this.handleSearch(v)}
           />
           {this.loading ? (
-            <TableSkeleton class='mt-16'></TableSkeleton>
+            <TableSkeleton class='mt-16' />
           ) : (
             <CommonTable
               style={{ marginTop: '16px' }}

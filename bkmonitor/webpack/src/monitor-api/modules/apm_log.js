@@ -5,5 +5,5 @@ export const serviceRelationList = request('POST', 'apm/service_log/log/log_rela
 
 export default {
   serviceLogInfo,
-  serviceRelationList
+  serviceRelationList,
 };

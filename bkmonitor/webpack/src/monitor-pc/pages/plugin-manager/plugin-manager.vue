@@ -31,6 +31,7 @@
   <div
     v-else
     class="plugin-container"
+    v-monitor-loading="{ isLoading: loading }"
   >
     <div class="plugin-manager">
       <page-tips

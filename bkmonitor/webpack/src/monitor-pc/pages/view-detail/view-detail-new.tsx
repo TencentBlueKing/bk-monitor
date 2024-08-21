@@ -36,16 +36,17 @@ import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import MonitorDropdown from '../../components/monitor-dropdown';
 import SortButton from '../../components/sort-button/sort-button';
-import TimeRange, { TimeRangeType } from '../../components/time-range/time-range';
+import TimeRange, { type TimeRangeType } from '../../components/time-range/time-range';
 // import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/utils';
-import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
-import { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
+import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
-import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
-import { IQueryOption } from '../performance/performance-type';
 import QueryCriteriaItem from './query-criteria-item.vue';
 import { downCsvFile, refleshList, transformSrcData, transformTableDataToCsvStr } from './utils';
+
+import type { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
+import type { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
+import type { IQueryOption } from '../performance/performance-type';
 
 import './view-detail-new.scss';
 // import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
@@ -175,7 +176,7 @@ export default class ViewDetailNew extends tsc<IProps> {
     this.timeRange = tools.timeRange || DEFAULT_TIME_RANGE;
     this.refleshInterval = tools.refleshInterval || -1;
     this.defaultTimezone = window.timezone;
-    this.timezone = tools.timezome || getDefautTimezone();
+    this.timezone = tools.timezome || getDefaultTimezone();
     const { targets } = data.config;
     this.queryconfig = deepClone(targets);
     const str = 'ABCDEFGHIJKLNMOPQRSTUVWXYZ';
@@ -408,7 +409,7 @@ export default class ViewDetailNew extends tsc<IProps> {
             showHeaderMoreTool={true}
             needLegend
             onSeriesData={this.handleGetSeriesData}
-          ></AiopsDimensionLint>
+          />
         );
       case 'performance-chart':
         return (
@@ -468,11 +469,11 @@ export default class ViewDetailNew extends tsc<IProps> {
                         onMetricChange={this.handleMetricChange}
                         onTimeChange={this.handleTimeChange}
                         onTypeChange={this.handleTypeChange}
-                      ></CompareSelect>
+                      />
                     </div>
                     {/* 时间工具栏 */}
                     <div class='compare-panel-right'>
-                      <span class='margin-left-auto'></span>
+                      <span class='margin-left-auto' />
                       {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
                         <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
                       ) : (
@@ -501,7 +502,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                   <i
                     class={['icon-monitor icon-double-up', { 'icon-active': !this.rightShow }]}
                     onClick={this.handleHideRight}
-                  ></i>
+                  />
                   {this.rightShow && <span>{this.$t('设置')}</span>}
                 </div>
               </div>
@@ -524,7 +525,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                       class='chart-drag'
                       onMousedown={this.handleMouseDown}
                       onMousemove={this.handleMouseMove}
-                    ></div>
+                    />
                   </div>
                   <div class='box-left-source'>
                     <div class='source-title'>
@@ -567,7 +568,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                                       class='sort-btn'
                                       v-model={item.sort}
                                       on-change={() => this.handleTableSort(item.sort, index)}
-                                    ></SortButton>
+                                    />
                                   </span>
                                 </div>
                               </th>
@@ -593,7 +594,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                                         alt=''
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         src={require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)}
-                                      ></img>
+                                      />
                                     )}
                                   </div>
                                 </td>
@@ -624,7 +625,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                       on-change-status={this.handleChangeStatus}
                       on-checked-change={this.handleCheckedChange}
                       on-query-change={this.handleQueryChange}
-                    ></QueryCriteriaItem>
+                    />
                   ))}
                 </div>
               </div>

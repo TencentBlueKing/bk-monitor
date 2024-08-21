@@ -1,39 +1,46 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Provide, Emit, Ref, Watch } from 'vue-property-decorator';
-import $http from '../../../api';
-import './index.scss';
-import HandleBtn from './handle-btn';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Button, Select, Option } from 'bk-magic-vue';
-import RetrieveDetailInput from '../condition-comp/retrieve-detail-input.vue';
-import QueryStatement from './query-statement';
-import Condition from './condition';
-import UiQuery from './ui-query';
-import { formatDate } from '@/common/util';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { deepClone } from '../../../components/monitor-echarts/utils';
+
+import $http from '../../../api';
+import { formatDate } from '../../../common/util';
 import { Debounce } from '../../../common/util';
+import { deepClone } from '../../../components/monitor-echarts/utils';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import RetrieveDetailInput from '../condition-comp/retrieve-detail-input.vue';
+import Condition from './condition';
+import HandleBtn from './handle-btn';
+import QueryStatement from './query-statement';
+import UiQuery from './ui-query';
+
+import './index.scss';
 
 interface IProps {
   tableLoading: boolean;
@@ -85,8 +92,6 @@ export default class SearchComp extends tsc<IProps> {
   @Prop({ type: Array, required: true }) totalFields: Array<any>; // 所有字段
   @Prop({ type: Object, required: true }) catchIpChooser: object; // ip选择器缓存数据
 
-  @Ref('uiQuery') private readonly uiQueryRef; // 操作列表实例
-
   inputSearchList = []; // ui模式检索语句生成的键名
   filedSelectedValue = null; // 添加条件下拉框的key
   conditionList = []; // 条件列表
@@ -96,7 +101,7 @@ export default class SearchComp extends tsc<IProps> {
   isClearCatchInputStr = false;
   tagFocusInputObj: ITagFocusInputObj = {
     index: 0,
-    str: ''
+    str: '',
   };
 
   /** text类型字段类型给到检索参数时的映射 */
@@ -108,7 +113,7 @@ export default class SearchComp extends tsc<IProps> {
     'is match': '=~',
     'is not match': '!=~',
     'and is match': '&=~',
-    'and is not match': '&!=~'
+    'and is not match': '&!=~',
   };
 
   /** 所有的包含,非包含情况下的类型操作符字符串 */
@@ -120,11 +125,13 @@ export default class SearchComp extends tsc<IProps> {
     '=~',
     '!=~',
     '&=~',
-    '&!=~'
+    '&!=~',
   ];
 
   /** 包含情况下的text类型操作符 */
   containsStrList = ['contains match phrase', '=~', 'all contains match phrase', '&=~'];
+
+  @Ref('uiQuery') private readonly uiQueryRef; // 操作列表实例
 
   get isCanUseUiType() {
     // 判断当前的检索语句生成的键名和操作符是否相同 不相等的话不能切换表单模式
@@ -170,8 +177,8 @@ export default class SearchComp extends tsc<IProps> {
             conditionType: 'ip-select',
             value: [], // 值
             valueList: [], // taginput的输入框列表
-            esDocValues: false
-          }
+            esDocValues: false,
+          },
         ]
       : [];
 
@@ -194,7 +201,7 @@ export default class SearchComp extends tsc<IProps> {
         operatorItem: item.field_operator[0],
         value: [],
         valueList: [],
-        esDocValues: item.es_doc_values
+        esDocValues: item.es_doc_values,
       });
     });
 
@@ -224,17 +231,17 @@ export default class SearchComp extends tsc<IProps> {
     return `${this.retrievedKeyword}_${this.fieldsKeyStrList.join(',')}_${this.unionIndexList.join(',')}`;
   }
 
-  @Watch('keywordAndFields', { immediate: true })
+  @Watch('keywordAndFields')
   getValueList() {
-    this.queryValueList(this.fieldsKeyStrList);
+    this.queryValueList();
   }
 
   @Watch('datePickerValue')
   handleDatePickerValueChange() {
-    this.queryValueList(this.fieldsKeyStrList);
+    this.queryValueList();
   }
 
-  @Watch('fieldLength', { immediate: true })
+  @Watch('fieldLength')
   setValueList() {
     this.initValueList();
   }
@@ -244,41 +251,41 @@ export default class SearchComp extends tsc<IProps> {
     this.handleValueChange({ type, value, isFunction });
   }
 
-  @Emit('emitChangeValue')
+  @Emit('emit-change-value')
   handleValueChange(operate) {
     return operate;
   }
 
-  @Emit('retrieveLog')
+  @Emit('retrieve-log')
   handleRetrieveLog(retrieveValue?) {
     return retrieveValue;
   }
 
-  @Emit('clearCondition')
+  @Emit('clear-condition')
   handleClearCondition(str: string) {
     (this.uiQueryRef as any)?.clearCondition();
     return str;
   }
 
-  @Emit('updateSearchParam')
+  @Emit('update-search-param')
   handleUpdateSearchParam(keyword, addition, host) {
     return { keyword, addition, host };
   }
 
-  @Emit('updateKeyWords')
+  @Emit('update-key-words')
   handleUpdateKeyWords(str: string) {
     return str;
   }
 
-  @Emit('searchAddChange') // 添加条件检索
+  @Emit('search-add-change') // 添加条件检索
   handleSearchAddChange(addition, isQuery: boolean, isForceQuery: boolean) {
     return { addition, isQuery, isForceQuery };
   }
 
-  @Emit('openIpQuick')
+  @Emit('open-ip-quick')
   handleOpenIpQuick() {}
 
-  @Emit('ipSelectorValueClear')
+  @Emit('ip-selector-value-clear')
   handleIPSelectorValueChange(v = {}, isChangeCatch = false) {
     return { v, isChangeCatch };
   }
@@ -320,6 +327,7 @@ export default class SearchComp extends tsc<IProps> {
     }
     this.initAdditionDefault(addition);
     this.setRouteParams(isHaveIP ? { ipChooser } : {});
+    this.queryValueList();
   }
 
   setIPChooserFilter(ipChooser) {
@@ -331,6 +339,7 @@ export default class SearchComp extends tsc<IProps> {
   // 改变条件时 更新路由参数
   setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null) {
     const { params, query } = this.$route;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
     Object.assign(filterQuery, retrieveParams);
@@ -342,7 +351,7 @@ export default class SearchComp extends tsc<IProps> {
       // ip值更新
       Object.assign(newQueryObj, {
         ip_chooser: this.getIPChooserStr(newIPChooser),
-        isIPChooserOpen: this.ipChooserIsOpen
+        isIPChooserOpen: this.ipChooserIsOpen,
       });
     }
 
@@ -356,7 +365,7 @@ export default class SearchComp extends tsc<IProps> {
     const routeData = {
       name: 'retrieve',
       params,
-      query: filterQuery
+      query: filterQuery,
     };
     if (linkAdditionList) return this.$router.resolve(routeData).href;
     this.$router.replace(routeData);
@@ -376,10 +385,10 @@ export default class SearchComp extends tsc<IProps> {
     const stringifyList = filterAddition.map(item => ({
       field: item.id,
       operator: item.operator,
-      value: item.value.join(','),
-      isInclude: item.isInclude
+      value: item.value,
+      isInclude: item.isInclude,
     }));
-    if (linkAdditionList && linkAdditionList.length) {
+    if (linkAdditionList?.length) {
       stringifyList.push(...linkAdditionList);
     }
     return JSON.stringify(stringifyList);
@@ -391,7 +400,7 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   // 初始化或从外部下钻添加过来的交互下钻过来的条件
-  pushCondition(field: string, operator: string, value: any, isInclude: boolean) {
+  pushCondition(field: string, operator: string, value: any, isInclude: boolean, isSearchInit = false) {
     const findField = this.filterFields.find(item => item.id === field);
     let findOperatorItem = null;
     // 字段类型并且是包含, 不包含的情况下才会去匹配当前展示的操作符列表元素
@@ -401,7 +410,7 @@ export default class SearchComp extends tsc<IProps> {
       findOperatorItem = this.containsStrList.includes(operator) ? containsItem : notContainsItem;
     } else {
       findOperatorItem = findField?.operatorList.find(
-        item => item.operator === operator || item?.wildcard_operator === operator
+        item => item.operator === operator || item?.wildcard_operator === operator,
       );
     }
     const operatorItem = findOperatorItem ?? {}; // 找不到则是ip选择器
@@ -413,30 +422,32 @@ export default class SearchComp extends tsc<IProps> {
     const lastCondition = this.conditionList[this.conditionList.length - 1];
     // 检查操作符是否是包含或不包含匹配短语
     const isContainsType = this.allContainsStrList.includes(operator);
-    // 遍历条件列表
-    for (const cIndex in this.conditionList) {
-      // 获取当前遍历到的条件
-      const currentCondition = this.conditionList[cIndex];
-      // 如果当前条件的操作符和字段与给定的匹配
-      if (currentCondition.operator === operator && currentCondition.id === field && currentCondition.isInclude) {
-        // 如果当前条件的值为空数组
-        if (!currentCondition.value.length) {
-          // 则将输入值数组直接设置为当前条件的值
-          currentCondition.value = inputValueList;
-          return;
-        }
-        // 如果存在具有相同操作符和字段的条件，并且操作符是包含类型
-        if (isExistCondition && isContainsType) {
-          // 如果最后一个条件的字段与给定的匹配
-          if (lastCondition.id === field) {
-            // 则将输入值数组添加到最后一个条件的值中
-            lastCondition.value = [...lastCondition.value, ...inputValueList];
+    if (!isSearchInit) {
+      // 遍历条件列表
+      for (const cIndex in this.conditionList) {
+        // 获取当前遍历到的条件
+        const currentCondition = this.conditionList[cIndex];
+        // 如果当前条件的操作符和字段与给定的匹配
+        if (currentCondition.operator === operator && currentCondition.id === field && currentCondition.isInclude) {
+          // 如果当前条件的值为空数组
+          if (!currentCondition.value.length) {
+            // 则将输入值数组直接设置为当前条件的值
+            currentCondition.value = inputValueList;
             return;
           }
-          if (!lastCondition.value.length) {
-            // 如果最后一个条件的值为空数组，则将输入值数组添加到当前条件的值中
-            currentCondition.value = [...currentCondition.value, ...inputValueList];
-            return;
+          // 如果存在具有相同操作符和字段的条件，并且操作符是包含类型
+          if (isExistCondition && isContainsType) {
+            // 如果最后一个条件的字段与给定的匹配
+            if (lastCondition.id === field && lastCondition.isInclude) {
+              // 则将输入值数组添加到最后一个条件的值中
+              lastCondition.value = [...lastCondition.value, ...inputValueList];
+              return;
+            }
+            if (!lastCondition.value.length && lastCondition.isInclude) {
+              // 如果最后一个条件的值为空数组，则将输入值数组添加到当前条件的值中
+              currentCondition.value = [...currentCondition.value, ...inputValueList];
+              return;
+            }
           }
         }
       }
@@ -447,7 +458,7 @@ export default class SearchComp extends tsc<IProps> {
       operator,
       isInclude: isInclude ?? true,
       value: inputValueList,
-      operatorItem
+      operatorItem,
     });
   }
 
@@ -474,12 +485,12 @@ export default class SearchComp extends tsc<IProps> {
           field: item.name,
           operator: item.operator,
           value: '',
-          isInclude: true
+          isInclude: true,
         }));
     }
     addition.forEach(el => {
       const { field, operator, value, isInclude } = el;
-      this.pushCondition(field, operator, value, isInclude);
+      this.pushCondition(field, operator, value, isInclude, true);
     });
   }
 
@@ -535,7 +546,7 @@ export default class SearchComp extends tsc<IProps> {
     // 判断是否是字段类型, 并且是在有操作符更变的时候才更新
     if (isTextField && newReplaceObj?.operator) {
       Object.assign(this.conditionList[index], {
-        operator: this.textMappingKey[newReplaceObj.operator] ?? newReplaceObj.operator
+        operator: this.textMappingKey[newReplaceObj.operator] ?? newReplaceObj.operator,
       });
     }
     if (this.conditionList[index].isInclude && !this.tagFocusInputObj?.str) {
@@ -548,7 +559,7 @@ export default class SearchComp extends tsc<IProps> {
     keyword === '' && (keyword = '*');
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword }
+        data: { keyword },
       });
       this.inputSearchList = res.data.map(item => item.name);
     } catch (err) {
@@ -568,7 +579,7 @@ export default class SearchComp extends tsc<IProps> {
       .map(item => ({
         field: item.id,
         operator: item.operator,
-        value: item.value.join(',')
+        value: item.value,
       }));
     this.handleSearchAddChange(addition, isQuery, isForceQuery);
   }
@@ -578,7 +589,8 @@ export default class SearchComp extends tsc<IProps> {
     return ['exists', 'does not exists'].includes(operator);
   }
 
-  async queryValueList(fields = []) {
+  async queryValueList(fieldsParams = []) {
+    const fields = fieldsParams.length ? fieldsParams : this.fieldsKeyStrList;
     if (!fields.length) return;
     const tempList = handleTransformToTimestamp(this.datePickerValue);
     try {
@@ -587,18 +599,18 @@ export default class SearchComp extends tsc<IProps> {
         keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
         fields,
         start_time: formatDate(tempList[0] * 1000),
-        end_time: formatDate(tempList[1] * 1000)
+        end_time: formatDate(tempList[1] * 1000),
       };
       if (this.isUnionSearch) {
         Object.assign(queryData, {
-          index_set_ids: this.unionIndexList
+          index_set_ids: this.unionIndexList,
         });
       }
       const res = await $http.request(urlStr, {
         params: {
-          index_set_id: this.indexId
+          index_set_id: this.indexId,
         },
-        data: queryData
+        data: queryData,
       });
       this.aggsItems = res.data.aggs_items;
       this.initValueList();
@@ -634,7 +646,7 @@ export default class SearchComp extends tsc<IProps> {
     const routeData = {
       name: 'retrieve',
       params,
-      query: { ...routerQuery, keyword: val }
+      query: { ...routerQuery, keyword: val },
     };
     this.$router.replace(routeData);
   }
@@ -644,62 +656,62 @@ export default class SearchComp extends tsc<IProps> {
       <div>
         <QueryStatement
           history-records={this.historyRecords}
+          is-can-use-ui-type={this.isCanUseUiType}
           is-show-ui-type={this.isShowUiType}
           is-sql-search-type={this.isSqlSearchType}
-          is-can-use-ui-type={this.isCanUseUiType}
-          onUpdateSearchParam={this.handleUpdateSearchParam}
-          onRetrieve={this.handleRetrieveLog}
           onClickSearchType={this.handleClickSearchType}
+          onRetrieve={this.handleRetrieveLog}
+          onUpdateSearchParam={this.handleUpdateSearchParam}
         />
         {this.isSqlSearchType ? (
           <RetrieveDetailInput
             v-model={this.retrieveParams.keyword}
-            is-auto-query={this.isAutoQuery}
-            retrieved-keyword={this.retrievedKeyword}
             dropdown-data={this.retrieveDropdownData}
+            is-auto-query={this.isAutoQuery}
             is-show-ui-type={this.isShowUiType}
-            onKeywordBlurUpdate={this.blurUpdateKeyword}
+            retrieved-keyword={this.retrievedKeyword}
             total-fields={this.totalFields}
             onInputBlur={this.handleBlurSearchInput}
             onIsCanSearch={val => this.handleUserOperate('isCanStorageFavorite', val)}
+            onKeywordBlurUpdate={this.blurUpdateKeyword}
             onRetrieve={this.handleRetrieveLog}
           />
         ) : (
           <UiQuery
             ref='uiQuery'
+            active-favorite={this.activeFavorite}
             is-favorite-search={this.isFavoriteSearch}
             keyword={this.retrieveParams.keyword}
-            active-favorite={this.activeFavorite}
-            onUpdateKeyWords={this.handleUpdateKeyWords}
             onIsCanSearch={val => this.handleUserOperate('isCanStorageFavorite', val)}
+            onUpdateKeyWords={this.handleUpdateKeyWords}
           />
         )}
         {/* 这里插入 condition 组件 */}
         {this.conditionList.map((item, index) => (
           <Condition
-            name={item.name}
-            filed={item.id}
-            isInclude={item.isInclude}
-            operatorValue={item.operator}
-            inputValue={item.value}
-            operatorList={item.operatorList}
-            operatorItem={item.operatorItem}
+            style='margin-bottom: 16px;'
+            catchIpChooser={this.catchIpChooser}
             conditionType={item.conditionType}
             fieldType={item.fieldType}
-            valueList={item.valueList}
+            filed={item.id}
             filterFields={this.filterFields}
+            inputValue={item.value}
             is-auto-query={this.isAutoQuery}
-            retrieveParams={this.retrieveParams}
-            catchIpChooser={this.catchIpChooser}
             isClearCatchInputStr={this.isClearCatchInputStr}
+            isInclude={item.isInclude}
+            name={item.name}
+            operatorItem={item.operatorItem}
+            operatorList={item.operatorList}
+            operatorValue={item.operator}
+            retrieveParams={this.retrieveParams}
+            valueList={item.valueList}
+            onAdditionValueChange={additionVal => this.handleAdditionValueChange(index, additionVal)}
+            onDelete={v => this.handleConditionDelete(index, v)}
+            onFiledChange={v => this.handleFiledChange(index, v)}
+            onInputChange={v => this.tagInputStrChange(index, v)}
+            onIpChange={() => this.handleOpenIpQuick()}
             // statisticalFieldsData={this.statisticalFieldsData}
             onIsIncludeChange={v => this.handleIsIncludeChange(index, v)}
-            onDelete={v => this.handleConditionDelete(index, v)}
-            onAdditionValueChange={additionVal => this.handleAdditionValueChange(index, additionVal)}
-            onFiledChange={v => this.handleFiledChange(index, v)}
-            onIpChange={() => this.handleOpenIpQuick()}
-            onInputChange={v => this.tagInputStrChange(index, v)}
-            style='margin-bottom: 16px;'
           />
         ))}
         <div class={{ 'inquire-cascader-container': true, active: this.isShowFilterOption }}>
@@ -708,51 +720,51 @@ export default class SearchComp extends tsc<IProps> {
             theme='primary'
           >
             <i
-              class='bk-icon icon-plus'
               style='margin-right: 6px;'
+              class='bk-icon icon-plus'
             ></i>
             <span>{this.$t('添加条件')}</span>
           </Button>
 
           <Select
             class='inquire-cascader'
+            v-model={this.filedSelectedValue}
             // multiple
             searchable
-            v-model={this.filedSelectedValue}
-            onToggle={this.handleToggleChange}
             onSelected={this.handleSelectFiled}
+            onToggle={this.handleToggleChange}
           >
             {this.filterFields.map(option => (
               <Option
+                id={option.id}
+                key={option.id}
                 v-bk-tooltips={{
                   content: option.disabledContent,
                   placement: 'right',
-                  disabled: !option.disabled
+                  disabled: !option.disabled,
                 }}
-                key={option.id}
-                id={option.id}
-                name={option.fullName}
                 disabled={option.disabled}
+                name={option.fullName}
               ></Option>
             ))}
           </Select>
         </div>
         <HandleBtn
-          indexId={this.indexId}
-          conditionList={this.conditionList}
-          tableLoading={this.tableLoading}
-          isAutoQuery={this.isAutoQuery}
-          isSearchAllowed={this.isSearchAllowed}
-          activeFavoriteID={this.activeFavoriteID}
-          isCanStorageFavorite={this.isCanStorageFavorite}
-          catchIpChooser={this.catchIpChooser}
-          retrieveParams={this.retrieveParams}
           activeFavorite={this.activeFavorite}
-          visibleFields={this.visibleFields}
+          activeFavoriteID={this.activeFavoriteID}
+          catchIpChooser={this.catchIpChooser}
+          conditionList={this.conditionList}
+          indexId={this.indexId}
           indexSetList={this.indexSetList}
+          isAutoQuery={this.isAutoQuery}
+          isCanStorageFavorite={this.isCanStorageFavorite}
+          isSearchAllowed={this.isSearchAllowed}
           isSqlSearchType={this.isSqlSearchType}
-          onRetrieveLog={this.handleClickRequestBtn}
+          retrieveParams={this.retrieveParams}
+          tableLoading={this.tableLoading}
+          visibleFields={this.visibleFields}
           onClearCondition={this.handleClearCondition}
+          onRetrieveLog={this.handleClickRequestBtn}
         />
       </div>
     );

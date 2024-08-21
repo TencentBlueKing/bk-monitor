@@ -40,8 +40,7 @@ SCENARIO_ID_BKDATA = "bkdata"
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
-CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": ""}}]
-
+CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
 CLUSTER_INFO_WITH_AUTH = [
     {"cluster_config": {"cluster_id": 1, "cluster_name": ""}, "auth_info": {"username": "", "password": ""}}
 ]
@@ -244,6 +243,8 @@ INDEX_SET_LISTS = {
             "sort_fields": [],
             "target_fields": [],
             "result_window": 10000,
+            "storage_cluster_domain_name": "",
+            "storage_cluster_port": 123,
         }
     ],
 }
@@ -308,6 +309,15 @@ RETRIEVE_LIST = {
     "index_set_id": 63,
     "view_roles": [],
     "bkdata_project_id": None,
+    "bk_biz_id": 2,
+    'apply_status': 'normal',
+    'apply_status_name': '正常',
+    "storage_cluster_name": "",
+    "tags": [],
+    "storage_cluster_domain_name": "",
+    "storage_cluster_port": 123,
+    "scenario_name": "第三方ES",
+    "category_name": "其他",
     "indexes": [
         {
             "index_id": 126,
@@ -362,7 +372,6 @@ RETRIEVE_LIST = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": [],
     "is_editable": True,
     "sort_fields": [],
     "target_fields": [],
@@ -503,6 +512,7 @@ class TestIndexSet(TestCase):
     @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=[])
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
     @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_or_update_es_router", return_value=None)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def do_create_index_set(self, *args, **kwargs):
         """
@@ -555,6 +565,7 @@ class TestIndexSet(TestCase):
     @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
     @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @patch("apps.api.TransferApi.create_or_update_es_router", return_value=None)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_update_index_set(self, *args, **kwargs):
         """
@@ -641,6 +652,7 @@ class TestIndexSet(TestCase):
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertEqual(content, DELETE_SUCCESS)
 
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_retrieve_index_set(self, *args):
         """

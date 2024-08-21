@@ -123,7 +123,12 @@ async def wait_for_panel_render(page):
             "() => { return document.querySelectorAll('.panel').length "
             "|| document.querySelectorAll('.panel-container').length }"
         )
-        if (rendered_panel_count is not None and rendered_panel_count >= panel_count) or time.time() - start_time > 60:
+        if rendered_panel_count is not None and rendered_panel_count >= panel_count:
+            # 等待图表渲染动画完成
+            time.sleep(3)
+            break
+
+        if time.time() - start_time > 60:
             break
 
 
@@ -730,7 +735,7 @@ class ReportHandler:
                 perm_client = Permission(receiver)
                 perm_client.skip_check = False
                 business_list = [
-                    int(biz.bk_biz_id) for biz in perm_client.filter_business_list_by_action(ActionEnum.VIEW_BUSINESS)
+                    biz["bk_biz_id"] for biz in perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
                 ]
                 business_list.sort()
                 biz_list = "superuser" if user_is_superuser else ",".join([str(biz) for biz in business_list])

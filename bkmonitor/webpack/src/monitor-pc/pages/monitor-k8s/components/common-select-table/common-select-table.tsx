@@ -359,7 +359,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         this.handleSelectDetail(checkedItem);
       }
 
-      if (!!title) {
+      if (title) {
         this.handleTitleChange(typeof title === 'object' ? title.value : title);
         this.tableRef?.handleSelectedRow(checkedItem);
       }

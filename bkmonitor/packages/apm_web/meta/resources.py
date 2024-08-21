@@ -1939,7 +1939,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                         name=_("调用链"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&listType=span',
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
@@ -1949,7 +1949,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                         name=_("统计"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&listType=interfaceStatistics',
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
@@ -2046,12 +2046,14 @@ class QueryEndpointStatisticsResource(PageListResource):
         """
         添加 url 归类统计数据
         """
-        res = []
+        match_res = []
+        no_match_res = []
         for summary, items in summary_mappings.items():
             request_count = len(items)
-            res.append(
+
+            (no_match_res, match_res)[summary[-1]].append(
                 {
-                    "summary": summary,
+                    "summary": summary[0],
                     "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
                     "request_count": request_count,
                     "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
@@ -2060,7 +2062,9 @@ class QueryEndpointStatisticsResource(PageListResource):
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )
-        return res
+
+        # 匹配到正则的结果优先展示
+        return match_res + no_match_res
 
     def perform_request(self, validated_data):
         """
@@ -2097,6 +2101,8 @@ class QueryEndpointStatisticsResource(PageListResource):
             uri_queryset = UriServiceRelation.objects.filter(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
             )
+            if "resource.service.name" in validated_data.get("filter_params", {}):
+                uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         res = []
         summary_mappings = defaultdict(list)
@@ -2109,14 +2115,18 @@ class QueryEndpointStatisticsResource(PageListResource):
             filter_key = self.GROUP_KEY_ATT_CONFIG.get(tmp_filter_key, "span_name")
             # http_url 归类处理
             if not is_component and filter_key in [OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)]:
-                url = None
+                http_summary_is_match = False
                 for uri in uri_list:
-                    if re.match(uri, summary):
-                        url = SpanHandler.generate_uri(urlparse(summary))
-                        summary_mappings[url].append(bucket)
-                        break
-                if url:
-                    continue
+                    pure_http_url = SpanHandler.generate_uri(urlparse(summary))
+                    if re.match(uri, pure_http_url):
+                        summary_mappings[(uri, True)].append(bucket)
+                        http_summary_is_match = True
+
+                if not http_summary_is_match:
+                    summary_mappings[(summary, False)].append(bucket)
+
+                continue
+
             res.append(
                 {
                     "summary": summary,
@@ -2190,36 +2200,34 @@ class QueryExceptionDetailEventResource(PageListResource):
                     stacktrace = (
                         event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_STACKTRACE, "").split("\n")
                     )
-                    if validated_data["exception_type"]:
-                        if exception_type == validated_data["exception_type"]:
-                            res.append(
-                                {
-                                    "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
-                                    "subtitle": subtitle,
-                                    "content": stacktrace,
-                                    "timestamp": int(event["timestamp"]),
-                                }
-                            )
-                    else:
-                        # 无过滤条件 -> 显示全部
-                        res.append(
-                            {
-                                "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
-                                "subtitle": subtitle,
-                                "content": stacktrace,
-                                "timestamp": int(event["timestamp"]),
-                            }
-                        )
-            else:
-                if subtitle:
+                    if not subtitle:
+                        exception_message = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_MESSAGE, "")
+                        subtitle = f"{exception_type}: {exception_message}"
+                    # 无过滤条件 -> 显示全部
                     res.append(
                         {
-                            "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
+                            "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
                             "subtitle": subtitle,
-                            "content": [],
-                            "timestamp": int(span["start_time"]),
+                            "content": stacktrace,
+                            "timestamp": int(event["timestamp"]),
+                            "exception_type": exception_type,
                         }
                     )
+            else:
+                res.append(
+                    {
+                        "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
+                        "subtitle": subtitle,
+                        "content": [],
+                        "timestamp": int(span["start_time"]),
+                        "exception_type": self.UNKNOWN,
+                    }
+                )
+
+        # exception_type 过滤
+        if validated_data["exception_type"]:
+            res = [i for i in res if i["exception_type"] == validated_data["exception_type"]]
+
         # 对 res 基于 timestamp 字段排序 (倒序)
         res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
         for index, r in enumerate(res, 1):
@@ -2272,7 +2280,6 @@ class QueryExceptionEndpointResource(Resource):
         }
 
         exception_spans = api.apm_api.query_span(query_dict)
-        has_event_trace_id = [i["trace_id"] for i in exception_spans if i.get("events")]
         indentify_mapping = {}
         colors = ServiceColorClassifier()
 
@@ -2304,9 +2311,7 @@ class QueryExceptionEndpointResource(Resource):
             else:
                 exception_type = self.UNKNOWN_EXCEPTION
                 if (
-                    validated_data["exception_type"]
-                    and exception_type == validated_data["exception_type"]
-                    and span["trace_id"] not in has_event_trace_id
+                    validated_data["exception_type"] and exception_type == validated_data["exception_type"]
                 ) or not validated_data["exception_type"]:
                     indentify = f"{service_name}: {span_name}"
                     if indentify in indentify_mapping:
@@ -2625,15 +2630,33 @@ class CustomServiceMatchListResource(Resource):
                 if is_match:
                     res.add(f"{item}")
             else:
-                predicates = []
-                if url.hostname and "host" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_host(validated_data["rule"].get("host"), url.hostname))
-                if url.path and "path" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_uri(validated_data["rule"].get("path"), url.path))
-                if url.query and "params" in validated_data["rule"]:
-                    predicates.append(Matcher.manual_match_params(validated_data["rule"].get("params"), url.query))
-                if predicates and all(predicates):
-                    res.add(f"{item}")
+                host_rule = validated_data["rule"].get("host", {})
+                path_rule = validated_data["rule"].get("path", {})
+                param_rules = validated_data["rule"].get("params", [])
+
+                if host_rule.get("value"):
+                    if not Matcher.operator_match(host_rule["value"], str(url.hostname), host_rule["operator"]):
+                        continue
+
+                if path_rule.get("value"):
+                    if not Matcher.operator_match(path_rule["value"], str(url.path), path_rule["operator"]):
+                        continue
+
+                url_param_paris = {}
+                for i in url.query.split("&"):
+                    if not i:
+                        continue
+                    k, v = str(i).split("=")
+                    url_param_paris[k] = v
+
+                for param in param_rules:
+                    val = url_param_paris.get(param["name"])
+                    if not val:
+                        continue
+                    if not Matcher.operator_match(val, param["value"], param["operator"]):
+                        continue
+
+                res.add(f"{item}")
 
         return list(res)
 

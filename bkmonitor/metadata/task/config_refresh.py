@@ -25,6 +25,7 @@ from metadata.config import (
     KAFKA_SASL_PROTOCOL,
     PERIODIC_TASK_DEFAULT_TTL,
 )
+from metadata.models.constants import EsSourceType
 from metadata.utils import consul_tools
 
 from .tasks import manage_es_storage
@@ -149,7 +150,6 @@ def clean_influxdb_host():
     models.InfluxDBHostInfo.clean_redis_host_config()
 
 
-@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshDatasource")
 def refresh_datasource():
     # 更新datasource的外部依赖 及 配置信息
     # NOTE: 过滤有结果表的数据源并且状态是启动
@@ -196,7 +196,6 @@ def refresh_kafka_storage():
             )
 
 
-@share_lock(identify="metadata_refreshKafkaTopicInfo")
 def refresh_kafka_topic_info():
     cluster_map = {}
     for kafka_topic_info in models.KafkaTopicInfo.objects.all():
@@ -253,6 +252,8 @@ def refresh_kafka_topic_info():
 
 @share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
+    es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+
     # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
     es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
     if es_cluster_wl:
@@ -261,7 +262,10 @@ def refresh_es_storage():
         manage_es_storage.delay(es_storage_data)
     # 设置每100条记录，拆分为一个任务
     start, step = 0, 100
-    es_storages = models.ESStorage.objects.exclude(storage_cluster_id__in=es_cluster_wl)
+    # 仅管理日志内建的集群索引
+    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value).exclude(
+        storage_cluster_id__in=(es_cluster_wl + es_blacklist)
+    )
     # 添加一步过滤，用以减少任务的数量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
@@ -339,7 +343,7 @@ def clean_datasource_from_consul():
     """
     logger.info("start to delete datasource from consul")
     # 获取使用的 transfer 集群
-    data_info = models.DataSource.objects.values("bk_data_id", "transfer_cluster_id")
+    data_info = models.DataSource.objects.filter(is_enable=True).values("bk_data_id", "transfer_cluster_id")
     # 组装 transfer 消费的数据源 ID
     transfer_id_and_data_ids = {}
     for d in data_info:

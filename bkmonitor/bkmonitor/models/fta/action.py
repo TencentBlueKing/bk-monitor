@@ -308,7 +308,7 @@ class ActionInstance(AbstractRecordModel):
 
     # 任务需要拆分的，需要将子任务添加到DB中，当存在子任务的时候，父任务不做任务处理，子任务都完成的时候，父任务也完成
     is_parent_action = models.BooleanField("是否为主任务", default=False, db_index=True)
-    parent_action_id = models.IntegerField("父任务ID", default=0)
+    parent_action_id = models.BigIntegerField("父任务ID", default=0)
     sub_actions = JsonField("子任务ID", default=[])
 
     assignee = JsonField("负责人", default=[])
@@ -689,7 +689,7 @@ class ConvergeInstance(AbstractRecordModel):
         blank=False,
         db_index=True,
         max_length=64,
-        choices=[("converge", _("收敛事件")), ("action", _("处理事件"))],
+        choices=[("converge", "收敛事件"), ("action", "处理事件")],
     )
 
     bk_biz_id = models.IntegerField("业务编码", db_index=True)
@@ -780,8 +780,8 @@ class ConvergeRelation(models.Model):
     """
 
     id = models.BigAutoField("主键", primary_key=True)
-    converge_id = models.IntegerField(null=False, blank=False, db_index=True)
-    related_id = models.IntegerField(null=False, blank=False, db_index=True)
+    converge_id = models.BigIntegerField(null=False, blank=False, db_index=True)
+    related_id = models.BigIntegerField(null=False, blank=False, db_index=True)
     related_type = models.CharField(
         null=False,
         blank=False,
