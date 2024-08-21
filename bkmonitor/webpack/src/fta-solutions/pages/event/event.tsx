@@ -141,8 +141,8 @@ export const commonAlertFieldMap = {
       name: window.i18n.tc('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已关闭',
-      name: window.i18n.tc('已关闭'),
+      id: isEn ? 'CLOSED' : '已失效',
+      name: window.i18n.tc('已失效'),
     },
   ],
   severity: [
