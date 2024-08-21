@@ -749,6 +749,40 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
+    /* ----------------测数数据 */
+    if (['apm_service', 'apm_application'].includes(this.sceneId) && this.localSceneType === 'overview') {
+      for (const item of data?.overview_panels || []) {
+        if (item.type === 'graph') {
+          item.type = 'apm-timeseries-chart';
+          item.options = {
+            ...item.options,
+            apm_metric: (() => {
+              if (item.title === '请求数') {
+                return 'request_count';
+              }
+              if (item.title === '错误数') {
+                return 'error_count';
+              }
+              if (item.title === '响应耗时') {
+                return 'avg_duration';
+              }
+            })(),
+          };
+        }
+      }
+    }
+    /* ------------------测试数据 */
+    for (const item of data?.overview_panels || []) {
+      if (item.type === 'apm-timeseries-chart') {
+        item.options = {
+          ...item.options,
+          apmParams: {
+            app_name: this.filters.app_name || '',
+            service_name: this.filters.service_name || '',
+          },
+        };
+      }
+    }
     const oldSelectPanel = this.sceneData?.options?.selector_panel?.targets
       ? JSON.stringify(this.sceneData.options.selector_panel.targets)
       : '';

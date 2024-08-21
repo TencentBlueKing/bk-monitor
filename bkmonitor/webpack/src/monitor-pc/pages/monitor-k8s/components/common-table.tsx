@@ -230,6 +230,25 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // 常用值格式化
   commonFormatter(val: ITableItem<'string'>) {
     if (typeof val !== 'number' && !val) return '--';
+    if (typeof val === 'object') {
+      return (
+        <span class='string-col'>
+          {val.icon ? (
+            val.icon.length > 30 ? (
+              <img
+                alt=''
+                src={val.icon}
+              />
+            ) : (
+              <i class={['icon-monitor', 'link-icon', val.icon]} />
+            )
+          ) : (
+            ''
+          )}
+          <TextOverflowCopy val={val?.name || ''} />
+        </span>
+      );
+    }
     return (
       <span class='string-col'>
         <TextOverflowCopy val={val} />
@@ -360,7 +379,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         ) : (
           ''
         )}
-        {` ${val.display_value || val.value}`}
+        {` ${val.display_value || val.value || val?.name || ''}`}
       </div>
     );
   }

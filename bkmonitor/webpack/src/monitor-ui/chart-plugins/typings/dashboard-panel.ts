@@ -382,6 +382,11 @@ export type PanelOption = {
   header?: {
     tips: string; // 提示
   };
+  apm_metric?: string; // apm视图指标
+  apmParams?: {
+    app_name?: string;
+    service_name?: string;
+  };
 } & ISelectorList &
   IDashboardCommon &
   IVariablesOption &

@@ -143,6 +143,14 @@ export default class MiniChart extends tsc<IProps> {
   /* 是否开始拖拽 */
   isDrop = false;
 
+  @Watch('disableHover')
+  handleWatchDisableHover(disableHover) {
+    if (disableHover) {
+      this.localPointType = EPointType.compare;
+      this.setMarkPointData();
+    }
+  }
+
   @Watch('pointType')
   handleWatchPointType(type: EPointType) {
     if (this.localPointType !== type) {
@@ -246,7 +254,7 @@ export default class MiniChart extends tsc<IProps> {
             formatter: params => {
               if (this.isMouseOver && !this.disableHover) {
                 const time = params[0].value[0];
-                const value = params[0].value[1];
+                const value = params[0].value[1] || 0;
                 this.hoverPoint.position = {
                   x: time,
                   y: value,
@@ -294,7 +302,7 @@ export default class MiniChart extends tsc<IProps> {
               ...this.getSymbolItemStyle(),
               ...this.getSeriesStyle(),
               data: this.data.map(item => ({
-                value: [item[1], item[0]],
+                value: [item[1], item[0] || 0],
               })),
             },
           ],
@@ -344,7 +352,7 @@ export default class MiniChart extends tsc<IProps> {
       };
     }
     return {
-      symbol: this.localPointType === EPointType.end || this.disableHover ? 'none' : 'circle',
+      symbol: this.localPointType === EPointType.end || this.disableHover || !this.isMouseOver ? 'none' : 'circle',
       symbolSize: 8,
       showSymbol: false,
       itemStyle: {
@@ -462,6 +470,7 @@ export default class MiniChart extends tsc<IProps> {
    */
   handleMouseover() {
     this.isMouseOver = true;
+    this.setMarkPointData();
   }
   /**
    * @description 鼠标移出图表

@@ -41,7 +41,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
-import DetailsSide from './components/details-side';
+import DetailsSide, { type EDataType } from './components/details-side';
 
 import './apm-time-series.scss';
 
@@ -77,6 +77,18 @@ export default class ApmTimeSeries extends TimeSeries {
   detailsSideData = {
     show: false,
   };
+
+  get apmMetric(): EDataType {
+    return (this.panel.options?.apm_metric || '') as EDataType;
+  }
+
+  get appName() {
+    return this.panel.options?.apmParams?.app_name || '';
+  }
+
+  get serviceName() {
+    return this.panel.options?.apmParams?.service_name || '';
+  }
 
   /**
    * @description: 获取图表数据
@@ -518,7 +530,11 @@ export default class ApmTimeSeries extends TimeSeries {
         )}
         {!this.panel.options?.disableContextmenu && (
           <DetailsSide
+            appName={this.appName}
+            dataType={this.apmMetric}
+            serviceName={this.serviceName}
             show={this.detailsSideData.show}
+            timeRange={this.timeRange}
             onClose={this.handleCloseDetails}
           />
         )}

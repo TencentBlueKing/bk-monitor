@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { connect, disconnect } from 'echarts/core';
+import { metricDetailStatistics } from 'monitor-api/modules/apm_metric';
 import { random } from 'monitor-common/utils';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
@@ -41,40 +43,62 @@ import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/
 import './details-side.scss';
 
 enum EColumn {
-  Chart = 'chart',
+  Chart = 'datapoints',
   CompareCount = 'compare-count',
   DiffCount = 'diff-count',
   InitiativeCount = 'initiative-count',
   InitiativeService = 'initiative-service',
   Operate = 'operate',
   ReferCount = 'refer-count',
-  ServerName = 'service_name',
+  ServerName = 'service',
+}
+
+enum EOptionKind {
+  callee = 'callee',
+  caller = 'caller',
+}
+
+export enum EDataType {
+  avgDuration = 'avg_duration',
+  errorCount = 'error_count',
+  requestCount = 'request_count',
 }
 
 interface IProps {
   show: boolean;
+  timeRange?: TimeRangeType;
+  serviceName?: string;
+  appName?: string;
+  dataType?: EDataType;
   onClose?: () => void;
 }
 
 @Component
 export default class DetailsSide extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Array, default: () => ['now-1d', 'now'] }) timeRange: TimeRangeType;
+  @Prop({ type: String, default: '' }) serviceName: string;
+  @Prop({ type: String, default: '' }) appName: string;
+  @Prop({ type: String, default: '' }) dataType: EDataType;
 
+  loading = false;
+  sourceTableData = [];
   /* 时间 */
-  timeRange: TimeRangeType = ['now-1d', 'now'];
+  localTimeRange: TimeRangeType = ['now-1d', 'now'];
   timezone: string = getDefaultTimezone();
   /* 主体切换 */
   selectOptions = [
-    { id: 'avg', name: '平均响应耗时' },
-    { id: 'error', name: '总错误数' },
+    { id: EDataType.requestCount, name: window.i18n.tc('总请求数') },
+    { id: EDataType.errorCount, name: window.i18n.tc('总错误数') },
+    { id: EDataType.avgDuration, name: window.i18n.tc('平均响应耗时') },
   ];
-  selected = 'avg';
+  selected = EDataType.requestCount;
   /* 类型切换 */
   typeOptions = [
-    { id: 'initiative', name: '主调' },
-    { id: 'passive', name: '被调' },
+    { id: EOptionKind.caller, name: window.i18n.tc('主调') },
+    { id: EOptionKind.callee, name: window.i18n.tc('被调') },
   ];
-  curType = 'initiative';
+  curType = EOptionKind.caller;
   /* 对比时间 */
   compareTimeInfo = [
     {
@@ -116,18 +140,18 @@ export default class DetailsSide extends tsc<IProps> {
   chartGroupId = random(8);
 
   get filterTableColumns() {
-    return this.tableColumns.filter(item => {
+    return this.tableColumns;
+    /* return this.tableColumns.filter(item => {
       if (this.isCompare) {
         return ![EColumn.InitiativeCount].includes(item.id as EColumn);
       }
       return [EColumn.ServerName, EColumn.InitiativeService, EColumn.InitiativeCount, EColumn.Chart].includes(
         item.id as EColumn
       );
-    });
+    }); */
   }
 
   created() {
-    this.initData();
     connect(this.chartGroupId);
   }
 
@@ -135,222 +159,50 @@ export default class DetailsSide extends tsc<IProps> {
     disconnect(this.chartGroupId);
   }
 
-  initData() {
-    this.tableColumns = [
-      {
-        type: 'link',
-        id: EColumn.ServerName,
-        name: window.i18n.tc('服务名称'),
-      },
-      {
-        type: 'string',
-        id: EColumn.InitiativeService,
-        name: window.i18n.tc('调用服务'),
-      },
-      {
-        type: 'number',
-        id: EColumn.InitiativeCount,
-        name: window.i18n.tc('调用数'),
-      },
-      {
-        id: EColumn.CompareCount,
-        type: 'number',
-        name: window.i18n.tc('对比'),
-        sortable: true,
-      },
-      {
-        id: EColumn.ReferCount,
-        name: window.i18n.tc('参照'),
-        type: 'number',
-        sortable: true,
-      },
-      {
-        id: EColumn.DiffCount,
-        name: window.i18n.tc('差异值'),
-        type: 'scoped_slots',
-        sortable: true,
-      },
-      {
-        type: 'scoped_slots',
-        id: EColumn.Chart,
-        min_width: 167,
-        name: window.i18n.tc('缩略图'),
-        renderHeader: () => this.chartLabelPopover(),
-      },
-      {
-        type: 'scoped_slots',
-        id: EColumn.Operate,
-        name: window.i18n.tc('操作'),
-      },
-    ];
-    this.tableData = [
-      {
-        id: 1,
-        [EColumn.ServerName]: {
-          icon: '',
-          key: '',
-          target: 'null_event',
-          url: '',
-          value: 'test1',
-        },
-        [EColumn.InitiativeService]: {
-          icon: '',
-          type: '',
-          text: 'test01',
-        },
-        [EColumn.InitiativeCount]: 10,
-        [EColumn.CompareCount]: 10,
-        [EColumn.ReferCount]: 10,
-        [EColumn.DiffCount]: 0.45,
-        [EColumn.Chart]: null,
-        [EColumn.Operate]: null,
-        data: [
-          [118, 1721616120000],
-          [120, 1721616180000],
-          [120, 1721616240000],
-          [120, 1721616300000],
-          [122, 1721616360000],
-          [120, 1721616420000],
-          [118, 1721616480000],
-          [120, 1721616540000],
-          [0, 1721616600000],
-          [50, 1721616660000],
-          [50, 1721616720000],
-          [50, 1721616780000],
-          [50, 1721616840000],
-          [50, 1721616900000],
-          [50, 1721616960000],
-          [120, 1721617020000],
-          [120, 1721617080000],
-          [120, 1721617140000],
-          [120, 1721617200000],
-          [120, 1721617260000],
-          [120, 1721617320000],
-          [120, 1721617380000],
-          [120, 1721617440000],
-          [120, 1721617500000],
-          [2, 1721617560000],
-          [120, 1721617620000],
-          [120, 1721617680000],
-          [120, 1721617740000],
-          [120, 1721617800000],
-          [50, 1721617860000],
-          [50, 1721617920000],
-          [50, 1721617980000],
-          [50, 1721618040000],
-          [50, 1721618100000],
-          [50, 1721618160000],
-          [50, 1721618220000],
-          [50, 1721618280000],
-          [4, 1721618340000],
-          [10, 1721618400000],
-          [20, 1721618460000],
-          [30, 1721618520000],
-          [50, 1721618580000],
-          [80, 1721618640000],
-          [100, 1721618700000],
-          [122, 1721618760000],
-          [120, 1721618820000],
-          [120, 1721618880000],
-          [120, 1721618940000],
-          [120, 1721619000000],
-          [120, 1721619060000],
-          [120, 1721619120000],
-          [120, 1721619180000],
-          [120, 1721619240000],
-          [120, 1721619300000],
-          [122, 1721619360000],
-          [118, 1721619420000],
-          [120, 1721619480000],
-          [120, 1721619540000],
-          [120, 1721619600000],
-          [122, 1721619660000],
-        ] as any,
-      },
-      {
-        id: 2,
-        [EColumn.ServerName]: {
-          icon: '',
-          key: '',
-          target: 'null_event',
-          url: '',
-          value: 'test2',
-        },
-        [EColumn.InitiativeService]: {
-          icon: '',
-          type: '',
-          text: 'test02',
-        },
-        [EColumn.InitiativeCount]: 10,
-        [EColumn.CompareCount]: 20,
-        [EColumn.ReferCount]: 20,
-        [EColumn.DiffCount]: -0.45,
-        [EColumn.Chart]: null,
-        [EColumn.Operate]: null,
-        data: [
-          [118, 1721616120000],
-          [120, 1721616180000],
-          [120, 1721616240000],
-          [120, 1721616300000],
-          [122, 1721616360000],
-          [120, 1721616420000],
-          [118, 1721616480000],
-          [120, 1721616540000],
-          [0, 1721616600000],
-          [50, 1721616660000],
-          [50, 1721616720000],
-          [50, 1721616780000],
-          [50, 1721616840000],
-          [50, 1721616900000],
-          [50, 1721616960000],
-          [120, 1721617020000],
-          [120, 1721617080000],
-          [50, 1721617140000],
-          [50, 1721617200000],
-          [50, 1721617260000],
-          [50, 1721617320000],
-          [50, 1721617380000],
-          [50, 1721617440000],
-          [50, 1721617500000],
-          [2, 1721617560000],
-          [50, 1721617620000],
-          [50, 1721617680000],
-          [50, 1721617740000],
-          [50, 1721617800000],
-          [50, 1721617860000],
-          [50, 1721617920000],
-          [50, 1721617980000],
-          [50, 1721618040000],
-          [50, 1721618100000],
-          [50, 1721618160000],
-          [50, 1721618220000],
-          [50, 1721618280000],
-          [4, 1721618340000],
-          [10, 1721618400000],
-          [20, 1721618460000],
-          [30, 1721618520000],
-          [50, 1721618580000],
-          [80, 1721618640000],
-          [100, 1721618700000],
-          [80, 1721618760000],
-          [80, 1721618820000],
-          [80, 1721618880000],
-          [80, 1721618940000],
-          [80, 1721619000000],
-          [80, 1721619060000],
-          [80, 1721619120000],
-          [80, 1721619180000],
-          [80, 1721619240000],
-          [80, 1721619300000],
-          [80, 1721619360000],
-          [80, 1721619420000],
-          [80, 1721619480000],
-          [80, 1721619540000],
-          [80, 1721619600000],
-          [80, 1721619660000],
-        ] as any,
-      },
-    ];
+  @Watch('show')
+  handleWatchShow(val: boolean) {
+    if (val) {
+      this.getData();
+    }
+  }
+
+  async getData() {
+    this.loading = true;
+    this.selected = this.dataType;
+    const [startTime, endTime] = handleTransformToTimestamp(this.localTimeRange);
+    const data = await metricDetailStatistics({
+      app_name: this.appName,
+      start_time: startTime,
+      end_time: endTime,
+      option_kind: this.curType,
+      data_type: this.selected,
+      service_name: this.serviceName,
+    }).catch(() => ({ data: [] }));
+    this.sourceTableData = Object.freeze(data.data);
+    this.tableColumns = data.columns.map(item => {
+      if (item.id === EColumn.Chart) {
+        return {
+          ...item,
+          type: 'scoped_slots',
+          renderHeader: () => this.chartLabelPopover(),
+        };
+      }
+      return item;
+    });
+    this.getTableData();
+    this.loading = false;
+  }
+
+  getTableData() {
+    this.tableData = this.sourceTableData
+      .slice(this.pagination.limit * (this.pagination.current - 1), this.pagination.limit * this.pagination.current)
+      .map(item => {
+        return {
+          ...item,
+          [EColumn.Chart]: (item[EColumn.Chart] || []).filter(d => d[0] !== null),
+          id: random(8),
+        };
+      });
   }
 
   handleClose() {
@@ -366,7 +218,7 @@ export default class DetailsSide extends tsc<IProps> {
     this.timezone = timezone;
   }
 
-  handleTypeChange(id: string) {
+  handleTypeChange(id: EOptionKind) {
     this.curType = id;
   }
 
@@ -456,7 +308,7 @@ export default class DetailsSide extends tsc<IProps> {
           <div class='right-time'>
             <TimeRange
               timezone={this.timezone}
-              value={this.timeRange}
+              value={this.localTimeRange}
               onChange={this.handleTimeRangeChange}
               onTimezoneChange={this.handleTimezoneChange}
             />
@@ -465,6 +317,7 @@ export default class DetailsSide extends tsc<IProps> {
         <div
           class='content-wrap'
           slot='content'
+          v-bkloading={{ isLoading: this.loading }}
         >
           <div class='content-header-wrap'>
             <div class='left-wrap'>
@@ -545,15 +398,15 @@ export default class DetailsSide extends tsc<IProps> {
                     <span class='diff-down-text'>{`${row[EColumn.DiffCount] * 100}%`}</span>
                   );
                 },
-                [EColumn.Chart]: _row => {
+                [EColumn.Chart]: row => {
                   return (
                     <div
-                      key={_row.id}
+                      key={row.id}
                       class='chart-wrap'
                     >
                       <MiniChart
                         compareX={this.compareX}
-                        data={_row.data}
+                        data={row.datapoints}
                         disableHover={!this.isCompare}
                         groupId={this.chartGroupId}
                         pointType={this.pointType}
