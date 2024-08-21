@@ -14,7 +14,7 @@
           "api": "apm_metric.instanceList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
+            "service_name": "$service_name"
           },
           "fields": {
             "id": "bk_instance_id"
@@ -238,13 +238,13 @@
           "api": "apm_metric.errorList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
+            "service_name": "$service_name"
           },
           "fields": {
             "endpoint": "endpoint",
             "app_name": "app_name",
             "exception_type": "exception_type",
-            "service_name": "component_service_name",
+            "service_name": "component_service_name"
           }
         }
       ]

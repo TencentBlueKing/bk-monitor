@@ -23,7 +23,6 @@ from apm_web.metric_handler import AvgDurationInstance, RequestCountInstance
 from apm_web.models import Application
 from apm_web.utils import group_by
 from constants.apm import OtlpKey
-from core.drf_resource import api
 from core.unit import load_unit
 from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
 
@@ -57,7 +56,11 @@ class TopNHandler:
         self.size = size
         self.filter_dict = filter_dict or {}
 
-    def top_n(self, override_filter_dict=None):
+    @property
+    def is_service_filter(self):
+        return "service_name" in self.filter_dict
+
+    def top_n(self):
         """
         [
                 {
@@ -73,59 +76,38 @@ class TopNHandler:
     def get_topo_n_data(
         self,
     ):
-
-        if self.filter_dict.get("service_name"):
-            service_name = self.filter_dict["service_name"]
-            bk_biz_id = self.application.bk_biz_id
-            app_name = self.application.app_name
-            # 判断是否查询的是自定义服务 是 -> 显示所有主调方数据并过滤
-            if ServiceHandler.is_remote_service(bk_biz_id, app_name, service_name):
-
-                res = []
-                # step1: 查询被调所有服务
-                response = api.apm_api.query_topo_relation(
-                    bk_biz_id=bk_biz_id, app_name=app_name, to_topo_key=service_name
-                )
-                from_service_names = {i["from_topo_key"] for i in response}
-                for from_service in from_service_names:
-                    override_filter_dict = dict(self.filter_dict)
-                    override_filter_dict["service_name"] = from_service
-
-                    res += self.top_n(override_filter_dict)
-
-                # step2: 查询被调接口
-                query_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "topo_node_key": service_name}
-                from_endpoints = [
-                    i["from_endpoint_name"] for i in api.apm_api.query_remote_service_relation(**query_params)
-                ]
-
-                return [r for r in res if self.get_endpoint_split(r) in from_endpoints][: self.size]
-
         return self.top_n()[: self.size]
 
     def get_endpoint_split(self, item):
         return item
 
-    def get_condition(self, override_filter_dict):
+    def get_condition(self):
         """如果是组件的话获取查询条件"""
-        where_condition = []
-        filter_dict = self.filter_dict if not override_filter_dict else override_filter_dict
         service_name_key = OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)
         service_name = self.filter_dict.get(service_name_key)
-        if service_name:
-            # 在服务页面下
-            node = ServiceHandler.get_node(self.application.bk_biz_id, self.application.app_name, service_name)
-            if ComponentHandler.is_component_by_node(node):
-                # 在组件类型的服务页面下 需要额外添加指标查询参数
-                where_condition.append(
-                    json.loads(
-                        json.dumps(component_where_mapping[node["extra_data"]["category"]]).replace(
-                            "{predicate_value}", node["extra_data"]["predicate_value"]
-                        )
+        where_condition = []
+        if not service_name:
+            return self.filter_dict, where_condition
+
+        filter_dict = {}
+        # 服务页面下
+        node = ServiceHandler.get_node(self.application.bk_biz_id, self.application.app_name, service_name)
+        if ComponentHandler.is_component_by_node(node):
+            # 在组件类型的服务页面下 需要添加组件的 predicate_value 进行查询
+            where_condition.append(
+                json.loads(
+                    json.dumps(component_where_mapping[node["extra_data"]["category"]]).replace(
+                        "{predicate_value}", node["extra_data"]["predicate_value"]
                     )
                 )
-                pure_service_name = ComponentHandler.get_component_belong_service(self.filter_dict[service_name_key])
-                filter_dict[service_name_key] = pure_service_name
+            )
+            pure_service_name = ComponentHandler.get_component_belong_service(self.filter_dict[service_name_key])
+            filter_dict[service_name_key] = pure_service_name
+
+        if ServiceHandler.is_remote_service_by_node(node):
+            # 自定义服务下 需要加上 peer_service 查询条件
+            pure_service_name = ServiceHandler.get_remote_service_origin_name(service_name)
+            filter_dict["peer_service"] = pure_service_name
 
         return filter_dict, where_condition
 
@@ -208,8 +190,8 @@ class EndpointCalledCountTopNHandler(TopNHandler):
     def get_endpoint_split(self, item):
         return item["name"].split(self.JOIN_CHAR)[-1]
 
-    def _query_metric(self, override_filter_dict):
-        filter_dict, where_condition = self.get_condition(override_filter_dict)
+    def _query_metric(self):
+        filter_dict, where_condition = self.get_condition()
 
         metrics = RequestCountInstance(
             self.application,
@@ -222,8 +204,8 @@ class EndpointCalledCountTopNHandler(TopNHandler):
 
         return self.collect_sum_metrics(metrics, self.group_by_keys)
 
-    def top_n(self, override_filter_dict=None):
-        series = self._query_metric(override_filter_dict)
+    def top_n(self):
+        series = self._query_metric()
 
         series = self.agg_data(series)
 
@@ -240,7 +222,7 @@ class EndpointCalledCountTopNHandler(TopNHandler):
                 {
                     "total": sum_count,
                     "unit": _("次"),
-                    "name": service_name + self.JOIN_CHAR + span_name,
+                    "name": service_name + self.JOIN_CHAR + span_name if not self.is_service_filter else span_name,
                     "value": serie["_result_"],
                     "type": "link",
                     "url": self.build_link(service_name, span_name),
@@ -268,10 +250,10 @@ class EndpointErrorRateTopNHandler(TopNHandler):
     def get_endpoint_split(self, item):
         return item["name"].split(self.JOIN_CHAR)[-1]
 
-    def _query_metric(self, override_filter_dict):
+    def _query_metric(self):
         database_name, _ = self.application.metric_result_table_id.split(".")
 
-        filter_dict, where_condition = self.get_condition(override_filter_dict)
+        filter_dict, where_condition = self.get_condition()
 
         group_keys = [
             OtlpKey.SPAN_NAME,
@@ -289,8 +271,10 @@ class EndpointErrorRateTopNHandler(TopNHandler):
 
         return self.collect_sum_metrics(metrics, group_keys)
 
-    def top_n(self, override_filter_dict=None):
-        series = self._query_metric(override_filter_dict)
+    def top_n(
+        self,
+    ):
+        series = self._query_metric()
         series = self.agg_data(series)
         endpoint_map = defaultdict(list)
         for serie in series:
@@ -315,7 +299,7 @@ class EndpointErrorRateTopNHandler(TopNHandler):
 
             result.append(
                 {
-                    "name": self.JOIN_CHAR.join(keys),
+                    "name": self.JOIN_CHAR.join(keys) if not self.is_service_filter else keys[-1],
                     "value": rate,
                     "unit": "%",
                     "total": 100,  # present
@@ -340,14 +324,14 @@ class EndpointAvgDurationTopNHandler(TopNHandler):
     def get_endpoint_split(self, item):
         return item["name"].split(self.JOIN_CHAR)[-1]
 
-    def _query_metric(self, override_filter_dict):
+    def _query_metric(self):
         database_name, _ = self.application.metric_result_table_id.split(".")
         group_by_keys = [
             OtlpKey.SPAN_NAME,
             OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
         ]
 
-        filter_dict, where_condition = self.get_condition(override_filter_dict)
+        filter_dict, where_condition = self.get_condition()
 
         handler = AvgDurationInstance(
             self.application,
@@ -364,9 +348,9 @@ class EndpointAvgDurationTopNHandler(TopNHandler):
             metrics, group_by_keys, lambda l: (sorted(l, key=lambda ii: ii.get("_time_", 0))[0]).get("_result_")
         )
 
-    def top_n(self, override_filter_dict=None):
+    def top_n(self):
 
-        series = self._query_metric(override_filter_dict)
+        series = self._query_metric()
         sum_count = sum([serie["_result_"] for serie in series])
         result = []
         for serie in series:
@@ -381,7 +365,7 @@ class EndpointAvgDurationTopNHandler(TopNHandler):
                 {
                     "total": sum_target_value,
                     "unit": unit,
-                    "name": service_name + self.JOIN_CHAR + span_name,
+                    "name": service_name + self.JOIN_CHAR + span_name if not self.is_service_filter else span_name,
                     "value": value,
                     "actual_value": serie["_result_"],
                     "target": "event",
@@ -405,18 +389,18 @@ class ServiceCalledCountTopNHandler(TopNHandler):
         OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
     ]
 
-    def _query_metric(self, override_filter_dict):
+    def _query_metric(self):
         database_name, _ = self.application.metric_result_table_id.split(".")
         return RequestCountInstance(
             self.application,
             self.start_time,
             self.end_time,
             group_by=self.group_by_keys,
-            filter_dict=self.filter_dict if not override_filter_dict else override_filter_dict,
+            filter_dict=self.filter_dict,
         ).origin_query_instance()
 
-    def top_n(self, override_filter_dict=None):
-        series = self._query_metric(override_filter_dict)
+    def top_n(self):
+        series = self._query_metric()
         series = self.agg_data(series)
         sum_count = sum([i["_result_"] for i in series])
         result = []
@@ -453,19 +437,19 @@ class ServiceErrorCountTopNHandler(TopNHandler):
         OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
     ]
 
-    def _query_metric(self, override_filter_dict):
+    def _query_metric(self):
         database_name, _ = self.application.metric_result_table_id.split(".")
         return RequestCountInstance(
             self.application,
             self.start_time,
             self.end_time,
             group_by=self.group_by_keys,
-            filter_dict=self.filter_dict if not override_filter_dict else override_filter_dict,
+            filter_dict=self.filter_dict,
             where=[{"key": "status_code", "method": "eq", "value": ["2"]}],
         ).origin_query_instance()
 
-    def top_n(self, override_filter_dict=None):
-        series = self._query_metric(override_filter_dict)
+    def top_n(self):
+        series = self._query_metric()
         series = self.agg_data(series)
         sum_count = sum([i["_result_"] for i in series])
         result = []
@@ -500,14 +484,14 @@ class ServiceAvgDurationTopNHandler(TopNHandler):
 
     query_type = "service_avg_duration"
 
-    def _query_metric(self, override_filter_dict):
+    def _query_metric(self):
         database_name, _ = self.application.metric_result_table_id.split(".")
 
         group_by_keys = [
             OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME),
         ]
 
-        filter_dict, where_condition = self.get_condition(override_filter_dict)
+        filter_dict, where_condition = self.get_condition()
 
         handler = AvgDurationInstance(
             self.application,
@@ -524,8 +508,8 @@ class ServiceAvgDurationTopNHandler(TopNHandler):
             metrics, group_by_keys, lambda l: (sorted(l, key=lambda ii: ii.get("_time_", 0))[0]).get("_result_")
         )
 
-    def top_n(self, override_filter_dict=None):
-        series = self._query_metric(override_filter_dict)
+    def top_n(self):
+        series = self._query_metric()
         sum_count = sum([i["_result_"] for i in series])
 
         result = []

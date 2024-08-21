@@ -35,6 +35,7 @@ from apm_web.constants import (
     SceneEventKey,
     ServiceStatus,
     TopoNodeKind,
+    component_filter_mapping,
     component_where_mapping,
 )
 from apm_web.db.db_utils import get_service_from_params
@@ -128,7 +129,11 @@ class UnifyQueryResource(Resource):
 class DynamicUnifyQueryResource(Resource):
     """
     组件指标值查询
-    不同分类的组件 查询unify-query参数会有所变化 此接口提供给apm_service-component-*.json使用
+    不同分类的组件 查询unify-query参数会有所变化
+    支持以下类型：
+    1. 普通服务：不处理
+    2. 组件服务：增加 predicate_value 等查询参数
+    3. 自定义服务：增加 peer_service 等查询参数
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -152,49 +157,71 @@ class DynamicUnifyQueryResource(Resource):
             raise_exception=True
         )
 
-        # 替换service_name
-        pure_service_name = ComponentHandler.get_component_belong_service(validate_data["service_name"])
-
-        component_node = ServiceHandler.get_node(
+        node = ServiceHandler.get_node(
             validate_data["bk_biz_id"],
             validate_data["app_name"],
             validate_data["service_name"],
         )
-        if component_node["extra_data"]["category"] not in component_where_mapping:
-            raise ValueError(_lazy(f"组件指标值查询不支持{validate_data['category']}分类"))
+        if not node:
+            return resource.grafana.graph_unify_query(unify_query_params)
 
-        if not ComponentHandler.is_component_by_node(component_node):
-            raise ValueError(f"服务: {validate_data['service_name']} 非组件类服务，无法构建指标查询条件")
+        if ComponentHandler.is_component_by_node(node):
+            # 替换service_name
+            pure_service_name = ComponentHandler.get_component_belong_service(validate_data["service_name"])
 
-        # 追加where条件
-        for config in unify_query_params["query_configs"]:
-            # 增加组件实例查询条件
-            if validate_data.get("component_instance_id"):
-                component_filter = ComponentHandler.get_component_instance_query_params(
-                    validate_data["bk_biz_id"],
-                    validate_data["app_name"],
-                    component_node["extra_data"]["kind"],
-                    component_node["extra_data"]["category"],
-                    validate_data["component_instance_id"],
-                    config["where"],
-                    template=ComponentHandler.unify_query_operator,
-                    key_generator=OtlpKey.get_metric_dimension_key,
-                )
-                config["where"] += component_filter
-            else:
-                # 没有组件实例时 单独添加组件类型的条件
-                where = component_where_mapping[component_node["extra_data"]["category"]]
-                config["where"].append(
-                    json.loads(
-                        json.dumps(where).replace("{predicate_value}", component_node["extra_data"]["predicate_value"])
+            if node["extra_data"]["category"] not in component_where_mapping:
+                raise ValueError(_lazy(f"组件指标值查询不支持{validate_data['category']}分类"))
+
+            # 追加where条件
+            for config in unify_query_params["query_configs"]:
+                # 增加组件实例查询条件
+                if validate_data.get("component_instance_id"):
+                    contain_or_condition = any(i.get("condition", "and") == "or" for i in config["where"])
+                    if contain_or_condition:
+                        # 如果包含 or 条件 那么不能使用 where 构建查询了因为 where 不支持 (a OR b) AND c 的查询
+                        filter_dict = ComponentHandler.get_component_instance_query_dict(
+                            validate_data["bk_biz_id"],
+                            validate_data["app_name"],
+                            node["extra_data"]["kind"],
+                            node["extra_data"]["category"],
+                            validate_data["component_instance_id"],
+                        )
+                        config["filter_dict"].update(filter_dict)
+                    else:
+                        component_filter = ComponentHandler.get_component_instance_query_params(
+                            validate_data["bk_biz_id"],
+                            validate_data["app_name"],
+                            node["extra_data"]["kind"],
+                            node["extra_data"]["category"],
+                            validate_data["component_instance_id"],
+                            config["where"],
+                            template=ComponentHandler.unify_query_operator,
+                            key_generator=OtlpKey.get_metric_dimension_key,
+                        )
+                        config["where"] += component_filter
+
+                else:
+                    # 没有组件实例时 单独添加组件类型的条件
+                    filter_dict = component_filter_mapping[node["extra_data"]["category"]]
+                    config["filter_dict"].update(
+                        json.loads(
+                            json.dumps(filter_dict).replace("{predicate_value}", node["extra_data"]["predicate_value"])
+                        )
                     )
-                )
 
-        # 替换service名称
-        unify_query_params = json.loads(
-            json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
-        )
-
+            # 替换service名称
+            unify_query_params = json.loads(
+                json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
+            )
+        elif ServiceHandler.is_remote_service_by_node(node):
+            pure_service_name = ServiceHandler.get_remote_service_origin_name(validate_data["service_name"])
+            for config in unify_query_params["query_configs"]:
+                config["filter_dict"]["peer_service"] = pure_service_name
+                config["filter_dict"].pop("service_name", None)
+            # 替换service名称
+            unify_query_params = json.loads(
+                json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
+            )
         return resource.grafana.graph_unify_query(unify_query_params)
 
 
@@ -355,7 +382,9 @@ class ServiceListResource(PageListResource):
         for service in services:
             kind = service["extra_data"]["kind"]
             if kind == TopoNodeKind.REMOTE_SERVICE:
-                if request_count_info.get(service["topo_key"].split(":")[-1], {}).get("request_count"):
+                if request_count_info.get(ServiceHandler.get_remote_service_origin_name(service["topo_key"]), {}).get(
+                    "request_count"
+                ):
                     status = DataStatus.NORMAL
                 else:
                     status = DataStatus.NO_DATA
@@ -614,7 +643,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
 
             metric_info = {}
             if service["extra_data"]["kind"] == TopoNodeKind.REMOTE_SERVICE:
-                metric_info = service_metric_info.get(service_name.split(":")[-1], {})
+                metric_info = service_metric_info.get(ServiceHandler.get_remote_service_origin_name(service_name), {})
             elif service["extra_data"]["kind"] == TopoNodeKind.SERVICE:
                 metric_info = service_metric_info.get(service_name, {})
             elif service["extra_data"]["kind"] == TopoNodeKind.COMPONENT:
@@ -1688,17 +1717,27 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         if data.get("filter"):
             query_param["category"] = data["filter"]
 
+        where = []
+
         node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
         if ComponentHandler.is_component_by_node(node):
             query_param["category"] = node["extra_data"]["category"]
             query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
             query_param["category_kind_value"] = node["extra_data"]["predicate_value"]
+            if service_name:
+                where.append(
+                    {
+                        "key": "service_name",
+                        "method": "eq",
+                        "value": [ComponentHandler.get_component_belong_service(service_name)],
+                    }
+                )
+
+        else:
+            if service_name:
+                where.append({"key": "service_name", "method": "eq", "value": [service_name]})
 
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
-        # ENDPOINT_LIST 服务过滤条件
-        where = []
-        if service_name:
-            where.append({"key": "service_name", "method": "eq", "value": [service_name]})
 
         endpoint_list_param = {
             "application": application,

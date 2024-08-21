@@ -255,4 +255,11 @@ class ServiceAndComponentCompatibleResource(SidebarPageListResource):
         """
         特殊处理图表配置field参数(侧边栏图表配置selector_panel.target.fields会同步调整)
         """
+        # 补充 service_name 防止点击侧边栏跳转失败
+        for i in origin_data:
+            i.update(
+                {
+                    "service_name": i["service"],
+                }
+            )
         return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(origin_data, params, column_type)

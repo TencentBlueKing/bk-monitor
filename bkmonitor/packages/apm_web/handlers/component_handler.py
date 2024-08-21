@@ -78,6 +78,7 @@ class ComponentHandler:
     def get_component_instance_query_params(
         cls, bk_biz_id, app_name, kind, category, component_instance_id, exists_where, template, key_generator
     ):
+        """获取组件的 filter_params 参数"""
         rules = api.apm_api.query_discover_rules(
             bk_biz_id=bk_biz_id,
             app_name=app_name,
@@ -137,6 +138,34 @@ class ComponentHandler:
 
                     res.append(item)
 
+        return res
+
+    @classmethod
+    def get_component_instance_query_dict(cls, bk_biz_id, app_name, kind, category, component_instance_id):
+        """
+        获取组件的 filter_dict 参数 (附带组件实例 Id)
+        只支持传入单个 组件实例ID(component_instance_id)
+        """
+        rules = api.apm_api.query_discover_rules(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            filters={
+                "topo_kind": kind,
+                "category_id": category,
+            },
+        )
+
+        if not rules:
+            raise ValueError(f"拓扑发现规则为空")
+
+        rule = rules[0]
+        res = {}
+
+        composition = component_instance_id.split(":")
+        for index, key in enumerate(rule["instance_key"].split(",")):
+            v = composition[index]
+            if v:
+                res[key] = v
         return res
 
     @classmethod

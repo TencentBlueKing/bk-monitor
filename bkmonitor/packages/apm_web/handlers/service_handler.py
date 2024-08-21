@@ -231,11 +231,18 @@ class ServiceHandler:
             return False
 
         node = cls.get_node(bk_biz_id, app_name, node_topo_key)
+        return cls.is_remote_service_by_node(node)
 
-        if node:
-            return node.get("extra_data", {}).get("kind") == TopoNodeKind.REMOTE_SERVICE
+    @classmethod
+    def is_remote_service_by_node(cls, node):
+        if not node:
+            return False
+        return node.get("extra_data", {}).get("kind") == TopoNodeKind.REMOTE_SERVICE
 
-        return False
+    @classmethod
+    def get_remote_service_origin_name(cls, remote_service_name):
+        """获取自定义服务的原始名称 http:xxx -> xxx"""
+        return remote_service_name.split(":")[-1]
 
     @classmethod
     def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, nodes=None):

@@ -30,11 +30,18 @@ IDENTIFY_KEYS = ["db.system", "http.target", "messaging.system", "rpc.system"]
 
 DEFAULT_DIFF_TRACE_MAX_NUM = 5
 
-# 随组件类型变化的where条件 用于指标值查询
+# 随组件类型变化的where条件 用于指标值查询 (如果 where 里面有 or 连接符的话不能使用这个因为不能设置优先级)
 component_where_mapping = {
     "db": {"key": "db_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
     "messaging": {"key": "messaging_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
 }
+
+# 随组件类型变化的where条件 用于指标值查询
+component_filter_mapping = {
+    "db": {"db_system": "{predicate_value}"},
+    "messaging": {"messaging_system": "{predicate_value}"},
+}
+
 
 COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
 COLUMN_KEY_PROFILING_DATA_STATUS = "profiling_data_status"
