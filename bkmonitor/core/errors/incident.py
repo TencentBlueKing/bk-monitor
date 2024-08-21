@@ -25,7 +25,7 @@ class IncidentNotFoundError(Error):
     status_code = 404
     code = 3336002
     name = _("故障不存在")
-    message_tpl = _("故障UUID ({id}) 对应的故障信息不存在")
+    message_tpl = _("故障 ({id}) 对应的故障信息不存在")
 
 
 class IncidentEntityNotFoundError(Error):
