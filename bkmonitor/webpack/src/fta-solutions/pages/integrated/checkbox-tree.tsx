@@ -64,16 +64,6 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
     this.innerData = this.recurrenceData(JSON.parse(JSON.stringify(data)), 0, null);
   }
 
-  render() {
-    return (
-      <div class='checkbox-tree'>
-        {this.innerData.map(item => (
-          <bk-checkbox-group v-model={item.value}>{this.recursiveCheckbox(item, 0)}</bk-checkbox-group>
-        ))}
-      </div>
-    );
-  }
-
   /**
    * 递归创建checkbox组件
    * @param data
@@ -103,7 +93,6 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
    */
   handleCheckChange(data: ICheckboxTreeData, value: boolean) {
     const parent = this.getParentData(data);
-
     this.$nextTick(() => {
       if (!parent) {
         data.value = value
@@ -115,6 +104,7 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
               [data.id]
             )
           : [];
+        data.indeterminate = false;
       } else {
         const allChildrenChecked = parent.data.every(item => parent.value?.includes?.(item.id));
         parent.indeterminate = !allChildrenChecked && !!parent.value.length;
@@ -183,5 +173,20 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
       item.indeterminate = false;
     });
     this.dispatchCheckChange();
+  }
+
+  render() {
+    return (
+      <div class='checkbox-tree'>
+        {this.innerData.map((item, index) => (
+          <bk-checkbox-group
+            key={index}
+            v-model={item.value}
+          >
+            {this.recursiveCheckbox(item, 0)}
+          </bk-checkbox-group>
+        ))}
+      </div>
+    );
   }
 }
