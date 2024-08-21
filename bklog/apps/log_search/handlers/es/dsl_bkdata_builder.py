@@ -27,6 +27,9 @@ from apps.log_search.handlers.es.bk_mock_body import (
     BODY_DATA_FOR_CONTEXT,
     BODY_DATA_FOR_CONTEXT_SCENARIO_ES,
     BODY_DATA_FOR_CONTEXT_SCENARIO_LOG,
+    BODY_DATA_FOR_TAIL,
+    BODY_DATA_FOR_TAIL_SCENARIO_ES,
+    BODY_DATA_FOR_TAIL_SCENARIO_LOG,
 )
 
 
@@ -34,12 +37,15 @@ class DslCreateSearchContextBodyScenarioBkData(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
-        sort_list, size, start, gseindex, path, ip, order, container_id=None, logfile=None
+        sort_list, size, start, gseindex, _iteration_idx,dtEventTimeStamp,
+        path, ip, order, container_id=None, logfile=None
         """
         sort_list = kwargs.get("sort_list")
         size = kwargs.get("size")
         start = kwargs.get("start")
         gseindex = kwargs.get("gseindex")
+        iteration_idx = kwargs.get("iterationIdx")
+        dt_event_time_stamp = kwargs.get("dtEventTimeStamp")
         path = kwargs.get("path", "")
         ip = kwargs.get("ip", "")
         order = kwargs.get("order")
@@ -56,16 +62,86 @@ class DslCreateSearchContextBodyScenarioBkData(object):
         order_use: str = "asc"
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["filter"][0]["range"]["gseindex"] = {
-                "lt": int(gseindex),
-                "gt": int(gseindex) - CONTEXT_GSE_INDEX_SIZE,
-            }
+            body_data["query"]["bool"]["should"] = [
+                {
+                    "range": {
+                        "gseindex": {
+                            "lt": int(gseindex),
+                            "gt": int(gseindex) - CONTEXT_GSE_INDEX_SIZE,
+                        }
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseindex": int(gseindex)}},
+                            {
+                                "range": {
+                                    "iterationIndex": {
+                                        "lt": int(iteration_idx),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseindex": int(gseindex)}},
+                            {"term": {"iterationIndex": int(iteration_idx)}},
+                            {
+                                "range": {
+                                    "dtEventTimeStamp": {
+                                        "lt": int(dt_event_time_stamp),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+            ]
 
         if order == "+":
-            body_data["query"]["bool"]["filter"][0]["range"]["gseindex"] = {
-                "lt": int(gseindex) + CONTEXT_GSE_INDEX_SIZE,
-                "gte": int(gseindex),
-            }
+            body_data["query"]["bool"]["should"] = [
+                {
+                    "range": {
+                        "gseindex": {
+                            "lt": int(gseindex) + CONTEXT_GSE_INDEX_SIZE,
+                            "gt": int(gseindex),
+                        }
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseindex": int(gseindex)}},
+                            {
+                                "range": {
+                                    "iterationIndex": {
+                                        "gt": int(iteration_idx),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseindex": int(gseindex)}},
+                            {"term": {"iterationIndex": int(iteration_idx)}},
+                            {
+                                "range": {
+                                    "dtEventTimeStamp": {
+                                        "gte": int(dt_event_time_stamp),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+            ]
 
         sort = []
         for item in ["gseindex", "_iteration_idx", "dtEventTimeStamp"]:
@@ -159,12 +235,15 @@ class DslCreateSearchContextBodyScenarioLog(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
-        sort_list, size, start, gseIndex, path, serverIp, order, container_id=None, logfile=None
+        sort_list, size, start, gseIndex, iterationIndex, dtEventTimeStamp,
+        path, serverIp, order, container_id=None, logfile=None
         """
         sort_list = kwargs.get("sort_list")
         size = kwargs.get("size")
         start = kwargs.get("start")
+        iteration_index = kwargs.get("iterationIndex")
         gse_index = kwargs.get("gseIndex")
+        dt_event_time_stamp = kwargs.get("dtEventTimeStamp")
         path = kwargs.get("path")
         server_ip = kwargs.get("serverIp")
         bk_host_id = kwargs.get("bk_host_id")
@@ -175,15 +254,85 @@ class DslCreateSearchContextBodyScenarioLog(object):
         order_use: str = "asc"
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["filter"][0]["range"]["gseIndex"] = {
-                "lt": int(gse_index),
-                "gt": int(gse_index) - CONTEXT_GSE_INDEX_SIZE,
-            }
+            body_data["query"]["bool"]["should"] = [
+                {
+                    "range": {
+                        "gseIndex": {
+                            "lt": int(gse_index),
+                            "gt": int(gse_index) - CONTEXT_GSE_INDEX_SIZE,
+                        }
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseIndex": int(gse_index)}},
+                            {
+                                "range": {
+                                    "iterationIndex": {
+                                        "lt": int(iteration_index),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseIndex": int(gse_index)}},
+                            {"term": {"iterationIndex": int(iteration_index)}},
+                            {
+                                "range": {
+                                    "dtEventTimeStamp": {
+                                        "lt": int(dt_event_time_stamp),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+            ]
         if order == "+":
-            body_data["query"]["bool"]["filter"][0]["range"]["gseIndex"] = {
-                "lt": int(gse_index) + CONTEXT_GSE_INDEX_SIZE,
-                "gte": int(gse_index),
-            }
+            body_data["query"]["bool"]["should"] = [
+                {
+                    "range": {
+                        "gseIndex": {
+                            "lt": int(gse_index) + CONTEXT_GSE_INDEX_SIZE,
+                            "gt": int(gse_index),
+                        }
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseIndex": int(gse_index)}},
+                            {
+                                "range": {
+                                    "iterationIndex": {
+                                        "gt": int(iteration_index),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {"gseIndex": int(gse_index)}},
+                            {"term": {"iterationIndex": int(iteration_index)}},
+                            {
+                                "range": {
+                                    "dtEventTimeStamp": {
+                                        "gte": int(dt_event_time_stamp),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+            ]
 
         sort = []
         for item in ["gseIndex", "iterationIndex", "dtEventTimeStamp"]:
@@ -257,19 +406,89 @@ class DslCreateSearchContextBodyCustomField:
         if not target_fields or not sort_fields:
             return
 
-        # 取优先级最高的字段为范围查询字段
-        range_field = sort_fields[0]
-        range_field_value: int = params.get(range_field, 0)
+        # 把排序字段未空的字段剔除
+        for _sort_field in sort_fields:
+            _field_value = params.get(_sort_field, "")
+            if _field_value == "":
+                sort_fields.remove(_sort_field)
+
+        # 把排序字段中的iterationIndex移到最后
+        if "iterationIndex" in sort_fields:
+            sort_fields.remove("iterationIndex")
+            sort_fields.append("iterationIndex")
 
         body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
         order_use: str = "asc"
 
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["filter"].append({"range": {range_field: {"lt": range_field_value}}})
+            body_should_data = body_data["query"]["bool"]["should"]
+            term_range_field = []
+            for index, range_field in enumerate(sort_fields):
+                range_field_value = params[range_field]
+                if index == 0:
+                    body_should_data.append(
+                        {
+                            "range": {
+                                range_field: {
+                                    "lt": range_field_value,
+                                }
+                            }
+                        }
+                    )
+                else:
+                    body_should_data.append(
+                        {
+                            "bool": {
+                                "filter": [
+                                    {"term": {_term_range_field["range_field"]: _term_range_field["range_field_value"]}}
+                                    for _term_range_field in term_range_field
+                                ]
+                            }
+                        }
+                    )
+                    body_should_data[index]["bool"]["filter"].append(
+                        {
+                            "range": {
+                                range_field: {
+                                    "lt": range_field_value,
+                                }
+                            }
+                        }
+                    )
+                term_range_field.append({"range_field": range_field, "range_field_value": range_field_value})
 
         if order == "+":
-            body_data["query"]["bool"]["filter"].append({"range": {range_field: {"gte": range_field_value}}})
+            body_should_data = body_data["query"]["bool"]["should"]
+            term_range_field = []
+            sort_fields_num = len(sort_fields)
+            for index, range_field in enumerate(sort_fields):
+                range_field_value = params[range_field]
+                if index == 0:
+                    body_should_data.append(
+                        {
+                            "range": {
+                                range_field: {
+                                    "gt" if sort_fields_num != 1 else "gte": range_field_value,
+                                }
+                            }
+                        }
+                    )
+                else:
+                    body_should_data.append(
+                        {
+                            "bool": {
+                                "filter": [
+                                    {"term": {_term_range_field["range_field"]: _term_range_field["range_field_value"]}}
+                                    for _term_range_field in term_range_field
+                                ]
+                            }
+                        }
+                    )
+                    body_should_data[index]["bool"]["filter"].append(
+                        {"range": {range_field: {"gt" if index != sort_fields_num - 1 else "gte": range_field_value}}}
+                    )
+                term_range_field.append({"range_field": range_field, "range_field_value": range_field_value})
 
         sort = []
         for item in sort_fields:
@@ -322,7 +541,7 @@ class DslCreateSearchTailBodyScenarioBkData:
         ext_container_id = kwargs.get("__ext", {}).get("container_id", "")
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
+        body_data = copy.deepcopy(BODY_DATA_FOR_TAIL)
 
         order_use: str = "asc"
         if zero:
@@ -443,7 +662,7 @@ class DslCreateSearchTailBodyScenarioLog:
         zero = kwargs.get("zero", False)
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_LOG)
+        body_data = copy.deepcopy(BODY_DATA_FOR_TAIL_SCENARIO_LOG)
 
         order_use: str = "asc"
         if zero:
@@ -514,7 +733,7 @@ class DslCreateSearchTailBodyCustomField:
         range_field_value: int = params.get(range_field, 0)
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
+        body_data = copy.deepcopy(BODY_DATA_FOR_TAIL_SCENARIO_ES)
 
         order_use: str = "asc"
         if zero:
