@@ -406,7 +406,7 @@ def escape_markdown(value):
 
         new_value = ""
         last_end = 0
-        for match in re.finditer(r"\[(.*?)\]\((.*?)\)", value):
+        for match in re.finditer(r"\[([^\]]*?)\]\(([^\)]*?)\)", value):
             sub = f"\\[{match.groups()[0]}\\]\\({match.groups()[1]}\\)"
             new_value += value[last_end : match.start()] + sub
             last_end = match.end()
