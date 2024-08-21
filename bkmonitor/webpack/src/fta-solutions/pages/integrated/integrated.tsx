@@ -26,20 +26,20 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
-
 import IntegratedModule from '../../store/modules/integrated';
 import MonitorDrag from '../event/monitor-drag';
-import CheckboxTree, { ICheckedData } from './checkbox-tree';
-import ContentGroupItem, { IPluginDetail, OperateType } from './content-group-item';
+import CheckboxTree, { type ICheckedData } from './checkbox-tree';
+import ContentGroupItem, { type IPluginDetail, type OperateType } from './content-group-item';
 import EventSourceDetail from './event-source-detail/event-source-detail';
-import Group, { IGroupData } from './group';
-import Header, { ViewType } from './header';
-import InstallPluginDialog, { IData as ICurrentPluginData } from './install-plugin-dialog';
+import Group, { type IGroupData } from './group';
+import Header, { type ViewType } from './header';
+import InstallPluginDialog, { type IData as ICurrentPluginData } from './install-plugin-dialog';
 import List from './list';
 import IntegratedCardSkeleton from './skeleton/integrated-card-skeleton';
 import IntegratedFilterSkeleton from './skeleton/integrated-filter-skeleton';
-import { MapType } from './status-tips';
+
+import type { MapType } from './status-tips';
+import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './integrated.scss';
 
@@ -202,7 +202,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
         ref={`checkboxtree${item.id}`}
         data={item.data}
         onChange={v => this.handleCheckedChange(item.id, v)}
-      ></CheckboxTree>
+      />
     );
   }
 
@@ -236,14 +236,14 @@ export default class Integrated extends tsc<IIntegratedProps> {
       <ContentGroupItem
         data={item}
         onOperate={this.handlePluginOperate}
-      ></ContentGroupItem>
+      />
     ) : (
       <List
         data={item}
         emptyType={this.emptyType}
         onEmptyOperate={this.handleEmptyOperate}
         onOperate={this.handlePluginOperate}
-      ></List>
+      />
     );
   }
 
@@ -362,7 +362,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
             onImportSuccess={this.handleImportSuccess}
             onSearchValueChange={this.handleSearchValueChange}
             onViewChange={this.handleViewTypeChange}
-          ></Header>
+          />
           {/* 过滤空组 */}
           {(() => {
             if (this.loading) {
@@ -397,12 +397,12 @@ export default class Integrated extends tsc<IIntegratedProps> {
           v-model={this.isShowDetail}
           version={this.curDetailVersion}
           onInstall={data => this.handleInstall(data)}
-        ></EventSourceDetail>
+        />
         <InstallPluginDialog
           v-model={this.showInstallDialog}
           data={this.currentPluginData}
           onSuccess={this.handleInstallSuccess}
-        ></InstallPluginDialog>
+        />
       </section>
     );
   }

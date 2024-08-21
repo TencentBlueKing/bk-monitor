@@ -27,23 +27,25 @@ import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules/model';
+import { commonPageSizeSet } from 'monitor-common/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
-import HeaderTools, { IClickType } from './components/header-tools';
+import HeaderTools, { type IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
 import {
-  INodeData,
-  INodesTableData,
+  type INodeData,
+  type INodesTableData,
   nodeStatusMap,
   nodesToTableData,
   nodesToTableDataInit,
   paginationUtil,
   searchNodesData,
 } from './uptime-check-data';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 
 import './uptime-check-node.scss';
 
@@ -93,16 +95,14 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   deactivated() {}
 
   async init() {
-    // this.handleLoading(true);
-    this.loading = true;
+    this.handleLoading(true);
     const data = await listUptimeCheckNode()
       .then(res => res)
       .catch(() => {
         this.emptyStatusType = '500';
         return [];
       });
-    // this.handleLoading(false);
-    this.loading = false;
+    this.handleLoading(false);
     this.data.nodes = data;
     this.nodesTableData = nodesToTableDataInit(data);
     if (this.searchValue.length) {
@@ -205,6 +205,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     this.nodesTableData.data = nodesToTableData(
       paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData)
     );
+    commonPageSizeSet(v);
   }
 
   // loading
@@ -282,7 +283,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
             search={this.searchValue}
             onCreate={this.handleHeaderCreate}
             onSearch={(v: string) => this.handleSearch(v)}
-          ></HeaderTools>
+          />
           {this.loading ? (
             <TableSkeleton class='mt-16'></TableSkeleton>
           ) : (
@@ -321,7 +322,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                       ],
                     }}
                     onOptionClick={(v: 'delete' | 'edit') => this.handleNodeOperate(v, row)}
-                  ></OperateOptions>
+                  />
                 ),
                 statusText: (row: INodeData) => (
                   <span

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
-import * as tsx from 'vue-tsx-support';
+import { ofType, modifiers } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -40,40 +40,46 @@ import {
   getTargetDetail,
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
-// import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
-import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
+import UserConfigMixin from '../../../mixins/userStoreConfig';
 import { downFile } from '../../../utils';
+// import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
+import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
-import { IGroupData } from '../strategy-config-list/group';
 import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
-import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
+import FilterPanelPopover from './filter-panel-popover';
 
-import '@blueking/search-select-v3/vue2/vue2.css';
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
+import type { IGroupData } from '../strategy-config-list/group';
+import type { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
+
 import './strategy-config.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
-const { i18n } = window;
+const { i18n: I18N } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
 const STRATEGY_CONFIG_SETTING = 'strategy_config_setting';
+/** 过滤项 */
+const FILTER_PANEL_FIELD = 'FILTER_PANEL_FIELD';
 
 @Component({
   name: 'StrategyConfig',
 })
-class StrategyConfig extends Mixins(commonPageSizeMixin) {
+class StrategyConfig extends Mixins(UserConfigMixin) {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('authorityMap') authorityMap;
@@ -91,38 +97,59 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   @Prop({ type: Array, default: null }) bkStrategyId: IStrategyConfigProps['bkStrategyId'];
   @Prop({ type: Array, default: null }) dataSource: IStrategyConfigProps['dataSource'];
   @Prop({ type: String, default: '' }) actionName: IStrategyConfigProps['actionName'];
+  @Prop({ type: String, default: '' }) strategyLabels: IStrategyConfigProps['strategyLabels'];
   @Prop({ type: [String, Array] }) scenario: string;
   @Prop({ type: [String, Array] }) strategyState: string;
   @Prop({ type: Array }) keywords: IStrategyConfigProps['keywords']; /** 支持传入自定义搜索关键词 */
   @Prop({ type: String, default: '' }) resultTableId: IStrategyConfigProps['resultTableId']; /** 结果表搜索条件 */
 
   showFilterPanel = true;
+  showFilterPanelField = [
+    'strategy_status',
+    'scenario',
+    'data_source_list',
+    'user_group_name',
+    'label_name',
+    'action_name',
+  ];
+  /** 过滤面板字段展示顺序 */
+  filterPanelFieldOrder = [
+    'status',
+    'scenario',
+    'dataSource',
+    'noticeName',
+    'strategyLabels',
+    'actionName',
+    'level',
+    'algorithmType',
+    'invalidType',
+  ];
   header: IHeader = {
     value: 0,
     dropdownShow: false,
     list: [
-      // { id: 0, name: i18n.t('修改告警组') },
-      { id: 1, name: i18n.t('修改触发条件') },
-      { id: 5, name: i18n.t('修改恢复条件') },
-      // { id: 2, name: i18n.t('修改通知间隔') },
-      { id: 3, name: i18n.t('修改无数据告警') },
-      // { id: 4, name: i18n.t('修改告警恢复通知') },
-      { id: 6, name: i18n.t('启/停策略') },
-      { id: 7, name: i18n.t('删除策略') },
-      // { id: 9, name: i18n.t('修改告警模版') },
-      { id: 8, name: i18n.t('增删目标') },
-      { id: 10, name: i18n.t('修改标签') },
-      // { id: 11, name: i18n.t('修改处理套餐') }
-      { id: 21, name: i18n.t('修改算法') },
-      { id: 12, name: i18n.t('修改生效时间段') },
-      { id: 13, name: i18n.t('修改处理套餐') },
-      { id: 14, name: i18n.t('修改告警组') },
-      { id: 15, name: i18n.t('修改通知场景') },
-      { id: 20, name: i18n.t('修改通知升级') },
-      { id: 16, name: i18n.t('修改通知间隔') },
-      { id: 17, name: i18n.t('修改通知模板') },
-      { id: 18, name: i18n.t('修改告警风暴开关') },
-      { id: 19, name: i18n.t('导出Yaml') },
+      // { id: 0, name: I18N.t('修改告警组') },
+      { id: 1, name: I18N.t('修改触发条件') },
+      { id: 5, name: I18N.t('修改恢复条件') },
+      // { id: 2, name: I18N.t('修改通知间隔') },
+      { id: 3, name: I18N.t('修改无数据告警') },
+      // { id: 4, name: I18N.t('修改告警恢复通知') },
+      { id: 6, name: I18N.t('启/停策略') },
+      { id: 7, name: I18N.t('删除策略') },
+      // { id: 9, name: I18N.t('修改告警模版') },
+      { id: 8, name: I18N.t('增删目标') },
+      { id: 10, name: I18N.t('修改标签') },
+      // { id: 11, name: I18N.t('修改处理套餐') }
+      { id: 21, name: I18N.t('修改算法') },
+      { id: 12, name: I18N.t('修改生效时间段') },
+      { id: 13, name: I18N.t('修改处理套餐') },
+      { id: 14, name: I18N.t('修改告警组') },
+      { id: 15, name: I18N.t('修改通知场景') },
+      { id: 20, name: I18N.t('修改通知升级') },
+      { id: 16, name: I18N.t('修改通知间隔') },
+      { id: 17, name: I18N.t('修改通知模板') },
+      { id: 18, name: I18N.t('修改告警风暴开关') },
+      { id: 19, name: I18N.t('导出Yaml（As Code功能）') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -136,14 +163,14 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       id: 'bk_monitor',
       checked: 'bk_monitor',
       cancel: '',
-      name: i18n.t('监控采集'),
+      name: I18N.t('监控采集'),
     },
     {
       value: '',
       id: 'log',
       checked: 'bk_monitor',
       cancel: '',
-      name: i18n.t('日志采集'),
+      name: I18N.t('日志采集'),
     },
   ];
   label: ILabel = {
@@ -175,6 +202,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     show: false,
     selectList: [],
   };
+  alarmGroupDialog = {
+    id: null,
+    show: false,
+  };
   tableInstance: TableStore = {
     total: 0,
     data: [],
@@ -196,7 +227,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     strategyIds: [],
     bizId: '',
     objectType: '',
-    title: i18n.t('监控目标'),
+    title: I18N.t('监控目标'),
     nodeType: '',
   };
   strategyLabelList = []; // 标签筛选俩表
@@ -204,7 +235,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   sourceList = []; // 数据来源筛选列表
   typeList = []; // 分类可筛选列表
   filterType = 'checkbox'; // 筛选列表类型
-  curFilterType = i18n.t('数据来源'); // 当前筛选类型
+  curFilterType = I18N.t('数据来源'); // 当前筛选类型
   dialogLoading = false;
   groupList = []; // 告警组数据列表
   scenarioList = []; // 监控对象
@@ -246,6 +277,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   ipTargetType = 'TOPO';
   ipSelectorShow = false;
   emptyType: EmptyStatusType = 'empty'; // 空状态
+  selectKey = 1;
+  firstRequest = true; // 第一次请求
   cancelFn = () => {}; // 取消监控目标接口方法
 
   get bizList() {
@@ -266,10 +299,9 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       })
     );
   }
+
+  // 筛选面板所有字段
   get filterPanelData(): IGroupData[] {
-    // 筛选面板数据
-    // 过滤需要展示的分组（监控对象、数据来源、告警组）
-    const displayKeys = ['scenario', 'dataSource', 'noticeName', 'strategyLabels', 'actionName'];
     const iconMap = {
       ALERT: 'icon-mc-chart-alert',
       INVALID: 'icon-shixiao',
@@ -286,17 +318,20 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         icon: iconMap[item.id],
       })),
     };
-    return [
-      strategyStatusFilter,
-      ...displayKeys.map(key => {
-        const { id, name, list } = this.backDisplayMap[key];
-        return {
-          id,
-          name,
-          data: key === 'noticeName' ? this.groupList.map(({ name, count }) => ({ id: name, name, count })) : list,
-        };
-      }),
-    ];
+    return this.filterPanelFieldOrder.map(key => {
+      if (key === 'status') return strategyStatusFilter;
+      const { id, name, list } = this.backDisplayMap[key];
+      return {
+        id,
+        name,
+        data: key === 'noticeName' ? this.groupList.map(({ name, count }) => ({ id: name, name, count })) : list,
+      };
+    });
+  }
+
+  /** 筛选面板展示字段 */
+  get showFilterPanelData(): IGroupData[] {
+    return this.filterPanelData.filter(item => this.showFilterPanelField.includes(item.id as string));
   }
 
   get isFta() {
@@ -791,6 +826,23 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.header.handleSearch = debounce(300, () => {
       this.handleGetListData(false, 1);
     });
+    /** 获取筛选面板用户配置 */
+    this.handleGetUserConfig<{ fields: string[]; order: string[] }>(FILTER_PANEL_FIELD, { reject403: true }).then(
+      res => {
+        if (!res) {
+          this.handleSetUserConfig(
+            FILTER_PANEL_FIELD,
+            JSON.stringify({
+              fields: this.showFilterPanelField,
+              order: this.filterPanelFieldOrder,
+            })
+          );
+        } else {
+          this.showFilterPanelField = res.fields;
+          this.filterPanelFieldOrder = res.order;
+        }
+      }
+    );
   }
 
   activated() {
@@ -801,15 +853,17 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     ) {
       if (this.tableInstance.setDefaultStore) {
         this.tableInstance.setDefaultStore();
+        this.handleResetRoute('Get');
       }
       this.header.keyword = '';
     }
     this.checkColInit();
     this.handleSetDashboard();
     this.handleSearchBackDisplay();
-    this.handleGetListData(true, 1);
+    this.handleGetListData(true, this.tableInstance.page);
     this.getGroupList();
   }
+
   handleSearchChange(v) {
     if (JSON.stringify(v || []) === JSON.stringify(this.header.keywordObj || [])) return;
     this.header.keywordObj = v;
@@ -915,7 +969,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         });
       }
     });
-    if (!!this.keywords?.length) {
+    if (this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
     }
@@ -982,6 +1036,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         });
       }
     });
+    this.selectKey += 1;
     this.conditionList = res;
   }
   /**
@@ -989,7 +1044,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
    * @param {String} metricId（指标ID有可能从sessionStorage中来）
    */
   handleInitQueryParams(metricId) {
-    Object.keys(this.backDisplayMap).forEach(key => {
+    for (const key of Object.keys(this.backDisplayMap)) {
       // 判断props中是否存在该属性 指标id数组支持多指标
       if (metricId && key === 'metricId') {
         let metricIds = metricId;
@@ -1016,7 +1071,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
           });
         }
       }
-    });
+    }
   }
   /**
    * @description:设置dashabord
@@ -1043,13 +1098,14 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       TOPO: '{0}个拓扑节点',
       SERVICE_TEMPLATE: '{0}个服务模板',
       SET_TEMPLATE: '{0}个集群模板',
+      DYNAMIC_GROUP: '{0}个动态分组',
     };
-    tableData.forEach(item => {
+    for (const item of tableData) {
       const target = targetMap[item.id];
       item.objectType = item.objectType || target.instance_type;
       item.targetNodeType = item.node_type;
       if (target.instance_type === 'HOST') {
-        if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(target.node_type)) {
+        if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO', 'DYNAMIC_GROUP'].includes(target.node_type)) {
           item.target = `${this.$t(textMap[target.node_type], [target.node_count])} （${this.$t('共{0}台主机', [target.instance_count])}）`;
         } else if (target.node_type === 'INSTANCE') {
           item.target = this.$t('{0}台主机', [target.node_count]);
@@ -1063,7 +1119,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       } else {
         item.target = '';
       }
-    });
+    }
     return tableData;
   }
   setTableFilterSelect(filterType) {
@@ -1114,7 +1170,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.table.loading = !needLoading;
     this.table.data = [];
     const page = defPage || this.tableInstance.page || 1;
-    const pageSize = defPageSize || this.tableInstance.pageSize || this.handleGetCommonPageSize();
+    const pageSize = defPageSize || this.tableInstance.pageSize || commonPageSizeGet();
     const params = {
       type: this.strategyType,
       page,
@@ -1139,10 +1195,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         this.table.data = tableData;
         this.getTargetDetail(tableData);
         this.handleTableDataChange(this.table.data);
-        const total = await this.handelScenarioList(data, this.table.data);
-        // todo
-        this.pageCount = total;
-        // this.pageCount = this.tab.active > 0 ? this.tab.list[this.tab.active].count : total
+        this.pageCount = await this.handelScenarioList(data, this.table.data);
         this.strategyStatusOptions = data.strategy_status_list || [];
         this.sourceList = data.data_source_list
           .map(item => {
@@ -1180,9 +1233,14 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
           id: item.name,
           name: item.name,
         }));
+        this.backDisplayMap.level.list = data.alert_level_list || [];
+        this.backDisplayMap.algorithmType.list = data.algorithm_type_list || [];
+        this.backDisplayMap.invalidType.list = data.invalid_type_list || [];
         this.createdConditionList();
+        this.handleResetRoute('Set');
         // magic code  reflesh bk table
         this.$refs.strategyTable?.doLayout?.();
+        this.firstRequest = false;
       })
       .catch(() => {
         this.emptyType = '500';
@@ -1191,6 +1249,65 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         this.loading = false;
         this.table.loading = false;
       });
+  }
+
+  handleResetRoute(type: 'Get' | 'Set') {
+    if (type === 'Get') {
+      const { page, pageSize, filters } = this.$route.query;
+      this.tableInstance.page = Number(page) || 1;
+      this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
+      try {
+        this.header.condition = filters ? JSON.parse(filters as string) : [];
+      } catch {
+        this.header.condition = [];
+      }
+    } else {
+      const { route } = this.$router.resolve({
+        name: this.$route.name,
+        query: {
+          page: String(this.tableInstance.page),
+          pageSize: String(this.tableInstance.pageSize),
+          filters: JSON.stringify(this.header.condition),
+        },
+      });
+      if (this.$route.fullPath !== route.fullPath) {
+        this.$router.replace(route);
+      }
+    }
+    if (this.firstRequest) {
+      this.header.keywordObj = this.header.condition.map(item => {
+        const { id, name, data } = this.filterPanelData.find(panel => item.key === panel.id) || {
+          id: item.key,
+          name: item.key,
+          data: [],
+        };
+        let values = [];
+        /**
+         * 因为有些筛选项需要等待列表接口请求完成后才能知道，所以这里需要判断一下
+         * 如果该筛选项没有子级，就暂时使用Url传递的值构造一个id为值的对象,等待接口返回后在进行处理
+         */
+        if (data?.length) {
+          values = data.reduce((values, cur) => {
+            if (Array.isArray(cur.children)) {
+              values.push(...cur.children.filter(child => item.value.includes(child.id)));
+            } else {
+              item.value.includes(cur.id) && values.push(cur);
+            }
+            return values;
+          }, []);
+        } else {
+          values = item.value.map(id => ({
+            id,
+            name: id,
+          }));
+        }
+        return {
+          id: id,
+          name,
+          values,
+        };
+      });
+    }
   }
   /**
    * @description: 监控对象处理
@@ -1208,24 +1325,24 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       return { name, id, sort: `${index}`, children, count: 0 };
     });
     const scenarioList = data.scenario_list;
-    scenarioFather.forEach(item => {
+    for (const item of scenarioFather) {
       let count = 0;
-      item.children.forEach(set => {
+      for (const set of item.children) {
         const res = scenarioList.find(child => child.id === set.id);
         count += res.count;
         // total += res.count;
         set.count = res.count;
-      });
+      }
       item.count = count;
-    });
+    }
     this.backDisplayMap.scenario.list = scenarioFather;
     this.handleUpdateScenarioListName();
-    tableData.forEach(item => {
+    for (const item of tableData) {
       const nameArr = this.getScenarioName(scenarioFather, item.strategyType);
       item.scenarioDisplayName = nameArr.join('-');
-    });
-    // 列表total设置为数据来源筛选项count总和
-    total = data.data_source_list.reduce((total, item) => total + item.count, 0);
+    }
+    // 列表total设置为监控对象筛选项count总和
+    total = data.scenario_list.reduce((total, item) => total + item.count, 0);
     return total;
   }
   /** 更新监控对象搜索框回显 */
@@ -1276,26 +1393,63 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.handleGetListData(false, page);
   }
   handleLimitChange(limit) {
-    this.handleSetCommonPageSize(limit);
+    commonPageSizeSet(limit);
     this.handleGetListData(false, 1, limit);
   }
   handleHeadSelectChange(v) {
     // 导出 Yaml 文件
     if (v === 19) {
-      exportConfigFile({
-        rule_ids: (this.table.select || []).map(item => item.id),
-        with_related_config: true,
-      })
-        .then(data => {
-          if (!data?.download_url?.length) return;
-          downFile(data.download_url, this.$tc('策略导出'));
-        })
-        .catch(() => {
-          this.$bkMessage({
-            message: this.$t('导出出错了'),
-            theme: 'error',
-          });
-        });
+      const h = this.$createElement;
+      const bkInfoInstance = this.$bkInfo({
+        title: this.$t('请确认是否导出'),
+        subHeader: h(
+          'i18n',
+          {
+            attrs: {
+              path: '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往{0}进行操作',
+            },
+            class: 'i18n-as-code',
+          },
+          [
+            h(
+              'bk-button',
+              {
+                class: 'i18n-link',
+                props: {
+                  text: true,
+                  theme: 'primary',
+                },
+                on: {
+                  click: () => {
+                    bkInfoInstance.close();
+                    this.$router.push({
+                      name: 'export-import',
+                    });
+                  },
+                },
+              },
+              [this.$t('route-集成').toString(), ' - ', this.$t('route-导入导出').toString()]
+            ),
+          ]
+        ),
+        confirmLoading: true,
+        confirmFn: async () => {
+          await exportConfigFile({
+            rule_ids: (this.table.select || []).map(item => item.id),
+            with_related_config: true,
+          })
+            .then(data => {
+              if (!data?.download_url?.length) return;
+              downFile(data.download_url, this.$tc('策略导出'));
+            })
+            .catch(() => {
+              this.$bkMessage({
+                message: this.$t('导出出错了'),
+                theme: 'error',
+              });
+            });
+        },
+      });
       return;
     }
     // 批量增删目标
@@ -1693,12 +1847,12 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     const titleStr = this.$t(title);
     return (
       <span
-        class={{ 'dropdown-trigger': true, ' plugin-label': true, selected: active }}
+        class={{ 'dropdown-trigger': true, 'plugin-label': true, selected: active }}
         slot='dropdown-trigger'
         onClick={e => this.handleShowTableFilter(e, type, title)}
       >
         {titleStr}
-        <i class='icon-monitor icon-filter-fill'></i>
+        <i class='icon-monitor icon-filter-fill' />
       </span>
     );
   }
@@ -1813,6 +1967,28 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     }
   }
 
+  handleAlarmGroupClick(groupId: number) {
+    this.alarmGroupDialog.id = groupId;
+    this.alarmGroupDialog.show = true;
+  }
+
+  /** 筛选面板设置 */
+  handleFilterFieldsChange({ showFields = [], order = [] }) {
+    this.showFilterPanelField = showFields;
+    const fieldsOrder = order.reduce((acc, cur) => {
+      acc.push(this.filterPanelFieldOrder[cur]);
+      return acc;
+    }, []);
+    this.filterPanelFieldOrder = fieldsOrder;
+    this.handleSetUserConfig(
+      FILTER_PANEL_FIELD,
+      JSON.stringify({
+        fields: this.showFilterPanelField,
+        order: this.filterPanelFieldOrder,
+      })
+    );
+  }
+
   getTableComponent() {
     const idSlot = {
       default: props => props.row.id,
@@ -1847,6 +2023,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             {[
               props.row.isInvalid ? (
                 <i
+                  key={1}
                   class='icon-monitor icon-shixiao'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1854,10 +2031,11 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     content: `${props.row.invalidType}`,
                     allowHTML: false,
                   }}
-                ></i>
+                />
               ) : undefined,
               props.row.abnormalAlertCount > 0 && !props.row.isInvalid ? (
                 <span
+                  key={2}
                   class='alert-tag red'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1865,14 +2043,15 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row))}
+                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row))}
                 >
-                  <i class='icon-monitor icon-mc-chart-alert'></i>
+                  <i class='icon-monitor icon-mc-chart-alert' />
                   <span class='alert-count'>{props.row.abnormalAlertCount}</span>
                 </span>
               ) : undefined,
               props.row.shieldAlertCount ? (
                 <span
+                  key={3}
                   class='alert-tag grey'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1880,14 +2059,15 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`,
                     allowHTML: false,
                   }}
-                  onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
+                  onClick={modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
                 >
-                  <i class='icon-monitor icon-menu-shield'></i>
+                  <i class='icon-monitor icon-menu-shield' />
                   <span class='alert-count'>{props.row.shieldAlertCount}</span>
                 </span>
               ) : undefined,
               props.row.shieldInfo?.shield_ids?.length ? (
                 <span
+                  key={4}
                   class='alert-tag wuxian'
                   v-bk-tooltips={{
                     placements: ['right'],
@@ -1896,11 +2076,11 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   }}
                   onClick={() => this.handleToAlarmShield(props.row.shieldInfo.shield_ids)}
                 >
-                  <i class='icon-monitor icon-menu-shield'></i>
+                  <i class='icon-monitor icon-menu-shield' />
                   <SvgIcon
                     class='wu-xian-text'
                     iconName={'wuqiong'}
-                  ></SvgIcon>
+                  />
                 </span>
               ) : undefined,
             ]}
@@ -1935,7 +2115,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 </span>
               ) : undefined}
             </span>,
-            index === 0 ? <br key={`br-${index}`}></br> : undefined,
+            index === 0 ? <br key={`br-${index}`} /> : undefined,
           ])}
         </span>
       ),
@@ -2028,17 +2208,24 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             v-bk-tooltips={{
               placements: ['top-start'],
               boundary: 'window',
-              content: () => props.row.noticeGroupNameList.join('、'),
+              content: () => props.row.noticeGroupNameList.map(item => item.name).join('、'),
               delay: 200,
               allowHTML: false,
+              disabled: !props.row.overflow,
             }}
           >
             {props.row.noticeGroupNameList.map(item => (
               <span
-                key={item}
+                key={item.id}
                 class='classifiy-label'
+                onClick={() => this.handleAlarmGroupClick(item.id)}
               >
-                <span class='text-overflow'>{item}</span>
+                <span
+                  class='text-overflow'
+                  v-bk-overflow-tips
+                >
+                  {item.name}
+                </span>
               </span>
             ))}
             {props.row.overflow ? <span class='classifiy-overflow'>...</span> : undefined}
@@ -2083,7 +2270,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
           pre-check={() => this.handlePreSwitchChange(props.row, type)}
           size='small'
           theme='primary'
-        ></bk-switcher>
+        />
         {!this.authority.MANAGE_AUTH ? (
           <div
             class='switch-wrap-modal'
@@ -2093,7 +2280,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               e.preventDefault();
               !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH);
             }}
-          ></div>
+          />
         ) : undefined}
       </div>
     );
@@ -2197,7 +2384,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             <i
               class='bk-icon icon-more'
               data-popover='true'
-            ></i>
+            />
           </span>
         </div>
       ),
@@ -2256,7 +2443,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
           width='50'
           align='center'
           type='selection'
-        ></bk-table-column>
+        />
         {id.checked && (
           <bk-table-column
             key='id'
@@ -2264,7 +2451,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             label='ID'
             prop='id'
             scopedSlots={idSlot}
-          ></bk-table-column>
+          />
         )}
         {strategyName.checked && (
           <bk-table-column
@@ -2272,7 +2459,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             label={this.$t('策略名')}
             min-width='200'
             scopedSlots={strategyNameSlot}
-          ></bk-table-column>
+          />
         )}
         {itemDescription.checked && (
           <bk-table-column
@@ -2280,7 +2467,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             label={this.$t('监控项')}
             min-width='200'
             scopedSlots={itemDescriptionSlot}
-          ></bk-table-column>
+          />
         )}
         {dataOrigin.checked && (
           <bk-table-column
@@ -2288,7 +2475,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='110'
             label={this.$t('数据来源')}
             scopedSlots={dataOriginSlot}
-          ></bk-table-column>
+          />
         )}
         {target.checked && (
           <bk-table-column
@@ -2296,21 +2483,21 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='150'
             label={this.$t('监控目标')}
             scopedSlots={targetSlot}
-          ></bk-table-column>
+          />
         )}
         {labels.checked && (
           <bk-table-column
             key='labels'
             label={this.$t('标签')}
             scopedSlots={labelsSlot}
-          ></bk-table-column>
+          />
         )}
         {noticeGroupList.checked && (
           <bk-table-column
             key='noticeGroupList'
             label={this.$t('告警组')}
             scopedSlots={noticeGroupListSlot}
-          ></bk-table-column>
+          />
         )}
         {updator.checked && (
           <bk-table-column
@@ -2318,7 +2505,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='150'
             label={this.$t('更新记录')}
             scopedSlots={updatorSlot}
-          ></bk-table-column>
+          />
         )}
         {enabled.checked && (
           <bk-table-column
@@ -2326,7 +2513,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='100'
             label={this.$t('启/停')}
             scopedSlots={enabledSlot}
-          ></bk-table-column>
+          />
         )}
         {dataTypeLabelName.checked && (
           <bk-table-column
@@ -2334,7 +2521,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='80'
             label={this.$t('策略类型')}
             scopedSlots={{ default: props => props.row.dataTypeLabelName }}
-          ></bk-table-column>
+          />
         )}
         {intervalNotifyMode.checked && (
           <bk-table-column
@@ -2342,7 +2529,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='105'
             label={this.$t('通知间隔类型')}
             scopedSlots={{ default: props => props.row.intervalNotifyMode }}
-          ></bk-table-column>
+          />
         )}
         {dataMode.checked && (
           <bk-table-column
@@ -2350,7 +2537,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='105'
             label={this.$t('查询类型')}
             scopedSlots={{ default: props => props.row.dataMode }}
-          ></bk-table-column>
+          />
         )}
         {notifyInterval.checked && (
           <bk-table-column
@@ -2358,7 +2545,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='105'
             label={this.$t('通知间隔')}
             scopedSlots={{ default: props => `${props.row.notifyInterval}${this.$t('分钟')}` }}
-          ></bk-table-column>
+          />
         )}
         {trigger.checked && (
           <bk-table-column
@@ -2366,7 +2553,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='105'
             label={this.$t('触发条件')}
             scopedSlots={triggerSlot}
-          ></bk-table-column>
+          />
         )}
         {recovery.checked && (
           <bk-table-column
@@ -2374,7 +2561,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='105'
             label={this.$t('恢复条件')}
             scopedSlots={recoverySlot}
-          ></bk-table-column>
+          />
         )}
         {needPoll.checked && (
           <bk-table-column
@@ -2382,7 +2569,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='80'
             label={this.$t('告警风暴')}
             scopedSlots={needPollSlot}
-          ></bk-table-column>
+          />
         )}
         {noDataEnabled.checked && (
           <bk-table-column
@@ -2390,7 +2577,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='80'
             label={this.$t('无数据')}
             scopedSlots={noDataEnabledSlot}
-          ></bk-table-column>
+          />
         )}
         {signals.checked && (
           <bk-table-column
@@ -2398,7 +2585,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='150'
             label={this.$t('通知场景')}
             scopedSlots={signalsSlot}
-          ></bk-table-column>
+          />
         )}
         {levels.checked && (
           <bk-table-column
@@ -2406,7 +2593,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='150'
             label={this.$t('级别')}
             scopedSlots={levelsSlot}
-          ></bk-table-column>
+          />
         )}
         {detectionTypes.checked && (
           <bk-table-column
@@ -2414,7 +2601,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='150'
             label={this.$t('检测规则类型')}
             scopedSlots={detectionTypesSlot}
-          ></bk-table-column>
+          />
         )}
         {mealNames.checked && (
           <bk-table-column
@@ -2422,7 +2609,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='150'
             label={this.$t('处理套餐')}
             scopedSlots={mealNamesSlot}
-          ></bk-table-column>
+          />
         )}
         {configSource.checked && (
           <bk-table-column
@@ -2430,7 +2617,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='100'
             label={this.$t('配置来源')}
             scopedSlots={configSourceSlot}
-          ></bk-table-column>
+          />
         )}
         {app.checked && (
           <bk-table-column
@@ -2438,7 +2625,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width='100'
             label={this.$t('配置分组')}
             scopedSlots={appSlot}
-          ></bk-table-column>
+          />
         )}
         {operator.checked && (
           <bk-table-column
@@ -2446,7 +2633,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             width={this.$store.getters.lang === 'en' ? 220 : 150}
             label={this.$t('操作')}
             scopedSlots={operatorSlot}
-          ></bk-table-column>
+          />
         )}
       </bk-table>
     );
@@ -2454,7 +2641,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
 
   getDialogComponent() {
     return [
-      <div style='display: none;'>
+      <div
+        key={1}
+        style='display: none;'
+      >
         <ul
           ref='operatorGroup'
           class='operator-group'
@@ -2522,6 +2712,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         </ul>
       </div>,
       <StrategyConfigDialog
+        key={2}
         checked-list={this.idList}
         dialog-show={this.dialog.show}
         group-list={this.groupList}
@@ -2530,13 +2721,21 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         onConfirm={this.handleMuchEdit}
         onGetGroupList={this.getGroupList}
         onHideDialog={this.handleDialogChange}
-      ></StrategyConfigDialog>,
+      />,
       <AlarmShieldStrategy
+        key={3}
         is-show-strategy={this.isShowStrategy}
-        {...{ on: { 'update:isShowStrategy': val => (this.isShowStrategy = val) } }}
+        {...{
+          on: {
+            'update:isShowStrategy': val => {
+              this.isShowStrategy = val;
+            },
+          },
+        }}
         strategy-id={this.strategyId}
-      ></AlarmShieldStrategy>,
+      />,
       <TableFilter
+        key={4}
         filter-type={this.filterType}
         menu-list={this.dataSourceList}
         radio-list={this.dataSourceList}
@@ -2547,7 +2746,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         on-hide={this.handleChangeValue}
         on-reset={() => this.handleResetSourceFilter(true)}
         on-selected={this.handleSelectedDataSource}
-      ></TableFilter>,
+      />,
       // this.targetSet.show ? (
       //   <StrategySetTarget
       //     dialog-show={this.targetSet.show}
@@ -2564,6 +2763,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       //   ></StrategySetTarget>
       // ) : undefined,
       <StrategyIpv6
+        key={5}
         bizId={this.targetSet.bizId}
         nodeType={this.targetSet.nodeType as INodeType}
         objectType={this.targetSet.objectType as TargetObjectType}
@@ -2571,6 +2771,12 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         strategyIds={this.targetSet.strategyIds}
         onCloseDialog={this.handleTargetShowChange}
         onSave={this.handleTargetSaveChange}
+      />,
+      <AlarmGroupDetail
+        id={this.alarmGroupDialog.id}
+        key={6}
+        v-model={this.alarmGroupDialog.show}
+        hasEditBtn={false}
       />,
     ];
   }
@@ -2591,17 +2797,35 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             <FilterPanel
               class='content-left-filter'
               show={this.showFilterPanel}
-              {...{ on: { 'update:show': val => (this.showFilterPanel = val) } }}
+              {...{
+                on: {
+                  'update:show': val => {
+                    this.showFilterPanel = val;
+                  },
+                },
+              }}
               checkedData={this.header.keywordObj}
-              data={this.filterPanelData}
+              data={this.showFilterPanelData}
               showSkeleton={this.loading}
               on-change={this.handleSearchSelectChange}
-            ></FilterPanel>
+            >
+              <div
+                class='filter-panel-header mb20'
+                slot='header'
+              >
+                <span class='title'>{this.$t('筛选')}</span>
+                <FilterPanelPopover
+                  list={this.filterPanelData}
+                  showFields={this.showFilterPanelField}
+                  onFilterFieldChange={this.handleFilterFieldsChange}
+                />
+              </div>
+            </FilterPanel>
             <div
               class={['content-left-drag', { displaynone: !this.showFilterPanel }]}
               onMousedown={this.handleMouseDown}
               onMousemove={this.handleMouseMove}
-            ></div>
+            />
           </div>
           <div
             id='content-for-watch-resize'
@@ -2619,7 +2843,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   class='folding'
                   onClick={this.handleShowFilterPanel}
                 >
-                  <i class='icon-monitor icon-double-up'></i>
+                  <i class='icon-monitor icon-double-up' />
                 </span>
               </bk-badge>
               <bk-button
@@ -2632,7 +2856,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
               <bk-dropdown-menu
@@ -2647,7 +2871,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   slot='dropdown-trigger'
                 >
                   <span class='btn-name'> {this.$t('批量操作')} </span>
-                  <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
+                  <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
                 </div>
                 <ul
                   class='header-select-list'
@@ -2684,6 +2908,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 </ul>
               </bk-dropdown-menu>
               <SearchSelect
+                key={this.selectKey}
                 class='header-search'
                 data={this.conditionList}
                 modelValue={this.header.keywordObj}
@@ -2691,7 +2916,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 uniqueSelect={true}
                 clearable
                 onChange={this.handleSearchChange}
-              ></SearchSelect>
+              />
             </div>
             <div class='strategy-config-wrap'>
               <div class='config-wrap-setting'>
@@ -2704,7 +2929,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   trigger='click'
                 >
                   <div class='setting-btn'>
-                    <i class='icon-monitor icon-menu-set'></i>
+                    <i class='icon-monitor icon-menu-set' />
                   </div>
                   <div
                     class='tool-popover'
@@ -2758,7 +2983,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                       show-total-count
                       on-change={this.handlePageChange}
                       on-limit-change={this.handleLimitChange}
-                    ></bk-pagination>
+                    />
                   ) : undefined,
                 ]
               )}
@@ -2771,4 +2996,4 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   }
 }
 
-export default tsx.ofType<IStrategyConfigProps>().convert(StrategyConfig);
+export default ofType<IStrategyConfigProps>().convert(StrategyConfig);

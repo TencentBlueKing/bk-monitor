@@ -38,7 +38,6 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import CommonTable, { type ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import type { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import OperateOptions, { type IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from 'monitor-pc/router/space';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -51,6 +50,7 @@ import AppListSkeleton from './skeleton/app-list-skeleton';
 import { SEARCH_KEYS, STATUS_MAP } from './utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './app-list-new.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -737,10 +737,10 @@ export default class AppList extends tsc<object> {
 
         <div
           class='app-list-main'
-          onScroll={this.handleScroll}
           // v-bkloading={{
-          //   isLoading: this.pagination.current === 1 && this.loading
+          //   isLoading: this.pagination.current === 1 && this.loading,
           // }}
+          onScroll={this.handleScroll}
         >
           {this.showGuidePage ? (
             <GuidePage

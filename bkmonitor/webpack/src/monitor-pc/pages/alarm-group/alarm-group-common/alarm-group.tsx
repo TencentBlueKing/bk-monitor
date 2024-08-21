@@ -23,22 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
 import AlarmGroupDetail from '../alarm-group-detail/alarm-group-detail';
 import * as authorityMap from '../authority-map';
 import TableStore from '../store';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { VNode } from 'vue';
 
 import './alarm-group.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
@@ -141,7 +143,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
+      formatter: row => (row.update_time ? dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
     },
     {
       label: i18n.t('配置来源'),
@@ -311,7 +313,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
             : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
         }
       >
-        {this.$t('删除')}
+        <span
+          v-bk-tooltips={{
+            content: this.$t('存在关联的策略，不可删除'),
+            disabled: row.delete_allowed,
+          }}
+        >
+          {this.$t('删除')}
+        </span>
       </bk-button>,
     ];
   }
@@ -391,6 +400,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       this.tableInstance.total = data.length;
     }
     this.tableInstance.page = 1;
+    this.tableInstance.pageSize = commonPageSizeGet();
     if (!!this.$route.query?.dutyRule) {
       const dutyId = this.$route.query.dutyRule;
       const searchCondition = [
@@ -454,6 +464,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleLimitChange(limit: number) {
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = limit;
+    commonPageSizeSet(limit);
     this.tableData = this.tableInstance.getTableData();
   }
 
@@ -564,7 +575,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
               <SearchSelect
@@ -587,7 +598,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 placeholder={this.$t('ID / 告警组名称')}
                 uniqueSelect={true}
                 onChange={this.handleSearchCondition}
-              ></SearchSelect>
+              />
               {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}
@@ -636,7 +647,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                       selected={this.selectedFields}
                       size={this.tableSize}
                       on-setting-change={this.handleSettingChange}
-                    ></bk-table-setting-content>
+                    />
                   </bk-table-column>
                 </bk-table>,
                 <div class='alarm-group-pagination'>
@@ -652,7 +663,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                       show-total-count
                       on-change={this.handlePageChange}
                       on-limit-change={this.handleLimitChange}
-                    ></bk-pagination>
+                    />
                   ) : undefined}
                 </div>,
               ]
@@ -662,7 +673,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
         <AlarmGroupDetail
           id={this.detail.id}
           v-model={this.detail.show}
-        ></AlarmGroupDetail>
+        />
       </div>
     );
   }

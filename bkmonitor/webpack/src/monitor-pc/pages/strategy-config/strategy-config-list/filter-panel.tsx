@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import Group, { IGroupData } from './group';
+import Group, { type IGroupData } from './group';
 import FilterListSkeleton from './skeleton/filter-list';
+
+import type { VNode } from 'vue';
+import type { TranslateResult } from 'vue-i18n';
 
 import './filter-panel.scss';
 
@@ -59,11 +60,14 @@ type FilterPanelEvents = {
   change?: (data: IFilterData[]) => void;
 };
 
+// 插槽
+type FilterPanelScopedSlots = {};
+
 /**
  * 策略配置列表左侧筛选面板
  */
 @Component({ name: 'FilterPanel' })
-export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents> {
+export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents, FilterPanelScopedSlots> {
   // 是否显示面板
   @Prop({ default: false, type: Boolean }) readonly show: boolean;
   // 数据源
@@ -152,7 +156,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         scopedSlots={{
           default: ({ data }) => (
             <span class='check-label-content'>
-              {data.icon && <i class={['icon-monitor', 'pre-icon', data.icon]}></i>}
+              {data.icon && <i class={['icon-monitor', 'pre-icon', data.icon]} />}
               <span
                 class='label-text'
                 title={data.name}
@@ -173,7 +177,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         default-expand-all
         show-checkbox
         on-check-change={(id, node) => this.handleTreeCheckChange(id, node, item)}
-      ></bk-big-tree>
+      />
     );
   }
 

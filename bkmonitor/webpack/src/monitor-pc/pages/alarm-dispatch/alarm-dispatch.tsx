@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -38,6 +37,7 @@ import {
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
 
+import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
 import emptyImageSrc from '../../static/images/png/empty.png';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -46,8 +46,11 @@ import AlarmDispatchAction from './components/alarm-dispatch-action';
 import AlarmUpdateContent from './components/alarm-update-content';
 import CommonCondition from './components/common-condition-new';
 import DebuggingResult from './components/debugging-result';
-import { allKVOptions, GROUP_KEYS, TGroupKeys, TValueMap } from './typing/condition';
+import { GROUP_KEYS, type TGroupKeys, type TValueMap, allKVOptions } from './typing/condition';
 import { RuleGroupData } from './typing/index';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { TranslateResult } from 'vue-i18n';
 
 import './alarm-dispatch.scss';
 
@@ -79,7 +82,7 @@ export default class AlarmDispatch extends tsc<object> {
   currentId = null;
   /** 查看调试效果 */
   isViewDebugEffect = false;
-  emptyText = window.i18n.tc('查无数据');
+  emptyType: EmptyStatusType = 'empty';
   /** 优先级检验提示*/
   priorityErrorMsg: TranslateResult | string = '';
   /* 流程套餐*/
@@ -243,6 +246,7 @@ export default class AlarmDispatch extends tsc<object> {
   }
 
   observerTableGroup() {
+    if (!this.itemFooterRef) return;
     this.intersectionObserver = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (entry.intersectionRatio <= 0) return;
@@ -475,7 +479,7 @@ export default class AlarmDispatch extends tsc<object> {
           this.formData.priority = 10000;
         } else if (Number(value) === 0) {
           this.formData.priority = 1;
-        } else if (parseFloat(value) === parseInt(value)) {
+        } else if (Number.parseFloat(value) === Number.parseInt(value)) {
           this.formData.priority = Number(value);
         } else {
           (this.$refs.priorityInput as any).curValue = Math.round(Number(value));
@@ -540,9 +544,9 @@ export default class AlarmDispatch extends tsc<object> {
         )
         .map(item => item.id);
       this.ruleGroups = this.cacheRuleGroups.filter(item => filterRuleGroupList.includes(item.id));
-      this.emptyText = window.i18n.tc('搜索结果为空');
+      this.emptyType = 'search-empty';
     } else {
-      this.emptyText = window.i18n.tc('查无数据');
+      this.emptyType = 'empty';
       this.ruleGroups = this.cacheRuleGroups;
     }
     this.renderGroups = [];
@@ -596,6 +600,13 @@ export default class AlarmDispatch extends tsc<object> {
     this.ruleGroups.forEach(item => item.setExpan(!this.isExpandAll));
   }
 
+  handleEmptyOpreation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.search = '';
+      this.handleSearch();
+    }
+  }
+
   render() {
     return (
       <div
@@ -617,22 +628,23 @@ export default class AlarmDispatch extends tsc<object> {
               disabled={!this.ruleGroups.length}
               onClick={this.handleDebug}
             >
-              {this.$t('调试')}
-            </bk-button>
-            <bk-button
-              class='expand-up-btn'
-              onClick={this.handleExpandAll}
-            >
-              <span class={['icon-monitor', this.isExpandAll ? 'icon-zhankai1' : 'icon-shouqi1']}></span>
-              {this.$t(this.isExpandAll ? '展开所有分组' : '收起所有分组')}
+              {this.$t('效果调试')}
             </bk-button>
             <bk-input
               class='search-input'
               v-model={this.search}
               placeholder={`ID/${this.$t('告警组名称')}`}
               right-icon='bk-icon icon-search'
+              clearable
               onInput={this.handleSearch}
-            ></bk-input>
+            />
+            <bk-button
+              class='expand-up-btn'
+              onClick={this.handleExpandAll}
+            >
+              <span class={['icon-monitor', this.isExpandAll ? 'icon-zhankai1' : 'icon-shouqi1']} />
+              {this.$t(this.isExpandAll ? '展开所有分组' : '收起所有分组')}
+            </bk-button>
           </div>
           <div class='wrap-content'>
             {this.ruleGroups.length > 0
@@ -647,7 +659,7 @@ export default class AlarmDispatch extends tsc<object> {
                         onClick={() => item.setExpan(!item.isExpan)}
                       >
                         <div class={['expan-status', { 'is-expan': item.isExpan }]}>
-                          <i class='icon-monitor icon-mc-triangle-down'></i>
+                          <i class='icon-monitor icon-mc-triangle-down' />
                         </div>
                         {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
                         {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
@@ -660,7 +672,7 @@ export default class AlarmDispatch extends tsc<object> {
                           }}
                           onClick={() => item.editAllowed && this.handleToConfig(item.id)}
                         >
-                          <span class='icon-monitor icon-bianji'></span>
+                          <span class='icon-monitor icon-bianji' />
                           <span>{this.$t('配置规则')}</span>
                         </div>
                         <div
@@ -674,7 +686,7 @@ export default class AlarmDispatch extends tsc<object> {
                             item.editAllowed && this.handleDeleteGroup(e, item);
                           }}
                         >
-                          <span class='icon-monitor icon-mc-delete-line'></span>
+                          <span class='icon-monitor icon-mc-delete-line' />
                         </div>
                       </div>
                       <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
@@ -709,7 +721,7 @@ export default class AlarmDispatch extends tsc<object> {
                               label={this.$t('告警组')}
                               min-width={100}
                               prop='user_groups'
-                            ></bk-table-column>
+                            />
                             <bk-table-column
                               scopedSlots={{
                                 default: ({ row }) =>
@@ -723,7 +735,7 @@ export default class AlarmDispatch extends tsc<object> {
                                       readonly={true}
                                       value={row.conditions}
                                       valueMap={this.conditionProps.valueMap}
-                                    ></CommonCondition>
+                                    />
                                   ) : (
                                     '--'
                                   ),
@@ -731,7 +743,7 @@ export default class AlarmDispatch extends tsc<object> {
                               label={this.$t('匹配规则')}
                               min-width={400}
                               prop='rule'
-                            ></bk-table-column>
+                            />
                             <bk-table-column
                               scopedSlots={{
                                 default: ({ row }) => (
@@ -749,7 +761,7 @@ export default class AlarmDispatch extends tsc<object> {
                               label={this.$t('分派动作')}
                               min-width={400}
                               prop='action'
-                            ></bk-table-column>
+                            />
                             <bk-table-column
                               scopedSlots={{
                                 default: ({ row }) => (
@@ -762,7 +774,7 @@ export default class AlarmDispatch extends tsc<object> {
                               label={this.$t('修改告警内容')}
                               min-width={300}
                               prop='content'
-                            ></bk-table-column>
+                            />
                             <bk-table-column
                               width={160}
                               scopedSlots={{
@@ -774,7 +786,7 @@ export default class AlarmDispatch extends tsc<object> {
                               }}
                               label={this.$t('状态')}
                               prop='is_enabled'
-                            ></bk-table-column>
+                            />
                             <div
                               class='alarm-group-empty'
                               slot='empty'
@@ -833,11 +845,15 @@ export default class AlarmDispatch extends tsc<object> {
                   }
                   return (
                     <div class='empty-dispatch-content'>
-                      <img
-                        alt=''
-                        src={emptyImageSrc}
+                      <EmptyStatus
+                        type={this.emptyType}
+                        onOperation={this.handleEmptyOpreation}
                       />
-                      <span class='empty-dispatch-text'>{this.emptyText}</span>
+                      {/* <img
+                  alt=''
+                  src={emptyImageSrc}
+                />
+                <span class='empty-dispatch-text'>{this.emptyText}</span> */}
                     </div>
                   );
                 })()}
@@ -910,7 +926,7 @@ export default class AlarmDispatch extends tsc<object> {
           width={540}
           isShow={this.detailData.isShow}
           onShowChange={v => (this.detailData.isShow = v)}
-        ></SetMealDetail>
+        />
         {/* 调试结果 */}
         {this.showDebug && (
           <DebuggingResult

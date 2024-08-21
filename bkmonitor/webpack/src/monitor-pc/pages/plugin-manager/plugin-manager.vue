@@ -35,15 +35,15 @@
     <div class="plugin-manager">
       <page-tips
         style="margin-bottom: 16px"
-        :tips-text="$t('可以通过制作各种监控插件满足数据采集的需求，该功能依赖服务器安装bkmonitorbeat采集器。')"
         :link-text="$t('采集器安装前往节点管理')"
         :link-url="`${$store.getters.bkNodemanHost}#/plugin-manager/list`"
+        :tips-text="$t('可以通过制作各种监控插件满足数据采集的需求，该功能依赖服务器安装bkmonitorbeat采集器。')"
       />
       <div class="plugin-manager-header">
         <div class="left">
           <bk-button
-            v-authority="{ active: !authority.MANAGE_AUTH }"
             class="left-button mc-btn-add"
+            v-authority="{ active: !authority.MANAGE_AUTH }"
             theme="primary"
             @click="authority.MANAGE_AUTH ? handlePluginAdd(null) : handleShowAuthorityDetail()"
           >
@@ -51,20 +51,20 @@
             {{ $t('新建') }}
           </bk-button>
           <bk-button
-            v-authority="{ active: !authority.MANAGE_AUTH }"
             class="left-button mc-btn-add"
+            v-authority="{ active: !authority.MANAGE_AUTH }"
             @click="!authority.MANAGE_AUTH && handleShowAuthorityDetail()"
           >
             {{ $t('导入') }}
             <input
               v-if="authority.MANAGE_AUTH"
               ref="importInput"
-              type="file"
               class="left-button-file"
-              hidden="true"
-              title=""
               accept=".gz, .tgz"
+              hidden="true"
               multiple="multiple"
+              title=""
+              type="file"
               @change="handleFileChange"
             />
           </bk-button>
@@ -74,9 +74,9 @@
         </div>
         <div class="right">
           <bk-input
+            :clearable="true"
             :placeholder="$t('插件名称(ID或别名)')"
             :value="header.keyword"
-            :clearable="true"
             right-icon="bk-icon icon-search"
             @change="handleSearchKey"
             @clear="cancelListRequest"
@@ -87,9 +87,9 @@
         <ul class="tab-list">
           <li
             v-for="(item, index) in panel.tabs"
-            :key="item.name"
             class="tab-list-item"
             :class="{ 'tab-active': index === panel.active }"
+            :key="item.name"
             @click="handlePanelChange(item, index)"
           >
             <span class="tab-name">{{ item.name }}</span>
@@ -99,25 +99,25 @@
         </ul>
         <table-skeleton
           v-if="loading || table.loading"
-          :type="2"
           class="plugin-table-skeleton"
+          :type="2"
         ></table-skeleton>
         <template v-else>
           <bk-table
             class="plugin-table"
+            :data="table.data"
             :empty-text="table.message"
             tooltip-effect="dark"
-            :data="table.data"
             @row-mouse-enter="i => (table.hoverIndex = i)"
             @row-mouse-leave="i => (table.hoverIndex = -1)"
             @sort-change="handleSortChange"
           >
             <!-- <bk-table-column
-                          type="selection"
-                          :selectable="handleSelectAble"
-                          align="center"
-                          width="50">
-                      </bk-table-column> -->
+                        type="selection"
+                        :selectable="handleSelectAble"
+                        align="center"
+                        width="50">
+                    </bk-table-column> -->
             <div slot="empty">
               <empty-status
                 :type="emptyType"
@@ -126,27 +126,27 @@
             </div>
             <bk-table-column
               :label="$t('插件名称')"
-              sortable="custom"
-              prop="plugin_id"
               min-width="250"
+              prop="plugin_id"
+              sortable="custom"
             >
               <template slot-scope="scope">
                 <div class="col-name">
                   <div
-                    class="col-name-icon"
                     :style="{
                       'background-image': scope.row.logo ? `url(data:image/gif;base64,${scope.row.logo})` : 'none',
                       'background-color': scope.row.logo ? '' : colorMap[scope.row.plugin_type],
                       borderRadius: scope.row.log ? '2px' : '100%',
                     }"
+                    class="col-name-icon"
                   >
                     {{ scope.row.logo ? '' : scope.row.plugin_display_name.slice(0, 1).toLocaleUpperCase() }}
                   </div>
                   <div
+                    class="col-name-desc"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && scope.row.status === 'draft',
                     }"
-                    class="col-name-desc"
                     @click="
                       getManageAuth(scope.row) && scope.row.status === 'draft'
                         ? showAuthorityDetail(scope.row)
@@ -155,8 +155,8 @@
                   >
                     <div class="desc-alias">
                       <span
-                        v-bk-overflow-tips
                         class="desc-alias-title"
+                        v-bk-overflow-tips
                       >
                         {{ scope.row.plugin_display_name ? scope.row.plugin_display_name : scope.row.plugin_id }}
                       </span>
@@ -178,10 +178,10 @@
               </template>
             </bk-table-column>
             <bk-table-column
-              :label="$t('分类')"
-              class-name="label-title"
-              :render-header="renderHeader"
               width="150"
+              :label="$t('分类')"
+              :render-header="renderHeader"
+              class-name="label-title"
             >
               <template slot-scope="scope">
                 <div class="col-label">
@@ -194,9 +194,9 @@
             <bk-table-column
               v-if="false"
               :label="$t('所属')"
-              sortable="custom"
-              prop="bk_biz_id"
               min-width="120"
+              prop="bk_biz_id"
+              sortable="custom"
             >
               <template slot-scope="scope">
                 {{ bizMap[scope.row.bk_biz_id] || '--' }}
@@ -204,8 +204,8 @@
             </bk-table-column>
             <bk-table-column
               :label="$t('关联配置')"
-              align="right"
               :width="$store.getters.lang === 'en' ? 160 : 80"
+              align="right"
             >
               <template slot-scope="scope">
                 <div
@@ -219,9 +219,9 @@
             </bk-table-column>
             <bk-table-column
               :label="$t('状态')"
-              sortable="custom"
-              prop="status"
               min-width="100"
+              prop="status"
+              sortable="custom"
             >
               <template slot-scope="scope">
                 <div :style="{ color: table.statusMap[scope.row.status].color }">
@@ -231,9 +231,9 @@
             </bk-table-column>
             <bk-table-column
               :label="$t('创建记录')"
-              sortable="custom"
-              prop="create_time"
               min-width="150"
+              prop="create_time"
+              sortable="custom"
             >
               <template slot-scope="scope">
                 <div class="user-time">
@@ -247,10 +247,10 @@
               </template>
             </bk-table-column>
             <bk-table-column
-              sortable="custom"
-              prop="update_time"
               :label="$t('更新记录')"
               min-width="150"
+              prop="update_time"
+              sortable="custom"
             >
               <template slot-scope="scope">
                 <div class="user-time">
@@ -264,17 +264,17 @@
               </template>
             </bk-table-column>
             <bk-table-column
-              :label="$t('操作')"
               width="100"
+              :label="$t('操作')"
             >
               <template slot-scope="scope">
                 <div class="col-operate">
                   <bk-button
-                    v-authority="{ active: getManageAuth(scope.row) }"
-                    type="primary"
-                    :disabled="!scope.row.edit_allowed"
                     class="edit-btn"
+                    v-authority="{ active: getManageAuth(scope.row) }"
+                    :disabled="!scope.row.edit_allowed"
                     :text="true"
+                    type="primary"
                     @click="
                       !getManageAuth(scope.row) ? handlePluginEdit(scope.row.plugin_id) : showAuthorityDetail(scope.row)
                     "
@@ -282,11 +282,11 @@
                     {{ $t('button-编辑') }}
                   </bk-button>
                   <span
-                    :ref="'operator-' + scope.$index"
-                    v-authority="{ active: getManageAuth(scope.row) }"
                     class="col-operator-more"
-                    data-popover="true"
+                    v-authority="{ active: getManageAuth(scope.row) }"
                     :class="{ 'operator-active': tablePopover.hover === scope.$index }"
+                    :ref="'operator-' + scope.$index"
+                    data-popover="true"
                     @click="
                       !getManageAuth(scope.row)
                         ? handleOperatorOver(scope.row, $event, scope.$index)
@@ -294,8 +294,8 @@
                     "
                   >
                     <i
-                      data-popover="true"
                       class="bk-icon icon-more"
+                      data-popover="true"
                     />
                   </span>
                 </div>
@@ -303,16 +303,16 @@
             </bk-table-column>
           </bk-table>
           <bk-pagination
-            v-show="table.data.length"
             class="plugin-pagination list-pagination"
-            align="right"
-            size="small"
-            show-total-count
-            pagination-able
+            v-show="table.data.length"
+            :count="panel.active ? panel.tabs[panel.active].num : pagination.total"
             :current="pagination.page"
             :limit="pagination.pageSize"
-            :count="panel.active ? panel.tabs[panel.active].num : pagination.total"
             :limit-list="pagination.pageList"
+            align="right"
+            size="small"
+            pagination-able
+            show-total-count
             @change="handlePageChange"
             @limit-change="handleLimitChange"
           />
@@ -333,10 +333,10 @@
       >
         <li
           v-for="tag in popover.list"
+          class="popover-tag-item"
           v-show="tag.includes(popover.active)"
           :key="tag"
           data-mark="popover-tag-mark"
-          class="popover-tag-item"
           @click="handleTagSelect(tag)"
         >
           <span data-mark="popover-tag-mark">{{ tag }}</span>
@@ -352,14 +352,14 @@
         <ul class="label-menu-list">
           <li
             v-for="(item, index) in label.list"
-            :key="index"
             class="item"
+            :key="index"
             @click="handleSelectLabel(item)"
           >
             <bk-checkbox
-              :value="item.value"
-              :true-value="item.checked"
               :false-value="item.cancel"
+              :true-value="item.checked"
+              :value="item.value"
             />
             <span class="name">{{ item.firstName }}-{{ item.name }}</span>
           </li>
@@ -397,16 +397,16 @@
           {{ $t('设置指标&维度') }}
         </span>
         <span
-          :class="{ 'btn-disabled': !tablePopover.data.export_allowed }"
           class="operator-group-btn"
+          :class="{ 'btn-disabled': !tablePopover.data.export_allowed }"
           :text="true"
           @click="tablePopover.data.export_allowed && handlePluginExport(tablePopover.data.plugin_id)"
         >
           {{ $t('导出') }}
         </span>
         <span
-          :class="{ 'btn-disabled': !tablePopover.data.delete_allowed }"
           class="operator-group-btn"
+          :class="{ 'btn-disabled': !tablePopover.data.delete_allowed }"
           :text="true"
           @click="
             tablePopover.data.delete_allowed &&
@@ -421,8 +421,8 @@
       <delete-subtitle
         ref="deleteSubTitle"
         :key="delSubTitle.name"
-        :title="delSubTitle.title"
         :name="delSubTitle.name"
+        :title="delSubTitle.title"
       />
     </div>
   </div>
@@ -439,11 +439,11 @@ import {
   tagOptionsCollectorPlugin,
 } from 'monitor-api/modules/model';
 import { saveAndReleasePlugin } from 'monitor-api/modules/plugin';
+import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 import { createNamespacedHelpers } from 'vuex';
 
 import introduce from '../../common/introduce';
-import { commonPageSizeMixin } from '../../common/mixins';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
 import GuidePage from '../../components/guide-page/guide-page';
 import pageTips from '../../components/pageTips/pageTips';
@@ -468,14 +468,14 @@ export default {
     GuidePage,
     TableSkeleton,
   },
-  mixins: [commonPageSizeMixin, authorityMixinCreate(pluginManageAuth)],
+  mixins: [authorityMixinCreate(pluginManageAuth)],
   beforeRouteEnter(to, from, next) {
     next(async vm => {
       if (!['plugin-add', 'plugin-edit', 'plugin-detail'].includes(from.name)) {
         vm.header.keyword = '';
         vm.pagination.page = 1;
         vm.panel.active = 0;
-        vm.pagination.pageSize = vm.handleGetCommonPageSize();
+        vm.pagination.pageSize = commonPageSizeGet();
       }
       !vm.loading && vm.getPluginListData(true);
     });
@@ -556,7 +556,7 @@ export default {
       pagination: {
         page: 1,
         pageList: [10, 20, 50, 100],
-        pageSize: this.handleGetCommonPageSize(),
+        pageSize: commonPageSizeGet(),
         total: 0,
       },
       plugin: {
@@ -776,7 +776,7 @@ export default {
     handleLimitChange(v) {
       this.pagination.page = 1;
       this.pagination.pageSize = v;
-      this.handleSetCommonPageSize(v);
+      commonPageSizeSet(v);
       this.getPluginListData();
     },
     handlePageChange(v) {
