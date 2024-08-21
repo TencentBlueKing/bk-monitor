@@ -1043,11 +1043,30 @@ router.beforeEach(async (to, from, next) => {
   ) {
     // 非外部版路由重定向
     const routeName = store.state.externalMenu.includes('retrieve') ? 'retrieve' : 'manage';
+    await topMenuCommitChange(to);
     next({ name: routeName });
   } else {
+    await topMenuCommitChange(to);
     next();
   }
 });
+
+const topMenuCommitChange = async to => {
+  return new Promise((report, reject) => {
+    try {
+      const menuList = store.state.menuList;
+      const matchedList = to.matched;
+      const activeTopMenu =
+        menuList.find(item => {
+          return matchedList.some(record => record.name === item.id);
+        }) || {};
+      store.commit('updateActiveTopMenu', activeTopMenu);
+      report(true);
+    } catch (error) {
+      reject();
+    }
+  });
+};
 
 router.afterEach(to => {
   if (to.name === 'exception') return;
