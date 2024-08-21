@@ -41,7 +41,7 @@ class AssignCacheManager(CacheManager):
         :param bk_biz_id: 业务ID
         """
         cache_key = cls.BIZ_CACHE_KEY_TEMPLATE.format(bk_biz_id=bk_biz_id)
-        if cache_key not in local.assign_cache:
+        if 1 or cache_key not in local.assign_cache:
             default_priority = cls.get_global_config(cls.BIZ_CACHE_KEY_TEMPLATE) or []
             priority = cls.cache.get(cache_key)
             if priority:
