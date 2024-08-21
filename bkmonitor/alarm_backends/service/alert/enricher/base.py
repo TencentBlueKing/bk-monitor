@@ -60,7 +60,7 @@ class BaseAlertEnricher(metaclass=abc.ABCMeta):
                     # 新产生的告警才需要丰富
                     alert = self.enrich_alert(alert)
             except Exception as e:
-                logger.exception("[alert enricher ERROR] (%s), detail: %s", self.__name__, e)
+                logger.exception("[alert enricher ERROR] (%s), detail: %s", self.__class__.__name__, e)
             alerts.append(alert)
         return alerts
 

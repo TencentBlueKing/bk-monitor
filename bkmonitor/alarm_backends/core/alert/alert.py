@@ -721,6 +721,7 @@ class Alert:
             "strategy_id": event.strategy_id,
             "labels": event.extra_info.get("strategy", {}).get("labels", []),
             "dimensions": [],
+            # extra_info 和 event["extra_info"] 一样
             "extra_info": event.extra_info or {},
             "is_blocked": False,
         }
@@ -1012,6 +1013,7 @@ class AlertUIDManager:
 
 
 class AlertCache:
+    # todo 下面两个可以合并
     @staticmethod
     def save_alert_to_cache(alerts: List[Alert]):
         alerts_to_saved = {}
@@ -1029,7 +1031,7 @@ class AlertCache:
         pipeline = ALERT_DEDUPE_CONTENT_KEY.client.pipeline(transaction=False)
         for alert in alerts_to_saved.values():
             key = ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id or 0, dedupe_md5=alert.dedupe_md5)
-            if not alert.is_abnormal():
+            if alert.is_end():
                 # 如果告警已经结束，不做删除，更新告警内容
                 finished_count += 1
             else:

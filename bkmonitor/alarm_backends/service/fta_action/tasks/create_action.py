@@ -13,6 +13,7 @@ from alarm_backends.constants import CONST_SECOND
 from alarm_backends.core.alert import Alert, AlertCache
 from alarm_backends.core.alert.alert import AlertKey
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
+from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.cache.key import ACTION_POLL_KEY_LOCK
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
 from alarm_backends.core.control.strategy import Strategy
@@ -578,6 +579,7 @@ class CreateActionProcessor:
         qos_alerts = []
         current_qos_count = 0
         for alert in self.alerts:
+            # 进行告警分派
             if not self.is_alert_status_valid(alert):
                 # 所有的通知，需要判断信号是否为有效状态
                 continue
@@ -639,6 +641,7 @@ class CreateActionProcessor:
                 alert_log = assignee_manager.match_manager.get_alert_log()
                 if alert_log:
                     alert_logs.append(AlertLog(**alert_log))
+        AssignCacheManager.clear()
         if action_instances:
             ActionInstance.objects.bulk_create(action_instances)
             new_actions.extend(
