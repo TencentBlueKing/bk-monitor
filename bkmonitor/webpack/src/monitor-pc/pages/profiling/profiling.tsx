@@ -35,7 +35,7 @@ Component.registerHooks(['beforeRouteLeave']);
 export default class Profiling extends tsc<object> {
   @Prop() a: number;
   get profilingHost() {
-    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7003` : location.origin;
   }
   get profilingUrl() {
     return process.env.NODE_ENV === 'development'

@@ -497,7 +497,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   progressFormatter(val: ITableItem<'progress'>) {
     return val ? (
       <div class='common-table-progress'>
-        <div class='table-progress-text'>{val.label || '--'}</div>
+        <div class='table-progress-text'>{val.label ?? val.value ?? '--'}</div>
         <bk-progress
           class={['common-progress-color', `color-${val.status}`]}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
@@ -705,7 +705,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       .map(column => {
         const showOverflowTooltip = ['tag', 'list', 'kv'].includes(column.type)
           ? false
-          : column.showOverflowTooltip ?? true;
+          : (column.showOverflowTooltip ?? true);
         // header-pre-icon
         const headerPreIcon = column[HEADER_PRE_ICON_NAME];
         return (
@@ -718,7 +718,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   ? () => column.renderHeader()
                   : undefined
             }
-            formatter={(row: TableRow) => this.handleSetFormatter(column.id, row)}
+            formatter={(row: TableRow) => this.handleSetFormatter(column.id, { ...this.overviewData, ...row })}
             label={column.name}
             prop={column.id}
             show-overflow-tooltip={showOverflowTooltip}
