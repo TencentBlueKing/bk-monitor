@@ -1605,52 +1605,15 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         return res, endpoints_metrics
 
     def perform_request(self, validate_data):
-        bk_biz_id = validate_data["bk_biz_id"]
-        app_name = validate_data["app_name"]
         service_name = validate_data["service_name"]
 
-        if ServiceHandler.is_remote_service(bk_biz_id, app_name, service_name):
-            # 如果为远程服务 -> 获取所有调用方的数据
-            response = api.apm_api.query_topo_relation(bk_biz_id=bk_biz_id, app_name=app_name, to_topo_key=service_name)
-            from_service_names = {i["from_topo_key"] for i in response}
-            if len(from_service_names) >= 2:
-                res, endpoints_metrics = self._batch_query_list_endpoints(validate_data, from_service_names)
-            else:
-                res = []
-                endpoints_metrics = {}
-                for service_name in from_service_names:
-                    r, m = self.list_endpoints(validate_data, service_name)
-                    res += r
-                    endpoints_metrics.update(m)
-
-            # 根据调用方进行过滤接口
-            query_params = {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "topo_node_key": service_name,
-            }
-            if validate_data.get("filter"):
-                query_params["category"] = validate_data["filter"]
-
-            relations = api.apm_api.query_remote_service_relation(**query_params)
-            driving_endpoints = [i["from_endpoint_name"] for i in relations]
-            res = [r for r in res if r["endpoint_name"] in driving_endpoints]
-
-            status_count = self.calc_status_count(res, endpoints_metrics)
-            res = self.filter_status(validate_data, res)
-            res = handle_filter_fields(res, validate_data.get("filter_fields"))
-            data = self.get_pagination_data(res, validate_data, True)
-            data["filter"] = self.get_filter(status_count)
-            return data
-
-        else:
-            endpoints, metric = self.list_endpoints(validate_data, service_name)
-            status_count = self.get_status_count(validate_data, endpoints, service_name, metric)
-            endpoints = self.filter_status(validate_data, endpoints)
-            endpoints = handle_filter_fields(endpoints, validate_data.get("filter_fields"))
-            res = self.get_pagination_data(endpoints, validate_data, service_name)
-            res["filter"] = self.get_filter(status_count)
-            return res
+        endpoints, metric = self.list_endpoints(validate_data, service_name)
+        status_count = self.get_status_count(validate_data, endpoints, service_name, metric)
+        endpoints = self.filter_status(validate_data, endpoints)
+        endpoints = handle_filter_fields(endpoints, validate_data.get("filter_fields"))
+        res = self.get_pagination_data(endpoints, validate_data, service_name)
+        res["filter"] = self.get_filter(status_count)
+        return res
 
     def get_status_count(self, params, endpoints, service_name, metric):
         # 获取过滤数量 需要根据keyword、filter_dict过滤

@@ -89,7 +89,6 @@ class TopNHandler:
         if not service_name:
             return self.filter_dict, where_condition
 
-        filter_dict = {}
         # 服务页面下
         node = ServiceHandler.get_node(self.application.bk_biz_id, self.application.app_name, service_name)
         if ComponentHandler.is_component_by_node(node):
@@ -102,14 +101,14 @@ class TopNHandler:
                 )
             )
             pure_service_name = ComponentHandler.get_component_belong_service(self.filter_dict[service_name_key])
-            filter_dict[service_name_key] = pure_service_name
+            self.filter_dict[service_name_key] = pure_service_name
 
         if ServiceHandler.is_remote_service_by_node(node):
             # 自定义服务下 需要加上 peer_service 查询条件
             pure_service_name = ServiceHandler.get_remote_service_origin_name(service_name)
-            filter_dict["peer_service"] = pure_service_name
+            self.filter_dict["peer_service"] = pure_service_name
 
-        return filter_dict, where_condition
+        return self.filter_dict, where_condition
 
     def collect_sum_metrics(self, metrics, group_keys, group_handler=None):
         if not group_handler:

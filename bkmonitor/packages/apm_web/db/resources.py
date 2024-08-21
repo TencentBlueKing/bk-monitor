@@ -26,6 +26,7 @@ from apm_web.constants import (
 from apm_web.db.db_utils import build_db_param, get_offset
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbInstanceHandler, DbQuery, DbStatisticsHandler
+from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from constants.apm import OtlpKey
 from core.drf_resource import Resource, api
@@ -375,16 +376,18 @@ class ListDbSystemResource(Resource):
         app_name = serializers.CharField(label="应用名称")
         group_by_key = serializers.CharField(label="分组字段")
         service_name = serializers.CharField(label="服务名称", required=False)
-        predicate_value = serializers.CharField(label="分类具体值", allow_blank=True, required=False)
 
     def perform_request(self, validated_data):
         table_id = Application.get_trace_table_id(validated_data["bk_biz_id"], validated_data["app_name"])
         if not table_id:
             raise ValueError(_("应用【{}】没有trace 结果表").format(validated_data['app_name']))
 
+        node = ServiceHandler.get_node(
+            validated_data["bk_biz_id"], validated_data["app_name"], validated_data["service_name"]
+        )
         # 服务名称处理
         service_name = validated_data.get("service_name")
-        predicate_value = validated_data.get("predicate_value")
+        predicate_value = node["extra_data"]["predicate_value"]
         if service_name and predicate_value and predicate_value in service_name:
             return [
                 {

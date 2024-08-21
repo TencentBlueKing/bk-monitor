@@ -107,59 +107,6 @@
               ]
             }
           }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "主调数量",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "unify_query_param": {
-              "expression": "A",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_count",
-                      "method": "SUM",
-                      "alias": "A"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "kind",
-                      "method": "eq",
-                      "value": [
-                        "2"
-                      ]
-                    },
-                    {
-                      "condition": "or",
-                      "key": "kind",
-                      "method": "eq",
-                      "value": [
-                        "5"
-                      ]
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
         }
       ],
       "options": {
@@ -628,10 +575,10 @@
           "api": "apm_metric.topNQuery",
           "alias": null,
           "data": {
-            "app_name": "${app_name}",
+            "app_name": "$app_name",
             "query_type": "endpoint_called_count",
             "filter_dict": {
-              "service_name": "${service_name}"
+              "service_name": "$service_name"
             }
           }
         }
@@ -685,7 +632,6 @@
             "app_name": "$app_name",
             "query_type": "endpoint_avg_duration",
             "filter_dict": {
-              "bk_instance_id": "$bk_instance_id",
               "service_name": "$service_name"
             }
           }

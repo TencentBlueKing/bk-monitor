@@ -15,7 +15,6 @@
           "data": {
             "app_name": "$app_name",
             "service_name": "$service_name",
-            "predicate_value": "${predicate_value}",
             "group_by_key": "attributes.db.system"
           },
           "fields": {
@@ -803,9 +802,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "component_instance_id": "$bk_instance_id",
             "unify_query_param": {
               "type": "range",
@@ -864,9 +860,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "component_instance_id": "$bk_instance_id",
             "unify_query_param": {
               "stack": "all",
@@ -933,9 +926,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "component_instance_id": "$bk_instance_id",
             "unify_query_param": {
               "expression": "A",
@@ -995,9 +985,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "component_instance_id": "$bk_instance_id",
             "unify_query_param": {
               "expression": "A",
@@ -1057,9 +1044,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "component_instance_id": "$bk_instance_id",
             "unify_query_param": {
               "expression": "B",
@@ -1119,9 +1103,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "component_instance_id": "$bk_instance_id",
             "unify_query_param": {
               "expression": "C",
@@ -1161,9 +1142,6 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "${category}",
-            "kind": "${kind}",
-            "predicate_value": "${predicate_value}",
             "component_instance_id": "$bk_instance_id",
             "unify_query_param": {
               "expression": "C",
@@ -1329,10 +1307,7 @@
           "api": "apm_metric.endpointList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "category": "$category",
-            "kind": "$kind",
-            "predicate_value": "$predicate_value"
+            "service_name": "$service_name"
           },
           "fields": {
             "endpoint_name": "endpoint_name",

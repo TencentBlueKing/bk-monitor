@@ -9,17 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from itertools import chain
 from typing import Dict, List, Optional, Set
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apm_web.constants import HostAddressType
+from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
-from apm_web.utils import list_remote_service_callers
 from core.drf_resource import api
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
@@ -40,7 +39,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-component-default-instance",
         "apm_service-component-default-overview",
         "apm_service-component-default-topo",
-        "apm_service-component-default-db",
+        "apm_service-component-db-db",
+        "apm_service-component-messaging-endpoint",
         "apm_service-service-default-endpoint",
         "apm_service-service-default-error",
         "apm_service-service-default-host",
@@ -50,6 +50,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-profiling",
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
+        "apm_service-remote_service-http-overview",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
         "apm_trace-host",
@@ -152,9 +153,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             return cls._get_non_host_view_config(builtin_view, params)
 
-        if builtin_view.startswith("apm_service-service") and builtin_view.endswith("overview"):
-            return cls.special_handle_service_overview_overview(view, view_config, params)
-
         return view_config
 
     @classmethod
@@ -206,35 +204,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
         if host_view:
             view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
-
-    @classmethod
-    def special_handle_service_overview_overview(cls, view, view_config, params):
-        # 特殊处理服务overview页面
-        if not params:
-            return view_config
-
-        bk_biz_id = view.bk_biz_id
-        service_name = params.get("service_name")
-        app_name = params.get("app_name")
-        if not service_name or not app_name:
-            return view_config
-
-        if not ServiceHandler.is_remote_service(bk_biz_id, app_name, service_name):
-            return view_config
-
-        # 自定义服务需要更改查询条件
-
-        # step1: 查询所有主调服务
-        from_services = list_remote_service_callers(bk_biz_id, app_name, service_name)
-        pure_service_name = service_name.split(":")[-1]
-
-        # step2: 更新unify-query查询条件
-        for target in list(chain(*(panel["targets"] for panel in view_config["panels"] if panel["type"] == "graph"))):
-            for query_config in target["data"]["query_configs"]:
-                query_config["where"].append({"key": "peer_service", "method": "eq", "value": [pure_service_name]})
-                query_config["filter_dict"]["service_name"] = from_services
-
-        return view_config
 
     @classmethod
     def create_default_views(cls, bk_biz_id: int, scene_id: str, view_type: str, existed_views):
@@ -376,23 +345,23 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             apm_app_name = serializers.CharField()
             apm_service_name = serializers.CharField()
 
-        if _Serializer(data=params).is_valid():
-            node = ServiceHandler.get_node(params["bk_biz_id"], params["apm_app_name"], params["apm_service_name"])
-            # 此分类的具类模版
-            specific_key = f"{node['extra_data']['kind']}-{node['extra_data']['predicate_value']}"
-            specific_views = [i for i in views if i.id.startswith(specific_key)]
-            if specific_views:
-                return specific_views
-
-            # 此分类的默认模版
+        _Serializer(data=params).is_valid(raise_exception=True)
+        node = ServiceHandler.get_node(params["bk_biz_id"], params["apm_app_name"], params["apm_service_name"])
+        default_key = "service-default"
+        if ComponentHandler.is_component_by_node(node):
             default_key = f"{node['extra_data']['kind']}-default"
-            default_views = [i for i in views if i.id.startswith(default_key)]
-            if default_views:
-                return default_views
+        specific_key = f"{node['extra_data']['kind']}-{node['extra_data']['category']}"
+        specific_views = [i for i in views if i.id.startswith(specific_key)]
+        specific_tabs = [i.id.split("-")[-1] for i in specific_views]
+        default_views = [i for i in views if i.id.startswith(default_key) and i.id.split("-")[-1] not in specific_tabs]
 
-        # 如果参数缺少时 返回默认的配置
+        res = default_views + specific_views
+        if ServiceHandler.is_remote_service_by_node(node):
+            # 自定义服务 无实例、 Profiling 、 DB
+            ignore_tabs = ["db", "instance", "profiling"]
+            res = [i for i in res if i.id.split("-")[-1] not in ignore_tabs]
 
-        return [i for i in views if i.id.startswith("service-default")]
+        return res
 
     @classmethod
     def is_custom_sort(cls, scene_id) -> bool:
