@@ -91,7 +91,7 @@ const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
     name: window.i18n.t('Span 详情'),
-    icon: 'icon-mc-copy',
+    icon: 'icon-xiangqing1',
   },
   {
     id: 'reset',

@@ -166,7 +166,7 @@ export default defineComponent({
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data = props.data
             ? props.data
-            : (
+            : ((
                 await query(
                   {
                     bk_biz_id: bizId,
@@ -181,7 +181,7 @@ export default defineComponent({
                     needCancel: true,
                   }
                 ).catch(() => false)
-              )?.flame_data ?? false;
+              )?.flame_data ?? false);
 
           if (data) {
             if (props.diffTraceId) {
@@ -636,6 +636,7 @@ export default defineComponent({
                 class='menu-item'
                 onClick={() => this.handleContextMenuClick(item)}
               >
+                <i class={`menu-item-icon icon-monitor ${item.icon}`} />
                 <span class='menu-item-text'>{item.name}</span>
               </li>
             ))}
