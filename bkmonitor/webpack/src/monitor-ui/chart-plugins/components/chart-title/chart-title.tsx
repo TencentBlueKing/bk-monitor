@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
-import { modifiers, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
@@ -140,7 +140,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         content = window.i18n.t('告警中，告警数量：{0}', [alert_number]).toString();
         break;
       default:
-      case AlarmStatus.not_confit_strategy:
         content = window.i18n.t('未配置策略').toString();
         break;
     }
@@ -317,21 +316,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           onClick={this.handleShowMenu.bind(this, 'all')}
         >
           <div class='main-title'>
-            {this.showMetricAlarm && this.showTitleIcon ? (
-              <i
-                class={[
-                  'icon-monitor',
-                  'alarm-icon',
-                  'icon-btn',
-                  this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-mc-strategy status-strategy',
-                  this.alarmStatus.status === AlarmStatus.not_confit_strategy &&
-                    'icon-mc-strategy status-strategy-not-config',
-                  this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3',
-                ]}
-                v-bk-tooltips={this.alarmTips}
-                onClick={modifiers.stop(this.handleAlarmClick)}
-              />
-            ) : undefined}
             <div
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
@@ -343,6 +327,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             {this.inited && [
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
                 <span
+                  key='title-interval'
                   class='title-interval'
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
@@ -357,6 +342,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               (this.$scopedSlots as any)?.customSlot?.(),
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
+                  key='icon-info-circle'
                   style={{ display: this.showMore ? 'flex' : 'none' }}
                   class='bk-icon icon-info-circle tips-icon'
                   onMouseenter={this.handleShowTips}
@@ -375,9 +361,13 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   }}
                 />
               ),
-              <span class='title-center' />,
+              <span
+                key='title-center'
+                class='title-center'
+              />,
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
+                  key='icon-mc-add-strategy'
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
@@ -390,6 +380,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 />
               ) : undefined,
               <span
+                key='title-last'
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
                   display: this.showMore ? 'flex' : 'none',
