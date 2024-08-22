@@ -86,6 +86,7 @@ class CreateEsRouter(BaseEsRouter):
         cluster_id = serializers.IntegerField(required=True, label="ES 集群 ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+        need_create_index = serializers.BooleanField(required=False, default=True, label="是否需要创建索引")
 
     def perform_request(self, data: OrderedDict):
         # 创建结果表和ES存储记录
@@ -112,6 +113,7 @@ class CreateEsRouter(BaseEsRouter):
                 enable_create_index=False,
                 source_type=data.get("source_type") or "",
                 index_set=data.get("index_set") or "",
+                need_create_index=data.get("need_create_index"),
             )
         # 推送空间数据
         push_and_publish_es_space_router(space_type=data["space_type"], space_id=data["space_id"])
@@ -136,6 +138,7 @@ class UpdateEsRouter(BaseEsRouter):
         cluster_id = serializers.IntegerField(required=False, label="ES 集群 ID")
         index_set = serializers.CharField(required=False, label="索引集规则")
         source_type = serializers.CharField(required=False, label="数据源类型")
+        need_create_index = serializers.BooleanField(required=False, default=True, label="是否需要创建索引")
 
     def perform_request(self, data: OrderedDict):
         # 查询结果表存在
@@ -159,6 +162,9 @@ class UpdateEsRouter(BaseEsRouter):
             need_refresh_data_label = True
         # 更新索引集或者使用的集群
         update_es_fields = []
+        if data.get("need_create_index"):
+            es_storage.need_create_index = data.get("need_create_index")
+            update_es_fields.append("need_create_index")
         if data.get("index_set") and data["index_set"] != es_storage.index_set:
             es_storage.index_set = data["index_set"]
             update_es_fields.append("index_set")
@@ -197,6 +203,7 @@ class CreateOrUpdateEsRouter(Resource):
         cluster_id = serializers.IntegerField(required=False, label="ES 集群 ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+        need_create_index = serializers.BooleanField(required=False, default=True, label="是否需要创建索引")
 
     def perform_request(self, validated_request_data):
         # 根据结果表判断是创建或更新
