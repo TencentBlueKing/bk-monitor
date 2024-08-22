@@ -8,21 +8,29 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import functools
 from dataclasses import dataclass, field
 from typing import Callable, List, Type
 
+from django.utils.translation import ugettext_lazy as _
+
+from apm_web.constants import TopoNodeKind
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import StatisticsMetric
 from apm_web.metric_handler import (
     MetricHandler,
     ServiceFlowAvgDuration,
     ServiceFlowCount,
+    ServiceFlowDurationBucket,
+    ServiceFlowDurationMax,
+    ServiceFlowDurationMin,
 )
 from apm_web.topo.handle import BaseQuery
 from apm_web.topo.handle.graph_query import GraphQuery
 
 # 请求数表格列
+from apm_web.utils import get_interval_number, merge_dicts
 from core.unit import load_unit
 
 REQUEST_COUNT_COLUMNS = [
@@ -48,17 +56,24 @@ ERROR_COUNT_COLUMNS = [
     },
 ]
 
+
 # 平均耗时表格列
-AVG_DURATION_COLUMNS = [
-    {"id": "service", "name": "服务名称", "type": "link"},
-    {"id": "other_service", "name": "调用服务", "type": "string"},
-    {"id": "avg_duration", "name": "平均耗时", "type": "number", "sortable": "custom"},
-    {
-        "id": "datapoints",
-        "name": "缩略图",
-        "type": "datapoints",
-    },
-]
+def get_duration_columns(dimension="default"):
+    return [
+        {"id": "service", "name": "服务名称", "type": "link"},
+        {"id": "other_service", "name": "调用服务", "type": "string"},
+        {
+            "id": "avg_duration",
+            "name": "平均耗时" if dimension == "default" else dimension,
+            "type": "number",
+            "sortable": "custom",
+        },
+        {
+            "id": "datapoints",
+            "name": "缩略图",
+            "type": "datapoints",
+        },
+    ]
 
 
 @dataclass
@@ -70,6 +85,8 @@ class Template:
     link_service_field_index: int = 0
     other_service_field_index: int = 1
     unit: Callable = None
+    dimension: str = None
+    filter_dict: dict = field(default_factory=dict)
 
     @classmethod
     def key_convert(cls, key_values):
@@ -100,58 +117,159 @@ class ServiceMetricStatistics(BaseQuery):
 
     template_mapping = {
         StatisticsMetric.REQUEST_COUNT.value: {
-            "caller": Template(
-                table_group_by=["from_apm_service_name", "to_apm_service_name"],
-                metric=ServiceFlowCount,
-                columns=REQUEST_COUNT_COLUMNS,
-            ),
-            "callee": Template(
-                table_group_by=["to_apm_service_name", "from_apm_service_name"],
-                metric=ServiceFlowCount,
-                columns=REQUEST_COUNT_COLUMNS,
-            ),
+            "default": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    metric=ServiceFlowCount,
+                    columns=REQUEST_COUNT_COLUMNS,
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    metric=ServiceFlowCount,
+                    columns=REQUEST_COUNT_COLUMNS,
+                ),
+            }
         },
         StatisticsMetric.ERROR_COUNT.value: {
-            "caller": Template(
-                table_group_by=["from_apm_service_name", "to_apm_service_name", "from_span_error"],
-                ignore_keys=["from_span_error"],
-                metric=functools.partial(
-                    ServiceFlowCount, where=[{"key": "from_span_error", "method": "eq", "value": ["true"]}]
+            "default": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name", "from_span_error"],
+                    ignore_keys=["from_span_error"],
+                    metric=ServiceFlowCount,
+                    filter_dict={"from_span_error": "true"},
+                    columns=ERROR_COUNT_COLUMNS,
                 ),
-                columns=ERROR_COUNT_COLUMNS,
-            ),
-            "callee": Template(
-                table_group_by=["to_apm_service_name", "from_apm_service_name", "to_span_error"],
-                ignore_keys=["to_span_error"],
-                metric=functools.partial(
-                    ServiceFlowCount, where=[{"key": "to_span_error", "method": "eq", "value": ["true"]}]
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name", "to_span_error"],
+                    ignore_keys=["to_span_error"],
+                    metric=ServiceFlowCount,
+                    filter_dict={"to_span_error": "true"},
+                    columns=ERROR_COUNT_COLUMNS,
                 ),
-                columns=ERROR_COUNT_COLUMNS,
-            ),
+            }
         },
         StatisticsMetric.AVG_DURATION.value: {
-            "caller": Template(
-                table_group_by=["from_apm_service_name", "to_apm_service_name"],
-                metric=ServiceFlowAvgDuration,
-                columns=AVG_DURATION_COLUMNS,
-                unit=functools.partial(Template.unit_avg, unit="µs"),
-            ),
-            "callee": Template(
-                table_group_by=["from_apm_service_name", "to_apm_service_name"],
-                metric=ServiceFlowAvgDuration,
-                columns=AVG_DURATION_COLUMNS,
-                unit=functools.partial(Template.unit_avg, unit="µs"),
-            ),
+            "default": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    metric=ServiceFlowAvgDuration,
+                    columns=get_duration_columns(),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    metric=ServiceFlowAvgDuration,
+                    columns=get_duration_columns(),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+            },
+            "P50": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    metric=functools.partial(
+                        ServiceFlowDurationBucket,
+                        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+                    ),
+                    columns=get_duration_columns("P50"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    metric=functools.partial(
+                        ServiceFlowDurationBucket,
+                        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+                    ),
+                    columns=get_duration_columns("P50"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+            },
+            "P95": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    metric=functools.partial(
+                        ServiceFlowDurationBucket,
+                        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.95"}]}],
+                    ),
+                    columns=get_duration_columns("P95"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    metric=functools.partial(
+                        ServiceFlowDurationBucket,
+                        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.95"}]}],
+                    ),
+                    columns=get_duration_columns("P95"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+            },
+            "P99": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    metric=functools.partial(
+                        ServiceFlowDurationBucket,
+                        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.99"}]}],
+                    ),
+                    columns=get_duration_columns("P99"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    metric=functools.partial(
+                        ServiceFlowDurationBucket,
+                        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.99"}]}],
+                    ),
+                    columns=get_duration_columns("P99"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+            },
+            "MAX": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    metric=ServiceFlowDurationMax,
+                    columns=get_duration_columns("MAX"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    metric=ServiceFlowDurationMax,
+                    columns=get_duration_columns("MAX"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+            },
+            "MIN": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    metric=ServiceFlowDurationMin,
+                    columns=get_duration_columns("MIN"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    metric=ServiceFlowDurationMin,
+                    columns=get_duration_columns("MIN"),
+                    unit=functools.partial(Template.unit_avg, unit="µs"),
+                ),
+            },
         },
     }
 
-    @classmethod
-    def get_template(cls, metric_name, kind):
-        t = cls.template_mapping.get(metric_name, {}).get(kind)
-        if not t:
-            raise ValueError(f"不支持查询 {metric_name} 指标的 {kind} 类型")
+    virtual_service_name = _("其他服务")
 
-        return t
+    @classmethod
+    def get_template(cls, metric_name, kind, dimension):
+
+        dimension_metric = cls.template_mapping.get(metric_name, {}).get(dimension)
+        if not dimension_metric:
+            dimension_metric = cls.template_mapping.get(metric_name, {}).get("default")
+
+        if not dimension_metric:
+            raise ValueError(f"不支持查询 {metric_name} 指标的 {dimension} 维度下的 {kind} 类型")
+
+        dimension_metric = dimension_metric.get(kind)
+        res = copy.deepcopy(dimension_metric)
+        res.dimension = dimension
+        return res
 
     def __init__(self, *args, **kwargs):
         super(ServiceMetricStatistics, self).__init__(*args, **kwargs)
@@ -162,31 +280,64 @@ class ServiceMetricStatistics(BaseQuery):
 
     def list(self, template: Template):
 
-        values_mapping = template.metric(
-            self.application,
-            self.start_time,
-            self.end_time,
-            filter_dict=self.filter_params,
-            group_by=template.table_group_by,
-        ).get_range_values_mapping(ignore_keys=template.ignore_keys)
+        if template.dimension == "default" or self.data_type == StatisticsMetric.AVG_DURATION.value:
+            values_mapping = template.metric(
+                self.application,
+                self.start_time,
+                self.end_time,
+                filter_dict=merge_dicts(self.filter_params, template.filter_dict),
+                group_by=template.table_group_by,
+                interval=get_interval_number(self.start_time, self.end_time),
+            ).get_range_values_mapping(ignore_keys=template.ignore_keys)
+        elif self.data_type == StatisticsMetric.ERROR_COUNT.value:
+            # 错误数的维度是错误码
+            values_mapping = template.metric(
+                self.application,
+                self.start_time,
+                self.end_time,
+                filter_dict=merge_dicts(self.filter_params, template.filter_dict),
+                group_by=template.table_group_by,
+                where=[
+                    {"key": "http_status_code", "method": "eq", "value": template.dimension},
+                    {"key": "rpc_grpc_status_code", "method": "eq", "value": template.dimension, "condition": "or"},
+                ],
+                interval=get_interval_number(self.start_time, self.end_time),
+            ).get_range_values_mapping(ignore_keys=template.ignore_keys)
+        else:
+            raise ValueError(f"不支持查询指标为: {self.data_type} 的 {template.dimension} 维度数据")
 
         mappings = self.graph.node_mapping
         res = []
         for k, series in values_mapping.items():
             service_1 = k[template.link_service_field_index]
             service_2 = k[template.other_service_field_index]
+            service_1_kind = mappings.get(service_1).get("data", {}).get("kind")
+            service_2_kind = mappings.get(service_2).get("data", {}).get("kind")
+
+            if service_1_kind == TopoNodeKind.VIRTUAL_SERVICE:
+                service_1_url = ""
+                service_1_name = self.virtual_service_name
+            else:
+                service_1_url = ServiceHandler.build_url(self.app_name, service_1)
+                service_1_name = service_1
+
+            if service_2_kind == TopoNodeKind.VIRTUAL_SERVICE:
+                service_2_name = self.virtual_service_name
+            else:
+                service_2_name = service_2
+
             res.append(
                 {
                     "service": {
                         "target": "self",
-                        "url": ServiceHandler.build_url(self.app_name, service_1),
-                        "name": service_1,
+                        "url": service_1_url,
+                        "name": service_1_name,
                         "category": mappings.get(service_1).get("data", {}).get("category")
                         if service_1 in mappings
                         else None,
                     },
                     "other_service": {
-                        "name": service_2,
+                        "name": service_2_name,
                         "category": mappings.get(service_2).get("data", {}).get("category")
                         if service_2 in mappings
                         else None,

@@ -107,7 +107,7 @@ def get_interval(start_time, end_time, interval="auto"):
     return interval
 
 
-def get_interval_number(start_time, end_time, interval=60):
+def get_interval_number(start_time, end_time, interval="auto"):
     """计算出适合的时间间隔返回 int"""
     if not interval or interval == "auto":
         hour_interval = (end_time - start_time) // 3600
@@ -120,7 +120,9 @@ def get_interval_number(start_time, end_time, interval=60):
         else:
             interval = 60 * 60 * 24
 
-    return interval
+        return interval
+
+    return 60
 
 
 def split_by_interval(start_time, end_time, interval):

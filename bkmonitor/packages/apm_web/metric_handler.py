@@ -488,6 +488,22 @@ class ServiceFlowDurationBucket(MetricHandler):
     default_group_by = ["le"]
 
 
+class ServiceFlowDurationMax(MetricHandler):
+    """服务间调用耗时 MAX(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_DURATION
+    aggs_method = "MAX"
+    metric_field = "apm_service_to_apm_service_flow_max"
+
+
+class ServiceFlowDurationMin(MetricHandler):
+    """服务间调用耗时 MIN(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_DURATION
+    aggs_method = "MIN"
+    metric_field = "apm_service_to_apm_service_flow_min"
+
+
 @using_cache(CacheType.APM(60 * 15))
 def cache_batch_metric_query_group(
     application,

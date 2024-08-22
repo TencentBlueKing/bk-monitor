@@ -123,13 +123,17 @@
                   {
                     "key": "kind",
                     "method": "eq",
-                    "value": ["3"]
+                    "value": [
+                      "3"
+                    ]
                   },
                   {
                     "condition": "or",
                     "key": "kind",
                     "method": "eq",
-                    "value": ["4"]
+                    "value": [
+                      "4"
+                    ]
                   }
                 ],
                 "interval_unit": "s",
@@ -167,13 +171,17 @@
                   {
                     "key": "kind",
                     "method": "eq",
-                    "value": ["2"]
+                    "value": [
+                      "2"
+                    ]
                   },
                   {
                     "condition": "or",
                     "key": "kind",
                     "method": "eq",
-                    "value": ["5"]
+                    "value": [
+                      "5"
+                    ]
                   }
                 ],
                 "interval_unit": "s",
@@ -368,6 +376,77 @@
       },
       "type": "graph",
       "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "AVG",
+          "data": {
+            "expression": "a / b",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_sum",
+                    "method": "SUM",
+                    "alias": "a"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {},
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_total",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {},
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
         {
           "data_type": "time_series",
           "api": "grafana.graphUnifyQuery",

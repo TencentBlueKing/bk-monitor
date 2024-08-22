@@ -2372,9 +2372,15 @@ class MetricDetailStatisticsResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
         service_name = serializers.CharField(label="服务名称过滤", required=False)
         option_kind = serializers.CharField(label="选项主调/被调")
-        data_type = serializers.ChoiceField(label="需要统计的数据类型", choices=StatisticsMetric.get_choices())
+        data_type = serializers.ChoiceField(label="指标类型", choices=StatisticsMetric.get_choices())
+        # 请求数无维度 错误数维度为 总数量+状态码 响应耗时维度为 平均耗时+MAX/MIN/P90/...
+        dimension = serializers.CharField(label="下拉框维度", required=False, default="default")
 
     def perform_request(self, validated_data):
-        template = ServiceMetricStatistics.get_template(validated_data["data_type"], validated_data.pop("option_kind"))
+        template = ServiceMetricStatistics.get_template(
+            validated_data["data_type"],
+            validated_data.pop("option_kind"),
+            validated_data.pop("dimension"),
+        )
         s = ServiceMetricStatistics(**validated_data)
         return s.list(template)
