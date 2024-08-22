@@ -78,7 +78,8 @@ const state = {
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
   bizIdChangePedding: '', // 业务id是否切换
-  spaceUidMap: new Map(), // 业务id是否切换
+  spaceUidMap: new Map(),
+  bizIdMap: new Map(),
 };
 
 const mutations = {
@@ -116,7 +117,8 @@ const mutations = {
           };
         });
         state.spaceUidMap = new Map(state.bizList.map(item => [item.space_uid, item]));
-        return;
+        state.bizIdMap = new Map(state.bizList.map(item => [item.bk_biz_id, item]));
+        continue;
       }
       state[key] = value;
     }

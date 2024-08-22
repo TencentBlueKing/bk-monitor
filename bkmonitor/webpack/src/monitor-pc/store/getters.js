@@ -61,6 +61,7 @@ const getters = {
   lang: state => state.app.lang,
   bizIdChangePedding: state => state.app.bizIdChangePedding,
   spaceUidMap: state => state.app.spaceUidMap,
+  bizIdMap: state => state.app.bizIdMap,
 };
 
 export default getters;

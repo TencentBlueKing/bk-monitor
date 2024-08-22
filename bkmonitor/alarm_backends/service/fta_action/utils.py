@@ -102,9 +102,10 @@ class PushActionProcessor:
                 # 从策略中匹配防御规则
                 # TODO 当没有策略的情况下的告警推送
                 strategy = action_instance.strategy
-                for action in strategy.get("actions", []) + [strategy.get("notice")]:
-                    if action and action["id"] == action_instance.strategy_relation_id:
-                        converge_config = action["options"].get("converge_config")
+                if strategy:
+                    for action in strategy.get("actions", []) + [strategy.get("notice")]:
+                        if action and action["id"] == action_instance.strategy_relation_id:
+                            converge_config = action["options"].get("converge_config")
 
                 if (
                     not converge_config
@@ -491,7 +492,7 @@ class AlertAssignee:
                         group_users.append(user["id"])
             if is_rule_matched:
                 # 适配到了对应的轮值规则，中止
-                logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id)
+                logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id, self.alert.id)
                 return
 
     def get_assignee_by_user_groups(self, by_group=False, user_type=UserGroupType.MAIN):
