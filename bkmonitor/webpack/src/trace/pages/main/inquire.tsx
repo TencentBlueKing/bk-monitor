@@ -148,8 +148,11 @@ export default defineComponent({
     /** 获取应用列表 */
     const getAppList = async () => {
       const listData = await listApplicationInfo().catch(() => []);
-      enableProfiling.value =
-        listData.find(item => item.app_name === state.cacheQueryAppName).is_enabled_profiling || false;
+      const { is_enabled_profiling = false, application_id = -1 } = listData.find(
+        item => item.app_name === state.cacheQueryAppName
+      );
+      enableProfiling.value = is_enabled_profiling;
+      store.setApplicationId(application_id);
       appList.value = listData;
       isEmptyApp.value = !listData.length;
 
@@ -290,8 +293,10 @@ export default defineComponent({
     };
     async function handleAppSelectChange(val: string) {
       state.app = val;
-      const foundItem = appList.value.find(item => item.app_name === val);
-      enableProfiling.value = foundItem ? foundItem.is_enabled_profiling : false;
+      const { is_enabled_profiling = false, application_id = -1 } =
+        appList.value.find(item => item.app_name === val) || {};
+      enableProfiling.value = is_enabled_profiling;
+      store.setApplicationId(application_id);
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
       if (val) {
