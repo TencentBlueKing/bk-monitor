@@ -244,7 +244,7 @@
             "endpoint": "endpoint",
             "app_name": "app_name",
             "exception_type": "exception_type",
-            "service_name": "component_service_name"
+            "service_name": "service_name"
           }
         }
       ]

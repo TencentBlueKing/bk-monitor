@@ -1474,7 +1474,7 @@
           "fields": {
             "endpoint_name": "endpoint_name",
             "app_name": "app_name",
-            "service_name": "component_service_name"
+            "service_name": "service_name"
           }
         }
       ]
