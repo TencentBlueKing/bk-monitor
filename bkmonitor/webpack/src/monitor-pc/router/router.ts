@@ -103,7 +103,9 @@ const specialReportRouteList = [
 ];
 router.beforeEach(async (to, from, next) => {
   // 空闲初始化introduce数据
-  store.getters.bizList?.length && introduce.initIntroduce(to);
+  if (store.getters.bizList?.length) {
+    introduce.initIntroduce(to);
+  }
   if (
     !window.__BK_WEWEB_DATA__?.token &&
     !['no-business', 'event-center', 'event-center-detail', 'event-center-action-detail', 'share'].includes(to.name) &&
@@ -166,19 +168,19 @@ router.beforeEach(async (to, from, next) => {
   ) {
     console.info(authority.page, authority.map, getAuthById(authority.page), '============');
     if (!getAuthById(authority.page)) {
-      store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+      store.commit('app/SET_ROUTE_CHANGE_LOADING', true);
       hasAuthority = await isAuthority(authority?.page)
         .catch(() => false)
         .finally(() => {
           if (to.meta.noChangeLoading) return;
-          setTimeout(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
+          setTimeout(() => store.commit('app/SET_ROUTE_CHANGE_LOADING', false), 20);
         });
       setAuthById(Array.isArray(authority.page) ? authority.page[0] : authority.page, hasAuthority);
     }
     if (hasAuthority) {
       next();
     } else {
-      window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false));
+      window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADING', false));
       next({
         params: {
           title: '无权限',

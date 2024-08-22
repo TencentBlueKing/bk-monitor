@@ -412,7 +412,7 @@ export default class App extends tsc<object> {
     this.handleHeaderSettingShowChange(false);
     this.showBizList = false;
     this.$store.commit('app/SET_BIZ_ID', +v);
-    this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+    this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', true);
     IntelligentModelsStore.clearIntelligentMap();
     const { navId } = this.$route.meta;
     // 处理页面引导页信息
@@ -454,7 +454,7 @@ export default class App extends tsc<object> {
         if (!hasAuth) {
           this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
         }
-        setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
+        setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false), 20);
         return;
       }
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
@@ -470,7 +470,7 @@ export default class App extends tsc<object> {
       });
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
-    this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
+    this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
   }
   // 刷新页面
   async handleUpdateRoute(params: Record<string, any>, promise = () => false, path?: string) {
@@ -487,7 +487,7 @@ export default class App extends tsc<object> {
         isAuthority(authority?.page)
           .catch(() => false)
           .finally(() => {
-            setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
+            setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false), 20);
           })
       );
       [, hasAuthority] = await Promise.all(promiseList);
