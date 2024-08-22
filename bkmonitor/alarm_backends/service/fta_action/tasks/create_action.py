@@ -365,7 +365,7 @@ class CreateActionProcessor:
         self.relation_id = relation_id
         self.execute_times = execute_times
         self.is_unshielded = is_unshielded
-        self.strategy = Strategy(strategy_id).config or self.alerts[0].strategy or {}
+        self.strategy = Strategy(strategy_id).config or (self.alerts[0].strategy if self.alerts else {})
         self.generate_uuid = self.get_generate_uuid()
         self.noise_reduce_result = False
         self.notice = {}
@@ -471,6 +471,7 @@ class CreateActionProcessor:
         }
         with metrics.ALERT_ASSIGN_PROCESS_TIME.labels(**assign_labels).time():
             exc = None
+            assignee_manager = None
             try:
                 assignee_manager = AlertAssigneeManager(
                     alert,
@@ -487,7 +488,7 @@ class CreateActionProcessor:
             assign_labels["status"] = metrics.StatusEnum.from_exc(exc)
 
         metrics.ALERT_ASSIGN_PROCESS_COUNT.labels(**assign_labels).inc()
-        if self.execute_times == 0 and self.notice_type != ActionNoticeType.UPGRADE:
+        if self.execute_times == 0 and self.notice_type != ActionNoticeType.UPGRADE and exc is None:
             # 创建流程单据，仅第一次分派的时候进行操作
             for itsm_action_id in assignee_manager.itsm_actions.keys():
                 if str(itsm_action_id) not in action_configs:
@@ -589,6 +590,8 @@ class CreateActionProcessor:
             # 手动分派的情况下直接覆盖
             supervisors = []
             assignees = []
+            if not assignee_manager:
+                continue
             if not assignee_manager.is_matched and not self.strategy_id:
                 # 第三方告警如果没有适配到的规则，直接忽略
                 continue

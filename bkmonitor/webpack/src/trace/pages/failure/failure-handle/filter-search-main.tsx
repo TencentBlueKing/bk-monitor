@@ -86,6 +86,7 @@ export default defineComponent({
     const inputStatus = ref<string>('success');
     const isErr = ref(false);
     const selectRef = ref();
+    const trigger = ref('default')
     const handleBiz = (data: any) => {
       const list = JSON.parse(JSON.stringify(spaceFilter.value));
       spaceFilter.value.push(data.bk_biz_id);
@@ -98,6 +99,12 @@ export default defineComponent({
       () => tagInfoData.value,
       () => {
         handleBiz(tagInfoData.value);
+      }
+    );
+    watch(
+      () => isErr.value,
+      (val) => {
+        trigger.value = val ? 'manual' : 'default';
       }
     );
     watch(
@@ -181,7 +188,8 @@ export default defineComponent({
       spaceDataList,
       inputStatus,
       isErr,
-      selectRef
+      selectRef,
+      trigger
     };
   },
   render() {
@@ -195,6 +203,7 @@ export default defineComponent({
               'main-select',
               { error: this.isErr }
             ]}
+            trigger={this.trigger}
             v-model={this.spaceFilter}
             clearable={false}
             inputSearch={false}
@@ -206,10 +215,10 @@ export default defineComponent({
               this.isErr && this.selectRef.showPopover();
             }}
           >
-            {this.spaceDataList.map((item, ind) => (
+            {this.spaceDataList.map(item => (
               <Select.Option
                 id={item.id}
-                key={ind}
+                key={item.id}
                 class='main-select-item'
                 name={item.name}
               >
@@ -217,10 +226,10 @@ export default defineComponent({
                   <span class={['name', { disabled: !!item.noAuth && !item.hasData }]}>{item.name}</span>
                 </span>
                 <div class='space-tags'>
-                  {item.tags.map((tag, ind) =>
+                  {item.tags.map(tag =>
                     SPACE_TYPE_MAP[tag.id]?.name ? (
                       <Tag
-                        key={ind}
+                        key={tag.id}
                         style={{ ...SPACE_TYPE_MAP[tag.id]?.light }}
                         class='space-tags-item'
                       >

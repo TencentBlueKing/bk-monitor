@@ -12,6 +12,11 @@ import time
 
 from django.conf import settings
 from django.core.cache import cache
+from rest_framework import serializers
+
+from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.time_tools import hms_string
 from monitor_web.commons.robot.constant import (
     LATEST_FETCH_TIME_KEY,
     MAX_FETCH_TIME_RANGE,
@@ -19,15 +24,9 @@ from monitor_web.commons.robot.constant import (
 )
 from monitor_web.commons.robot.utils import (
     AlertRobotModule,
-    HostAnomalyRobotModule,
     robot_module_result_build,
     time_range_regular,
 )
-from rest_framework import serializers
-
-from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.utils.request import get_request_username
-from bkmonitor.utils.time_tools import hms_string
 
 
 class AlertSerializer(serializers.Serializer):
@@ -58,7 +57,7 @@ class LinkItemSerializer(serializers.Serializer):
 
 
 class FetchRobotInfoResource(ApiAuthResource):
-    ROBOT_MODULES = [AlertRobotModule, HostAnomalyRobotModule]
+    ROBOT_MODULES = [AlertRobotModule]
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()

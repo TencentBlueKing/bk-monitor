@@ -49,6 +49,7 @@ from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerialize
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.user import set_local_username
+from constants.aiops import SCENE_NAME_MAPPING
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
@@ -1121,10 +1122,9 @@ def stop_aiops_multivariate_anomaly_detection_flow(access_bk_biz_id, need_stop_s
     @param need_stop_scenes: 需要关闭的场景列表
     @return:
     """
-    scene_name_mapping = MultivariateAnomalyIntelligentModelDetectTask.SCENE_NAME_MAPPING
     for need_stop_scene in need_stop_scenes:
         flow_name = MultivariateAnomalyIntelligentModelDetectTask.build_flow_name(
-            access_bk_biz_id, scene_name_mapping[need_stop_scene]
+            access_bk_biz_id, SCENE_NAME_MAPPING[need_stop_scene]
         )
         try:
             data_flow = DataFlow.from_bkdata_by_flow_name(flow_name)
@@ -1170,10 +1170,6 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
 
 @task(ignore_result=True, queue="celery_resource")
 def access_host_anomaly_detect_by_strategy_id(strategy_id):
-    """
-    根据策略ID接入主机异常检测算法
-    """
-    from bkmonitor.aiops.utils import AiSetting
     from bkmonitor.data_source.handler import DataQueryHandler
     from bkmonitor.models import (
         AlgorithmModel,
@@ -1199,23 +1195,6 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     rt_query_config = QueryConfig.from_models(
         QueryConfigModel.objects.filter(strategy_id=strategy_id, item_id=item.id)
     )[0]
-    rt_query_config.intelligent_detect["status"] = AccessStatus.CREATED
-    rt_query_config.save()
-
-    # 3. 检查当前业务的主机场景多指标异常检测是否接入，
-    # 如果没接入则尝试接入，若接入失败则更新算法接入状态为"失败"并记录错误信息，且抛出异常
-    ai_setting = AiSetting(bk_biz_id=strategy.bk_biz_id)
-    if not ai_setting.multivariate_anomaly_detection.host.intelligent_detect.get("status") == "success":
-        try:
-            access_aiops_multivariate_anomaly_detection_by_bk_biz_id(strategy.bk_biz_id, [SceneSet.HOST.value])
-        except Exception as e:
-            err_msg = f"Access biz multivariate anomaly detection error: {str(e)}"
-            rt_query_config.intelligent_detect["status"] = AccessStatus.FAILED
-            rt_query_config.intelligent_detect["message"] = err_msg
-            rt_query_config.save()
-            raise Exception(err_msg)
-
-    # 4. 主机场景多指标异常检测正常接入后，更新算法接入状态为"运行中"
     rt_query_config.intelligent_detect["status"] = AccessStatus.RUNNING
     rt_query_config.save()
 
@@ -1314,6 +1293,12 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
 
     # 6. 如果主机异常检测数据流成功创建并启动，更新算法接入状态为"成功"
     # 将配置好的模型生成的rt_id放到extend_fields中，前端会根据这张表来查询数据
+    rt_query_config.metric_id = get_metric_id(
+        data_source_label=DataSourceLabel.BK_DATA,
+        data_type_label=DataTypeLabel.TIME_SERIES,
+        result_table_id=output_table_name,
+        metric_field="is_anomaly",
+    )
     rt_query_config.intelligent_detect = {
         "data_flow_id": detect_data_flow.data_flow.flow_id,
         "data_source_label": DataSourceLabel.BK_DATA,

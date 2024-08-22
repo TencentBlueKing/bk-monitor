@@ -231,6 +231,7 @@ export default {
   无数据: 'No data',
   暂无权限: 'No permission',
   暂无数据: 'No Data',
+  没有数据: 'No Data',
   查无数据: 'No data',
   暂无进程: 'No Process',
   暂无收藏: 'No favorite',
