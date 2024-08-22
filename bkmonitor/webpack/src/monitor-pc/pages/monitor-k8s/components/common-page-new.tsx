@@ -752,7 +752,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     /* ----------------测数数据 */
     if (['apm_service', 'apm_application'].includes(this.sceneId) && this.localSceneType === 'overview') {
       for (const item of data?.overview_panels || []) {
-        if (item.type === 'graph') {
+        if (['请求数', '错误数', '响应耗时'].includes(item.title)) {
           item.type = 'apm-timeseries-chart';
           item.options = {
             ...item.options,
@@ -780,6 +780,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             app_name: this.filters.app_name || '',
             service_name: this.filters.service_name || '',
           },
+          enableContextmenu: true,
         };
       }
     }

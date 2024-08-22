@@ -361,11 +361,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
       <div
-        class='link-col'
+        class={['link-col', { 'disabled-click': !!val?.disabledClick }]}
         v-authority={{ active: !hasPermission }}
-        onClick={e =>
-          hasPermission ? this.handleLinkClick(val, e) : this.handleShowAuthorityDetail?.(column.actionId)
-        }
+        onClick={e => {
+          if (val?.disabledClick) {
+            return;
+          }
+          hasPermission ? this.handleLinkClick(val, e) : this.handleShowAuthorityDetail?.(column.actionId);
+        }}
       >
         {val.icon ? (
           val.icon.length > 30 ? (

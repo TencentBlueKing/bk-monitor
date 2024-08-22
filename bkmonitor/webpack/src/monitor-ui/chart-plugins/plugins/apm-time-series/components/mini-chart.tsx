@@ -45,7 +45,7 @@ export enum EDropType {
 }
 
 interface IProps {
-  data?: any; // todo: 待补充
+  data?: number[]; // todo: 待补充
   chartStyle?: {
     lineMaxHeight: number;
     chartWarpHeight: number;
@@ -56,6 +56,7 @@ interface IProps {
   pointType?: EPointType;
   dropType?: EDropType;
   disableHover?: boolean;
+  valueTitle?: string;
   onPointTypeChange?: (type: EPointType) => void;
   onCompareXChange?: (x: number) => void;
   onReferXChange?: (x: number) => void;
@@ -78,7 +79,9 @@ export default class MiniChart extends tsc<IProps> {
   @Prop({ type: String, default: EDropType.end }) dropType: EDropType;
   /* 禁止hover tooltip及标记点 */
   @Prop({ type: Boolean, default: false }) disableHover: boolean;
-  @Prop({ type: Array, default: () => [] }) data: any;
+  @Prop({ type: Array, default: () => [] }) data: number[];
+  /* tips显示值标题 */
+  @Prop({ type: String, default: '数量' }) valueTitle: string;
 
   /* 对比点 */
   localComparePoint = {
@@ -290,7 +293,13 @@ export default class MiniChart extends tsc<IProps> {
               <div class="left-compare-type" style="background: ${timeTitle === compareTitleText ? '#7B29FF' : '#FFB848'};"></div>
               <div>
                 <div>${timeTitle}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
-                <div>${this.$t('请求数')}：${value}</div>
+                <div>${this.valueTitle}：${value}</div>
+              </div>`;
+              }
+              if (this.isMouseOver) {
+                return `<div>
+                <div>${dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>${this.valueTitle}：${params[0].value[1] || 0}</div>
               </div>`;
               }
               return undefined;
@@ -327,6 +336,7 @@ export default class MiniChart extends tsc<IProps> {
             }
           });
         }
+        this.handleWatchPointType(this.pointType);
         if (this.groupId) {
           (this as any).instance.group = this.groupId;
         }
@@ -452,7 +462,7 @@ export default class MiniChart extends tsc<IProps> {
         },
       ],
     };
-    (this as any).instance.setOption(this.options);
+    (this as any).instance?.setOption(this.options);
   }
 
   pointTypeChange(type: EPointType) {
