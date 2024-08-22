@@ -435,7 +435,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     ):
         """获取时序表数据"""
 
-        if end - start <= 60000:
+        if end - start <= 5 * 60 * 1000:
+            # 5 分钟内向秒取整
             # 向秒取整
             dimension = "FLOOR(dtEventTimeStamp / 1000) * 1000"
         else:
