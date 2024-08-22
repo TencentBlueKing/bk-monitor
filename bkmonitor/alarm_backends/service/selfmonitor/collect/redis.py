@@ -140,7 +140,8 @@ class RedisMetricCollectReport(object):
         metrics.REPLICA_RESYNCS_FULL.labels(**labels).set(node_info["sync_full"])
         metrics.REPLICATION_BACKLOG_BYTES.labels(**labels).set(node_info["repl_backlog_size"])
         metrics.START_TIME_SECONDS.labels(**labels).set(node_info["uptime_in_seconds"])
-        metrics.CLIENT_BIGGEST_INPUT_BUF.labels(**labels).set(node_info["client_recent_max_input_buffer"])
+        if "client_recent_max_input_buffer" in node_info:
+            metrics.CLIENT_BIGGEST_INPUT_BUF.labels(**labels).set(node_info["client_recent_max_input_buffer"])
 
         # redis_exporter 和 redis info指标名一样的
         metrics.ACTIVE_DEFRAG_RUNNING.labels(**labels).set(node_info["active_defrag_running"])
