@@ -27,10 +27,16 @@ const authMap = new Map<string, Map<string, boolean>>();
 export const getAuthById = (actionId: string | string[], bizId = window.bk_biz_id) => {
   return !!authMap.get(bizId.toString())?.get(Array.isArray(actionId) ? actionId[0] : actionId);
 };
-export const setAuthById = (actionId: string, hasAuth: boolean, bizId = window.bk_biz_id) => {
+export const setAuthById = (actionId: string | string[], hasAuth: boolean, bizId = window.bk_biz_id) => {
   const bizIdKey = bizId.toString();
   if (!authMap.has(bizIdKey)) {
     authMap.set(bizIdKey, new Map());
+  }
+  if (Array.isArray(actionId)) {
+    for (const id of actionId) {
+      authMap.get(bizIdKey).set(id, hasAuth);
+    }
+    return;
   }
   authMap.get(bizIdKey).set(actionId, hasAuth);
 };

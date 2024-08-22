@@ -97,6 +97,10 @@ export default (authMap: { [propsName: string]: string }, inCreated = true) => {
           });
         }
         for (const [key, value] of Object.entries(authMap)) {
+          if (getAuthById(value)) {
+            this.$set(this.authority, key, true);
+            continue;
+          }
           if (isShareView) {
             this.$set(this.authority, key, true);
             setAuthById(authMap[key], true);
