@@ -52,6 +52,7 @@ import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 
 // import spaceData from './space';
 import { isInCommonRoute, setLocalStoreRoute } from './router-config';
+import { getAuthById, setAuthById } from '../common/auth-store';
 
 const EmailSubscriptionsName = 'email-subscriptions';
 Vue.use(VueRouter);
@@ -163,13 +164,17 @@ router.beforeEach(async (to, from, next) => {
       'share',
     ].includes(to.name)
   ) {
-    store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
-    hasAuthority = await isAuthority(authority?.page)
-      .catch(() => false)
-      .finally(() => {
-        if (to.meta.noChangeLoading) return;
-        setTimeout(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
-      });
+    console.info(authority.page, authority.map, getAuthById(authority.page), '============');
+    if (!getAuthById(authority.page)) {
+      store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+      hasAuthority = await isAuthority(authority?.page)
+        .catch(() => false)
+        .finally(() => {
+          if (to.meta.noChangeLoading) return;
+          setTimeout(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
+        });
+      setAuthById(Array.isArray(authority.page) ? authority.page[0] : authority.page, hasAuthority);
+    }
     if (hasAuthority) {
       next();
     } else {
