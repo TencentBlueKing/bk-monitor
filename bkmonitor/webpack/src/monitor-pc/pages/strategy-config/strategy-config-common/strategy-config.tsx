@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType, modifiers } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -48,11 +48,14 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
+import authorityMixinCreate from '../../../mixins/authorityMixin';
 import UserConfigMixin from '../../../mixins/userStoreConfig';
+import AuthComponent from '../../../pages/exception-page/auth-component';
 import { downFile } from '../../../utils';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
+import * as strategyAuth from '../authority-map';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
@@ -79,11 +82,7 @@ const FILTER_PANEL_FIELD = 'FILTER_PANEL_FIELD';
 @Component({
   name: 'StrategyConfig',
 })
-class StrategyConfig extends Mixins(UserConfigMixin) {
-  @Inject('authority') authority;
-  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Inject('authorityMap') authorityMap;
-  @Inject('strategyType') strategyType;
+class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strategyAuth, false)) {
   @Prop({ type: String, default: '' }) fromRouteName: IStrategyConfigProps['fromRouteName'];
   @Prop({ type: String, default: '' }) noticeName: IStrategyConfigProps['noticeName'];
   @Prop({ type: String, default: '' }) serviceCategory: IStrategyConfigProps['serviceCategory'];
@@ -241,7 +240,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   scenarioList = []; // 监控对象
   fieldSettingData: any = {};
   fieldAllSelected = false; // 是否全选
-  drapWidth = 214;
+  dropWidth = 214;
   noticeGroupList = [];
   conditionList = [];
   /** 策略状态数据 */
@@ -378,8 +377,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
         canSetDetEctionRules =
           `${dataSourceLabel}|${dataTypeLabel}` !== 'bk_monitor|event' && dataTypeLabel !== 'alert';
       }
-
-      Object.keys(detectionDisabledStatusMap).forEach((key: DetectionRuleTypeEnum) => {
+      for (const key of Object.keys(detectionDisabledStatusMap)) {
         if (!canSetDetEctionRules) detectionDisabledStatusMap[key] = true;
 
         // ICMP协议的拨测服务开放所有的检测算法选项、HTTP、TCP、UDP协议仅有静态阈值检测算法
@@ -395,7 +393,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
             DetectionRuleTypeEnum.IntelligentDetect,
             DetectionRuleTypeEnum.TimeSeriesForecasting,
             DetectionRuleTypeEnum.AbnormalCluster,
-          ].includes(key)
+          ].includes(key as DetectionRuleTypeEnum)
         ) {
           if (!isCanSetAiops) {
             detectionDisabledStatusMap[key] = true;
@@ -404,7 +402,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
             detectionDisabledStatusMap[key] = true;
           }
         }
-      });
+      }
       return detectionDisabledStatusMap;
     });
     return compareObjectsInArray(Object.values(res)) && canSetDetEctionRules;
@@ -421,44 +419,28 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     this.$nextTick(() => {
       v.forEach((item, index) => {
         /* 告警组 */
-        const ref: any = this.$refs.strategyTable?.$refs[`table-row-${index}`];
+        const ref = (this.$refs.strategyTable as Element & { $refs: Record<string, HTMLDivElement> })?.$refs[
+          `table-row-${index}`
+        ];
         item.overflow = ref && ref.clientHeight > 32;
         /* 标签组 */
-        const refLabel: any = this.$refs.strategyTable?.$refs[`table-labels-${index}`];
+        const refLabel = (this.$refs.strategyTable as Element & { $refs: Record<string, HTMLDivElement> })?.$refs[
+          `table-labels-${index}`
+        ];
         // 这里计算整个 label 容器内是否会出现 换行 的可能，若换行就显示省略号。
         /* 标签组样式 */
         item.overflowLabel = refLabel && refLabel.clientHeight > 32;
         const overflowMap = ['signals', 'levels', 'detectionTypes', 'mealNames'];
-        overflowMap.forEach(key => {
+        for (const key of overflowMap) {
           // 通用数据样式
           const refDom: any = this.$refs[`table-${key}-${index}`];
           item[`overflow${key}`] = refDom && refDom.clientHeight > 32;
-        });
+        }
       });
     });
   }
-  /**
-   * 由于父容器 content-right 进行自适应宽度调整的过程中
-   * 会让 table 中的标签 label 无法显示省略号（浏览器宽度缩小的情况下）
-   * 本方法在 table 的 mounted 或 activated 完毕时监听容器的 resize 事件
-   */
-  handleTableMountedOrActivated() {
-    const resize = debounce(50, () => {
-      this.handleTableDataChange(this.table.data);
-    });
-    const container = document.querySelector('#content-for-watch-resize') as HTMLElement;
-    if (!container) return;
-    addListener(container, () => {
-      resize();
-    });
-    this.$once('hook:beforeDestory', () => {
-      removeListener(container);
-    });
-    this.$once('hook:deactivated', () => {
-      removeListener(container);
-    });
-  }
   created() {
+    console.info('created==============');
     this.backDisplayMap = {
       bkStrategyId: {
         name: this.$t('策略ID'),
@@ -826,6 +808,12 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     this.header.handleSearch = debounce(300, () => {
       this.handleGetListData(false, 1);
     });
+  }
+
+  async activated() {
+    console.info('activated==============');
+    await this.getAuthCreated();
+    if (!this.hasPageViewAuth) return;
     /** 获取筛选面板用户配置 */
     this.handleGetUserConfig<{ fields: string[]; order: string[] }>(FILTER_PANEL_FIELD, { reject403: true }).then(
       res => {
@@ -843,9 +831,6 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
         }
       }
     );
-  }
-
-  activated() {
     if (
       !['strategy-config-edit', 'strategy-config-add', 'strategy-config-detail', 'strategy-config-target'].includes(
         this.fromRouteName
@@ -863,7 +848,27 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     this.handleGetListData(true, this.tableInstance.page);
     this.getGroupList();
   }
-
+  /**
+   * 由于父容器 content-right 进行自适应宽度调整的过程中
+   * 会让 table 中的标签 label 无法显示省略号（浏览器宽度缩小的情况下）
+   * 本方法在 table 的 mounted 或 activated 完毕时监听容器的 resize 事件
+   */
+  handleTableMountedOrActivated() {
+    const resize = debounce(50, () => {
+      this.handleTableDataChange(this.table.data);
+    });
+    const container = document.querySelector('#content-for-watch-resize') as HTMLElement;
+    if (!container) return;
+    addListener(container, () => {
+      resize();
+    });
+    this.$once('hook:beforeDestory', () => {
+      removeListener(container);
+    });
+    this.$once('hook:deactivated', () => {
+      removeListener(container);
+    });
+  }
   handleSearchChange(v) {
     if (JSON.stringify(v || []) === JSON.stringify(this.header.keywordObj || [])) return;
     this.header.keywordObj = v;
@@ -879,11 +884,11 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     let fieldSettingData: any = localStorage.getItem(STRATEGY_CONFIG_SETTING);
     if (fieldSettingData) {
       fieldSettingData = JSON.parse(fieldSettingData);
-      fieldSettingData.forEach(item => {
+      for (const item of fieldSettingData) {
         if (this.fieldSettingData[item.id]) {
           this.fieldSettingData[item.id].checked = item.checked;
         }
-      });
+      }
     }
     this.fieldAllSelected = Object.keys(this.fieldSettingData).every(key => this.fieldSettingData[key].checked);
   }
@@ -908,14 +913,14 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
    */
   handleFieldAllSelected(v: boolean) {
     this.fieldAllSelected = v;
-    Object.keys(this.fieldSettingData).forEach(key => {
+    for (const key of Object.keys(this.fieldSettingData)) {
       if (v) {
         this.fieldSettingData[key].checked = true;
       }
       if (!this.fieldSettingData[key].disable && !v) {
         this.fieldSettingData[key].checked = false;
       }
-    });
+    }
     const result = Object.keys(this.fieldSettingData).map(key => ({
       id: key,
       checked: this.fieldSettingData[key].checked,
@@ -944,7 +949,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   handleSearchBackDisplay() {
     const temp = [];
     const map = this.backDisplayMap;
-    Object.keys(map).forEach(key => {
+    for (const key of Object.keys(map)) {
       let value = this[key];
       if (value) {
         try {
@@ -968,7 +973,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
           values,
         });
       }
-    });
+    }
     if (this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
@@ -984,7 +989,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
    */
   handleSearchCondition(data = this.header.keywordObj) {
     const res = [];
-    data.forEach(item => {
+    for (const item of data) {
       const key = item.values ? item.id : 'query';
       let value = item.values ? item.values.map(val => val.id) : item.id;
       if (key === 'action_name') {
@@ -999,7 +1004,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
         value,
       };
       res.push(temp);
-    });
+    }
     this.header.condition = res;
   }
   /**
@@ -1010,17 +1015,17 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   createdConditionList() {
     const res = [];
     const map = this.backDisplayMap;
-    Object.keys(map).forEach(key => {
+    for (const key of Object.keys(map)) {
       const { name, id, list, multiple } = map[key];
       if (id === 'scenario') {
         const resChildren = [];
-        list.forEach(listItem => {
+        for (const listItem of list) {
           if (listItem.children) {
-            listItem.children.forEach(item => {
+            for (const item of listItem.children) {
               resChildren.push(item);
-            });
+            }
           }
-        });
+        }
         res.push({
           name,
           id,
@@ -1035,7 +1040,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
           children: list ? list : [],
         });
       }
-    });
+    }
     this.selectKey += 1;
     this.conditionList = res;
   }
@@ -1106,7 +1111,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
       item.targetNodeType = item.node_type;
       if (target.instance_type === 'HOST') {
         if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO', 'DYNAMIC_GROUP'].includes(target.node_type)) {
-          item.target = `${this.$t(textMap[target.node_type], [target.node_count])} （${this.$t('共{0}台主机', [target.instance_count])}）`;
+          item.target = `$this.$t(textMap[target.node_type], [target.node_count])（$this.$t('共{0}台主机', [target.instance_count])）`;
         } else if (target.node_type === 'INSTANCE') {
           item.target = this.$t('{0}台主机', [target.node_count]);
         }
@@ -1238,8 +1243,8 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
         this.backDisplayMap.invalidType.list = data.invalid_type_list || [];
         this.createdConditionList();
         this.handleResetRoute('Set');
-        // magic code  reflesh bk table
-        this.$refs.strategyTable?.doLayout?.();
+        // magic code  refresh bk table
+        (this.$refs.strategyTable as Element & { doLayout?: () => void })?.doLayout?.();
         this.firstRequest = false;
       })
       .catch(() => {
@@ -1474,24 +1479,19 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
    * @return {*}
    */
   handleSelectorData(type, data) {
-    const checkedData = [];
-    if (type === 'INSTANCE') {
-      data.forEach(item => {
-        checkedData.push({
-          ip: item.ip,
-          bk_cloud_id: item.bk_cloud_id,
-          bk_supplier_id: item.bk_supplier_id,
-        });
-      });
-    } else {
-      data.forEach(item => {
-        checkedData.push({
-          bk_inst_id: item.bk_inst_id,
-          bk_obj_id: item.bk_obj_id,
-        });
-      });
-    }
-    return checkedData;
+    const mapper =
+      type === 'INSTANCE'
+        ? item => ({
+            ip: item.ip,
+            bk_cloud_id: item.bk_cloud_id,
+            bk_supplier_id: item.bk_supplier_id,
+          })
+        : item => ({
+            bk_inst_id: item.bk_inst_id,
+            bk_obj_id: item.bk_obj_id,
+          });
+
+    return data.map(mapper);
   }
   handleOperatorOver(data, e, index) {
     if (this.popover.index === index) {
@@ -1889,7 +1889,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
    * @return {*}
    */
   handleSearchSelectChange(data = []) {
-    data.forEach(item => {
+    for (const item of data) {
       const obj = this.header.keywordObj.find(obj => obj.id === item.id);
       const index = this.header.keywordObj.findIndex(obj => obj.id === item.id);
       if (obj) {
@@ -1902,18 +1902,18 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
       } else {
         this.header.keywordObj.push(item);
       }
-    });
+    }
     this.header.keywordObj = [...this.header.keywordObj];
     this.handleGetListData(false, 1);
   }
   handleShowFilterPanel() {
-    this.drapWidth = 214;
+    this.dropWidth = 214;
     this.showFilterPanel = true;
   }
   handleMouseDown(e) {
     handleMouseDown(e, 'resizeTarget', 114, { min: 214, max: 500 }, width => {
       this.showFilterPanel = width !== 0;
-      this.drapWidth = width;
+      this.dropWidth = width;
     });
   }
   handleMouseMove(e) {
@@ -2782,15 +2782,15 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
   }
 
   render() {
+    if (!this.authLoading && !this.hasPageViewAuth && this.isQueryAuthDone) {
+      return <AuthComponent actionId={strategyAuth.VIEW_AUTH} />;
+    }
     return (
-      <div
-        class='strategy-config'
-        // v-monitor-loading={{ isLoading: this.loading }}
-      >
+      <div class='strategy-config'>
         <div class='content'>
           <div
-            style={{ flexBasis: `${this.drapWidth}px`, width: `${this.drapWidth}px` }}
-            class={['content-left', { displaynone: !this.showFilterPanel }]}
+            style={{ flexBasis: `${this.dropWidth}px`, width: `${this.dropWidth}px` }}
+            class={['content-left', { hidden: !this.showFilterPanel }]}
             v-show='showFilterPanel'
             data-tag='resizeTarget'
           >
@@ -2806,7 +2806,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
               }}
               checkedData={this.header.keywordObj}
               data={this.showFilterPanelData}
-              showSkeleton={this.loading}
+              showSkeleton={this.authLoading || this.loading}
               on-change={this.handleSearchSelectChange}
             >
               <div
@@ -2822,7 +2822,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
               </div>
             </FilterPanel>
             <div
-              class={['content-left-drag', { displaynone: !this.showFilterPanel }]}
+              class={['content-left-drag', { hidden: !this.showFilterPanel }]}
               onMousedown={this.handleMouseDown}
               onMousemove={this.handleMouseMove}
             />
@@ -2964,7 +2964,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
                   </div>
                 </bk-popover>
               </div>
-              {this.table.loading || this.loading ? (
+              {this.authLoading || this.table.loading || this.loading ? (
                 <TableSkeleton type={2} />
               ) : (
                 [
