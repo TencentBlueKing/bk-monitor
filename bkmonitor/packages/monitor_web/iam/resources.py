@@ -471,7 +471,7 @@ class GetExternalPermissionList(Resource):
                 for resource_id in permission.resources:
                     # 获取授权人权限
                     if permission.bk_biz_id not in biz_authorizer_role:
-                        authorizer = authorizer_map.value.get(permission.bk_biz_id)
+                        authorizer = authorizer_map.value.get(str(permission.bk_biz_id))
                         if not authorizer:
                             biz_authorizer_role[permission.bk_biz_id] = GrafanaRole.Anonymous
                         else:
