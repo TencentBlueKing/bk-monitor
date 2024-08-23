@@ -21,6 +21,7 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ViewSet
 
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
@@ -364,7 +365,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     )
 
         if not tree_converter or tree_converter.empty():
-            return Response(_("未查询到有效数据"))
+            return Response(_("未查询到有效数据"), status=HTTP_200_OK)
 
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
@@ -383,7 +384,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 extra_params=extra_params,
             )
             if not diff_tree_converter or diff_tree_converter.empty():
-                return Response(_("当前对比项的查询条件未查询到有效数据，请调整后再试"))
+                return Response(_("当前对比项的查询条件未查询到有效数据，请调整后再试"), status=HTTP_200_OK)
 
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(tree_converter, diff_tree_converter, **options) for d_type in diagram_types
