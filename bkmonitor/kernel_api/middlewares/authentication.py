@@ -14,13 +14,13 @@ import time
 from typing import Dict, Tuple
 
 import jwt
-from bkoauth.jwt_client import JWTClient
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.core.cache import caches
 from django.http import HttpRequest, HttpResponseForbidden
+from django.utils.deprecation import MiddlewareMixin
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.models import ApiAuthToken, AuthType
@@ -161,7 +161,7 @@ class AppWhiteListModelBackend(ModelBackend):
         return is_active or is_active is None
 
 
-class AuthenticationMiddleware:
+class AuthenticationMiddleware(MiddlewareMixin):
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def get_apigw_public_keys() -> Dict[str, str]:
@@ -202,7 +202,7 @@ class AuthenticationMiddleware:
             request.user = auth.authenticate(username="admin")
             return
 
-        if request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(JWTClient.JWT_KEY_NAME):
+        if request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(BkJWTClient.JWT_KEY_NAME):
             request.jwt = BkJWTClient(request, self.get_apigw_public_keys())
             result, error_message = request.jwt.validate()
             if not result:
