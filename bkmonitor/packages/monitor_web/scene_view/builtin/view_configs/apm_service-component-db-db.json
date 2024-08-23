@@ -718,7 +718,7 @@
     },
     {
       "id": 6,
-      "title": "异常",
+      "title": "异常事件",
       "type": "api_message",
       "targets": [
         {
@@ -1412,7 +1412,7 @@
     },
     {
       "id": 6,
-      "title": "异常",
+      "title": "异常事件",
       "type": "api_message",
       "targets": [
         {
