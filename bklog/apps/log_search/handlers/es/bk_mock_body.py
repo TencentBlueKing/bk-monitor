@@ -27,29 +27,16 @@ BODY_DATA_FOR_CONTEXT = {
     "sort": [],
 }
 
-BODY_DATA_FOR_CONTEXT_SCENARIO_LOG = {
-    "query": {"bool": {"should": [], "minimum_should_match": 1, "must": []}},
-    "size": "",
-    "from": "",
-    "sort": [],
-}
-
-BODY_DATA_FOR_CONTEXT_SCENARIO_ES = {
-    "query": {"bool": {"should": [], "minimum_should_match": 1, "must": []}},
-    "size": "",
-    "from": "",
-    "sort": [],
-}
 
 BODY_DATA_FOR_TAIL = {
-    "query": {"bool": {"filter": [{"range": {"gseindex": {"gte": "", "lte": ""}}}], "must": []}},
+    "query": {"bool": {"filter": [{"range": {"gseindex": {}}}], "must": []}},
     "size": "",
     "from": "",
     "sort": [],
 }
 
 BODY_DATA_FOR_TAIL_SCENARIO_LOG = {
-    "query": {"bool": {"filter": [{"range": {"gseIndex": {"gte": "", "lte": ""}}}], "must": []}},
+    "query": {"bool": {"filter": [{"range": {"gseIndex": {}}}], "must": []}},
     "size": "",
     "from": "",
     "sort": [],

@@ -25,27 +25,26 @@ import time
 from apps.log_search.constants import CONTEXT_GSE_INDEX_SIZE
 from apps.log_search.handlers.es.bk_mock_body import (
     BODY_DATA_FOR_CONTEXT,
-    BODY_DATA_FOR_CONTEXT_SCENARIO_ES,
-    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG,
     BODY_DATA_FOR_TAIL,
     BODY_DATA_FOR_TAIL_SCENARIO_ES,
     BODY_DATA_FOR_TAIL_SCENARIO_LOG,
 )
+from apps.log_search.utils import create_context_should_query
 
 
 class DslCreateSearchContextBodyScenarioBkData(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
-        sort_list, size, start, gseindex, _iteration_idx,dtEventTimeStamp,
+        sort_list, size, start, gse_index, iteration_idx,dt_event_time_stamp,
         path, ip, order, container_id=None, logfile=None
         """
         sort_list = kwargs.get("sort_list")
         size = kwargs.get("size")
         start = kwargs.get("start")
-        gseindex = kwargs.get("gseindex")
-        iteration_idx = kwargs.get("iterationIdx")
-        dt_event_time_stamp = kwargs.get("dtEventTimeStamp")
+        gse_index = kwargs.get("gse_index")
+        iteration_idx = kwargs.get("iteration_idx")
+        dt_event_time_stamp = kwargs.get("dt_event_time_stamp")
         path = kwargs.get("path", "")
         ip = kwargs.get("ip", "")
         order = kwargs.get("order")
@@ -58,93 +57,20 @@ class DslCreateSearchContextBodyScenarioBkData(object):
 
         self._body = None
         body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
-
+        body_should_data = body_data["query"]["bool"]["should"]
+        sort_fields = ["gseindex", "_iteration_idx", "dtEventTimeStamp"]
+        sort_fields_value = [gse_index, iteration_idx, dt_event_time_stamp]
         order_use: str = "asc"
+
+        # 根据排序方式构造查询语句
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["should"] = [
-                {
-                    "range": {
-                        "gseindex": {
-                            "lt": int(gseindex),
-                            "gt": int(gseindex) - CONTEXT_GSE_INDEX_SIZE,
-                        }
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseindex": int(gseindex)}},
-                            {
-                                "range": {
-                                    "iterationIndex": {
-                                        "lt": int(iteration_idx),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseindex": int(gseindex)}},
-                            {"term": {"iterationIndex": int(iteration_idx)}},
-                            {
-                                "range": {
-                                    "dtEventTimeStamp": {
-                                        "lt": int(dt_event_time_stamp),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-            ]
-
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
         if order == "+":
-            body_data["query"]["bool"]["should"] = [
-                {
-                    "range": {
-                        "gseindex": {
-                            "lt": int(gseindex) + CONTEXT_GSE_INDEX_SIZE,
-                            "gt": int(gseindex),
-                        }
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseindex": int(gseindex)}},
-                            {
-                                "range": {
-                                    "iterationIndex": {
-                                        "gt": int(iteration_idx),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseindex": int(gseindex)}},
-                            {"term": {"iterationIndex": int(iteration_idx)}},
-                            {
-                                "range": {
-                                    "dtEventTimeStamp": {
-                                        "gte": int(dt_event_time_stamp),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-            ]
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
 
         sort = []
-        for item in ["gseindex", "_iteration_idx", "dtEventTimeStamp"]:
+        for item in sort_fields:
             if item in sort_list:
                 sort.append({item: {"order": order_use}})
         body_data["sort"] = sort
@@ -235,107 +161,36 @@ class DslCreateSearchContextBodyScenarioLog(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
-        sort_list, size, start, gseIndex, iterationIndex, dtEventTimeStamp,
-        path, serverIp, order, container_id=None, logfile=None
+        sort_list, size, start, gse_index, iteration_index, dt_event_time_stamp,
+        path, server_ip, order, container_id=None, logfile=None
         """
         sort_list = kwargs.get("sort_list")
         size = kwargs.get("size")
         start = kwargs.get("start")
-        iteration_index = kwargs.get("iterationIndex")
-        gse_index = kwargs.get("gseIndex")
-        dt_event_time_stamp = kwargs.get("dtEventTimeStamp")
+        iteration_index = kwargs.get("iteration_index")
+        gse_index = kwargs.get("gse_index")
+        dt_event_time_stamp = kwargs.get("dt_event_time_stamp")
         path = kwargs.get("path")
-        server_ip = kwargs.get("serverIp")
+        server_ip = kwargs.get("server_ip")
         bk_host_id = kwargs.get("bk_host_id")
         order = kwargs.get("order")
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_LOG)
+        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
+        body_should_data = body_data["query"]["bool"]["should"]
+        sort_fields = ["gseIndex", "iterationIndex", "dtEventTimeStamp"]
+        sort_fields_value = [gse_index, iteration_index, dt_event_time_stamp]
         order_use: str = "asc"
+
+        # 根据排序方式构造查询语句
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["should"] = [
-                {
-                    "range": {
-                        "gseIndex": {
-                            "lt": int(gse_index),
-                            "gt": int(gse_index) - CONTEXT_GSE_INDEX_SIZE,
-                        }
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseIndex": int(gse_index)}},
-                            {
-                                "range": {
-                                    "iterationIndex": {
-                                        "lt": int(iteration_index),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseIndex": int(gse_index)}},
-                            {"term": {"iterationIndex": int(iteration_index)}},
-                            {
-                                "range": {
-                                    "dtEventTimeStamp": {
-                                        "lt": int(dt_event_time_stamp),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-            ]
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
         if order == "+":
-            body_data["query"]["bool"]["should"] = [
-                {
-                    "range": {
-                        "gseIndex": {
-                            "lt": int(gse_index) + CONTEXT_GSE_INDEX_SIZE,
-                            "gt": int(gse_index),
-                        }
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseIndex": int(gse_index)}},
-                            {
-                                "range": {
-                                    "iterationIndex": {
-                                        "gt": int(iteration_index),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {"gseIndex": int(gse_index)}},
-                            {"term": {"iterationIndex": int(iteration_index)}},
-                            {
-                                "range": {
-                                    "dtEventTimeStamp": {
-                                        "gte": int(dt_event_time_stamp),
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                },
-            ]
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
 
         sort = []
-        for item in ["gseIndex", "iterationIndex", "dtEventTimeStamp"]:
+        for item in sort_fields:
             if item in sort_list:
                 sort.append({item: {"order": order_use}})
         body_data["sort"] = sort
@@ -406,89 +261,25 @@ class DslCreateSearchContextBodyCustomField:
         if not target_fields or not sort_fields:
             return
 
-        # 把排序字段未空的字段剔除
+        # 把排序字段为空的字段剔除并记录非空字段的值
+        sort_fields_value = []
         for _sort_field in sort_fields:
             _field_value = params.get(_sort_field, "")
             if _field_value == "":
                 sort_fields.remove(_sort_field)
+            else:
+                sort_fields_value.append(_field_value)
 
-        # 把排序字段中的iterationIndex移到最后
-        if "iterationIndex" in sort_fields:
-            sort_fields.remove("iterationIndex")
-            sort_fields.append("iterationIndex")
-
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
+        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
+        body_should_data = body_data["query"]["bool"]["should"]
         order_use: str = "asc"
 
+        # 根据排序方式构造查询语句
         if order == "-":
             order_use = "desc"
-            body_should_data = body_data["query"]["bool"]["should"]
-            term_range_field = []
-            for index, range_field in enumerate(sort_fields):
-                range_field_value = params[range_field]
-                if index == 0:
-                    body_should_data.append(
-                        {
-                            "range": {
-                                range_field: {
-                                    "lt": range_field_value,
-                                }
-                            }
-                        }
-                    )
-                else:
-                    body_should_data.append(
-                        {
-                            "bool": {
-                                "filter": [
-                                    {"term": {_term_range_field["range_field"]: _term_range_field["range_field_value"]}}
-                                    for _term_range_field in term_range_field
-                                ]
-                            }
-                        }
-                    )
-                    body_should_data[index]["bool"]["filter"].append(
-                        {
-                            "range": {
-                                range_field: {
-                                    "lt": range_field_value,
-                                }
-                            }
-                        }
-                    )
-                term_range_field.append({"range_field": range_field, "range_field_value": range_field_value})
-
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
         if order == "+":
-            body_should_data = body_data["query"]["bool"]["should"]
-            term_range_field = []
-            sort_fields_num = len(sort_fields)
-            for index, range_field in enumerate(sort_fields):
-                range_field_value = params[range_field]
-                if index == 0:
-                    body_should_data.append(
-                        {
-                            "range": {
-                                range_field: {
-                                    "gt" if sort_fields_num != 1 else "gte": range_field_value,
-                                }
-                            }
-                        }
-                    )
-                else:
-                    body_should_data.append(
-                        {
-                            "bool": {
-                                "filter": [
-                                    {"term": {_term_range_field["range_field"]: _term_range_field["range_field_value"]}}
-                                    for _term_range_field in term_range_field
-                                ]
-                            }
-                        }
-                    )
-                    body_should_data[index]["bool"]["filter"].append(
-                        {"range": {range_field: {"gt" if index != sort_fields_num - 1 else "gte": range_field_value}}}
-                    )
-                term_range_field.append({"range_field": range_field, "range_field_value": range_field_value})
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
 
         sort = []
         for item in sort_fields:
