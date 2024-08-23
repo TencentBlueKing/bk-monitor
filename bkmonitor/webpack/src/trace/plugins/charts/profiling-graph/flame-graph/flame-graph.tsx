@@ -26,8 +26,7 @@
 import { Teleport, computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Popover, Button } from 'bkui-vue';
-import { start } from 'monitor-api/modules/apm_meta';
+import { Exception, Popover } from 'bkui-vue';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
@@ -49,7 +48,6 @@ import {
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
-import { useTraceStore } from '../../../../store/modules/trace';
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import { useIsEnabledProfilingInject } from '../../../hooks';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
@@ -131,7 +129,6 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     // 注入响应式变量
     const enableProfiling = useIsEnabledProfilingInject();
-    const store = useTraceStore();
     const chartRef = ref<HTMLElement>(null);
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
@@ -156,10 +153,6 @@ export default defineComponent({
 
     const diffPercentList = computed(() => COMPARE_DIFF_COLOR_LIST.map(val => `${val.value}%`));
 
-    /** 开启 profiling 请求 loading */
-    let enableProfilingLoading = false;
-    const applicationId = store.applicationId;
-    console.log('applicationId', applicationId);
     watch(
       () => props.textDirection,
       () => {
@@ -506,19 +499,6 @@ export default defineComponent({
       showLegend.value = !showLegend.value;
     };
 
-    const handleEmptyEvent = async () => {
-      // 开启 profiling
-      if (enableProfilingLoading) return;
-      enableProfilingLoading = true;
-      await start({ application_id: applicationId, type: 'profiling' })
-        .then(() => {
-          enableProfiling.value = true;
-        })
-        .finally(() => {
-          enableProfilingLoading = false;
-        });
-    };
-
     expose({
       handleStoreImg,
     });
@@ -543,8 +523,6 @@ export default defineComponent({
       diffPercentList,
       localIsCompared,
       enableProfiling,
-      enableProfilingLoading,
-      handleEmptyEvent,
     };
   },
   render() {
@@ -555,13 +533,6 @@ export default defineComponent({
             <span>{this.$t('暂未开启 Profiling 功能')}</span>
             <div class='text-wrap'>
               <pre class='text-row'>{this.$t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
-              <Button
-                loading={this.enableProfilingLoading}
-                theme='primary'
-                onClick={() => this.handleEmptyEvent()}
-              >
-                {this.$t('立即开启')}
-              </Button>
             </div>
           </Exception>
         </div>

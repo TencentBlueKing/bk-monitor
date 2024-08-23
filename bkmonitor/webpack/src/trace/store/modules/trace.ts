@@ -100,13 +100,6 @@ export const useTraceStore = defineStore('trace', () => {
   });
   const serviceSpanList = shallowRef<IServiceSpanListItem[]>([]);
 
-  const applicationId = ref(-1);
-
-  /** 更新页面 applicationId */
-  function setApplicationId(id: number) {
-    applicationId.value = id;
-  }
-
   /** 更新页面 loading */
   function setPageLoaidng(v: boolean) {
     loading.value = v;
@@ -341,7 +334,6 @@ export const useTraceStore = defineStore('trace', () => {
     traceTree,
     originTraceTree,
     originCrossAppSpanMaps,
-    applicationId,
     serviceSpanList,
     setServiceSpanList,
     setPageLoaidng,
@@ -387,6 +379,5 @@ export const useTraceStore = defineStore('trace', () => {
     updateCompareTraceOriginalData,
     tableSettings,
     updateTableCheckedSettings,
-    setApplicationId,
   };
 });
