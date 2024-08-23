@@ -585,7 +585,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             end=end,
         )
 
-        return Response(data={"label_values": [i["label_value"] for i in results.get("list", {}) if i.get("label_value")]})
+        return Response(
+            data={"label_values": [i["label_value"] for i in results.get("list", {}) if i.get("label_value")]}
+        )
 
     @action(methods=["GET"], detail=False, url_path="export")
     def export(self, request: Request):
