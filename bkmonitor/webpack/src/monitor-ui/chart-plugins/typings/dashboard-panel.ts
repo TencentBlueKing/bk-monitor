@@ -375,6 +375,16 @@ export interface IRelatedLogChartoption {
   };
 }
 
+export interface IApmTimeSeriesOption {
+  apm_metric?: string; // apm视图指标
+  apmParams?: {
+    app_name?: string;
+    service_name?: string;
+  };
+  enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
+  enableContextmenu?: boolean; // 是否开启全局的右键菜单
+}
+
 // 视图特殊配置
 export type PanelOption = {
   legend?: ILegendOption;
@@ -394,7 +404,8 @@ export type PanelOption = {
   IRatioRingChartOption &
   IPercentageBarOption &
   IResourceChartOption &
-  IRelatedLogChartoption;
+  IRelatedLogChartoption &
+  IApmTimeSeriesOption;
 
 export interface IPanelModel {
   id: number | string;

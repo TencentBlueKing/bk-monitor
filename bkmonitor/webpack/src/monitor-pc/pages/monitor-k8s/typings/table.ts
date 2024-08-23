@@ -50,6 +50,7 @@ export interface ILinkItem {
   key?: string;
   target?: LinkItemTarget;
   syncTime?: boolean; // 同步时间跳转
+  disabledClick?: boolean; // 禁用点击且不为蓝色
 }
 // self 为内部框架跳转  blank为新开窗口跳转 event 触发本地事件
 export type LinkItemTarget = 'blank' | 'event' | 'null_event' | 'self';
@@ -204,7 +205,7 @@ export interface ITableColumn {
   // 头部icon
   header_pre_icon?: string;
   // renderHeader
-  renderHeader?: Function;
+  renderHeader?: () => any;
   // 是否需要异步加载
   asyncable?: boolean;
 }

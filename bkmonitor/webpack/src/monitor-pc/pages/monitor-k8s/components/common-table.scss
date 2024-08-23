@@ -47,6 +47,13 @@
       color: #699df4;
       cursor: pointer;
     }
+    &.disabled-click {
+      color: #575961;
+      &:hover {
+        color: #575961;
+        cursor: auto;
+      }
+    }
   }
 
   .list-item {

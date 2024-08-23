@@ -41,7 +41,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
-import DetailsSide from './components/details-side';
+import DetailsSide, { type EDataType } from './components/details-side';
 
 import './apm-time-series.scss';
 
@@ -77,6 +77,27 @@ export default class ApmTimeSeries extends TimeSeries {
   detailsSideData = {
     show: false,
   };
+
+  get apmMetric(): EDataType {
+    return (this.panel.options?.apm_metric || '') as EDataType;
+  }
+
+  get appName() {
+    return this.panel.options?.apmParams?.app_name || '';
+  }
+
+  get serviceName() {
+    return this.panel.options?.apmParams?.service_name || '';
+  }
+
+  /* 是否开启series的右键菜单 */
+  get enableSeriesContextmenu() {
+    return !!this.panel.options?.enableSeriesContextmenu;
+  }
+  /* 是否开启全局的右键菜单 */
+  get enableContextmenu() {
+    return !!this.panel.options?.enableContextmenu;
+  }
 
   /**
    * @description: 获取图表数据
@@ -349,7 +370,7 @@ export default class ApmTimeSeries extends TimeSeries {
    * @param params
    */
   handleContextmenu(params) {
-    if (!this.panel.options.disableContextmenu) {
+    if (this.enableSeriesContextmenu) {
       const { offsetX, offsetY } = params.event;
       const { pageX, pageY } = params.event.event;
       const { clientHeight, clientWidth } = document.documentElement;
@@ -372,6 +393,26 @@ export default class ApmTimeSeries extends TimeSeries {
         dataIndex: params.dataIndex,
       });
     }, 200);
+  }
+
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    if (this.enableContextmenu) {
+      const { offsetX, offsetY } = event;
+      const { pageX, pageY } = event;
+      const { clientHeight, clientWidth } = document.documentElement;
+      this.contextmenuInfo = {
+        ...this.contextmenuInfo,
+        x: offsetX + 4,
+        y: offsetY + 4,
+        show: true,
+        nearOutRight: pageX > clientWidth - 120,
+        nearOutBottom: pageY > clientHeight - 80,
+        seriesIndex: 0,
+        dataIndex: 0,
+      };
+      document.addEventListener('click', this.handleHideContextmenu);
+    }
   }
 
   /**
@@ -458,6 +499,7 @@ export default class ApmTimeSeries extends TimeSeries {
             <div
               ref='chart'
               class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
+              onContextmenu={this.handleChartContextmenu}
             >
               {this.inited && (
                 <BaseEchart
@@ -469,7 +511,7 @@ export default class ApmTimeSeries extends TimeSeries {
                   isContextmenuPreventDefault={true}
                   options={this.options}
                   showRestore={this.showRestore}
-                  onContextmenu={this.handleContextmenu}
+                  // onContextmenu={this.handleContextmenu}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
@@ -516,9 +558,15 @@ export default class ApmTimeSeries extends TimeSeries {
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
         )}
-        {!this.panel.options?.disableContextmenu && (
+        {(this.enableSeriesContextmenu || this.enableContextmenu) && (
           <DetailsSide
+            appName={this.appName}
+            dataType={this.apmMetric}
+            dimensions={this.legendData?.map?.(item => item.name) || []}
+            panelTitle={this.panel.title}
+            serviceName={this.serviceName}
             show={this.detailsSideData.show}
+            timeRange={this.timeRange}
             onClose={this.handleCloseDetails}
           />
         )}
