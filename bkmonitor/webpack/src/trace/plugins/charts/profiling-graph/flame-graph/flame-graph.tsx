@@ -49,6 +49,7 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
+import { useIsEnabledProfilingInject } from '../../../hooks';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
 
@@ -126,6 +127,8 @@ export default defineComponent({
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
   setup(props, { emit, expose }) {
+    // 注入响应式变量
+    const enableProfiling = useIsEnabledProfilingInject();
     const chartRef = ref<HTMLElement>(null);
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
@@ -166,7 +169,8 @@ export default defineComponent({
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data = props.data
             ? props.data
-            : ((
+            : enableProfiling.value &&
+              ((
                 await query(
                   {
                     bk_biz_id: bizId,
@@ -181,7 +185,8 @@ export default defineComponent({
                     needCancel: true,
                   }
                 ).catch(() => false)
-              )?.flame_data ?? false);
+              )?.flame_data ??
+                false);
 
           if (data) {
             if (props.diffTraceId) {
@@ -517,9 +522,21 @@ export default defineComponent({
       handleShowLegend,
       diffPercentList,
       localIsCompared,
+      enableProfiling,
     };
   },
   render() {
+    if (!this.enableProfiling)
+      return (
+        <div class='exception-guide-wrap'>
+          <Exception type='building'>
+            <span>{this.$t('暂未开启 Profiling 功能')}</span>
+            <div class='text-wrap'>
+              <pre class='text-row'>{this.$t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
+            </div>
+          </Exception>
+        </div>
+      );
     if (this.showException)
       return (
         <Exception
