@@ -174,7 +174,7 @@ class AuthenticationMiddleware:
         # 获取API公钥
         public_keys = {}
         for api_name in api_names:
-            cache_key = f"apigw_public_key_{api_name}"
+            cache_key = f"apigw_public_key:{api_name}"
             public_key = cache.get(cache_key)
             if public_key is None:
                 try:
