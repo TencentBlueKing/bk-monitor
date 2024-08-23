@@ -72,11 +72,11 @@ DATA_SOURCE = {
     },
     DataSourceLabel.BK_APM: {
         DataTypeLabel.TIME_SERIES: {
-            "query": api.apm_api.query_es,
+            "query": api.metadata.get_es_data,
             "backends": "bkmonitor.data_source.backends.elastic_search",
         },
         DataTypeLabel.LOG: {
-            "query": api.apm_api.query_es,
+            "query": api.metadata.get_es_data,
             "backends": "bkmonitor.data_source.backends.elastic_search",
         },
     },
@@ -127,7 +127,6 @@ class Query(object):
         self.agg_condition = []
         self.group_by = []
         self.order_by = []
-        self.keep_columns = []
         self.distinct = ""
         self.low_mark, self.high_mark = 0, None  # Used for offset/limit
         self.slimit = None
@@ -141,8 +140,7 @@ class Query(object):
         self.nested_paths = []
         # search after: https://www.elastic.co/guide/en/elasticsearch/reference/
         # current/search-aggregations-bucket-composite-aggregation.html#_pagination
-        self.search_after_key = {}
-        self.enable_search_after = False
+        self.search_after_key = None
         self.use_full_index_names = False
 
         self.time_field = ""
@@ -161,7 +159,6 @@ class Query(object):
         obj.where_class = self.where_class
         obj.group_by = self.group_by[:]
         obj.order_by = self.order_by[:]
-        obj.keep_columns = self.keep_columns[:]
         # mysql: https://stackoverflow.com/questions/34312757/
         # es: https://www.elastic.co/guide/en/elasticsearch/reference/current/collapse-search-results.html
         obj.distinct = self.distinct
@@ -177,8 +174,8 @@ class Query(object):
         obj.event_group_id = self.event_group_id
         obj.raw_query_string = self.raw_query_string
         obj.nested_paths = self.nested_paths[:]
-        obj.search_after_key = self.search_after_key.copy()
-        obj.enable_search_after = self.enable_search_after
+        if obj.search_after_key is not None:
+            obj.search_after_key = self.search_after_key.copy()
         obj.group_hits_size = self.group_hits_size
         obj.use_full_index_names = self.use_full_index_names
 
@@ -232,21 +229,22 @@ class Query(object):
         if grouping:
             self.group_by.extend([x for x in grouping if x and x.strip()])
 
-    def add_keep_columns(self, *keep_columns):
-        if keep_columns:
-            self.keep_columns.extend([x for x in keep_columns if x and x.strip()])
+    @classmethod
+    def get_limit_range(cls, low=None, high=None, low_mark=None, high_mark=None):
+        if high is not None:
+            if high_mark is not None:
+                high_mark = min(high_mark, low_mark + high)
+            else:
+                high_mark = low_mark + high
+        if low is not None:
+            if high_mark is not None:
+                low_mark = min(high_mark, low_mark + low)
+            else:
+                low_mark = low_mark + low
+        return low_mark, high_mark
 
     def set_limits(self, low=None, high=None):
-        if high is not None:
-            if self.high_mark is not None:
-                self.high_mark = min(self.high_mark, self.low_mark + high)
-            else:
-                self.high_mark = self.low_mark + high
-        if low is not None:
-            if self.high_mark is not None:
-                self.low_mark = min(self.high_mark, self.low_mark + low)
-            else:
-                self.low_mark = self.low_mark + low
+        self.low_mark, self.high_mark = self.get_limit_range(low, high, self.low_mark, self.high_mark)
 
     def set_slimit(self, s):
         self.slimit = s

@@ -89,7 +89,9 @@ class SQLCompiler(compiler.SQLCompiler):
                 dimensions.append(self.query.time_field)
 
             records = []
-            self._get_buckets(records, dimensions, result.get("aggregations"), self._get_metric())
+
+            __, select_fields = self._parser_select()
+            self._get_buckets(records, dimensions, result.get("aggregations"), select_fields)
 
             return records
         except Exception:
@@ -98,9 +100,15 @@ class SQLCompiler(compiler.SQLCompiler):
     def as_sql(self):
         dsl = {}
 
+        return_fields, select_fields = self._parser_select()
+
+        # 0. add _source
+        if return_fields:
+            dsl["_source"] = return_fields
+
         # 1. parse group by (agg_dimension)
         agg_interval, dimensions = self._get_dimensions()
-        aggregations = self._get_aggregations(agg_interval, dimensions, self._get_metric())
+        aggregations = self._get_aggregations(agg_interval, dimensions, select_fields)
         if aggregations:
             dsl["aggregations"] = aggregations
 
@@ -127,9 +135,6 @@ class SQLCompiler(compiler.SQLCompiler):
         dsl["size"] = self._get_size()
         if self.query.offset is not None:
             dsl["from"] = self.query.offset
-
-        if self.query.keep_columns:
-            dsl["_source"] = self.query.keep_columns
 
         if self.query.use_full_index_names:
             dsl["use_full_index_names"] = True
@@ -206,19 +211,12 @@ class SQLCompiler(compiler.SQLCompiler):
 
         return result
 
-    def _get_size(self) -> int:
-        if self.query.group_hits_size is None:
-            return (self.query.high_mark - self.query.low_mark, 0)[self.query.high_mark is None]
-        return self.query.group_hits_size
-
-    def _get_bucket_size(self) -> int:
-        return (min(1440, self.query.high_mark - self.query.low_mark), 1440)[self.query.high_mark is None]
-
-    def _get_metric(self):
+    def _parser_select(self) -> Tuple[List[str], List[Dict[str, str]]]:
         if not self.query.select:
-            return []
+            return [], []
 
-        select_fields = []
+        return_fields: List[str] = []
+        select_fields: List[Dict[str, str]] = []
         for select_field in self.query.select:
             if "(" in select_field and ")" in select_field:
                 match_result = self.SELECT_RE.match(select_field)
@@ -229,8 +227,20 @@ class SQLCompiler(compiler.SQLCompiler):
                 select_fields.append(
                     {"agg_method": agg_method, "metric_field": metric_field, "metric_alias": metric_alias}
                 )
+            else:
+                return_fields.append(select_field)
 
-        return select_fields
+        return return_fields, select_fields
+
+    def _get_size(self) -> int:
+        if self.query.group_hits_size is None:
+            # query_log 场景
+            return (self.query.high_mark or 0 - self.query.low_mark, 0)[self.query.high_mark is None]
+        # query_data 场景，一般不需要返回 hits，除非传入 group_hits_size
+        return self.query.group_hits_size
+
+    def _get_bucket_size(self) -> int:
+        return (min(1440, self.query.high_mark or 0 - self.query.low_mark), 1440)[self.query.high_mark is None]
 
     def _get_dimensions(self) -> Tuple[int, List[str]]:
         interval = 0
@@ -266,10 +276,10 @@ class SQLCompiler(compiler.SQLCompiler):
     def _get_aggregations(
         self, agg_interval: int, dimensions: List[str], select_fields: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        if self.query.enable_search_after:
-            return self._get_composite_aggregations(agg_interval, dimensions, select_fields)
-        else:
+        if self.query.search_after_key is None:
             return self._get_normal_aggregations(agg_interval, dimensions, select_fields)
+        else:
+            return self._get_composite_aggregations(agg_interval, dimensions, select_fields)
 
     def _get_composite_aggregations(self, agg_interval: int, dimensions, select_fields):
         if not select_fields:
@@ -393,10 +403,10 @@ class SQLCompiler(compiler.SQLCompiler):
         if not aggs:
             return
 
-        if self.query.enable_search_after:
-            return self._get_composite_buckets(records, dimensions, aggs, select_fields)
-        else:
+        if self.query.search_after_key is None:
             return self._get_agg_buckets(records, dimensions, aggs, select_fields)
+        else:
+            return self._get_composite_buckets(records, dimensions, aggs, select_fields)
 
     def _get_agg_buckets(
         self,

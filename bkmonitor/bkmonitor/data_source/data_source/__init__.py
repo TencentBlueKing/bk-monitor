@@ -372,7 +372,6 @@ class DataSource(metaclass=ABCMeta):
         agg_condition: List = None,
         where: Dict = None,
         group_by: List[str] = None,
-        keep_columns: List[str] = None,
         distinct: Optional[str] = None,
         index_set_id: int = None,
         query_string: str = "",
@@ -395,7 +394,6 @@ class DataSource(metaclass=ABCMeta):
         agg_condition = agg_condition or []
         where = where.copy() or {}
         group_by = (group_by or [])[:]
-        keep_columns = (keep_columns or [])[:]
         time_field = time_field or cls.DEFAULT_TIME_FIELD
         order_by = order_by or [f"{time_field} desc"]
 
@@ -438,7 +436,6 @@ class DataSource(metaclass=ABCMeta):
             .dsl_raw_query_string(query_string, nested_paths=nested_paths)
             .use_full_index_names(use_full_index_names)
             .order_by(*order_by)
-            .keep_columns(*keep_columns)
             .distinct(distinct)
             .limit(limit)
             .slimit(slimit)
@@ -1305,18 +1302,6 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         return _("{}内匹配到关键字次数").format(time_display)
 
 
-class BkApmTraceDataSource(LogSearchLogDataSource):
-    data_source_label = DataSourceLabel.BK_APM
-    data_type_label = DataTypeLabel.LOG
-    DEFAULT_TIME_FIELD = "time"
-
-
-class BkApmTraceTimeSeriesDataSource(LogSearchTimeSeriesDataSource):
-    data_source_label = DataSourceLabel.BK_APM
-    data_type_label = DataTypeLabel.TIME_SERIES
-    DEFAULT_TIME_FIELD = "time"
-
-
 class BkMonitorLogDataSource(DataSource):
     data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
     data_type_label = DataTypeLabel.LOG
@@ -1325,6 +1310,9 @@ class BkMonitorLogDataSource(DataSource):
     INNER_DIMENSIONS = ["event_name", "target"]
     DISTINCT_METHODS = {"AVG", "SUM", "COUNT"}
     METHOD_DESC = {"avg": _lazy("均值"), "sum": _lazy("总和"), "max": _lazy("最大值"), "min": _lazy("最小值"), "count": ""}
+
+    EXTRA_DISTINCT_FIELD = "dimensions.bk_module_id"
+    EXTRA_AGG_DIMENSIONS = ["dimensions.bk_target_ip", "dimensions.bk_target_cloud_id"]
 
     @classmethod
     def init_by_query_config(cls, query_config: Dict, name="", *args, **kwargs):
@@ -1368,11 +1356,9 @@ class BkMonitorLogDataSource(DataSource):
         order_by: List[str] = None,
         time_field: str = None,
         topo_nodes: Dict[str, List] = None,
-        keep_columns: Optional[List[str]] = None,
+        select: List[str] = None,
         distinct: Optional[str] = None,
         use_full_index_names: bool = False,
-        enable_dimension_completion: bool = True,
-        enable_builtin_dimension_expansion: bool = True,
         **kwargs,
     ):
         super(BkMonitorLogDataSource, self).__init__(**kwargs)
@@ -1386,14 +1372,10 @@ class BkMonitorLogDataSource(DataSource):
         self.group_by = group_by or []
         self.time_field = time_field or self.DEFAULT_TIME_FIELD
         self.order_by = order_by or [f"{self.time_field} desc"]
-        self.keep_columns = keep_columns or []
+        self.select = select
         self.distinct = distinct
         # 是否使用索引全名进行检索
         self.use_full_index_names = use_full_index_names
-        # 是否启用维度字段 `dimensions.` 补全
-        self.enable_dimension_completion = enable_dimension_completion
-        # 是否启用内置维度扩展
-        self.enable_builtin_dimensions = enable_builtin_dimension_expansion
 
         # 过滤空维度
         self.group_by = [d for d in self.group_by if d]
@@ -1408,15 +1390,7 @@ class BkMonitorLogDataSource(DataSource):
         """
         判断是否需要补全dimensions前缀
         """
-        if any(
-            [
-                not self.enable_dimension_completion,
-                field in self.INNER_DIMENSIONS,
-                field.startswith("dimensions"),
-            ]
-        ):
-            return False
-        return True
+        return field not in self.INNER_DIMENSIONS and not field.startswith("dimensions")
 
     def _get_metrics(self):
         """
@@ -1424,8 +1398,8 @@ class BkMonitorLogDataSource(DataSource):
         """
         metrics = self.metrics.copy()
         methods = {metric.get("method", "").upper() for metric in self.metrics}
-        if self.enable_builtin_dimensions and methods & self.DISTINCT_METHODS:
-            metrics.append({"field": "dimensions.bk_module_id", "method": "distinct", "alias": "distinct"})
+        if methods & self.DISTINCT_METHODS and self.EXTRA_DISTINCT_FIELD:
+            metrics.append({"field": self.EXTRA_DISTINCT_FIELD, "method": "distinct", "alias": "distinct"})
         return metrics
 
     def _get_group_by(self, bk_obj_id: str = None) -> List:
@@ -1524,7 +1498,7 @@ class BkMonitorLogDataSource(DataSource):
                 alias = metric.get("alias") or metric["field"]
 
                 if method in ["COUNT", "SUM"]:
-                    record[alias] /= record["distinct"] or 1
+                    record[alias] /= record.get("distinct") or 1
 
                 if method in self.DISTINCT_METHODS:
                     metric_values[key][alias] += record[alias] or 0
@@ -1572,10 +1546,7 @@ class BkMonitorLogDataSource(DataSource):
         return result
 
     def _add_builtin_dimensions(self, group_by: List[str]):
-        if not self.enable_builtin_dimensions:
-            return
-
-        for builtin_dimension in ["dimensions.bk_target_ip", "dimensions.bk_target_cloud_id"]:
+        for builtin_dimension in self.EXTRA_AGG_DIMENSIONS:
             if builtin_dimension not in group_by:
                 group_by.append(builtin_dimension)
 
@@ -1679,11 +1650,12 @@ class BkMonitorLogDataSource(DataSource):
     def query_log(
         self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
     ) -> Tuple[List, int]:
+
         q = self._get_queryset(
             table=self.table,
+            select=self.select,
             agg_condition=self._get_where(),
             where=self._get_filter_dict(),
-            keep_columns=self.keep_columns,
             limit=limit,
             offset=offset,
             order_by=self.order_by,
@@ -1711,6 +1683,62 @@ class BkMonitorLogDataSource(DataSource):
             time_display = _("{}分钟").format(self.interval // 60)
         method = self.metrics[0]["method"].lower()
         return _("{}内接收到事件次数{}").format(time_display, self.METHOD_DESC[method])
+
+
+class BkApmTraceDataSource(BkMonitorLogDataSource):
+    data_source_label = DataSourceLabel.BK_APM
+    data_type_label = DataTypeLabel.LOG
+
+    DEFAULT_TIME_FIELD = "time"
+
+    EXTRA_DISTINCT_FIELD = None
+    EXTRA_AGG_DIMENSIONS = []
+
+    @classmethod
+    def init_by_query_config(cls, query_config: Dict, *args, **kwargs):
+        return cls(
+            table=query_config["table"],
+            time_field=query_config["time_field"],
+            select=query_config.get("select") or [],
+            distinct=query_config.get("distinct"),
+            where=query_config.get("where") or [],
+            metrics=query_config.get("metrics") or [],
+            group_by=query_config.get("group_by") or [],
+            filter_dict=query_config.get("filter_dict") or {},
+            query_string=query_config.get("query_string") or "*",
+            nested_paths=query_config.get("nested_paths") or [],
+            order_by=query_config["order_by"],
+            use_full_index_names=True,
+        )
+
+    def is_dimensions_field(self, field: str) -> bool:
+        """APM 维度都是完整的，不需要补全"""
+        return False
+
+    @staticmethod
+    def _remove_dimensions_prefix(data: List, bk_obj_id=None) -> List:
+        return data
+
+    def _add_dimension_prefix(self, filter_dict: Dict) -> Dict:
+        return filter_dict
+
+    def query_data(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int = None,
+        search_after_key: Optional[Dict[str, Any]] = None,
+        *args,
+        **kwargs,
+    ) -> List:
+        if limit is not None:
+            limit = min(limit, 10000)
+        return super().query_data(start_time, end_time, limit, search_after_key, *args, **kwargs)
+
+
+class BkApmTraceTimeSeriesDataSource(BkApmTraceDataSource):
+    data_source_label = DataSourceLabel.BK_APM
+    data_type_label = DataTypeLabel.TIME_SERIES
 
 
 class CustomEventDataSource(BkMonitorLogDataSource):

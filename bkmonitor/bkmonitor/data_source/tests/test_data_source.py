@@ -14,6 +14,7 @@ from django.conf import settings
 from mock import MagicMock
 
 from bkmonitor.data_source import (
+    BkApmTraceDataSource,
     BkdataTimeSeriesDataSource,
     BkMonitorLogDataSource,
     BkMonitorTimeSeriesDataSource,
@@ -47,15 +48,9 @@ def mock_get_es_data():
 
     query.DATA_SOURCE[DataSourceLabel.BK_MONITOR_COLLECTOR][DataTypeLabel.LOG]["query"] = get_es_data
     query.DATA_SOURCE[DataSourceLabel.CUSTOM][DataTypeLabel.EVENT]["query"] = get_es_data
+    query.DATA_SOURCE[DataSourceLabel.BK_APM][DataTypeLabel.LOG]["query"] = get_es_data
+    query.DATA_SOURCE[DataSourceLabel.BK_APM][DataTypeLabel.TIME_SERIES]["query"] = get_es_data
     return get_es_data
-
-
-@pytest.fixture()
-def mock_get_platform_by_table(mocker):
-    func = MagicMock()
-    func.return_value = (False, 0)
-
-    mocker.patch("bkmonitor.data_source.data_source.get_platform_by_table", func)
 
 
 @pytest.fixture()
@@ -156,7 +151,7 @@ class TestDataSource:
         assert len(data) == 2
         assert (
             mock_get_ts_data.call_args[1]["sql"] == "SELECT AVG(pct_used) as pct_used FROM system.mem "
-            "WHERE time >= 12345 AND time < 54315 AND (hostname = 'host1' OR hostname = 'host2') "
+            "WHERE time >= 0 AND time < 45000 AND (hostname = 'host1' OR hostname = 'host2') "
             "GROUP BY bk_target_ip, bk_target_cloud_id, hostname, time(15s) "
             "ORDER BY time desc LIMIT 100"
         )
@@ -206,9 +201,10 @@ class TestDataSource:
 
         data_source = BkMonitorTimeSeriesDataSource.init_by_query_config(query_config)
         data = data_source.query_data()
-        assert len(data) == 2
+        assert len(data) == 3
         assert (
             mock_get_ts_data.call_args[1]["sql"] == "SELECT AVG(pct_used) as pct_used FROM system.mem "
+            "WHERE (hostname =~ /host1/ OR hostname =~ /host2/) "
             "GROUP BY bk_target_ip, bk_target_cloud_id, hostname, time(120s) "
             "ORDER BY time desc LIMIT " + str(settings.SQL_MAX_LIMIT)
         )
@@ -284,13 +280,13 @@ class TestDataSource:
         }
 
         data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config)
-        data = data_source.query_data(start_time=12345, end_time=54321, limit=100)
+        data = data_source.query_data(start_time=123450, end_time=543210, limit=100)
 
         assert len(data) == 3
         assert (
             mock_bk_data_query_data.call_args[1]["sql"]
             == "SELECT AVG(`iUserNum`) as `iUserNum`, iWorldId, minute2, MAX(dtEventTimeStamp) as dtEventTimeStamp "
-            "FROM 123_monitor_oss_online_1491 WHERE dtEventTimeStamp >= 12240 AND dtEventTimeStamp < 54240 "
+            "FROM 123_monitor_oss_online_1491 WHERE dtEventTimeStamp >= 120000 AND dtEventTimeStamp < 480000 "
             "GROUP BY iWorldId, minute2 ORDER BY dtEventTimeStamp desc LIMIT 100"
         )
 
@@ -322,7 +318,7 @@ class TestDataSource:
         assert (
             mock_get_ts_data.call_args[1]["sql"]
             == "SELECT AVG(test1) as test1 FROM 2_bkmonitor_time_series_1500001.base "
-            "WHERE time >= 12345 AND time < 54315 AND name = 'name1' "
+            "WHERE time >= 0 AND time < 45000 AND name = 'name1' "
             "GROUP BY time(15s) ORDER BY time desc LIMIT 100"
         )
 
@@ -353,13 +349,14 @@ class TestDataSource:
         }
 
         data_source = CustomTimeSeriesDataSource.init_by_query_config(query_config)
-        data = data_source.query_data(start_time=1234, end_time=5432)
+        data = data_source.query_data(start_time=123400, end_time=543200)
 
-        assert len(data) == 2
+        assert len(data) == 3
         assert mock_get_ts_data.call_args[1]["sql"] == (
             "SELECT AVG(test1) as test1 FROM 2_bkmonitor_time_series_1500001.base "
-            "WHERE time >= 1080 AND time < 5400 GROUP BY name, time(180s) ORDER BY time desc LIMIT "
-        ) + str(settings.SQL_MAX_LIMIT)
+            "WHERE time >= 0 AND time < 540000 AND name =~ /^name\\d+$/ "
+            f"GROUP BY name, time(180s) ORDER BY time desc LIMIT {settings.SQL_MAX_LIMIT}"
+        )
 
     def test_log_search_time_series_query_data(self, mock_es_query_search):
         query_config = {
@@ -471,15 +468,15 @@ class TestDataSource:
                     "terms": {"field": "remote_user", "size": 10000},
                     "aggregations": {
                         "dtEventTimeStamp": {
-                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s"},
+                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s", 'time_zone': 'UTC'},
                             "aggregations": {"status": {"avg": {"field": "status"}}},
                         }
                     },
                 }
             },
             "filter": [{"field": "status", "operator": "is", "value": ["200"]}],
-            "start_time": 123,
-            "end_time": 654,
+            "start_time": 120,
+            "end_time": 600,
             "size": 1,
         }
         data, _ = data_source.query_log(start_time=123456, end_time=654321, limit=1000)
@@ -488,7 +485,7 @@ class TestDataSource:
             "index_set_id": 1,
             "aggs": {
                 "dtEventTimeStamp": {
-                    "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s"},
+                    "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s", 'time_zone': 'UTC'},
                     "aggregations": {"count": {"value_count": {"field": "_index"}}},
                 }
             },
@@ -605,15 +602,15 @@ class TestDataSource:
                     "terms": {"field": "remote_user", "size": 10000},
                     "aggregations": {
                         "dtEventTimeStamp": {
-                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s"},
+                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s", 'time_zone': 'UTC'},
                             "aggregations": {"_index": {"value_count": {"field": "_index"}}},
                         }
                     },
                 }
             },
             "filter": [{"field": "status", "operator": "is", "value": ["200"]}],
-            "start_time": 123,
-            "end_time": 654,
+            "start_time": 120,
+            "end_time": 630,
             "size": 1,
         }
 
@@ -628,15 +625,15 @@ class TestDataSource:
                     "terms": {"field": "remote_user", "size": 10000},
                     "aggregations": {
                         "dtEventTimeStamp": {
-                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s"},
+                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s", 'time_zone': 'UTC'},
                             "aggregations": {"_index": {"value_count": {"field": "_index"}}},
                         }
                     },
                 }
             },
             "filter": [{"field": "status", "operator": "is", "value": ["200"]}],
-            "start_time": 123,
-            "end_time": 654,
+            "start_time": 120,
+            "end_time": 630,
             "query_string": 'bk_biz_id: "2"',
             "size": 1,
         }
@@ -743,7 +740,7 @@ class TestBkMonitorLogDataSource:
                                 "terms": {"field": "dimensions.bk_target_ip", "size": 1440},
                                 "aggregations": {
                                     "time": {
-                                        "date_histogram": {"field": "time", "interval": "60s"},
+                                        "date_histogram": {"field": "time", "interval": "60s", "time_zone": "UTC"},
                                         "aggregations": {
                                             "event.count": {"avg": {"field": "event.count"}},
                                             "distinct": {"cardinality": {"field": "dimensions.bk_module_id"}},
@@ -766,8 +763,8 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 1,
-                "sort": {"time": "desc"},
+                "size": 0,
+                "sort": [{"time": "desc"}],
             },
         }
 
@@ -865,7 +862,7 @@ class TestBkMonitorLogDataSource:
                                 "terms": {"field": "dimensions.bk_target_cloud_id", "size": 1440},
                                 "aggregations": {
                                     "time": {
-                                        "date_histogram": {"field": "time", "interval": "60s"},
+                                        "date_histogram": {"field": "time", "interval": "60s", 'time_zone': 'UTC'},
                                         "aggregations": {
                                             "event.count": {"sum": {"field": "event.count"}},
                                             "distinct": {"cardinality": {"field": "dimensions.bk_module_id"}},
@@ -888,8 +885,9 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 1,
-                "sort": {"time": "desc"},
+                # 参考上面的 data，这里其实没有用到 hits 里面的数据，所以 size=0 是符合预期的
+                "size": 0,
+                "sort": [{"time": "desc"}],
             },
         }
 
@@ -1052,7 +1050,7 @@ class TestBkMonitorLogDataSource:
                                 "terms": {"field": "dimensions.bk_target_ip", "size": 1440},
                                 "aggregations": {
                                     "time": {
-                                        "date_histogram": {"field": "time", "interval": "30s"},
+                                        "date_histogram": {"field": "time", "interval": "30s", 'time_zone': 'UTC'},
                                         "aggregations": {
                                             "event.count": {"sum": {"field": "event.count"}},
                                             "distinct": {"cardinality": {"field": "dimensions.bk_module_id"}},
@@ -1075,8 +1073,8 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 1,
-                "sort": {"time": "desc"},
+                "size": 0,
+                "sort": [{"time": "desc"}],
             },
         }
 
@@ -1233,7 +1231,11 @@ class TestBkMonitorLogDataSource:
                                         "terms": {"field": "dimensions.bk_set_id", "size": 1440},
                                         "aggregations": {
                                             "time": {
-                                                "date_histogram": {"field": "time", "interval": "30s"},
+                                                "date_histogram": {
+                                                    "field": "time",
+                                                    "interval": "30s",
+                                                    "time_zone": "UTC",
+                                                },
                                                 "aggregations": {
                                                     "event.count": {"sum": {"field": "event.count"}},
                                                     "distinct": {"cardinality": {"field": "dimensions.bk_module_id"}},
@@ -1259,8 +1261,8 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 1,
-                "sort": {"time": "desc"},
+                "size": 0,
+                "sort": [{"time": "desc"}],
             },
         }
         assert len(data) == 2
@@ -1367,7 +1369,11 @@ class TestBkMonitorLogDataSource:
                                         "terms": {"field": "dimensions.bk_target_service_instance_id", "size": 1440},
                                         "aggregations": {
                                             "time": {
-                                                "date_histogram": {"field": "time", "interval": "30s"},
+                                                "date_histogram": {
+                                                    "field": "time",
+                                                    "interval": "30s",
+                                                    "time_zone": "UTC",
+                                                },
                                                 "aggregations": {
                                                     "event.count": {"sum": {"field": "event.count"}},
                                                     "distinct": {"cardinality": {"field": "dimensions.bk_module_id"}},
@@ -1392,14 +1398,14 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 1,
-                "sort": {"time": "desc"},
+                "size": 0,
+                "sort": [{"time": "desc"}],
             },
         }
 
 
 class TestCustomEventDataSource:
-    def test_query_data(self, mock_get_es_data, mock_get_platform_by_table):
+    def test_query_data(self, mock_get_es_data):
         query_config = {
             "bk_event_group_id": 1,
             "custom_event_id": 1,
@@ -1466,7 +1472,7 @@ class TestCustomEventDataSource:
             "query_body": {
                 "aggregations": {
                     "time": {
-                        "date_histogram": {"field": "time", "interval": "30s"},
+                        "date_histogram": {"field": "time", "interval": "30s", "time_zone": "UTC"},
                         "aggregations": {"_index": {"value_count": {"field": "_index"}}},
                     }
                 },
@@ -1488,10 +1494,293 @@ class TestCustomEventDataSource:
                         }
                     }
                 },
-                "size": 1,
-                "sort": {"time": "desc"},
+                "size": 0,
+                "sort": [{"time": "desc"}],
             },
         }
 
         assert len(data) == 2
         assert data == [{"_time_": 1614691260000, "_index": 2}, {"_time_": 1614691320000, "_index": 2}]
+
+
+class TestBkApmTraceDataSource:
+    def test_query_data(self, mock_get_es_data):
+        query_config = {
+            "table": "2_bkapm_trace_app",
+            "time_field": "end_time",
+            "metrics": [{"field": "span_name", "alias": "total_count", "method": "count"}],
+            "group_by": ["span_name"],
+            "filter_dict": {},
+            "query_string": "*",
+            "order_by": ["end_time desc"],
+        }
+
+        mock_get_es_data.return_value = {
+            "took": 15,
+            "timed_out": False,
+            "_shards": {"total": 2, "successful": 2, "skipped": 0, "failed": 0},
+            "hits": {"total": {"value": 10000, "relation": "gte"}, "max_score": None, "hits": []},
+            "aggregations": {
+                "span_name": {
+                    "doc_count_error_upper_bound": 0,
+                    "sum_other_doc_count": 0,
+                    "buckets": [
+                        {"key": "Sub", "doc_count": 2109, "total_count": {"value": 2109}},
+                        {"key": "Add", "doc_count": 2086, "total_count": {"value": 2086}},
+                    ],
+                }
+            },
+        }
+
+        data_source = BkApmTraceDataSource.init_by_query_config(query_config)
+        data = data_source.query_data(start_time=1614334800000, end_time=1614334860000, limit=30)
+
+        assert mock_get_es_data.call_args[1] == {
+            "query_body": {
+                "aggregations": {
+                    "span_name": {
+                        "aggregations": {"total_count": {"value_count": {"field": "span_name"}}},
+                        "terms": {"field": "span_name", "size": 30},
+                    }
+                },
+                "query": {
+                    "bool": {
+                        "filter": {
+                            "bool": {
+                                "must": [
+                                    {"range": {"end_time": {"gte": 1614334800000}}},
+                                    {"range": {"end_time": {"lt": 1614334860000}}},
+                                ]
+                            }
+                        }
+                    }
+                },
+                "size": 0,
+                "sort": [{"end_time": "desc"}],
+            },
+            "table_id": "2_bkapm_trace_app",
+            "use_full_index_names": True,
+        }
+
+        assert len(data) == 2
+        assert data == [{'span_name': 'Sub', 'total_count': 2109}, {'span_name': 'Add', 'total_count': 2086}]
+
+    def test_query_data__search_after(self, mock_get_es_data):
+        query_config = {
+            "table": "2_bkapm_trace_app",
+            "time_field": "end_time",
+            "where": [],
+            "metrics": [
+                {"field": "span_name", "alias": "total_count", "method": "count"},
+                {"field": "elapsed_time", "alias": "avg_duration", "method": "avg"},
+                {"field": "elapsed_time", "alias": "p50_duration", "method": "cp50"},
+                {"field": "elapsed_time", "alias": "p90_duration", "method": "cp90"},
+            ],
+            "group_by": ["span_name", "resource.service.name", "kind"],
+            "filter_dict": {},
+            "query_string": "*",
+            "order_by": ["end_time desc"],
+        }
+
+        mock_get_es_data.return_value = {
+            "took": 34,
+            "timed_out": False,
+            "_shards": {"total": 2, "successful": 2, "skipped": 0, "failed": 0},
+            "hits": {"total": {"value": 10000, "relation": "gte"}, "max_score": None, "hits": []},
+            "aggregations": {
+                "_group_": {
+                    "meta": {},
+                    "after_key": {
+                        "span_name": "/grpc.crayon.query.TimeSeriesQueryService/Query",
+                        "service_name": "example.greeter",
+                        "kind": 3,
+                    },
+                    "buckets": [
+                        {
+                            "key": {
+                                "span_name": "/grpc.crayon.query.TimeSeriesQueryService/Query",
+                                "service_name": "example.greeter",
+                                "kind": 3,
+                            },
+                            "doc_count": 2239,
+                            "avg_duration": {"value": 200376.66234926306},
+                            "total_count": {"value": 2239},
+                            "p50_duration": {"values": {"50.0": 202000.26666666666}},
+                            "error_count": {"meta": {}, "doc_count": 2239, "count": {"value": 2239}},
+                            "p90_duration": {"values": {"90.0": 281324.76296296297}},
+                        }
+                    ],
+                }
+            },
+        }
+
+        data_source = BkApmTraceDataSource.init_by_query_config(query_config)
+        data = data_source.query_data(start_time=1614334800000, end_time=1614334860000, limit=1, search_after_key={})
+
+        assert mock_get_es_data.call_args[1] == {
+            "query_body": {
+                "aggregations": {
+                    "_group_": {
+                        "aggregations": {
+                            "avg_duration": {"avg": {"field": "elapsed_time"}},
+                            "p50_duration": {"percentiles": {"field": "elapsed_time", "percents": [50]}},
+                            "p90_duration": {"percentiles": {"field": "elapsed_time", "percents": [90]}},
+                            "total_count": {"value_count": {"field": "span_name"}},
+                        },
+                        "composite": {
+                            "size": 1,
+                            "sources": [
+                                {"span_name": {"terms": {"field": "span_name"}}},
+                                {"resource.service.name": {"terms": {"field": "resource.service.name"}}},
+                                {"kind": {"terms": {"field": "kind"}}},
+                            ],
+                        },
+                    }
+                },
+                "query": {
+                    "bool": {
+                        "filter": {
+                            "bool": {
+                                "must": [
+                                    {"range": {"end_time": {"gte": 1614334800000}}},
+                                    {"range": {"end_time": {"lt": 1614334860000}}},
+                                ]
+                            }
+                        }
+                    }
+                },
+                "size": 0,
+                "sort": [{"end_time": "desc"}],
+            },
+            "table_id": "2_bkapm_trace_app",
+            "use_full_index_names": True,
+        }
+
+        assert len(data) == 1
+        assert data == [
+            {
+                "_after_key_": {
+                    "kind": 3,
+                    "service_name": "example.greeter",
+                    "span_name": "/grpc.crayon.query.TimeSeriesQueryService/Query",
+                },
+                "avg_duration": 200376.66234926306,
+                "kind": 3,
+                "p50_duration": 202000.26666666666,
+                "p90_duration": 281324.76296296297,
+                "resource.service.name": None,
+                "span_name": "/grpc.crayon.query.TimeSeriesQueryService/Query",
+                "total_count": 2239,
+            }
+        ]
+
+    def test_query_log(self, mock_get_es_data):
+
+        select = [
+            "trace_id",
+            "span_id",
+            "parent_span_id",
+            "span_name",
+            "trace_state",
+            "kind",
+            "status",
+            "resource",
+            "time",
+            "start_time",
+            "end_time",
+            "elapsed_time",
+        ]
+        query_config = {
+            "table": "2_bkapm_trace_app",
+            "time_field": "end_time",
+            "where": [{"condition": "and", "key": "parent_span_id", "method": "eq", "value": [""]}],
+            "query_string": "*",
+            "order_by": ["end_time desc"],
+            "select": select,
+        }
+
+        mock_get_es_data.return_value = {
+            "took": 5,
+            "timed_out": False,
+            "_shards": {"total": 2, "successful": 2, "skipped": 0, "failed": 0},
+            "hits": {
+                "total": {"value": 10000, "relation": "gte"},
+                "max_score": None,
+                "hits": [
+                    {
+                        "_index": "v2_2_bkapm_trace_app_20240821_0",
+                        "_type": "_doc",
+                        "_id": "4168651124563384611",
+                        "_score": None,
+                        "_source": {
+                            "parent_span_id": "e1109836411e69f7",
+                            "span_name": "/grpc.example.greeter.Greeter/SayHi",
+                            "start_time": 1724350530600514,
+                            "trace_id": "7253273218cd0ae249eed00351918fef",
+                            "trace_state": "g=w:1;s:5;r:4",
+                            "span_id": "33bd671493c9f305",
+                            "resource": {
+                                "telemetry.sdk.language": "go",
+                                "container_name": "test.example.greeter.con",
+                                "service.name": "example.greeter",
+                            },
+                            "kind": 3,
+                            "end_time": 1724350530711449,
+                            "elapsed_time": 110935,
+                            "time": "1724350531000",
+                            "status": {"code": 2, "message": "type:business, code:1, msg:random error"},
+                        },
+                        "sort": [1724350530711449],
+                    },
+                ],
+            },
+        }
+
+        data_source = BkApmTraceDataSource.init_by_query_config(query_config)
+        data, __ = data_source.query_log(start_time=1614334800000, end_time=1614334860000, limit=1)
+
+        assert mock_get_es_data.call_args[1] == {
+            "query_body": {
+                "_source": select,
+                "query": {
+                    "bool": {
+                        "filter": {
+                            "bool": {
+                                "must": [
+                                    {"range": {"end_time": {"gte": 1614334800000}}},
+                                    {"range": {"end_time": {"lt": 1614334860000}}},
+                                ]
+                            }
+                        },
+                        "minimum_should_match": 1,
+                        "should": [{"bool": {"must": [{"terms": {"parent_span_id": [""]}}]}}],
+                    }
+                },
+                "size": 0,
+                "sort": [{"end_time": "desc"}],
+            },
+            "table_id": "2_bkapm_trace_app",
+            "use_full_index_names": True,
+        }
+
+        assert len(data) == 1
+        assert data == [
+            {
+                "elapsed_time": 110935,
+                "end_time": 1724350530711449,
+                "kind": 3,
+                "parent_span_id": "e1109836411e69f7",
+                "resource": {
+                    "container_name": "test.example.greeter.con",
+                    "service.name": "example.greeter",
+                    "telemetry.sdk.language": "go",
+                },
+                "span_id": "33bd671493c9f305",
+                "span_name": "/grpc.example.greeter.Greeter/SayHi",
+                "start_time": 1724350530600514,
+                "status": {"code": 2, "message": "type:business, code:1, msg:random error"},
+                "time": "1724350531000",
+                "trace_id": "7253273218cd0ae249eed00351918fef",
+                "trace_state": "g=w:1;s:5;r:4",
+            }
+        ]

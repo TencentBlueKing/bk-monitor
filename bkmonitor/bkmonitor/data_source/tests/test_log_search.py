@@ -32,7 +32,7 @@ class TestLogSearch(object):
             "time_field": "dtEventTimeStamp",
             "aggs": {
                 "dtEventTimeStamp": {
-                    "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s"},
+                    "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s", "time_zone": "UTC"},
                     "aggregations": {"count": {"value_count": {"field": "_index"}}},
                 }
             },

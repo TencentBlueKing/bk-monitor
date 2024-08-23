@@ -28,6 +28,7 @@ from apm import types
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.utils.base import normalize_rt_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
 
@@ -50,7 +51,7 @@ class LogicSupportOperator:
 class BaseQuery:
 
     # datasource 类型
-    USING: Tuple[str, str] = ("log", "bk_monitor")
+    USING: Tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
     # 时间填充，单位 s
     TIME_PADDING = 5
@@ -206,7 +207,11 @@ class BaseQuery:
                 nested_paths.append(should["nested"]["path"])
                 query_string = should["nested"]["query"]["query_string"]["query"]
             except KeyError:
-                continue
+                try:
+                    # handle case: {'should': [{'query_string': {'query': 'ListTrace'}}]}
+                    return should["query_string"]["query"], []
+                except KeyError:
+                    continue
 
         return query_string, nested_paths
 
