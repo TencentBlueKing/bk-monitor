@@ -284,4 +284,6 @@ export default {
     'The current data has not been loaded yet. If the data has not been loaded for a long time, {0}',
   '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html':
     'By default, the URI in the URL is taken for statistics. In actual production, many IDs are applied to the URI, so it is necessary to manually set and classify the same type of URI for statistics. For example:/user/{ID}/index.com',
+  选择任一图并点选所需对比时间和参照时间:
+    'Select any graph and click on the desired comparison time and reference time',
 };

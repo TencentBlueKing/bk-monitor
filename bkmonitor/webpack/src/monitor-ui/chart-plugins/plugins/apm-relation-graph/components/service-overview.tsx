@@ -73,7 +73,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             deepClone(panel.options),
             {
               logHeader: this.tabActive === 'log',
-              disableContextmenu: true,
               time_series: {
                 echart_option: {
                   grid: {

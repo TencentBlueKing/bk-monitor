@@ -23,15 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { connect, disconnect } from 'echarts/core';
-import { random } from 'monitor-common/utils';
+import { metricDetailStatistics } from 'monitor-api/modules/apm_metric';
+import { Debounce, random } from 'monitor-common/utils';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { isEnFn } from 'monitor-pc/utils';
 
 import CompareTopoFullscreen from './compare-topo-fullscreen/compare-topo-fullscreen';
 import MiniChart, { EPointType } from './mini-chart';
@@ -41,40 +44,67 @@ import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/
 import './details-side.scss';
 
 enum EColumn {
-  Chart = 'chart',
-  CompareCount = 'compare-count',
-  DiffCount = 'diff-count',
-  InitiativeCount = 'initiative-count',
-  InitiativeService = 'initiative-service',
+  Chart = 'datapoints',
+  CompareCount = 'compare_count',
+  DiffCount = 'diff_count',
   Operate = 'operate',
-  ReferCount = 'refer-count',
-  ServerName = 'service_name',
+  OtherService = 'other_service',
+  ReferCount = 'refer_count',
+  ServerName = 'service',
+}
+
+enum EOptionKind {
+  callee = 'callee',
+  caller = 'caller',
+}
+
+export enum EDataType {
+  avgDuration = 'avg_duration',
+  errorCount = 'error_count',
+  requestCount = 'request_count',
 }
 
 interface IProps {
   show: boolean;
+  timeRange?: TimeRangeType;
+  serviceName?: string;
+  appName?: string;
+  dataType?: EDataType;
+  panelTitle?: string;
+  dimensions?: string[];
   onClose?: () => void;
 }
+
+const selectDefaultValueMap = {
+  [EDataType.errorCount]: window.i18n.tc('总错误数'),
+  [EDataType.avgDuration]: window.i18n.tc('平均响应耗时'),
+};
 
 @Component
 export default class DetailsSide extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Array, default: () => ['now-1d', 'now'] }) timeRange: TimeRangeType;
+  @Prop({ type: String, default: '' }) serviceName: string;
+  @Prop({ type: String, default: '' }) appName: string;
+  @Prop({ type: String, default: '' }) dataType: EDataType;
+  @Prop({ type: Array, default: () => [] }) dimensions: string[];
+  @Prop({ type: String, default: '' }) panelTitle: string;
 
+  loading = false;
+  sourceTableData = [];
+  sourcesTableColumns = [];
   /* 时间 */
-  timeRange: TimeRangeType = ['now-1d', 'now'];
+  localTimeRange: TimeRangeType = ['now-1h', 'now'];
   timezone: string = getDefaultTimezone();
   /* 主体切换 */
-  selectOptions = [
-    { id: 'avg', name: '平均响应耗时' },
-    { id: 'error', name: '总错误数' },
-  ];
-  selected = 'avg';
+  selectOptions = [];
+  selected = '';
   /* 类型切换 */
   typeOptions = [
-    { id: 'initiative', name: '主调' },
-    { id: 'passive', name: '被调' },
+    { id: EOptionKind.caller, name: window.i18n.tc('主调') },
+    { id: EOptionKind.callee, name: window.i18n.tc('被调') },
   ];
-  curType = 'initiative';
+  curType = EOptionKind.caller;
   /* 对比时间 */
   compareTimeInfo = [
     {
@@ -102,7 +132,7 @@ export default class DetailsSide extends tsc<IProps> {
   /** 分页数据 */
   pagination: ITablePagination = {
     current: 1,
-    count: 2,
+    count: 0,
     limit: 10,
     showTotalCount: true,
   };
@@ -115,19 +145,40 @@ export default class DetailsSide extends tsc<IProps> {
 
   chartGroupId = random(8);
 
-  get filterTableColumns() {
-    return this.tableColumns.filter(item => {
-      if (this.isCompare) {
-        return ![EColumn.InitiativeCount].includes(item.id as EColumn);
-      }
-      return [EColumn.ServerName, EColumn.InitiativeService, EColumn.InitiativeCount, EColumn.Chart].includes(
-        item.id as EColumn
-      );
-    });
+  sortInfo = {
+    prop: '',
+    order: '',
+  };
+
+  get showSelectOptions() {
+    return this.dataType !== EDataType.requestCount;
+  }
+
+  initData() {
+    this.compareTimeInfo = [
+      {
+        id: 'refer',
+        name: window.i18n.t('参照时间'),
+        time: '--',
+        color: '#FF9C01',
+      },
+      {
+        id: 'compare',
+        name: window.i18n.t('对比时间'),
+        time: '--',
+        color: '#7B29FF',
+      },
+    ];
+    this.curType = EOptionKind.caller;
+    this.selected = 'default';
+    this.isCompare = false;
+    this.compareX = 0;
+    this.referX = 0;
+    this.pointType = EPointType.compare;
+    this.localTimeRange = JSON.parse(JSON.stringify(this.timeRange));
   }
 
   created() {
-    this.initData();
     connect(this.chartGroupId);
   }
 
@@ -135,230 +186,266 @@ export default class DetailsSide extends tsc<IProps> {
     disconnect(this.chartGroupId);
   }
 
-  initData() {
-    this.tableColumns = [
-      {
-        type: 'link',
-        id: EColumn.ServerName,
-        name: window.i18n.tc('服务名称'),
-      },
-      {
-        type: 'string',
-        id: EColumn.InitiativeService,
-        name: window.i18n.tc('调用服务'),
-      },
-      {
-        type: 'number',
-        id: EColumn.InitiativeCount,
-        name: window.i18n.tc('调用数'),
-      },
-      {
-        id: EColumn.CompareCount,
-        type: 'number',
-        name: window.i18n.tc('对比'),
-        sortable: true,
-      },
-      {
-        id: EColumn.ReferCount,
-        name: window.i18n.tc('参照'),
-        type: 'number',
-        sortable: true,
-      },
-      {
-        id: EColumn.DiffCount,
-        name: window.i18n.tc('差异值'),
-        type: 'scoped_slots',
-        sortable: true,
-      },
-      {
-        type: 'scoped_slots',
-        id: EColumn.Chart,
-        min_width: 167,
-        name: window.i18n.tc('缩略图'),
-        renderHeader: () => this.chartLabelPopover(),
-      },
-      {
-        type: 'scoped_slots',
+  @Watch('show')
+  handleWatchShow(val: boolean) {
+    if (val) {
+      this.initData();
+      if (this.dataType === EDataType.requestCount) {
+        this.selectOptions = [];
+      } else {
+        const dimensions = [];
+        const defaultItem = selectDefaultValueMap[this.dataType] || 'default';
+        dimensions.push({
+          id: 'default',
+          name: defaultItem,
+        });
+        dimensions.push(
+          ...this.dimensions
+            .filter(item => !['总数量', 'AVG'].includes(item))
+            .map(item => {
+              return {
+                id: item,
+                name: item,
+              };
+            })
+        );
+
+        this.selectOptions = dimensions;
+      }
+      this.getData();
+    }
+  }
+
+  /**
+   * @description 调用接口获取数据
+   */
+  async getData() {
+    this.loading = true;
+    const [startTime, endTime] = handleTransformToTimestamp(this.localTimeRange);
+    const data = await metricDetailStatistics({
+      app_name: this.appName,
+      start_time: startTime,
+      end_time: endTime,
+      option_kind: this.curType,
+      data_type: this.dataType,
+      dimension: this.selected,
+      service_name: this.serviceName,
+    }).catch(() => ({ data: [] }));
+    this.sourceTableData = Object.freeze(
+      data.data.map(item => {
+        let avgDuration = null;
+        if (item.avg_duration) {
+          avgDuration = {
+            value: item.avg_duration[0],
+            unit: item.avg_duration[1],
+          };
+        }
+        return {
+          ...item,
+          avg_duration: avgDuration,
+        };
+      })
+    );
+    this.sourcesTableColumns = Object.freeze(
+      data.columns.map(item => {
+        if (item.id === EColumn.ServerName) {
+          return {
+            ...item,
+            min_width: 200,
+          };
+        }
+        if (item.id === EColumn.OtherService) {
+          return {
+            ...item,
+            min_width: 150,
+          };
+        }
+        if (item.id === EColumn.Chart) {
+          return {
+            ...item,
+            type: 'scoped_slots',
+            min_width: 167,
+            renderHeader: () => this.chartLabelPopover(),
+          };
+        }
+        return item;
+      })
+    );
+    this.pagination.current = 1;
+    this.pagination.count = this.sourceTableData.length;
+    this.getTableData();
+    this.loading = false;
+  }
+
+  /* 筛选及搜索 */
+  getFilterData() {
+    const { prop, order } = this.sortInfo;
+    /* 对比及参照数据 */
+    const diffItemFn = item => {
+      const pointData = (item[EColumn.Chart] || []).filter(d => d[0] !== null);
+      let compareCount = 0;
+      let referCount = 0;
+      let diffCount = 0;
+      if (this.pointType === EPointType.end) {
+        let i = 0;
+        for (const point of pointData) {
+          if (point[1] === this.compareX) {
+            compareCount = point[0];
+            i += 1;
+          }
+          if (point[1] === this.referX) {
+            referCount = point[0];
+            i += 1;
+          }
+          if (i === 2) {
+            break;
+          }
+        }
+        diffCount = (compareCount - referCount) / referCount || 0;
+        if (referCount === 0 && compareCount) {
+          diffCount = 1;
+        }
+      }
+      const unit = item?.[this.dataType]?.unit || '';
+      return {
+        [EColumn.Chart]: pointData,
+        [EColumn.CompareCount]: unit
+          ? {
+              value: compareCount,
+              unit,
+            }
+          : compareCount,
+        [EColumn.ReferCount]: unit
+          ? {
+              value: referCount,
+              unit,
+            }
+          : referCount,
+        [EColumn.DiffCount]: diffCount,
+      };
+    };
+    let filterTableData = this.sourceTableData.map(item => {
+      const diffItems = diffItemFn(item);
+      return {
+        ...item,
+        ...diffItems,
+        id: random(8),
+        [EColumn.ServerName]: {
+          ...item[EColumn.ServerName],
+          disabledClick: !item[EColumn.ServerName]?.url,
+        },
+      };
+    });
+    const sortItemValue = (key, item) => {
+      if (typeof item[key] === 'object') {
+        return item[key].value;
+      }
+      return item[key];
+    };
+    switch (order) {
+      case 'ascending': {
+        filterTableData = filterTableData.sort((a, b) => sortItemValue(prop, a) - sortItemValue(prop, b));
+        break;
+      }
+      case 'descending': {
+        filterTableData = filterTableData.sort((a, b) => sortItemValue(prop, b) - sortItemValue(prop, a));
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+    /* 搜索服务名称 */
+    if (this.searchValue) {
+      filterTableData = filterTableData.filter(item =>
+        item[EColumn.ServerName].name.toLowerCase().includes(this.searchValue.toLowerCase())
+      );
+    }
+    this.pagination.count = filterTableData.length;
+    return filterTableData;
+  }
+
+  /**
+   * @description 整理表格数据
+   */
+  getTableData() {
+    const filterTableData = this.getFilterData();
+    /* 分页数据 */
+    this.tableData = filterTableData.slice(
+      this.pagination.limit * (this.pagination.current - 1),
+      this.pagination.limit * this.pagination.current
+    );
+    this.getTableColumns();
+  }
+
+  /**
+   * @description 整理表格字段
+   */
+  getTableColumns() {
+    this.tableColumns = this.sourcesTableColumns;
+    const tableColumns = [];
+    let index = -1;
+    for (const column of this.sourcesTableColumns) {
+      index += 1;
+      if (index === 2 && this.pointType === EPointType.end) {
+        tableColumns.push(
+          ...[
+            {
+              id: EColumn.CompareCount,
+              name: window.i18n.t('对比'),
+              sortable: 'custom',
+              type: 'number',
+            },
+            {
+              id: EColumn.ReferCount,
+              name: window.i18n.t('参照'),
+              sortable: 'custom',
+              type: 'number',
+            },
+            {
+              id: EColumn.DiffCount,
+              name: window.i18n.t('差异值'),
+              sortable: 'custom',
+              type: 'scoped_slots',
+              min_width: 100,
+            },
+          ]
+        );
+      } else {
+        tableColumns.push(column);
+      }
+    }
+    if (this.pointType === EPointType.end) {
+      tableColumns.push({
         id: EColumn.Operate,
-        name: window.i18n.tc('操作'),
-      },
-    ];
-    this.tableData = [
-      {
-        id: 1,
-        [EColumn.ServerName]: {
-          icon: '',
-          key: '',
-          target: 'null_event',
-          url: '',
-          value: 'test1',
-        },
-        [EColumn.InitiativeService]: {
-          icon: '',
-          type: '',
-          text: 'test01',
-        },
-        [EColumn.InitiativeCount]: 10,
-        [EColumn.CompareCount]: 10,
-        [EColumn.ReferCount]: 10,
-        [EColumn.DiffCount]: 0.45,
-        [EColumn.Chart]: null,
-        [EColumn.Operate]: null,
-        data: [
-          [118, 1721616120000],
-          [120, 1721616180000],
-          [120, 1721616240000],
-          [120, 1721616300000],
-          [122, 1721616360000],
-          [120, 1721616420000],
-          [118, 1721616480000],
-          [120, 1721616540000],
-          [0, 1721616600000],
-          [50, 1721616660000],
-          [50, 1721616720000],
-          [50, 1721616780000],
-          [50, 1721616840000],
-          [50, 1721616900000],
-          [50, 1721616960000],
-          [120, 1721617020000],
-          [120, 1721617080000],
-          [120, 1721617140000],
-          [120, 1721617200000],
-          [120, 1721617260000],
-          [120, 1721617320000],
-          [120, 1721617380000],
-          [120, 1721617440000],
-          [120, 1721617500000],
-          [2, 1721617560000],
-          [120, 1721617620000],
-          [120, 1721617680000],
-          [120, 1721617740000],
-          [120, 1721617800000],
-          [50, 1721617860000],
-          [50, 1721617920000],
-          [50, 1721617980000],
-          [50, 1721618040000],
-          [50, 1721618100000],
-          [50, 1721618160000],
-          [50, 1721618220000],
-          [50, 1721618280000],
-          [4, 1721618340000],
-          [10, 1721618400000],
-          [20, 1721618460000],
-          [30, 1721618520000],
-          [50, 1721618580000],
-          [80, 1721618640000],
-          [100, 1721618700000],
-          [122, 1721618760000],
-          [120, 1721618820000],
-          [120, 1721618880000],
-          [120, 1721618940000],
-          [120, 1721619000000],
-          [120, 1721619060000],
-          [120, 1721619120000],
-          [120, 1721619180000],
-          [120, 1721619240000],
-          [120, 1721619300000],
-          [122, 1721619360000],
-          [118, 1721619420000],
-          [120, 1721619480000],
-          [120, 1721619540000],
-          [120, 1721619600000],
-          [122, 1721619660000],
-        ] as any,
-      },
-      {
-        id: 2,
-        [EColumn.ServerName]: {
-          icon: '',
-          key: '',
-          target: 'null_event',
-          url: '',
-          value: 'test2',
-        },
-        [EColumn.InitiativeService]: {
-          icon: '',
-          type: '',
-          text: 'test02',
-        },
-        [EColumn.InitiativeCount]: 10,
-        [EColumn.CompareCount]: 20,
-        [EColumn.ReferCount]: 20,
-        [EColumn.DiffCount]: -0.45,
-        [EColumn.Chart]: null,
-        [EColumn.Operate]: null,
-        data: [
-          [118, 1721616120000],
-          [120, 1721616180000],
-          [120, 1721616240000],
-          [120, 1721616300000],
-          [122, 1721616360000],
-          [120, 1721616420000],
-          [118, 1721616480000],
-          [120, 1721616540000],
-          [0, 1721616600000],
-          [50, 1721616660000],
-          [50, 1721616720000],
-          [50, 1721616780000],
-          [50, 1721616840000],
-          [50, 1721616900000],
-          [50, 1721616960000],
-          [120, 1721617020000],
-          [120, 1721617080000],
-          [50, 1721617140000],
-          [50, 1721617200000],
-          [50, 1721617260000],
-          [50, 1721617320000],
-          [50, 1721617380000],
-          [50, 1721617440000],
-          [50, 1721617500000],
-          [2, 1721617560000],
-          [50, 1721617620000],
-          [50, 1721617680000],
-          [50, 1721617740000],
-          [50, 1721617800000],
-          [50, 1721617860000],
-          [50, 1721617920000],
-          [50, 1721617980000],
-          [50, 1721618040000],
-          [50, 1721618100000],
-          [50, 1721618160000],
-          [50, 1721618220000],
-          [50, 1721618280000],
-          [4, 1721618340000],
-          [10, 1721618400000],
-          [20, 1721618460000],
-          [30, 1721618520000],
-          [50, 1721618580000],
-          [80, 1721618640000],
-          [100, 1721618700000],
-          [80, 1721618760000],
-          [80, 1721618820000],
-          [80, 1721618880000],
-          [80, 1721618940000],
-          [80, 1721619000000],
-          [80, 1721619060000],
-          [80, 1721619120000],
-          [80, 1721619180000],
-          [80, 1721619240000],
-          [80, 1721619300000],
-          [80, 1721619360000],
-          [80, 1721619420000],
-          [80, 1721619480000],
-          [80, 1721619540000],
-          [80, 1721619600000],
-          [80, 1721619660000],
-        ] as any,
-      },
-    ];
+        name: window.i18n.t('操作'),
+        type: 'scoped_slots',
+        min_width: 80,
+      });
+    }
+    this.tableColumns = tableColumns;
+  }
+
+  /**
+   * @description 选择维度
+   * @param value
+   */
+  handleSelectedChange(value: string) {
+    this.selected = value;
+    this.getData();
   }
 
   handleClose() {
     this.$emit('close');
   }
 
+  /**
+   * @description 时间范围变化
+   * @param date
+   */
   handleTimeRangeChange(date) {
-    this.timeRange = date;
+    this.localTimeRange = date;
+    this.getData();
   }
 
   handleTimezoneChange(timezone: string) {
@@ -366,19 +453,43 @@ export default class DetailsSide extends tsc<IProps> {
     this.timezone = timezone;
   }
 
-  handleTypeChange(id: string) {
+  /**
+   * @description 切换主调背调
+   * @param id
+   */
+  handleTypeChange(id: EOptionKind) {
     this.curType = id;
+    this.getData();
   }
 
-  handleSearch() {}
+  @Debounce(300)
+  handleSearch() {
+    this.pagination.current = 1;
+    this.getTableData();
+  }
 
+  /**
+   * @description 当前对比阶段
+   * @param value
+   */
   handlePointTypeChange(value: EPointType) {
     this.pointType = value;
+    if (value === EPointType.end) {
+      this.getTableData();
+    }
   }
+  /**
+   * @description 设置对比点
+   * @param value
+   */
   handleCompareXChange(value: number) {
     this.compareX = value;
     this.setCompareTimes('compare', value);
   }
+  /**
+   * @description 设置参照点
+   * @param value
+   */
   handleReferXChange(value: number) {
     this.referX = value;
     this.setCompareTimes('refer', value);
@@ -397,6 +508,10 @@ export default class DetailsSide extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 切换对比开关
+   * @param v
+   */
   handleSwitchCompareChange(v: boolean) {
     try {
       if (v) {
@@ -404,6 +519,8 @@ export default class DetailsSide extends tsc<IProps> {
           this.$refs.table.$refs.table.$refs.tableHeader.$refs?.['chart-tip-popover']?.showHandler?.();
         }, 200);
       } else {
+        this.pointType = EPointType.compare;
+        this.getTableData();
         this.handleCompareXChange(0);
         this.handleReferXChange(0);
         this.$refs.table.$refs.table.$refs.tableHeader.$refs?.['chart-tip-popover']?.hideHandler?.();
@@ -413,6 +530,10 @@ export default class DetailsSide extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 图表标签提示
+   * @returns
+   */
   chartLabelPopover() {
     return (
       <bk-popover
@@ -438,6 +559,34 @@ export default class DetailsSide extends tsc<IProps> {
     this.compareTopoShow = true;
   }
 
+  /**
+   * @description 表格分页
+   * @param page
+   */
+  handlePageChange(page: number) {
+    this.pagination.current = page;
+    this.getTableData();
+  }
+
+  /**
+   * @description 表格分页
+   * @param limit
+   */
+  handleLimitChange(limit: number) {
+    this.pagination.limit = limit;
+    this.pagination.current = 1;
+    this.getTableData();
+  }
+
+  /**
+   * @description 表格排序
+   * @param sortInfo
+   */
+  handleSortChange(sortInfo) {
+    this.sortInfo = sortInfo;
+    this.getTableData();
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -452,11 +601,11 @@ export default class DetailsSide extends tsc<IProps> {
           class='header-wrap'
           slot='header'
         >
-          <div class='left-title'>请求数详情</div>
+          <div class='left-title'>{`${this.panelTitle}${isEnFn() ? ' ' : ''}${this.$t('详情')}`}</div>
           <div class='right-time'>
             <TimeRange
               timezone={this.timezone}
-              value={this.timeRange}
+              value={this.localTimeRange}
               onChange={this.handleTimeRangeChange}
               onTimezoneChange={this.handleTimezoneChange}
             />
@@ -465,22 +614,26 @@ export default class DetailsSide extends tsc<IProps> {
         <div
           class='content-wrap'
           slot='content'
+          v-bkloading={{ isLoading: this.loading }}
         >
           <div class='content-header-wrap'>
             <div class='left-wrap'>
-              <bk-select
-                class='theme-select-wrap'
-                v-model={this.selected}
-                clearable={false}
-              >
-                {this.selectOptions.map(item => (
-                  <bk-option
-                    id={item.id}
-                    key={item.id}
-                    name={item.name}
-                  />
-                ))}
-              </bk-select>
+              {this.showSelectOptions && (
+                <bk-select
+                  class='theme-select-wrap'
+                  v-model={this.selected}
+                  clearable={false}
+                  onSelected={this.handleSelectedChange}
+                >
+                  {this.selectOptions.map(item => (
+                    <bk-option
+                      id={item.id}
+                      key={item.id}
+                      name={item.name}
+                    />
+                  ))}
+                </bk-select>
+              )}
               <div class='bk-button-group'>
                 {this.typeOptions.map(item => (
                   <bk-button
@@ -539,25 +692,26 @@ export default class DetailsSide extends tsc<IProps> {
               ref='table'
               scopedSlots={{
                 [EColumn.DiffCount]: row => {
-                  return row[EColumn.DiffCount] > 0 ? (
-                    <span class='diff-up-text'>{`+${row[EColumn.DiffCount] * 100}%`}</span>
+                  return row[EColumn.DiffCount] >= 0 ? (
+                    <span class='diff-up-text'>{`+${(row[EColumn.DiffCount] * 100).toFixed(2)}%`}</span>
                   ) : (
-                    <span class='diff-down-text'>{`${row[EColumn.DiffCount] * 100}%`}</span>
+                    <span class='diff-down-text'>{`${(row[EColumn.DiffCount] * 100).toFixed(2)}%`}</span>
                   );
                 },
-                [EColumn.Chart]: _row => {
+                [EColumn.Chart]: row => {
                   return (
                     <div
-                      key={_row.id}
+                      key={row.id}
                       class='chart-wrap'
                     >
                       <MiniChart
                         compareX={this.compareX}
-                        data={_row.data}
+                        data={row.datapoints}
                         disableHover={!this.isCompare}
                         groupId={this.chartGroupId}
                         pointType={this.pointType}
                         referX={this.referX}
+                        valueTitle={this.panelTitle}
                         onCompareXChange={this.handleCompareXChange}
                         onPointTypeChange={this.handlePointTypeChange}
                         onReferXChange={this.handleReferXChange}
@@ -578,10 +732,14 @@ export default class DetailsSide extends tsc<IProps> {
                 },
               }}
               checkable={false}
-              columns={this.filterTableColumns}
+              columns={this.tableColumns}
               data={this.tableData}
+              hasColnumSetting={false}
               pagination={this.pagination}
               paginationType={'simple'}
+              onLimitChange={this.handleLimitChange}
+              onPageChange={this.handlePageChange}
+              onSortChange={this.handleSortChange}
             />
           </div>
 
