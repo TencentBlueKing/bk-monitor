@@ -79,24 +79,28 @@ export default class ApmTimeSeries extends TimeSeries {
   };
 
   get apmMetric(): EDataType {
-    return (this.panel.options?.apm_metric || '') as EDataType;
+    return (this.panel.options?.apm_time_series?.metric || '') as EDataType;
   }
 
   get appName() {
-    return this.panel.options?.apmParams?.app_name || '';
+    return this.panel.options?.apm_time_series?.app_name || '';
   }
 
   get serviceName() {
-    return this.panel.options?.apmParams?.service_name || '';
+    return this.panel.options?.apm_time_series?.service_name || '';
   }
 
   /* 是否开启series的右键菜单 */
   get enableSeriesContextmenu() {
-    return !!this.panel.options?.enableSeriesContextmenu;
+    return !!this.panel.options?.apm_time_series?.enableSeriesContextmenu;
   }
   /* 是否开启全局的右键菜单 */
   get enableContextmenu() {
-    return !!this.panel.options?.enableContextmenu;
+    return !!this.panel.options?.apm_time_series?.enableContextmenu;
+  }
+
+  get detailsUnit() {
+    return this.panel.options?.apm_time_series?.unit || '';
   }
 
   /**
@@ -564,6 +568,7 @@ export default class ApmTimeSeries extends TimeSeries {
             dataType={this.apmMetric}
             dimensions={this.legendData?.map?.(item => item.name) || []}
             panelTitle={this.panel.title}
+            pointValueUnit={this.detailsUnit}
             serviceName={this.serviceName}
             show={this.detailsSideData.show}
             timeRange={this.timeRange}
