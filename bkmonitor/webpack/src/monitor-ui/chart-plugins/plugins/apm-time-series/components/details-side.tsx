@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { connect, disconnect } from 'echarts/core';
 import { metricDetailStatistics } from 'monitor-api/modules/apm_metric';
-import { random } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
@@ -144,6 +144,11 @@ export default class DetailsSide extends tsc<IProps> {
   pointType: EPointType = EPointType.compare;
 
   chartGroupId = random(8);
+
+  sortInfo = {
+    prop: '',
+    order: '',
+  };
 
   get showSelectOptions() {
     return this.dataType !== EDataType.requestCount;
@@ -272,58 +277,104 @@ export default class DetailsSide extends tsc<IProps> {
     this.loading = false;
   }
 
+  /* 筛选及搜索 */
+  getFilterData() {
+    const { prop, order } = this.sortInfo;
+    /* 对比及参照数据 */
+    const diffItemFn = item => {
+      const pointData = (item[EColumn.Chart] || []).filter(d => d[0] !== null);
+      let compareCount = 0;
+      let referCount = 0;
+      let diffCount = 0;
+      if (this.pointType === EPointType.end) {
+        let i = 0;
+        for (const point of pointData) {
+          if (point[1] === this.compareX) {
+            compareCount = point[0];
+            i += 1;
+          }
+          if (point[1] === this.referX) {
+            referCount = point[0];
+            i += 1;
+          }
+          if (i === 2) {
+            break;
+          }
+        }
+        diffCount = (compareCount - referCount) / referCount || 0;
+        if (referCount === 0 && compareCount) {
+          diffCount = 1;
+        }
+      }
+      const unit = item?.[this.dataType]?.unit || '';
+      return {
+        [EColumn.Chart]: pointData,
+        [EColumn.CompareCount]: unit
+          ? {
+              value: compareCount,
+              unit,
+            }
+          : compareCount,
+        [EColumn.ReferCount]: unit
+          ? {
+              value: referCount,
+              unit,
+            }
+          : referCount,
+        [EColumn.DiffCount]: diffCount,
+      };
+    };
+    let filterTableData = this.sourceTableData.map(item => {
+      const diffItems = diffItemFn(item);
+      return {
+        ...item,
+        ...diffItems,
+        id: random(8),
+        [EColumn.ServerName]: {
+          ...item[EColumn.ServerName],
+          disabledClick: !item[EColumn.ServerName]?.url,
+        },
+      };
+    });
+    const sortItemValue = (key, item) => {
+      if (typeof item[key] === 'object') {
+        return item[key].value;
+      }
+      return item[key];
+    };
+    switch (order) {
+      case 'ascending': {
+        filterTableData = filterTableData.sort((a, b) => sortItemValue(prop, a) - sortItemValue(prop, b));
+        break;
+      }
+      case 'descending': {
+        filterTableData = filterTableData.sort((a, b) => sortItemValue(prop, b) - sortItemValue(prop, a));
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+    /* 搜索服务名称 */
+    if (this.searchValue) {
+      filterTableData = filterTableData.filter(item =>
+        item[EColumn.ServerName].name.toLowerCase().includes(this.searchValue.toLowerCase())
+      );
+    }
+    this.pagination.count = filterTableData.length;
+    return filterTableData;
+  }
+
   /**
    * @description 整理表格数据
    */
   getTableData() {
-    this.tableData = this.sourceTableData
-      .slice(this.pagination.limit * (this.pagination.current - 1), this.pagination.limit * this.pagination.current)
-      .map(item => {
-        const pointData = (item[EColumn.Chart] || []).filter(d => d[0] !== null);
-        let compareCount = 0;
-        let referCount = 0;
-        let diffCount = 0;
-        if (this.pointType === EPointType.end) {
-          let i = 0;
-          for (const point of pointData) {
-            if (point[1] === this.compareX) {
-              compareCount = point[0];
-              i += 1;
-            }
-            if (point[1] === this.referX) {
-              referCount = point[0];
-              i += 1;
-            }
-            if (i === 2) {
-              break;
-            }
-          }
-          diffCount = (compareCount - referCount) / referCount || 0;
-        }
-        const unit = item?.[this.dataType]?.unit || '';
-        return {
-          ...item,
-          [EColumn.Chart]: pointData,
-          id: random(8),
-          [EColumn.ServerName]: {
-            ...item[EColumn.ServerName],
-            disabledClick: !item[EColumn.ServerName]?.url,
-          },
-          [EColumn.CompareCount]: unit
-            ? {
-                value: compareCount,
-                unit,
-              }
-            : compareCount,
-          [EColumn.ReferCount]: unit
-            ? {
-                value: referCount,
-                unit,
-              }
-            : referCount,
-          [EColumn.DiffCount]: diffCount,
-        };
-      });
+    const filterTableData = this.getFilterData();
+    /* 分页数据 */
+    this.tableData = filterTableData.slice(
+      this.pagination.limit * (this.pagination.current - 1),
+      this.pagination.limit * this.pagination.current
+    );
     this.getTableColumns();
   }
 
@@ -369,7 +420,7 @@ export default class DetailsSide extends tsc<IProps> {
         id: EColumn.Operate,
         name: window.i18n.t('操作'),
         type: 'scoped_slots',
-        min_width: 58,
+        min_width: 80,
       });
     }
     this.tableColumns = tableColumns;
@@ -411,7 +462,11 @@ export default class DetailsSide extends tsc<IProps> {
     this.getData();
   }
 
-  handleSearch() {}
+  @Debounce(300)
+  handleSearch() {
+    this.pagination.current = 1;
+    this.getTableData();
+  }
 
   /**
    * @description 当前对比阶段
@@ -453,6 +508,10 @@ export default class DetailsSide extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 切换对比开关
+   * @param v
+   */
   handleSwitchCompareChange(v: boolean) {
     try {
       if (v) {
@@ -471,6 +530,10 @@ export default class DetailsSide extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 图表标签提示
+   * @returns
+   */
   chartLabelPopover() {
     return (
       <bk-popover
@@ -496,14 +559,31 @@ export default class DetailsSide extends tsc<IProps> {
     this.compareTopoShow = true;
   }
 
+  /**
+   * @description 表格分页
+   * @param page
+   */
   handlePageChange(page: number) {
     this.pagination.current = page;
     this.getTableData();
   }
 
+  /**
+   * @description 表格分页
+   * @param limit
+   */
   handleLimitChange(limit: number) {
     this.pagination.limit = limit;
     this.pagination.current = 1;
+    this.getTableData();
+  }
+
+  /**
+   * @description 表格排序
+   * @param sortInfo
+   */
+  handleSortChange(sortInfo) {
+    this.sortInfo = sortInfo;
     this.getTableData();
   }
 
@@ -654,10 +734,12 @@ export default class DetailsSide extends tsc<IProps> {
               checkable={false}
               columns={this.tableColumns}
               data={this.tableData}
+              hasColnumSetting={false}
               pagination={this.pagination}
               paginationType={'simple'}
               onLimitChange={this.handleLimitChange}
               onPageChange={this.handlePageChange}
+              onSortChange={this.handleSortChange}
             />
           </div>
 

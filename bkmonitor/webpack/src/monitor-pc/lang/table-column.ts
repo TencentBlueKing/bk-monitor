@@ -147,4 +147,6 @@ export default {
   任务有效期: 'Task validity period',
   参照: 'Reference',
   差异: 'Difference',
+  差异值: 'Difference Value',
+  缩略图: 'Thumbnail',
 };
