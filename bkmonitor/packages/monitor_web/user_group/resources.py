@@ -125,6 +125,7 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 _manager = DutyRuleManager.refresh_duty_rule_from_any_begin_time(duty_rule, begin_time)
                 if _manager:
                     plans = _manager.get_last_duty_plans()
+
                 duty_plans[duty_rule["id"]] = plans
                 # 2. 再拿未来排班计划
                 # 基于刷新后的生效时间，获取轮值计划预览
