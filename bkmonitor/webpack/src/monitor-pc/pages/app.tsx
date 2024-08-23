@@ -78,6 +78,7 @@ const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
+const ERROR_PAGE_ROUTE_NAME = 'error-exception';
 export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 let WIDTH_LIST = [100, 72, 86, 100, 100, 100, 72, 72];
@@ -415,6 +416,7 @@ export default class App extends tsc<object> {
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
     IntelligentModelsStore.clearIntelligentMap();
     const { navId } = this.$route.meta;
+    const isErrorPage = this.$route.name === ERROR_PAGE_ROUTE_NAME;
     // 处理页面引导页信息
     introduce.clear();
     let promise = null;
@@ -440,9 +442,14 @@ export default class App extends tsc<object> {
       setTimeout(() => {
         this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
       }, 32);
-    } else if (navId !== this.$route.name) {
+    } else if (navId !== this.$route.name || isErrorPage) {
+      let newNavId = navId;
+      if (isErrorPage) {
+        newNavId = this.$route.query?.fromNavId || 'home';
+        newNavId = newNavId === ERROR_PAGE_ROUTE_NAME ? 'home' : newNavId;
+      }
       // 所有页面的子路由在切换业务的时候都统一返回到父级页面
-      const parentRoute = this.$router.options.routes.find(item => item.name === navId);
+      const parentRoute = this.$router.options.routes.find(item => item.name === newNavId);
       if (parentRoute) {
         this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
         const hasAuth = await this.handleUpdateRoute({ bizId: `${v}` }, promise);

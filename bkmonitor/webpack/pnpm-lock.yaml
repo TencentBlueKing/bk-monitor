@@ -576,13 +576,13 @@ importers:
         version: 4.8.24
       '@blueking/date-picker':
         specifier: 2.0.0-beta.23
-        version: 2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31)
+        version: 2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.1-beta.51.select.2)(dayjs@1.11.11)(vue@3.4.31)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
         specifier: 0.3.0-beta.30
-        version: 0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@3.4.31)
+        version: 0.3.0-beta.30(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31)
       '@blueking/login-modal':
         specifier: ^1.0.5
         version: 1.0.5
@@ -599,8 +599,8 @@ importers:
         specifier: workspace:*
         version: link:../apm
       bkui-vue:
-        specifier: 1.0.3-beta.69
-        version: 1.0.3-beta.69(highlight.js@11.5.1)(vue@3.4.31)
+        specifier: staging-1.x
+        version: 2.0.1-beta.51.select.2(highlight.js@11.5.1)(vue@3.4.31)
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -2549,7 +2549,7 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/date-picker@2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@3.4.31):
+  /@blueking/date-picker@2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.1-beta.51.select.2)(dayjs@1.11.11)(vue@3.4.31):
     resolution: {integrity: sha512-biJPGOpuCA06x4lms2RnK8rOvv8YQxDGLhae9Kapb2vT9Du39gu5JHXtk9rbrMuFdlq6tYKJztjCNxYzaS+6WA==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
@@ -2558,7 +2558,7 @@ packages:
       vue: ^3
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
-      bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@3.4.31)
+      bkui-vue: 2.0.1-beta.51.select.2(highlight.js@11.5.1)(vue@3.4.31)
       dayjs: 1.11.11
       vue: 3.4.31(typescript@5.5.3)
     dev: false
@@ -2591,7 +2591,7 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@3.4.31):
+  /@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31):
     resolution: {integrity: sha512-PTGEzuEKxuSd28u4nuKfmA/jRz2i+DHs+QdNr4bfB7p8K12R3tTMyLYkNgv78nt7+Q6sOnDLAXY2/7UD3P4fvQ==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
@@ -2599,7 +2599,7 @@ packages:
       vue: ^3
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
-      bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@3.4.31)
+      bkui-vue: 2.0.1-beta.51.select.2(highlight.js@11.5.1)(vue@3.4.31)
       vue: 3.4.31(typescript@5.5.3)
     dev: false
 
@@ -2615,12 +2615,12 @@ packages:
       - vue
     dev: false
 
-  /@blueking/ip-selector@0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@3.4.31):
+  /@blueking/ip-selector@0.3.0-beta.30(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31):
     resolution: {integrity: sha512-8EGFyGthicb7C/5BVkbIuo0Id+8wJwYf4gGOK2C/yO4zuOqnkGjvDbOz8BjEyD+RCoLvHujpFPSpHo34Qo221Q==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
-      '@blueking/functional-dependency': 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@1.0.3-beta.69)(vue@3.4.31)
+      '@blueking/functional-dependency': 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31)
       vue-i18n: 8.14.1(vue@3.4.31)
     transitivePeerDependencies:
       - bkui-vue
@@ -5362,8 +5362,8 @@ packages:
       vue-types: 4.1.1(vue@2.7.16)
     dev: false
 
-  /bkui-vue@1.0.3-beta.69(highlight.js@11.5.1)(vue@3.4.31):
-    resolution: {integrity: sha512-ee69TMi5lDmIHFLThV3r3QKJ5GKU/Sta8LQ1HfXaNEhA9EYmczb+uVWYJx2f4mo0jbY1yPEXjm8lrJcazYSpWQ==}
+  /bkui-vue@2.0.1-beta.51.select.2(highlight.js@11.5.1)(vue@3.4.31):
+    resolution: {integrity: sha512-W/1aVKeewhdmoyHbeiN4ga1sYzGNScpFpY7/j8+w2ctlrleRw61caMSrnI+xTb85Q6KIdJmJONML/ppdTWEnBA==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
