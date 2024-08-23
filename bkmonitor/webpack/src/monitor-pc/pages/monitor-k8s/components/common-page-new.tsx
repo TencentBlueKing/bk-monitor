@@ -749,29 +749,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
-    /* ----------------测数数据 */
-    if (['apm_service', 'apm_application'].includes(this.sceneId) && this.localSceneType === 'overview') {
-      for (const item of data?.overview_panels || []) {
-        if (['请求数', '错误数', '响应耗时'].includes(item.title)) {
-          item.type = 'apm-timeseries-chart';
-          item.options = {
-            ...item.options,
-            apm_metric: (() => {
-              if (item.title === '请求数') {
-                return 'request_count';
-              }
-              if (item.title === '错误数') {
-                return 'error_count';
-              }
-              if (item.title === '响应耗时') {
-                return 'avg_duration';
-              }
-            })(),
-          };
-        }
-      }
-    }
-    /* ------------------测试数据 */
     for (const item of data?.overview_panels || []) {
       if (item.type === 'apm-timeseries-chart') {
         item.options = {
