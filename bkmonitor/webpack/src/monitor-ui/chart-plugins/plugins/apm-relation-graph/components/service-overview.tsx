@@ -51,7 +51,167 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   ]);
 
   panels = {
-    service: [],
+    service: [
+      {
+        id: 4,
+        title: '错误数',
+        type: 'apm-timeseries-chart',
+        gridPos: {
+          x: 8,
+          y: 4,
+          w: 8,
+          h: 6,
+        },
+        targets: [
+          {
+            data_type: 'time_series',
+            api: 'grafana.graphUnifyQuery',
+            datasource: 'time_series',
+            alias: null,
+            data: {
+              type: 'range',
+              stack: 'all',
+              expression: 'A',
+              query_configs: [
+                {
+                  data_source_label: 'custom',
+                  data_type_label: 'time_series',
+                  table: '2_bkapm_metric_kimmy_test.__default__',
+                  metrics: [
+                    {
+                      field: 'bk_apm_count',
+                      method: 'SUM',
+                      alias: 'A',
+                    },
+                  ],
+                  group_by: ['http_status_code'],
+                  display: true,
+                  where: [
+                    {
+                      key: 'status_code',
+                      method: 'eq',
+                      value: ['2'],
+                      condition: 'and',
+                    },
+                    {
+                      key: 'http_status_code',
+                      method: 'neq',
+                      value: [''],
+                      condition: 'and',
+                    },
+                  ],
+                  interval_unit: 's',
+                  time_field: 'time',
+                  filter_dict: {},
+                  functions: [],
+                },
+              ],
+            },
+          },
+          {
+            data_type: 'time_series',
+            api: 'grafana.graphUnifyQuery',
+            datasource: 'time_series',
+            alias: null,
+            data: {
+              type: 'range',
+              stack: 'all',
+              expression: 'A',
+              query_configs: [
+                {
+                  data_source_label: 'custom',
+                  data_type_label: 'time_series',
+                  table: '2_bkapm_metric_kimmy_test.__default__',
+                  metrics: [
+                    {
+                      field: 'bk_apm_count',
+                      method: 'SUM',
+                      alias: 'A',
+                    },
+                  ],
+                  group_by: ['rpc_grpc_status_code'],
+                  display: true,
+                  where: [
+                    {
+                      key: 'status_code',
+                      method: 'eq',
+                      value: ['2'],
+                      condition: 'and',
+                    },
+                    {
+                      key: 'rpc_grpc_status_code',
+                      method: 'neq',
+                      value: [''],
+                      condition: 'and',
+                    },
+                  ],
+                  interval_unit: 's',
+                  time_field: 'time',
+                  filter_dict: {},
+                  functions: [],
+                },
+              ],
+            },
+          },
+          {
+            data_type: 'time_series',
+            api: 'grafana.graphUnifyQuery',
+            datasource: 'time_series',
+            alias: 'OTHER',
+            data: {
+              type: 'range',
+              stack: 'all',
+              expression: 'A',
+              query_configs: [
+                {
+                  data_source_label: 'custom',
+                  data_type_label: 'time_series',
+                  table: '2_bkapm_metric_kimmy_test.__default__',
+                  metrics: [
+                    {
+                      field: 'bk_apm_count',
+                      method: 'SUM',
+                      alias: 'A',
+                    },
+                  ],
+                  group_by: [],
+                  display: true,
+                  where: [
+                    {
+                      key: 'status_code',
+                      method: 'eq',
+                      value: ['2'],
+                      condition: 'and',
+                    },
+                    {
+                      key: 'http_status_code',
+                      method: 'eq',
+                      value: [''],
+                      condition: 'and',
+                    },
+                    {
+                      key: 'rpc_grpc_status_code',
+                      method: 'eq',
+                      value: [''],
+                      condition: 'and',
+                    },
+                  ],
+                  interval_unit: 's',
+                  time_field: 'time',
+                  filter_dict: {},
+                  functions: [],
+                },
+              ],
+            },
+          },
+        ],
+        options: {
+          time_series: {
+            type: 'bar',
+          },
+        },
+      },
+    ],
     log: [],
     event: [],
   };
