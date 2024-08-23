@@ -812,8 +812,7 @@ export default defineComponent({
         item.edit = false;
         inputRef.value.focus();
         blurInPanel.value = false;
-      } catch (err) {
-        console.log(err);
+      } catch {
         Message({
           message: t('删除失败'),
           theme: 'error',
