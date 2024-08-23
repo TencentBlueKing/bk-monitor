@@ -191,6 +191,8 @@ export default class DetailsSide extends tsc<IProps> {
       prop: '',
       order: '',
     };
+    this.tableColumns = [];
+    this.tableData = [];
   }
 
   created() {
@@ -321,6 +323,9 @@ export default class DetailsSide extends tsc<IProps> {
         diffCount = (compareCount - referCount) / referCount || 0;
         if (referCount === 0 && compareCount) {
           diffCount = 1;
+        }
+        if (compareCount === 0 && referCount) {
+          diffCount = -1;
         }
       }
       const unit = this.unit;
