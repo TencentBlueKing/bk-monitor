@@ -36,7 +36,7 @@ interface IProps {
   val: ITableItem<'string'>;
 }
 @Component
-export default class TextOverflowCopy extends tsc<IProps, {}> {
+export default class TextOverflowCopy extends tsc<IProps> {
   @Prop({ default: '' }) val: ITableItem<'string'>;
   @Ref('wrapRef') wrapRef: HTMLDivElement;
 
@@ -87,7 +87,7 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
           ) : (
             <i class={['icon-monitor', 'string-icon', this.val.icon]} />
           ))}
-        {this.text}
+        {this.text}&nbsp;&nbsp;
         {this.hasCopy && (
           <span
             class='icon-monitor icon-mc-copy'

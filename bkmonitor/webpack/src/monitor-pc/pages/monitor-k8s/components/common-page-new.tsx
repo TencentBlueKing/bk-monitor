@@ -750,14 +750,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
     for (const item of data?.overview_panels || []) {
-      if (item.type === 'apm-timeseries-chart') {
+      if (item.type === 'apm-timeseries-chart' && item.options?.apm_time_series) {
         item.options = {
           ...item.options,
-          apmParams: {
+          apm_time_series: {
+            ...item.options.apm_time_series,
             app_name: this.filters.app_name || '',
             service_name: this.filters.service_name || '',
+            enableContextmenu: true,
           },
-          enableContextmenu: true,
         };
       }
     }

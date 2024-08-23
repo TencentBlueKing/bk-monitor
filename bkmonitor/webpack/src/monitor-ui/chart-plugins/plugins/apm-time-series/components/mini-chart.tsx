@@ -57,6 +57,7 @@ interface IProps {
   dropType?: EDropType;
   disableHover?: boolean;
   valueTitle?: string;
+  unit?: string;
   onPointTypeChange?: (type: EPointType) => void;
   onCompareXChange?: (x: number) => void;
   onReferXChange?: (x: number) => void;
@@ -82,6 +83,7 @@ export default class MiniChart extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) data: number[];
   /* tips显示值标题 */
   @Prop({ type: String, default: '数量' }) valueTitle: string;
+  @Prop({ type: String, default: '' }) unit: string;
 
   /* 对比点 */
   localComparePoint = {
@@ -293,13 +295,13 @@ export default class MiniChart extends tsc<IProps> {
               <div class="left-compare-type" style="background: ${timeTitle === compareTitleText ? '#7B29FF' : '#FFB848'};"></div>
               <div>
                 <div>${timeTitle}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
-                <div>${this.valueTitle}：${value}</div>
+                <div>${this.valueTitle}：${value}${this.unit}</div>
               </div>`;
               }
               if (this.isMouseOver) {
                 return `<div>
                 <div>${dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
-                <div>${this.valueTitle}：${params[0].value[1] || 0}</div>
+                <div>${this.valueTitle}：${params[0].value[1] || 0}${this.unit}</div>
               </div>`;
               }
               return undefined;
