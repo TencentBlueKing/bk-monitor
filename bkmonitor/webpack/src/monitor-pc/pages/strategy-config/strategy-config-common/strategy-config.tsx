@@ -1111,7 +1111,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       item.targetNodeType = item.node_type;
       if (target.instance_type === 'HOST') {
         if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO', 'DYNAMIC_GROUP'].includes(target.node_type)) {
-          item.target = `$this.$t(textMap[target.node_type], [target.node_count])（$this.$t('共{0}台主机', [target.instance_count])）`;
+          item.target = `${this.$t(textMap[target.node_type], [target.node_count])} （${this.$t('共{0}台主机', [target.instance_count])}）`;
         } else if (target.node_type === 'INSTANCE') {
           item.target = this.$t('{0}台主机', [target.node_count]);
         }
