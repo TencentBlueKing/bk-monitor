@@ -103,7 +103,7 @@ class BkJWTClient:
         # jwt headers解析
         try:
             headers = jwt.get_unverified_header(raw_content)
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             return False, f"jwt content parse header error: {e}"
 
         # jwt算法
@@ -117,7 +117,7 @@ class BkJWTClient:
         # jwt内容解析
         try:
             result = jwt.decode(raw_content, public_key, algorithms=algorithm)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             return False, f"jwt content decode error: {e}"
 
         self.is_valid = True
