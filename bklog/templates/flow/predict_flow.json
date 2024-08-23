@@ -596,7 +596,7 @@
     },
     {
       "bk_biz_id": {{predict.bk_biz_id}},
-      "sql": "SELECT {{predict.format_signature.fields}}, __dist_01, __dist_03, __dist_05, __dist_07, __dist_09 FROM {{predict.clustering_predict.result_table_id}}, lateral table(udf_signature_format(log_signature)) as T(__dist_01, __dist_03, __dist_05, __dist_07, __dist_09)",
+      "sql": "SELECT {{predict.format_signature.fields}}, __dist_05 FROM {{predict.clustering_predict.result_table_id}}, lateral table(udf_single_signature_format_java(log_signature)) as T(__dist_05)",
       "table_name": "{{predict.format_signature.table_name}}",
       "name": "签名字段打平",
       "count_freq": null,

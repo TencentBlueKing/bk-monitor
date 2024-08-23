@@ -290,7 +290,7 @@ class IncidentDetailResource(IncidentBaseResource):
         super(IncidentDetailResource, self).__init__()
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="故障UUID")
+        id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
@@ -694,7 +694,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
         super(IncidentAlertAggregateResource, self).__init__()
 
     class RequestSerializer(AlertSearchSerializer):
-        id = serializers.IntegerField(required=True, label="故障UUID")
+        id = serializers.IntegerField(required=True, label="故障ID")
         aggregate_bys = serializers.ListField(required=True, label="聚合维度")
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
         page = serializers.IntegerField(label="页数", min_value=1, default=1)
@@ -823,7 +823,7 @@ class IncidentHandlersResource(IncidentBaseResource):
         super(IncidentHandlersResource, self).__init__()
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="故障UUID")
+        id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
@@ -993,7 +993,7 @@ class EditIncidentResource(IncidentBaseResource):
         super(EditIncidentResource, self).__init__()
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="故障UUID")
+        id = serializers.IntegerField(required=True, label="故障ID")
         incident_id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         incident_name = serializers.CharField(required=False, label="故障名称")
@@ -1027,7 +1027,7 @@ class FeedbackIncidentRootResource(IncidentBaseResource):
         super(FeedbackIncidentRootResource, self).__init__()
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="故障UUID")
+        id = serializers.IntegerField(required=True, label="故障ID")
         incident_id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         feedback = serializers.JSONField(required=True, label="反馈的内容")
@@ -1067,7 +1067,7 @@ class IncidentAlertListResource(IncidentBaseResource):
         super(IncidentAlertListResource, self).__init__()
 
     class RequestSerializer(AlertSearchSerializer):
-        id = serializers.IntegerField(required=True, label="故障UUID")
+        id = serializers.IntegerField(required=True, label="故障ID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
         page = serializers.IntegerField(required=False, label="页码", default=1)
@@ -1108,7 +1108,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
         super(IncidentAlertViewResource, self).__init__()
 
     class RequestSerializer(AlertSearchSerializer):
-        id = serializers.IntegerField(required=True, label="故障UUID")
+        id = serializers.IntegerField(required=True, label="故障ID")
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
         page = serializers.IntegerField(required=False, label="页码", default=1)

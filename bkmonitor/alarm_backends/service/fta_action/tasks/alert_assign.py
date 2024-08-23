@@ -100,7 +100,7 @@ class AlertAssigneeManager:
             # 如果是升级通知，采用升级通知里的配置
             self.origin_notice_users_object = self.get_origin_supervisor_object()
         else:
-            self.origin_notice_users_object = self.get_origin_notice_users_object(notice_user_groups)
+            self.origin_notice_users_object = self.get_origin_notice_users_object(notice_user_groups or [])
         self.matched_group = None
         self.is_matched = False
         self.match_manager = self.get_match_manager()
@@ -132,10 +132,11 @@ class AlertAssigneeManager:
             self.is_matched = True
         self.matched_group = manager.matched_group_info.get("group_id")
         logger.info(
-            "[assign match] finished: alert(%s), matched_rule(%s), assign results(%s)",
+            "[assign match] finished: alert(%s), matched_rule(%s), assign_rule_id(%s), assign_mode(%s)",
             self.alert.id,
             len(manager.matched_rules),
             self.matched_group,
+            self.assign_mode,
         )
         return manager
 

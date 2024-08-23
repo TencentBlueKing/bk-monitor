@@ -257,7 +257,6 @@ class ClusteringConfigViewSet(APIViewSet):
             ClusteringConfigHandler().preview(
                 input_data=params["input_data"],
                 min_members=1,  # 这里是因为在调试的时候默认只有一条数据
-                max_dist_list=params["max_dist_list"],
                 predefined_varibles=params["predefined_varibles"],
                 delimeter=params["delimeter"],
                 max_log_length=params["max_log_length"],

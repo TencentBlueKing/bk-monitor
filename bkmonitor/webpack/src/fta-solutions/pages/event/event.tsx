@@ -2491,12 +2491,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               />
             )}
             <div class='content-wrap-filter'>
-              <div
-                v-en-style='width: 120px;'
-                class='business-screening-notes'
-              >
-                {this.$t('空间筛选')}
-              </div>
               {/* <bk-select
                 class={`filter-select ${this.filterSelectIsEmpty ? 'empty-warning' : ''}`}
                 v-model={this.bizIds}

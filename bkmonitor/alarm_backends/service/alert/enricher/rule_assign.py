@@ -40,6 +40,7 @@ class AssignInfoEnricher(BaseAlertEnricher):
         with metrics.ALERT_ASSIGN_PROCESS_TIME.labels(**assign_labels).time():
             # 此处的enrich尽量不去适配告警通知组的内容
             exc = None
+            assign_labels["rule_group_id"] = None
             try:
                 assign_manager = AlertAssigneeManager(
                     alert=alert.to_document(), notice_user_groups=user_groups, assign_mode=assign_mode
@@ -58,7 +59,5 @@ class AssignInfoEnricher(BaseAlertEnricher):
                 if assign_manager.matched_rule_info["additional_tags"]:
                     alert.update_assign_tags(assign_manager.matched_rule_info["additional_tags"])
                 assign_labels.update({"rule_group_id": assign_manager.matched_group_info.get("group_id")})
-            else:
-                assign_labels["rule_group_id"] = None
         metrics.ALERT_ASSIGN_PROCESS_COUNT.labels(**assign_labels).inc()
         return alert

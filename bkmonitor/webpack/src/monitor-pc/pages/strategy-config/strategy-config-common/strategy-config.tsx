@@ -1275,21 +1275,33 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     }
     if (this.firstRequest) {
       this.header.keywordObj = this.header.condition.map(item => {
-        const { id, name, data } = this.filterPanelData.find(panel => item.key === panel.id);
+        const { id, name, data } = this.filterPanelData.find(panel => item.key === panel.id) || {
+          id: item.key,
+          name: item.key,
+          data: [],
+        };
         let values = [];
         /**
          * 因为有些筛选项需要等待列表接口请求完成后才能知道，所以这里需要判断一下
          * 如果该筛选项没有子级，就暂时使用Url传递的值构造一个id为值的对象,等待接口返回后在进行处理
          */
-        if (data.length) {
-          values = data.filter(child => item.value.includes(child.id));
+        if (data?.length) {
+          values = data.reduce((values, cur) => {
+            if (Array.isArray(cur.children)) {
+              values.push(...cur.children.filter(child => item.value.includes(child.id)));
+            } else {
+              item.value.includes(cur.id) && values.push(cur);
+            }
+            return values;
+          }, []);
         } else {
           values = item.value.map(id => ({
             id,
+            name: id,
           }));
         }
         return {
-          id,
+          id: id,
           name,
           values,
         };
@@ -1834,7 +1846,7 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
     const titleStr = this.$t(title);
     return (
       <span
-        class={{ 'dropdown-trigger': true, ' plugin-label': true, selected: active }}
+        class={{ 'dropdown-trigger': true, 'plugin-label': true, selected: active }}
         slot='dropdown-trigger'
         onClick={e => this.handleShowTableFilter(e, type, title)}
       >

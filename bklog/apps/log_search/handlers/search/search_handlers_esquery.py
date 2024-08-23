@@ -151,12 +151,16 @@ class SearchHandler(object):
         can_highlight=True,
         export_fields=None,
         export_log: bool = False,
+        only_for_agg: bool = False,
     ):
         # 请求用户名
         self.request_username = get_request_external_username() or get_request_username()
 
         self.search_dict: dict = search_dict
         self.export_log = export_log
+
+        # 是否只用于聚合，可以简化某些查询语句
+        self.only_for_agg = only_for_agg
 
         # 透传查询类型
         self.index_set_id = index_set_id
@@ -1559,6 +1563,10 @@ class SearchHandler(object):
             return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
 
     def _init_sort(self) -> list:
+        if self.only_for_agg:
+            # 仅聚合时无需排序
+            return []
+
         index_set_id = self.search_dict.get("index_set_id")
         # 获取用户对sort的排序需求
         sort_list: List = self.search_dict.get("sort_list", [])
@@ -2164,7 +2172,9 @@ class SearchHandler(object):
             value = _add.get("value")
             new_value: list = []
             # 对于前端传递为空字符串的场景需要放行过去
-            if isinstance(value, str) and value:
+            if isinstance(value, list):
+                new_value = value
+            elif isinstance(value, str) or value:
                 new_value = self._deal_normal_addition(value, _operator)
             new_addition.append(
                 {"field": field, "operator": _operator, "value": new_value, "condition": _add.get("condition", "and")}

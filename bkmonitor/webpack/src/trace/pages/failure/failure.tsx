@@ -315,6 +315,9 @@ export default defineComponent({
     const handleChangeSpace = (space: string[]) => {
       bkzIds.value = space;
     };
+    const changeTab = () => {
+      refContent.value?.handleChangeActive('FailureView');
+    }
     return {
       incidentDetailData,
       getIncidentDetail,
@@ -337,6 +340,7 @@ export default defineComponent({
       handleChangeSpace,
       handleChangeSelectNode,
       topoNodeId,
+      changeTab
     };
   },
   render() {
@@ -364,6 +368,7 @@ export default defineComponent({
                 onNodeClick={this.nodeClick}
                 onNodeExpand={this.nodeExpand}
                 onTreeScroll={this.treeScroll}
+                onChangeTab={this.changeTab}
               />
             ),
             main: () => (

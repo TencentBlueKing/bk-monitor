@@ -485,6 +485,7 @@
         },
         // 字段配置下拉框更新监听 因联合查询的字段设置列表需要先请求字段后才能返回
         configWatchBool: false,
+        isInDestroy: false,
       };
     },
     computed: {
@@ -579,7 +580,15 @@
     mounted() {
       window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
     },
-    beforeUnmount() {
+    // beforeUnmount() {
+    //   updateTimezone();
+    //   this.$store.commit('updateUnionIndexList', []);
+    //   window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
+
+    // },
+    beforeDestroy() {
+      console.log('--beforeDestroy');
+      this.isInDestroy = true;
       updateTimezone();
       this.$store.commit('updateUnionIndexList', []);
       window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
@@ -1394,16 +1403,26 @@
         // 非收藏的点击删除检索参数内的from_favorite_id
         if (!this.isFavoriteSearch) delete this.retrieveParams.from_favorite_id;
 
-        this.$router.push({
-          name: 'retrieve',
-          // 联合查询不需要路由索引集ID
-          params: this.isUnionSearch
+        this.setRouteParams(
+          'retrieve',
+          this.isUnionSearch
             ? undefined
             : {
                 indexId: this.indexId,
               },
-          query: queryObj,
-        });
+          queryObj,
+        );
+
+        // this.$router.push({
+        //   name: 'retrieve',
+        //   // 联合查询不需要路由索引集ID
+        //   params: this.isUnionSearch
+        //     ? undefined
+        //     : {
+        //         indexId: this.indexId,
+        //       },
+        //   query: queryObj,
+        // });
         // 接口请求
         try {
           this.tableLoading = true;
@@ -1486,6 +1505,11 @@
       },
       // 更新路由参数
       setRouteParams(name = 'retrieve', params, query) {
+        console.log('--setRouteParams', this.isInDestroy);
+        if (this.isInDestroy) {
+          return;
+        }
+
         this.$router.replace({
           name,
           params,
@@ -1706,7 +1730,7 @@
           // 更新联合查询的begin
           const unionConfigs = this.unionIndexList.map(item => ({
             begin: this.isTablePagination
-              ? this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
+              ? (this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
               : 0,
             index_set_id: item,
           }));
@@ -2093,11 +2117,13 @@
           this.clusterRouteParams = {};
           delete newQuery.clusterRouteParams;
         }
-        this.$router.push({
-          name: 'retrieve',
-          params,
-          query: newQuery,
-        });
+
+        this.setRouteParams('retrieve', params, newQuery);
+        // this.$router.push({
+        //   name: 'retrieve',
+        //   params,
+        //   query: newQuery,
+        // });
       },
     },
   };

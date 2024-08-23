@@ -417,6 +417,7 @@ class DataSource(models.Model):
         authorized_spaces=None,
         space_uid=None,
         created_from=DataIdCreatedFromSystem.BKGSE.value,
+        bcs_cluster_id=None,
     ):
         """
         创建一个新的数据源, 如果创建过程失败则会抛出异常
@@ -441,6 +442,7 @@ class DataSource(models.Model):
         :param authorized_spaces: 授权使用的空间ID
         :param space_uid: 空间 UID
         :param created_from: 数据源 ID 来源
+        :param bcs_cluster_id: bcs 集群 ID
         :return: DataSource instance | raise Exception
         """
         # 判断两个使用到的标签是否存在
@@ -477,7 +479,7 @@ class DataSource(models.Model):
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单标
-            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series":
+            if (settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series") or bcs_cluster_id:
                 bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
             else:
                 bk_data_id = cls.apply_for_data_id_from_gse(operator)

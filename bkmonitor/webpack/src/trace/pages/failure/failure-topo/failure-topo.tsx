@@ -62,7 +62,7 @@ import FeedbackCauseDialog from './feedback-cause-dialog';
 import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import TopoTools from './topo-tools';
-import { getNodeAttrs } from './utils';
+import { getNodeAttrs, truncateText } from './utils';
 
 import type { IEdge, IEntity, ITopoData, ITopoNode, IncidentDetailData } from './types';
 
@@ -110,7 +110,7 @@ export default defineComponent({
       },
     },
   },
-  emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode'],
+  emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh'],
   setup(props, { emit }) {
     /** 缓存resize render后执行的回调函数，主要用于点击播放之前收起右侧资源图时的回调 */
     const resizeCacheCallback = ref(null);
@@ -226,7 +226,7 @@ export default defineComponent({
                 y: 20,
                 textAlign: 'center',
                 textBaseline: 'middle',
-                text: t('根因'),
+                text: truncateText(t('根因'), 28, 11, 'PingFangSC-Medium'),
                 fontSize: 11,
                 fill: '#fff',
                 ...nodeAttrs.textAttrs,
@@ -370,7 +370,7 @@ export default defineComponent({
                 textAlign: 'center',
                 cursor: 'cursor',
                 textBaseline: 'middle',
-                text: entity.is_root || is_feedback_root ? t('根因') : aggregated_nodes.length + 1,
+                text: entity.is_root || is_feedback_root ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium') : aggregated_nodes.length + 1,
                 fontSize: 11,
                 fill: '#fff',
                 ...nodeAttrs.textAttrs,
@@ -772,8 +772,8 @@ export default defineComponent({
         },
         onDragEnd() {
           // 清除临时信息
-          delete this.currentComboId;
-          delete this.currentNodes;
+          this.currentComboId = undefined;
+          this.currentNodes = undefined;
         },
       });
       // 自定义拖拽
@@ -1653,7 +1653,7 @@ export default defineComponent({
             });
           }
         } else {
-          /** diff中的节点 comboId没有经过布局处理，延用node之前已设置过的id即可 */
+          /** diff中的节点  comboId没有经过布局处理，延用node之前已设置过的id即可 */
           graph.updateItem(node, { ...item, comboId: model.comboId, subComboId: model.subComboId });
         }
       });
@@ -1869,6 +1869,9 @@ export default defineComponent({
       };
       emit('toDetailTab', alertObj);
     };
+    const refresh = () => {
+      emit('refresh');
+    };
     return {
       isPlay,
       nodeEntityId,
@@ -1908,6 +1911,7 @@ export default defineComponent({
       handleToDetailSlider,
       handleToDetailTab,
       detailInfo,
+      refresh,
     };
   },
   render() {
@@ -2087,6 +2091,7 @@ export default defineComponent({
           data={this.feedbackModel}
           visible={this.feedbackCauseShow}
           onEditSuccess={this.handleFeedBackChange}
+          onRefresh={this.refresh}
           onUpdate:isShow={(val: boolean) => (this.feedbackCauseShow = val)}
         />
         <div style='display: none'>
