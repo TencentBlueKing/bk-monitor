@@ -200,6 +200,9 @@ class PreviewDutyRulePlanResource(DutyPlanUserTranslaterResource):
         validated_data["timezone"] = preview_data["timezone"]
         validated_data["days"] = preview_data["days"]
         validated_data["begin_time"] = preview_data["begin_time"] or validated_data["effective_time"]
+        begin_time = validated_data["begin_time"]
+        begin_datetime = time_tools.str2datetime(begin_time)
+        validated_data["begin_time"] = time_tools.datetime2str(begin_datetime)
 
         return validated_data
 

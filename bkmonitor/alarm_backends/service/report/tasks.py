@@ -258,5 +258,11 @@ def report_transfer_operation_data():
     h.report()
 
 
-def collect_redis_metric():
+def collect_redis_metric(seq=None):
+    # 支持采集周期, 默认设置30s
+    interval = 30
+    seq = seq or 60 / interval
+    seq -= 1
+    if seq:
+        collect_redis_metric.apply_async(kwargs={"seq": seq}, countdown=interval)
     RedisMetricCollectReport().collect_redis_metric_data()
