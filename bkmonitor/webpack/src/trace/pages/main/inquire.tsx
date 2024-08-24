@@ -72,6 +72,7 @@ import {
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
   VIEWOPTIONS_KEY,
+  useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
@@ -225,6 +226,7 @@ export default defineComponent({
       id: 0,
     });
     const isEmptyApp = ref<boolean>(false);
+    const enableProfiling = ref<boolean>(false);
     const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
     const durantionRange = ref<null | number[]>(null);
@@ -261,6 +263,8 @@ export default defineComponent({
     };
     setSelectedTypeByRoute();
 
+    useIsEnabledProfilingProvider(enableProfiling);
+
     const handleLeftHiddenAndShow = (val: boolean) => {
       state.showLeft = val;
     };
@@ -284,6 +288,7 @@ export default defineComponent({
     };
     async function handleAppSelectChange(val: string) {
       state.app = val;
+      enableProfiling.value = appList.value.find(item => item.app_name === val)?.is_enabled_profiling || false;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
       if (val) {

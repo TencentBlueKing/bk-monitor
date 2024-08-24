@@ -107,6 +107,7 @@ class AlertAssigneeManager:
         self.is_matched = False
         self.match_manager = self.get_match_manager()
         self.notice_appointees_object = self.get_notice_appointees_object()
+        self._is_new = new_alert
 
     def get_match_manager(self):
         """

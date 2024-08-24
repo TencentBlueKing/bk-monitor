@@ -1355,6 +1355,7 @@ class BaseIndexSetHandler(object):
                     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
                     "space_id": index_set.space_uid.split("__")[-1],
                     "space_type": index_set.space_uid.split("__")[0],
+                    "need_create_index": True if index_set.collector_config_id else False,
                     "options": [
                         {
                             "name": "time_field",
