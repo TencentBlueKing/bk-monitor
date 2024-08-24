@@ -91,6 +91,7 @@ class AlertAssigneeManager:
         user_type=UserGroupType.MAIN,
         new_alert=False,
     ):
+        self._is_new = new_alert
         self.alert = alert
         self.assign_mode = assign_mode or [AssignMode.ONLY_NOTICE]
         self.notice_type = notice_type
