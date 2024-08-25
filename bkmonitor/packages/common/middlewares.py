@@ -40,7 +40,7 @@ class TimeZoneMiddleware(MiddlewareMixin):
             try:
                 from core.drf_resource import resource
 
-                tz_name = resource.cc.get_app_by_id(biz_id)["TimeZone"]
+                tz_name = resource.commons.fetch_business_info(bk_biz_id=biz_id)
             except Exception:
                 tz_name = settings.TIME_ZONE
             request.session[settings.TIMEZONE_SESSION_KEY] = tz_name
