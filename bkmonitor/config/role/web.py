@@ -391,6 +391,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "monitor_api.pagination.MonitorAPIPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_PERMISSION_CLASSES": ("monitor_web.permissions.BusinessViewPermission",),
+    # CSRF 豁免期， drf同样豁免
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.BasicAuthentication",
+        "bkm_ipchooser.authentication.CsrfExemptSessionAuthentication",
+    ),
 }
 
 #
