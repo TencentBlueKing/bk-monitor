@@ -39,7 +39,7 @@ class TimeZoneMiddleware(MiddlewareMixin):
         biz_id: int = safe_int(fetch_biz_id_from_request(request, view_kwargs))
         if biz_id:
             try:
-                tz_name = SpaceApi.get_space_detail(bk_biz_id=int(biz_id)).time_zone
+                tz_name = SpaceApi.get_space_detail(bk_biz_id=biz_id).time_zone
             except Exception:
                 tz_name = settings.TIME_ZONE
             request.session[settings.TIMEZONE_SESSION_KEY] = tz_name
