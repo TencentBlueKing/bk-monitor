@@ -238,6 +238,10 @@ if USE_DJANGO_CACHE_REDIS:
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_PATH = SITE_URL
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
+if USE_DJANGO_CACHE_REDIS:
+    # 配置redis缓存后， 使用缓存存session
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "redis"
 SESSION_COOKIE_NAME = APP_CODE + "_sessionid"
 
 #
