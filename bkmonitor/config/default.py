@@ -738,8 +738,9 @@ else:
 try:
     from dj_db_conn_pool.backends import mysql
 
+    assert ROLE == "web"
     default_db_engine = "dj_db_conn_pool.backends.mysql"
-except ImportError:
+except (ImportError, AssertionError):
     default_db_engine = "django.db.backends.mysql"
 
 DATABASES = {
