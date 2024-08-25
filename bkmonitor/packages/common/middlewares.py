@@ -18,6 +18,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
 
+from bkm_space.api import SpaceApi
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from monitor_web.tasks import active_business, record_login_user
@@ -35,12 +36,10 @@ class TimeZoneMiddleware(MiddlewareMixin):
         if timezone_exempt:
             return
 
-        biz_id: int = fetch_biz_id_from_request(request, view_kwargs)
+        biz_id: int = int(fetch_biz_id_from_request(request, view_kwargs))
         if biz_id:
             try:
-                from core.drf_resource import resource
-
-                tz_name = resource.commons.fetch_business_info(bk_biz_id=biz_id)
+                tz_name = SpaceApi.get_space_detail(bk_biz_id=biz_id).time_zone
             except Exception:
                 tz_name = settings.TIME_ZONE
             request.session[settings.TIMEZONE_SESSION_KEY] = tz_name
