@@ -369,7 +369,7 @@ class PromqlInstanceQueryMixin(MetricHandler):
             table_id=table_id,
             group_by=group_by,
             interval=interval,
-            where=f", {','.join(where)}" if where else "",
+            where=f"{{{','.join(where)}}}" if where else "",
         )
 
 

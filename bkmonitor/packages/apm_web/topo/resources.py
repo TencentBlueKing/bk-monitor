@@ -25,7 +25,7 @@ class DataTypeBarQueryResource(Resource):
     支持以下数据视角:
     1. 告警事件
     2. Apdex
-    3. 主调/被调错误率
+    3. 主调/被调/总错误率
     """
 
     RequestSerializer = DataTypeBarQueryRequestSerializer

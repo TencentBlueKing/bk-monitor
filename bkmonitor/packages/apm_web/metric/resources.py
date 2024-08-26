@@ -2455,6 +2455,7 @@ class MetricDetailStatisticsResource(Resource):
             validated_data["data_type"],
             validated_data.pop("option_kind"),
             validated_data.pop("dimension"),
+            validated_data.get("service_name"),
         )
         s = ServiceMetricStatistics(**validated_data)
         return s.list(template)

@@ -22,14 +22,19 @@ class BaseQuery:
         self.start_time = start_time
         self.end_time = end_time
         self.delta = self.end_time - self.start_time
+        self.service_name = service_name
         self.params = extra_params
-        self.filter_params = self.convert_to_condition(service_name)
 
         self.application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         self.metrics_table = self.application.metric_result_table_id
 
-    def convert_to_condition(self, service_name) -> [dict, list]:
-        return {"service_name": service_name}
+    def convert_metric_to_condition(self) -> [list]:
+        """转换为 APM 内置指标的 where 条件"""
+        return [{"key": "service_name", "method": "eq", "value": [self.service_name]}] if self.service_name else []
+
+    def convert_flow_metric_to_condition(self):
+        """转换为 APM Flow 指标的 where 条件"""
+        raise NotImplementedError
 
     def get_metric(self, metric_clz: Type[MetricHandler], **kwargs):
         return metric_clz(**self.common_params, **kwargs)

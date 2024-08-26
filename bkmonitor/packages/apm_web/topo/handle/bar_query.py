@@ -58,6 +58,9 @@ class BarQuery(BaseQuery):
             "query_string": f"metric: custom.{self.metrics_table}.*",
             "conditions": [],
         }
+        if self.service_name:
+            common_params["query_string"] += f' AND tags.service_name: "{self.service_name}"'
+
         if self.params.get("strategy_ids", []):
             common_params["conditions"].append({"key": "strategy_id", "value": self.params["strategy_ids"]})
 
@@ -93,18 +96,34 @@ class BarQuery(BaseQuery):
         return asdict(BarResponse(series=[BarSeries(datapoints=[res])]))
 
     def get_apdex_series(self) -> Dict:
-        return self.get_metric(ApdexRange, interval=self.delta // 30).query_range()
+        return self.get_metric(
+            ApdexRange,
+            interval=self._get_metric_interval(),
+            where=self.convert_metric_to_condition(),
+        ).query_range()
 
     def get_error_rate_series(self) -> Dict:
-        return self.get_metric(ServiceFlowErrorRate, interval=self._get_flow_metric_interval()).query_range()
+        return self.get_metric(
+            ServiceFlowErrorRate,
+            interval=self._get_metric_interval(),
+            where=self.convert_flow_metric_to_condition(),
+        ).query_range()
 
     def get_error_rate_caller_series(self) -> Dict:
-        return self.get_metric(ServiceFlowErrorRateCaller, interval=self._get_flow_metric_interval()).query_range()
+        return self.get_metric(
+            ServiceFlowErrorRateCaller,
+            interval=self._get_metric_interval(),
+            where=self.convert_flow_metric_to_condition(),
+        ).query_range()
 
     def get_error_rate_callee_series(self) -> Dict:
-        return self.get_metric(ServiceFlowErrorRateCallee, interval=self._get_flow_metric_interval()).query_range()
+        return self.get_metric(
+            ServiceFlowErrorRateCallee,
+            interval=self._get_metric_interval(),
+            where=self.convert_flow_metric_to_condition(),
+        ).query_range()
 
-    def _get_flow_metric_interval(self):
+    def _get_metric_interval(self):
         """
         计算 flow 指标的聚合周期
         需要保持柱状图最大柱子数量为 30
@@ -114,3 +133,15 @@ class BarQuery(BaseQuery):
             return int((self.end_time - self.start_time) / 30)
         # 如果小于 30分钟 按照一分钟进行聚合
         return 60
+
+    def convert_flow_metric_to_condition(self):
+        """转换为 APM Flow 指标的 where 条件"""
+        # 服务页面中获取柱状图不需要固定 caller / callee 视角 因为某服务的拓扑图反应的是所有和这个服务有关的数据 所以用 or 条件来查询
+        return (
+            [
+                {"key": "from_apm_service_name", "method": "eq", "value": [self.service_name]},
+                {"key": "to_apm_service_name", "method": "eq", "value": [self.service_name], "condition": "or"},
+            ]
+            if self.service_name
+            else []
+        )

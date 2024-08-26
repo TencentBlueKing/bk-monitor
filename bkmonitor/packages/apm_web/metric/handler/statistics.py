@@ -30,7 +30,7 @@ from apm_web.topo.handle import BaseQuery
 from apm_web.topo.handle.graph_query import GraphQuery
 
 # 请求数表格列
-from apm_web.utils import get_interval_number, merge_dicts
+from apm_web.utils import get_interval_number
 from core.unit import load_unit
 
 REQUEST_COUNT_COLUMNS = [
@@ -110,6 +110,15 @@ class Template:
 
     def value_convert(self, series):
         return self.unit(series)
+
+    @classmethod
+    def get_filter_dict(cls, service_name, option_kind):
+        # 因为全部都是 flow 指标 所以这里直接固定维度
+        if option_kind == "caller":
+            return {"from_apm_service_name": service_name}
+        if option_kind == "callee":
+            return {"to_apm_service_name": service_name}
+        return {}
 
 
 class ServiceMetricStatistics(BaseQuery):
@@ -257,7 +266,7 @@ class ServiceMetricStatistics(BaseQuery):
     virtual_service_name = _("其他服务")
 
     @classmethod
-    def get_template(cls, metric_name, kind, dimension):
+    def get_template(cls, metric_name, kind, dimension, service_name=None):
 
         dimension_metric = cls.template_mapping.get(metric_name, {}).get(dimension)
         if not dimension_metric:
@@ -269,14 +278,13 @@ class ServiceMetricStatistics(BaseQuery):
         dimension_metric = dimension_metric.get(kind)
         res = copy.deepcopy(dimension_metric)
         res.dimension = dimension
+        if service_name:
+            res.filter_dict.update(res.get_filter_dict(service_name, kind))
         return res
 
     def __init__(self, *args, **kwargs):
         super(ServiceMetricStatistics, self).__init__(*args, **kwargs)
         self.graph = GraphQuery(*args, **kwargs).create_graph()
-
-    def convert_to_condition(self, service_name):
-        return {"service_name": service_name} if service_name else {}
 
     def list(self, template: Template):
 
@@ -285,7 +293,7 @@ class ServiceMetricStatistics(BaseQuery):
                 self.application,
                 self.start_time,
                 self.end_time,
-                filter_dict=merge_dicts(self.filter_params, template.filter_dict),
+                filter_dict=template.filter_dict,
                 group_by=template.table_group_by,
                 interval=get_interval_number(self.start_time, self.end_time),
             ).get_range_values_mapping(ignore_keys=template.ignore_keys)
@@ -295,7 +303,7 @@ class ServiceMetricStatistics(BaseQuery):
                 self.application,
                 self.start_time,
                 self.end_time,
-                filter_dict=merge_dicts(self.filter_params, template.filter_dict),
+                filter_dict=template.filter_dict,
                 group_by=template.table_group_by,
                 where=[
                     {"key": "http_status_code", "method": "eq", "value": template.dimension},

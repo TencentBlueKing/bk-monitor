@@ -9,7 +9,7 @@
     {
       "id": 1,
       "title": "请求数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -163,15 +163,13 @@
         }
       ],
       "options": {
-        "time_series": {
-          "type": "bar"
-        }
+        "apm_metric": "request_count"
       }
     },
     {
       "id": 2,
       "title": "错误数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
         "y": 0,
@@ -342,9 +340,7 @@
         }
       ],
       "options": {
-        "time_series": {
-          "type": "bar"
-        }
+        "apm_metric": "error_count"
       }
     },
     {
@@ -356,7 +352,7 @@
         "w": 8,
         "h": 6
       },
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "targets": [
         {
           "data_type": "time_series",
@@ -687,7 +683,10 @@
             }
           }
         }
-      ]
+      ],
+      "options": {
+        "apm_metric": "avg_duration"
+      }
     },
     {
       "id": 4,
