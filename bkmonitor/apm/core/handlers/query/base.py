@@ -27,10 +27,62 @@ from django.utils.translation import ugettext_lazy as _
 from apm import types
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.utils.base import normalize_rt_id
+from bkmonitor.data_source import dict_to_q
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
+
+
+def dsl_to_filter_dict(query: Dict[str, Any], depth=1, width=1) -> Dict[str, Any]:
+    filter_dict: Dict[str, Any] = {}
+
+    if "nested" in query:
+        nested_query = query["nested"]
+        if "query" in nested_query:
+            return dsl_to_filter_dict(nested_query["query"], depth + 1, width)
+    elif "bool" in query:
+        bool_query = query["bool"]
+        for clause in ["must", "should"]:
+            if clause not in bool_query:
+                continue
+
+            sub_filters = [
+                dsl_to_filter_dict(sub_query, depth + 1, idx) for idx, sub_query in enumerate(bool_query[clause])
+            ]
+            is_all_query_string: bool = all(
+                [len(sub_filter.keys()) == 1 and "__" in list(sub_filter.keys())[0] for sub_filter in sub_filters]
+            )
+            for sub_filter in sub_filters:
+                if clause == "must":
+                    for field, values in sub_filter.items():
+                        if is_all_query_string and (field.startswith("wildcard")):
+                            filter_dict.setdefault(field, []).extend(values)
+                        else:
+                            filter_dict[field] = values
+                elif clause == "should":
+                    filter_dict.setdefault("or", []).append(sub_filter)
+    else:
+        op: str = ""
+        lookup: str = ""
+        child_query: Dict[str, Any] = {}
+        for op, lookup in {"query_string": "qs", "term": "eq", "wildcard": "include"}.items():
+            if op in query:
+                child_query = query[op]
+                break
+
+        if not op:
+            return filter_dict
+
+        if op == "query_string":
+            field: str = child_query["default_field"]
+            path, __ = field.split(".", 1)
+            filter_dict[f"{child_query['default_field']}__{path}__{lookup}__nested"] = [child_query["query"]]
+        else:
+            for field, value in child_query.items():
+                path, __ = field.split(".", 1)
+                filter_dict[f"{field}__{path}__{lookup}__nested"] = [value["value"]]
+    return filter_dict
 
 
 class FilterOperator:
@@ -184,6 +236,23 @@ class BaseQuery:
         return start_time, end_time
 
     @classmethod
+    def add_filters_from_dsl(cls, q: QueryConfigBuilder, dsl: Dict[str, Any]) -> QueryConfigBuilder:
+        logger.info("[add_query_string] dsl -> %s", dsl)
+        try:
+            filter_dict: Dict[str, Any] = dsl_to_filter_dict(dsl["query"])
+            logger.info("[add_query_string] filter_dict -> %s", filter_dict)
+            if filter_dict:
+                return q.filter(dict_to_q(filter_dict))
+        except KeyError:
+            pass
+        except Exception:
+            logger.exception("[add_query_string] failed to parse dsl -> %s", dsl)
+
+        query_string, nested_paths = cls.parse_query_string_from_dsl(dsl)
+        logger.info("[add_query_string] query_string -> %s, nested_paths -> %s", query_string, nested_paths)
+        return q.query_string(query_string, nested_paths)
+
+    @classmethod
     def parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, List[str]]:
         """
         【待废弃】在 dsl 中提取检索关键字，保留该逻辑主要是兼容前端的 lucene 查询，后续兼容不同 DB，该逻辑大概率会下掉
@@ -207,11 +276,7 @@ class BaseQuery:
                 nested_paths.append(should["nested"]["path"])
                 query_string = should["nested"]["query"]["query_string"]["query"]
             except KeyError:
-                try:
-                    # handle case: {'should': [{'query_string': {'query': 'ListTrace'}}]}
-                    return should["query_string"]["query"], []
-                except KeyError:
-                    continue
+                pass
 
         return query_string, nested_paths
 

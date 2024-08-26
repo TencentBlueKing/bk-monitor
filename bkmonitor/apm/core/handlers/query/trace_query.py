@@ -64,19 +64,15 @@ class TraceQuery(BaseQuery):
         es_dsl: Optional[Dict[str, Any]] = None,
         exclude_fields: Optional[List[str]] = None,
     ) -> Tuple[List[Dict[str, Any]], int]:
-
-        logger.info("[TraceQuery] list: es_dsl -> %s", es_dsl)
-
         all_fields: Set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
         select_fields: List[str] = list(
             all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
         )
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-        q: QueryConfigBuilder = (
-            self.q.filter(self.build_filters(filters) & self.build_app_filter())
-            .order_by(*(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"]))
-            .query_string(*self.parse_query_string_from_dsl(es_dsl))
+        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters) & self.build_app_filter()).order_by(
+            *(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
+        q = self.add_filters_from_dsl(q, es_dsl)
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
         return page_data["data"], page_data["total"]
 

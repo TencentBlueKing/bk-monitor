@@ -49,9 +49,8 @@ class OriginTraceQuery(BaseQuery):
     ):
         page_data: Dict[str, Union[int, List[str]]] = {}
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters)).query_string(
-            *self.parse_query_string_from_dsl(es_dsl)
-        )
+        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters))
+        q = self.add_filters_from_dsl(q, es_dsl)
 
         def _fill_total():
             _q: QueryConfigBuilder = q.metric(field=OtlpKey.TRACE_ID, method="distinct", alias="total")

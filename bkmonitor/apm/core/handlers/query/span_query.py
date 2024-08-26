@@ -42,17 +42,13 @@ class SpanQuery(BaseQuery):
         es_dsl: Optional[Dict[str, Any]] = None,
         exclude_fields: Optional[List[str]] = None,
     ) -> Tuple[List[Dict[str, Any]], int]:
-
-        logger.info("[SpanQuery] list: es_dsl -> %s", es_dsl)
-
         all_fields: Set[str] = {field_info["field_name"] for field_info in TraceDataSource.TRACE_FIELD_LIST}
         select_fields: List[str] = list(all_fields - set(exclude_fields or ["attributes", "links", "events"]))
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-        q: QueryConfigBuilder = (
-            self.q.filter(self.build_filters(filters))
-            .query_string(*self.parse_query_string_from_dsl(es_dsl))
-            .order_by(*(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"]))
+        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters)).order_by(
+            *(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
+        q = self.add_filters_from_dsl(q, es_dsl)
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.SPAN_ID, offset, limit)
         return page_data["data"], page_data["total"]
 

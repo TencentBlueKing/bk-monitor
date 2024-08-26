@@ -551,6 +551,22 @@ class SQLCompiler(compiler.SQLCompiler):
             and_map.setdefault("should", []).append({"wildcard": {field: "*{}*".format(value)}})
 
     @staticmethod
+    def _operate_nested(and_map, field: str, values):
+        field, path, lookup = field.rsplit("__", 2)
+
+        def _nested_query(_query: Dict[str, Any]):
+            return {"nested": {"path": path, "query": _query}}
+
+        if lookup == "qs":
+            for value in values:
+                and_map.setdefault("must", []).append(
+                    _nested_query({"query_string": {"query": value, "default_field": field}})
+                )
+        elif lookup == "eq" or lookup == "wildcard":
+            for value in values:
+                and_map.setdefault("must", []).append(_nested_query({lookup: {field: {"value": value}}}))
+
+    @staticmethod
     def _operate_exclude(and_map, field, values):
         for value in values:
             and_map.setdefault("must_not", []).append({"wildcard": {field: "*{}*".format(value)}})

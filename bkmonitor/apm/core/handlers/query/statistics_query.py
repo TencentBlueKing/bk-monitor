@@ -126,11 +126,10 @@ class StatisticsQuery(BaseQuery):
         es_dsl: Optional[Dict[str, Any]] = None,
     ):
         logic_fields, filters = self._parse_filters(filters)
-        q: QueryConfigBuilder = (
-            self.q.filter(self.build_filters(filters))
-            .query_string(*self.parse_query_string_from_dsl(es_dsl))
-            .order_by(*(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"]))
+        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters)).order_by(
+            *(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
+        q = self.add_filters_from_dsl(q, es_dsl)
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
         k = f"{query_mode}:{queryset.query.start_time}{queryset.query.end_time}{limit}{filters}{es_dsl}"
