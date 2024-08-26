@@ -118,6 +118,13 @@ class IncidentBaseResource(Resource):
                     "anomaly_count": self.get_anomaly_entity_count(entity),
                     "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
                     "is_on_alert": entity.is_on_alert,
+                    "alert_all_recorved": all(
+                        map(
+                            lambda alert_id: snapshot.alert_entity_mapping[alert_id].alert_status
+                            in (EventStatus.RECOVERED, EventStatus.CLOSED),
+                            alert_ids,
+                        )
+                    ),
                     "bk_biz_id": bk_biz_id,
                     "bk_biz_name": bk_biz_name,
                     "alert_ids": alert_ids,
