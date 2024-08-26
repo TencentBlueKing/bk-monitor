@@ -27,27 +27,45 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge } from '@antv/g6';
+import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 
-import CompareGraphTools from './compare-graph-tools';
+import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
 
-import './compare-topo-graph.scss';
-type CompareTopoGraphProps = {
+import './apm-relation-topo.scss';
+type ApmRelationTopoProps = {
   data: any;
   activeNode: string;
 };
 
-type CompareTopoGraphEvent = {
+type ApmRelationTopoEvent = {
   onNodeClick: (id: string) => void;
 };
 
+interface INodeModelConfig extends ModelConfig {
+  lineDash?: number[];
+  stroke?: string;
+  size?: number;
+}
+
+interface IEdgeModelConfig extends ModelConfig {
+  lineWidth?: number;
+  stroke?: string;
+  lineDash: number[];
+}
+
+// 节点hover阴影宽度
+const HoverCircleWidth = 13;
+
+const LIMIT_RADIAL_LAYOUT_COUNT = 700;
+const LIMIT_WORKER_ENABLED = 500;
+
 @Component
-export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, CompareTopoGraphEvent> {
+export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelationTopoEvent> {
   @Prop() data: any;
   @Prop() activeNode: string;
-  @Ref('compareTopoGraph') compareTopoGraphRef: HTMLDivElement;
+  @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('graphToolsPanel') graphToolsPanelRef: HTMLDivElement;
   @Ref('topoGraphContent') topoGraphContentRef: HTMLDivElement;
   @Ref('thumbnailTool') thumbnailToolRef: HTMLDivElement;
@@ -71,19 +89,79 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     height: 0,
   };
 
+  /** 布局基础配置 */
+  baseLayoutConf = {
+    center: [this.canvasWidth / 2, this.canvasHeight / 2], // 布局的中心
+    linkDistance: 400, // 边长度
+    maxIteration: 1000, // 最大迭代次数
+    preventOverlap: true, // 是否防止重叠
+    nodeSize: 40, // 节点大小（直径）
+    nodeSpacing: 500, // preventOverlap 为 true 时生效, 防止重叠时节点边缘间距的最小值
+  };
+
+  radialLayoutConf = {
+    ...this.baseLayoutConf,
+    type: 'radial',
+    maxPreventOverlapIteration: 1000, // 防止重叠步骤的最大迭代次数
+    unitRadius: 200, // 每一圈距离上一圈的距离
+    strictRadial: false, // 是否必须是严格的 radial 布局，及每一层的节点严格布局在一个环上。preventOverlap 为 true 时生效。
+  };
+
+  gForceLayoutConf = {
+    ...this.baseLayoutConf,
+    type: 'gForce',
+    linkDistance: 200,
+    nodeSpacing: 200,
+    maxIteration: 4000,
+    workerEnabled: true, // 可选，开启 web-worker
+  };
+
+  legendFilter = {
+    nodeColor: [
+      { color: '#2DCB56', label: '正常', id: 'success' },
+      { color: '#FF9C01', label: '错误率 < 10%', id: 'warning' },
+      { color: '#EA3636', label: '错误率 ≥ 10%', id: 'error' },
+      { color: '#DCDEE5', label: '无数据', id: 'empty' },
+    ],
+    nodeSize: [
+      {
+        id: 'small',
+        label: '请求数 0~200',
+      },
+      {
+        id: 'medium',
+        label: '请求数 200~1k',
+      },
+      {
+        id: 'large',
+        label: '请求数 1k 以上',
+      },
+    ],
+    durationList: [
+      { id: 'average', label: '平均耗时' },
+      { id: 'p99', label: 'P99 耗时' },
+      { id: 'p95', label: 'P95 耗时' },
+    ],
+  };
+
+  /** 图例筛选条件 */
+  legendFiltersSelect = {
+    status: '',
+    size: '',
+    lineType: 'request',
+    lineValue: '',
+  };
+
+  /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
-    return {
-      type: 'radial',
-      center: [this.canvasWidth / 2, this.canvasHeight / 2], // 布局的中心
-      linkDistance: 400, // 边长度
-      maxIteration: 1000, // 最大迭代次数
-      preventOverlap: true, // 是否防止重叠
-      nodeSize: 40, // 节点大小（直径）
-      nodeSpacing: 500, // preventOverlap 为 true 时生效, 防止重叠时节点边缘间距的最小值
-      maxPreventOverlapIteration: 1000, // 防止重叠步骤的最大迭代次数
-      unitRadius: 200, // 每一圈距离上一圈的距离
-      strictRadial: false, // 是否必须是严格的 radial 布局，及每一层的节点严格布局在一个环上。preventOverlap 为 true 时生效。
-    };
+    const curNodeLen = this.data?.nodes?.length || 0;
+    // 节点过多 使用 gForce 布局
+    if (curNodeLen > LIMIT_RADIAL_LAYOUT_COUNT) return this.gForceLayoutConf;
+    // 默认使用 radial 辐射布局
+    return Object.assign(this.radialLayoutConf, {
+      // 当节点数量大于 LIMIT_WORKER_ENABLED 开启
+      workerEnabled: curNodeLen > LIMIT_WORKER_ENABLED,
+    });
   }
 
   beforeDestroy() {
@@ -98,7 +176,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
 
   handleResize() {
     if (!this.graph || this.graph.get('destroyed')) return;
-    const { width, height } = (this.compareTopoGraphRef as HTMLDivElement).getBoundingClientRect();
+    const { width, height } = (this.relationGraphRef as HTMLDivElement).getBoundingClientRect();
     this.canvasWidth = width;
     this.canvasHeight = height;
     // 修改画布大小
@@ -118,12 +196,12 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
       this.graph = null;
     }
     setTimeout(() => {
-      const { width, height } = this.compareTopoGraphRef.getBoundingClientRect();
+      const { width, height } = this.relationGraphRef.getBoundingClientRect();
       this.canvasWidth = width;
       this.canvasHeight = height - 6;
       // 自定义节点
       G6.registerNode(
-        'compare-custom-node',
+        'apm-custom-node',
         {
           /**
            * 绘制节点，包含文本
@@ -131,7 +209,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
            * @param  {G.Group} group 图形分组，节点中图形对象的容器
            * @return {G.Shape} 返回一个绘制的图形作为 keyShape，通过 node.get('keyShape') 可以获取。
            */
-          draw: (cfg: ModelConfig, group: IGroup) => this.drawNode(cfg, group),
+          draw: (cfg: INodeModelConfig, group: IGroup) => this.drawNode(cfg, group),
           /**
            * 设置节点的状态，主要是交互状态，业务状态请在 draw 方法中实现
            * 单图形的节点仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
@@ -145,7 +223,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
       );
       // 自定义边
       G6.registerEdge(
-        'compare-line-dash',
+        'apm-line-dash',
         {
           /**
            * 绘制边，包含文本
@@ -153,7 +231,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
            * @param  {G.Group} group 图形分组，边中的图形对象的容器
            * @return {G.Shape} 绘制的图形，通过 node.get('keyShape') 可以获取到
            */
-          draw: (cfg, group) => this.drawLine(cfg, group),
+          afterDraw: (cfg: IEdgeModelConfig, group) => this.afterDrawLine(cfg, group),
           /**
            * 设置边的状态，主要是交互状态，业务状态请在 draw 方法中实现
            * 单图形的边仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
@@ -172,7 +250,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
       });
       const plugins = [minimap];
       this.graph = new G6.Graph({
-        container: this.compareTopoGraphRef as HTMLElement, // 指定挂载容器
+        container: this.relationGraphRef as HTMLElement, // 指定挂载容器
         width: this.canvasWidth,
         height: this.canvasHeight,
         minZoom: this.minZoomVal, // 画布最小缩放比例
@@ -191,16 +269,23 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         layout: { ...this.graphLayout },
         defaultEdge: {
           // 边的配置
-          type: 'compare-line-dash',
-          style: {
-            stroke: '#C4C6CC',
-            lineWidth: 1,
-            lineDash: [4, 4],
+          type: 'apm-line-dash',
+          labelCfg: {
+            autoRotate: true,
+            style: {
+              fontSize: 10,
+              color: '#63656E',
+              background: {
+                fill: '#F0F1F5',
+                padding: [2, 4, 2, 4],
+                radius: 2,
+              },
+            },
           },
         },
         defaultNode: {
           // 节点配置
-          type: 'compare-custom-node',
+          type: 'apm-custom-node',
         },
         plugins,
       });
@@ -211,16 +296,27 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     }, 30);
   }
 
-  drawNode(cfg: ModelConfig, group: IGroup) {
-    // 节点基础结构
+  drawNode(cfg: INodeModelConfig, group: IGroup) {
+    const { size = 36 } = cfg;
+
     group.addShape('circle', {
       attrs: {
-        fill: '#fff', // 填充颜色,
-        stroke: '#DCDEE5', // 描边颜色
-        lineWidth: 2, // 描边宽度
-        r: 35,
+        fill: '#EAEBF0',
+        r: size,
         cursor: 'pointer',
-        lineDash: (cfg.lineDash as number[]) || [],
+      },
+      name: 'custom-node-hover-circle',
+    });
+
+    // 节点基础结构
+    const keyShape = group.addShape('circle', {
+      attrs: {
+        fill: '#fff', // 填充颜色,
+        stroke: cfg.stroke || '#2DCB56', // 描边颜色
+        lineWidth: 4, // 描边宽度
+        r: size,
+        cursor: 'pointer',
+        lineDash: cfg.lineDash || [],
       },
       name: 'custom-node-keyShape',
     });
@@ -228,8 +324,8 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     group.addShape('circle', {
       attrs: {
         stroke: '#3A84FF', // 描边颜色
-        lineWidth: 4, // 描边宽度
-        r: 38,
+        lineWidth: 6, // 描边宽度
+        r: size + 6,
         opacity: 0.2,
         cursor: 'pointer',
       },
@@ -240,8 +336,8 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     group.addShape('circle', {
       attrs: {
         stroke: '#3A84FF', // 描边颜色
-        lineWidth: 4, // 描边宽度
-        r: 42,
+        lineWidth: 6, // 描边宽度
+        r: size + 12,
         opacity: 0.1,
         cursor: 'pointer',
       },
@@ -249,17 +345,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
       name: 'custom-node-active-circle',
     });
 
-    const keyShape = group.addShape('circle', {
-      zIndex: -1,
-      attrs: {
-        fill: '#EAEBF0',
-        r: 36,
-        cursor: 'pointer',
-      },
-      name: 'custom-node-hover-circle',
-    });
-
-    if (cfg.topoType === 'icon') {
+    if (cfg.icon) {
       group.addShape('image', {
         attrs: {
           x: -12,
@@ -270,83 +356,6 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
           cursor: 'pointer',
         },
         name: 'node-icon',
-      });
-    } else {
-      // 对比值
-      const compareValueText = group.addShape('text', {
-        attrs: {
-          x: 0,
-          y: -3,
-          text: (cfg.compareValue as number) >= 0 ? `+${cfg.compareValue}` : cfg.compareValue,
-          fill: (cfg.compareValue as number) >= 0 ? '#EA3636' : '#00B02E', // 填充颜色,
-          fontSize: 18,
-          fontWeight: 700,
-          lineHeight: 20,
-          cursor: 'pointer',
-        },
-        name: 'compare-value',
-      });
-      const compareValueBox = compareValueText.getBBox();
-      compareValueText.attr({
-        x: -compareValueBox.width + 9.5,
-      });
-      group.addShape('text', {
-        attrs: {
-          x: 12,
-          y: -4,
-          text: '%',
-          fill: (cfg.compareValue as number) >= 0 ? '#EA3636' : '#00B02E', // 填充颜色,
-          fontSize: 12,
-          lineHeight: 20,
-          cursor: 'pointer',
-        },
-        name: 'compare-value-unit',
-      });
-
-      group.addShape('circle', {
-        attrs: {
-          x: -20,
-          y: 10,
-          fill: '#FF9C01',
-          r: 3,
-          cursor: 'pointer',
-        },
-      });
-
-      group.addShape('text', {
-        attrs: {
-          x: -15,
-          y: 17,
-          text: cfg.number1,
-          fill: '#63656E', // 填充颜色,
-          fontSize: 12,
-          lineHeight: 20,
-          cursor: 'pointer',
-        },
-        name: 'value1',
-      });
-
-      group.addShape('circle', {
-        attrs: {
-          x: 7,
-          y: 10,
-          fill: '#7B29FF',
-          r: 3,
-          cursor: 'pointer',
-        },
-      });
-
-      group.addShape('text', {
-        attrs: {
-          x: 12,
-          y: 17,
-          text: cfg.number2,
-          fill: '#63656E', // 填充颜色,
-          fontSize: 12,
-          lineHeight: 20,
-          cursor: 'pointer',
-        },
-        name: 'value2',
       });
     }
 
@@ -366,32 +375,23 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
       name: 'text-shape',
     });
 
-    group.sort();
-
     return keyShape;
   }
 
-  /**
-   * 绘制边，包含文本
-   * @param  {Object} cfg 边的配置项
-   * @param  {G.Group} group 图形分组，边中的图形对象的容器
-   * @return {G.Shape} 绘制的图形，通过 node.get('keyShape') 可以获取到
-   */
-  drawLine(cfg, group: IGroup) {
+  afterDrawLine(cfg: IEdgeModelConfig, group: IGroup) {
+    const { lineWidth = 1, stroke = '#C4C6CC', lineDash = [4, 4] } = cfg;
     const endArrow = {
-      path: G6.Arrow.triangle(10, 10, -10), // 路径
+      path: G6.Arrow.triangle(10, 10, 0), // 路径
       fill: '#C4C6CC', // 填充颜色
     };
+    const shape: IShape = group.get('children')[0];
 
-    const keyShape = group.addShape('path', {
-      attrs: {
-        path: G6.Arrow.triangle(10, 10, -10), // 路径
-        endArrow,
-      },
-      name: 'edge-shape',
+    shape.attr({
+      lineWidth,
+      stroke,
+      lineDash,
+      endArrow,
     });
-
-    return keyShape;
   }
 
   bindListener(graph: Graph) {
@@ -417,6 +417,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
 
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
+    const { size = 36 } = item.getModel() as INodeModelConfig;
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
       item.toBack();
@@ -424,7 +425,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         hoverCircle.animate(
           radio => {
             return {
-              r: 36 + radio * 8,
+              r: size + radio * HoverCircleWidth,
             };
           },
           {
@@ -435,7 +436,7 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         hoverCircle.animate(
           radio => {
             return {
-              r: 36 + (1 - radio) * 8,
+              r: size + (1 - radio) * HoverCircleWidth,
             };
           },
           { duration: 300 }
@@ -447,33 +448,37 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
       const activeCircle = group.findAll(e => e.get('name') === 'custom-node-active-circle');
       hoverCircle.stopAnimate();
       hoverCircle.attr({
-        r: 36,
+        r: size,
       });
       for (const shape of activeCircle) {
         value ? shape.show() : shape.hide();
       }
       if (value) {
         const allEdges = this.graph.getEdges();
-        const relatedEdges = new Set(this.findAllNodeEdge(item, 'all'));
+        const nodeEdges = item.getEdges();
         for (const edge of allEdges) {
-          edge.setState('active', relatedEdges.has(edge));
+          edge.setState('active', nodeEdges.includes(edge));
         }
       }
+    }
+
+    if (name === 'disabled') {
     }
   }
 
   setEdgeState(name: string, value: boolean | string, item: IEdge) {
     const group = item.get('group');
+
     if (name === 'active') {
-      const keyShape = group.find(ele => ele.get('name') === 'edge-shape');
+      const keyShape: IShape = group.find(ele => ele.get('name') === 'edge-shape');
       if (value) {
         let index = 0; // 边 path 图形的动画
         // 设置边动画
         keyShape.animate(
           () => {
-            index += 1;
+            index += 0.5;
             if (index > 8) index = 0;
-            return { lineDashOffset: -index };
+            return { lineDash: [4, 4], lineDashOffset: -index };
           },
           {
             repeat: true,
@@ -492,39 +497,17 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
         });
       } else {
         keyShape.stopAnimate();
+        console.log(keyShape.attr());
         keyShape.attr({
           stroke: '#C4C6CC',
-          endArrow: {
-            path: G6.Arrow.triangle(10, 10, 0),
-            fill: '#C4C6CC', // 填充颜色
-          },
+          lineDashOffset: 0,
+        });
+        keyShape.attr('endArrow', {
+          ...keyShape.attr('endArrow'),
+          fill: '#C4C6CC', // 填充颜色
         });
       }
     }
-  }
-
-  /**
-   * 找到节点上下游所有层级的边
-   * @param node  节点
-   * @Param direction 遍历方向
-   * @returns  边
-   */
-  findAllNodeEdge(node: INode, direction: 'all' | 'down' | 'up') {
-    const edges = [];
-    if (direction !== 'down') {
-      for (const edge of node.getInEdges()) {
-        edges.push(edge);
-        edges.push(...this.findAllNodeEdge(edge.getSource(), 'up'));
-      }
-    }
-    if (direction !== 'up') {
-      for (const edge of node.getOutEdges()) {
-        edges.push(edge);
-        edges.push(...this.findAllNodeEdge(edge.getTarget(), 'down'));
-      }
-    }
-
-    return edges;
   }
 
   handleDownloadImage() {
@@ -552,8 +535,8 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     this.showThumbnail = false;
     if (this.showLegend) {
       this.graphToolsRect = {
-        width: 260,
-        height: 128,
+        width: 416,
+        height: 237,
       };
       this.initToolsPopover();
     } else {
@@ -605,6 +588,35 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
     this.toolsPopoverInstance.show();
   }
 
+  handleNodeColorChange(value: string) {
+    if (this.legendFiltersSelect.status === value) {
+      this.legendFiltersSelect.status = '';
+    } else {
+      this.legendFiltersSelect.status = value;
+    }
+  }
+
+  handleNodeSizeChange(value: string) {
+    if (this.legendFiltersSelect.size === value) {
+      this.legendFiltersSelect.size = '';
+    } else {
+      this.legendFiltersSelect.size = value;
+    }
+  }
+
+  handleLineTypeChange(type: string) {
+    if (this.legendFiltersSelect.lineType === type) return;
+    this.legendFiltersSelect.lineType = type;
+  }
+
+  handleDurationChange(value: string) {
+    if (this.legendFiltersSelect.lineValue === value) {
+      this.legendFiltersSelect.lineValue = '';
+    } else {
+      this.legendFiltersSelect.lineValue = value;
+    }
+  }
+
   reset() {
     this.showLegend = false;
     this.showThumbnail = false;
@@ -613,9 +625,9 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
 
   render() {
     return (
-      <div class='compare-topo-graph'>
+      <div class='apm-relation-topo'>
         <div
-          ref='compareTopoGraph'
+          ref='relationGraph'
           class='graph-wrap'
         />
         <div
@@ -655,24 +667,118 @@ export default class CompareTopoGraph extends tsc<CompareTopoGraphProps, Compare
                 }}
                 class='topo-graph-legend'
               >
-                <div class='left-legend'>
-                  <div class='legend-item success'>{this.$t('正常')}</div>
-                  <div class='legend-item warn'>{this.$t('错误率 < 10%')}</div>
-                  <div class='legend-item error'>{this.$t('错误率 ≥ 10%')}</div>
-                  <div class='legend-item empty'>{this.$t('无数据')}</div>
+                <div class='filter-category'>
+                  <div class='filter-title'>{this.$t('节点颜色')}</div>
+                  <div class='filter-list node-color'>
+                    {this.legendFilter.nodeColor.map(item => (
+                      <div
+                        key={item.id}
+                        class={{
+                          'color-item': true,
+                          active: this.legendFiltersSelect.status === item.id || !this.legendFiltersSelect.status,
+                        }}
+                        onClick={() => this.handleNodeColorChange(item.id)}
+                      >
+                        <div
+                          style={{
+                            background:
+                              this.legendFiltersSelect.status && this.legendFiltersSelect.status !== item.id
+                                ? '#ccc'
+                                : item.color,
+                          }}
+                          class='color-mark'
+                        />
+                        {item.label}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div class='right-legend'>
-                  <bk-radio-group>
-                    <div class='legend-item'>
-                      <bk-radio value='1'>0~200</bk-radio>
+                <div class='filter-category'>
+                  <div class='filter-title'>{this.$t('节点大小')}</div>
+                  <div class='filter-list node-size'>
+                    {this.legendFilter.nodeSize.map(item => (
+                      <div
+                        key={item.id}
+                        class='node-item'
+                        onClick={() => this.handleNodeSizeChange(item.id)}
+                      >
+                        <div
+                          class={{
+                            radio: true,
+                            active: this.legendFiltersSelect.size === item.id,
+                          }}
+                        />
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div class='filter-category'>
+                  <div class='filter-title line'>
+                    {this.$t('连接线')}
+                    <div class='line-type'>
+                      <div
+                        class={{ active: this.legendFiltersSelect.lineType === 'request' }}
+                        onClick={() => this.handleLineTypeChange('request')}
+                      >
+                        {this.$t('请求量')}
+                      </div>
+                      <div
+                        class={{ active: this.legendFiltersSelect.lineType === 'duration' }}
+                        onClick={() => this.handleLineTypeChange('duration')}
+                      >
+                        {this.$t('耗时')}
+                      </div>
                     </div>
-                    <div class='legend-item'>
-                      <bk-radio value='2'>200~1k</bk-radio>
-                    </div>
-                    <div class='legend-item'>
-                      <bk-radio value='3'>1k 以上</bk-radio>
-                    </div>
-                  </bk-radio-group>
+                  </div>
+                  <div class='filter-list connect-line'>
+                    {this.legendFiltersSelect.lineType === 'request'
+                      ? [
+                          <div
+                            key='1'
+                            class='request-item'
+                          >
+                            <div class='flow-block'>
+                              {new Array(10).fill(null).map((_, index) => (
+                                <div
+                                  key={index}
+                                  class='seldom'
+                                />
+                              ))}
+                            </div>
+                            {this.$t('请求量少')}
+                          </div>,
+                          <div
+                            key='2'
+                            class='request-item'
+                          >
+                            <div class='flow-block'>
+                              {new Array(7).fill(null).map((_, index) => (
+                                <div
+                                  key={index}
+                                  class='many'
+                                />
+                              ))}
+                            </div>
+                            {this.$t('请求量多')}
+                          </div>,
+                        ]
+                      : this.legendFilter.durationList.map(item => (
+                          <div
+                            key={item.id}
+                            class='duration-item'
+                            onClick={() => this.handleDurationChange(item.id)}
+                          >
+                            <div
+                              class={{
+                                radio: true,
+                                active: this.legendFiltersSelect.lineValue === item.id,
+                              }}
+                            />
+                            <span>{item.label}</span>
+                          </div>
+                        ))}
+                  </div>
                 </div>
               </div>
             </div>

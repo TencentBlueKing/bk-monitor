@@ -72,6 +72,7 @@ interface IProps {
   dataType?: EDataType;
   panelTitle?: string;
   dimensions?: string[];
+  pointValueUnit?: string;
   onClose?: () => void;
 }
 
@@ -89,6 +90,7 @@ export default class DetailsSide extends tsc<IProps> {
   @Prop({ type: String, default: '' }) dataType: EDataType;
   @Prop({ type: Array, default: () => [] }) dimensions: string[];
   @Prop({ type: String, default: '' }) panelTitle: string;
+  @Prop({ type: String, default: '' }) pointValueUnit: string;
 
   loading = false;
   sourceTableData = [];
@@ -98,7 +100,7 @@ export default class DetailsSide extends tsc<IProps> {
   timezone: string = getDefaultTimezone();
   /* 主体切换 */
   selectOptions = [];
-  selected = '';
+  selected = 'default';
   /* 类型切换 */
   typeOptions = [
     { id: EOptionKind.caller, name: window.i18n.tc('主调') },
@@ -145,6 +147,8 @@ export default class DetailsSide extends tsc<IProps> {
 
   chartGroupId = random(8);
 
+  tableKey = random(8);
+
   sortInfo = {
     prop: '',
     order: '',
@@ -152,6 +156,13 @@ export default class DetailsSide extends tsc<IProps> {
 
   get showSelectOptions() {
     return this.dataType !== EDataType.requestCount;
+  }
+
+  get unit() {
+    if (this.pointValueUnit === 'number') {
+      return '';
+    }
+    return this.pointValueUnit || '';
   }
 
   initData() {
@@ -176,6 +187,12 @@ export default class DetailsSide extends tsc<IProps> {
     this.referX = 0;
     this.pointType = EPointType.compare;
     this.localTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+    this.sortInfo = {
+      prop: '',
+      order: '',
+    };
+    this.tableColumns = [];
+    this.tableData = [];
   }
 
   created() {
@@ -189,7 +206,6 @@ export default class DetailsSide extends tsc<IProps> {
   @Watch('show')
   handleWatchShow(val: boolean) {
     if (val) {
-      this.initData();
       if (this.dataType === EDataType.requestCount) {
         this.selectOptions = [];
       } else {
@@ -213,6 +229,8 @@ export default class DetailsSide extends tsc<IProps> {
         this.selectOptions = dimensions;
       }
       this.getData();
+    } else {
+      this.initData();
     }
   }
 
@@ -221,6 +239,7 @@ export default class DetailsSide extends tsc<IProps> {
    */
   async getData() {
     this.loading = true;
+    this.tableKey = random(8);
     const [startTime, endTime] = handleTransformToTimestamp(this.localTimeRange);
     const data = await metricDetailStatistics({
       app_name: this.appName,
@@ -305,8 +324,11 @@ export default class DetailsSide extends tsc<IProps> {
         if (referCount === 0 && compareCount) {
           diffCount = 1;
         }
+        if (compareCount === 0 && referCount) {
+          diffCount = -1;
+        }
       }
-      const unit = item?.[this.dataType]?.unit || '';
+      const unit = this.unit;
       return {
         [EColumn.Chart]: pointData,
         [EColumn.CompareCount]: unit
@@ -324,12 +346,12 @@ export default class DetailsSide extends tsc<IProps> {
         [EColumn.DiffCount]: diffCount,
       };
     };
-    let filterTableData = this.sourceTableData.map(item => {
+    let filterTableData = this.sourceTableData.map((item, index) => {
       const diffItems = diffItemFn(item);
       return {
         ...item,
         ...diffItems,
-        id: random(8),
+        id: `${this.tableKey}_${index}`,
         [EColumn.ServerName]: {
           ...item[EColumn.ServerName],
           disabledClick: !item[EColumn.ServerName]?.url,
@@ -485,6 +507,9 @@ export default class DetailsSide extends tsc<IProps> {
   handleCompareXChange(value: number) {
     this.compareX = value;
     this.setCompareTimes('compare', value);
+    if (this.pointType === EPointType.end) {
+      this.getTableData();
+    }
   }
   /**
    * @description 设置参照点
@@ -493,6 +518,9 @@ export default class DetailsSide extends tsc<IProps> {
   handleReferXChange(value: number) {
     this.referX = value;
     this.setCompareTimes('refer', value);
+    if (this.pointType === EPointType.end) {
+      this.getTableData();
+    }
   }
 
   setCompareTimes(type, value) {
@@ -584,6 +612,7 @@ export default class DetailsSide extends tsc<IProps> {
    */
   handleSortChange(sortInfo) {
     this.sortInfo = sortInfo;
+    this.pagination.current = 1;
     this.getTableData();
   }
 
@@ -711,6 +740,7 @@ export default class DetailsSide extends tsc<IProps> {
                         groupId={this.chartGroupId}
                         pointType={this.pointType}
                         referX={this.referX}
+                        unit={this.unit}
                         valueTitle={this.panelTitle}
                         onCompareXChange={this.handleCompareXChange}
                         onPointTypeChange={this.handlePointTypeChange}

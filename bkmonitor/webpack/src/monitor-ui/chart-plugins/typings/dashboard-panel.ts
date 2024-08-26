@@ -376,13 +376,14 @@ export interface IRelatedLogChartoption {
 }
 
 export interface IApmTimeSeriesOption {
-  apm_metric?: string; // apm视图指标
-  apmParams?: {
+  apm_time_series?: {
+    unit?: string; // 详情单位
+    metric?: string;
     app_name?: string;
     service_name?: string;
+    enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
   };
-  enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
-  enableContextmenu?: boolean; // 是否开启全局的右键菜单
 }
 
 // 视图特殊配置

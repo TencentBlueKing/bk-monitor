@@ -63,7 +63,6 @@ export default class CompareGraphTools extends tsc<CompareGraphToolsProps, Compa
 
   @Emit('scaleChange')
   handleScaleChange(scale: number) {
-    console.log('scale', scale);
     if (scale > this.maxScale) {
       return this.maxScale;
     }
