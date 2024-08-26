@@ -1494,7 +1494,7 @@ class TestCustomEventDataSource:
                         }
                     }
                 },
-                "size": 0,
+                "size": 1,
                 "sort": [{"time": "desc"}],
             },
         }
@@ -1756,7 +1756,7 @@ class TestBkApmTraceDataSource:
                         "should": [{"bool": {"must": [{"terms": {"parent_span_id": [""]}}]}}],
                     }
                 },
-                "size": 0,
+                "size": 1,
                 "sort": [{"end_time": "desc"}],
             },
             "table_id": "2_bkapm_trace_app",
