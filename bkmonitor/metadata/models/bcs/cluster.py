@@ -324,7 +324,7 @@ class BCSClusterInfo(models.Model):
                 register_info["datasource_name"].lower(), is_fed_cluster=is_fed_cluster
             )
 
-            dataid_config = self.make_config(register_info)
+            dataid_config = self.make_config(register_info, is_fed_cluster)
             # 检查k8s集群里是否已经存在对应resource
             if datasource_name_lower not in resource_items.keys():
                 # 如果k8s_resource不存在，则增加
@@ -353,7 +353,7 @@ class BCSClusterInfo(models.Model):
         self.server_address_path = server_address_path
         self.save()
 
-    def make_config(self, item) -> dict:
+    def make_config(self, item, is_fed_cluster) -> dict:
         # 获取全局的replace配置
         replace_config = ReplaceConfig.get_common_replace_config()
         cluster_replace_config = ReplaceConfig.get_cluster_replace_config(cluster_id=self.cluster_id)
@@ -374,7 +374,7 @@ class BCSClusterInfo(models.Model):
             "apiVersion": f"{config.BCS_RESOURCE_GROUP_NAME}/{config.BCS_RESOURCE_VERSION}",
             "kind": f"{config.BCS_RESOURCE_DATA_ID_RESOURCE_KIND}",
             "metadata": {
-                "name": self.compose_dataid_resource_name(item["datasource_name"].lower()),
+                "name": self.compose_dataid_resource_name(item["datasource_name"].lower(), is_fed_cluster),
                 "labels": self.compose_dataid_resource_label(labels),
             },
             "spec": {

@@ -6,6 +6,8 @@ gevent==22.10.2
 Django==3.2.15
 django-mysql==4.3.0
 
+django-db-connection-pool==1.2.5
+
 # prometheus & django
 prometheus-client==0.16.0
 django-prometheus==2.2.0

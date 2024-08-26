@@ -77,6 +77,13 @@ INSTALLED_APPS += (
     'bk_notice_sdk',
 )
 
+
+# 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
+ensure_csrf_cookie = "django.views.decorators.csrf._EnsureCsrfCookie"
+# 切换backend一段时候后， 再使用如下配置进行csrf保护
+csrf_protect = "django.middleware.csrf.CsrfViewMiddleware"
+
+
 MIDDLEWARE = (
     "bkmonitor.middlewares.pyinstrument.ProfilerMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsBeforeMiddleware",  # 必须放到最前面
@@ -85,7 +92,8 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.request_middlewares.RequestProvider",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
+    ensure_csrf_cookie,
     "weixin.core.middlewares.WeixinProxyPatchMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -238,6 +246,10 @@ if USE_DJANGO_CACHE_REDIS:
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_PATH = SITE_URL
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
+if USE_DJANGO_CACHE_REDIS:
+    # 配置redis缓存后， 使用缓存存session
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "redis"
 SESSION_COOKIE_NAME = APP_CODE + "_sessionid"
 
 #
@@ -379,6 +391,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "monitor_api.pagination.MonitorAPIPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_PERMISSION_CLASSES": ("monitor_web.permissions.BusinessViewPermission",),
+    # CSRF 豁免期， drf同样豁免
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.BasicAuthentication",
+        "bkm_ipchooser.authentication.CsrfExemptSessionAuthentication",
+    ),
 }
 
 #

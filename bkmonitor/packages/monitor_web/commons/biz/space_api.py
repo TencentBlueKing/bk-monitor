@@ -50,6 +50,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             params.update({"space_uid": space_uid})
         else:
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
+        # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
+        ret: List[SpaceDefine] = local_mem.get("metadata:spaces_map", None)
+        if ret is not None and "space_uid" in params:
+            space = ret.get(params["space_uid"])
+            if space is not None:
+                return space
         space_info = api.metadata.get_space_detail(**params)
         return cls._init_space(space_info)
 
@@ -65,6 +71,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 for space_dict in cls.list_spaces_dict(using_cache=False)
             ]
             local_mem.set("metadata:list_spaces", ret, timeout=600)
+            local_mem.set("metadata:spaces_map", {space.space_uid: space for space in ret}, timeout=600)
         return ret
 
     @classmethod

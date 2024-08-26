@@ -50,25 +50,21 @@ class ExternalPermission(AbstractRecordModel):
         db_table = "external_permission"
         index_together = (("authorized_user", "action_id", "bk_biz_id"),)
 
-    @property
-    def status(self):
+    def get_status(self, authorizer_role):
         from bk_dataview.permissions import GrafanaRole
-        from monitor.models import GlobalConfig
-        from monitor_web.grafana.permissions import DashboardPermission
 
         status = "available"
+
+        # 判断是否过期
         if self.expire_time and timezone.now() > self.expire_time:
             status = "expired"
-        authorizer_map = GlobalConfig.objects.get(key="EXTERNAL_AUTHORIZER_MAP").value
-        if str(self.bk_biz_id) not in authorizer_map:
-            return status
 
-        authorizer = authorizer_map[str(self.bk_biz_id)]
-        _, role, _ = DashboardPermission.get_user_permission(authorizer, str(self.bk_biz_id))
-
-        if (self.action_id == "view_grafana" and role < GrafanaRole.Viewer) or (
-            self.action_id == "manage_grafana" and role < GrafanaRole.Editor
-        ):
+        # 判断授权人权限是否满足
+        if self.action_id == "view_grafana":
+            need_role = GrafanaRole.Viewer
+        else:
+            need_role = GrafanaRole.Editor
+        if not authorizer_role or need_role > authorizer_role:
             status = "invalid"
 
         return status
