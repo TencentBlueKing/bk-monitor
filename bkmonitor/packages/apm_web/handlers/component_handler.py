@@ -12,6 +12,7 @@ import json
 import logging
 
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -40,6 +41,13 @@ class ComponentHandler:
             "value": ["{predicate_value}"],
             "condition": "and",
         },
+    }
+    filed_to_dimension_mapping = {
+        "attributes.db.system": "db_system",
+        "attributes.messaging.system": "messaging_system",
+        "attributes.net.peer.name": "net_peer_name",
+        "attributes.net.peer.ip": "net_peer_ip",
+        "attributes.net.peer.port": "net_peer_port",
     }
 
     unify_query_operator = {"method": "eq"}
@@ -169,11 +177,51 @@ class ComponentHandler:
         return res
 
     @classmethod
+    def build_component_filter_es_query_dict(
+        cls, query, bk_biz_id, app_name, service_name, filter_params, component_instance_id=None
+    ):
+        """构建组件的 ES 查询参数"""
+        cls.build_component_filter_params(
+            bk_biz_id,
+            app_name,
+            service_name,
+            filter_params,
+            component_instance_id=component_instance_id,
+        )
+
+        for f in filter_params:
+            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
+
+        return query
+
+    @classmethod
+    def get_component_metric_filter_params(cls, bk_biz_id, app_name, service_name, component_instance_id=None):
+        """构建组件节点的指标查询参数"""
+        # 指标查询里面不一定所有 attributes 都是维度 这里如果包含了实例 id 尽量将有维度的都放入条件中
+
+        filter_params = []
+        cls.build_component_filter_params(
+            bk_biz_id,
+            app_name,
+            service_name,
+            filter_params,
+            component_instance_id,
+        )
+        res = []
+        for item in filter_params:
+            dimension = cls.filed_to_dimension_mapping.get(item["key"])
+            if not dimension:
+                continue
+            res.append({"key": dimension, "method": "eq", "value": item["value"]})
+
+        return res
+
+    @classmethod
     def build_component_filter_params(
         cls, bk_biz_id, app_name, service_name, filter_params, component_instance_id=None
     ):
         """
-        构件组件节点的查询参数
+        构件组件节点的APM API查询参数
         filter_params: [{key: "", op: "", value:[]}]
         """
         component_node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)

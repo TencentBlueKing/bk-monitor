@@ -25,6 +25,7 @@ from django.db.models import Count, Q
 from django.db.transaction import atomic
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Search
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
@@ -101,7 +102,7 @@ from apm_web.service.serializers import (
     LogServiceRelationOutputSerializer,
 )
 from apm_web.trace.service_color import ServiceColorClassifier
-from apm_web.utils import group_by, span_time_strft
+from apm_web.utils import get_interval, group_by, span_time_strft
 from bkmonitor.iam import ActionEnum
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.ip import is_v6
@@ -1169,47 +1170,47 @@ class QueryExceptionEventResource(PageListResource):
     def get_operator(self):
         return _("查看")
 
-    def perform_request(self, validated_request_data):
-        filter_params = build_filter_params(validated_request_data["filter_params"])
+    def perform_request(self, validated_data):
+        filter_params = build_filter_params(validated_data["filter_params"])
         service_name = get_service_from_params(filter_params)
         if service_name:
             node = ServiceHandler.get_node(
-                validated_request_data["bk_biz_id"],
-                validated_request_data["app_name"],
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
                 service_name,
             )
             # 如果是组件 增加查询参数
             if ComponentHandler.is_component_by_node(node):
                 DbComponentHandler.build_component_filter_params(
-                    validated_request_data["bk_biz_id"],
-                    validated_request_data["app_name"],
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
                     service_name,
                     filter_params,
-                    validated_request_data.get("component_instance_id"),
+                    validated_data.get("component_instance_id"),
                 )
                 db_system_filter = DbComponentHandler.build_db_system_param(category=node["extra_data"]["category"])
                 filter_params.extend(db_system_filter)
+            else:
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
         events = api.apm_api.query_event(
             {
-                "app_name": validated_request_data["app_name"],
-                "bk_biz_id": validated_request_data["bk_biz_id"],
-                "start_time": validated_request_data["start_time"],
-                "end_time": validated_request_data["end_time"],
+                "app_name": validated_data["app_name"],
+                "bk_biz_id": validated_data["bk_biz_id"],
+                "start_time": validated_data["start_time"],
+                "end_time": validated_data["end_time"],
                 "name": [self.EXCEPTION_EVENT_TYPE],
                 "filter_params": filter_params,
             }
         )
         res = []
         for event in events:
-            title = (
-                f"{datetime.datetime.fromtimestamp(int(event['timestamp']) // 1000000).strftime('%Y-%m-%d %H:%M:%S')}  "
-                f"{event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, 'unknown')}"
-            )
+            exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, "unknown")
             res.append(
                 {
-                    "title": title,
-                    "subtitle": event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_STACKTRACE),
+                    "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
+                    "subtitle": event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_MESSAGE, ""),
                     "content": event.get(OtlpKey.ATTRIBUTES, {})
                     .get(SpanAttributes.EXCEPTION_STACKTRACE, "")
                     .split("\n"),
@@ -1220,7 +1221,7 @@ class QueryExceptionEventResource(PageListResource):
         res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
         for index, r in enumerate(res, 1):
             r["id"] = index
-        return self.get_pagination_data(res, validated_request_data)
+        return self.get_pagination_data(res, validated_data)
 
 
 class MetaConfigInfoResource(Resource):
@@ -2080,8 +2081,9 @@ class QueryEndpointStatisticsResource(PageListResource):
                 )
                 is_component = True
             else:
-                if "resource.service.name" in validated_data.get("filter_params", {}):
-                    uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
+                uri_queryset.filter(service_name=service_name)
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
         buckets = api.apm_api.query_span(
             {
@@ -2164,20 +2166,28 @@ class QueryExceptionDetailEventResource(PageListResource):
         filter_params = self.build_filter_params(validated_data["filter_params"])
         service_name = get_service_from_params(filter_params)
         if service_name:
-            ComponentHandler.build_component_filter_params(
+            node = ServiceHandler.get_node(
                 validated_data["bk_biz_id"],
                 validated_data["app_name"],
                 service_name,
-                filter_params,
-                validated_data.get("component_instance_id"),
             )
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
+            else:
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
         query_dict = {
             "start_time": validated_data["start_time"],
             "end_time": validated_data["end_time"],
             "app_name": validated_data["app_name"],
             "bk_biz_id": validated_data["bk_biz_id"],
-            "name": ["exception"],
             "filter_params": filter_params,
         }
         exception_spans = api.apm_api.query_span(query_dict)
@@ -2254,13 +2264,22 @@ class QueryExceptionEndpointResource(Resource):
         filter_params = self.build_filter_params(validated_data["filter_params"])
         service_name = get_service_from_params(filter_params)
         if service_name:
-            ComponentHandler.build_component_filter_params(
+            node = ServiceHandler.get_node(
                 validated_data["bk_biz_id"],
                 validated_data["app_name"],
                 service_name,
-                filter_params,
-                validated_data.get("component_instance_id"),
             )
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
+            else:
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
         query_dict = {
             "start_time": validated_data["start_time"],
@@ -2339,7 +2358,7 @@ class QueryExceptionTypeGraphResource(Resource):
         )
 
     def build_filter_params(self, filter_dict):
-        result = [{"key": "status.code", "op": "=", "value": ["2"]}]
+        result = []
         for key, value in filter_dict.items():
             if value == "undefined":
                 continue
@@ -2347,89 +2366,121 @@ class QueryExceptionTypeGraphResource(Resource):
         return result
 
     def perform_request(self, validated_data):
+        app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
+        query = Search().query()
+        query = query.update_from_dict(
+            {
+                "aggs": {
+                    "events_over_time": {
+                        "date_histogram": {
+                            "field": "time",
+                            "interval": get_interval(validated_data["start_time"], validated_data["end_time"]),
+                            "format": "epoch_millis",
+                        }
+                    }
+                },
+            }
+        )
+        musts = [
+            {
+                "match": {
+                    "status.code": 2,
+                },
+            },
+            {
+                "range": {
+                    "end_time": {
+                        "gt": validated_data["start_time"] * 1000 * 1000,
+                        "lte": validated_data["end_time"] * 1000 * 1000,
+                    }
+                }
+            },
+        ]
+        # Step1: 根据错误类型过滤
+        if validated_data["exception_type"]:
+            musts.append(
+                {
+                    "nested": {
+                        "path": "events",
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {"match": {"events.name": "exception"}},
+                                    {"match": {"events.attributes.exception.type": validated_data["exception_type"]}},
+                                ]
+                            }
+                        },
+                    }
+                }
+            )
+        query = query.update_from_dict(
+            {
+                "query": {
+                    "bool": {
+                        "must": musts,
+                    }
+                }
+            }
+        )
+
+        # Step3: 根据组件类服务过滤
         filter_params = self.build_filter_params(validated_data["filter_params"])
         service_name = get_service_from_params(filter_params)
         if service_name:
-            ComponentHandler.build_component_filter_params(
+            node = ServiceHandler.get_node(
                 validated_data["bk_biz_id"],
                 validated_data["app_name"],
                 service_name,
-                filter_params,
-                validated_data.get("component_instance_id"),
             )
-
-        query_dict = {
-            "start_time": validated_data["start_time"],
-            "end_time": validated_data["end_time"],
-            "app_name": validated_data["app_name"],
-            "bk_biz_id": validated_data["bk_biz_id"],
-            "filter_params": filter_params,
-        }
-
-        exception_spans = api.apm_api.query_span(query_dict)
-        timestamp_mapping = {}
-        has_event_trace_id = [i["trace_id"] for i in exception_spans if i["events"]]
-
-        for span in exception_spans:
-            if span["events"]:
-                for event in span["events"]:
-                    exception_type = event[OtlpKey.ATTRIBUTES].get(
-                        SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN_EXCEPTION_TYPE
-                    )
-                    if validated_data["exception_type"]:
-                        if exception_type == validated_data["exception_type"]:
-                            timestamp = self.convert_timestamp(span["start_time"])
-                            if timestamp in timestamp_mapping:
-                                timestamp_mapping[timestamp][0] += 1
-                            else:
-                                timestamp_mapping[timestamp] = [1, timestamp]
-                    else:
-                        timestamp = self.convert_timestamp(span["start_time"])
-                        if timestamp in timestamp_mapping:
-                            timestamp_mapping[timestamp][0] += 1
-                        else:
-                            timestamp_mapping[timestamp] = [1, timestamp]
+            if ComponentHandler.is_component_by_node(node):
+                query = ComponentHandler.build_component_filter_es_query_dict(
+                    query,
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
             else:
-                exception_type = self.UNKNOWN_EXCEPTION_TYPE
-                if validated_data["exception_type"]:
-                    if (
-                        exception_type == validated_data["exception_type"]
-                        and span["trace_id"] not in has_event_trace_id
-                    ):
-                        timestamp = self.convert_timestamp(span["start_time"])
-                        if timestamp in timestamp_mapping:
-                            timestamp_mapping[timestamp][0] += 1
-                        else:
-                            timestamp_mapping[timestamp] = [1, timestamp]
-                else:
-                    if span["trace_id"] not in has_event_trace_id:
-                        timestamp = self.convert_timestamp(span["start_time"])
-                        if timestamp in timestamp_mapping:
-                            timestamp_mapping[timestamp][0] += 1
-                        else:
-                            timestamp_mapping[timestamp] = [1, timestamp]
+                if ServiceHandler.is_remote_service_by_node(node):
+                    query = ServiceHandler.build_remote_service_es_query_dict(query, service_name, filter_params)
+
+        response = api.apm_api.query_es(table_id=app.trace_result_table_id, query_body=query.to_dict())
 
         return {
             "metrics": [],
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": sorted(timestamp_mapping.values(), key=lambda i: i[-1]),
+                    "datapoints": [
+                        [i["doc_count"], i["key"]]
+                        for i in response.get("aggregations", {}).get("events_over_time", {}).get("buckets", [])
+                    ],
                     "dimensions": {},
                     "metric_field": "_result_",
                     "target": "",
                     "type": "line",
                     "unit": "",
                 }
-            ]
-            if timestamp_mapping
-            else [],
+            ],
         }
 
-    def convert_timestamp(self, timestamp):
-        # 16位时间戳转13位&忽略秒数
-        timestamp = int(str(timestamp)[:-3])
-        return int(str(timestamp)[:-4] + "0000")
+    def convert_timestamp(self, timestamp, interval):
+        """
+        将时间戳向 interval 对齐 防止图表时间点过于密集或过小
+        例如:
+        8:30:12 interval=60 -> 8:30:00
+                interval=3600 -> 8:00:00
+        """
+        timestamp_seconds = timestamp / 1000000
+
+        dt = datetime.datetime.fromtimestamp(timestamp_seconds)
+
+        aligned_dt = dt - datetime.timedelta(
+            seconds=(dt.second % interval) + (dt.minute * 60 % interval) + (dt.hour * 3600 % interval)
+        )
+
+        return int(aligned_dt.timestamp()) * 1000
 
 
 class InstanceDiscoverKeysResource(Resource):

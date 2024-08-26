@@ -404,6 +404,8 @@ COMPONENT_LIST = partial(
         ErrorCountInstance,
         AvgDurationInstance,
         ErrorRateInstance,
+        ApdexInstance,
+        ErrorRateInstance,
     ],
 )
 

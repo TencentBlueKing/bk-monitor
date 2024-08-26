@@ -97,8 +97,12 @@ def get_interval(start_time, end_time, interval="auto"):
         hour_interval = (end_time - start_time) // 3600
         if hour_interval <= 1:
             interval = "1m"
-        elif hour_interval <= 6:
+        elif hour_interval <= 3:
             interval = "5m"
+        elif hour_interval <= 5:
+            interval = "10m"
+        elif hour_interval <= 7:
+            interval = "15m"
         elif hour_interval <= 72:
             interval = "1h"
         else:
@@ -113,8 +117,12 @@ def get_interval_number(start_time, end_time, interval="auto"):
         hour_interval = (end_time - start_time) // 3600
         if hour_interval <= 1:
             interval = 60
-        elif hour_interval <= 6:
+        elif hour_interval <= 3:
             interval = 60 * 5
+        elif hour_interval <= 5:
+            interval = 60 * 10
+        elif hour_interval <= 7:
+            interval = 60 * 15
         elif hour_interval <= 72:
             interval = 60 * 60
         else:
@@ -122,7 +130,7 @@ def get_interval_number(start_time, end_time, interval="auto"):
 
         return interval
 
-    return 60
+    return 60 if not isinstance(interval, int) else interval
 
 
 def split_by_interval(start_time, end_time, interval):

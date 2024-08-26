@@ -16,6 +16,9 @@ from collections import defaultdict
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
@@ -31,6 +34,7 @@ from apm_web.models import ApdexServiceRelation, ApplicationCustomService
 from apm_web.utils import group_by
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
+from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -243,6 +247,36 @@ class ServiceHandler:
     def get_remote_service_origin_name(cls, remote_service_name):
         """获取自定义服务的原始名称 http:xxx -> xxx"""
         return remote_service_name.split(":")[-1]
+
+    @classmethod
+    def build_remote_service_filter_params(cls, service_name, filter_params):
+        """
+        获取自定义服务过滤条件
+        """
+        filter_params.append(
+            {
+                "key": OtlpKey.get_attributes_key(SpanAttributes.PEER_SERVICE),
+                "op": "=",
+                "value": [cls.get_remote_service_origin_name(service_name)],
+            }
+        )
+        # 去除 service_name
+        index = None
+        for item in filter_params:
+            if item["key"] == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME):
+                index = filter_params.index(item)
+
+        if index is not None:
+            del filter_params[index]
+        return filter_params
+
+    @classmethod
+    def build_remote_service_es_query_dict(cls, query, service_name, filter_params):
+        filter_params = cls.build_remote_service_filter_params(service_name, filter_params)
+        for f in filter_params:
+            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
+
+        return query
 
     @classmethod
     def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, nodes=None):

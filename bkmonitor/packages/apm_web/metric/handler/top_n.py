@@ -107,6 +107,7 @@ class TopNHandler:
             # 自定义服务下 需要加上 peer_service 查询条件
             pure_service_name = ServiceHandler.get_remote_service_origin_name(service_name)
             self.filter_dict["peer_service"] = pure_service_name
+            self.filter_dict.pop(service_name_key, None)
 
         return self.filter_dict, where_condition
 

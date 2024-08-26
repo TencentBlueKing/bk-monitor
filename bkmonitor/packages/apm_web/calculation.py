@@ -80,42 +80,37 @@ class ApdexCalculation(Calculation):
 
     @classmethod
     def range_cal(cls, metric_result):
-        datapoint_map = defaultdict(lambda: {"satisfied": 0, "tolerating": 0, "frustrated": 0, "error": 0})
-        total_count = 0
-        for serie in metric_result.get("series", []):
-            for datapoint in serie["datapoints"]:
-                if Apdex.DIMENSION_KEY not in serie["dimensions"]:
+        """
+        Apdex: (满意数 + 可容忍 / 2) / 总样本量
+        """
+        if not metric_result:
+            return {"metrics": [], "series": []}
+        datapoint_map = defaultdict(lambda: {"satisfied": 0, "tolerating": 0, "frustrated": 0})
+        for item in metric_result.get("series", []):
+            if Apdex.DIMENSION_KEY not in item["dimensions"]:
+                continue
+            apdex_type = item["dimensions"][Apdex.DIMENSION_KEY]
+            for point in item.get("datapoints"):
+                if not point[0]:
                     continue
-                datapoint_value = datapoint[0]
-                total_count += datapoint_value
-                if serie["dimensions"].get("status_code") == str(StatusCode.ERROR.value):
-                    datapoint_map[datapoint[1]]["error"] += datapoint_value
-                if serie["dimensions"][Apdex.DIMENSION_KEY] == Apdex.SATISFIED:
-                    datapoint_map[datapoint[1]]["satisfied"] += datapoint_value
-                if serie["dimensions"][Apdex.DIMENSION_KEY] == Apdex.TOLERATING:
-                    datapoint_map[datapoint[1]]["tolerating"] += datapoint_value
-                if serie["dimensions"][Apdex.DIMENSION_KEY] == Apdex.FRUSTRATED:
-                    datapoint_map[datapoint[1]]["frustrated"] += datapoint_value
-        datapoints = []
-        for datapoint, value in datapoint_map.items():
-            if total_count:
-                # 有数据
-                apdex_rate = round(
-                    (
-                        (value["satisfied"] * 1)
-                        + (value["frustrated"] * 0.5)
-                        + ((value["tolerating"] + value["error"]) * 0)
-                    )
-                    / total_count,
-                    2,
-                )
-                datapoints.append((apdex_rate, datapoint))
+                datapoint_map[point[1]][apdex_type] += point[0]
+
+        res = []
+        for timestamp, info in datapoint_map.items():
+            satisfied_count = info["satisfied"]
+            tolerating_count = info["tolerating"]
+            frustrated_count = info["frustrated"]
+
+            total = satisfied_count + tolerating_count + frustrated_count
+            if not total:
+                # 无数据不显示此柱
+                res.append((None, timestamp))
             else:
-                # 无数据 则不显示此柱
-                datapoints.append((None, datapoint))
+                res.append((round((satisfied_count + tolerating_count) / total, 2), timestamp))
+
         return {
             "metrics": [],
-            "series": [{"datapoints": datapoints, "dimensions": {}, "target": "apdex", "type": "bar", "unit": ""}],
+            "series": [{"datapoints": res, "dimensions": {}, "target": "apdex", "type": "bar", "unit": ""}],
         }
 
     @classmethod

@@ -72,7 +72,12 @@ from apm_web.resources import (
     ServiceAndComponentCompatibleResource,
 )
 from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
-from apm_web.utils import Calculator, group_by, handle_filter_fields
+from apm_web.utils import (
+    Calculator,
+    get_interval_number,
+    group_by,
+    handle_filter_fields,
+)
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -308,7 +313,7 @@ class ServiceListResource(PageListResource):
             ),
             NumberTableFormat(
                 id="profiling_data_count",
-                name=_lazy("数据量"),
+                name=_lazy("Profiling 数据量"),
                 checked=True,
                 decimal=0,
                 sortable=True,
@@ -424,20 +429,18 @@ class ServiceListResource(PageListResource):
             data = [service_data for service_data in data if service_data["category"] == filter_param]
         return data
 
-    def has_service_condition(self, strategy: dict):
-        resp = [False, set()]
-        # 逐条遍历 items
+    def get_condition_service_names(self, strategy: dict):
+        """获取策略配置的条件，检查是否有配置 service_name=xxx"""
+        service_names = []
         for item in strategy.get("items", []):
             for query_config in item.get("query_configs", []):
                 for condition in query_config.get("agg_condition", []):
-                    # 含有 service name
-                    if condition.get("key") == "service_name":
-                        resp[0] = True
-                        resp[1].update(condition.get("value", []))
-        return resp
+                    if condition.get("key") == "service_name" and condition.get("value"):
+                        service_names.extend(condition["value"])
+        return service_names
 
     def combine_strategy_with_alert(self, app: Application, start_time: int, end_time: int):
-        # 获取策略信息
+        # 获取指标的策略列表
         query_params = {
             "bk_biz_id": app.bk_biz_id,
             "conditions": [
@@ -449,31 +452,24 @@ class ServiceListResource(PageListResource):
             "page": 0,
         }
         strategies = resource.strategies.get_strategy_list_v2(**query_params).get("strategy_config_list", [])
-        strategy_map = {strategy["id"]: strategy for strategy in strategies}
-        # 获取告警信息
+        # 获取指标的告警事件
         query_params = {
             "bk_biz_ids": [app.bk_biz_id],
-            "conditions": [
-                {
-                    "key": "metric_id",
-                    "value": [f"custom.{app.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
-                }
-            ],
+            "query_string": f"metric: custom.{app.metric_result_table_id}.*",
             "start_time": start_time,
             "end_time": end_time,
         }
         alert_infos = resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
-        # 组装告警信息到策略信息中
-        for alert_info in alert_infos:
-            strategy = strategy_map.get(alert_info["strategy_id"])
-            # 只展示未处理的最高级别告警
-            if (
-                strategy is not None
-                and not alert_info["is_handled"]
-                and strategy.get("severity", ServiceStatus.NORMAL) > alert_info["severity"]
-            ):
-                strategy["severity"] = alert_info["severity"]
-        return strategy_map
+
+        strategy_events_mapping = {}
+        for strategy in strategies:
+            events = [i for i in alert_infos if i["strategy_id"] == strategy["id"]]
+            strategy_events_mapping[strategy["id"]] = {
+                "info": strategy,
+                "events": events,
+            }
+
+        return strategy_events_mapping
 
     def batch_query_info(self, app, start_time, end_time):
         """
@@ -523,24 +519,52 @@ class ServiceListResource(PageListResource):
 
         services, config, strategy_map, request_count_info = self.batch_query_info(app, start_time, end_time)
 
-        strategy_service_map = defaultdict(int)
-        strategy_alert_map = defaultdict(ServiceStatus.get_default)
-        for strategy in strategy_map.values():
-            has_service, service_list = self.has_service_condition(strategy)
-            if has_service:
-                for name in service_list:
-                    strategy_service_map[name] += 1
-                    # 已有告警级别没有策略告警级别高才更新
-                    if strategy_alert_map[name] > strategy.get("severity", ServiceStatus.NORMAL):
-                        strategy_alert_map[name] = strategy.get("severity", ServiceStatus.NORMAL)
+        service_strategy_count_mapping = defaultdict(int)
+        service_alert_level_count_mapping = defaultdict(
+            lambda: {
+                AlertLevel.ERROR: 0,
+                AlertLevel.WARN: 0,
+                AlertLevel.INFO: 0,
+            }
+        )
+        service_alert_status_mapping = defaultdict(int)
+        for strategy_id, items in strategy_map.items():
+
+            # Step1: 处理策略条件中配置的服务 将数量作为服务的策略数
+            service_names = self.get_condition_service_names(items["info"])
+            for name in service_names:
+                service_strategy_count_mapping[name] += 1
+
+            # Step2: 检查告警事件中是否包含服务的值 记录为数量
+            for alert in items["events"]:
+                alert_service_name = next(
+                    (i.get("value") for i in alert.get("dimensions", []) if i.get("key") == "tags.service_name"), None
+                )
+                if not alert_service_name:
+                    continue
+
+                service_alert_level_count_mapping[alert_service_name][alert["severity"]] += 1
+
+        for svr, alert_status in service_alert_level_count_mapping.items():
+            err_count = alert_status[AlertLevel.ERROR]
+            warn_count = alert_status[AlertLevel.WARN]
+            info_count = alert_status[AlertLevel.INFO]
+            if err_count:
+                service_alert_status_mapping[svr] = ServiceStatus.FATAL
+            elif warn_count:
+                service_alert_status_mapping[svr] = ServiceStatus.WARNING
+            elif info_count:
+                service_alert_status_mapping[svr] = ServiceStatus.REMIND
+            else:
+                service_alert_status_mapping[svr] = ServiceStatus.NORMAL
 
         # 处理响应数据
         raw_data = self.combine_data(
             services,
             config,
             validate_data["app_name"],
-            strategy_service_map,
-            strategy_alert_map,
+            service_strategy_count_mapping,
+            service_alert_status_mapping,
             request_count_info,
         )
 
@@ -1156,8 +1180,9 @@ class ApdexQueryResource(ApiAuthResource):
             raise ValueError("Application does not exist")
 
         if ApplicationHandler.have_data(application, start_time, end_time):
-            interval = (end_time - start_time) // APDEX_VIEW_ITEM_LEN
-            return ApdexRange(application, start_time, end_time, interval=interval).query_range()
+            return ApdexRange(
+                application, start_time, end_time, interval=get_interval_number(start_time, end_time)
+            ).query_range()
         return {"metrics": [], "series": []}
 
 
@@ -1672,7 +1697,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         query_param = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
-            "service_name": service_name,
         }
         if "bk_instance_id" in data.get("view_options", {}):
             query_param["bk_instance_id"] = data["view_options"]["bk_instance_id"]
@@ -1680,37 +1704,70 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         if data.get("filter"):
             query_param["category"] = data["filter"]
 
-        where = []
-
-        node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
-        if ComponentHandler.is_component_by_node(node):
-            query_param["category"] = node["extra_data"]["category"]
-            query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
-            query_param["category_kind_value"] = node["extra_data"]["predicate_value"]
-            if service_name:
-                where.append(
-                    {
-                        "key": "service_name",
-                        "method": "eq",
-                        "value": [ComponentHandler.get_component_belong_service(service_name)],
-                    }
-                )
-
-        else:
-            if service_name:
-                where.append({"key": "service_name", "method": "eq", "value": [service_name]})
-
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
 
-        endpoint_list_param = {
+        node = None
+        pool = ThreadPool()
+        endpoint_metrics_param = {
             "application": application,
             "start_time": data["start_time"],
             "end_time": data["end_time"],
-            "where": where,
         }
-        pool = ThreadPool()
+        if service_name:
+            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+            if ComponentHandler.is_component_by_node(node):
+                query_param["category"] = node["extra_data"]["category"]
+                query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
+                query_param["category_kind_value"] = node["extra_data"]["predicate_value"]
+                endpoints_metric_res = pool.apply_async(
+                    ENDPOINT_LIST,
+                    kwds={
+                        **endpoint_metrics_param,
+                        "where": ComponentHandler.get_component_metric_filter_params(
+                            bk_biz_id,
+                            app_name,
+                            service_name,
+                            query_param.get("bk_instance_id"),
+                        )
+                        + [
+                            {
+                                "key": "service_name",
+                                "method": "eq",
+                                "value": [ComponentHandler.get_component_belong_service(service_name)],
+                            }
+                        ],
+                    },
+                )
+
+            elif ServiceHandler.is_remote_service_by_node(node):
+                query_param["service_name"] = service_name
+                endpoints_metric_res = pool.apply_async(
+                    ENDPOINT_LIST,
+                    kwds={
+                        **endpoint_metrics_param,
+                        "where": [
+                            {
+                                "key": "peer_service",
+                                "method": "eq",
+                                "value": [ServiceHandler.get_remote_service_origin_name(service_name)],
+                            }
+                        ],
+                    },
+                )
+
+            else:
+                query_param["service_name"] = service_name
+                endpoints_metric_res = pool.apply_async(
+                    ENDPOINT_LIST,
+                    kwds={
+                        **endpoint_metrics_param,
+                        "where": [{"key": "service_name", "method": "eq", "value": [service_name]}],
+                    },
+                )
+        else:
+            endpoints_metric_res = pool.apply_async(ENDPOINT_LIST, kwds=endpoint_metrics_param)
+
         endpoints_res = pool.apply_async(api.apm_api.query_endpoint, kwds=query_param)
-        endpoints_metric_res = pool.apply_async(ENDPOINT_LIST, kwds=endpoint_list_param)
         pool.close()
         pool.join()
 
@@ -1722,7 +1779,8 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         error_all_count = 0
         duration_all_count = 0
         for i in endpoints:
-            metric = endpoints_metric.get(self._build_group_key(i), {})
+            metric = self.get_endpoint_metric(endpoints_metric, node, i)
+
             request_all_count += metric.get("request_count", 0)
             error_all_count += metric.get("error_count", 0)
             duration_all_count += metric.get("avg_duration", 0)
@@ -1730,7 +1788,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         logger.info(f"[apm] endpoint_list request_all_count: {request_all_count}")
 
         for endpoint in endpoints:
-            metric = endpoints_metric.get(self._build_group_key(endpoint), {})
+            metric = self.get_endpoint_metric(endpoints_metric, node, endpoint)
 
             request_count = metric.get("request_count")
             if request_count:
@@ -1766,6 +1824,23 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 endpoint["error_rate"] = metric.get("error_rate")
 
         return endpoints, endpoints_metric
+
+    @classmethod
+    def get_endpoint_metric(cls, metric, node, endpoint):
+        if node and ServiceHandler.is_remote_service_by_node(node):
+            # 自定义服务需要忽略掉调用方的服务名称来匹配指标
+            remote_service_prefix = "|".join([endpoint["endpoint_name"], str(endpoint["kind"])])
+            remote_service_suffix = "|".join([endpoint["category_kind"]["value"], ""])
+            return next(
+                (
+                    v
+                    for k, v in metric.items()
+                    if k.startswith(remote_service_prefix) and k.endswith(remote_service_suffix)
+                ),
+                {},
+            )
+        else:
+            return metric.get(cls._build_group_key(endpoint), {})
 
 
 class AlertQueryResource(Resource):
@@ -1824,14 +1899,13 @@ class AlertQueryResource(Resource):
 
     def get_alert_params(self, *params):
         application, bk_biz_id, start_time, end_time, level, strategy_id = params
-        database, _ = application.metric_result_table_id.split(".")
         interval = (end_time - start_time) // APDEX_VIEW_ITEM_LEN
         para = {
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
             "interval": interval,
-            "query_string": f"metric: custom.{database}*",
+            "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},
             ],
