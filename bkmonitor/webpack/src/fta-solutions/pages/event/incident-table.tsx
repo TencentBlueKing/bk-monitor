@@ -366,7 +366,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
       CLOSED: {
         color: '#63656E',
         bgColor: '#F0F1F5',
-        name: this.$t('已关闭'),
+        name: this.$t('已失效'),
         icon: '',
       },
     };

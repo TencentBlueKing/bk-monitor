@@ -158,34 +158,34 @@ export const STATUS_LIST = {
   CLOSED: {
     color: '#63656E',
     bgColor: '#F0F1F5',
-    label:'已关闭',
+    label: '已失效',
     icon: 'mc-solved',
   },
-  '未恢复': {
+  未恢复: {
     color: '#EA3536',
     bgColor: '#FFEEEE',
     label: '未恢复',
     key: 'abnormal',
     icon: 'mind-fill',
   },
-  '观察中': {
+  观察中: {
     color: '#FF9C01',
     bgColor: '#FFF3E1',
     label: '观察中',
     key: 'recovering',
     icon: 'mc-visual',
   },
-  '已恢复': {
+  已恢复: {
     color: '#1CAB88',
     bgColor: '#E8FFF5',
     label: '已恢复',
     key: 'recovered',
     icon: 'mc-check-fill',
   },
-  '已解决': {
+  已解决: {
     color: '#979ba5',
     bgColor: '#F5F7FA',
     label: '已解决',
     icon: 'mc-solved',
   },
-}
+};
