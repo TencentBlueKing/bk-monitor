@@ -34,6 +34,9 @@
 
       &.is-active {
         color: #3a84ff;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        background: #e1ecff !important;
       }
 
       &:not(.scale-icon):hover {
@@ -41,22 +44,16 @@
       }
 
       &:first-child {
-        margin-right: auto;
-      }
-
-      &:last-child {
-        margin-left: auto;
+        margin-left: 0;
       }
     }
 
     .item-store,
     .icon-legend {
+      margin-left: 4px;
       font-size: 18px;
 
       @extend %item-icon;
-    }
-
-    .scale-icon {
     }
 
     .icon-mc-restoration-ratio {
