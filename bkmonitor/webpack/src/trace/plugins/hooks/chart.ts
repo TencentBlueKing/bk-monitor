@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, type WatchStopHandle, inject, onBeforeUnmount, provide, watch } from 'vue';
+import { type ComputedRef, type Ref, type WatchStopHandle, inject, onBeforeUnmount, provide, watch } from 'vue';
 
 import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
@@ -210,7 +210,7 @@ export const chartDetailProvideKey = Symbol('chart-detail-provide-key');
 export const useChartInfoInject = () => inject<IPanelModel>(chartDetailProvideKey);
 
 // 是否开启 profiling
-export const useIsEnabledProfilingProvider = (enableProfiling: Ref<boolean>) => {
+export const useIsEnabledProfilingProvider = (enableProfiling: ComputedRef<boolean>) => {
   provide(IS_ENABLED_PROFILING, enableProfiling);
 };
-export const useIsEnabledProfilingInject = () => inject<Ref<boolean>>(IS_ENABLED_PROFILING);
+export const useIsEnabledProfilingInject = () => inject<ComputedRef<boolean>>(IS_ENABLED_PROFILING);
