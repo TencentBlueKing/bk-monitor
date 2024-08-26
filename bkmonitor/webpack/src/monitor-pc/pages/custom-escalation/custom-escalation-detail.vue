@@ -175,7 +175,6 @@
               style="width: 440px"
               class="form-content-textarea"
               v-model="copyDescribe"
-              :maxlength="100"
               :rows="3"
               type="textarea"
               @blur="handleEditDescribe"
