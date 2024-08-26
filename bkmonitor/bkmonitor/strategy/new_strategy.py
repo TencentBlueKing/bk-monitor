@@ -2388,10 +2388,14 @@ class Strategy(AbstractConfig):
     def from_models(cls, strategies: Union[List[StrategyModel], QuerySet]) -> List["Strategy"]:
         """
         数据模型转换为策略对象
+
+        :param strategies: 策略模型列表或QuerySet，包含要转换为策略对象的数据模型。
+        :return: List["Strategy"]策略对象列表
         """
+        # 提取所有策略的ID
         strategy_ids = [s.id for s in strategies]
 
-        # 当策略数量非常大时，直接全量查询避免
+        # 当接收到大量策略模型时，为了避免查询数据库时带来的巨大开销，采用全量查询的方式。
         if len(strategy_ids) > 500:
             item_query = ItemModel.objects.all()
             detect_query = DetectModel.objects.all()
@@ -2407,6 +2411,8 @@ class Strategy(AbstractConfig):
             label_query = StrategyLabel.objects.filter(strategy_id__in=strategy_ids)
             related_query = RelationModel.objects.filter(strategy_id__in=strategy_ids)
 
+        # 将查询结果整理为字典，便于后续根据策略ID快速查找
+        # {strategy_id: [strategy_model]}
         items: Dict[int, List[ItemModel]] = defaultdict(list)
         for item in item_query:
             items[item.strategy_id].append(item)
@@ -2448,6 +2454,7 @@ class Strategy(AbstractConfig):
         for action_config in action_query:
             action_configs[action_config.id] = action_config
 
+        # 根据查询和处理结果，创建策略对象
         records = []
         for strategy in strategies:
             record = Strategy(
@@ -2471,6 +2478,7 @@ class Strategy(AbstractConfig):
                 priority_group_key=strategy.priority_group_key,
             )
 
+            # 为策略对象的items、actions、detects和notice属性赋值
             record.items = Item.from_models(items[strategy.id], algorithms, query_configs)
             record.actions = ActionRelation.from_models(actions[strategy.id], action_configs)
             record.detects = Detect.from_models(detects[strategy.id])
