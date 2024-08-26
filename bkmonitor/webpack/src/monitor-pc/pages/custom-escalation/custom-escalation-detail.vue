@@ -1917,14 +1917,15 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       time_series_group_id: this.detailData.time_series_group_id,
       desc: this.copyDescribe,
     };
-    await modifyCustomTimeSeriesDesc(params).catch(() => false);
+    return await modifyCustomTimeSeriesDesc(params).catch(message => {
+      this.$bkMessage({ message, theme: 'error' });
+    });
   }
 
   // 编辑描述
   async handleEditDescribe() {
-    let { desc } = this.detailData;
-    if (!this.copyDescribe.trim() || this.copyDescribe.trim() === desc) {
-      this.copyDescribe = desc;
+    if (!this.copyDescribe.trim() || this.copyDescribe.trim() === this.detailData.desc) {
+      this.copyDescribe = this.detailData.desc;
       this.isShowEditDesc = false;
       return;
     }
@@ -1932,10 +1933,10 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const data = await this.handleSaveDesc();
     if (data) {
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
-      desc = this.copyDescribe;
+      this.detailData.desc = this.copyDescribe;
       return;
     }
-    this.copyDescribe = desc;
+    this.copyDescribe = this.detailData.desc;
   }
 
   /** 保存自定义事件编辑 */
