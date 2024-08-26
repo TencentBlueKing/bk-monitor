@@ -122,24 +122,20 @@ class Query:
 
     def _execute(self):
         # bkData need a raw string with double quotes
-        with tracer.start_as_current_span("query_profile") as span:
-            sql = json.dumps(self.to_dict())
-            logger.info("[ProfileDatasource] query_data params: %s", sql)
+        sql = json.dumps(self.to_dict())
+        logger.info("[ProfileDatasource] query_data params: %s", sql)
 
-            try:
-                params = {
-                    "sql": sql,
-                    "prefer_storage": "doris",
-                    "_user_request": True,
-                }
-                span.set_attribute("profile.query.params", json.dumps(params))
+        try:
+            params = {
+                "sql": sql,
+                "prefer_storage": "doris",
+                "_user_request": True,
+            }
+            return api.bkdata.query_data(**params)
+        except BKAPIError as e:
+            logger.exception(f"query bkdata doris failed, error: {e}")
 
-                return api.bkdata.query_data(**params)
-            except BKAPIError as e:
-                logger.exception(f"query bkdata doris failed, error: {e}")
-                span.record_exception(e)
-
-            return None
+        return None
 
 
 class QueryTemplate:
