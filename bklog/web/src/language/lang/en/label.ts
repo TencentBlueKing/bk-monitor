@@ -663,4 +663,10 @@ export default {
   '新类告警间隔（天）': 'New alarm interval (days)',
   告警级别: 'Alarm level',
   告警组: 'Alarm group',
+  索引配置导入: 'Index configuration import',
+  同步源日志信息: 'Source Log Information',
+  同步字段清洗配置: 'Field Cleaning Configuration',
+  同步存储配置: 'Storage Configuration',
+  同步采集目标: 'Acquisition Target',
+  请选择目标索引集: 'Please select a target index set',
 };

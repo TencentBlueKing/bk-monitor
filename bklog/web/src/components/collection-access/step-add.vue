@@ -147,6 +147,9 @@
             </div>
           </div>
         </div>
+        <div class="add-collection-import"><span @click="handleIndexImportClick">{{$t('索引配置导入')}}</span>
+          <IndexImportModal v-model="isIndexImportShow"></IndexImportModal>
+        </div>
         <!-- 环境选择 -->
         <bk-form-item
           :label="$t('环境选择')"
@@ -794,6 +797,7 @@
   import labelTargetDialog from './components/step-add/label-target-dialog';
   import matchLabelItem from './components/step-add/match-label-item';
   import yamlEditor from './components/step-add/yaml-editor';
+  import IndexImportModal from './components/index-import-modal';
 
   export default {
     components: {
@@ -805,6 +809,7 @@
       yamlEditor,
       matchLabelItem,
       configViewDialog,
+      IndexImportModal,
     },
     props: {
       isUpdate: {
@@ -1089,6 +1094,7 @@
         enLabelWidth: 180,
         /** 是否是编状态况并且初始选中的是winevent类型 */
         isUpdateAndSelectedWinEvent: false,
+        isIndexImportShow: false
       };
     },
     computed: {
@@ -1263,6 +1269,9 @@
       }
     },
     methods: {
+      handleIndexImportClick() {
+        this.isIndexImportShow = true;
+      },
       async getLinkData() {
         try {
           this.tableLoading = true;
@@ -2352,6 +2361,18 @@
       border-bottom: 1px solid #dcdee5;
     }
 
+    .add-collection-import {
+      padding: 12px 24px;
+      font-size: 16px;
+
+      span {
+        padding: 12px;
+        font-weight: 800;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
     .original-title {
       @include flex-justify(flex-start);
 
@@ -3034,3 +3055,4 @@
     }
   }
 </style>
+./components/index-import-modal/index-import-modal
