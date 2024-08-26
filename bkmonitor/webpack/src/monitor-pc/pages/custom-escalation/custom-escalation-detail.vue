@@ -1917,7 +1917,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       time_series_group_id: this.detailData.time_series_group_id,
       desc: this.copyDescribe,
     };
-    return await modifyCustomTimeSeriesDesc(params).catch(message => {
+    return await modifyCustomTimeSeriesDesc(params).catch(({message}) => {
       this.$bkMessage({ message, theme: 'error' });
     });
   }
