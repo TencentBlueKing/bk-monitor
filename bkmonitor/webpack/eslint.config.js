@@ -1,12 +1,15 @@
-const typescriptEslint = require('@typescript-eslint/eslint-plugin');
-const eslintConfigPrettier = require('eslint-config-prettier');
-const prettier = require('eslint-plugin-prettier');
-const typescriptEslintParser = require('@typescript-eslint/parser');
-const codecc = require('eslint-plugin-codecc');
 const eslintVueParser = require('vue-eslint-parser');
+
+const typescriptEslint = require('@typescript-eslint/eslint-plugin');
+const typescriptEslintParser = require('@typescript-eslint/parser');
+const eslintConfigPrettier = require('eslint-config-prettier');
+const codecc = require('eslint-plugin-codecc');
 const perfectionist = require('eslint-plugin-perfectionist');
+const prettier = require('eslint-plugin-prettier');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
+const tailwind = require('eslint-plugin-tailwindcss');
+
 const OFF = 0;
 const WARNING = 1;
 const ERROR = 2;
@@ -70,7 +73,7 @@ const jsVueFiles = [
   'src/monitor-pc/pages/uptime-check/**/*.vue',
 ];
 const jsxOrVueSortGroups = {
-  'custom-groups': {
+  customGroups: {
     DEFINITION: '*(is|vIs|v-is)',
     LIST_RENDERING: '*(v-for|vFor)',
     CONDITIONALS: '*(v-if|v-else-if|v-else|vIf|vElseIf|vElse)',
@@ -228,7 +231,7 @@ module.exports = [
             ['type', 'builtin-type', 'external-type', 'internal-type', 'parent-type', 'sibling-type', 'index-type'],
             ['style', 'side-effect-style'],
           ],
-          'custom-groups': {
+          customGroups: {
             value: {
               top: ['./public-path', './public-path.ts', 'monitor-common/polyfill'],
               vueI18n: ['./i18n/i18n', 'vue', 'vue-*'],
@@ -242,8 +245,8 @@ module.exports = [
               tsxSupport: 'tsxSupport',
             },
           },
-          'newlines-between': 'always',
-          'internal-pattern': ['@/*', '@router/*', '@store/*', '@page/*', '@static/*'],
+          newlinesBetween: 'always',
+          internalPattern: ['@/*', '@router/*', '@store/*', '@page/*', '@static/*'],
         },
       ],
       // 'perfectionist/sort-intersection-types': [
@@ -328,7 +331,6 @@ module.exports = [
           fixStyle: 'inline-type-imports',
         },
       ],
-      '@typescript-eslint/ban-types': WARNING,
     },
   },
   ...eslintVuePlugin.configs['flat/vue2-recommended'].filter(config => !config.files?.length),
@@ -381,5 +383,6 @@ module.exports = [
       'vue/attributes-order': OFF,
     },
   },
+  ...tailwind.configs['flat/recommended'],
   eslintConfigPrettier,
 ];
