@@ -117,7 +117,6 @@ export const request = (method, url) => {
         })
         .catch(err => {
           const message = makeMessage(err.error_details || err.message, traceparent, config.needTraceId);
-          console.info(message, '++++++++++++++');
           if (config.needMessage) {
             bkMessage(message);
           }
@@ -169,8 +168,6 @@ export const request = (method, url) => {
       })
       .catch(err => {
         const message = makeMessage(err.error_details || err.message || '', traceparent, config.needTraceId);
-        console.info(err.error_details || err.message, message, '======++++++++++++++');
-
         if (config.needMessage && !noMessageCode.includes(err.code)) {
           bkMessage(message);
         }
