@@ -30,7 +30,7 @@ import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 import Vue from 'vue';
 
-import './common/import-magicbox-ui';
+import 'monitor-pc/common/import-magicbox-ui';
 import 'monitor-static/svg-icons';
 import 'monitor-ui/directive/index';
 

@@ -23,37 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-let vue;
-export const setVue = function (instance) {
-  vue = instance;
-};
-
-export const bkMessage = message => {
-  if (vue?.prototype?.$bkMessage) {
-    vue.prototype.$bkMessage(message);
-  } else {
-    vue.config.globalProperties.$Message(message);
-  }
-};
-
-export const authorityStore = () => {
-  if (vue.prototype?.$authorityStore) {
-    return vue.prototype.$authorityStore;
-  }
-  return vue.config?.globalProperties?.$authorityStore;
-};
-
-export const makeMessage = (message, traceparent, needTraceId) => {
-  const list = traceparent?.split('-');
-  let traceId = traceparent;
-  if (list?.length) {
-    traceId = list[1];
-  }
-  if (message && needTraceId && traceId && typeof message === 'object') {
-    return {
-      ...message,
-      trace_id: traceId,
-    };
-  }
-  return message;
+import { Message } from 'bkui-vue';
+import { transformMessageProps } from 'monitor-pc/common/transform-message-props';
+export const bkUiMessage = (params: Record<string, any>) => {
+  const props = transformMessageProps(params);
+  return Message(props);
 };
