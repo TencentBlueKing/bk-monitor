@@ -22,7 +22,6 @@ from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
 from apm_web.constants import (
-    APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
     COLUMN_KEY_PROFILING_DATA_COUNT,
     COLUMN_KEY_PROFILING_DATA_STATUS,
@@ -143,12 +142,13 @@ class DynamicUnifyQueryResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         app_name = serializers.CharField(label="应用名称")
-        service_name = serializers.CharField(label="服务名称")
+        service_name = serializers.CharField(label="服务名称", default=False)
         unify_query_param = serializers.DictField(label="unify-query参数")
         bk_biz_id = serializers.IntegerField(label="业务ID")
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
+        unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -158,9 +158,8 @@ class DynamicUnifyQueryResource(Resource):
             "bk_biz_id": validate_data["bk_biz_id"],
         }
 
-        resource.monitor_web.grafana.graph_unify_query.RequestSerializer(data=unify_query_params).is_valid(
-            raise_exception=True
-        )
+        if not validate_data.get("service_name"):
+            return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
 
         node = ServiceHandler.get_node(
             validate_data["bk_biz_id"],
@@ -168,7 +167,7 @@ class DynamicUnifyQueryResource(Resource):
             validate_data["service_name"],
         )
         if not node:
-            return resource.grafana.graph_unify_query(unify_query_params)
+            return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
 
         if ComponentHandler.is_component_by_node(node):
             # 替换service_name
@@ -227,7 +226,18 @@ class DynamicUnifyQueryResource(Resource):
             unify_query_params = json.loads(
                 json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
             )
-        return resource.grafana.graph_unify_query(unify_query_params)
+
+        return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
+
+    @classmethod
+    def fill_unit(cls, response, unit):
+        if not unit:
+            return response
+
+        for i in response.get("series", []):
+            i["unit"] = unit
+
+        return response
 
 
 class ServiceListResource(PageListResource):
@@ -1899,12 +1909,11 @@ class AlertQueryResource(Resource):
 
     def get_alert_params(self, *params):
         application, bk_biz_id, start_time, end_time, level, strategy_id = params
-        interval = (end_time - start_time) // APDEX_VIEW_ITEM_LEN
         para = {
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
-            "interval": interval,
+            "interval": get_interval_number(start_time, end_time),
             "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},

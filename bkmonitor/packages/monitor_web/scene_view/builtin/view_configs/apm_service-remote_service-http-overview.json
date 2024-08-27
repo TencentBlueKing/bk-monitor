@@ -309,6 +309,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "unify_query_param": {
               "expression": "a / b",
               "query_configs": [

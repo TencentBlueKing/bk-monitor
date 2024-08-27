@@ -313,6 +313,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "unify_query_param": {
               "expression": "a / b",
               "query_configs": [
@@ -978,6 +979,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
             "unify_query_param": {
               "expression": "a / b",
               "query_configs": [
