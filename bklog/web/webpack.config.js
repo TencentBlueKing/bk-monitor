@@ -33,7 +33,7 @@ const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
-const devHost = 'appdev.bktencent.com';
+const devHost = 'appdev.woa.com';
 const loginHost = 'https://paas-dev.bktencent.com';
 const devPort = 8001;
 

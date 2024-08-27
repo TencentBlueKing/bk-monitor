@@ -1,0 +1,68 @@
+.subbar-container {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 52px;
+  background: #FFFFFF;
+  box-shadow: 0 3px 4px 0 #4070cb0f;
+
+  .box-favorites {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 110px;
+    height: 100%;
+
+    font-size: 14px;
+    color: #63656E;
+    border-right: solid 1px #DCDEE5;
+
+    .log-icon {
+      font-size: 18px;
+      transform: rotate(90deg);
+    }
+  }
+
+  .box-biz-select {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 12px;
+    border-right: solid 1px #DCDEE5;
+  }
+
+  .box-right-option {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 170px;
+
+    font-size: 12px;
+    color: #63656E;
+
+    .field-setting {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100px;
+      border-right: solid 1px #DCDEE5;
+
+      span {
+        margin-right: 4px;
+        font-size: 16px;
+      }
+    }
+
+    .more-setting {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 68px;
+    }
+  }
+}

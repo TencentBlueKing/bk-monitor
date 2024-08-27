@@ -302,7 +302,6 @@
   import { updateTimezone } from '../../language/dayjs';
   import AddCollectDialog from './collect/add-collect-dialog';
   import CollectIndex from './collect/collect-index';
-  // import IpSelectorDialog from '@/components/collection-access/ip-selector-dialog';
   import SelectIndexSet from './condition-comp/select-index-set.tsx';
   import NoIndexSet from './result-comp/no-index-set';
   import ResultHeader from './result-comp/result-header';
@@ -2404,4 +2403,4 @@
       padding: 0;
     }
   }
-</style>
+</style>./condition-comp/select-index-set

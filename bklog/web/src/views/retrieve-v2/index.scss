@@ -1,0 +1,20 @@
+.retrieve-v2-index {
+  height: calc(100vh - 52px);
+
+  .retrieve-body {
+    width: 100%;
+    height: calc(100% - 52px);
+    padding: 16px 24px;
+    background: #F5F7FA;
+
+    .result-row {
+
+      width: 100%;
+      min-height: 120px;
+      margin-top: 16px;
+      background: #FFFFFF;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px 0 #1919290d;
+    }
+  }
+}
