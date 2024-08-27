@@ -66,6 +66,7 @@ export interface IAppItem {
   application_id: number;
   app_alias: string;
   app_name: string;
+  is_enabled_profiling?: boolean;
 }
 export type SearchType = 'accurate' | 'scope';
 

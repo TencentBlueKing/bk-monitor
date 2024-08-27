@@ -114,23 +114,7 @@ DEFAULT_ACTION_CONFIG = {
 }
 NOT_NEED_EDIT_NODES = ["format_signature"]
 
-DEFAULT_PATTERN_MONITOR_MSG = """{{content.level}}
-{{content.begin_time}}
-{{content.time}}
-{{content.duration}}
-{{content.target_type}}
-{{content.data_source}}
-{{content.content}}
-{{content.current_value}}
-{{content.biz}}
-{{content.target}}
-{{content.dimension}}
-{{content.detail}}
-日志示例: {{ json.loads(alarm.related_info)["__clustering_field__"] }}
-[更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
-"""
-
-DEFAULT_PATTERN_RECOVER_MSG = """
+DEFAULT_PATTERN_MONITOR_MSG = """
 {{content.level}}
 {{content.begin_time}}
 {{content.time}}
@@ -192,19 +176,9 @@ class YearOnYearEnum(ChoicesEnum):
 
 
 class PatternEnum(ChoicesEnum):
-    LEVEL_01 = "01"
-    LEVEL_03 = "03"
     LEVEL_05 = "05"
-    LEVEL_07 = "07"
-    LEVEL_09 = "09"
 
-    _choices_labels = (
-        (LEVEL_01, "LEVEL_01"),
-        (LEVEL_03, "LEVEL_03"),
-        (LEVEL_05, "LEVEL_05"),
-        (LEVEL_07, "LEVEL_07"),
-        (LEVEL_09, "LEVEL_09"),
-    )
+    _choices_labels = ((LEVEL_05, "LEVEL_05"),)
 
 
 class ActionEnum(ChoicesEnum):

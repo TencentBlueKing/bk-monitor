@@ -26,11 +26,13 @@
 import { KeepAlive, type PropType, type Ref, defineComponent, inject, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { incidentAlertAggregate } from 'monitor-api/modules/incident';
+
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
 
-import type { ITagInfoType } from '../types';
+import type { ITagInfoType, IAggregationRoot } from '../types';
 
 import './failure-nav.scss';
 
@@ -46,10 +48,12 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace'],
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace', 'changeTab'],
   setup(props, { emit }) {
+    /** 左侧头部菜单 */
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
+    const alertAggregateParams = ref({});
     const refNav = ref(null);
     const tabList = [
       {
@@ -71,9 +75,11 @@ export default defineComponent({
       emit('nodeClick', item);
     };
     const filterSearch = data => {
+      alertAggregateParams.value = data;
       emit('filterSearch', data);
     };
     const nodeExpand = data => {
+      console.log(data, 'data');
       emit('nodeExpand', data);
     };
     const treeScroll = scrollTop => {
@@ -83,13 +89,45 @@ export default defineComponent({
     const chooseOperation = (id: string, data: any) => {
       emit('chooseOperation', id, data);
     };
-
+    const handleIsRoot = data => {
+      return data.map(item => {
+        item.isOpen = item.is_root || item.is_feedback_root;
+        if (item.children) {
+          handleIsRoot(item.children);
+        }
+        return item;
+      });
+    };
     const handleRefNavRefresh = () => {
-      active.value === 'FailureHandle' && refNav.value?.refreshTree();
+      if (active.value === 'FailureHandle') {
+        refNav.value?.refreshTree();
+      } else {
+        incidentAlertAggregate(alertAggregateParams.value)
+          .then(res => {
+            const list: IAggregationRoot[] = Object.values(res);
+            const data = list.filter(item => item.count !== 0);
+            const isHasRoot = data.findIndex(item => item.is_root || item.is_feedback_root) !== -1;
+            const isHasChildInd = data.findIndex(item => item.children?.length);
+            if (data.length !== 0) {
+              if (isHasRoot) {
+                handleIsRoot(data);
+              } else {
+                data[isHasChildInd].isOpen = true;
+              }
+            }
+            emit('nodeExpand', data);
+          })
+          .catch(err => {
+            console.log(err);
+          });
+      }
     };
 
     const handleSpace = (value: string[]) => {
       emit('changeSpace', value);
+    };
+    const changeTab = () => {
+      emit('changeTab');
     };
     return {
       active,
@@ -104,6 +142,7 @@ export default defineComponent({
       chooseOperation,
       refNav,
       handleRefNavRefresh,
+      changeTab
     };
   },
   render() {
@@ -130,6 +169,7 @@ export default defineComponent({
               onNodeClick={this.nodeClick}
               onNodeExpand={this.nodeExpand}
               onTreeScroll={this.treeScroll}
+              onChangeTab={this.changeTab}
             />
           </KeepAlive>
         </div>

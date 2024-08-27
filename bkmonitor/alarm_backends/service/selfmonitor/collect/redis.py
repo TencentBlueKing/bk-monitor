@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from alarm_backends.core.cache.key import DATA_SIGNAL_KEY
+from alarm_backends.core.cluster import get_cluster
 from bkmonitor.models import CacheNode
 from core.prometheus import metrics
 
@@ -23,59 +24,75 @@ class RedisMetricCollectReport(object):
 
     def __init__(self):
         self.client = DATA_SIGNAL_KEY.client
+        # 支持按部署集群采集
+        self.cluster_name = get_cluster().name
 
     def get_redis_info(self):
-        redis_nodes = CacheNode.objects.filter(is_enable=True)
+        # 获取当前集群内节点列表
+        redis_nodes = CacheNode.objects.filter(is_enable=True, cluster_name=self.cluster_name)
         nodes_info = []
+        node_label = {
+            "err": "",
+            "cluster_name": self.cluster_name,
+        }
         for node in redis_nodes:
             try:
-                nodes_info.append(self.get_node_redis_info(node))
+                node_label["node"] = str(node)
+                client = self.get_node_client(node)
+                node_label.update(self.get_node_labels(node, client))
+                node_info = self.get_node_redis_info(node)
+                node_info.update(node_label)
+                nodes_info.append(node_info)
             except Exception as e:
-                logger.exception("[collect redis error]{} detail: {}", node, e)
+                node_label["err"] = str(e)
+                metrics.EXPORTER_LAST_SCRAPE_ERROR.labels(**node_label).set(1)
                 continue
+            else:
+                metrics.EXPORTER_LAST_SCRAPE_ERROR.labels(**node_label).set(0)
         return nodes_info
+
+    def get_node_client(self, node):
+        # 实际redis节点client
+        return self.client.get_client(node)
+
+    def get_node_labels(self, node, client=None):
+        # 获取节点额外信息
+        client = client or self.get_node_client(node)
+        if node.cache_type == "SentinelRedisCache":
+            host, port = client._instance.connection_pool.get_master_address()
+            return {
+                "host": host,
+                "port": port,
+            }
+
+        connection_kwargs = client._instance.connection_pool.connection_kwargs
+        return {
+            "host": connection_kwargs["host"],
+            "port": connection_kwargs["port"],
+        }
 
     def get_node_redis_info(self, node):
         real_client = self.client.get_client(node)
         node_info = real_client.info()
-        # 在info命令获取的信息基础上增加额外的信息
-        if node.cache_type == "SentinelRedisCache":
-            host, port = real_client._instance.connection_pool.get_master_address()
-            node_info.update(
-                {
-                    "mastername": real_client.master_name,
-                    "node_type": "sentinel",
-                    "host": host,
-                    "port": port,
-                }
-            )
-        else:
-            connection_kwargs = real_client._instance.connection_pool.connection_kwargs
-            node_info.update(
-                {
-                    "mastername": "",
-                    "node_type": "standalone",
-                    "host": connection_kwargs["host"],
-                    "port": connection_kwargs["port"],
-                }
-            )
-
-            # 获取指标config_maxclients、config_maxmemory、db的值
-            node_info.update(
-                {
-                    "config_maxclients": int(real_client.config_get("maxclients")["maxclients"]),
-                    "config_maxmemory": int(real_client.config_get("maxmemory")["maxmemory"]),
-                }
-            )
+        node_info.update(real_client.info("commandstats"))
+        # 获取指标config_maxclients、config_maxmemory、db的值
+        node_info.update(
+            {
+                "config_maxclients": int(real_client.config_get("maxclients")["maxclients"]),
+                "config_maxmemory": int(real_client.config_get("maxmemory")["maxmemory"]),
+            }
+        )
         return node_info
 
     def set_redis_metric_data(self, node_info: dict):
         labels = {
-            "node_type": node_info["node_type"],
-            "mastername": node_info["mastername"],
+            "node": node_info["node"],
+            # redis info 返回自带 role 信息
             "role": node_info["role"],
             "host": node_info["host"],
             "port": str(node_info["port"]),
+            # 补充部署集群信息
+            "cluster_name": self.cluster_name,
         }
 
         # redis_exporter 和 redis info指标名不一样
@@ -123,7 +140,8 @@ class RedisMetricCollectReport(object):
         metrics.REPLICA_RESYNCS_FULL.labels(**labels).set(node_info["sync_full"])
         metrics.REPLICATION_BACKLOG_BYTES.labels(**labels).set(node_info["repl_backlog_size"])
         metrics.START_TIME_SECONDS.labels(**labels).set(node_info["uptime_in_seconds"])
-        metrics.CLIENT_BIGGEST_INPUT_BUF.labels(**labels).set(node_info["client_recent_max_input_buffer"])
+        if "client_recent_max_input_buffer" in node_info:
+            metrics.CLIENT_BIGGEST_INPUT_BUF.labels(**labels).set(node_info["client_recent_max_input_buffer"])
 
         # redis_exporter 和 redis info指标名一样的
         metrics.ACTIVE_DEFRAG_RUNNING.labels(**labels).set(node_info["active_defrag_running"])
@@ -172,8 +190,18 @@ class RedisMetricCollectReport(object):
             metrics.DB_KEYS.labels(**labels, db=i).set(key_info["keys"])
             metrics.DB_KEYS_EXPIRING.labels(**labels, db=i).set(key_info["expires"])
 
-    def collect_report_redis_metric_data(self):
+        # cmd stats
+        for key in node_info:
+            if key.startswith("cmdstat_"):
+                cmd_name = key.split("_", 1)[1]
+                metrics.COMMANDS_DURATION_SECONDS_TOTAL.labels(**labels, cmd=cmd_name).set(
+                    node_info[key]["usec"] / 10**6
+                )
+                metrics.COMMANDS_TOTAL.labels(**labels, cmd=cmd_name).set(node_info[key]["calls"])
+
+    def collect_redis_metric_data(self):
+        # 这里不主动上报, 采集逻辑内置在异步任务中，异步任务框架执行完成后会统一调用metrics.report_all() 上报任务状态.
+        # 数据共存于： REGISTRY对象中,
         nodes_info = self.get_redis_info()
         for node_info in nodes_info:
             self.set_redis_metric_data(node_info)
-        metrics.report_all()

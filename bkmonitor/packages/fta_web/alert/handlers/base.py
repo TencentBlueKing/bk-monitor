@@ -29,7 +29,7 @@ from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
-from fta_web.alert.utils import process_stage_string
+from fta_web.alert.utils import parse_query_str, process_stage_string
 
 
 class QueryField:
@@ -295,7 +295,12 @@ class BaseQueryHandler:
             query_dsl = self.query_transformer.transform_query_string(query_string)
             if isinstance(query_dsl, str):
                 # 如果 query_dsl 是字符串，就使用 query_string 查询
-                search_object = search_object.query("query_string", query=query_dsl)
+                if "event.metric" in query_dsl:
+                    # 指标ID支持模糊搜索
+                    query_dsl = parse_query_str(query_dsl)
+                    search_object = search_object.query(query_dsl)
+                else:
+                    search_object = search_object.query("query_string", query=query_dsl)
             else:
                 # 如果 query_dsl 是字典，就使用 filter 查询
                 search_object = search_object.query(query_dsl)

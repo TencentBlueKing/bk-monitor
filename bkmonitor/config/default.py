@@ -735,14 +735,27 @@ else:
     GRAFANA_MYSQL_PASSWORD,
 ) = get_grafana_mysql_settings()
 
+try:
+    from dj_db_conn_pool.backends import mysql
+
+    assert ROLE == "web"
+    default_db_engine = "dj_db_conn_pool.backends.mysql"
+except (ImportError, AssertionError):
+    default_db_engine = "django.db.backends.mysql"
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        "ENGINE": default_db_engine,
         "NAME": SAAS_MYSQL_NAME,
         "USER": SAAS_MYSQL_USER,
         "PASSWORD": SAAS_MYSQL_PASSWORD,
         "HOST": SAAS_MYSQL_HOST,
         "PORT": SAAS_MYSQL_PORT,
+        "POOL_OPTIONS": {
+            "POOL_SIZE": 5,
+            'MAX_OVERFLOW': -1,
+            'RECYCLE': 600,
+        },
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",

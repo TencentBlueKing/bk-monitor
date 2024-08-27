@@ -38,6 +38,7 @@ export default {
   '- 全部 -': '- ALL -',
   '-我有权限的空间-': '-My Spaces-',
   '-我有告警的空间-': '-Alarming Spaces-',
+  '-我有故障的空间-': '-Faulty Spaces-',
 
   // 告警
   修改告警组: 'Edit Alarm Team',
@@ -103,4 +104,9 @@ export default {
   已通知: 'Notified',
   已流控: 'Throttled',
   字段设置: 'Field Settings',
+
+  未恢复告警数: 'Unrecovered Alarm Count',
+  '名称 A-Z ': 'Name A-Z',
+  节点层级: 'Node Level',
+  监控数据项: 'Monitor Data Item',
 };

@@ -1767,6 +1767,8 @@ class ESStorage(models.Model, StorageResultTable):
     storage_cluster_id = models.IntegerField("存储集群")
     source_type = models.CharField("数据源类型", max_length=16, default="log", help_text="数据源类型，仅对日志内置集群索引进行生命周期管理")
     index_set = models.TextField("索引集", blank=True, null=True)
+    # 新增标记位，用于标识是否需要创建索引
+    need_create_index = models.BooleanField("是否需要创建索引", default=True)
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -1854,6 +1856,7 @@ class ESStorage(models.Model, StorageResultTable):
         enable_create_index=True,
         source_type=constants.EsSourceType.LOG.value,
         index_set=None,
+        need_create_index=True,
         **kwargs,
     ):
         """
@@ -1873,6 +1876,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param enable_create_index: 启用创建索引，默认为 True；针对非内置的数据源，不能创建索引
         :param source_type: 数据源类型，默认日志自建
         :param index_set: 索引集
+        :param need_create_index: 是否需要创建索引，默认为 True
         :param kwargs: 其他配置参数
         :return:
         """
@@ -1931,6 +1935,7 @@ class ESStorage(models.Model, StorageResultTable):
             time_zone=time_zone,
             source_type=source_type,
             index_set=index_set,
+            need_create_index=need_create_index,
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
 

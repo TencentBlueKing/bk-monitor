@@ -8,17 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from rest_framework.authentication import SessionAuthentication
 
 
-from celery import shared_task
-
-from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
-
-
-@shared_task
-def healthz(n):
-    return -n
-
-
-def collect_redis_metric():
-    RedisMetricCollectReport().collect_report_redis_metric_data()
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        # To not perform the csrf check previously happening
+        return

@@ -398,7 +398,7 @@ class StatisticsResource(Resource):
                     else None
                 ),
             },
-            "details": [detail_map.get(biz_id) for biz_id in ordered_filtered_biz_ids],
+            "details": [detail_map[biz_id] for biz_id in ordered_filtered_biz_ids if biz_id in detail_map],
         }
 
         return result

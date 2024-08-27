@@ -933,12 +933,13 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         predict_change_args = {
             "min_members": clustering_config.min_members,
-            "max_dist_list": clustering_config.max_dist_list,
             # 单词不一致 注意
             "predefined_variables": clustering_config.predefined_varibles,
             "delimeter": clustering_config.delimeter,
             "max_log_length": clustering_config.max_log_length,
             "is_case_sensitive": clustering_config.is_case_sensitive,
+            "st_list": OnlineTaskTrainingArgs.ST_LIST,
+            "max_dist_list": clustering_config.max_dist_list,
         }
 
         flow_id = clustering_config.predict_flow_id  # 预测 flow_id
@@ -1402,7 +1403,7 @@ class DataFlowHandler(BaseAiopsHandler):
             "sampling_conditions": [{"field_name": "is_new", "value": OnlineTaskTrainingArgs.IS_NEW}],
             "training_args": [
                 {"field_name": "min_members", "value": clustering_config.min_members},
-                {"field_name": "max_dist_list", "value": clustering_config.max_dist_list},
+                {"field_name": "max_dist_list", "value": OnlineTaskTrainingArgs.MAX_DIST_LIST},
                 {"field_name": "st_list", "value": OnlineTaskTrainingArgs.ST_LIST},
                 {
                     "field_name": "predefined_variables",
@@ -1719,7 +1720,7 @@ class DataFlowHandler(BaseAiopsHandler):
             log_count_signatures=log_count_signatures,
             table_name_no_id=table_name_no_id,
             result_table_id=result_table_id,
-            log_count_aggregation=RealTimeCls(
+            agg=RealTimeCls(
                 fields="",
                 table_name=f"bklog_{index_set_id}_agg",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_agg",
@@ -1727,12 +1728,20 @@ class DataFlowHandler(BaseAiopsHandler):
                 # TODO: group by 字段需要转换为原始字段名称
                 groups=", ".join(clustering_config.group_fields),
             ),
+            signature={
+                "table_name": f"bklog_{index_set_id}_signature",
+                "result_table_id": f"{bk_biz_id}_bklog_{index_set_id}_signature",
+            },
+            pattern={
+                "table_name": f"bklog_{index_set_id}_pattern",
+                "result_table_id": f"{bk_biz_id}_bklog_{index_set_id}_pattern",
+                "expires": self.conf.get("log_pattern_expires", 30),
+            },
             tspider_storage=TspiderStorageCls(
-                cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires")
+                cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires", 3)
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
-            cluster=self.get_model_available_storage_cluster(),
         )
 
         return log_count_aggregation_flow
@@ -1770,9 +1779,8 @@ class DataFlowHandler(BaseAiopsHandler):
 
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
         clustering_config.log_count_aggregation_flow_id = result["flow_id"]
-        clustering_config.new_cls_pattern_rt = log_count_aggregation_flow_dict["log_count_aggregation"][
-            "result_table_id"
-        ]
+        clustering_config.new_cls_pattern_rt = log_count_aggregation_flow_dict["agg"]["result_table_id"]
+        clustering_config.signature_pattern_rt = log_count_aggregation_flow_dict["pattern"]["result_table_id"]
         clustering_config.save()
         return result
 

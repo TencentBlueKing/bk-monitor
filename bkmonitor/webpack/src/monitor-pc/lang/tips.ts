@@ -140,8 +140,8 @@ export default {
   '数据格式需遵循{0},如下': 'The data format needs to follow {0}, as follows',
   本次下发覆盖: 'This Issuance Overwrites',
   监控项为策略配置: 'Monitoring items are alert rules',
-  空间数量指个人有权限的空间数量:
-    'The number of spaces refers to the number of spaces that an individual has access to',
+  '空间数量指个人有权限的空间数量，包含业务、研发项目、容器项目、蓝鲸应用四种类型':
+    'The number of spaces refers to the number of spaces that an individual has permission to use, including business, R&D projects, container projects, and Blue Whale applications',
   联系系统管理员升级至最新版本: 'Contact the system administrator to upgrade to the latest version',
   调整关键词: 'Adjusting keywords',
   配置管理业务: 'Configuration management business',
@@ -260,6 +260,7 @@ export default {
   调用关系: 'Call',
   故障传播: 'Fault Spread',
   显示图例: 'Show Legend',
+  显示小地图: 'Show Mini Map',
   重置比例: 'Reset Scale',
   自动聚合: 'Auto',
   不聚合: 'No',
@@ -284,4 +285,8 @@ export default {
     'The current data has not been loaded yet. If the data has not been loaded for a long time, {0}',
   '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html':
     'By default, the URI in the URL is taken for statistics. In actual production, many IDs are applied to the URI, so it is necessary to manually set and classify the same type of URI for statistics. For example:/user/{ID}/index.com',
+  '在“故障处理”展开折叠告警拓扑，会对应展开收起时序图块；在“故障流转”点击事件，会高亮对应的时间节点。':
+    'Expanding the folded alarm topology in "Fault Handling" will expand and collapse the timing diagram accordingly; clicking an event in "Fault Flow" will highlight the corresponding time node.',
+  '故障内的告警：共': 'Alarm in Fault: ',
+  '个': ' in total',
 };

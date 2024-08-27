@@ -3115,7 +3115,7 @@ export default class DataRetrieval extends tsc<object> {
                 onClick={this.handleEditModeChange}
               >
                 <span class='icon-monitor icon-switch' />
-                <span>{this.editMode === 'PromQL' ? 'UI' : 'PromQL'}</span>
+                <span>{this.editMode === 'PromQL' ? this.$t('表单') : 'PromQL'}</span>
               </span>
             )}
             {this.tabActive === 'monitor' && (

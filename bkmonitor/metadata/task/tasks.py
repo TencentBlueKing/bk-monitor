@@ -156,7 +156,8 @@ def update_time_series_metrics(time_series_metrics):
         logger.info("metric updated of table_id: %s", json.dumps(table_id_list))
 
 
-@app.task(ignore_result=True, queue="celery_report_cron")
+# todo: es 索引管理，迁移至BMW
+@app.task(ignore_result=True, queue="celery_long_task_cron")
 def manage_es_storage(es_storages):
     """并发管理 ES 存储。"""
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -190,6 +191,14 @@ def _manage_es_storage(es_storage):
         else:
             # 否则走更新流程
             es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
+
+        # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
+        if not es_storage.index_settings or es_storage.index_settings == '{}':
+            logger.error("table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id)
+            return
+        if not es_storage.mapping_settings or es_storage.mapping_settings == '{}':
+            logger.error("table_id->[%s] need to create index,but mapping_settings invalid", es_storage.table_id)
+            return
 
         # 创建快照
         es_storage.create_snapshot()
