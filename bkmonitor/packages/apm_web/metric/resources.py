@@ -460,6 +460,7 @@ class ServiceListResource(PageListResource):
                 }
             ],
             "page": 0,
+            "page_size": 1000,
         }
         strategies = resource.strategies.get_strategy_list_v2(**query_params).get("strategy_config_list", [])
         # 获取指标的告警事件
@@ -468,6 +469,7 @@ class ServiceListResource(PageListResource):
             "query_string": f"metric: custom.{app.metric_result_table_id}.*",
             "start_time": start_time,
             "end_time": end_time,
+            "page_size": 1000,
         }
         alert_infos = resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
 
@@ -681,9 +683,8 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             elif service["extra_data"]["kind"] == TopoNodeKind.SERVICE:
                 metric_info = service_metric_info.get(service_name, {})
             elif service["extra_data"]["kind"] == TopoNodeKind.COMPONENT:
-                metric_info = component_metric_info.get(service["from_service"], {}).get(
-                    service["extra_data"]["predicate_value"], {}
-                )
+                origin_service, predicate_value = service_name.rsplit("-", 1)
+                metric_info = component_metric_info.get(origin_service, {}).get(predicate_value, {})
 
             if service["topo_key"] in profiling_metric_info:
                 # 补充 profiling 数据
@@ -771,14 +772,38 @@ class InstanceListResource(Resource):
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称", required=False, allow_blank=True)
         keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
-        category = serializers.ListField(label="分类", required=False, default=[])
+        category = serializers.CharField(label="分类", required=False)
 
-    def perform_request(self, validated_request_data):
-        query_dict = {"bk_biz_id": validated_request_data["bk_biz_id"], "app_name": validated_request_data["app_name"]}
-        if "service_name" in validated_request_data:
-            query_dict["service_name"] = [validated_request_data["service_name"]]
+    def perform_request(self, validated_data):
+        params = {
+            "bk_biz_id": validated_data["bk_biz_id"],
+            "app_name": validated_data["app_name"],
+        }
+        if validated_data.get("service_name") and validated_data.get("category") == "db":
+            # 服务页面的 DB Tab 页面会传递 DB 分类，步骤为先此服务查询发现的 DB 类型，再查询这些类型下面的实例组合后返回
+            from apm_web.db.resources import ListDbSystemResource
 
-        instances = api.apm_api.query_instance(query_dict).get("data", [])
+            db_types = ListDbSystemResource()(
+                **{
+                    "bk_biz_id": validated_data["bk_biz_id"],
+                    "app_name": validated_data["app_name"],
+                    "group_by_key": OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM),
+                    "service_name": validated_data["service_name"],
+                }
+            )
+            type_service_names = [f"{validated_data['service_name']}-{i['name']}" for i in db_types]
+            params["service_name"] = type_service_names
+        else:
+            if "service_name" in validated_data:
+                params["service_name"] = [validated_data["service_name"]]
+            else:
+                # 如果没有指定服务名称 则为应用页面下 此时获取实例需要过滤掉组件类的实例
+                params["filters"] = {"instance_topo_kind": "service"}
+
+        instances = api.apm_api.query_instance(params).get("data", [])
+        return self.convert_to_response(validated_data["app_name"], validated_data.get("keyword"), instances)
+
+    def convert_to_response(self, app_name, keyword, instances):
         data = []
         for instance in instances:
             data.append(
@@ -787,10 +812,10 @@ class InstanceListResource(Resource):
                     "name": instance["instance_id"],
                     "topo_node_key": instance["topo_node_key"],
                     "service_name": instance["topo_node_key"],
-                    "app_name": validated_request_data["app_name"],
+                    "app_name": app_name,
                 }
             )
-        return self.filter_keyword(data, validated_request_data.get("keyword"))
+        return self.filter_keyword(data, keyword)
 
     def filter_keyword(self, data, keyword):
         if not keyword:
@@ -958,13 +983,20 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             query_params["category"] = data["filter"]
 
         if data["service_name"]:
-            # 如果是服务下错误->判断此服务是否是自定义服务
-            if ServiceHandler.is_remote_service(bk_biz_id, app_name, data["service_name"]):
+            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"])
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    data["bk_biz_id"],
+                    data["app_name"],
+                    data["service_name"],
+                    query_params["filter_params"],
+                )
+            elif ServiceHandler.is_remote_service_by_node(node):
                 query_params["filter_params"].append(
                     {
                         "key": OtlpKey.get_attributes_key(SpanAttributes.PEER_SERVICE),
                         "op": "=",
-                        "value": [data["service_name"].split(":")[-1]],
+                        "value": [ServiceHandler.get_remote_service_origin_name(data["service_name"])],
                     }
                 )
             else:
@@ -976,12 +1008,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     }
                 )
 
-            ComponentHandler.build_component_filter_params(
-                data["bk_biz_id"],
-                data["app_name"],
-                data["service_name"],
-                query_params["filter_params"],
-            )
         return api.apm_api.query_span(query_params)
 
     def format_time(self, time_int):
@@ -1022,10 +1048,8 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         times = set()
         exception_types = set()
 
-        error_count = DEFAULT_EMPTY_NUMBER
         has_exception = False
         for error in errors:
-            error_count += 1
             times.add(error["time"])
             exception_types |= {i.get("attributes", {}).get("exception.type") for i in error.get("events", [])}
             if not has_exception:
@@ -1047,7 +1071,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 "is_stack": _lazy("有Stack") if has_exception else _lazy("没有Stack"),
             },
             "category": service_mappings.get(service, {}).get("extra_data", {}).get("category"),
-            "error_count": error_count,
+            "error_count": len(errors),
             "service": service,
             "trace_id": trace_id,
             "app_name": self.app_name,
@@ -1616,28 +1640,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             SpanAttributes.HTTP_METHOD,
             SpanAttributes.MESSAGING_DESTINATION,
         ]
-
-    def _batch_query_list_endpoints(self, validate_data, from_service_names):
-        """
-        批量获取 list_endpoints
-        """
-
-        res = []
-        endpoints_metrics = {}
-        # 采用多线程方式，获取多服务指标
-        futures = []
-        pool = ThreadPool()
-        for service_name in from_service_names:
-            futures.append(pool.apply_async(self.list_endpoints, args=(validate_data, service_name)))
-
-        for future in futures:
-            try:
-                r, m = future.get()
-                res += r
-                endpoints_metrics.update(m)
-            except Exception as e:
-                logger.exception(e)
-        return res, endpoints_metrics
 
     def perform_request(self, validate_data):
         service_name = validate_data["service_name"]

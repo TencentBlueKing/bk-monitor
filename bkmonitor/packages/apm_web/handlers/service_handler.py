@@ -98,13 +98,9 @@ class ServiceHandler:
             app_name = application.app_name
             is_enabled_profiling = application.is_enabled_profiling
 
-        resp = cls.list_nodes(bk_biz_id, app_name)
+        trace_services = cls.list_nodes(bk_biz_id, app_name)
 
         # step1: 获取已发现的服务
-        trace_services = [item for item in resp if item["extra_data"]["kind"] in ["service", "remote_service"]]
-        for r in trace_services:
-            r["from_service"] = r["topo_key"]
-
         found_service_names = [i["topo_key"] for i in trace_services if i["extra_data"]["kind"] == "remote_service"]
         # step2: 额外补充手动配置的自定义服务
         custom_services = ApplicationCustomService.objects.filter(
@@ -125,12 +121,10 @@ class ServiceHandler:
                         "service_language": "",
                         "instance": {},
                     },
-                    "from_service": topo_key,
                 }
             )
 
         # step3: 计算服务下组件
-        trace_services += cls.list_service_components(bk_biz_id, app_name, resp)
 
         # step4: 获取 Profile 服务
         profile_services = []
@@ -168,66 +162,6 @@ class ServiceHandler:
         return res
 
     @classmethod
-    def list_service_components(cls, bk_biz_id, app_name, services):
-        topo_keys = [i["topo_key"] for i in services]
-        service_components = api.apm_api.query_topo_relation(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            filters={"from_topo_key__in": topo_keys, "to_topo_key_kind": TopoNodeKind.COMPONENT},
-        )
-
-        # 根据service_name分类 相同的category合为一类展示
-        from_keys_mapping = group_by(service_components, operator.itemgetter("from_topo_key"))
-
-        service_component_mappings = {}
-        for from_topo_key, to_components in from_keys_mapping.items():
-            predicate_value_mappings = {}
-            for to_component in to_components:
-                to_topo_key = to_component["to_topo_key"]
-                to_topo_kind = to_component["to_topo_key_kind"]
-                to_topo_category = to_component["to_topo_key_category"]
-
-                key_composition = to_topo_key.split(":")
-                # 兼容旧版topo_relation中间件发现逻辑生成了无:拼接的数据
-                if len(key_composition) <= 1:
-                    continue
-
-                predicate_value = key_composition[1]
-                predicate_value_mappings.setdefault(predicate_value, []).append(
-                    {
-                        "topo_key": to_topo_key,
-                        "extra_data": {
-                            "category": to_topo_category,
-                            "kind": to_topo_kind,
-                            "predicate_value": predicate_value,
-                            "service_language": "",
-                            "instance": {},
-                        },
-                    }
-                )
-
-            service_component_mappings[from_topo_key] = predicate_value_mappings
-
-        res = []
-        for from_service, component_mappings in service_component_mappings.items():
-            for predicate_value, items in component_mappings.items():
-                res.append(
-                    {
-                        "topo_key": f"{from_service}-{predicate_value}",
-                        "extra_data": {
-                            "category": items[0]["extra_data"]["category"],
-                            "kind": items[0]["extra_data"]["kind"],
-                            "predicate_value": predicate_value,
-                            "service_language": "",
-                            "instance": {},
-                        },
-                        "from_service": from_service,
-                    }
-                )
-
-        return res
-
-    @classmethod
     def is_remote_service(cls, bk_biz_id, app_name, node_topo_key) -> bool:
         """判断topo_key是否是远程服务"""
         # 无node_topo_key，直接返回
@@ -246,7 +180,7 @@ class ServiceHandler:
     @classmethod
     def get_remote_service_origin_name(cls, remote_service_name):
         """获取自定义服务的原始名称 http:xxx -> xxx"""
-        return remote_service_name.split(":")[-1]
+        return remote_service_name.split(":", 1)[-1]
 
     @classmethod
     def build_remote_service_filter_params(cls, service_name, filter_params):
@@ -273,6 +207,13 @@ class ServiceHandler:
     @classmethod
     def build_remote_service_es_query_dict(cls, query, service_name, filter_params):
         filter_params = cls.build_remote_service_filter_params(service_name, filter_params)
+        for f in filter_params:
+            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
+
+        return query
+
+    @classmethod
+    def build_service_es_query_dict(cls, query, filter_params):
         for f in filter_params:
             query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
 

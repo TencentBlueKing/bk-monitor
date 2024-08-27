@@ -382,12 +382,11 @@ class AvgDurationInstance(PromqlInstanceQueryMixin):
     metric_id = CalculationMethod.AVG_DURATION
     query_type = "instance"
     promql_format = (
-        'sum(increase('
-        '{{__name__="bkmonitor:{table_id}:__default__:bk_apm_duration_sum"{where}}}[{interval}s])) '
-        '{group_by} '
-        '/ sum(increase('
-        '{{__name__="bkmonitor:{table_id}:__default__:bk_apm_total"{where}}}[{interval}s])) '
-        '{group_by}'
+        'sum {group_by} (increase('
+        'custom:{table_id}:__default__:bk_apm_duration_sum{where}[{interval}s])) '
+        '/ sum {group_by} (increase('
+        'custom:{table_id}:__default__:bk_apm_total{where}[{interval}s])) '
+        ''
     )
 
 

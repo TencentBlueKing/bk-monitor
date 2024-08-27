@@ -729,7 +729,8 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name"
             },
-            "component_instance_id": "$bk_instance_id"
+            "component_instance_id": "$bk_instance_id",
+            "category": "db"
           },
           "dataType": "table",
           "api": "apm_meta.queryExceptionEvent"
@@ -1028,7 +1029,16 @@
                   "data_label": "",
                   "index_set_id": null,
                   "group_by": [],
-                  "where": [],
+                  "where": [
+                    {
+                      "key": "db_system",
+                      "method": "neq",
+                      "value": [
+                        ""
+                      ],
+                      "condition": "and"
+                    }
+                  ],
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
@@ -1423,7 +1433,8 @@
             "filter_params": {
               "resource.service.name": "$service_name"
             },
-            "component_instance_id": "$bk_instance_id"
+            "component_instance_id": "$bk_instance_id",
+            "category": "db"
           },
           "dataType": "table",
           "api": "apm_meta.queryExceptionEvent"

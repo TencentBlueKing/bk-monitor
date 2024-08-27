@@ -34,9 +34,7 @@
           "data": {
             "app_name": "$app_name",
             "service_name": "$service_name",
-            "category": [
-              "db"
-            ]
+            "category": "db"
           },
           "fields": {
             "id": "bk_instance_id"
@@ -818,7 +816,8 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "component_instance_id": "$bk_instance_id"
+            "component_instance_id": "$bk_instance_id",
+            "category": "db"
           },
           "dataType": "table",
           "api": "apm_meta.queryExceptionEvent"
@@ -1157,7 +1156,16 @@
                   "data_label": "",
                   "index_set_id": null,
                   "group_by": [],
-                  "where": [],
+                  "where": [
+                    {
+                      "key": "db_system",
+                      "method": "neq",
+                      "value": [
+                        ""
+                      ],
+                      "condition": "and"
+                    }
+                  ],
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
@@ -1612,7 +1620,8 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "component_instance_id": "$bk_instance_id"
+            "component_instance_id": "$bk_instance_id",
+            "category": "db"
           },
           "dataType": "table",
           "api": "apm_meta.queryExceptionEvent"

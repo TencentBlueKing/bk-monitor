@@ -1166,6 +1166,7 @@ class QueryExceptionEventResource(PageListResource):
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
+        category = serializers.CharField(label="分类", required=False)
 
     def get_operator(self):
         return _("查看")
@@ -1173,6 +1174,15 @@ class QueryExceptionEventResource(PageListResource):
     def perform_request(self, validated_data):
         filter_params = build_filter_params(validated_data["filter_params"])
         service_name = get_service_from_params(filter_params)
+        params = {
+            "app_name": validated_data["app_name"],
+            "bk_biz_id": validated_data["bk_biz_id"],
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+            "name": [self.EXCEPTION_EVENT_TYPE],
+        }
+        if validated_data.get("category"):
+            params["category"] = validated_data["category"]
         if service_name:
             node = ServiceHandler.get_node(
                 validated_data["bk_biz_id"],
@@ -1194,16 +1204,8 @@ class QueryExceptionEventResource(PageListResource):
                 if ServiceHandler.is_remote_service_by_node(node):
                     filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
-        events = api.apm_api.query_event(
-            {
-                "app_name": validated_data["app_name"],
-                "bk_biz_id": validated_data["bk_biz_id"],
-                "start_time": validated_data["start_time"],
-                "end_time": validated_data["end_time"],
-                "name": [self.EXCEPTION_EVENT_TYPE],
-                "filter_params": filter_params,
-            }
-        )
+        params["filter_params"] = filter_params
+        events = api.apm_api.query_event(params)
         res = []
         for event in events:
             exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, "unknown")
@@ -2359,11 +2361,15 @@ class QueryExceptionTypeGraphResource(Resource):
 
     def build_filter_params(self, filter_dict):
         result = []
+        service_name = None
         for key, value in filter_dict.items():
             if value == "undefined":
                 continue
-            result.append({"key": key, "op": "=", "value": value if isinstance(value, list) else [value]})
-        return result
+            if key == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME):
+                service_name = value
+            else:
+                result.append({"key": key, "op": "=", "value": value if isinstance(value, list) else [value]})
+        return result, service_name
 
     def perform_request(self, validated_data):
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
@@ -2390,14 +2396,28 @@ class QueryExceptionTypeGraphResource(Resource):
             {
                 "range": {
                     "end_time": {
-                        "gt": validated_data["start_time"] * 1000 * 1000,
-                        "lte": validated_data["end_time"] * 1000 * 1000,
+                        # 往前 / 往后对齐至 0 秒 防止数据看上去出现了波动
+                        "gt": int(
+                            datetime.datetime.fromtimestamp(validated_data["start_time"]).replace(second=0).timestamp()
+                        )
+                        * 1000
+                        * 1000,
+                        "lt": int(
+                            (
+                                datetime.datetime.fromtimestamp(validated_data["end_time"])
+                                + datetime.timedelta(minutes=1)
+                            )
+                            .replace(second=0)
+                            .timestamp()
+                        )
+                        * 1000
+                        * 1000,
                     }
                 }
             },
         ]
         # Step1: 根据错误类型过滤
-        if validated_data["exception_type"]:
+        if validated_data["exception_type"] and validated_data["exception_type"] != "unknown":
             musts.append(
                 {
                     "nested": {
@@ -2424,8 +2444,7 @@ class QueryExceptionTypeGraphResource(Resource):
         )
 
         # Step3: 根据组件类服务过滤
-        filter_params = self.build_filter_params(validated_data["filter_params"])
-        service_name = get_service_from_params(filter_params)
+        filter_params, service_name = self.build_filter_params(validated_data["filter_params"])
         if service_name:
             node = ServiceHandler.get_node(
                 validated_data["bk_biz_id"],
@@ -2444,18 +2463,25 @@ class QueryExceptionTypeGraphResource(Resource):
             else:
                 if ServiceHandler.is_remote_service_by_node(node):
                     query = ServiceHandler.build_remote_service_es_query_dict(query, service_name, filter_params)
+                else:
+                    query = ServiceHandler.build_service_es_query_dict(query, filter_params)
 
         response = api.apm_api.query_es(table_id=app.trace_result_table_id, query_body=query.to_dict())
+        buckets = response.get("aggregations", {}).get("events_over_time", {}).get("buckets", [])
+        if not buckets:
+            return {"metrics": [], "series": []}
+
+        if len(buckets) > 2:
+            # 去除头尾未统计完整的元素
+            buckets.pop(0)
+            buckets.pop()
 
         return {
             "metrics": [],
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": [
-                        [i["doc_count"], i["key"]]
-                        for i in response.get("aggregations", {}).get("events_over_time", {}).get("buckets", [])
-                    ],
+                    "datapoints": [[i["doc_count"], i["key"]] for i in buckets],
                     "dimensions": {},
                     "metric_field": "_result_",
                     "target": "",
