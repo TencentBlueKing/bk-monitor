@@ -2055,9 +2055,6 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
         )
 
         if ComponentHandler.is_component_by_node(node):
-            query_dict["service_name"] = [
-                ComponentHandler.get_component_belong_service(validated_request_data["service_name"])
-            ]
             metric_data = ComponentHandler.get_service_component_instance_metrics(
                 application,
                 node["extra_data"]["kind"],

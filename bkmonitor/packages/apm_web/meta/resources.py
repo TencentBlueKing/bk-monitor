@@ -2464,7 +2464,7 @@ class QueryExceptionTypeGraphResource(Resource):
                 if ServiceHandler.is_remote_service_by_node(node):
                     query = ServiceHandler.build_remote_service_es_query_dict(query, service_name, filter_params)
                 else:
-                    query = ServiceHandler.build_service_es_query_dict(query, filter_params)
+                    query = ServiceHandler.build_service_es_query_dict(query, service_name, filter_params)
 
         response = api.apm_api.query_es(table_id=app.trace_result_table_id, query_body=query.to_dict())
         buckets = response.get("aggregations", {}).get("events_over_time", {}).get("buckets", [])

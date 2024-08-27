@@ -213,7 +213,10 @@ class ServiceHandler:
         return query
 
     @classmethod
-    def build_service_es_query_dict(cls, query, filter_params):
+    def build_service_es_query_dict(cls, query, service_name, filter_params):
+        query = query.query(
+            "bool", filter=[Q("terms", **{OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): [service_name]})]
+        )
         for f in filter_params:
             query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
 
