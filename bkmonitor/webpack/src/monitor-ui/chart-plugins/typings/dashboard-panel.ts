@@ -386,6 +386,13 @@ export interface IApmTimeSeriesOption {
   };
 }
 
+export interface IApmRelationGraphOption {
+  apm_relation_graph?: {
+    app_name?: string;
+    service_name?: string;
+  };
+}
+
 // 视图特殊配置
 export type PanelOption = {
   legend?: ILegendOption;
@@ -406,7 +413,8 @@ export type PanelOption = {
   IPercentageBarOption &
   IResourceChartOption &
   IRelatedLogChartoption &
-  IApmTimeSeriesOption;
+  IApmTimeSeriesOption &
+  IApmRelationGraphOption;
 
 export interface IPanelModel {
   id: number | string;

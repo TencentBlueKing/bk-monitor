@@ -151,6 +151,7 @@ export default class ApmTimeSeries extends TimeSeries {
       for (const time_shift of timeShiftList) {
         const noTransformVariables = !!this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
+          const stack = item?.data?.stack || '';
           const newPrarams = {
             ...variablesService.transformVariables(
               item.data,
@@ -189,6 +190,7 @@ export default class ApmTimeSeries extends TimeSeries {
               series.push(
                 ...res.series.map(set => ({
                   ...set,
+                  stack,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
                   }`,
@@ -227,7 +229,6 @@ export default class ApmTimeSeries extends TimeSeries {
             ...item,
             datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
-        const stack = random(8);
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({
             name: item.name,
@@ -236,7 +237,7 @@ export default class ApmTimeSeries extends TimeSeries {
               pre.push([...cur].reverse());
               return pre;
             }, []),
-            stack: item.stack || stack || random(10),
+            stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
             markPoint: this.createMarkPointData(item, series),
             markLine: this.createMarkLine(index),

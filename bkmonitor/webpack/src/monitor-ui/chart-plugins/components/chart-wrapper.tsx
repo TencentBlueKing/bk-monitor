@@ -511,7 +511,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           />
         );
       case 'apm-relation-graph':
-        return <ApmRelationGraph />;
+        return <ApmRelationGraph panel={this.panel} />;
       case 'alarm-event-chart':
         return <AlarmEventChart panel={this.panel} />;
       // 不需要报错显示
