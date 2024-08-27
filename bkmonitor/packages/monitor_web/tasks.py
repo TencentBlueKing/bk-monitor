@@ -12,12 +12,15 @@ import copy
 import datetime
 import logging
 import math
+import os
 import shutil
 import time
 import traceback
 from typing import Any, Dict
 
 import arrow
+from arrow.parser import ParserError
+from bkstorages.exceptions import RequestError
 from celery.task import task
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -1314,3 +1317,47 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         "message": "create dataflow success",
     }
     rt_query_config.save()
+
+
+def clean_bkrepo_temp_file():
+    """
+    清理bkrepo临时文件
+    """
+    if not os.getenv("USE_BKREPO"):
+        return
+
+    from bkstorages.backends.bkrepo import BKGenericRepoClient
+
+    client = BKGenericRepoClient(
+        bucket=settings.BKREPO_BUCKET,
+        project=settings.BKREPO_PROJECT,
+        username=settings.BKREPO_USERNAME,
+        password=settings.BKREPO_PASSWORD,
+        endpoint_url=settings.BKREPO_ENDPOINT_URL,
+    )
+
+    clean_paths = ["as_code/export/", "as_code/"]
+    for clean_path in clean_paths:
+        filenames = set(client.list_dir(clean_path)[1])
+        for filename in filenames:
+            filepath = f"{clean_path}{filename}"
+            try:
+                # 获取文件的最后修改时间
+                meta = client.get_file_metadata(filepath)
+                last_modified = meta.get("Last-Modified")
+                if not last_modified:
+                    continue
+                last_modified = last_modified.split(",")[-1].strip()
+                last_modified = arrow.get(last_modified, "DD MMM YYYY HH:mm:ss")
+
+                # 删除超过一天的文件
+                if (arrow.now() - last_modified).days < 1:
+                    continue
+
+                client.delete_file(filepath)
+            except ParserError:
+                logger.error(
+                    f"Failed to parse last modified time, filepath: {filepath}, last_modified: {last_modified}"
+                )
+            except RequestError:
+                pass
