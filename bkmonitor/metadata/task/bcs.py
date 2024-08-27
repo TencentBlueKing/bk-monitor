@@ -64,7 +64,7 @@ def refresh_bcs_monitor_info():
             PodMonitorInfo.refresh_custom_resource(cluster_id=cluster.cluster_id)
             logger.debug("refresh bcs pod monitor custom resource in cluster:{} done".format(cluster.cluster_id))
         except Exception:  # noqa
-            logger.exception("refresh bcs monitor info field, cluster_id(%s)", cluster.cluster_id)
+            logger.exception("refresh bcs monitor info failed, cluster_id(%s)", cluster.cluster_id)
 
 
 @app.task(ignore_result=True, queue="celery_cron")
