@@ -61,6 +61,8 @@ FAILED_LOG_ASYNC_FIELDS = [
     {"field_name": "gseindex", "es_doc_values": True},
 ]
 
+CUSTOM_SORT_FIELDS = ["dtEventTimeStamp", "gseindex"]
+
 
 class TestMappingHandler(TestCase):
     def setUp(self) -> None:
@@ -99,7 +101,7 @@ class TestMappingHandler(TestCase):
         self.assertTrue(MappingHandlers.async_export_fields([], Scenario.ES, [])["async_export_usable"])
 
         self.assertTrue(
-            MappingHandlers.async_export_fields(FAILED_LOG_ASYNC_FIELDS, Scenario.LOG, FAILED_LOG_ASYNC_FIELDS)["async_export_usable"]
+            MappingHandlers.async_export_fields(FAILED_LOG_ASYNC_FIELDS, Scenario.LOG, CUSTOM_SORT_FIELDS)["async_export_usable"]
         )
 
         self.assertFalse(

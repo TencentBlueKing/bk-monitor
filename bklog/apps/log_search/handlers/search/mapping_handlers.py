@@ -1054,7 +1054,7 @@ class MappingHandlers(object):
 
     @classmethod
     def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str,
-                            sort_fields: List[Dict[str, Any]]) -> dict:
+                            sort_fields: list) -> dict:
         """
         判断是否可以支持大额导出
         """
