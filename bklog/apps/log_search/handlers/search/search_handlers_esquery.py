@@ -395,7 +395,8 @@ class SearchHandler(object):
         @param field_result:
         @return:
         """
-        result = MappingHandlers.async_export_fields(field_result, self.scenario_id)
+        sort_fields = self.index_set.sort_fields if self.index_set else []
+        result = MappingHandlers.async_export_fields(field_result, self.scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
         return False, {"usable_reason": result["async_export_usable_reason"]}
