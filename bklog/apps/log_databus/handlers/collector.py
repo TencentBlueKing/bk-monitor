@@ -4154,6 +4154,7 @@ class CollectorHandler(object):
             }
 
         add_pod_label = False
+        add_pod_annotation = False
         extra_labels = {}
         container_configs = []
 
@@ -4192,6 +4193,7 @@ class CollectorHandler(object):
                 }
 
             add_pod_label = config["addPodLabel"]
+            add_pod_annotation = config["addPodAnnotation"]
             extra_labels = config.get("extMeta", {})
             conditions = convert_filters_to_collector_condition(config.get("filters", []), config.get("delimiter", ""))
 
@@ -4242,6 +4244,7 @@ class CollectorHandler(object):
                 "environment": Environment.CONTAINER,
                 "extra_labels": [{"key": key, "value": value} for key, value in extra_labels.items()],
                 "add_pod_label": add_pod_label,
+                "add_pod_annotation": add_pod_annotation,
                 "configs": container_configs,
             },
         }

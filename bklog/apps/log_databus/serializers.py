@@ -329,6 +329,7 @@ class ContainerConfigSerializer(serializers.Serializer):
     )
     container = ContainerSerializer(required=False, label=_("指定容器"))
     label_selector = LabelSelectorSerializer(required=False, label=_("标签"))
+    annotation_selector = LabelSelectorSerializer(required=False, label=_("注解"))
     paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"))
     data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     params = PluginParamSerializer(required=True, label=_("插件参数"))
@@ -356,6 +357,7 @@ class BcsContainerConfigSerializer(serializers.Serializer):
     )
     container = ContainerSerializer(required=False, label=_("指定容器"), default={})
     label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default={})
+    annotation_selector = LabelSelectorSerializer(required=False, label=_("注解"), default={})
     paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=[])
     data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     enable_stdout = serializers.BooleanField(required=False, label=_("是否采集标准输出"), default=False)
@@ -1294,6 +1296,8 @@ class PreviewContainersSerializer(serializers.Serializer):
     label_selector = LabelSelectorSerializer(
         required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
     )
+    annotation_selector = LabelSelectorSerializer(required=False, label=_("注解"),
+                                                  default={"match_labels": [], "match_expressions": []})
     namespaces = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("命名空间"), default=[])
     namespaces_exclude = serializers.ListSerializer(
         child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
@@ -1380,11 +1384,13 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
         label=_("容器名称匹配排除"), child=serializers.CharField(), required=False, allow_empty=True
     )
     labelSelector = LabelSelectorSerializer(label=_("匹配标签"), required=False)
+    annotationSelector = LabelSelectorSerializer(label=_("匹配注解"), required=False)
     delimiter = serializers.CharField(
         label=_("分隔符"), allow_null=True, allow_blank=True, required=False, trim_whitespace=False
     )
     filters = FilterSerializer(label=_("过滤规则"), many=True, required=False)
     addPodLabel = serializers.BooleanField(label=_("上报时是否把标签带上"), default=False)
+    addPodAnnotation = serializers.BooleanField(label=_("上报时是否把注解带上"), default=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
