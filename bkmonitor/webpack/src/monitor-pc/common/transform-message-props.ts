@@ -23,37 +23,45 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-let vue;
-export const setVue = function (instance) {
-  vue = instance;
-};
-
-export const bkMessage = message => {
-  if (vue?.prototype?.$bkMessage) {
-    vue.prototype.$bkMessage(message);
-  } else {
-    vue.config.globalProperties.$Message(message);
-  }
-};
-
-export const authorityStore = () => {
-  if (vue.prototype?.$authorityStore) {
-    return vue.prototype.$authorityStore;
-  }
-  return vue.config?.globalProperties?.$authorityStore;
-};
-
-export const makeMessage = (message, traceparent, needTraceId) => {
-  const list = traceparent?.split('-');
-  let traceId = traceparent;
-  if (list?.length) {
-    traceId = list[1];
-  }
-  if (message && needTraceId && traceId && typeof message === 'object') {
-    return {
-      ...message,
-      trace_id: traceId,
+const MESSAGE_FIELD = 'popup_message';
+const MESSAGE_THEME_LIST = ['error', 'warning'];
+/**
+ *
+ * @param props { theme: string, message: Record<string, any>} | Record<string, any>
+ * @returns Record<string, any>
+ */
+export const transformMessageProps = (params: Record<string, any>) => {
+  let props = params;
+  if (!props || typeof props !== 'object') return props;
+  if (MESSAGE_FIELD in props) {
+    props = {
+      message: props,
     };
   }
-  return message;
+  if (props.message && typeof props.message !== 'string' && MESSAGE_FIELD in props.message) {
+    return {
+      actions: [
+        {
+          id: 'assistant',
+          disabled: !props.message.assistant,
+        },
+        {
+          id: 'details',
+          disabled: false,
+        },
+      ],
+      message: {
+        code: props.message.exc_code || props.message.code,
+        overview: props.message.overview || props.message.overview,
+        suggestion: props.message.suggestion || '',
+        type: 'json',
+        details: JSON.stringify({ ...props.message }),
+        assistant: props.message.assistant || undefined,
+      },
+      theme: MESSAGE_THEME_LIST.includes(props.message.popup_message) ? props.message.popup_message : 'error',
+      ellipsisLine: 2,
+      ellipsisCopy: true,
+    };
+  }
+  return props;
 };

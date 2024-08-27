@@ -28,7 +28,7 @@ import CancelToken from 'axios/lib/cancel/CancelToken';
 import { random } from 'monitor-common/utils/utils';
 
 import axios from './axios/axios';
-import { bkMessage } from './utils/index';
+import { bkMessage, makeMessage } from './utils/index';
 const NO_NEED_ERROR_MESSAGE = 'bk_monitor_api_no_message';
 const defaultConfig = {
   needBiz: true,
@@ -96,7 +96,6 @@ export const request = (method, url) => {
       // 添加本次请求
       addPendingRequest(method, url, config);
     }
-    console.info(config, config.needMessage, '======');
     if (methodType === 'get') {
       if (hasBizId && !('bk_biz_id' in data)) {
         data.bk_biz_id = window.cc_biz_id;
@@ -117,9 +116,10 @@ export const request = (method, url) => {
           return Promise.resolve(res.data);
         })
         .catch(err => {
-          // const message = makeMessage(err.message, traceparent, config.needTraceId);
+          const message = makeMessage(err.error_details || err.message, traceparent, config.needTraceId);
+          console.info(message, '++++++++++++++');
           if (config.needMessage) {
-            bkMessage(err.error_details || err.message);
+            bkMessage(message);
           }
           // !err.error_details && err.message && (err.message = message);
           return Promise.reject(err);
@@ -168,9 +168,11 @@ export const request = (method, url) => {
         return Promise.resolve(res.data);
       })
       .catch(err => {
-        // const message = makeMessage(err.message || '', traceparent, config.needTraceId);
+        const message = makeMessage(err.error_details || err.message || '', traceparent, config.needTraceId);
+        console.info(err.error_details || err.message, message, '======++++++++++++++');
+
         if (config.needMessage && !noMessageCode.includes(err.code)) {
-          bkMessage(err.error_details || err.message);
+          bkMessage(message);
         }
         // !err.error_details && err.message && (err.message = message);
         return Promise.reject(err);

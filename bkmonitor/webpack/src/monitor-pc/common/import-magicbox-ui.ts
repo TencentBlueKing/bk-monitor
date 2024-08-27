@@ -27,36 +27,13 @@ import Vue from 'vue';
 
 import bkMagicVue from 'bk-magic-vue';
 
-import 'bk-magic-vue/dist/bk-magic-vue.min.css';
+import { transformMessageProps } from './transform-message-props';
 
+import 'bk-magic-vue/dist/bk-magic-vue.min.css';
 Vue.use(bkMagicVue, { zIndex: 3000 });
 const bkMessage = Vue.prototype.$bkMessage;
-Vue.prototype.$bkMessage = (props: Record<string, any>) => {
-  if (props.message && typeof props.message !== 'string' && 'overview' in props.message) {
-    return bkMessage({
-      actions: [
-        {
-          id: 'assistant',
-          disabled: !props.message.assistant,
-        },
-        {
-          id: 'details',
-          disabled: !(props.message.detail || props.message.detail),
-        },
-      ],
-      message: {
-        code: props.message.exc_code || props.message.code,
-        overview: props.message.overview || props.message.overview,
-        suggestion: props.message.suggestion || '',
-        type: 'json',
-        details: props.message.detail || props.message.detail,
-        assistant: props.message.assistant || undefined,
-      },
-      theme: 'error' || props.message.popup_message,
-      ellipsisLine: 2,
-      ellipsisCopy: true,
-    });
-  }
+Vue.prototype.$bkMessage = (params: Record<string, any>) => {
+  const props = transformMessageProps(params);
   return bkMessage(props);
 };
 // import {
