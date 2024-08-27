@@ -88,16 +88,20 @@ class TestMappingHandler(TestCase):
     @patch("apps.feature_toggle.handlers.toggle.FeatureToggleObject.switch", lambda _: True)
     def test_async_export_fields(self):
         self.assertTrue(
-            MappingHandlers.async_export_fields(BKDATA_ASYNC_FIELDS_LIST, Scenario.BKDATA)["async_export_usable"]
+            MappingHandlers.async_export_fields(BKDATA_ASYNC_FIELDS_LIST, Scenario.BKDATA, [])["async_export_usable"]
         )
         self.assertTrue(
-            MappingHandlers.async_export_fields(BKDATA_CONTAINER_ASYNC_FIELDS_LIST, Scenario.BKDATA)[
+            MappingHandlers.async_export_fields(BKDATA_CONTAINER_ASYNC_FIELDS_LIST, Scenario.BKDATA, [])[
                 "async_export_usable"
             ]
         )
-        self.assertTrue(MappingHandlers.async_export_fields(LOG_ASYNC_FIELDS_LIST, Scenario.LOG)["async_export_usable"])
-        self.assertTrue(MappingHandlers.async_export_fields([], Scenario.ES)["async_export_usable"])
+        self.assertTrue(MappingHandlers.async_export_fields(LOG_ASYNC_FIELDS_LIST, Scenario.LOG, [])["async_export_usable"])
+        self.assertTrue(MappingHandlers.async_export_fields([], Scenario.ES, [])["async_export_usable"])
+
+        self.assertTrue(
+            MappingHandlers.async_export_fields(FAILED_LOG_ASYNC_FIELDS, Scenario.LOG, FAILED_LOG_ASYNC_FIELDS)["async_export_usable"]
+        )
 
         self.assertFalse(
-            MappingHandlers.async_export_fields(FAILED_LOG_ASYNC_FIELDS, Scenario.LOG)["async_export_usable"]
+            MappingHandlers.async_export_fields(FAILED_LOG_ASYNC_FIELDS, Scenario.LOG, [])["async_export_usable"]
         )
