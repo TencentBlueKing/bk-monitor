@@ -38,7 +38,7 @@ def refresh_bcs_monitor_info():
     try:
         fed_clusters = api.bcs.get_federation_clusters()
         fed_cluster_id_list = list(fed_clusters.keys())
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
         logger.error("get federation clusters failed: {}".format(e))
 
@@ -137,7 +137,7 @@ def discover_bcs_clusters():
     logger.info("start to discover bcs clusters")
     try:
         bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error("get bcs clusters failed, error:{}".format(e))
         return
     cluster_list = []
@@ -145,7 +145,7 @@ def discover_bcs_clusters():
     try:
         fed_clusters = api.bcs.get_federation_clusters()
         fed_cluster_id_list = list(fed_clusters.keys())
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
         logger.error("get federation clusters failed, error:{}".format(e))
 
@@ -206,7 +206,7 @@ def discover_bcs_clusters():
                 )
             )
             cluster.init_resource(is_fed_cluster=is_fed_cluster)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "cluster_id:{},project_id:{},bk_biz_id:{} init resource failed, error:{}".format(
                     cluster.cluster_id, cluster.project_id, cluster.bk_biz_id, e
