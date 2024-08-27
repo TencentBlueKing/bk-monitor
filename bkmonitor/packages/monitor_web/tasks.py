@@ -1339,8 +1339,10 @@ def clean_bkrepo_temp_file():
     clean_paths = ["as_code/export/", "as_code/"]
     for clean_path in clean_paths:
         filenames = set(client.list_dir(clean_path)[1])
+        logger.info("cleaning bkrepo temp files, path: {}, file count: {}".format(clean_path, len(filenames)))
         for filename in filenames:
             filepath = f"{clean_path}{filename}"
+            last_modified = None
             try:
                 # 获取文件的最后修改时间
                 meta = client.get_file_metadata(filepath)
