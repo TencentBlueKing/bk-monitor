@@ -1294,7 +1294,12 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
             }
             return values;
           }, []);
-        } else {
+        } else if (typeof item.value === 'string') {
+          return {
+            id: item.value,
+            name: item.value,
+          };
+        } else if (Array.isArray(item.value)) {
           values = item.value.map(id => ({
             id,
             name: id,
