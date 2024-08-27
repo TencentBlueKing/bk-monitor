@@ -1,6 +1,5 @@
 const { transformAppDir } = require('./webpack/utils');
 const appName = transformAppDir(process.env.APP);
-console.info(appName, '========');
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
