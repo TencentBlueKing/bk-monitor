@@ -34,5 +34,7 @@ const getters = {
   bkUrl: (state: IRootState) => state.app.bkUrl,
   navRouteList: (state: IRootState) => state.app.navRouteList,
   lang: (state: IRootState) => state.app.lang,
+  spaceUidMap: (state: IRootState) => state.app.spaceUidMap,
+  bizIdMap: (state: IRootState) => state.app.bizIdMap,
 };
 export default getters;

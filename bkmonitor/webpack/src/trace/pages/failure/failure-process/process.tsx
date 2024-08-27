@@ -72,13 +72,14 @@ export const handleFun = (data, callback) => {
 };
 
 /** 点击跳转到告警tab */
-export const handleDetail = (e, data, id, bizId) => {
+export const handleDetail = (e, data, id, bizId, callback) => {
   e.stopPropagation();
-  const word = '?tab=FailureView';
-  const key = location.hash.indexOf(word) === -1 ? word : '';
-  const routeUrl = `${location.hash}${key}`;
-  const url = `${location.origin}${location.pathname}?bizId=${bizId}${routeUrl}`;
-  window.location.href = url;
+  callback?.(data);
+  // const word = '?tab=FailureView';
+  // const key = location.hash.indexOf(word) === -1 ? word : '';
+  // const routeUrl = `${location.hash}${key}`;
+  // const url = `${location.origin}${location.pathname}?bizId=${bizId}${routeUrl}`;
+  // window.location.href = url;
 };
 /** 点击告警名 */
 export const handleAlertName = (extra_info, callback) => {
@@ -141,14 +142,14 @@ const handleUpdate = ({ extra_info, operator }) => {
 };
 /** 各类型文案渲染函数 */
 export const renderMap = reactive({
-  incident_create: ({ extra_info }, id, bizId) => {
+  incident_create: ({ extra_info }, id, bizId, callback) => {
     return (
       <i18n-t
         v-slots={{
           alert_count: () => (
             <span
               class='count link cursor'
-              onClick={e => handleDetail(e, extra_info, id, bizId)}
+              onClick={e => handleDetail(e, extra_info, id, bizId, callback)}
             >
               {extra_info.alert_count}
             </span>

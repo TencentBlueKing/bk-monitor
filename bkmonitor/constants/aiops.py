@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.utils.translation import ugettext as _
 
 AI_SETTING_APPLICATION_CONFIG_KEY = "ai_setting"
 
@@ -51,5 +52,7 @@ MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_METRIC_LIST = [
 class SceneSet(object):
     HOST = "host"
 
+
+SCENE_NAME_MAPPING = {SceneSet.HOST: _("主机场景")}
 
 SCENE_METRIC_MAP = {SceneSet.HOST: MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_METRIC_LIST}

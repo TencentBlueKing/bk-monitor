@@ -155,7 +155,7 @@ import { ackEvent } from '../../../monitor-api/modules/mobile_event';
 import MonitorMobileEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
-import { IEventItem, IHeader, IStatusMap } from '../../types/alarm-info';
+import type { IEventItem, IHeader, IStatusMap } from '../../types/alarm-info';
 
 @Component({
   name: 'AlarmInfo',
@@ -219,7 +219,7 @@ export default class AlarmDetail extends Vue {
     this.statusMap = {
       ABNORMAL: this.$t('未恢复'),
       SHIELD_ABNORMAL: this.$t('已屏蔽未恢复'),
-      CLOSED: this.$t('已关闭'),
+      CLOSED: this.$t('已失效'),
       RECOVERED: this.$t('已恢复'),
     };
   }

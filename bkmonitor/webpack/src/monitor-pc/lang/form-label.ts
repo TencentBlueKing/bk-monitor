@@ -79,6 +79,7 @@ export default {
   告警屏蔽详情: 'Alarm Mute Details',
   告警风暴: 'Alarm Storm',
   告警阶段: 'Alarm Stage',
+  '告警开始/结束时间': 'Alarm Start/End Time',
   告警标题: 'Alarm Title',
   告警通知模板: 'Message Template',
   告警组名称: 'Alarm Team Name',
@@ -576,7 +577,7 @@ export default {
   已发送: 'Sent',
   已加载: 'Loaded',
   已选择: 'Selected',
-  已失效: 'Expired',
+  已失效: 'Closed',
   已启用: 'Enabled',
   已开启: 'Enabled',
   已过期: 'Expired',
@@ -1868,4 +1869,5 @@ export default {
   故障关注人: 'Fault Follower',
   故障链接: 'Fault Link',
   故障内告警: 'Fault Internal Alarm',
+  表单: 'Form',
 };

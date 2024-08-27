@@ -31,14 +31,10 @@ NOT_CLUSTERING_FILTER_RULE = " where ip is null"
 OPERATOR_AND = "and"
 # 聚类不参与sql字段
 NOT_CONTAIN_SQL_FIELD_LIST = ["timestamp", "_startTime_", "_endTime_"]
-DIST_FIELDS = ["dist_01", "dist_03", "dist_05", "dist_07", "dist_09"]
-RENAME_DIST_FIELDS = ["__dist_01", "__dist_03", "__dist_05", "__dist_07", "__dist_09"]
+DIST_FIELDS = ["dist_05"]
+RENAME_DIST_FIELDS = ["__dist_05"]
 DIST_CLUSTERING_FIELDS = [
-    "dist_01 AS __dist_01",
-    "dist_03 AS __dist_03",
     "dist_05 AS __dist_05",
-    "dist_07 AS __dist_07",
-    "dist_09 AS __dist_09",
 ]
 DEFAULT_SPARK_EXECUTOR_INSTANCES = 8
 DEFAULT_SPARK_EXECUTOR_CORES = 2
@@ -485,4 +481,6 @@ class OperatorOnlineTaskEnum(object):
 class OnlineTaskTrainingArgs(object):
     IS_NEW = 1
     USE_OFFLINE_MODEL = 0
-    ST_LIST = "0.9,0.8875,0.875,0.8625,0.85"
+    ST_LIST = "0.875"
+    MAX_DIST_LIST = "0.5"
+    DEPTH = 7

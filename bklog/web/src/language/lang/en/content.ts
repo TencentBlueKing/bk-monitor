@@ -838,4 +838,5 @@ export default {
     'Every n (integer) days, the log pattern generated again will be treated as a new class.',
   新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
   请先新建新类告警策略: 'Please create a new category strategy first',
+  配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
 };

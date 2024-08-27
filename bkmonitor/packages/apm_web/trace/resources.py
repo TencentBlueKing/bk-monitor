@@ -375,14 +375,16 @@ class ListSpanResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
+        bk_biz_id: int = data["bk_biz_id"]
+        app_name: str = data["app_name"]
         params = {
-            "bk_biz_id": data["bk_biz_id"],
-            "app_name": data["app_name"],
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
             "start_time": data["start_time"],
             "end_time": data["end_time"],
             "offset": data["offset"],
             "limit": data["limit"],
-            "es_dsl": QueryHandler(SpanQueryTransformer, data["sort"], data["query"]).es_dsl,
+            "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]).es_dsl,
             "filters": data["filters"],
         }
 
@@ -409,9 +411,11 @@ class ListTraceResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
+        bk_biz_id: int = data["bk_biz_id"]
+        app_name: str = data["app_name"]
         params = {
-            "bk_biz_id": data["bk_biz_id"],
-            "app_name": data["app_name"],
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
             "start_time": data["start_time"],
             "end_time": data["end_time"],
             "offset": data["offset"],
@@ -432,10 +436,14 @@ class ListTraceResource(Resource):
         if is_contain_non_standard_fields:
             # 如果查询包含了非标准字段 -> 走原始表（预计算表无法查询非标准字段）
             qm = TraceListQueryMode.ORIGIN
-            params["es_dsl"] = QueryHandler(SpanQueryTransformer, data["sort"], data["query"]).es_dsl
+            params["es_dsl"] = QueryHandler(
+                SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]
+            ).es_dsl
         else:
             qm = TraceListQueryMode.PRE_CALCULATION
-            params["es_dsl"] = QueryHandler(TraceQueryTransformer, data["sort"], data["query"]).es_dsl
+            params["es_dsl"] = QueryHandler(
+                TraceQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]
+            ).es_dsl
 
         params["query_mode"] = qm
         try:
@@ -444,7 +452,9 @@ class ListTraceResource(Resource):
                 # 如果本次为预计算查询但是无数据时 切换为原始表再次查询 同时 es_dsl 也需要切换为 Span 表的 DSL 转换器
                 qm = TraceListQueryMode.ORIGIN
                 params["query_mode"] = qm
-                params["es_dsl"] = QueryHandler(SpanQueryTransformer, data["sort"], data["query"]).es_dsl
+                params["es_dsl"] = QueryHandler(
+                    SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]
+                ).es_dsl
                 response = api.apm_api.query_trace_list(params)
         except BKAPIError as e:
             raise ValueError(_lazy(f"Trace列表请求失败: {e.data.get('message')}"))
@@ -821,6 +831,8 @@ class ListSpanStatisticsResource(Resource):
     RequestSerializer = QueryStatisticsSerializer
 
     def perform_request(self, validated_data):
+        bk_biz_id: int = validated_data["bk_biz_id"]
+        app_name: str = validated_data["app_name"]
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
@@ -828,7 +840,7 @@ class ListSpanStatisticsResource(Resource):
             "end_time": validated_data["end_time"],
             "offset": validated_data["offset"],
             "limit": validated_data["limit"],
-            "es_dsl": QueryHandler(SpanQueryTransformer, [], validated_data["query"]).es_dsl,
+            "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), [], validated_data["query"]).es_dsl,
             "filters": validated_data["filters"],
         }
 
@@ -848,6 +860,9 @@ class ListServiceStatisticsResource(Resource):
     RequestSerializer = QueryStatisticsSerializer
 
     def perform_request(self, validated_data):
+        bk_biz_id: int = validated_data["bk_biz_id"]
+        app_name: str = validated_data["app_name"]
+
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
@@ -855,7 +870,7 @@ class ListServiceStatisticsResource(Resource):
             "end_time": validated_data["end_time"],
             "offset": validated_data["offset"],
             "limit": validated_data["limit"],
-            "es_dsl": QueryHandler(SpanQueryTransformer, [], validated_data["query"]).es_dsl,
+            "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), [], validated_data["query"]).es_dsl,
             "filters": validated_data["filters"],
         }
 

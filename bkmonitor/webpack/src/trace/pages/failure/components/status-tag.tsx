@@ -58,7 +58,7 @@ export default defineComponent({
         color: '#C4C6CC',
         bgColor: '#F5F7FA',
         icon: 'icon-mc-solved',
-        name: t('已关闭'),
+        name: t('已失效'),
       },
     };
     return {

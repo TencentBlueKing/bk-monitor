@@ -1133,6 +1133,9 @@ class GetStrategyListV2Resource(Resource):
         invalid_type_list = self.get_invalid_type_list(strategy_ids)
         algorithm_type_list = self.get_algorithm_type_list(strategy_ids)
 
+        # 统计总数
+        total = strategies.count()
+
         # 排序
         strategies = strategies.order_by("-update_time")
 
@@ -1208,6 +1211,7 @@ class GetStrategyListV2Resource(Resource):
             "alert_level_list": alert_level_list,
             "invalid_type_list": invalid_type_list,
             "algorithm_type_list": algorithm_type_list,
+            "total": total,
         }
 
 

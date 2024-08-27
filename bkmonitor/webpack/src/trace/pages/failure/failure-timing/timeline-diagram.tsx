@@ -95,7 +95,7 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['goAlertDetail', 'refresh'],
+  emits: ['goAlertDetail', 'refresh', 'changeTab'],
   setup(props, { emit }) {
     const timeMainRef = ref<HTMLDivElement>();
     const { t } = useI18n();
@@ -168,6 +168,7 @@ export default defineComponent({
     ]);
     const ratio = ref<number>(0);
     const processRef = ref<HTMLDivElement>();
+    const activeName = inject<Ref>('activeName');
     const feedbackIncidentRootApi = (isCancel, data) => {
       const { bk_biz_id, id } = data;
       const params = {
@@ -475,13 +476,16 @@ export default defineComponent({
       },
       { immediate: true }
     );
+    const handlePopover = val => {
+      keyIdList.value.map(item => processPopoverRefs.value[`process${item}`]?.hide());
+      circleOnClick([val]);
+      const key = keyIdList.value.filter(item => item.indexOf(val.id) !== -1);
+      setTimeout(() => processPopoverRefs.value[`process${key[0]}`]?.show(), 100);
+    };
     watch(
       () => props.chooseOperation,
       val => {
-        keyIdList.value.map(item => processPopoverRefs.value[`process${item}`]?.hide());
-        circleOnClick([val]);
-        const key = keyIdList.value.filter(item => item.indexOf(val.id) !== -1);
-        setTimeout(() => processPopoverRefs.value[`process${key[0]}`]?.show(), 100);
+        handlePopover(val);
         if (percentage.value !== 0) {
           nextTick(() => {
             const activeElements: any = processRef.value.querySelectorAll('.active');
@@ -494,6 +498,13 @@ export default defineComponent({
           });
         }
       }
+    );
+    watch(
+      () => activeName.value,
+      () => {
+        setTimeout(() => handlePopover(props.chooseOperation), 100);
+      },
+      { immediate: true }
     );
     onMounted(() => {
       resizeObserver.observe(timelineRef.value);
@@ -684,7 +695,10 @@ export default defineComponent({
         return Object.assign(item, { isActive });
       });
     };
-    const handleCallback = () => {
+    const handleCallback = type => {
+      if (type === 'incident_create') {
+        emit('changeTab');
+      }
       keyIdList.value.map(item => processPopoverRefs.value[`process${item}`]?.hide());
     };
     const renderPopoverContent = ele => (
@@ -692,8 +706,9 @@ export default defineComponent({
         <span class='tips-item'>{formatTime(ele.create_time * 1000)}</span>
         <span class='tips-type'>{t(operationTypeMapData.value[ele.operation_type]) || '--'}</span>
         <span class='tips-item'>
-          {renderMap[ele.operation_type]?.(ele, incidentId.value, incidentDetail.value?.bk_biz_id, handleCallback) ||
-            '--'}
+          {renderMap[ele.operation_type]?.(ele, incidentId.value, incidentDetail.value?.bk_biz_id, () =>
+            handleCallback(ele.operation_type)
+          ) || '--'}
         </span>
       </div>
     );
@@ -765,6 +780,7 @@ export default defineComponent({
           placement='right-start'
           theme='light'
           trigger='click'
+          zIndex={1025}
         >
           {renderCircle(isMore, ele, index)}
         </Popover>

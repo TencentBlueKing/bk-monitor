@@ -45,7 +45,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['chooseOperation'],
+  emits: ['chooseOperation', 'changeTab'],
   setup(props, { emit }) {
     const failureProcessListRef = ref<HTMLDivElement>();
     const renderStep = () => {};
@@ -161,6 +161,11 @@ export default defineComponent({
       getIncidentOperationTypes();
       // getIncidentOperations();
     });
+    const handleCallback = (type) => {
+      if (type === 'incident_create') {
+        emit('changeTab')
+      }
+    };
     return {
       queryString,
       operationTypeMap,
@@ -181,6 +186,7 @@ export default defineComponent({
       incidentId,
       incidentDetail,
       operationsLoading,
+      handleCallback
     };
   },
   render() {
@@ -290,7 +296,8 @@ export default defineComponent({
                         {renderMap[operation.operation_type]?.(
                           operation,
                           this.incidentId,
-                          this.incidentDetail.bk_biz_id
+                          this.incidentDetail.bk_biz_id,
+                          () => this.handleCallback(operation.operation_type)
                         ) || '--'}
                       </p>
                     </div>

@@ -8,28 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from django.utils.translation import ugettext_lazy as _
-
-from core.errors import Error
+from rest_framework.authentication import SessionAuthentication
 
 
-class IncidentError(Error):
-    status_code = 500
-    code = 3336001
-    name = _("故障模块错误")
-    message_tpl = _("故障模块错误")
-
-
-class IncidentNotFoundError(Error):
-    status_code = 404
-    code = 3336002
-    name = _("故障不存在")
-    message_tpl = _("故障 ({id}) 对应的故障信息不存在")
-
-
-class IncidentEntityNotFoundError(Error):
-    status_code = 404
-    code = 3336003
-    name = _("实体ID不在当前图谱中")
-    message_tpl = _("实体ID ({entity_id}) 不在当前图谱中")
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        # To not perform the csrf check previously happening
+        return

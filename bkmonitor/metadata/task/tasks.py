@@ -192,6 +192,14 @@ def _manage_es_storage(es_storage):
             # 否则走更新流程
             es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
 
+        # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
+        if not es_storage.index_settings or es_storage.index_settings == '{}':
+            logger.error("table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id)
+            return
+        if not es_storage.mapping_settings or es_storage.mapping_settings == '{}':
+            logger.error("table_id->[%s] need to create index,but mapping_settings invalid", es_storage.table_id)
+            return
+
         # 创建快照
         es_storage.create_snapshot()
         # 清理过期的index

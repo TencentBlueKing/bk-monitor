@@ -481,6 +481,7 @@ class DataSource(models.Model):
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单标
             if (settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series") or bcs_cluster_id:
                 bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
+                created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
                 bk_data_id = cls.apply_for_data_id_from_gse(operator)
 
