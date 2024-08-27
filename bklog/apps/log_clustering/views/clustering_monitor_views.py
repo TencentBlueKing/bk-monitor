@@ -141,7 +141,7 @@ class ClusteringMonitorViewSet(APIViewSet):
         params = self.params_valid(NewClsStrategySerializer)
         return Response(
             ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
-                params, strategy_type
+                strategy_type, params
             )
         )
 
@@ -165,7 +165,7 @@ class ClusteringMonitorViewSet(APIViewSet):
 
         return Response(
             ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_clustering_strategy(
-                params, strategy_type
+                strategy_type, params
             )
         )
 

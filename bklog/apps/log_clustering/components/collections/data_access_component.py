@@ -101,11 +101,6 @@ class CreateBkdataAccess(object):
 class SyncBkdataEtlService(BaseService):
     name = _("同步清洗配置到数据平台")
 
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
-        ]
-
     def _execute(self, data, parent_data):
         collector_config_id = data.get_one_of_inputs("collector_config_id")
         DataAccessHandler().sync_bkdata_etl(collector_config_id=collector_config_id)
@@ -129,11 +124,6 @@ class SyncBkdataEtl(object):
 
 class AddProjectDataService(BaseService):
     name = _("项目添加rt权限")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
-        ]
 
     def _execute(self, data, parent_data):
         bk_biz_id = data.get_one_of_inputs("bk_biz_id")
@@ -211,11 +201,6 @@ class AddResourceGroupSet(object):
 
 class CreateBkdataDataIdService(BaseService):
     name = _("创建bkdata_data_id")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
-        ]
 
     def _execute(self, data, parent_data):
         collector_config_id = data.get_one_of_inputs("collector_config_id")

@@ -120,23 +120,20 @@ class ClusteringConfigViewSet(APIViewSet):
         return Response({"result": action_result.result, "message": action_result.message})
 
     @detail_route(methods=["POST"])
-    def create_or_update(self, request, *args, **kwargs):
+    def create_access(self, request, index_set_id, *args, **kwargs):
         """
-        @api {post} /clustering_config/$index_set_id/create_or_update 2_聚类设置-新建或者更新
-        @apiName create_or_update_clustering_config
+        @api {post} /clustering_config/$index_set_id/create_access 2_聚类设置-接入
+        @apiName access_clustering_config
         @apiGroup log_clustering
-        @apiParam {Int} collector_config_id 采集项id
-        @apiParam {Str} collector_config_name_en 采集项名称
-        @apiParam {Int} index_set_id 索引集id
-        @apiParam {Int} min_members 最小日志数量
-        @apiParam {Str} max_dist_list 敏感度
-        @apiParam {Str} predefined_varibles 预先定义的正则表达式
-        @apiParam {Str} delimeter 分词符
-        @apiParam {Int} max_log_length 最大日志长度
-        @apiParam {Int} is_case_sensitive 是否大小写忽略
-        @apiParam {Str} clustering_fields 聚合字段
         @apiParam {Int} bk_biz_id 业务id
-        @apiParam {Boolean} signature_enable 是否是数据指纹
+        @apiParam {Str} clustering_fields 聚合字段
+        @apiParam {Int} [min_members] 最小日志数量
+        @apiParam {Str} [predefined_varibles] 预先定义的正则表达式
+        @apiParam {Str} [delimeter] 分词符
+        @apiParam {Int} [max_log_length] 最大日志长度
+        @apiParam {Int} [is_case_sensitive] 是否大小写忽略
+        @apiParam {Boolean} [new_class_strategy_enable=false] 是否开启告警
+        @apiParam {Boolean} [normal_strategy_enable=false] 是否开启数量突增告警
         @apiParam {List} filter_rules 过滤规则
         @apiParam {Str} [filter_rules.fields_name] 过滤规则字段名
         @apiParam {Str} [filter_rules.op] 过滤规则操作符号
@@ -156,9 +153,10 @@ class ClusteringConfigViewSet(APIViewSet):
                 "delimeter":"xx",
                 "max_log_length":1,
                 "is_case_sensitive":1,
-                "clustering_fields":"LOG",
+                "clustering_fields":"log",
                 "bk_biz_id":1,
-                "signature_enable": true,
+                "new_class_strategy_enable": true,
+                "normal_strategy_enable": true,
                 "filter_rules":[
                     {
                         "fields_name":"test",
@@ -172,7 +170,84 @@ class ClusteringConfigViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ClusteringConfigSerializer)
-        return Response(ClusteringConfigHandler().update_or_create(params=params))
+        return Response(ClusteringConfigHandler().create(index_set_id=index_set_id, params=params))
+
+    @detail_route(methods=["POST"])
+    def update_access(self, request, index_set_id, *args, **kwargs):
+        """
+        @api {post} /clustering_config/$index_set_id/create_access 2_聚类设置-更新接入
+        @apiName access_clustering_config
+        @apiGroup log_clustering
+        @apiParam {Int} bk_biz_id 业务id
+        @apiParam {Str} clustering_fields 聚合字段
+        @apiParam {Int} [min_members] 最小日志数量
+        @apiParam {Str} [predefined_varibles] 预先定义的正则表达式
+        @apiParam {Str} [delimeter] 分词符
+        @apiParam {Int} [max_log_length] 最大日志长度
+        @apiParam {Int} [is_case_sensitive] 是否大小写忽略
+        @apiParam {Boolean} [new_class_strategy_enable=false] 是否开启告警
+        @apiParam {Boolean} [normal_strategy_enable=false] 是否开启数量突增告警
+        @apiParam {List} filter_rules 过滤规则
+        @apiParam {Str} [filter_rules.fields_name] 过滤规则字段名
+        @apiParam {Str} [filter_rules.op] 过滤规则操作符号
+        @apiParam {Str} [filter_rules.value] 过滤规则字段值
+        @apiParam {Str} [filter_rules.logic_operator] 过滤规则逻辑运算符号
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message":"",
+            "code":0,
+            "data":{
+                "index_set_id":1,
+                "min_members":1,
+                "predefined_varibles":"xxx",
+                "delimeter":"xx",
+                "max_log_length":1,
+                "is_case_sensitive":1,
+                "clustering_fields":"log",
+                "bk_biz_id":1,
+                "new_class_strategy_enable": true,
+                "normal_strategy_enable": true,
+                "filter_rules":[
+                    {
+                        "fields_name":"test",
+                        "op":"=",
+                        "value":1,
+                        "logic_operator": ""
+                    }
+                ]
+            },
+            "result":true
+        }
+        """
+        params = self.params_valid(ClusteringConfigSerializer)
+        return Response(ClusteringConfigHandler(index_set_id=index_set_id).update(params=params))
+
+    @detail_route(methods=["GET"])
+    def access_status(self, request, index_set_id, *args, **kwargs):
+        """
+        @api {post} /clustering_config/$index_set_id/access_status 2_聚类设置-接入状态
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message":"",
+            "code":0,
+            "data": {
+                "flow_create": {
+                    "status": "SUCCESS",  // 可选 PENDING, RUNNING, SUCCESS, FAILED
+                    "message": "步骤完成",
+                },
+                "flow_run": {
+                    "status": "FAILED",
+                    "message": "步骤执行失败，原因: xxx",
+                },
+                "data_check": {
+                    "status": "PENDING",
+                    "message": "等待执行",
+                }
+            }
+            "result":true
+        }
+        """
+        return Response(ClusteringConfigHandler(index_set_id=index_set_id).get_access_status())
 
     @list_route(methods=["GET"], url_path="default_config")
     def get_default_config(self, request, *args, **kwargs):

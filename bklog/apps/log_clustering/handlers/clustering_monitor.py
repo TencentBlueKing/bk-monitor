@@ -44,6 +44,7 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import ClusteringIndexSetNotExistException
 from apps.log_clustering.models import ClusteringConfig, SignatureStrategySettings
+from apps.log_clustering.utils.monitor import MonitorUtils
 from apps.log_search.models import LogIndexSet
 
 
@@ -96,7 +97,7 @@ class ClusteringMonitorHandler(object):
             name = _("{} - 日志数量突增异常告警").format(self.index_set.index_set_name)
             args = {
                 "$alert_down": "1",
-                "$sensitivity": params["sensitivity"],
+                "$sensitivity": params.get("sensitivity", 5),
                 "$alert_upward": "1",
             }
 
@@ -104,8 +105,8 @@ class ClusteringMonitorHandler(object):
             name = _("{} - 日志新类异常告警").format(self.index_set.index_set_name)
             args = {
                 "$model_file_id": self.clustering_config.model_output_rt,  # 预测节点输出
-                "$new_class_interval": params["interval"],
-                "$new_class_alert_th": params["threshold"],
+                "$new_class_interval": params.get("interval", 30),
+                "$new_class_alert_th": params.get("threshold", 1),
             }
         items = [
             {
@@ -139,7 +140,7 @@ class ClusteringMonitorHandler(object):
                 ],
                 "algorithms": [
                     {
-                        "level": params["level"],
+                        "level": params.get("level", 2),
                         "type": "IntelligentDetect",
                         "config": {
                             "plan_id": self.conf.get("normal_plan_id")
@@ -162,9 +163,21 @@ class ClusteringMonitorHandler(object):
                 "connector": "and",
             }
         ]
+
+        if params.get("user_groups"):
+            user_groups = params["user_groups"]
+        else:
+            # 没配置告警组的就创建一个默认的
+            user_groups = [
+                MonitorUtils.get_or_create_notice_group(
+                    log_index_set_id=label_index_set_id,
+                    bk_biz_id=self.bk_biz_id,
+                )
+            ]
+
         notice = {
             "config_id": 0,
-            "user_groups": params["user_groups"],
+            "user_groups": user_groups,
             "signal": ["abnormal"],
             "options": {
                 "converge_config": {"need_biz_converge": True},
@@ -206,7 +219,12 @@ class ClusteringMonitorHandler(object):
         signature_strategy_settings.strategy_id = strategy_id
         signature_strategy_settings.save()
 
-        self.clustering_config.log_count_agg_rt = f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
+        strategy_output_rt = f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
+        if strategy_type == StrategiesType.NORMAL_STRATEGY:
+            self.clustering_config.normal_strategy_output = strategy_output_rt
+        else:
+            self.clustering_config.new_cls_strategy_output = strategy_output_rt
+
         self.clustering_config.save()
         return {"strategy_id": strategy_id, "label_name": labels}
 
@@ -246,7 +264,7 @@ class ClusteringMonitorHandler(object):
         MonitorApi.delete_alarm_strategy_v3(params={"bk_biz_id": self.bk_biz_id, "ids": [strategy_id]})
         return strategy_id
 
-    def create_or_update_clustering_strategy(self, params, strategy_type):
+    def create_or_update_clustering_strategy(self, strategy_type, params=None):
         # 创建/更新 新类或数量突增报警
         table_id = (
             self.clustering_config.new_cls_pattern_rt

@@ -8,7 +8,6 @@ from django.db import transaction
 from apps.api import TransferApi
 from apps.constants import BATCH_SYNC_SPACE_COUNT
 from apps.log_search.models import Space, SpaceApi, SpaceType
-from apps.utils.lock import share_lock
 from apps.utils.log import logger
 from apps.utils.task import high_priority_periodic_task
 from bkm_space.define import SpaceTypeEnum
@@ -16,7 +15,6 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 @high_priority_periodic_task(run_every=crontab(minute="*/5"))
-@share_lock()
 def sync():
     """
     同步空间配置

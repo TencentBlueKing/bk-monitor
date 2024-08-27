@@ -116,3 +116,8 @@ class QueryFieldsException(BaseClusteringException):
 class CollectorEsStorageNotExistException(BaseClusteringException):
     ERROR_CODE = "018"
     MESSAGE = _("日志聚类-采集项侧落地es存储配置中集群信息不存在: {collector_config_id}")
+
+
+class ClusteringConfigHasExistException(BaseClusteringException):
+    ERROR_CODE = "019"
+    MESSAGE = _("日志聚类-聚类配置已存在，请勿重复接入: {index_set_id}")

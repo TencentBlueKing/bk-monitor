@@ -22,14 +22,16 @@ the project delivered to anyone in the future.
 import datetime
 import traceback
 
-from apps.log_measure.events import PIPELINE_MONITOR_EVENT
-from apps.utils.local import set_request_username
-from apps.utils.log import logger
 from django.utils.translation import ugettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
 from pipeline.core.flow import StaticIntervalGenerator
 from pipeline.core.flow.activity import Service
+
+from apps.log_clustering.models import ClusteringConfig
+from apps.log_measure.events import PIPELINE_MONITOR_EVENT
+from apps.utils.local import set_request_username
+from apps.utils.log import logger
 
 
 class BaseService(Service):
@@ -39,6 +41,11 @@ class BaseService(Service):
 
     TASK_POLLING_INTERVAL = 2
     name = None
+
+    class NodeStatus:
+        RUNNING = "RUNNING"
+        SUCCESS = "SUCCESS"
+        FAILED = "FAILED"
 
     def __init__(self):
         if not self.name:
@@ -58,6 +65,21 @@ class BaseService(Service):
                 name=self.name, pipeline_id=root_pipeline_id, node_id=node_id
             )
         )
+
+        index_set_id = data.get_one_of_inputs("index_set_id")
+        common_params = {
+            "index_set_id": index_set_id,
+            "pipline_id": root_pipeline_id,
+            "node_id": node_id,
+            "node_name": self.__class__.__name__,
+        }
+
+        if index_set_id:
+            ClusteringConfig.update_task_details(
+                **common_params,
+                status=self.NodeStatus.RUNNING,
+            )
+
         try:
             result = self._execute(data, parent_data)
             if not result:
@@ -73,7 +95,30 @@ class BaseService(Service):
             result = False
             exc_info = traceback.format_exc()
 
+        if result:
+            if index_set_id:
+                if not self.need_schedule():
+                    ClusteringConfig.update_task_details(
+                        **common_params,
+                        status=self.NodeStatus.SUCCESS,
+                        message="node execute success",
+                    )
+                else:
+                    ClusteringConfig.update_task_details(
+                        **common_params,
+                        status=self.NodeStatus.RUNNING,
+                        message="waiting for schedule",
+                    )
+
         if not result:
+            if index_set_id:
+                ClusteringConfig.update_task_details(
+                    **common_params,
+                    status=self.NodeStatus.FAILED,
+                    message=reason,
+                    exc_info=f"execute failed: {exc_info}",
+                )
+
             PIPELINE_MONITOR_EVENT(
                 content=f"{exc_info} => {reason}",
                 dimensions={"pipeline_id": root_pipeline_id, "node_id": node_id, "pipeline_name": str(self.name)},
@@ -90,6 +135,22 @@ class BaseService(Service):
             )
         )
         reason = ""
+
+        index_set_id = data.get_one_of_inputs("index_set_id")
+        common_params = {
+            "index_set_id": index_set_id,
+            "pipline_id": root_pipeline_id,
+            "node_id": node_id,
+            "node_name": self.__class__.__name__,
+        }
+
+        if index_set_id:
+            ClusteringConfig.update_task_details(
+                **common_params,
+                status=self.NodeStatus.RUNNING,
+                message="doing schedule",
+            )
+
         try:
             result = self._schedule(data, parent_data, callback_data)
             if not result:
@@ -101,7 +162,22 @@ class BaseService(Service):
             exec_info = traceback.format_exc()
             result = False
 
+        if result:
+            if index_set_id and self.is_schedule_finished():
+                ClusteringConfig.update_task_details(
+                    **common_params,
+                    status=self.NodeStatus.SUCCESS,
+                    message="node schedule success",
+                )
+
         if not result:
+            if index_set_id:
+                ClusteringConfig.update_task_details(
+                    **common_params,
+                    status=self.NodeStatus.FAILED,
+                    message=reason,
+                    exc_info=f"schedule failed: {exec_info}",
+                )
             PIPELINE_MONITOR_EVENT(
                 content=f"{exec_info} => {reason}",
                 dimensions={"pipeline_id": root_pipeline_id, "node_id": node_id, "pipeline_name": str(self.name)},

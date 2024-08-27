@@ -73,18 +73,16 @@ class FilerRuleSerializer(serializers.Serializer):
 
 
 class ClusteringConfigSerializer(serializers.Serializer):
-    collector_config_id = serializers.IntegerField(required=False, allow_null=True, default=0)
-    collector_config_name_en = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    index_set_id = serializers.IntegerField()
-    min_members = serializers.IntegerField(required=False, default=1, allow_null=True)
-    predefined_varibles = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    delimeter = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    max_log_length = serializers.IntegerField(required=False, allow_null=True, default=100)
-    is_case_sensitive = serializers.IntegerField(required=False, allow_null=True, default=1)
-    clustering_fields = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     bk_biz_id = serializers.IntegerField()
-    filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False, default=[])
-    signature_enable = serializers.BooleanField(default=False)
+    clustering_fields = serializers.CharField()
+    filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False)
+    min_members = serializers.IntegerField(required=False)
+    predefined_varibles = serializers.CharField(required=False, allow_blank=True)
+    delimeter = serializers.CharField(required=False, allow_blank=True)
+    max_log_length = serializers.IntegerField(required=False)
+    is_case_sensitive = serializers.IntegerField(required=False)
+    new_cls_strategy_enable = serializers.BooleanField(default=False)
+    normal_strategy_enable = serializers.BooleanField(default=False)
 
 
 class InputDataSerializer(serializers.Serializer):

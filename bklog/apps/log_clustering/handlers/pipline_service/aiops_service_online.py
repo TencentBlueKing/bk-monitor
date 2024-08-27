@@ -34,6 +34,10 @@ from apps.log_clustering.components.collections.data_access_component import (
 from apps.log_clustering.components.collections.flow_component import (
     CreateLogCountAggregationFlow,
     CreatePredictFlow,
+    CreateStrategy,
+    UpdateClusteringField,
+    UpdateFilterRules,
+    UpdateOnlineModel,
 )
 from apps.log_clustering.handlers.pipline_service.base_pipline_service import (
     BasePipeLineService,
@@ -79,6 +83,8 @@ class AiopsLogOnlineService(BasePipeLineService):
             # 创建日志数量聚合 dataflow
             CreateLogCountAggregationFlow(index_set_id=index_set_id).create_log_count_aggregation_flow
         ).extend(
+            CreateStrategy(index_set_id=index_set_id).create_strategy
+        ).extend(
             end
         )
         tree = build_tree(start, data=data_context)
@@ -116,6 +122,8 @@ class AiopsBkdataOnlineService(BasePipeLineService):
         ).extend(CreatePredictFlow(index_set_id=index_set_id).create_predict_flow).extend(
             CreateLogCountAggregationFlow(index_set_id=index_set_id).create_log_count_aggregation_flow
         ).extend(
+            CreateStrategy(index_set_id=index_set_id).create_strategy
+        ).extend(
             end
         )
         tree = build_tree(start, data=data_context)
@@ -124,11 +132,63 @@ class AiopsBkdataOnlineService(BasePipeLineService):
         return pipeline
 
 
-def operator_aiops_service_online(index_set_id, operator=OperatorServiceEnum.CREATE):
+class UpdateOnlineService(BasePipeLineService):
+    """更新流程"""
+
+    def build_data_context(self, params, *args, **kwargs) -> Data:
+        data_context = Data()
+        data_context.inputs["${index_set_id}"] = Var(type=Var.PLAIN, value=params["index_set_id"])
+        return data_context
+
+    def build_pipeline(self, data_context: Data, *args, **kwargs):
+        current = start = EmptyStartEvent()
+        end = EmptyEndEvent()
+        index_set_id = kwargs.get("index_set_id")
+        params = kwargs.get("params")
+
+        # 1. 检查过滤条件是否有变更
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        if "filter_rules" in params and clustering_config.filter_rules != params["filter_rules"]:
+            clustering_config.filter_rules = params["filter_rules"]
+            clustering_config.save(update_fields=["filter_rules"])
+            current = current.extend(UpdateFilterRules(index_set_id=index_set_id).update_filter_rules)
+
+        # 2. 检查模型参数是否有变更
+        model_fields = [
+            "min_members",
+            "predefined_varibles",
+            "delimeter",
+            "max_log_length",
+            "is_case_sensitive",
+        ]
+        model_field_modified = False
+        for field in model_fields:
+            if field in params and getattr(clustering_config, field) != params[field]:
+                setattr(clustering_config, field, params[field])
+                model_field_modified = True
+
+        if model_field_modified:
+            clustering_config.save(update_fields=model_fields)
+            current = current.extend(UpdateOnlineModel(index_set_id=index_set_id).update_online_model)
+
+        # 3. 检查聚类字段是否有变更
+        if "clustering_fields" in params and clustering_config.clustering_fields != params["clustering_fields"]:
+            clustering_config.clustering_fields = params["clustering_fields"]
+            clustering_config.save(update_fields=["clustering_fields"])
+            current = current.extend(UpdateClusteringField(index_set_id=index_set_id).update_clustering_field)
+
+        current.extend(end)
+
+        tree = build_tree(start, data=data_context)
+        parser = PipelineParser(pipeline_tree=tree)
+        pipeline = parser.parse()
+        return pipeline
+
+
+def operator_aiops_service_online(index_set_id):
     """
     aiops服务执行 create或者 update
     :param index_set_id: 索引集id
-    :param operator: 操作类型
     :return:
     """
     conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
@@ -160,8 +220,10 @@ def operator_aiops_service_online(index_set_id, operator=OperatorServiceEnum.CRE
     service.start_pipeline(pipeline)
 
     now_time = arrow.now()
-    clustering_config.task_records.append({"operate": operator, "task_id": pipeline.id, "time": now_time.timestamp})
-    clustering_config.save()
+    clustering_config.task_records.append(
+        {"operate": OperatorServiceEnum.CREATE, "task_id": pipeline.id, "time": now_time.timestamp}
+    )
+    clustering_config.save(update_fields=["task_records"])
 
     return pipeline.id
 

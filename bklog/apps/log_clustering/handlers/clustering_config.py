@@ -22,17 +22,20 @@ the project delivered to anyone in the future.
 import json
 import re
 
+import arrow
 from django.utils.translation import ugettext_lazy as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.constants import (
+    CLUSTERING_CONFIG_DEFAULT,
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
     BkdataRegexException,
+    ClusteringConfigHasExistException,
     ClusteringConfigNotExistException,
     CollectorEsStorageNotExistException,
     CollectorStorageNotExistException,
@@ -41,20 +44,15 @@ from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
     AiopsModelHandler,
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
+from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_clustering.tasks.flow import (
-    update_clustering_clean,
-    update_filter_rules,
-    update_predict_clustering_clean,
-    update_predict_flow_filter_rules,
-    update_predict_nodes_and_online_task,
-)
-from apps.log_clustering.tasks.msg import send
+from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet
 from apps.models import model_to_dict
 from apps.utils.function import map_if
@@ -68,6 +66,12 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class ClusteringConfigHandler(object):
+    class AccessStatusCode:
+        PENDING = "PENDING"
+        RUNNING = "RUNNING"
+        SUCCESS = "SUCCESS"
+        FAILED = "FAILED"
+
     def __init__(self, index_set_id=None, collector_config_id=None):
         self.index_set_id = index_set_id
         self.data = None
@@ -98,150 +102,214 @@ class ClusteringConfigHandler(object):
         pipeline_id = operator_aiops_service_online(self.index_set_id)
         return pipeline_id
 
-    def update_or_create(self, params: dict):
-        index_set_id = params["index_set_id"]
-        log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        collector_config_id = log_index_set.collector_config_id
-        category_id = log_index_set.category_id
-        log_index_set_data, *_ = log_index_set.indexes
-        collector_config_name_en = ""
+    def create(self, index_set_id, params):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
-        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
-        es_storage = ""
-        if collector_config_id:
-            collector_config = CollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
-            collector_config_name_en = (
-                clustering_config.collector_config_name_en
-                if clustering_config
-                else collector_config.collector_config_name_en
+
+        if clustering_config and clustering_config.task_records:
+            # 已接入过聚类的，不允许再创建
+            raise ClusteringConfigHasExistException(
+                ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
             )
+
+        log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+        collector_config_id = log_index_set.collector_config_id
+        log_index_set_data, *_ = log_index_set.indexes
+
+        clustering_fields = params["clustering_fields"]
+
+        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
+        default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT)
+        es_storage = ""
+        collector_config_name_en = ""
+
+        if collector_config_id:
+            # 配置检查
+            collector_config = CollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
+            collector_config_name_en = collector_config.collector_config_name_en
+
             collector_clustering_es_storage = conf.get("collector_clustering_es_storage", {})
             if not collector_clustering_es_storage:
                 raise CollectorStorageNotExistException(
-                    CollectorStorageNotExistException.MESSAGE.formate(collector_config_id=collector_config_id)
+                    CollectorStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
                 )
             es_storage = collector_clustering_es_storage.get("es_storage", "")
             if not es_storage:
                 raise CollectorEsStorageNotExistException(
-                    CollectorEsStorageNotExistException.MESSAGE.formate(collector_config_id=collector_config_id)
-                )
-        source_rt_name = log_index_set_data["result_table_id"]
-        min_members = params["min_members"]
-        predefined_varibles = params["predefined_varibles"]
-        delimeter = params["delimeter"]
-        max_log_length = params["max_log_length"]
-        is_case_sensitive = params["is_case_sensitive"]
-        clustering_fields = params["clustering_fields"]
-        bk_biz_id = params["bk_biz_id"]
-        filter_rules = params["filter_rules"]
-        signature_enable = params["signature_enable"]
-        # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
-        related_space_pre_bk_biz_id = params["bk_biz_id"]
-        bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
-        from apps.log_clustering.handlers.pipline_service.aiops_service import (
-            operator_aiops_service,
-        )
-
-        if clustering_config:
-            (
-                change_filter_rules,
-                change_model_config,
-                change_clustering_fields,
-                create_service,
-            ) = self.check_clustering_config_update(
-                clustering_config=clustering_config,
-                filter_rules=filter_rules,
-                min_members=min_members,
-                predefined_varibles=predefined_varibles,
-                delimeter=delimeter,
-                max_log_length=max_log_length,
-                is_case_sensitive=is_case_sensitive,
-                clustering_fields=clustering_fields,
-                signature_enable=signature_enable,
-            )
-            clustering_config.min_members = min_members
-            clustering_config.max_dist_list = OnlineTaskTrainingArgs.MAX_DIST_LIST
-            clustering_config.predefined_varibles = predefined_varibles
-            clustering_config.delimeter = delimeter
-            clustering_config.max_log_length = max_log_length
-            clustering_config.is_case_sensitive = is_case_sensitive
-            clustering_config.clustering_fields = clustering_fields
-            clustering_config.bk_biz_id = bk_biz_id
-            clustering_config.filter_rules = filter_rules
-            clustering_config.signature_enable = signature_enable
-            clustering_config.category_id = category_id
-            clustering_config.save()
-
-            if create_service:
-                self.create_service(
-                    index_set_id=index_set_id,
-                    collector_config_id=collector_config_id,
-                    clustering_fields=clustering_fields,
+                    CollectorEsStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
                 )
 
-            if change_filter_rules and not change_clustering_fields:
-                if clustering_config.predict_flow_id:
-                    # 更新 predict_flow filter_rule
-                    update_predict_flow_filter_rules.delay(index_set_id=index_set_id)
-                else:
-                    # 更新filter_rule
-                    update_filter_rules.delay(index_set_id=index_set_id)
-
-            if change_model_config:
-                if clustering_config.predict_flow_id:
-                    # 需要更新 flow中的预测节点 及 更新在线训练任务 训练参数的变动
-                    update_predict_nodes_and_online_task.delay(index_set_id=index_set_id)
-                else:
-                    # 更新aiops model
-                    operator_aiops_service(index_set_id, operator=OperatorServiceEnum.UPDATE)
-
-            if change_clustering_fields:
-                if clustering_config.predict_flow_id:
-                    # 更新flow 中的参与聚类和非参与聚类的节点
-                    update_predict_clustering_clean.delay(index_set_id=index_set_id)
-                else:
-                    # 更新flow
-                    update_clustering_clean.delay(index_set_id=index_set_id)
-
-            return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
-
-        clustering_config = ClusteringConfig.objects.create(
-            model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
-            collector_config_id=collector_config_id,
-            collector_config_name_en=collector_config_name_en,
-            es_storage=es_storage,
-            min_members=min_members,
-            max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
-            predefined_varibles=predefined_varibles,
-            depth=OnlineTaskTrainingArgs.DEPTH,
-            delimeter=delimeter,
-            max_log_length=max_log_length,
-            is_case_sensitive=is_case_sensitive,
-            clustering_fields=clustering_fields,
-            bk_biz_id=bk_biz_id,
-            filter_rules=filter_rules,
-            index_set_id=index_set_id,
-            signature_enable=signature_enable,
-            source_rt_name=source_rt_name,
-            category_id=category_id,
-            related_space_pre_bk_biz_id=related_space_pre_bk_biz_id,  # 查询space关联的真实业务之前的业务id
-        )
-        if signature_enable:
-            self.create_service(
-                index_set_id=index_set_id, clustering_fields=clustering_fields, collector_config_id=collector_config_id
-            )
-        return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
-
-    def create_service(self, index_set_id, clustering_fields, collector_config_id=None):
-        if collector_config_id:
-            collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
+            # 校验清洗配置合法性
             all_etl_config = collector_config.get_etl_config()
             self.pre_check_fields(
                 fields=all_etl_config["fields"],
                 etl_config=collector_config.etl_config,
                 clustering_fields=clustering_fields,
             )
-        send.delay(index_set_id=index_set_id)
+
+        # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
+        related_space_pre_bk_biz_id = params["bk_biz_id"]
+        bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
+
+        # 创建流程
+        # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
+        clustering_config = ClusteringConfig.objects.create(
+            model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
+            collector_config_id=collector_config_id,
+            collector_config_name_en=collector_config_name_en,
+            es_storage=es_storage,
+            min_members=params.get("min_members", default_conf.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS)),
+            max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
+            predefined_varibles=params.get(
+                "predefined_varibles",
+                default_conf.get("predefined_varibles", OnlineTaskTrainingArgs.PREDEFINED_VARIBLES),
+            ),
+            depth=OnlineTaskTrainingArgs.DEPTH,
+            delimeter=params.get("delimeter", default_conf.get("delimeter", OnlineTaskTrainingArgs.DELIMETER)),
+            max_log_length=params.get(
+                "max_log_length", default_conf.get("max_log_length", OnlineTaskTrainingArgs.MAX_LOG_LENGTH)
+            ),
+            is_case_sensitive=params.get(
+                "is_case_sensitive", default_conf.get("is_case_sensitive", OnlineTaskTrainingArgs.IS_CASE_SENSITIVE)
+            ),
+            clustering_fields=clustering_fields,
+            bk_biz_id=bk_biz_id,
+            filter_rules=params.get("filter_rules", default_conf.get("filter_rules", [])),
+            index_set_id=index_set_id,
+            signature_enable=True,
+            source_rt_name=log_index_set_data["result_table_id"],
+            category_id=log_index_set.category_id,
+            related_space_pre_bk_biz_id=related_space_pre_bk_biz_id,  # 查询space关联的真实业务之前的业务id
+            new_cls_strategy_enable=params["new_cls_strategy_enable"],
+            normal_strategy_enable=params["normal_strategy_enable"],
+        )
+
+        access_clustering.delay(index_set_id=index_set_id)
+        return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
+
+    def update(self, params):
+        """
+        更新聚类接入
+        """
+        from apps.log_clustering.handlers.pipline_service.aiops_service_online import (
+            UpdateOnlineService,
+        )
+
+        params = {
+            "index_set_id": self.index_set_id,
+            "params": params,
+        }
+
+        service = UpdateOnlineService()
+        data = service.build_data_context(params)
+        pipeline = service.build_pipeline(data, **params)
+        service.start_pipeline(pipeline)
+
+        now_time = arrow.now()
+        self.data.task_records.append(
+            {"operate": OperatorServiceEnum.CREATE, "task_id": pipeline.id, "time": now_time.timestamp}
+        )
+        self.data.save(update_fields=["task_records"])
+        return pipeline.id
+
+    def get_access_status(self, task_id=None):
+        """
+        接入状态检测
+        """
+        result = {
+            "flow_create": {
+                "status": self.AccessStatusCode.SUCCESS,
+                "message": _("步骤完成"),
+            },
+            "flow_run": {
+                "status": self.AccessStatusCode.SUCCESS,
+                "message": _("步骤完成"),
+            },
+            "data_check": {
+                "status": self.AccessStatusCode.SUCCESS,
+                "message": _("步骤完成"),
+            },
+        }
+
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
+
+        # 1. 先校验数据写入是否正常
+        if clustering_config.clustered_rt:
+            # 此处简化流程，只检查模型预测 flow 的输出
+            try:
+                query_params = {
+                    "begin": 0,
+                    "size": 1,
+                    "original_search": True,
+                    "is_desensitize": False,
+                }
+                search_handler = SearchHandler(self.index_set_id, query_params)
+                search_result = search_handler.search()
+                if search_result["total"] > 0:
+                    return result
+                else:
+                    result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("暂无数据"))
+            except Exception as e:
+                result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("数据获取失败: {}").format(e))
+            return result
+
+        # 如若未创建聚类 rt，说明流程还没完成
+        result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
+
+        # 2. 判断 flow 状态
+        if clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id:
+            # 此处简化流程，只检查模型预测 flow 的状态即可
+            result["flow_run"].update(self.check_dataflow_status(clustering_config.predict_flow_id))
+
+        # 如果 flow 不存在，说明基本流程没走完
+        result["flow_run"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
+
+        # 3. 检查数据接入状态
+        if not task_id:
+            # 如果没有给出任务ID，默认用最新的任务ID
+            for record in clustering_config.task_records[::-1]:
+                if record["operate"] == OperatorServiceEnum.CREATE:
+                    task_id = record["task_id"]
+                    break
+
+        # 如果找不到任务结果，说明任务尚未启动
+        if not task_id or task_id not in clustering_config.task_details:
+            result["flow_create"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
+            return result
+
+        # 更新接入任务状态
+        result["flow_create"].update(
+            task_detail=clustering_config.task_details[task_id],
+            status=clustering_config.task_details[task_id][-1]["status"],
+            message=clustering_config.task_details[task_id][-1]["message"],
+        )
+
+        return result
+
+    def check_dataflow_status(self, flow_id):
+        """
+        检查 dataflow 状态
+        """
+        flow_status = ""
+        try:
+            flow = DataFlowHandler().get_dataflow_info(flow_id=flow_id)
+            if flow:
+                flow_status = flow["status"]
+        except Exception as e:  # pylint:disable=broad-except
+            return {"status": self.AccessStatusCode.FAILED, "message": _("dataflow({}) 获取信息失败: {}".format(flow_id, e))}
+
+        flow_status_mapping = {
+            "": {"status": self.AccessStatusCode.FAILED, "detail": _("未创建")},
+            "no-start": {"status": self.AccessStatusCode.RUNNING, "detail": _("未启动")},
+            "running": {"status": self.AccessStatusCode.SUCCESS, "detail": _("状态正常")},
+            "starting": {"status": self.AccessStatusCode.FAILED, "detail": _("运行异常")},
+            "failure": {"status": self.AccessStatusCode.FAILED, "detail": _("运行失败")},
+            "stopping": {"status": self.AccessStatusCode.RUNNING, "detail": _("重启中")},
+        }
+
+        return {
+            "status": flow_status_mapping[flow_status]["status"],
+            "message": _("dataflow({}) {}".format(flow_id, flow_status_mapping[flow_status]["detail"])),
+        }
 
     def preview(self, input_data, min_members, predefined_varibles, delimeter, max_log_length, is_case_sensitive):
         aiops_experiments_debug_result = AiopsModelHandler().aiops_experiments_debug(

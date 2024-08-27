@@ -581,7 +581,7 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
             if not es_storage:
                 raise BkdataStorageNotExistException(
-                    BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                    BkdataStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
                 )
 
             after_treat_flow.es_cluster = clustering_config.es_storage
@@ -800,6 +800,19 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.get_latest_deploy_data(
+            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username")},
+            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
+            ),
+        )
+
+    def get_dataflow_info(self, flow_id):
+        """
+        get_dataflow_info
+        @param flow_id:
+        @return:
+        """
+        return BkDataDataFlowApi.get_dataflow(
             params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username")},
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
@@ -1562,13 +1575,13 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage = self.conf.get("collector_clustering_es_storage", {})
             if not es_storage:
                 raise CollectorStorageNotExistException(
-                    CollectorStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                    CollectorStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
                 )
             # es_storage["expires"] =
             log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
             fields = log_index_set.get_fields()
             if not fields:
-                raise QueryFieldsException(QueryFieldsException.MESSAGE.formate(index_set_id=index_set_id))
+                raise QueryFieldsException(QueryFieldsException.MESSAGE.format(index_set_id=index_set_id))
             es_storage["doc_values_fields"] = [
                 i["field_name"] or i["field_alias"] for i in fields["fields"] if i["es_doc_values"]
             ]
@@ -1591,7 +1604,7 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
             if not es_storage:
                 raise BkdataStorageNotExistException(
-                    BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                    BkdataStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
                 )
         predict_flow.es_cluster = clustering_config.es_storage
         predict_flow.es.expires = es_storage["expires"]

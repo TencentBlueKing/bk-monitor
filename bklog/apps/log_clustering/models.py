@@ -22,7 +22,9 @@ the project delivered to anyone in the future.
 import hashlib
 import json
 
+import arrow
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 
 from apps.log_clustering.constants import (
@@ -133,19 +135,32 @@ class ClusteringConfig(SoftDeleteModel):
     modify_flow = models.JSONField(_("修改after_treat_flow调用的配置"), null=True, blank=True)
     options = models.JSONField(_("额外配置"), null=True, blank=True)
     task_records = models.JSONField(_("任务记录"), default=list)
+    # task_details 任务详情格式 list of dict as below
+    # {
+    #     "node_id": node_id,  # 节点id
+    #     "node_name": node_name,  # 节点名称
+    #     "status": status,  # 状态
+    #     "message": message,  # 任务信息
+    #     "exc_info": exc_info,  # 异常信息
+    #     "create_at": now,  # 创建时间
+    #     "update_at": now,  # 更新时间
+    # }
     task_details = models.JSONField(_("任务详情"), default=dict)
     model_output_rt = models.CharField(_("模型输出结果表"), max_length=255, default="", null=True, blank=True)
     clustered_rt = models.CharField(_("聚类结果表"), max_length=255, default="", null=True, blank=True)
-    log_count_agg_rt = models.CharField(_("日志数量聚合结果表"), max_length=255, default="", null=True, blank=True)
     signature_pattern_rt = models.CharField(_("Pattern 结果表"), max_length=255, default="", null=True, blank=True)
     predict_flow = models.JSONField(_("predict_flow配置"), null=True, blank=True)
     predict_flow_id = models.IntegerField(_("预测flow_id"), null=True, blank=True)
     online_task_id = models.IntegerField(_("在线任务id"), null=True, blank=True)
     log_count_aggregation_flow = models.JSONField(_("日志数量聚合flow配置"), null=True, blank=True)
     log_count_aggregation_flow_id = models.IntegerField(_("日志数量聚合flow_id"), null=True, blank=True)
+    new_cls_strategy_enable = models.BooleanField(_("是否开启新类告警"), default=False)
+    new_cls_strategy_output = models.CharField(_("日志新类告警输出结果表"), max_length=255, default="", null=True, blank=True)
+    normal_strategy_enable = models.BooleanField(_("是否开启数量突增告警"), default=False)
+    normal_strategy_output = models.CharField(_("日志数量告警输出结果表"), max_length=255, default="", null=True, blank=True)
 
     @classmethod
-    def get_by_index_set_id(cls, index_set_id, raise_exception: bool = True):
+    def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":
         try:
             return ClusteringConfig.objects.get(index_set_id=index_set_id)
         except ClusteringConfig.DoesNotExist:
@@ -156,6 +171,50 @@ class ClusteringConfig(SoftDeleteModel):
                     raise ClusteringConfigNotExistException()
                 else:
                     return None
+
+    @classmethod
+    def get_by_flow_id(cls, flow_id: int, raise_exception: bool = True):
+        try:
+            return ClusteringConfig.objects.get(
+                Q(pre_treat_flow_id=flow_id) | Q(after_treat_flow_id=flow_id) | Q(predict_flow_id=flow_id)
+            )
+        except ClusteringConfig.DoesNotExist:
+            if raise_exception:
+                raise ClusteringConfigNotExistException()
+
+    @classmethod
+    def update_task_details(cls, index_set_id, pipline_id, node_id, node_name, status, message="", exc_info=""):
+        """
+        更新任务详情
+        """
+        conf = cls.get_by_index_set_id(index_set_id, raise_exception=False)
+        if not conf:
+            return
+
+        conf.task_details = conf.task_details or {}
+        conf.task_details.setdefault(pipline_id, [])
+
+        now = arrow.now().format("YYYY-MM-DD HH:mm:ss")
+
+        # 查找当前节点，如果已经存在则更新，
+        for step in conf.task_details[pipline_id]:
+            if step["node_id"] == node_id:
+                step.update(status=status, message=message, exc_info=exc_info, update_at=now)
+                break
+        else:
+            conf.task_details[pipline_id].append(
+                {
+                    "node_id": node_id,
+                    "node_name": node_name,
+                    "status": status,
+                    "message": message,
+                    "exc_info": exc_info,
+                    "create_at": now,
+                    "update_at": now,
+                }
+            )
+
+        conf.save(update_fields=["task_details"])
 
 
 class SignatureStrategySettings(SoftDeleteModel):
