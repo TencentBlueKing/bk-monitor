@@ -105,7 +105,7 @@ def custom_exception_handler(exc, context):
                 exc_code=HTTP404Error.code,
                 overview=msg,
                 detail=msg,
-                popup_message="danger",  # 红框
+                popup_message="error",  # 红框
             ).to_dict(),
         }
 
