@@ -351,8 +351,8 @@ importers:
         specifier: 0.0.1-beta.14
         version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.30
-        version: 0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
+        specifier: 0.3.0-beta.32
+        version: 0.3.0-beta.32(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.5
         version: 1.0.5
@@ -581,8 +581,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.30
-        version: 0.3.0-beta.30(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31)
+        specifier: 0.3.0-beta.32
+        version: 0.3.0-beta.32(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31)
       '@blueking/login-modal':
         specifier: ^1.0.5
         version: 1.0.5
@@ -2532,7 +2532,7 @@ packages:
   /@blueking/bkui-library@0.0.0-beta.6:
     resolution: {integrity: sha512-1M6pNDIOQYWzOu3uVRxo0h67d+huTbBQYDjj8+QF4Ka3HSe/mLgSrIkaZhhUVlJJl5zP8HK+UwXpkWcjL8zIsw==}
     dependencies:
-      '@vue/runtime-dom': 3.4.31
+      '@vue/runtime-dom': 3.4.38
     dev: false
 
   /@blueking/date-picker@2.0.0-beta.23(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16):
@@ -2603,8 +2603,8 @@ packages:
       vue: 3.4.31(typescript@5.5.3)
     dev: false
 
-  /@blueking/ip-selector@0.3.0-beta.30(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
-    resolution: {integrity: sha512-8EGFyGthicb7C/5BVkbIuo0Id+8wJwYf4gGOK2C/yO4zuOqnkGjvDbOz8BjEyD+RCoLvHujpFPSpHo34Qo221Q==}
+  /@blueking/ip-selector@0.3.0-beta.32(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
+    resolution: {integrity: sha512-d02S3mQIN4mUOYSkPcGmdA9cCDZHLeDrvPHfwcN2J00GdyIoYoGjo314woZOiCDaqeB2qA9JM9X3PazFZ6o+1Q==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
@@ -2615,8 +2615,8 @@ packages:
       - vue
     dev: false
 
-  /@blueking/ip-selector@0.3.0-beta.30(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31):
-    resolution: {integrity: sha512-8EGFyGthicb7C/5BVkbIuo0Id+8wJwYf4gGOK2C/yO4zuOqnkGjvDbOz8BjEyD+RCoLvHujpFPSpHo34Qo221Q==}
+  /@blueking/ip-selector@0.3.0-beta.32(bkui-vue@2.0.1-beta.51.select.2)(vue@3.4.31):
+    resolution: {integrity: sha512-d02S3mQIN4mUOYSkPcGmdA9cCDZHLeDrvPHfwcN2J00GdyIoYoGjo314woZOiCDaqeB2qA9JM9X3PazFZ6o+1Q==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
