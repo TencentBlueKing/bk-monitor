@@ -158,7 +158,27 @@
             class="detail-information-row last-row"
           >
             <span class="row-label">{{ $t('描述') }} : </span>
-            <span class="row-content">{{ detailData.desc || '--' }}</span>
+            <div
+              v-if="!isShowEditDesc"
+              style="display: flex"
+            >
+              <span class="row-content">{{ detailData.desc || '--' }}</span>
+              <i
+                v-if="!isReadonly"
+                class="icon-monitor icon-bianji edit-name"
+                @click="handleShowEditDes"
+              />
+            </div>
+            <bk-input
+              v-else
+              ref="describeInput"
+              style="width: 440px"
+              class="form-content-textarea"
+              v-model="copyDescribe"
+              :rows="3"
+              type="textarea"
+              @blur="handleEditDescribe"
+            />
           </div>
         </div>
         <!-- 自定义事件展示 -->
@@ -915,6 +935,7 @@ import {
   modifyCustomTsGroupingRuleList,
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
+  modifyCustomTimeSeriesDesc,
 } from 'monitor-api/modules/custom_report';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
@@ -969,6 +990,7 @@ interface IGroupListItem {
 export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(customAuth)) {
   @Ref('nameInput') readonly nameInput!: HTMLInputElement;
   @Ref() readonly dataLabelInput!: HTMLInputElement;
+  @Ref() readonly describeInput!: HTMLInputElement;
   @Ref('textCopy') readonly textCopy!: HTMLTextAreaElement;
   @Ref('golangCopy') readonly golangCopy!: HTMLTextAreaElement;
   @Ref('pythonCopy') readonly pythonCopy!: HTMLTextAreaElement;
@@ -978,11 +1000,13 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   // type = 'customEvent' // 展示类型：customEvent 自定义事件 customTimeSeries 自定义指标
   copyName = ''; // 修改的名字
   copyDataLabel = ''; // 修改的英文名
+  copyDescribe = ''; // 修改的描述
   copyIsPlatform = false; // 是否为平台指标、事件
   isShowEditName = false; // 是否显示名字编辑框
   isShowRightWindow = true; // 是否显示右侧帮助栏
   isShowEditDataLabel = false; // 是否展示英文名编辑框
   isShowEditIsPlatform = false; // 是否展示平台师表
+  isShowEditDesc = false; // 是否展示描述编辑框
   scenario = ''; // 分类
   protocol = ''; // 上报协议
   proxyInfo = []; // 云区域分类数据
@@ -1666,6 +1690,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     this.eventData = detailData.event_info_list;
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
+    this.copyDescribe = this.detailData.desc || '';
     this.copyIsPlatform = this.detailData.is_platform ?? false;
     const str =
       this.type === 'customEvent'
@@ -1787,6 +1812,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.dataLabelInput.focus();
     });
   }
+  /** 点击显示描述的编辑 */
+  handleShowEditDes() {
+    this.isShowEditDesc = true;
+    this.$nextTick(() => {
+      this.describeInput.focus();
+    });
+  }
   /** 编辑是否为平台指标、事件 */
   async handleIsPlatformChange() {
     if (this.type === 'customEvent') {
@@ -1876,6 +1908,35 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.detailData.name = this.copyName;
     this.isShowEditName = false;
     this.loading = false;
+  }
+
+  /* 保存描述信息 */
+  async handleSaveDesc() {
+    const params = {
+      bk_biz_id: this.detailData.bk_biz_id,
+      time_series_group_id: this.detailData.time_series_group_id,
+      desc: this.copyDescribe,
+    };
+    return await modifyCustomTimeSeriesDesc(params).catch(({message}) => {
+      this.$bkMessage({ message, theme: 'error' });
+    });
+  }
+
+  // 编辑描述
+  async handleEditDescribe() {
+    if (!this.copyDescribe.trim() || this.copyDescribe.trim() === this.detailData.desc) {
+      this.copyDescribe = this.detailData.desc;
+      this.isShowEditDesc = false;
+      return;
+    }
+    this.isShowEditDesc = false;
+    const data = await this.handleSaveDesc();
+    if (data) {
+      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      this.detailData.desc = this.copyDescribe;
+      return;
+    }
+    this.copyDescribe = this.detailData.desc;
   }
 
   /** 保存自定义事件编辑 */
@@ -2318,6 +2379,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     };
     await modifyCustomTsGroupingRuleList(params).catch(() => false);
   }
+
   /* 选择分组下拉框收起展开 */
   handleGroupSelectToggle(v: boolean) {
     if (!v) {
@@ -2518,6 +2580,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       &-row {
         height: 32px;
+        width: 576px;
         margin-bottom: 4px;
         display: flex;
         align-items: center;
@@ -2540,7 +2603,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         }
       }
       .last-row {
-        margin-bottom: 12px;
+        margin-bottom: 72px;
       }
     }
     .detail-list {
@@ -2834,6 +2897,10 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     // }
     .submit-div {
       display: inline-block;
+    }
+    .form-content-textarea {
+      position: relative;
+      bottom: -30px;
     }
   }
   .right-window {
