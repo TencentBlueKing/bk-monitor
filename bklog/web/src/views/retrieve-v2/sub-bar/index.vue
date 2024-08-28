@@ -8,7 +8,7 @@
 
   const isExternal = computed(() => store.state.isExternal);
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
-  const isShowRetrieveSetting = computed(() => isExternal.value && isUnionSearch.value || true);
+  const isShowRetrieveSetting = computed(() => (isExternal.value && isUnionSearch.value) || true);
   const bkBizId = computed(() => store.state.bkBizId);
   const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
 
@@ -72,7 +72,7 @@
 
   onMounted(() => {
     initJumpRouteList('setIndex');
-  })
+  });
 </script>
 <template>
   <div class="subbar-container">

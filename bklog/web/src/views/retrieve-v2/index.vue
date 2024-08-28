@@ -25,18 +25,71 @@
 -->
 
 <script setup>
-  import { ref } from 'vue';
+  import { computed, ref, watch } from 'vue';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
   import CollectFavorites from './collect/collect-index';
+  import useStore from '@/hooks/use-store';
+  import useRouter from '@/hooks/use-router';
+  import { getDefaultRetrieveParams } from './const';
+
+  const store = useStore();
+  const route = useRouter();
 
   const showFavorites = ref(false);
   const favoriteList = ref([]);
+  const indexSetList = ref([]);
+  const totalFields = ref([]);
+
   const activeFavoriteID = ref(-1);
+  const indexId = ref(route.params.indexId?.toString());
+  const retrieveParams = ref({
+    bk_biz_id: store.state.bkBizId,
+    ...getDefaultRetrieveParams(),
+  });
+
+  const spaceUid = computed(() => store.state.spaceUid);
+  const bkBizId = computed(() => store.state.bkBizId);
+  const isExternal = computed(() => store.state.isExternal);
+  const externalMenu = computed(() => store.state.externalMenu);
+  const authMainPageInfo = computed(() => store.getters['globals/authContainerInfo']);
+
+  watch(
+    () => spaceUid,
+    () => {
+      indexId.value = '';
+      indexSetList.value.length = 0;
+      indexSetList.value = [];
+
+      totalFields.value.length = 0;
+      totalFields.value = [];
+
+      retrieveParams.value.bk_biz_id = bkBizId.value;
+      // 外部版 无检索权限跳转后不更新页面数据
+      if (!isExternal.value || (isExternal.value && externalMenu.value.includes('retrieve'))) {
+        fetchPageData();
+      }
+      this.resetFavoriteValue();
+      store.commit('updateUnionIndexList', []);
+      this.$refs.searchCompRef?.clearAllCondition();
+    },
+    { immediate: true },
+  );
 
   const handleFavoritesClick = () => {
     showFavorites.value = !showFavorites.value;
   };
+
+  const fetchPageData = async () => {
+        // 有spaceUid且有业务权限时 才去请求索引集列表
+        if (!authMainPageInfo.value && spaceUid.value) {
+          // 收藏侧边栏打开且 则先获取到收藏列表再获取索引集列表
+          this.isShowCollect && (await this.getFavoriteList());
+          this.requestIndexSetList();
+        } else {
+          this.isFirstLoad = false;
+        }
+      }
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
