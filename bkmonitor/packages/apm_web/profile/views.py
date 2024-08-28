@@ -63,6 +63,8 @@ from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.errors.api import BKAPIError
 
+from apm_web.decorators import user_visit_record
+
 logger = logging.getLogger("root")
 
 
@@ -85,6 +87,7 @@ class ProfileBaseViewSet(ViewSet):
 
 class ProfileUploadViewSet(ProfileBaseViewSet):
     @action(methods=["POST"], detail=False, url_path="upload")
+    @user_visit_record
     def upload(self, request: Request):
         """上传 profiling 文件"""
         uploaded = request.FILES.get("file")
@@ -140,6 +143,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         return Response(data=ProfileUploadRecordSLZ(record).data)
 
     @action(methods=["GET"], detail=False, url_path="records")
+    @user_visit_record
     def records(self, request: Request):
         serializer = ProfileListFileSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
@@ -295,6 +299,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         }
 
     @action(methods=["POST", "GET"], detail=False, url_path="samples")
+    @user_visit_record
     def samples(self, request: Request):
         """查询 profiling samples 数据"""
         serializer = ProfileQuerySerializer(data=request.data or request.query_params)
@@ -586,6 +591,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
 
     @action(methods=["GET"], detail=False, url_path="export")
+    @user_visit_record
     def export(self, request: Request):
         serializer = ProfileQueryExportSerializer(data=request.data or request.query_params)
         serializer.is_valid(raise_exception=True)
@@ -648,7 +654,7 @@ class ResourceQueryViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("GET", ListApplicationServicesResource, endpoint="services"),
+        ResourceRoute("GET", ListApplicationServicesResource, endpoint="services", decorators=[user_visit_record, ]),
         ResourceRoute("POST", QueryProfileBarGraphResource, endpoint="services_trace_bar"),
-        ResourceRoute("GET", QueryServicesDetailResource, endpoint="services_detail"),
+        ResourceRoute("GET", QueryServicesDetailResource, endpoint="services_detail", decorators=[user_visit_record, ]),
     ]
