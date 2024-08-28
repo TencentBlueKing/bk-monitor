@@ -59,7 +59,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
     return v;
   }
-  @Emit('timezoneChange')
+  @Emit('timezone-change')
   handleTimezoneChange(timezone: string) {
     timezone && updateTimezone(timezone);
     return timezone;

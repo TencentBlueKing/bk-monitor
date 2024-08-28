@@ -790,7 +790,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
                 field_description = fields_msg["description"]
 
             # 限制维度数量不能太多
-            if fields_msg.get("field_type") != "date" and len(dimension_list) < 200:
+            if fields_msg.get("field_type") != "date" and len(dimension_list) < 1000:
                 temp = {"id": field_id, "name": field_description, "is_dimension": bool(fields_msg["es_doc_values"])}
                 dimension_list.append(temp)
 

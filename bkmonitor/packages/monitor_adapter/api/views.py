@@ -19,7 +19,7 @@ from django.http import HttpResponse
 def version_info(request):
     version_file = os.path.join(settings.BASE_DIR, 'VERSION')
     version = ""
-    if os.path.exists(version_file):
+    if os.path.exists(version_file) and os.path.isfile(version_file):
         with open(version_file, 'r') as f:
             version = f.read()
 

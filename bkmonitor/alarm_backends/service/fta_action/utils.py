@@ -55,14 +55,14 @@ class PushActionProcessor:
         """推送处理事件至收敛队列"""
         if not alerts:
             logger.info(
-                "[push_actions_to_queue]skip to create sub action for generate_uuid(%s) because of no alert",
+                "[create actions]skip to create sub action for generate_uuid(%s) because of no alert",
                 generate_uuid,
             )
             return []
 
         if is_shielded or need_noise_reduce:
             logger.info(
-                "[push_actions_to_queue]current alert(%s) is shielded(%s) or need_noise_reduce(%s), "
+                "[create actions]alert(%s) is shielded(%s) or need_noise_reduce(%s), "
                 "skip to create sub action for generate_uuid(%s)",
                 alerts[0].id,
                 is_shielded,
@@ -75,7 +75,7 @@ class PushActionProcessor:
                 # 有父任务的事件，先需要创建对应的子任务
                 sub_actions = action_instance.create_sub_actions()
                 logger.info(
-                    "create sub notice actions %s for parent action %s, exclude_notice_ways(%s)",
+                    "[create actions]create sub notice actions %s for parent action(%s), exclude_notice_ways(%s)",
                     len(sub_actions),
                     action_instance.id,
                     "|".join(action_instance.inputs.get("exlude_notice_ways") or []),
@@ -166,11 +166,11 @@ class PushActionProcessor:
         else:
             task_id = run_action.apply_async((plugin_type, action_info), countdown=countdown)
         logger.info(
-            "[push_action_to_queue] $%s push fta action %s_%s to rabbitmq, alerts(%s)",
+            "[create actions]push queue(execute): action(%s) (%s), alerts(%s), task_id(%s)",
             action_instance.id,
             plugin_type,
-            task_id,
             action_instance.alerts,
+            task_id,
         )
 
 

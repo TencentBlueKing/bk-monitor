@@ -395,7 +395,8 @@ class SearchHandler(object):
         @param field_result:
         @return:
         """
-        result = MappingHandlers.async_export_fields(field_result, self.scenario_id)
+        sort_fields = self.index_set.sort_fields if self.index_set else []
+        result = MappingHandlers.async_export_fields(field_result, self.scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
         return False, {"usable_reason": result["async_export_usable_reason"]}
@@ -1397,7 +1398,9 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioBkData(
                 size=self.size,
                 start=self.start,
-                gseindex=self.gseindex,
+                gse_index=self.gseindex,
+                iteration_idx=self.iterationIdx,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
                 ip=self.ip,
                 bk_host_id=self.bk_host_id,
@@ -1411,9 +1414,11 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioLog(
                 size=self.size,
                 start=self.start,
-                gseIndex=self.gseIndex,
+                gse_index=self.gseIndex,
+                iteration_index=self.iterationIndex,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
-                serverIp=self.serverIp,
+                server_ip=self.serverIp,
                 bk_host_id=self.bk_host_id,
                 container_id=self.container_id,
                 logfile=self.logfile,

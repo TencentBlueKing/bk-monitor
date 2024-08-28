@@ -45,10 +45,10 @@ class BKAPIError(Error):
         # 设置返回错误详情信息，适配新版错误样式
         self.set_details(
             exc_type=type(self).__name__,
-            exc_code=result.get("code"),
+            exc_code=result.get("code") or self.code,
             overview=_("请求系统'{system_name}'错误，").format(system_name=system_name),
             detail=result.get('message'),
-            popup_message="warn",
+            popup_message="warning",
         )
 
 

@@ -30,7 +30,7 @@ import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 import Vue from 'vue';
 
-import './common/import-magicbox-ui';
+import 'monitor-pc/common/import-magicbox-ui';
 import 'monitor-static/svg-icons';
 import 'monitor-ui/directive/index';
 
@@ -47,6 +47,7 @@ import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
 import 'monitor-static/icons/monitor-icons.css';
+import 'monitor-pc/tailwind.css';
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');

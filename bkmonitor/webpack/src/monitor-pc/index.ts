@@ -49,6 +49,7 @@ import store from './store/store';
 import './static/css/global.scss';
 import './static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
+import './tailwind.css';
 // todo: 子应用externals
 // import './common/externals';
 // app 标识
@@ -71,7 +72,7 @@ if (hasRouteHash) {
   }`;
   /* 如果包含批量操作则需要将batchAction带过去 */
   const hasBatchAction = getUrlParam('batchAction');
-  if (!!hasBatchAction) {
+  if (hasBatchAction) {
     url = `${url}&batchAction=${hasBatchAction}`;
   }
   location.href = url;
@@ -89,9 +90,9 @@ if (hasRouteHash) {
       })
       .then(data => {
         appLoadingNode && (appLoadingNode.style.display = 'none');
-        Object.keys(data).forEach(key => {
-          window[key.toLocaleLowerCase()] = data[key];
-        });
+        for (const [key, value] of Object.entries(data)) {
+          window[key.toLocaleLowerCase()] = value;
+        }
         mergeSpaceList(window.space_list);
         window.user_name = window.uin;
         window.username = window.uin;
@@ -137,9 +138,9 @@ if (hasRouteHash) {
             context_type: 'extra',
           })
           .then(data => {
-            Object.keys(data).forEach(key => {
-              window[key.toLocaleLowerCase()] = data[key];
-            });
+            for (const [key, value] of Object.entries(data)) {
+              window[key.toLocaleLowerCase()] = value;
+            }
             store.commit('app/SET_APP_STATE', {
               collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
             });
@@ -148,7 +149,7 @@ if (hasRouteHash) {
       .catch(e => console.error(e))
       .finally(() => {
         immediateRegister();
-        appLoadingNode && appLoadingNode.remove();
+        appLoadingNode?.remove();
       });
   }
 }

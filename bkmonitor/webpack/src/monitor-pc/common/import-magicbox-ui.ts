@@ -27,9 +27,15 @@ import Vue from 'vue';
 
 import bkMagicVue from 'bk-magic-vue';
 
-import 'bk-magic-vue/dist/bk-magic-vue.min.css';
+import { transformMessageProps } from './transform-message-props';
 
+import 'bk-magic-vue/dist/bk-magic-vue.min.css';
 Vue.use(bkMagicVue, { zIndex: 3000 });
+const bkMessage = Vue.prototype.$bkMessage;
+Vue.prototype.$bkMessage = (params: Record<string, any>) => {
+  const props = transformMessageProps(params);
+  return bkMessage(props);
+};
 // import {
 //   bkAlert,
 //   bkBadge,
