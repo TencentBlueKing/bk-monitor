@@ -455,7 +455,7 @@ class StartResource(Resource):
 class StopResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
-        type = serializers.ChoiceField(label="暂停类型", choices=OperateType.choices, default=OperateType.TRACING.value)
+        type = serializers.ChoiceField(label="暂停类x型", choices=OperateType.choices, default=OperateType.TRACING.value)
 
     @atomic
     def perform_request(self, validated_data):
@@ -630,6 +630,11 @@ class SetupResource(Resource):
 
         def setup(self):
             Application.objects.filter(application_id=self._application.application_id).update(**self._params)
+
+            from apm_web.tasks import report_apm_application_event, APMEvent
+
+            report_apm_application_event.delay(self._application.bk_biz_id, self._application.application_id,
+                                               apm_event=APMEvent.APP_UPDATE)
 
     class ApdexSetupProcessor(SetupProcessor):
         group_key = "application_apdex_config"
