@@ -49,7 +49,7 @@ import store from './store/store';
 import './static/css/global.scss';
 import './static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
-import './tailwind.css';
+// import './tailwind.css';
 // todo: 子应用externals
 // import './common/externals';
 // app 标识
