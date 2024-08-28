@@ -216,7 +216,7 @@ class ClusteringConfigHandler(object):
         self.data.save(update_fields=["task_records"])
         return pipeline.id
 
-    def get_access_status(self, task_id=None):
+    def get_access_status(self, task_id=None, include_update=False):
         """
         接入状态检测
         """
@@ -271,7 +271,7 @@ class ClusteringConfigHandler(object):
         if not task_id:
             # 如果没有给出任务ID，默认用最新的任务ID
             for record in clustering_config.task_records[::-1]:
-                if record["operate"] == OperatorServiceEnum.CREATE:
+                if include_update or record["operate"] == OperatorServiceEnum.CREATE:
                     task_id = record["task_id"]
                     break
 
