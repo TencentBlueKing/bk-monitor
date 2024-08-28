@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, provide, ref } from 'vue';
+import { computed, defineComponent, onMounted, provide, ref, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ResizeLayout } from 'bkui-vue';
@@ -32,7 +32,6 @@ import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
 import { incidentDetail, incidentOperationTypes, incidentOperations } from 'monitor-api/modules/incident';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
-import type { AnlyzeField, ICommonItem } from '../../../../fta-solutions/typings/event';
 import FailureContent from './failure-content/failure-content';
 import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';
@@ -40,6 +39,7 @@ import { replaceStr, typeTextMap } from './failure-process/process';
 import FailureTags from './failure-tags/failure-tags';
 import { useIncidentProvider } from './utils';
 
+import type { AnlyzeField, ICommonItem } from '../../../../fta-solutions/typings/event';
 import type { IFilterSearch, IIncident } from './types';
 import type { ITagInfoType } from './types';
 
@@ -290,7 +290,10 @@ export default defineComponent({
       getIncidentDetail();
     });
     const nodeClick = item => {
-      currentNode.value = item.related_entities || item;
+      currentNode.value = [];
+      nextTick(() => {
+        currentNode.value = item.related_entities || item;
+      });
     };
     const filterSearchHandle = data => {
       filterSearch.value = data;

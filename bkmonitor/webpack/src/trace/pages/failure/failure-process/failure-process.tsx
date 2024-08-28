@@ -161,9 +161,9 @@ export default defineComponent({
       getIncidentOperationTypes();
       // getIncidentOperations();
     });
-    const handleCallback = (type) => {
+    const handleCallback = type => {
       if (type === 'incident_create') {
-        emit('changeTab')
+        emit('changeTab');
       }
     };
     return {
@@ -186,7 +186,7 @@ export default defineComponent({
       incidentId,
       incidentDetail,
       operationsLoading,
-      handleCallback
+      handleCallback,
     };
   },
   render() {
@@ -247,7 +247,7 @@ export default defineComponent({
                                 ]}
                               />
                             )}
-                            {this.$t(data.name)}
+                            {data.name}
                             {data.isAddLine ? <span class='node-line' /> : ''}
                           </span>
                         );
@@ -289,7 +289,7 @@ export default defineComponent({
                       <p>
                         <span class='failure-process-item-time'>{this.formatterTime(operation.create_time)}</span>
                         <span class='failure-process-item-title'>
-                          {this.$t(this.operationTypeMap[operation.operation_type]) || '--'}
+                          {this.operationTypeMap[operation.operation_type] || '--'}
                         </span>
                       </p>
                       <p class='failure-process-item-flex'>

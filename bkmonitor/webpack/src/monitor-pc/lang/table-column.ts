@@ -73,6 +73,8 @@ export default {
   分类: 'Category',
   告警指标: 'Alarm Metric',
   持续时间: 'Duration',
+  告警开始时间: 'Alarm Start Time',
+  告警结束时间: 'Alarm End Time',
   告警内容: 'Alarm Content',
   标签: 'Tag',
   策略名称: 'Rule Name',

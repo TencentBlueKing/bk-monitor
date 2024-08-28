@@ -210,6 +210,14 @@ export default class SpaceSelect extends tsc<
         name: this.$t('-我有告警的空间-'),
       } as any);
     }
+    // if (this.needIncidentOption) {
+    //   this.localSpaceList.unshift({
+    //     ...nullItem,
+    //     bk_biz_id: hasDataBizId,
+    //     id: hasDataBizId,
+    //     name: this.$t('-我有故障的空间-'),
+    //   } as any);
+    // }
     if (this.needAuthorityOption) {
       this.localSpaceList.unshift({
         ...nullItem,

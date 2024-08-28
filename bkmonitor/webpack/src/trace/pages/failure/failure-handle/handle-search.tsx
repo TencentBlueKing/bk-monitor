@@ -96,6 +96,16 @@ export default defineComponent({
         aggregateBys.value.push(key);
       }
     };
+    const treeStatus = ref(true);
+    watch(
+      () => props.topoNodeId,
+      () => {
+        treeStatus.value = false;
+        setTimeout(() => {
+          treeStatus.value = true;
+        }, 1);
+      }
+    );
     watch(
       () => props.username,
       () => {
@@ -218,6 +228,9 @@ export default defineComponent({
     };
     const nodeClick = item => {
       if (item.level_name !== 'status') {
+        selectedNode.value = item;
+        console.log(item, '===');
+        console.log(selectedNode.value, 'selectedNode.value');
         emit('nodeClick', item);
       }
     };
@@ -336,6 +349,7 @@ export default defineComponent({
       cancelFilter,
       showName,
       treeRef,
+      treeStatus,
     };
   },
   render() {
@@ -386,7 +400,7 @@ export default defineComponent({
               ref='treeRef'
               class='search-tree'
             >
-              {this.treeFn()}
+              {this.treeStatus && this.treeFn()}
             </div>
           </Loading>
         </div>

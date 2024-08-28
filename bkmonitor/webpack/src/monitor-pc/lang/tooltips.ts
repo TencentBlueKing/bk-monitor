@@ -291,5 +291,5 @@ export default {
   '你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。':
     'Hello, I am AI ​​Assistant. You can ask me questions related to the use of the Blue Whale monitoring product.',
   告警系统事件: 'Alarm System Event',
-  故障系统事件: 'Fault System Event',
+  故障系统事件: 'Incident System Event',
 };

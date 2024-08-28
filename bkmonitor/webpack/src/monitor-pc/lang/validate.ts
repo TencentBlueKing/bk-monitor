@@ -196,7 +196,7 @@ export default {
   '分组：{tableName} 第{index}个字段未填写名称': 'Grouping: {tableName} The {index} field is not filled with a name',
   '检测算法填写不完整，请完善后添加': 'Detection algorithm incomplete, please complete before adding',
   '检测到未配置进程/端口监控策略，请尽快配置方能及时的发现风险/故障。':
-    'No process/port monitoring rule is detected, please configure it as soon as possible to discover risks/faults in time. ',
+    'No process/port monitoring rule is detected, please configure it as soon as possible to discover risks/incidents in time. ',
   '校验失败，请检查参数': 'Verification failed, please check the parameters',
   '可能存在运行参数变动，请检查并确认运行参数！':
     'There may be changes in operating parameters, please check and confirm the operating parameters! ',

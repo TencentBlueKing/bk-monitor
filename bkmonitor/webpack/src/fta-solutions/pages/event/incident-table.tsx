@@ -74,12 +74,12 @@ interface IEventTableProps {
 interface IEventStatusMap {
   color: string;
   bgColor: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   icon: string;
 }
 interface IColumnItem {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   disabled: boolean;
   checked: boolean;
   props?: {
@@ -143,7 +143,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   selectedCount = 0;
   tableToolList: {
     id: string;
-    name: TranslateResult | string;
+    name: string | TranslateResult;
   }[];
   /* 状态栏更多操作按钮 */
   popoperOperateInstance: any = null;
@@ -725,7 +725,13 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                 ) : (
                   ''
                 )}
-                <span class={'status-label-status'}> {this.eventStatusMap?.[status]?.name || '--'}</span>
+                <span
+                  class={'status-label-status'}
+                  v-bk-overflow-tips
+                >
+                  {' '}
+                  {this.eventStatusMap?.[status]?.name || '--'}
+                </span>
               </span>
             </div>
           ),

@@ -41,6 +41,7 @@ import { Message, Popover } from 'bkui-vue';
 import { timeDay } from 'd3-time';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentRecordOperation } from 'monitor-api/modules/incident';
+import { getCookie } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils.js';
 
 import AlarmConfirm from '../alarm-detail/alarm-confirm';
@@ -56,7 +57,6 @@ import TimelineZoom from './timeline-zoom';
 import type { IAggregationRoot, IAlert, IIncident, IIncidentOperation } from '../types';
 
 import './timeline-diagram.scss';
-
 interface Operation {
   create_time: number;
   [key: string]: any;
@@ -587,6 +587,7 @@ export default defineComponent({
         description: { label: t('告警内容') },
       };
       const isConfirmDisabled = is_ack || ['RECOVERED', 'CLOSED'].includes(status);
+      const isEn = getCookie('blueking_language') === 'en';
       return (
         <div class='tool-div'>
           <div class='tool-text'>
@@ -644,7 +645,12 @@ export default defineComponent({
                   key={key}
                   class='tool-text'
                 >
-                  <label class='tool-label'>{info.label}：</label>
+                  <label
+                    style={{ 'min-width': isEn ? '98px' : '90px' }}
+                    class='tool-label'
+                  >
+                    {info.label}：
+                  </label>
                   <span class='tool-info'>
                     {info?.renderFn ? info.renderFn(alert_example[key]) : alert_example[key] || '--'}
                   </span>
