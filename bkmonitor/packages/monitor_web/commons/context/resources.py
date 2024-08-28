@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
+from django.core.cache import InvalidCacheBackendError, caches
 from django.middleware.csrf import get_token
 from django.utils import timezone
 
@@ -28,6 +29,7 @@ from common.context_processors import (
     json_formatter,
 )
 from common.log import logger
+from constants.common import ReleaseStatus
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
@@ -206,3 +208,57 @@ class EnhancedGetContextResource(Resource):
                         context["BK_BIZ_ID"] = -1
 
         return {"context": context, "context_type": context_type}
+
+
+class ReleaseResource(Resource):
+    """
+    pass
+    """
+
+    status_key = "release-status"
+
+    class RequestSerializer(serializers.Serializer):
+        pass
+
+        def validate(self, attrs):
+            if "redis" not in caches:
+                raise InvalidCacheBackendError("cache backend[redis] is not available")
+            return attrs
+
+    @property
+    def cache(self):
+        return caches["redis"]
+
+    def set_release_status(self, status, ttl):
+        self.cache.set(self.status_key, status, ttl)
+
+    def get_release_status(self):
+        return self.cache.get(self.status_key)
+
+
+class PreHookResource(ReleaseResource):
+    """
+    发布前 hook
+    """
+
+    def perform_request(self, validated_request_data):
+        self.set_release_status(ReleaseStatus.DEPLOYING, ttl=1800)
+
+
+class PostHookResource(ReleaseResource):
+    """
+    发布后 hook
+    """
+
+    def perform_request(self, validated_request_data):
+        self.set_release_status(ReleaseStatus.SUCCESS, ttl=None)
+
+
+class PopupSettings(ReleaseResource):
+    def perform_request(self, validated_request_data):
+        status = self.get_release_status()
+        if status == ReleaseStatus.DEPLOYING:
+            # 发布中，只给管理员弹错误框
+            return get_request().user.is_superuser
+        # 发布完成，给所有用户弹错误框
+        return True

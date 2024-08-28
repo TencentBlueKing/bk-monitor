@@ -21,7 +21,6 @@ from monitor_web.commons.context.resources import ContextType
 
 
 class ContextViewSet(GenericViewSet):
-
     # context 无需鉴权
     permission_classes = []
 
@@ -44,3 +43,16 @@ class GetContextViewSet(ResourceViewSet):
 
     permission_classes = []
     resource_routes = [ResourceRoute("GET", resource.commons.get_context)]
+
+
+class ReleaseViewSet(ResourceViewSet):
+    """
+    发布管理相关服务
+    """
+
+    permission_classes = []
+    resource_routes = [
+        ResourceRoute("GET", resource.commons.popup_settings, "popup_settings"),
+        # ResourceRoute("GET", resource.commons.pre_hook, "pre_hook"),
+        # ResourceRoute("GET", resource.commons.post_hook, "post_hook"),
+    ]
