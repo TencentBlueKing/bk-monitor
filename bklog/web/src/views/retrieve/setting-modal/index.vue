@@ -294,13 +294,6 @@
           },
         });
       },
-      openPage() {
-        if (this.isOpenPage) {
-          this.currentChoice = this.selectChoice;
-          this.showComponent = this.showCurrentList.find(el => el.id === this.selectChoice)?.componentsName;
-          this.isOpenPage = false;
-        }
-      },
       /**
        * @desc: 离开当前页并点击nav开关
        * @param { Object } item
