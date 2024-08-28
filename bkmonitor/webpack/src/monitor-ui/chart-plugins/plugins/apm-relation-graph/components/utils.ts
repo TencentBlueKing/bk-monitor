@@ -61,6 +61,30 @@ export const DATA_TYPE_LIST = [
   },
 ];
 
+export const alarmColorMap = {
+  default: {
+    [EAlarmType.blue]: '#699DF4',
+    [EAlarmType.gray]: '#EAEBF0',
+    [EAlarmType.green]: '#2DCB56',
+    [EAlarmType.red]: '#FF5656',
+    [EAlarmType.yellow]: '#FFB848',
+  },
+  hover: {
+    [EAlarmType.blue]: '#A3C5FD',
+    [EAlarmType.gray]: '#EAEBF0',
+    [EAlarmType.green]: '#81E09A',
+    [EAlarmType.red]: '#F8B4B4',
+    [EAlarmType.yellow]: '#FFD695',
+  },
+  selected: {
+    [EAlarmType.blue]: '#3A84FF',
+    [EAlarmType.gray]: '#EAEBF0',
+    [EAlarmType.green]: '#11B33B',
+    [EAlarmType.red]: '#EA3636',
+    [EAlarmType.yellow]: '#FF9C01',
+  },
+};
+
 export interface IAlarmDataItem {
   type: EAlarmType;
   time: number;
@@ -101,18 +125,56 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
       }) || []
     );
   }
-  /* todo 调用错误率 */
+  /* todo 调用错误率
+    =0 绿色
+    <= 0.1 黄色
+    > 0.1 红色
+  */
   return (
     series?.[0]?.datapoints?.map(item => {
       const typeValue = item[0];
       const time = item[1];
-      let type = EAlarmType.yellow;
-      if (typeValue > 0.75) {
+      let type = EAlarmType.red;
+      if (typeValue === 0) {
         type = EAlarmType.green;
-      } else if (typeValue <= 0.25) {
-        type = EAlarmType.red;
+      } else if (typeValue <= 0.1) {
+        type = EAlarmType.yellow;
       }
       return { type, time, value: typeValue };
     }) || []
   );
+};
+
+export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem) => {
+  if (dataType === EDataType.Alert) {
+    const textMap = {
+      [EAlarmType.green]: window.i18n.t('无告警'),
+      [EAlarmType.red]: window.i18n.t('致命'),
+      [EAlarmType.yellow]: window.i18n.t('预警'),
+    };
+    return {
+      color: alarmColorMap.default[item.type],
+      text: textMap[item.type],
+    };
+  }
+  if (dataType === EDataType.Apdex) {
+    const textMap = {
+      [EAlarmType.yellow]: `${window.i18n.t('可容忍')}：0.25 < Apdex(${item.value}) <= 0.75`,
+      [EAlarmType.green]: `${window.i18n.t('满意')}：Apdex(${item.value}) > 0.75`,
+      [EAlarmType.red]: `${window.i18n.t('烦躁')}：Apdex(${item.value}) <= 0.25`,
+    };
+    return {
+      color: alarmColorMap.default[item.type],
+      text: textMap[item.type],
+    };
+  }
+  const textMap = {
+    [EAlarmType.green]: `${window.i18n.tc('错误率')}：0`,
+    [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：10%`,
+    [EAlarmType.red]: `${window.i18n.tc('错误率')}：10%`,
+  };
+  return {
+    color: alarmColorMap.default[item.type],
+    text: textMap[item.type],
+  };
 };

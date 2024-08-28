@@ -28,33 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
-import { EAlarmType, type IAlarmDataItem, type EDataType } from './utils';
+import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlarmItemStatusTips } from './utils';
 
 import './bar-alarm-chart.scss';
-
-const alarmColorMap = {
-  default: {
-    [EAlarmType.blue]: '#699DF4',
-    [EAlarmType.gray]: '#EAEBF0',
-    [EAlarmType.green]: '#2DCB56',
-    [EAlarmType.red]: '#FF5656',
-    [EAlarmType.yellow]: '#FFB848',
-  },
-  hover: {
-    [EAlarmType.blue]: '#A3C5FD',
-    [EAlarmType.gray]: '#EAEBF0',
-    [EAlarmType.green]: '#81E09A',
-    [EAlarmType.red]: '#F8B4B4',
-    [EAlarmType.yellow]: '#FFD695',
-  },
-  selected: {
-    [EAlarmType.blue]: '#3A84FF',
-    [EAlarmType.gray]: '#EAEBF0',
-    [EAlarmType.green]: '#11B33B',
-    [EAlarmType.red]: '#EA3636',
-    [EAlarmType.yellow]: '#FF9C01',
-  },
-};
 
 type TGetData = (dataType: EDataType, set: (v: IAlarmDataItem[]) => void) => void;
 interface IProps {
@@ -84,6 +60,8 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: String, default: '' }) dataType: EDataType;
   @Prop({ type: Function, default: null }) getData: TGetData;
 
+  loading = false;
+
   localData: readonly IAlarmDataItem[] = [];
 
   // 当前悬停的时间戳
@@ -97,10 +75,7 @@ export default class BarAlarmChart extends tsc<IProps> {
   popInstance = null;
   timer = null;
   /* tooltip 内容状态 */
-  statusList = [
-    { color: '#FF9C01', text: '错误率 < 10%' },
-    { color: '#3A84FF', text: '发布事件：K8SEvents  45' },
-  ];
+  statusList = [{ color: '#FF9C01', text: '错误率 < 10%' }];
   /*  */
   boxSelector: {
     [key: string]: any;
@@ -120,7 +95,9 @@ export default class BarAlarmChart extends tsc<IProps> {
 
   initData() {
     if (this.getData) {
+      this.loading = true;
       this.getData(this.dataType, data => {
+        this.loading = false;
         this.localData = Object.freeze(data);
         if (this.localData.length) {
           const len = this.localData.length;
@@ -142,7 +119,13 @@ export default class BarAlarmChart extends tsc<IProps> {
 
   @Watch('getData', { immediate: true })
   handleGetData() {
+    this.loading = true;
     this.initData();
+  }
+
+  getTips(item) {
+    const statusItem = getAlarmItemStatusTips(this.dataType, item);
+    this.statusList = [statusItem];
   }
 
   /**
@@ -155,6 +138,7 @@ export default class BarAlarmChart extends tsc<IProps> {
     if (item.type === EAlarmType.gray) {
       return;
     }
+    this.getTips(item);
     this.curHover = item.time;
     this.timer = setTimeout(() => {
       this.popInstance = this.$bkPopover(event.target, {
@@ -200,6 +184,9 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @param event
    */
   handleMouseDown(event: MouseEvent) {
+    if (this.loading) {
+      return;
+    }
     const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');
     this.boxSelector = {
       ...this.boxSelector,
@@ -368,7 +355,11 @@ export default class BarAlarmChart extends tsc<IProps> {
           class='alarm-chart-wrap'
           onMousedown={this.handleMouseDown}
         >
-          {this.localData.map(item => this.alarmListRender(item))}
+          {this.loading ? (
+            <div class='skeleton-element bar-loading' />
+          ) : (
+            this.localData.map(item => this.alarmListRender(item))
+          )}
         </div>
         {this.showXAxis && (
           <div class='alarm-footer-wrap'>
