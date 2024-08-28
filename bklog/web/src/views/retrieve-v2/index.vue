@@ -26,15 +26,20 @@
 
 <script setup>
   import { computed, ref, watch } from 'vue';
+
+  import * as authorityMap from '@/common/authority-map';
+  import useStore from '@/hooks/use-store';
+  import { useRoute, useRouter } from 'vue-router/composables';
+
+  import CollectFavorites from './collect/collect-index';
+  import { getDefaultRetrieveParams } from './const';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
-  import CollectFavorites from './collect/collect-index';
-  import useStore from '@/hooks/use-store';
-  import useRouter from '@/hooks/use-router';
-  import { getDefaultRetrieveParams } from './const';
+  import http from '@/api';
 
   const store = useStore();
-  const route = useRouter();
+  const route = useRoute();
+  const router = useRouter();
 
   const showFavorites = ref(false);
   const favoriteList = ref([]);
@@ -42,11 +47,17 @@
   const totalFields = ref([]);
 
   const activeFavoriteID = ref(-1);
+  const activeFavorite = ref({});
+  const retrieveSearchNumber = ref(0);
+
   const indexId = ref(route.params.indexId?.toString());
   const retrieveParams = ref({
     bk_biz_id: store.state.bkBizId,
     ...getDefaultRetrieveParams(),
   });
+
+  const authPageInfo = ref(null);
+  const hasAuth = ref(false);
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -69,9 +80,8 @@
       if (!isExternal.value || (isExternal.value && externalMenu.value.includes('retrieve'))) {
         fetchPageData();
       }
-      this.resetFavoriteValue();
+      resetFavoriteValue();
       store.commit('updateUnionIndexList', []);
-      this.$refs.searchCompRef?.clearAllCondition();
     },
     { immediate: true },
   );
@@ -84,11 +94,124 @@
     // 有spaceUid且有业务权限时 才去请求索引集列表
     if (!authMainPageInfo.value && spaceUid.value) {
       // 收藏侧边栏打开且 则先获取到收藏列表再获取索引集列表
-      this.isShowCollect && (await this.getFavoriteList());
-      this.requestIndexSetList();
-    } else {
-      this.isFirstLoad = false;
+      showFavorites.value && (await getFavoriteList());
+      requestIndexSetList();
     }
+  };
+
+  // 初始化索引集
+  const requestIndexSetList = () => {
+    http
+      .request('retrieve/getIndexSetList', {
+        query: {
+          space_uid: spaceUid.value,
+        },
+      })
+      .then(res => {
+        if (res.data.length) {
+          // 有索引集
+          // 根据权限排序
+          const s1 = [];
+          const s2 = [];
+          for (const item of res.data) {
+            if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+              s1.push(item);
+            } else {
+              s2.push(item);
+            }
+          }
+          indexSetList.value = s1.concat(s2);
+
+          // 索引集数据加工
+          indexSetList.value.forEach(item => {
+            item.index_set_id = `${item.index_set_id}`;
+            item.indexName = item.index_set_name;
+            item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+          });
+
+          indexId.value = route.params.indexId?.toString();
+          const routeIndexSet = indexSetList.value.find(item => item.index_set_id === indexId.value);
+          const isRouteIndex = !!routeIndexSet && !routeIndexSet?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+
+          // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
+          if (!indexSetList.value[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
+            const authIndexID = indexId.value || indexSetList.value[0].index_set_id;
+            store
+              .dispatch('getApplyData', {
+                action_ids: [authorityMap.SEARCH_LOG_AUTH],
+                resources: [
+                  {
+                    type: 'indices',
+                    id: authIndexID,
+                  },
+                ],
+              })
+              .then(res => {
+                authPageInfo.value = res.data;
+                setRouteParams(
+                  'retrieve',
+                  {
+                    indexId: null,
+                  },
+                  {
+                    spaceUid: spaceUid.value,
+                    bizId: bkBizId.value,
+                  },
+                );
+              })
+              .catch(err => {
+                console.warn(err);
+              });
+            return;
+          }
+          hasAuth.value = true;
+        }
+      });
+  };
+
+  const setRouteParams = (name = 'retrieve', params, query) => {
+    router.replace({
+      name,
+      params,
+      query,
+    });
+  };
+
+  /** 获取收藏列表 */
+  const getFavoriteList = async () => {
+    // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
+    try {
+      const { data } = await http.request('favorite/getFavoriteByGroupList', {
+        query: {
+          space_uid: spaceUid.value,
+          order_type: localStorage.getItem('favoriteSortType') || 'NAME_ASC',
+        },
+      });
+      const provideFavorite = data[0];
+      const publicFavorite = data[data.length - 1];
+      const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
+      const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
+      favoriteList.value = sortAfterList;
+    } catch (err) {
+      favoriteList.value = [];
+    } finally {
+      // 获取收藏列表后 若当前不是新检索 则判断当前收藏是否已删除 若删除则变为新检索
+      if (activeFavoriteID.value !== -1) {
+        for (const gItem of favoriteList.value) {
+          const findFavorites = gItem.favorites.find(item => item.id === activeFavoriteID.value);
+          if (!!findFavorites) {
+            isFindCheckValue = true; // 找到 中断循环
+            break;
+          }
+        }
+      }
+    }
+  };
+
+  const resetFavoriteValue = () => {
+    activeFavorite.value = {};
+    activeFavoriteID.value = -1;
+    retrieveSearchNumber.value = 0; // 切换业务 检索次数设置为0;
   };
 </script>
 <template>
@@ -119,10 +242,10 @@
       <CollectFavorites
         v-if="showFavorites"
         class="collect-favorites"
+        :active-favorite-i-d="activeFavoriteID"
+        :favorite-list="favoriteList"
+        :is-show="showFavorites"
         :width="240"
-        :isShow="showFavorites"
-        :favoriteList="favoriteList"
-        :activeFavoriteID="activeFavoriteID"
       ></CollectFavorites>
       <SearchBar></SearchBar>
       <div class="result-row"></div>

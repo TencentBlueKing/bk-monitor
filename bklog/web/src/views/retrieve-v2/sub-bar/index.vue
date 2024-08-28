@@ -1,8 +1,9 @@
 <script setup>
+  import { computed, onMounted, ref } from 'vue';
+
+  import BizMenuSelect from '@/components/biz-menu';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import BizMenuSelect from '@/components/biz-menu';
-  import { computed, onMounted, ref } from 'vue';
   const { $t } = useLocale();
   const store = useStore();
 
