@@ -249,7 +249,11 @@ class ClusteringConfigViewSet(APIViewSet):
         """
         task_id = request.query_params.get("task_id")
         include_update = request.query_params.get("include_update")
-        return Response(ClusteringConfigHandler(index_set_id=index_set_id).get_access_status())
+        return Response(
+            ClusteringConfigHandler(index_set_id=index_set_id).get_access_status(
+                task_id=task_id, include_update=include_update
+            )
+        )
 
     @list_route(methods=["GET"], url_path="default_config")
     def get_default_config(self, request, *args, **kwargs):
