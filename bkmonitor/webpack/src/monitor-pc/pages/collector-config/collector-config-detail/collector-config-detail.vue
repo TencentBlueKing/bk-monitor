@@ -262,6 +262,10 @@
                         <span class="item-name">{{ $t('排除') }}</span>
                         <span class="item-content">{{ basicInfo.exclude_pattern }}</span>
                       </li>
+                      <li class="param-list-item">
+                        <span class="item-name">{{ $t('维度提取') }}</span>
+                        <span class="item-content">{{ basicInfo.extract_pattern }}</span>
+                      </li>
                     </ul>
                   </template>
                   <template v-else>
@@ -582,7 +586,7 @@ export default {
             };
           }
           if (data.extend_info.process) {
-            const { process } = data.extend_info;
+            const { process: processInfo } = data.extend_info;
             this.basicInfoMap = {
               ...this.basicInfoMap,
               match: this.$t('进程匹配'),
@@ -595,13 +599,15 @@ export default {
               port_detect: portDetect,
               match_pattern: matchPattern,
               exclude_pattern: excludePattern,
+              extract_pattern: extractPattern,
               pid_path: pidPath,
-            } = process;
+            } = processInfo;
             this.basicInfo = {
               ...this.basicInfo,
               match: matchType,
               match_pattern: matchPattern,
               exclude_pattern: excludePattern,
+              extract_pattern: extractPattern,
               pid_path: pidPath,
               process_name: processName || '--',
               port_detect: `${portDetect}`,
