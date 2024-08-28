@@ -27,7 +27,7 @@ import { type PropType, computed, defineComponent, provide, reactive, ref, watch
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
-import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
+import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { getSceneView } from 'monitor-api/modules/scene_view';
@@ -38,6 +38,7 @@ import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
+import { useIsEnabledProfilingInject } from '../../plugins/hooks';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
@@ -115,6 +116,7 @@ export default defineComponent({
     const bizId = computed(() => useAppStore().bizId || 0);
 
     const countOfInfo = ref<Record<TabName, number> | object>({});
+    const enableProfiling = useIsEnabledProfilingInject();
 
     // 20230807 当前 span 开始和结束时间。用作 主机（host）标签下请求接口的时间区间参数。
     const startTimeProvider = ref('');
@@ -1230,18 +1232,29 @@ export default defineComponent({
                       activeTab.value === 'Profiling' && (
                         <Loading
                           style='height: 100%;'
-                          loading={isTabPanelLoading.value}
+                          loading={enableProfiling.value && isTabPanelLoading.value}
                         >
-                          <ProfilingFlameGraph
-                            appName={appName.value}
-                            bizId={bizId.value}
-                            end={profilingRerieveEndTime}
-                            profileId={originalData.value.span_id}
-                            serviceName={serviceNameProvider.value}
-                            start={profilingRerieveStartTime}
-                            textDirection={ellipsisDirection.value}
-                            onUpdate:loading={val => (isTabPanelLoading.value = val)}
-                          />
+                          {enableProfiling.value ? (
+                            <ProfilingFlameGraph
+                              appName={appName.value}
+                              bizId={bizId.value}
+                              end={profilingRerieveEndTime}
+                              profileId={originalData.value.span_id}
+                              serviceName={serviceNameProvider.value}
+                              start={profilingRerieveStartTime}
+                              textDirection={ellipsisDirection.value}
+                              onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                            />
+                          ) : (
+                            <div class='exception-guide-wrap'>
+                              <Exception type='building'>
+                                <span>{t('暂未开启 Profiling 功能')}</span>
+                                <div class='text-wrap'>
+                                  <pre class='text-row'>{t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
+                                </div>
+                              </Exception>
+                            </div>
+                          )}
                         </Loading>
                       )
                     }

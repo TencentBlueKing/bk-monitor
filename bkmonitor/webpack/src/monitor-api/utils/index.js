@@ -28,19 +28,11 @@ export const setVue = function (instance) {
   vue = instance;
 };
 
-export const bkMessage = (message, theme = 'error') => {
+export const bkMessage = message => {
   if (vue?.prototype?.$bkMessage) {
-    vue.prototype.$bkMessage({
-      message,
-      theme,
-      ellipsisLine: 0,
-    });
+    vue.prototype.$bkMessage(message);
   } else {
-    vue.config.globalProperties.$Message({
-      message,
-      theme,
-      ellipsisLine: 0,
-    });
+    vue.config.globalProperties.$Message(message);
   }
 };
 
@@ -57,18 +49,11 @@ export const makeMessage = (message, traceparent, needTraceId) => {
   if (list?.length) {
     traceId = list[1];
   }
-  const resMsg = needTraceId
-    ? `
-    ${traceId} ：                                               
-    ${message}
-  `
-    : message;
-  message &&
-    console.log(`
-  ------------------【监控日志】------------------
-  【TraceID】：${traceId}
-  【Message】：${message}
-  ----------------------------------------------
-  `);
-  return resMsg;
+  if (message && needTraceId && traceId && typeof message === 'object') {
+    return {
+      ...message,
+      trace_id: traceId,
+    };
+  }
+  return message;
 };

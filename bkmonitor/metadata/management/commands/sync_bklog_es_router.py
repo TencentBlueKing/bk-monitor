@@ -192,6 +192,7 @@ class Command(BaseCommand):
                     storage_cluster_id=info["cluster_id"] or 0,  # 针对 bkdata 的 es 忽略集群
                     source_type=info["source_type"],
                     index_set=info["index_set"],
+                    need_create_index=info["need_create_index"] or True,  # 区分是否需要创建索引
                 )
             )
         # 批量创建结果表，批量创建 es 存储

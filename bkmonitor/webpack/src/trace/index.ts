@@ -30,12 +30,12 @@ import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 import { createApp } from 'vue';
 
-import { Message } from 'bkui-vue';
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
+import { bkUiMessage } from './common/message';
 import directives from './directive/index';
 import App from './pages/app';
 import router from './router/router';
@@ -45,7 +45,7 @@ import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
 import 'monitor-static/icons/monitor-icons.css';
-
+import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
@@ -58,7 +58,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   app.use(store).use(router).use(i18n).use(directives).mount('#app');
   app.config.globalProperties = {
     $api: Api,
-    $Message: Message,
+    $Message: bkUiMessage,
     $authorityStore: useAuthorityStore(),
   } as any;
 } else {

@@ -1,7 +1,8 @@
+/* stylelint-disable declaration-no-important */
 @mixin ellipsis {
   overflow: hidden;
-  white-space: nowrap;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 @mixin flex-center {
   display: flex;
@@ -26,8 +27,9 @@
   justify-content: center;
   width: $size;
   height: $size;
-  font-size: $fontSize;
   overflow: hidden;
+  font-size: $fontSize;
+
   &::before {
     width: $fontSize;
     height: $fontSize;
@@ -35,16 +37,18 @@
 }
 @mixin tool-icon($size: 30px, $fontSize: 16px) {
   @include icon-size($size, $fontSize);
+
   &:hover {
     color: #63656e;
     cursor: pointer;
-    border-radius: 50%;
     background-color: #f0f1f5;
+    border-radius: 50%;
   }
+
   &.active {
-    border-radius: 2px;
-    background-color: #e1ecff;
     color: #3a84ff;
+    background-color: #e1ecff;
+    border-radius: 2px;
   }
 }
 
@@ -55,8 +59,10 @@
     position: relative;
     z-index: 1;
     padding-left: 24px;
+
     .nav-append-wrap {
       padding-right: 19px;
+
       .icon-audit {
         @include tool-icon;
       }
@@ -93,7 +99,7 @@
   .chart-wrapper-error-tooltip {
     max-width: 400px;
     background-color: #e0226e !important;
-  
+
     .tippy-arrow {
       border-top: 8px solid #e0226e !important;
     }

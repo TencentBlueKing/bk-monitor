@@ -577,7 +577,7 @@ export default {
   已发送: 'Sent',
   已加载: 'Loaded',
   已选择: 'Selected',
-  已失效: 'Expired',
+  已失效: 'Closed',
   已启用: 'Enabled',
   已开启: 'Enabled',
   已过期: 'Expired',

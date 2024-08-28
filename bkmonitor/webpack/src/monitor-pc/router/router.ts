@@ -190,6 +190,7 @@ router.beforeEach(async (to, from, next) => {
           actionId: authority.page || '',
           fromUrl: to.fullPath.replace(/^\//, ''),
           parentRoute: to.meta.route.parent,
+          fromNavId: to.meta.navId,
         },
       });
     }

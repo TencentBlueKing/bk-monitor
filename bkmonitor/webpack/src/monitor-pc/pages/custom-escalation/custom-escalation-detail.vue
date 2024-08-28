@@ -778,7 +778,7 @@
             class="content-row"
           >
             <span>{{ $t('命令行直接调用样例') }}</span>
-            <div class="content-example">curl -g -X POST http://${PROXY_IP}:10205/v2/push/ -d '${REPORT_DATA}'</div>
+            <div class="content-example">curl -g -X POST http://${PROXY_IP}:10205/v2/push/ -d "${REPORT_DATA}"</div>
           </div>
           <div v-if="detailData.protocol === 'prometheus'">
             <div class="content-title content-interval">

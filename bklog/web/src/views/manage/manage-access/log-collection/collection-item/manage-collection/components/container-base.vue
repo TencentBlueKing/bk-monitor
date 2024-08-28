@@ -96,14 +96,17 @@
               <div>
                 <span>Namespace</span>
                 <span
-                  v-if="configItem.namespaces.length"
+                  v-if="showNameSpace(configItem).length"
                   class="span-warp"
                 >
+                  <span class="section-operator">{{ nameSpaceType(configItem) }}</span>
                   <span
-                    v-for="(spaceItem, spaceIndex) in configItem.namespaces"
+                    v-for="(spaceItem, spaceIndex) in showNameSpace(configItem)"
                     :key="spaceIndex"
                   >
-                    <span>{{ spaceItem }}{{ spaceIndex + 1 !== configItem.namespaces.length ? ',' : '' }}&nbsp;</span>
+                    <span>
+                      {{ spaceItem }}{{ spaceIndex + 1 !== showNameSpace(configItem).length ? ',' : '' }}&nbsp;
+                    </span>
                   </span>
                 </span>
                 <span v-else>{{ $t('所有') }}</span>
@@ -397,6 +400,7 @@
               container: yamlContainer,
               label_selector: yamlSelector,
               namespaces,
+              namespaces_exclude,
               collector_type: collectorType,
             } = item;
             let container;
@@ -420,6 +424,7 @@
             const collectorName = this.collectorNameMap[collectorType] || '--';
             return {
               namespaces,
+              namespaces_exclude,
               data_encoding,
               container,
               collectorName,
@@ -544,6 +549,12 @@
         }
         return groups;
       },
+      nameSpaceType(configItem) {
+        return configItem.namespaces_exclude?.length ? '!=' : '=';
+      },
+      showNameSpace(configItem) {
+        return configItem.namespaces_exclude?.length ? configItem.namespaces_exclude : configItem.namespaces;
+      },
     },
   };
 </script>
@@ -667,6 +678,19 @@
       }
     }
 
+    .section-operator,
+    %section-operator {
+      height: 24px;
+      padding: 0 6px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 24px;
+      color: #ff9c01;
+      text-align: center;
+      background: #fff;
+      border-radius: 2px;
+    }
+
     .specify-box {
       display: flex;
       flex-flow: wrap;
@@ -691,15 +715,7 @@
         }
 
         .operator {
-          height: 24px;
-          padding: 0 6px;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 24px;
-          color: #ff9c01;
-          text-align: center;
-          background: #fff;
-          border-radius: 2px;
+          @extend %section-operator;
         }
 
         :last-child {
@@ -712,6 +728,7 @@
   .span-warp {
     display: flex;
     flex-wrap: wrap;
+    line-height: 24px;
   }
 
   .justify-bt {

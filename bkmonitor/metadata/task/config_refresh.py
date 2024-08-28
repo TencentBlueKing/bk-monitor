@@ -262,8 +262,8 @@ def refresh_es_storage():
         manage_es_storage.delay(es_storage_data)
     # 设置每100条记录，拆分为一个任务
     start, step = 0, 100
-    # 仅管理日志内建的集群索引
-    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value).exclude(
+    # 仅管理日志内建的集群索引,且只有need_create_index为True的才需要创建索引
+    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
         storage_cluster_id__in=(es_cluster_wl + es_blacklist)
     )
     # 添加一步过滤，用以减少任务的数量
