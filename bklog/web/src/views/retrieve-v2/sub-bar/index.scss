@@ -49,3 +49,27 @@
     }
   }
 }
+
+.retrieve-setting-container {
+  .list-menu {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    color: #63656e;
+    background-color: white;
+
+    .list-menu-item {
+      display: flex;
+      align-items: center;
+      min-width: 150px;
+      height: 32px;
+      padding: 0 10px;
+
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: #eaf3ff;
+      }
+    }
+  }
+}

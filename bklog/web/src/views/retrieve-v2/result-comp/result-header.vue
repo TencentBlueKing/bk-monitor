@@ -292,7 +292,7 @@
           },
         ],
         routeNameList: {
-          // 路由跳转name
+          
           log: 'manage-collection',
           custom: 'custom-report-detail',
           bkdata: 'bkdata-index-set-manage',

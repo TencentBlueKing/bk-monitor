@@ -107,37 +107,7 @@
             :total-count="totalCount"
           >
           </export-log>
-          <bk-popover
-            ref="fieldsSettingPopper"
-            :distance="15"
-            :offset="0"
-            :on-hide="handleDropdownHide"
-            :on-show="handleDropdownShow"
-            animation="slide-toggle"
-            placement="bottom-end"
-            theme="light bk-select-dropdown"
-            trigger="click"
-          >
-            <slot name="trigger">
-              <div class="operation-icon">
-                <span class="icon log-icon icon-set-icon"></span>
-              </div>
-            </slot>
-            <template #content>
-              <div class="fields-setting-container">
-                <fields-setting
-                  v-if="showFieldsSetting"
-                  v-on="$listeners"
-                  :field-alias-map="$attrs['field-alias-map']"
-                  :retrieve-params="retrieveParams"
-                  @cancel="cancelModifyFields"
-                  @confirm="confirmModifyFields"
-                  @modify-fields="modifyFields"
-                  @set-popper-instance="setPopperInstance"
-                />
-              </div>
-            </template>
-          </bk-popover>
+
         </div>
       </div>
     </div>
