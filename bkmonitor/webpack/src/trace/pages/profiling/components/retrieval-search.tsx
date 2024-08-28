@@ -285,6 +285,7 @@ export default defineComponent({
           <Button.ButtonGroup class='type-button-group'>
             {this.retrievalType.map(item => (
               <Button
+                key={item.value}
                 class='button-item'
                 selected={item.value === this.localFormData.type}
                 onClick={() => this.handleTypeChange(item.value)}
@@ -296,7 +297,10 @@ export default defineComponent({
 
           <div class='form-wrap'>
             {this.localFormData.type === SearchType.Profiling && [
-              <div class='service form-item'>
+              <div
+                key='service'
+                class='service form-item'
+              >
                 <div class='label'>{this.t('应用/服务')}</div>
                 <div class='content'>
                   <ApplicationCascade
@@ -313,7 +317,10 @@ export default defineComponent({
                   </div>
                 </div>
               </div>,
-              <div class='comparison form-item'>
+              <div
+                key='comparison'
+                class='comparison form-item'
+              >
                 <div class='label'>{this.t('对比模式')}</div>
                 <div class='content'>
                   <Switcher
@@ -327,7 +334,7 @@ export default defineComponent({
             ]}
 
             <div class='search-panel'>
-              <div class='search-title'>{this.t('当前查询项')}</div>
+              <div class='search-title'>{this.t('查询项')}</div>
               {this.localFormData.where.map((item, index) => (
                 <ConditionItem
                   key={item.key}
@@ -349,7 +356,7 @@ export default defineComponent({
             </div>
             {this.localFormData.isComparison && (
               <div class='search-panel'>
-                <div class='search-title'>{this.t('参照查询项')}</div>
+                <div class='search-title'>{this.t('对比项')}</div>
                 {this.localFormData.comparisonWhere.map((item, index) => (
                   <ConditionItem
                     key={item.key}

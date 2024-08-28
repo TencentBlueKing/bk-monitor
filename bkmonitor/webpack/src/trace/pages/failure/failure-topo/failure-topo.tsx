@@ -194,8 +194,8 @@ export default defineComponent({
       registerNode('topo-node', {
         afterDraw(cfg, group) {
           const nodeAttrs = getNodeAttrs(cfg as ITopoNode);
-          const { entity } = cfg as ITopoNode;
-          if (entity.is_root || (cfg as ITopoNode).is_feedback_root) {
+          const { entity, alert_all_recorved, is_feedback_root } = cfg as ITopoNode;
+          if (entity.is_root || is_feedback_root) {
             group.addShape('circle', {
               attrs: {
                 lineDash: [3],
@@ -234,7 +234,7 @@ export default defineComponent({
               name: 'topo-node-text',
             });
           }
-          if (entity.is_on_alert || entity.alert_all_recorved) {
+          if (entity.is_on_alert || alert_all_recorved) {
             group.addShape('circle', {
               attrs: {
                 x: 15,
@@ -370,7 +370,10 @@ export default defineComponent({
                 textAlign: 'center',
                 cursor: 'cursor',
                 textBaseline: 'middle',
-                text: entity.is_root || is_feedback_root ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium') : aggregated_nodes.length + 1,
+                text:
+                  entity.is_root || is_feedback_root
+                    ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium')
+                    : aggregated_nodes.length + 1,
                 fontSize: 11,
                 fill: '#fff',
                 ...nodeAttrs.textAttrs,

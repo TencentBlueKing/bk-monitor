@@ -228,11 +228,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     this.tableSize = this.defaultSize;
   }
   // 常用值格式化
-  commonFormatter(val: ITableItem<'string'>) {
+  commonFormatter(val: ITableItem<'string'>, column: ITableColumn) {
     if (typeof val !== 'number' && !val) return '--';
     return (
       <span class='string-col'>
-        <TextOverflowCopy val={val} />
+        <TextOverflowCopy
+          isEveryCopy={column.name === 'Span Name'}
+          val={val}
+        />
       </span>
     );
   }
@@ -643,7 +646,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       case 'more_operate':
         return this.moreOperateFormatter(value as ITableItem<'more_operate'>);
       default:
-        return this.commonFormatter(value as ITableItem<'string'>);
+        return this.commonFormatter(value as ITableItem<'string'>, column);
     }
   }
   /**
@@ -705,7 +708,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       .map(column => {
         const showOverflowTooltip = ['tag', 'list', 'kv'].includes(column.type)
           ? false
-          : (column.showOverflowTooltip ?? true);
+          : column.showOverflowTooltip ?? true;
         // header-pre-icon
         const headerPreIcon = column[HEADER_PRE_ICON_NAME];
         return (

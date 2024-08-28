@@ -327,12 +327,12 @@ export default defineComponent({
               'node-source',
               node?.entity?.is_anomaly && 'node-source-anomaly',
               node?.entity?.is_on_alert && 'node-source-alert',
-              node?.entity?.alert_all_recorved && 'node-source-alert-recorved',
+              node?.alert_all_recorved && 'node-source-alert-recorved',
             ]}
           >
             <span class='node-item'>
               <span>
-                {(node?.entity?.is_on_alert || node?.entity?.alert_all_recorved) && (
+                {(node?.entity?.is_on_alert || node?.alert_all_recorved) && (
                   <span class='alert-wrap'>
                     <i class='icon-monitor icon-menu-event' />
                   </span>
