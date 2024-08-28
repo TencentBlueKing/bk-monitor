@@ -312,11 +312,15 @@ export default class DataRetrieval extends tsc<object> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Debounce(200)
   @Provide('handleChartDataZoom')
-  handleChartDataZoom(value: TimeRangeType) {
+  handleChartDataZoom(value: TimeRangeType, immediateQuery = false) {
     if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
       this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
       this.compareValue.tools.timeRange = value;
       this.showRestore = true;
+      if (immediateQuery) {
+        this.handleQuery();
+        return;
+      }
       this.handleQueryProxy();
     }
   }
@@ -485,7 +489,7 @@ export default class DataRetrieval extends tsc<object> {
     return true;
   }
 
-  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false) => void) {
+  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | false | RawLocation) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
       let targetsList = [];
@@ -1688,7 +1692,7 @@ export default class DataRetrieval extends tsc<object> {
       this.localValue.forEach((item: DataRetrievalQueryItem) => {
         // 指标
         if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
-          const queryConfigItem: IDataRetrieval.queryConfigsParams | any = {
+          const queryConfigItem: any | IDataRetrieval.queryConfigsParams = {
             metric: item.metric_field,
             method: item.agg_method,
             alias: item.alias,
@@ -2207,7 +2211,7 @@ export default class DataRetrieval extends tsc<object> {
         /** 去除单指标时重复的表达式a查询 */
         if (expression) {
           // display为grafana的隐藏展示参数 如果为单指标跳转不展示表达式的图
-          const enable = isMultipleMetric ? targets[index].data.display ?? true : expression !== 'a';
+          const enable = isMultipleMetric ? (targets[index].data.display ?? true) : expression !== 'a';
           const expItem: IDataRetrieval.IExpressionItem = {
             alias: '',
             enable,
@@ -3582,8 +3586,8 @@ export default class DataRetrieval extends tsc<object> {
               <AddCollectDialog
                 v-model={this.isShowAddFavoriteDialog}
                 editFavoriteData={this.editFavoriteData}
-                favStrList={this.favStrList}
                 favoriteSearchType={this.favoriteSearchType}
+                favStrList={this.favStrList}
                 keyword={this.favoriteKeywordsData}
                 onCancel={() => (this.editFavoriteData = null)}
                 onSubmit={value => this.handleSubmitFavorite(value)}
