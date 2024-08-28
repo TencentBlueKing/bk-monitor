@@ -29,12 +29,12 @@ import TextHighlight from 'vue-text-highlight';
 import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
-import OriginalLightHeight from '@/views/retrieve-v1/result-comp/original-light-height.tsx';
-import TableColumn from '@/views/retrieve-v1/result-comp/table-column';
-import EmptyView from '@/views/retrieve-v1/result-table-panel/original-log/empty-view';
-import ExpandView from '@/views/retrieve-v1/result-table-panel/original-log/expand-view.vue';
-import OperatorTools from '@/views/retrieve-v1/result-table-panel/original-log/operator-tools';
-import TimeFormatterSwitcher from '@/views/retrieve-v1/result-table-panel/original-log/time-formatter-switcher';
+import OriginalLightHeight from '@/views/retrieve/result-comp/original-light-height.tsx';
+import TableColumn from '@/views/retrieve/result-comp/table-column';
+import EmptyView from '@/views/retrieve/result-table-panel/original-log/empty-view';
+import ExpandView from '@/views/retrieve/result-table-panel/original-log/expand-view.vue';
+import OperatorTools from '@/views/retrieve/result-table-panel/original-log/operator-tools';
+import TimeFormatterSwitcher from '@/views/retrieve/result-table-panel/original-log/time-formatter-switcher';
 import { mapState, mapGetters } from 'vuex';
 
 export default {

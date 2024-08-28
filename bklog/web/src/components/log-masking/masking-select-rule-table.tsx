@@ -31,7 +31,7 @@ import { Table, TableColumn, Input, Button, Checkbox } from 'bk-magic-vue';
 
 import $http from '../../api';
 import * as authorityMap from '../../common/authority-map';
-import fingerSelectColumn from '../../views/retrieve-v1/result-table-panel/log-clustering/components/finger-select-column.vue';
+import fingerSelectColumn from '../../views/retrieve/result-table-panel/log-clustering/components/finger-select-column.vue';
 import EmptyStatus from '../empty-status/index.vue';
 import { deepClone } from '../monitor-echarts/utils';
 import MaskingAddRule from './masking-add-rule';

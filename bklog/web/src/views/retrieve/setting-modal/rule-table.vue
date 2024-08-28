@@ -319,8 +319,8 @@
 <script>
   import { copyMessage, base64Encode, base64Decode } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
-  import RegisterColumn from '@/views/retrieve-v1/result-comp/register-column';
-  import ClusterEventPopover from '@/views/retrieve-v1/result-table-panel/log-clustering/components/cluster-event-popover';
+  import RegisterColumn from '@/views/retrieve/result-comp/register-column';
+  import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover';
   import VueDraggable from 'vuedraggable';
 
   export default {
