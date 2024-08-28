@@ -38,136 +38,23 @@
   import http from '@/api';
 
   const store = useStore();
-  const route = useRoute();
   const router = useRouter();
+  const route = useRoute();
 
   const showFavorites = ref(false);
   const favoriteList = ref([]);
-  const indexSetList = ref([]);
-  const totalFields = ref([]);
+  const indexSetItem = ref({});
 
   const activeFavoriteID = ref(-1);
-  const activeFavorite = ref({});
-  const retrieveSearchNumber = ref(0);
 
-  const indexId = ref(route.params.indexId?.toString());
   const retrieveParams = ref({
     bk_biz_id: store.state.bkBizId,
     ...getDefaultRetrieveParams(),
   });
 
-  const authPageInfo = ref(null);
-  const hasAuth = ref(false);
-
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
-  const isExternal = computed(() => store.state.isExternal);
-  const externalMenu = computed(() => store.state.externalMenu);
-  const authMainPageInfo = computed(() => store.getters['globals/authContainerInfo']);
-
-  watch(
-    () => spaceUid,
-    () => {
-      indexId.value = '';
-      indexSetList.value.length = 0;
-      indexSetList.value = [];
-
-      totalFields.value.length = 0;
-      totalFields.value = [];
-
-      retrieveParams.value.bk_biz_id = bkBizId.value;
-      // 外部版 无检索权限跳转后不更新页面数据
-      if (!isExternal.value || (isExternal.value && externalMenu.value.includes('retrieve'))) {
-        fetchPageData();
-      }
-      resetFavoriteValue();
-      store.commit('updateUnionIndexList', []);
-    },
-    { immediate: true },
-  );
-
-  const handleFavoritesClick = () => {
-    showFavorites.value = !showFavorites.value;
-  };
-
-  const fetchPageData = async () => {
-    // 有spaceUid且有业务权限时 才去请求索引集列表
-    if (!authMainPageInfo.value && spaceUid.value) {
-      // 收藏侧边栏打开且 则先获取到收藏列表再获取索引集列表
-      showFavorites.value && (await getFavoriteList());
-      requestIndexSetList();
-    }
-  };
-
-  // 初始化索引集
-  const requestIndexSetList = () => {
-    http
-      .request('retrieve/getIndexSetList', {
-        query: {
-          space_uid: spaceUid.value,
-        },
-      })
-      .then(res => {
-        if (res.data.length) {
-          // 有索引集
-          // 根据权限排序
-          const s1 = [];
-          const s2 = [];
-          for (const item of res.data) {
-            if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-              s1.push(item);
-            } else {
-              s2.push(item);
-            }
-          }
-          indexSetList.value = s1.concat(s2);
-
-          // 索引集数据加工
-          indexSetList.value.forEach(item => {
-            item.index_set_id = `${item.index_set_id}`;
-            item.indexName = item.index_set_name;
-            item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-          });
-
-          indexId.value = route.params.indexId?.toString();
-          const routeIndexSet = indexSetList.value.find(item => item.index_set_id === indexId.value);
-          const isRouteIndex = !!routeIndexSet && !routeIndexSet?.permission?.[authorityMap.SEARCH_LOG_AUTH];
-
-          // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
-          if (!indexSetList.value[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
-            const authIndexID = indexId.value || indexSetList.value[0].index_set_id;
-            store
-              .dispatch('getApplyData', {
-                action_ids: [authorityMap.SEARCH_LOG_AUTH],
-                resources: [
-                  {
-                    type: 'indices',
-                    id: authIndexID,
-                  },
-                ],
-              })
-              .then(res => {
-                authPageInfo.value = res.data;
-                setRouteParams(
-                  'retrieve',
-                  {
-                    indexId: null,
-                  },
-                  {
-                    spaceUid: spaceUid.value,
-                    bizId: bkBizId.value,
-                  },
-                );
-              })
-              .catch(err => {
-                console.warn(err);
-              });
-            return;
-          }
-          hasAuth.value = true;
-        }
-      });
-  };
+  const indexItem = computed(() => store.state.indexItem);
 
   const setRouteParams = (name = 'retrieve', params, query) => {
     router.replace({
@@ -177,41 +64,43 @@
     });
   };
 
-  /** 获取收藏列表 */
-  const getFavoriteList = async () => {
-    // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
-    try {
-      const { data } = await http.request('favorite/getFavoriteByGroupList', {
-        query: {
-          space_uid: spaceUid.value,
-          order_type: localStorage.getItem('favoriteSortType') || 'NAME_ASC',
+  watch(indexItem, () => {
+    const { ids } = indexItem.value;
+    const indexId = ids?.[0];
+    if (indexId) {
+      router.push({
+        params: {
+          ...route.params,
+          indexId
         },
-      });
-      const provideFavorite = data[0];
-      const publicFavorite = data[data.length - 1];
-      const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
-      const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
-      favoriteList.value = sortAfterList;
-    } catch (err) {
-      favoriteList.value = [];
-    } finally {
-      // 获取收藏列表后 若当前不是新检索 则判断当前收藏是否已删除 若删除则变为新检索
-      if (activeFavoriteID.value !== -1) {
-        for (const gItem of favoriteList.value) {
-          const findFavorites = gItem.favorites.find(item => item.id === activeFavoriteID.value);
-          if (!!findFavorites) {
-            isFindCheckValue = true; // 找到 中断循环
-            break;
-          }
-        }
-      }
+        query: route.query
+      })
     }
-  };
+  }, { immediate: true, deep: true });
 
-  const resetFavoriteValue = () => {
-    activeFavorite.value = {};
-    activeFavoriteID.value = -1;
-    retrieveSearchNumber.value = 0; // 切换业务 检索次数设置为0;
+  watch(
+    spaceUid,
+    () => {
+      const name = route.name;
+      const spaceId = route.query.spaceUid;
+      const bizId = route.query.bizId;
+
+      if (name !== 'retrieve' || spaceId !== spaceUid.value || bizId !== bkBizId.value) {
+        setRouteParams(
+          'retrieve',
+          {},
+          {
+            spaceUid: spaceUid.value,
+            bizId: bkBizId.value,
+          },
+        );
+      }
+    },
+    { immediate: true },
+  );
+
+  const handleFavoritesClick = () => {
+    showFavorites.value = !showFavorites.value;
   };
 </script>
 <template>
@@ -236,7 +125,7 @@
           <span :class="['log-icon icon-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar />
+      <SubBar :indexSetItem="indexSetItem" />
     </div>
     <div class="retrieve-body">
       <CollectFavorites

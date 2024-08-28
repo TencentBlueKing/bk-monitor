@@ -23,9 +23,5 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getCurrentInstance } from 'vue';
-export default () => {
-  const vm = getCurrentInstance();
-  if (!vm) return new Error('must be called in setup');
-  return vm.proxy.$route;
-};
+import { useRoute } from 'vue-router/composables';
+export default useRoute;

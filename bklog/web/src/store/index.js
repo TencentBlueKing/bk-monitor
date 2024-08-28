@@ -67,6 +67,7 @@ const store = new Vuex.Store({
     space: {},
     spaceUid: '',
     indexId: '',
+    indexItem: {},
     /** 联合查询ID列表 */
     unionIndexList: [],
     /** 联合查询元素列表 */
@@ -164,6 +165,9 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    updateIndexItem(state, payload) {
+      state.indexItem = payload;
+    },
     updateUserMeta(state, payload) {
       state.userMeta = payload;
     },

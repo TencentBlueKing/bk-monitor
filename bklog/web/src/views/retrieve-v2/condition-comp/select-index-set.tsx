@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -57,9 +57,8 @@ const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
 export default class QueryStatement extends tsc<object> {
-  @Prop({ type: String, required: true }) indexId: string;
-  @Prop({ type: Array, required: true }) indexSetList: Array<any>;
-  @Prop({ type: Boolean, required: true }) basicLoading: boolean;
+  indexSetList = [];
+  basicLoading = false;
 
   /** 表示集合数据是否正在加载 */
   isCollectionLoading = false;
@@ -169,6 +168,10 @@ export default class QueryStatement extends tsc<object> {
   @Ref('selectInput') private readonly selectInputRef: Select;
   @Ref('favoritePopover') private readonly favoritePopoverRef: Popover;
   @Ref('checkInputForm') private readonly checkInputFormRef: Form;
+
+  get indexId() {
+    return this.$route.params.indexId;
+  }
 
   /** 索引集权限 */
   get authorityMap() {
@@ -325,12 +328,19 @@ export default class QueryStatement extends tsc<object> {
     this.selectTagCatchIDList = !!val.length ? val : this.indexId ? [this.indexId] : [];
   }
 
+  @Watch('spaceUid', { immediate: true })
+  handleSpaceUidChange() {
+    this.requestIndexSetList();
+  }
+
   @Emit('selected')
   emitSelected() {
-    return {
+    const payload = {
       ids: this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist,
       selectIsUnionSearch: !this.isAloneType,
     };
+    this.$store.commit('updateIndexItem', payload);
+    return payload;
   }
 
   /** 判断当前索引集是否有权限 */
@@ -444,6 +454,48 @@ export default class QueryStatement extends tsc<object> {
   getCheckedVal(indexSetID: string) {
     if (indexSetID === '-1') return this.getIsAllCheck;
     return this.selectedItemIDlist.includes(indexSetID);
+  }
+
+  // 初始化索引集
+  requestIndexSetList() {
+    const spaceUid = this.spaceUid;
+    this.basicLoading = true;
+    this.$http
+      .request('retrieve/getIndexSetList', {
+        query: {
+          space_uid: spaceUid,
+        },
+      })
+      .then(res => {
+        if (res.data.length) {
+          // 有索引集
+          // 根据权限排序
+          const s1 = [];
+          const s2 = [];
+          for (const item of res.data) {
+            if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+              s1.push(item);
+            } else {
+              s2.push(item);
+            }
+          }
+          const indexSetList = s1.concat(s2);
+
+          // 索引集数据加工
+          indexSetList.forEach(item => {
+            item.index_set_id = `${item.index_set_id}`;
+            item.indexName = item.index_set_name;
+            item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+          });
+          this.indexSetList = indexSetList;
+        }
+      })
+      .catch(() => {
+        this.indexSetList.splice(0);
+      })
+      .finally(() => {
+        this.basicLoading = false;
+      });
   }
 
   // 申请索引集的搜索权限
@@ -1147,6 +1199,7 @@ export default class QueryStatement extends tsc<object> {
         ref='selectInput'
         class='retrieve-index-select'
         v-model={this.selectTagCatchIDList}
+        v-bkloading={{ isLoading: this.basicLoading, size: 'mini', zIndex: 10 }}
         scopedSlots={{
           trigger: () => triggerSlot(),
         }}
