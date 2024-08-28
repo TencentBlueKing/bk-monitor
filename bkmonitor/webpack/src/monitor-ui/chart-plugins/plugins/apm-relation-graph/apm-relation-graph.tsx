@@ -25,17 +25,23 @@
  */
 
 import { Component, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+// import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
+// import type { PanelModel } from '../../typings';
+import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
+import { Debounce } from 'monitor-common/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
+import { CommonSimpleChart } from '../common-simple-chart';
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import ApmRelationTopo from './components/apm-relation-topo';
 import BarAlarmChart from './components/bar-alarm-chart';
 import ServiceOverview from './components/service-overview';
+import { alarmBarChartDataTransform, DATA_TYPE_LIST, EDataType } from './components/utils';
 
-import type { PanelModel } from '../../typings';
 import type { ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './apm-relation-graph.scss';
@@ -53,11 +59,8 @@ enum EColumn {
 const sideTopoMinWidth = 400;
 const sideOverviewMinWidth = 320;
 
-interface IProps {
-  panel?: PanelModel;
-}
 @Component
-export default class ApmRelationGraph extends tsc<IProps> {
+export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
   /* 概览图、列表图切换 */
   showTypes = [
@@ -72,13 +75,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
   ];
   showType = 'topo';
   /* 数据类型 */
-  dataTypes = [
-    {
-      id: 'error',
-      name: '调用错误率',
-    },
-  ];
-  dataType = 'error';
+  dataType = EDataType.Alert;
 
   /* 筛选列表 */
   filterList = [
@@ -147,6 +144,17 @@ export default class ApmRelationGraph extends tsc<IProps> {
     nodes: [],
     edges: [],
   };
+
+  /* 获取头部告警柱状条形图数据方法 */
+  getAlarmBarData = null;
+
+  get appName() {
+    return this.panel?.options?.apm_relation_graph?.app_name || '';
+  }
+
+  get serviceName() {
+    return this.panel?.options?.apm_relation_graph?.service_name || '';
+  }
 
   created() {
     this.tableColumns = [
@@ -269,6 +277,35 @@ export default class ApmRelationGraph extends tsc<IProps> {
   }
 
   /**
+   * @description: 获取图表数据
+   */
+  @Debounce(200)
+  async getPanelData(start_time?: string, end_time?: string) {
+    this.beforeGetPanelData(start_time, end_time);
+    this.handleLoadingChange(true);
+    try {
+      this.unregisterOberver();
+      this.getAlarmBarData = async (dataType: EDataType, setData) => {
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+        const params = {
+          start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
+        };
+        const data = await dataTypeBarQuery({
+          ...params,
+          data_type: dataType,
+          app_name: this.appName,
+          service_name: this.serviceName,
+        }).catch(() => ({ series: [] }));
+        setData(alarmBarChartDataTransform(this.dataType, data.series));
+      };
+    } catch (e) {
+      console.error(e);
+    }
+    this.handleLoadingChange(false);
+  }
+
+  /**
    * @description 伸缩侧栏
    * @param id
    */
@@ -310,7 +347,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
               v-model={this.dataType}
               clearable={false}
             >
-              {this.dataTypes.map(item => (
+              {DATA_TYPE_LIST.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
@@ -322,6 +359,8 @@ export default class ApmRelationGraph extends tsc<IProps> {
           <div class='header-alarm-wrap'>
             <BarAlarmChart
               activeItemHeight={24}
+              dataType={this.dataType}
+              getData={this.getAlarmBarData}
               itemHeight={16}
             />
           </div>
