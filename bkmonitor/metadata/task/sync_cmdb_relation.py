@@ -31,7 +31,7 @@ from metadata.utils.redis_tools import RedisTools
 logger = logging.getLogger("metadata")
 
 
-@share_lock(ttl=3600, identify="metadata_syncRelationRedisData")
+@share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
 def sync_relation_redis_data():
     """
     同步cmdb-relation内置数据
