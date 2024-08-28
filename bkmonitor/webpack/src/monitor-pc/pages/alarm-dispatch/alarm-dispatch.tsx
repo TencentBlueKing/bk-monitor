@@ -84,7 +84,7 @@ export default class AlarmDispatch extends tsc<object> {
   isViewDebugEffect = false;
   emptyType: EmptyStatusType = 'empty';
   /** 优先级检验提示*/
-  priorityErrorMsg: TranslateResult | string = '';
+  priorityErrorMsg: string | TranslateResult = '';
   /* 流程套餐*/
   processPackage = [];
 
@@ -471,7 +471,7 @@ export default class AlarmDispatch extends tsc<object> {
   handlePriorityChange(value: number | string) {
     if (typeof value === 'string') {
       if (!value) return;
-      if (isNaN(Number(value))) {
+      if (Number.isNaN(Number(value))) {
         this.formData.priority = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -487,7 +487,7 @@ export default class AlarmDispatch extends tsc<object> {
         }
       }
     } else {
-      if (isNaN(value)) {
+      if (Number.isNaN(value)) {
         this.formData.priority = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -574,7 +574,7 @@ export default class AlarmDispatch extends tsc<object> {
     allKVOptions(
       [this.$store.getters.bizId],
       (type: string, key: string, values: any) => {
-        if (!!key) {
+        if (key) {
           (this.conditionProps[type] as Map<string, any>).set(key, values);
         } else {
           this.conditionProps[type] = values;
@@ -726,7 +726,7 @@ export default class AlarmDispatch extends tsc<object> {
                             <bk-table-column
                               scopedSlots={{
                                 default: ({ row }) =>
-                                  !!row.conditions?.length ? (
+                                  row.conditions?.length ? (
                                     <CommonCondition
                                       key={this.conditionsKey}
                                       class='rule-wrap'
@@ -823,7 +823,7 @@ export default class AlarmDispatch extends tsc<object> {
                 ]
               : (() => {
                   if (this.loading) {
-                    return new Array(10).fill(null).map((_item, index) => (
+                    return new Array(3).fill(null).map((_item, index) => (
                       <div
                         key={index}
                         class='expan-item'

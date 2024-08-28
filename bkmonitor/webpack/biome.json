@@ -45,7 +45,8 @@
       "a11y": {
         "useKeyWithMouseEvents": "off",
         "useKeyWithClickEvents": "off",
-        "noSvgWithoutTitle": "off"
+        "noSvgWithoutTitle": "off",
+        "useValidAnchor": "off"
       }
     }
   },
