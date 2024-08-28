@@ -241,6 +241,7 @@ class ClusteringConfigHandler(object):
                     "size": 1,
                     "original_search": True,
                     "is_desensitize": False,
+                    "addition": [{"field": "__dist_05", "operator": "exists"}],
                 }
                 search_handler = SearchHandler(self.index_set_id, query_params)
                 search_result = search_handler.search()
@@ -249,19 +250,17 @@ class ClusteringConfigHandler(object):
                 else:
                     result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("暂无数据"))
             except Exception as e:
-                result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("数据获取失败: {}").format(e))
-            return result
-
-        # 如若未创建聚类 rt，说明流程还没完成
-        result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
+                result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("数据获取失败: {}").format(e))
+        else:
+            result["flow_create"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
 
         # 2. 判断 flow 状态
         if clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id:
             # 此处简化流程，只检查模型预测 flow 的状态即可
             result["flow_run"].update(self.check_dataflow_status(clustering_config.predict_flow_id))
-
-        # 如果 flow 不存在，说明基本流程没走完
-        result["flow_run"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
+        else:
+            # 如果 flow 不存在，说明基本流程没走完
+            result["flow_run"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
 
         # 3. 检查数据接入状态
         if not task_id:

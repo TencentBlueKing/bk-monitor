@@ -119,10 +119,10 @@ class ClusteringConfigViewSet(APIViewSet):
         action_result = task_service.forced_fail(request.query_params.get("node_id", ""))
         return Response({"result": action_result.result, "message": action_result.message})
 
-    @detail_route(methods=["POST"])
+    @detail_route(methods=["POST"], url_path="access/create")
     def create_access(self, request, index_set_id, *args, **kwargs):
         """
-        @api {post} /clustering_config/$index_set_id/create_access 2_聚类设置-接入
+        @api {post} /clustering_config/$index_set_id/access/create/ 2_聚类设置-接入
         @apiName access_clustering_config
         @apiGroup log_clustering
         @apiParam {Int} bk_biz_id 业务id
@@ -172,10 +172,10 @@ class ClusteringConfigViewSet(APIViewSet):
         params = self.params_valid(ClusteringConfigSerializer)
         return Response(ClusteringConfigHandler().create(index_set_id=index_set_id, params=params))
 
-    @detail_route(methods=["POST"])
+    @detail_route(methods=["POST"], url_path="access/update")
     def update_access(self, request, index_set_id, *args, **kwargs):
         """
-        @api {post} /clustering_config/$index_set_id/create_access 2_聚类设置-更新接入
+        @api {post} /clustering_config/$index_set_id/access/update/ 2_聚类设置-更新接入
         @apiName access_clustering_config
         @apiGroup log_clustering
         @apiParam {Int} bk_biz_id 业务id
@@ -222,10 +222,10 @@ class ClusteringConfigViewSet(APIViewSet):
         params = self.params_valid(ClusteringConfigSerializer)
         return Response(ClusteringConfigHandler(index_set_id=index_set_id).update(params=params))
 
-    @detail_route(methods=["GET"])
+    @detail_route(methods=["GET"], url_path="access/status")
     def access_status(self, request, index_set_id, *args, **kwargs):
         """
-        @api {post} /clustering_config/$index_set_id/access_status 2_聚类设置-接入状态
+        @api {post} /clustering_config/$index_set_id/access/status/ 2_聚类设置-接入状态
         @apiSuccessExample {json} 成功返回:
         {
             "message":"",

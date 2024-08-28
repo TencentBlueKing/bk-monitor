@@ -191,7 +191,6 @@ class CreateNewIndexSet(object):
 
 class CreatePredictFlowService(BaseService):
     name = _("创建预测flow")
-    __need_schedule__ = True
     interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
 
     def _execute(self, data, parent_data):
@@ -221,7 +220,6 @@ class CreatePredictFlow(object):
 
 class CreateLogCountAggregationFlowService(BaseService):
     name = _("创建日志数量聚类-flow")
-    __need_schedule__ = True
     interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
 
     def _execute(self, data, parent_data):
