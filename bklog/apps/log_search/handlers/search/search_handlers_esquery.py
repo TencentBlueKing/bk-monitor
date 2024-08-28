@@ -151,12 +151,16 @@ class SearchHandler(object):
         can_highlight=True,
         export_fields=None,
         export_log: bool = False,
+        only_for_agg: bool = False,
     ):
         # 请求用户名
         self.request_username = get_request_external_username() or get_request_username()
 
         self.search_dict: dict = search_dict
         self.export_log = export_log
+
+        # 是否只用于聚合，可以简化某些查询语句
+        self.only_for_agg = only_for_agg
 
         # 透传查询类型
         self.index_set_id = index_set_id
@@ -391,7 +395,8 @@ class SearchHandler(object):
         @param field_result:
         @return:
         """
-        result = MappingHandlers.async_export_fields(field_result, self.scenario_id)
+        sort_fields = self.index_set.sort_fields if self.index_set else []
+        result = MappingHandlers.async_export_fields(field_result, self.scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
         return False, {"usable_reason": result["async_export_usable_reason"]}
@@ -1393,7 +1398,9 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioBkData(
                 size=self.size,
                 start=self.start,
-                gseindex=self.gseindex,
+                gse_index=self.gseindex,
+                iteration_idx=self.iterationIdx,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
                 ip=self.ip,
                 bk_host_id=self.bk_host_id,
@@ -1407,9 +1414,11 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioLog(
                 size=self.size,
                 start=self.start,
-                gseIndex=self.gseIndex,
+                gse_index=self.gseIndex,
+                iteration_index=self.iterationIndex,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
-                serverIp=self.serverIp,
+                server_ip=self.serverIp,
                 bk_host_id=self.bk_host_id,
                 container_id=self.container_id,
                 logfile=self.logfile,
@@ -1559,6 +1568,10 @@ class SearchHandler(object):
             return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
 
     def _init_sort(self) -> list:
+        if self.only_for_agg:
+            # 仅聚合时无需排序
+            return []
+
         index_set_id = self.search_dict.get("index_set_id")
         # 获取用户对sort的排序需求
         sort_list: List = self.search_dict.get("sort_list", [])

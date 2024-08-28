@@ -2439,18 +2439,21 @@ class TestActionProcessor(TransactionTestCase):
         action_config_patch.start()
 
         event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
-        alert = AlertDocument(**{"event": event, "severity": 1, "id": 1})
+        alert = AlertDocument(**{"event": event, "severity": 1, "id": 1, "dedupe_md5": "xxx", "status": "ABNORMAL"})
 
         mget_alert_patch = patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert]))
         get_alert_patch = patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert))
+        refresh_duration = patch("alarm_backends.core.alert.alert.Alert.refresh_duration", MagicMock(return_value=None))
         mget_alert_patch.start()
         get_alert_patch.start()
+        refresh_duration.start()
 
         create_actions(1, "abnormal", alerts=[alert])
         self.assertEqual(ActionInstance.objects.all().count(), 0)
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()
+        refresh_duration.stop()
 
     def test_notice_collect(self):
         """
@@ -4076,7 +4079,7 @@ class TestActionProcessor(TransactionTestCase):
         alert.update_extra_info("need_unshield_notice", True)
         checker = ShieldStatusChecker(alerts=[alert])
         checker.check_all()
-        self.assertFalse(alert.data["extra_info"]["need_unshield_notice"])
+        self.assertFalse(alert.data["extra_info"].get("need_unshield_notice", False))
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()

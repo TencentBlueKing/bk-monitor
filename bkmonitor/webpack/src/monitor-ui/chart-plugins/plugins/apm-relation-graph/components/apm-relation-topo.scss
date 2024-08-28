@@ -13,6 +13,33 @@
     right: 24px;
     bottom: 24px;
   }
+
+  .node-menu-container {
+    z-index: 1;
+    min-width: 120px;
+    padding: 4px 0px;
+    background: #ffffff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #0000001a;
+
+    li {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding-left: 12px;
+      cursor: pointer;
+
+      .node-menu-icon {
+        margin-right: 4px;
+      }
+
+      &:hover {
+        color: #3a84ff;
+        background: #e1ecff;
+      }
+    }
+  }
 }
 
 .topo-graph-legend {
@@ -87,20 +114,6 @@
       margin-right: 8px;
       border: 2px solid #c4c6cc;
       border-radius: 50%;
-
-      &.active {
-        padding: 3px;
-        border-color: #3a84ff;
-
-        &::after {
-          display: block;
-          width: 100%;
-          height: 100%;
-          content: '';
-          background-color: #3a84ff;
-          border-radius: 50%;
-        }
-      }
     }
 
     &.node-color {
@@ -120,12 +133,8 @@
       align-items: center;
       font-size: 12px;
       line-height: 20px;
-      color: #ccc;
+      color: #63656e;
       cursor: pointer;
-
-      &.active {
-        color: #63656e;
-      }
 
       & + .color-item {
         margin-left: 24px;

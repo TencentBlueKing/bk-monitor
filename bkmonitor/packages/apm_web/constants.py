@@ -359,7 +359,7 @@ class AlertStatus:
     ABNORMAL = "ABNORMAL"
     # 已恢复
     RECOVERED = "RECOVERED"
-    # 已关闭
+    # 已失效
     CLOSED = "CLOSED"
 
 

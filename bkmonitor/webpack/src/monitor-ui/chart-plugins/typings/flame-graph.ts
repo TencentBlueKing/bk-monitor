@@ -128,17 +128,17 @@ export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'copy',
     name: window.i18n.tc('复制函数名称'),
-    icon: 'icon-menu-view',
+    icon: 'icon-mc-copy',
   },
   {
     id: 'reset',
     name: window.i18n.tc('重置图表'),
-    icon: 'icon-menu-view',
+    icon: 'icon-zhongzhi1',
   },
   {
     id: 'highlight',
     name: window.i18n.tc('高亮相似 Node'),
-    icon: 'icon-menu-view',
+    icon: 'icon-beauty',
   },
 ];
 // 用于标识根节点

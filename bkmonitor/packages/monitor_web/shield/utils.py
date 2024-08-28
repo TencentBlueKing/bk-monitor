@@ -86,6 +86,9 @@ class ShieldDetectManager(object):
             if key == "bk_topo_node":
                 value = ["{}|{}".format(item.get("bk_obj_id"), item.get("bk_inst_id")) for item in value]
 
+            if key == "dynamic_group":
+                value = [str(item["dynamic_group_id"]) for item in value if "dynamic_group_id" in item]
+
             alarm_set = set(self.get_match_info_value(key, match_info))
             shield_set = set(self.get_list(value))
 

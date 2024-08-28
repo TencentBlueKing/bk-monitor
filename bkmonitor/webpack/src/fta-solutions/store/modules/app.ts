@@ -47,11 +47,14 @@ export interface IAppState {
   bkUrl: string;
   navRouteList: any[];
   lang: string;
+  spaceUidMap: Map<string, ISpaceItem>;
+  bizIdMap: Map<string, ISpaceItem>;
 }
 
 @Module({ name: 'app', namespaced: true })
 export default class App extends VuexModule implements IAppState {
   public bizId = '';
+  public bizIdMap;
   public bizList = [];
   public bkUrl = '';
   public csrfCookieName = '';
@@ -60,12 +63,14 @@ export default class App extends VuexModule implements IAppState {
   public navRouteList = [];
   public navTitle = '';
   public siteUrl = '/';
-  public userName = '';
+  public spaceUidMap;
+  public userName = ''; // 业务id是否切换
+
   @Mutation
   SET_APP_STATE(data: IAppState) {
-    Object.keys(data).forEach(key => {
+    for (const [key, value] of Object.entries(data)) {
       if (key === 'bizList') {
-        this[key] = data[key].map(item => {
+        this[key] = value.map(item => {
           const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
           const pyText = pinyinStr.replace(/,/g, '');
           const pyfText = pinyinStr
@@ -78,10 +83,12 @@ export default class App extends VuexModule implements IAppState {
             pyf_text: pyfText,
           };
         });
-        return;
+        this.spaceUidMap = new Map(this.bizList.map(item => [item.space_uid, item]));
+        this.bizIdMap = new Map(this.bizList.map(item => [item.bk_biz_id, item]));
+        continue;
       }
-      this[key] = data[key];
-    });
+      this[key] = value;
+    }
   }
   @Mutation
   SET_NAV_ID(navId: string) {

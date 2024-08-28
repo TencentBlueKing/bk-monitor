@@ -466,7 +466,7 @@ class AnomalyRecord(Model):
 
 class Event(Model):
     """
-    事件
+    事件（已废弃）
 
     经过检测范围匹配，收敛等判断后，生成事件
     """
@@ -514,7 +514,7 @@ class Event(Model):
     origin_alarm = JsonField(verbose_name="原始的异常内容", default=None)
     origin_config = JsonField(verbose_name="告警策略原始配置", default=None)
     level = models.IntegerField(verbose_name="级别", choices=EVENT_LEVEL, default=0)
-    status = EventStatusField(verbose_name="状态", choices=EVENT_STATUS, default=EventStatus.ABNORMAL)  # 异常中、已恢复、已关闭
+    status = EventStatusField(verbose_name="状态", choices=EVENT_STATUS, default=EventStatus.ABNORMAL)  # 异常中、已恢复、已失效
     is_ack = models.BooleanField(verbose_name="是否确认", default=False)
     p_event_id = models.CharField(verbose_name="父事件ID", default="", blank=True, max_length=255)  # 保留字段，给事件关联用
     is_shielded = models.BooleanField(verbose_name="是否处于屏蔽状态", default=False)

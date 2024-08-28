@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, type WatchStopHandle, inject, onBeforeUnmount, provide, watch } from 'vue';
+import { type ComputedRef, type Ref, type WatchStopHandle, inject, onBeforeUnmount, provide, watch } from 'vue';
 
 import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
@@ -42,6 +42,7 @@ export const CHART_PROVIDER_KEY = 'CHART_PROVIDER_KEY';
 export const QUERY_DATA_KEY = 'queryData';
 export const COMPARE_TYPE = 'compareType';
 export const READONLY = 'readonly';
+export const IS_ENABLED_PROFILING = 'IS_ENABLED_PROFILING';
 
 export interface IChartProvider {
   // 数据时间间隔
@@ -207,3 +208,9 @@ export const useReadonlyInject = () => inject<Ref<boolean>>(READONLY);
 
 export const chartDetailProvideKey = Symbol('chart-detail-provide-key');
 export const useChartInfoInject = () => inject<IPanelModel>(chartDetailProvideKey);
+
+// 是否开启 profiling
+export const useIsEnabledProfilingProvider = (enableProfiling: ComputedRef<boolean>) => {
+  provide(IS_ENABLED_PROFILING, enableProfiling);
+};
+export const useIsEnabledProfilingInject = () => inject<ComputedRef<boolean>>(IS_ENABLED_PROFILING);

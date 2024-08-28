@@ -23,40 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
+import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlarmItemStatusTips } from './utils';
+
 import './bar-alarm-chart.scss';
 
+type TGetData = (dataType: EDataType, set: (v: IAlarmDataItem[]) => void) => void;
 interface IProps {
   itemHeight?: number;
   activeItemHeight?: number;
   showXAxis?: boolean;
   showHeader?: boolean;
   isAdaption?: boolean;
-}
-
-enum EAlarmType {
-  blue = 3,
-  gray = 'no_data',
-  green = 'no_alarm',
-  red = 1,
-  yellow = 2,
-}
-
-const alarmColorMap = {
-  [EAlarmType.blue]: '#699DF4',
-  [EAlarmType.gray]: '#EAEBF0',
-  [EAlarmType.green]: '#2DCB56',
-  [EAlarmType.red]: '#FF5656',
-  [EAlarmType.yellow]: '#FFB848',
-};
-
-interface IDataItem {
-  type: EAlarmType;
-  time: number;
+  dataType: EDataType;
+  getData?: TGetData;
 }
 
 @Component
@@ -72,105 +56,13 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) showHeader: boolean;
   /* 是否自适应宽度 */
   @Prop({ type: Boolean, default: false }) isAdaption: boolean;
+  /* 数据类型，上层参数 */
+  @Prop({ type: String, default: '' }) dataType: EDataType;
+  @Prop({ type: Function, default: null }) getData: TGetData;
 
-  localData: IDataItem[] = [
-    {
-      type: EAlarmType.green,
-      time: 1723006950000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723007100000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723007250000,
-    },
-    {
-      type: EAlarmType.yellow,
-      time: 1723007400000,
-    },
-    {
-      type: EAlarmType.yellow,
-      time: 1723007550000,
-    },
-    {
-      type: EAlarmType.yellow,
-      time: 1723007700000,
-    },
-    {
-      type: EAlarmType.red,
-      time: 1723007850000,
-    },
-    {
-      type: EAlarmType.red,
-      time: 1723008000000,
-    },
-    {
-      type: EAlarmType.red,
-      time: 1723008150000,
-    },
-    {
-      type: EAlarmType.blue,
-      time: 1723008300000,
-    },
-    {
-      type: EAlarmType.blue,
-      time: 1723008450000,
-    },
-    {
-      type: EAlarmType.blue,
-      time: 1723008600000,
-    },
-    {
-      type: EAlarmType.gray,
-      time: 1723008750000,
-    },
-    {
-      type: EAlarmType.gray,
-      time: 1723008900000,
-    },
-    {
-      type: EAlarmType.gray,
-      time: 1723009050000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723009200000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723009350000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723009500000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723009650000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723009800000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723009950000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723010100000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723010250000,
-    },
-    {
-      type: EAlarmType.green,
-      time: 1723010400000,
-    },
-  ];
+  loading = false;
+
+  localData: readonly IAlarmDataItem[] = [];
 
   // 当前悬停的时间戳
   curHover = -1;
@@ -183,10 +75,7 @@ export default class BarAlarmChart extends tsc<IProps> {
   popInstance = null;
   timer = null;
   /* tooltip 内容状态 */
-  statusList = [
-    { color: '#FF9C01', text: '错误率 < 10%' },
-    { color: '#3A84FF', text: '发布事件：K8SEvents  45' },
-  ];
+  statusList = [{ color: '#FF9C01', text: '错误率 < 10%' }];
   /*  */
   boxSelector: {
     [key: string]: any;
@@ -204,12 +93,39 @@ export default class BarAlarmChart extends tsc<IProps> {
 
   timeRange = [];
 
-  created() {
-    const len = this.localData.length;
-    const start = this.localData[0].time;
-    const end = this.localData[len - 1].time;
-    const center = this.localData[Math.floor(len / 2)].time;
-    this.xAxis = [dayjs(start).format('HH:mm'), dayjs(center).format('HH:mm'), dayjs(end).format('HH:mm')];
+  initData() {
+    if (this.getData) {
+      this.loading = true;
+      this.getData(this.dataType, data => {
+        this.loading = false;
+        this.localData = Object.freeze(data);
+        if (this.localData.length) {
+          const len = this.localData.length;
+          const start = this.localData[0].time;
+          const end = this.localData[len - 1].time;
+          const center = this.localData[Math.floor(len / 2)].time;
+          this.xAxis = [dayjs(start).format('HH:mm'), dayjs(center).format('HH:mm'), dayjs(end).format('HH:mm')];
+        } else {
+          this.xAxis = [];
+        }
+      });
+    }
+  }
+
+  @Watch('dataType')
+  handleWatchDataType() {
+    this.initData();
+  }
+
+  @Watch('getData', { immediate: true })
+  handleGetData() {
+    this.loading = true;
+    this.initData();
+  }
+
+  getTips(item) {
+    const statusItem = getAlarmItemStatusTips(this.dataType, item);
+    this.statusList = [statusItem];
   }
 
   /**
@@ -218,10 +134,11 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @param item
    * @returns
    */
-  handleMouseEnter(event: Event, item: IDataItem) {
+  handleMouseEnter(event: Event, item: IAlarmDataItem) {
     if (item.type === EAlarmType.gray) {
       return;
     }
+    this.getTips(item);
     this.curHover = item.time;
     this.timer = setTimeout(() => {
       this.popInstance = this.$bkPopover(event.target, {
@@ -250,7 +167,7 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @param item
    * @returns
    */
-  handleClick(item: IDataItem) {
+  handleClick(item: IAlarmDataItem) {
     if (item.type === EAlarmType.gray) {
       return;
     }
@@ -267,6 +184,9 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @param event
    */
   handleMouseDown(event: MouseEvent) {
+    if (this.loading) {
+      return;
+    }
     const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');
     this.boxSelector = {
       ...this.boxSelector,
@@ -380,6 +300,32 @@ export default class BarAlarmChart extends tsc<IProps> {
     this.timeRange = [];
   }
 
+  alarmListRender(item) {
+    const isSelected = this.curActive === item.time;
+    const isHover = this.curHover === item.time && item.type !== EAlarmType.gray;
+    let color = alarmColorMap.default[item.type];
+    if (isHover) {
+      color = alarmColorMap.hover[item.type];
+    }
+    if (isSelected) {
+      color = alarmColorMap.selected[item.type];
+    }
+    return (
+      <div
+        key={item.time}
+        style={{
+          height: `${isSelected || isHover ? this.activeItemHeight : this.itemHeight}px`,
+          background: `${color}`,
+          cursor: item.type !== EAlarmType.gray ? 'pointer' : 'default',
+        }}
+        class={['time-cube', { 'adaptive-width': this.isAdaption }]}
+        onClick={() => this.handleClick(item)}
+        onMouseenter={event => this.handleMouseEnter(event, item)}
+        onMouseleave={() => this.handleMouseLeave()}
+      />
+    );
+  }
+
   render() {
     return (
       <div
@@ -409,24 +355,11 @@ export default class BarAlarmChart extends tsc<IProps> {
           class='alarm-chart-wrap'
           onMousedown={this.handleMouseDown}
         >
-          {this.localData.map(item => (
-            <div
-              key={item.time}
-              style={{
-                height: `${
-                  (this.curHover === item.time && item.type !== EAlarmType.gray) || this.curActive === item.time
-                    ? this.activeItemHeight
-                    : this.itemHeight
-                }px`,
-                background: `${alarmColorMap[item.type]}`,
-                cursor: item.type !== EAlarmType.gray ? 'pointer' : 'default',
-              }}
-              class={['time-cube', { 'adaptive-width': this.isAdaption }]}
-              onClick={() => this.handleClick(item)}
-              onMouseenter={event => this.handleMouseEnter(event, item)}
-              onMouseleave={() => this.handleMouseLeave()}
-            />
-          ))}
+          {this.loading ? (
+            <div class='skeleton-element bar-loading' />
+          ) : (
+            this.localData.map(item => this.alarmListRender(item))
+          )}
         </div>
         {this.showXAxis && (
           <div class='alarm-footer-wrap'>
@@ -449,7 +382,7 @@ export default class BarAlarmChart extends tsc<IProps> {
             ref='tips'
             class='bar-alarm-chart-tooltip'
           >
-            <div class='time-text'>2024-04-08 17:58:00</div>
+            <div class='time-text'>{dayjs(this.curHover).format('YYYY-MM-DD HH:mm:ss')}</div>
             {this.statusList.map((item, index) => (
               <div
                 key={index}

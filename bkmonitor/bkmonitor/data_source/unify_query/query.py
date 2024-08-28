@@ -109,7 +109,7 @@ class UnifyQuery:
 
         records = []
 
-        rows = data["series"] or []
+        rows = data.get("series") or []
         for row in rows:
             dimensions = {}
             if not row["group_keys"]:

@@ -40,6 +40,7 @@ from apps.log_clustering.exceptions import (
 from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
     AiopsModelHandler,
 )
+from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import (
@@ -126,7 +127,6 @@ class ClusteringConfigHandler(object):
                 )
         source_rt_name = log_index_set_data["result_table_id"]
         min_members = params["min_members"]
-        max_dist_list = params["max_dist_list"]
         predefined_varibles = params["predefined_varibles"]
         delimeter = params["delimeter"]
         max_log_length = params["max_log_length"]
@@ -152,7 +152,6 @@ class ClusteringConfigHandler(object):
                 clustering_config=clustering_config,
                 filter_rules=filter_rules,
                 min_members=min_members,
-                max_dist_list=max_dist_list,
                 predefined_varibles=predefined_varibles,
                 delimeter=delimeter,
                 max_log_length=max_log_length,
@@ -161,7 +160,7 @@ class ClusteringConfigHandler(object):
                 signature_enable=signature_enable,
             )
             clustering_config.min_members = min_members
-            clustering_config.max_dist_list = max_dist_list
+            clustering_config.max_dist_list = OnlineTaskTrainingArgs.MAX_DIST_LIST
             clustering_config.predefined_varibles = predefined_varibles
             clustering_config.delimeter = delimeter
             clustering_config.max_log_length = max_log_length
@@ -205,14 +204,16 @@ class ClusteringConfigHandler(object):
                     update_clustering_clean.delay(index_set_id=index_set_id)
 
             return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
+
         clustering_config = ClusteringConfig.objects.create(
             model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
             collector_config_id=collector_config_id,
             collector_config_name_en=collector_config_name_en,
             es_storage=es_storage,
             min_members=min_members,
-            max_dist_list=max_dist_list,
+            max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
             predefined_varibles=predefined_varibles,
+            depth=OnlineTaskTrainingArgs.DEPTH,
             delimeter=delimeter,
             max_log_length=max_log_length,
             is_case_sensitive=is_case_sensitive,
@@ -242,14 +243,12 @@ class ClusteringConfigHandler(object):
             )
         send.delay(index_set_id=index_set_id)
 
-    def preview(
-        self, input_data, min_members, max_dist_list, predefined_varibles, delimeter, max_log_length, is_case_sensitive
-    ):
+    def preview(self, input_data, min_members, predefined_varibles, delimeter, max_log_length, is_case_sensitive):
         aiops_experiments_debug_result = AiopsModelHandler().aiops_experiments_debug(
             input_data=input_data,
             clustering_field=DEFAULT_CLUSTERING_FIELDS,
             min_members=min_members,
-            max_dist_list=max_dist_list,
+            max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
             predefined_varibles=predefined_varibles,
             delimeter=delimeter,
             max_log_length=max_log_length,
@@ -331,7 +330,6 @@ class ClusteringConfigHandler(object):
         clustering_config,
         filter_rules,
         min_members,
-        max_dist_list,
         predefined_varibles,
         delimeter,
         max_log_length,
@@ -353,7 +351,6 @@ class ClusteringConfigHandler(object):
             clustering_config,
             fields=[
                 "min_members",
-                "max_dist_list",
                 "predefined_varibles",
                 "delimeter",
                 "max_log_length",
@@ -361,7 +358,6 @@ class ClusteringConfigHandler(object):
             ],
         ) != {
             "min_members": min_members,
-            "max_dist_list": max_dist_list,
             "predefined_varibles": predefined_varibles,
             "delimeter": delimeter,
             "max_log_length": max_log_length,

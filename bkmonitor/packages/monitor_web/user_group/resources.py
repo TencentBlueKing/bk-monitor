@@ -109,6 +109,7 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         else:
             begin_time = validated_request_data["begin_time"]
             begin_datetime = time_tools.str2datetime(begin_time)
+            begin_time = time_tools.datetime2str(begin_datetime)
         preview_end_time = time_tools.datetime2str(begin_datetime + timedelta(days=validated_request_data["days"]))
         user_group = validated_request_data["user_group"]
         duty_plans = defaultdict(list)
@@ -117,9 +118,19 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
             # step1 找到当前规则的最后一次plan_time
             if not user_group:
                 # 如果不是通过内部保存内容预览，直接生成
-                DutyRuleManager.refresh_duty_rule_from_any_begin_time(duty_rule, begin_time)
+                # 通过该方法，刷新 duty_rule.duty_arranges 的生效时间（begin_time）
+                # 问题： 按周排班， 此时刷新的生效时间不是当前， 而是下一周起始时间。当前到下周内无排班计划
+                # 1. 先拿当周排班计划
+                plans = []
+                _manager = DutyRuleManager.refresh_duty_rule_from_any_begin_time(duty_rule, begin_time)
+                if _manager:
+                    plans = _manager.get_last_duty_plans()
+
+                duty_plans[duty_rule["id"]] = plans
+                # 2. 再拿未来排班计划
+                # 基于刷新后的生效时间，获取轮值计划预览
                 duty_manager = DutyRuleManager(duty_rule=duty_rule, begin_time=begin_time, end_time=preview_end_time)
-                duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
+                duty_plans[duty_rule["id"]] += duty_manager.get_duty_plan()
                 continue
 
             # 获取那些未排班时间与预览时间有重叠的快照
@@ -189,6 +200,9 @@ class PreviewDutyRulePlanResource(DutyPlanUserTranslaterResource):
         validated_data["timezone"] = preview_data["timezone"]
         validated_data["days"] = preview_data["days"]
         validated_data["begin_time"] = preview_data["begin_time"] or validated_data["effective_time"]
+        begin_time = validated_data["begin_time"]
+        begin_datetime = time_tools.str2datetime(begin_time)
+        validated_data["begin_time"] = time_tools.datetime2str(begin_datetime)
 
         return validated_data
 

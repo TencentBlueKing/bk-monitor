@@ -45,9 +45,9 @@ export default class LogRetrieval extends Vue {
   @Ref('iframe') private iframeRef: HTMLIFrameElement;
 
   get retrievalUrl() {
-    if (process.env.NODE_ENV === 'development') {
-      return `${process.env.devHost}/t/log-search-4#/retrieve/?from=monitor&bizId=${this.$store.getters.bizId}&lang=zh`;
-    }
+    // if (process.env.NODE_ENV === 'development') {
+    //   return `${this.$store.getters.bkLogSearchUrl}#/retrieve/?from=monitor&bizId=${this.$store.getters.bizId}&lang=zh`;
+    // }
     let { bkLogSearchUrl } = this.$store.getters;
     if (window.location.protocol === 'https:' && this.$store.getters.bkLogSearchUrl.match(/^http:/)) {
       bkLogSearchUrl = this.$store.getters.bkLogSearchUrl.replace('http:', 'https:');

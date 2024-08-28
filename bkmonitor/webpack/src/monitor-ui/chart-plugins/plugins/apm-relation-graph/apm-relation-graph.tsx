@@ -25,17 +25,23 @@
  */
 
 import { Component, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+// import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
+// import type { PanelModel } from '../../typings';
+import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
+import { Debounce } from 'monitor-common/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
+import { CommonSimpleChart } from '../common-simple-chart';
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import ApmRelationTopo from './components/apm-relation-topo';
 import BarAlarmChart from './components/bar-alarm-chart';
 import ServiceOverview from './components/service-overview';
+import { alarmBarChartDataTransform, DATA_TYPE_LIST, EDataType } from './components/utils';
 
-import type { PanelModel } from '../../typings';
 import type { ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './apm-relation-graph.scss';
@@ -53,11 +59,8 @@ enum EColumn {
 const sideTopoMinWidth = 400;
 const sideOverviewMinWidth = 320;
 
-interface IProps {
-  panel?: PanelModel;
-}
 @Component
-export default class ApmRelationGraph extends tsc<IProps> {
+export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
   /* 概览图、列表图切换 */
   showTypes = [
@@ -72,13 +75,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
   ];
   showType = 'topo';
   /* 数据类型 */
-  dataTypes = [
-    {
-      id: 'error',
-      name: '调用错误率',
-    },
-  ];
-  dataType = 'error';
+  dataType = EDataType.Alert;
 
   /* 筛选列表 */
   filterList = [
@@ -148,6 +145,17 @@ export default class ApmRelationGraph extends tsc<IProps> {
     edges: [],
   };
 
+  /* 获取头部告警柱状条形图数据方法 */
+  getAlarmBarData = null;
+
+  get appName() {
+    return this.panel?.options?.apm_relation_graph?.app_name || '';
+  }
+
+  get serviceName() {
+    return this.panel?.options?.apm_relation_graph?.service_name || '';
+  }
+
   created() {
     this.tableColumns = [
       {
@@ -211,6 +219,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
             id: 'node3',
             name: '节点3',
             icon: 'data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTk2MCAxMjMuNjg1Qzg3Mi42NjcgNDkuODgzIDcwNC43MzEgMCA1MTIgMCAzMTkuMTk1IDAgMTUxLjMzMyA0OS44ODMgNjQgMTIzLjY4NSAyMy4xODYgMTU4LjIwOCAwIDE5Ny44NSAwIDIzOS45ODJ2MzY2LjAwN2wuMDczIDEuOTc0SDB2MTc1Ljk4MkMwIDkxNi40OCAyMjkuMjMgMTAyNCA1MTIgMTAyNHM1MTItMTA3LjUyIDUxMi0yNDAuMDU1VjYwOC4wMzdoLS4wNzNsLjA3My01LjI2N1YyMzkuOTFjMC00Mi4xMy0yMy4xODYtODEuNzc0LTY0LTExNi4yOTh6TTY0IDM1Ni4yNzljODcuMzMzIDczLjk0NyAyNTUuMjY5IDEyMy44MyA0NDggMTIzLjgzIDE5Mi44MDUgMCAzNjAuNjY3LTQ5Ljg4MyA0NDgtMTIzLjY4NHY3OS4yMTRhNTA4LjI3IDUwOC4yNyAwIDAgMS01OC44MDcgMzIuMTgzYy0xMDQuOTYgNDkuMTUyLTI0My4yIDc2LjIxNS0zODkuMTkzIDc2LjIxNXMtMjg0LjIzMy0yNy4wNjMtMzg5LjE5My03Ni4zNjJBNTA4LjI3IDUwOC4yNyAwIDAgMSA2NCA0MzUuNDkzdi03OS4yMTR6bTAgMTgxLjM5NGM4Ny4zMzMgNzMuODAxIDI1NS4yNjkgMTIzLjY4NSA0NDggMTIzLjY4NSAxOTIuODA1IDAgMzYwLjY2Ny00OS44ODQgNDQ4LTEyMy42ODV2NzkuMjE0YTUyMy43NzYgNTIzLjc3NiAwIDAgMS01OC44MDcgMzIuMTgzQzc5Ni4yMzMgNjk4LjI5NSA2NTcuOTIgNzI1LjM1OCA1MTIgNzI1LjM1OHMtMjg0LjIzMy0yNy4wNjMtMzg5LjE5My03Ni4yODhBNTA4LjI3IDUwOC4yNyAwIDAgMSA2NCA2MTYuODg3VjUzNy42em04MzcuMTkzIDI5Mi43MThDNzk2LjIzMyA4NzkuNjE2IDY1Ny45MiA5MDYuNjc5IDUxMiA5MDYuNjc5cy0yODQuMjMzLTI3LjA2My0zODkuMTkzLTc2LjI4OGE1MzMuNTA0IDUzMy41MDQgMCAwIDEtNTYuMzkzLTMwLjY0N0E1My45OCA1My45OCAwIDAgMSA2NCA3ODQuMDkxdi02NS4wOTdDMTUxLjMzMyA3OTIuODcgMzE5LjI2OSA4NDIuNjggNTEyIDg0Mi42OGMxOTIuODA1IDAgMzYwLjY2Ny00OS45NTcgNDQ4LTEyMy42ODV2NjUuMDI0YzAgNS4xMi0uNzMxIDEwLjM4Ny0yLjQxNCAxNS42NTNhNTE1Ljk1IDUxNS45NSAwIDAgMS01Ni4zMiAzMC42NDd6IiBmaWxsPSIjNjM2NTZFIi8+PC9zdmc+',
+            disabled: true,
           },
           {
             id: 'node4',
@@ -223,6 +232,11 @@ export default class ApmRelationGraph extends tsc<IProps> {
             name: '节点5',
             lineDash: [4, 4],
             icon: 'data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTk2MCAxMjMuNjg1Qzg3Mi42NjcgNDkuODgzIDcwNC43MzEgMCA1MTIgMCAzMTkuMTk1IDAgMTUxLjMzMyA0OS44ODMgNjQgMTIzLjY4NSAyMy4xODYgMTU4LjIwOCAwIDE5Ny44NSAwIDIzOS45ODJ2MzY2LjAwN2wuMDczIDEuOTc0SDB2MTc1Ljk4MkMwIDkxNi40OCAyMjkuMjMgMTAyNCA1MTIgMTAyNHM1MTItMTA3LjUyIDUxMi0yNDAuMDU1VjYwOC4wMzdoLS4wNzNsLjA3My01LjI2N1YyMzkuOTFjMC00Mi4xMy0yMy4xODYtODEuNzc0LTY0LTExNi4yOTh6TTY0IDM1Ni4yNzljODcuMzMzIDczLjk0NyAyNTUuMjY5IDEyMy44MyA0NDggMTIzLjgzIDE5Mi44MDUgMCAzNjAuNjY3LTQ5Ljg4MyA0NDgtMTIzLjY4NHY3OS4yMTRhNTA4LjI3IDUwOC4yNyAwIDAgMS01OC44MDcgMzIuMTgzYy0xMDQuOTYgNDkuMTUyLTI0My4yIDc2LjIxNS0zODkuMTkzIDc2LjIxNXMtMjg0LjIzMy0yNy4wNjMtMzg5LjE5My03Ni4zNjJBNTA4LjI3IDUwOC4yNyAwIDAgMSA2NCA0MzUuNDkzdi03OS4yMTR6bTAgMTgxLjM5NGM4Ny4zMzMgNzMuODAxIDI1NS4yNjkgMTIzLjY4NSA0NDggMTIzLjY4NSAxOTIuODA1IDAgMzYwLjY2Ny00OS44ODQgNDQ4LTEyMy42ODV2NzkuMjE0YTUyMy43NzYgNTIzLjc3NiAwIDAgMS01OC44MDcgMzIuMTgzQzc5Ni4yMzMgNjk4LjI5NSA2NTcuOTIgNzI1LjM1OCA1MTIgNzI1LjM1OHMtMjg0LjIzMy0yNy4wNjMtMzg5LjE5My03Ni4yODhBNTA4LjI3IDUwOC4yNyAwIDAgMSA2NCA2MTYuODg3VjUzNy42em04MzcuMTkzIDI5Mi43MThDNzk2LjIzMyA4NzkuNjE2IDY1Ny45MiA5MDYuNjc5IDUxMiA5MDYuNjc5cy0yODQuMjMzLTI3LjA2My0zODkuMTkzLTc2LjI4OGE1MzMuNTA0IDUzMy41MDQgMCAwIDEtNTYuMzkzLTMwLjY0N0E1My45OCA1My45OCAwIDAgMSA2NCA3ODQuMDkxdi02NS4wOTdDMTUxLjMzMyA3OTIuODcgMzE5LjI2OSA4NDIuNjggNTEyIDg0Mi42OGMxOTIuODA1IDAgMzYwLjY2Ny00OS45NTcgNDQ4LTEyMy42ODV2NjUuMDI0YzAgNS4xMi0uNzMxIDEwLjM4Ny0yLjQxNCAxNS42NTNhNTE1Ljk1IDUxNS45NSAwIDAgMS01Ni4zMiAzMC42NDd6IiBmaWxsPSIjNjM2NTZFIi8+PC9zdmc+',
+            menu: [
+              { id: 'down', name: '接口下钻', icon: 'icon-xiazuan' },
+              { id: 'topo', name: '资源拓扑', icon: 'icon-ziyuan' },
+              { id: 'application', name: '查看第三方应用', icon: '' },
+            ],
           },
         ],
         edges: [
@@ -260,6 +274,35 @@ export default class ApmRelationGraph extends tsc<IProps> {
         ],
       };
     }, 300);
+  }
+
+  /**
+   * @description: 获取图表数据
+   */
+  @Debounce(200)
+  async getPanelData(start_time?: string, end_time?: string) {
+    this.beforeGetPanelData(start_time, end_time);
+    this.handleLoadingChange(true);
+    try {
+      this.unregisterOberver();
+      this.getAlarmBarData = async (dataType: EDataType, setData) => {
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+        const params = {
+          start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
+        };
+        const data = await dataTypeBarQuery({
+          ...params,
+          data_type: dataType,
+          app_name: this.appName,
+          service_name: this.serviceName,
+        }).catch(() => ({ series: [] }));
+        setData(alarmBarChartDataTransform(this.dataType, data.series));
+      };
+    } catch (e) {
+      console.error(e);
+    }
+    this.handleLoadingChange(false);
   }
 
   /**
@@ -304,7 +347,7 @@ export default class ApmRelationGraph extends tsc<IProps> {
               v-model={this.dataType}
               clearable={false}
             >
-              {this.dataTypes.map(item => (
+              {DATA_TYPE_LIST.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
@@ -316,6 +359,8 @@ export default class ApmRelationGraph extends tsc<IProps> {
           <div class='header-alarm-wrap'>
             <BarAlarmChart
               activeItemHeight={24}
+              dataType={this.dataType}
+              getData={this.getAlarmBarData}
               itemHeight={16}
             />
           </div>
@@ -357,8 +402,9 @@ export default class ApmRelationGraph extends tsc<IProps> {
             expanded={this.expanded}
           >
             <ApmRelationTopo
-              activeNode='node1'
+              activeNode={['node1', 'node2']}
               data={this.graphData}
+              scene='request'
             />
             <div
               class='side-wrap'
