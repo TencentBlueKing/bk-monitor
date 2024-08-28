@@ -1239,6 +1239,51 @@ class GetStrategyV2Resource(Resource):
         return config
 
 
+class PlainStrategyListV2Resource(Resource):
+    """获取轻量的策略列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    @staticmethod
+    def get_label_msg(scenario: str, labels: list) -> dict:
+        for first_label in labels:
+            for second_label in first_label["children"]:
+                if second_label["id"] != scenario:
+                    continue
+                return {
+                    "first_label": first_label["id"],
+                    "first_label_name": first_label["name"],
+                    "second_label": second_label["id"],
+                    "second_label_name": second_label["name"],
+                }
+
+        return {
+            "first_label": scenario,
+            "first_label_name": scenario,
+            "second_label": scenario,
+            "second_label_name": scenario,
+        }
+
+    def perform_request(self, validated_request_data):
+        # 获取指定业务下启用的策略
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        strategies = (
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
+            .values("id", "name", "scenario")
+            .order_by("-update_time")
+        )
+        # 获取分类标签
+        labels = resource.commons.get_label()
+
+        strategy_list = []
+        for strategy in strategies:
+            label_msg = self.get_label_msg(strategy["scenario"], labels)
+            strategy.update(label_msg)
+            strategy_list.append(strategy)
+        return strategy_list
+
+
 class DeleteStrategyV2Resource(Resource):
     """
     删除策略
