@@ -134,11 +134,11 @@ export default {
   关闭目标: 'Close target',
 
   // 故障
-  故障拓扑: 'Fault Topology',
+  故障拓扑: 'Incident Topology',
   聚合规则: 'Aggregation Rules',
   时间轴: 'Timeline',
   最后更新: 'Last update time',
-  故障时序: 'Fault sequence',
+  故障时序: 'Incident sequence',
   视图: 'View',
   明细: 'Details',
   测试执行: 'Test execution',
