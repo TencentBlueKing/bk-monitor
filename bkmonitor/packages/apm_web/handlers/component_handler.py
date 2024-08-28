@@ -260,24 +260,27 @@ class ComponentHandler:
                     )
                 )
 
-        cls.replace_service(filter_params)
+        cls.replace_or_add_service_filter(service_name, filter_params)
 
     @classmethod
-    def replace_service(cls, filter_params):
+    def replace_or_add_service_filter(cls, service_name, filter_params):
         has_service_condition = next(
             (i for i in filter_params if i["key"] == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)),
             None,
         )
         if has_service_condition:
-            filter_params.append(
-                {
-                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
-                    "op": "=",
-                    "value": [ComponentHandler.get_component_belong_service(has_service_condition["value"][0])],
-                    "condition": "and",
-                }
-            )
+            # 如果已经有服务名称过滤 则替换服务名称
+
             filter_params.remove(has_service_condition)
+
+        filter_params.append(
+            {
+                "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                "op": "=",
+                "value": [ComponentHandler.get_component_belong_service(service_name)],
+                "condition": "and",
+            }
+        )
 
     @classmethod
     def get_service_component_metrics(cls, app, start_time, end_time, metric_clz=None, metric_handler_cls: list = None):
@@ -324,7 +327,7 @@ class ComponentHandler:
         return res
 
     @classmethod
-    def get_service_component_instance_metrics(cls, app, kind, category, start_time, end_time):
+    def get_service_component_instance_metrics(cls, app, service_name, kind, category, start_time, end_time):
         """
         获取组件实例的指标值
         """
@@ -346,8 +349,14 @@ class ComponentHandler:
         group_by_keys = [OtlpKey.get_metric_dimension_key(i) for i in rule["instance_key"].split(",")]
 
         res = {}
-        # TODO 因为metrics通过|拼接，这里临时替换一下
-        metrics = COMPONENT_LIST(app, group_key=group_by_keys, start_time=start_time, end_time=end_time)
+        # 组件类服务除了 group_by 实例字段 还需要固定 service_name
+        metrics = COMPONENT_LIST(
+            app,
+            group_key=group_by_keys,
+            start_time=start_time,
+            end_time=end_time,
+            where=[{"key": "service_name", "method": "eq", "value": [service_name]}],
+        )
         for k, v in metrics.items():
             res[k.replace("|", ":")] = v
 

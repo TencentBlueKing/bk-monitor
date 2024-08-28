@@ -1598,13 +1598,14 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         return columns
 
     @classmethod
-    def _build_group_key(cls, endpoint):
+    def _build_group_key(cls, endpoint, ignore_category=False):
         category = []
-        for category_k in cls._get_category_keys():
-            if category_k == endpoint["category_kind"]["key"]:
-                category.append(str(endpoint["category_kind"]["value"]))
-                continue
-            category.append("")
+        if not ignore_category:
+            for category_k in cls._get_category_keys():
+                if category_k == endpoint["category_kind"]["key"]:
+                    category.append(str(endpoint["category_kind"]["value"]))
+                    continue
+                category.append("")
         return "|".join(
             [
                 endpoint["endpoint_name"],
@@ -1851,6 +1852,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 ),
                 {},
             )
+        elif node and ComponentHandler.is_component_by_node(node):
+            # 组件类服务因为 endpoints 表已经根据特征字段(predicate_key)进行区分 所以直接对比前三项即可
+            component_prefix = cls._build_group_key(endpoint, ignore_category=True)
+            return next((v for k, v in metric.items() if k.startswith(component_prefix)), {})
+
         else:
             return metric.get(cls._build_group_key(endpoint), {})
 
@@ -2057,6 +2063,7 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
         if ComponentHandler.is_component_by_node(node):
             metric_data = ComponentHandler.get_service_component_instance_metrics(
                 application,
+                ComponentHandler.get_component_belong_service(node["topo_key"]),
                 node["extra_data"]["kind"],
                 node["extra_data"]["category"],
                 validated_request_data["start_time"],
@@ -2139,13 +2146,15 @@ class ServiceQueryExceptionResource(PageListResource):
         filter_params = self.build_filter_params(data["filter_params"])
         service_name = get_service_from_params(filter_params)
         if service_name:
-            ComponentHandler.build_component_filter_params(
-                data["bk_biz_id"],
-                data["app_name"],
-                service_name,
-                filter_params,
-                data.get("component_instance_id"),
-            )
+            node = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], service_name)
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    data["bk_biz_id"],
+                    data["app_name"],
+                    service_name,
+                    filter_params,
+                    data.get("component_instance_id"),
+                )
 
         query_dict = {
             "start_time": data["start_time"],
