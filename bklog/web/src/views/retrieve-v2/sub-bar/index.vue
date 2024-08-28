@@ -20,10 +20,6 @@
     indexSetItem: {
       type: Object,
       required: true,
-      default: () => ({
-        index_set_id: 626397,
-        collector_config_id: 1624,
-      }),
     },
     // totalFields: {
     //   type: Array,
