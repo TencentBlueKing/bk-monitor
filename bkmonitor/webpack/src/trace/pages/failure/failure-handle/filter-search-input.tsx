@@ -36,6 +36,8 @@ import debounceDecorator from '../../common/debounce-decorator';
 
 import type { ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+import { getCookie } from 'monitor-common/utils';
+
 import './filter-search-input.scss';
 
 export const commonAlertFieldMap = {
@@ -811,6 +813,7 @@ export default defineComponent({
         inputRef.value.focus();
         blurInPanel.value = false;
       } catch (err) {
+        console.log(err);
         Message({
           message: t('删除失败'),
           theme: 'error',
@@ -1176,6 +1179,10 @@ export default defineComponent({
                       suffix: () => (
                         <span
                           class={['filter-favorites', { 'is-disable': this.favoriteDisable }]}
+                          v-bk-tooltips={{
+                            content: this.t('收藏'),
+                            disabled: getCookie('blueking_language') !== 'en',
+                          }}
                           onMousedown={!this.favoriteDisable && this.handleSetFavorite}
                         >
                           <i class='icon-monitor icon-mc-uncollect favorite-icon' />

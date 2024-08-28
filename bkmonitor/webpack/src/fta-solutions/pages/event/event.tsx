@@ -2459,7 +2459,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               style={{ marginLeft: this.filterWidth > 200 ? '24px' : '0px' }}
               class='header-title'
             >
-              {this.activeFilterName || this.$t('事件中心')}
+              {this.$t(this.activeFilterName) || this.$t('事件中心')}
             </span>
             <DashboardTools
               class='header-tools'

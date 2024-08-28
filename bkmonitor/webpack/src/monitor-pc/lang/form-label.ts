@@ -1008,7 +1008,7 @@ export default {
   未恢复: 'Active',
   我负责的: 'My Assigned',
   我处理的: 'My Handling',
-  故障: 'Fault',
+  故障: 'Incident',
   被收敛: 'Converged',
   可选择: 'Selectable',
   不包含: 'Exclude',
@@ -1865,9 +1865,8 @@ export default {
   关联服务类型: 'Associated service type',
   Apdex阈值T: 'Apdex threshold T',
   替换为: 'Replace with',
-
-  故障关注人: 'Fault Follower',
-  故障链接: 'Fault Link',
-  故障内告警: 'Fault Internal Alarm',
   表单: 'Form',
+  故障关注人: 'Incident Follower',
+  故障链接: 'Incident Link',
+  故障内告警: 'Incident Internal Alarm',
 };
