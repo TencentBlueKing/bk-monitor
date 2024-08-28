@@ -562,9 +562,10 @@ class SQLCompiler(compiler.SQLCompiler):
                 and_map.setdefault("must", []).append(
                     _nested_query({"query_string": {"query": value, "default_field": field}})
                 )
-        elif lookup == "eq" or lookup == "wildcard":
+        elif lookup == "eq" or lookup == "include":
+            op: str = {"eq": "term", "include": "wildcard"}[lookup]
             for value in values:
-                and_map.setdefault("must", []).append(_nested_query({lookup: {field: {"value": value}}}))
+                and_map.setdefault("must", []).append(_nested_query({op: {field: {"value": value}}}))
 
     @staticmethod
     def _operate_exclude(and_map, field, values):

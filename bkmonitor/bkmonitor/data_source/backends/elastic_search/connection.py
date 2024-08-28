@@ -45,8 +45,9 @@ class DatabaseConnection(BaseDatabaseConnection):
         if use_full_index_names:
             extra["use_full_index_names"] = True
 
-        logger.info("ES QUERY: rt_id is {}, query body is {}".format(rt_id, params))
+        query_body: str = json.dumps(params)
+        logger.info("ES QUERY: rt_id is {}, query body is {}".format(rt_id, query_body))
         with tracer.start_as_current_span("es_query") as span:
             span.set_attribute("bk.system", "es_query")
-            span.set_attribute("bk.es_query.statement", json.dumps(params))
+            span.set_attribute("bk.es_query.statement", query_body)
             return self.query_func(table_id=rt_id, query_body=params, **extra)

@@ -276,7 +276,11 @@ class BaseQuery:
                 nested_paths.append(should["nested"]["path"])
                 query_string = should["nested"]["query"]["query_string"]["query"]
             except KeyError:
-                pass
+                try:
+                    # handle case: {'should': [{'query_string': {'query': 'ListTrace'}}]}
+                    return should["query_string"]["query"], []
+                except KeyError:
+                    continue
 
         return query_string, nested_paths
 
