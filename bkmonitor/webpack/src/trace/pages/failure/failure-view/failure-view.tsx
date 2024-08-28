@@ -73,10 +73,8 @@ export default defineComponent({
     };
     watch(
       () => props.alertIdsObject,
-      val => {
-        if (val) {
-          props.searchValidate && getIncidentAlertView();
-        }
+      () => {
+        props.searchValidate && getIncidentAlertView();
       },
       { deep: true }
     );
@@ -104,7 +102,7 @@ export default defineComponent({
     const handleSuccessLoad = () => {
       recommendedMetricPanels.value = [];
       getIncidentAlertView();
-      emit('refresh');
+      setTimeout(() => emit('refresh'), 2000);
     };
     /** 指标展开收起 */
     const renderDashboardPanel = (item, props) => {

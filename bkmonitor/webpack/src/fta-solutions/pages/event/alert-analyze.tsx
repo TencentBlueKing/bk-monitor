@@ -338,7 +338,9 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       </bk-dialog>
     );
   }
-
+  getBizeName(bizId) {
+    return this.$store.getters.bizIdMap.get(+bizId)?.name || bizId;
+  }
   /**
    * @description: 列表组件
    * @param {any} item
@@ -349,14 +351,17 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       <ul class='item-chart'>
         {item?.buckets?.length ? (
           item.buckets.slice(0, count).map((chart, index) => (
-            <li class='chart-item'>
+            <li
+              key={index}
+              class='chart-item'
+            >
               <div class='chart-process'>
                 <div class='process-title'>
                   <span
                     class='process-title-text'
                     title={chart.name}
                   >
-                    {chart.name}
+                    {item.field === 'bk_biz_id' ? this.getBizeName(chart.id) : chart.name}
                   </span>
                   <span class='title-percent'>
                     <span class='count'>{chart.count}</span>

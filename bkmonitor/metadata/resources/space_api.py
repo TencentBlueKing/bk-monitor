@@ -10,13 +10,18 @@ specific language governing permissions and limitations under the License.
 """
 from typing import List, Union
 
+from django.conf import settings
+from django.core.cache import caches
+from django.db import connections
 from django.utils.translation import ugettext as _
 from rest_framework.exceptions import ValidationError
 
 from bkm_space import api as space_api
 from bkm_space.define import Space as SpaceDefine
-from bkmonitor.commons.tools import batch_request
-from core.drf_resource import resource as api
+from bkm_space.define import SpaceTypeEnum
+from core.drf_resource import api
+
+local_mem = caches["locmem"]
 
 
 class InjectSpaceApi(space_api.AbstractSpaceApi):
@@ -53,24 +58,67 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         """
         查询空间列表
         """
-        func = api.metadata.list_spaces
-        if refresh:
-            func = api.metadata.list_spaces.request.refresh
-        space_list = batch_request(func, params={}, get_data=lambda x: x["list"], app="metadata")
+        ret: List[SpaceDefine] = local_mem.get("metadata:list_spaces", None)
+        if ret is None or refresh:
+            ret: List[SpaceDefine] = [
+                SpaceDefine.from_dict(space_dict, cleaned=True)
+                for space_dict in cls.list_spaces_dict(using_cache=False)
+            ]
+            local_mem.set("metadata:list_spaces", ret, timeout=600)
+        return ret
 
-        # 获得支持的空间类型
-        space_type_list = api.metadata.list_space_types()
-        space_type_map = {st["type_id"]: st for st in space_type_list}
+    @classmethod
+    def list_spaces_dict(cls, using_cache=True) -> List[dict]:
+        """
+        告警性能版本获取空间列表
+        """
+        ret: List[dict] = local_mem.get("metadata:list_spaces_dict", None)
+        if ret is not None and using_cache:
+            return ret
+        with connections["monitor_api"].cursor() as cursor:
+            sql = """
+                SELECT s.id,
+                       s.space_type_id,
+                       s.space_id,
+                       s.space_name,
+                       s.space_code,
+                       s.time_zone,
+                       s.language,
+                       s.is_bcs_valid,
+                       CONCAT(s.space_type_id, '__', s.space_id) AS space_uid,
+                       t.type_name
+                FROM
+                    metadata_space s
+                JOIN
+                    metadata_spacetype t
+                ON
+                    s.space_type_id = t.type_id
+            """
+            cursor.execute(sql)
+            columns = [col[0] for col in cursor.description]
+            spaces: List[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
+        if not spaces and settings.RUN_MODE == "DEVELOP":
+            raise Exception(
+                "未成功初始化metadata空间数据，请执行"
+                "env DJANGO_CONF_MODULE=conf.worker.development.enterprise python manage.py init_space_data"
+            )
+        for space in spaces:
+            # bk_biz_id
+            if space["space_type_id"] != SpaceTypeEnum.BKCC.value:
+                space["bk_biz_id"] = -space["id"]
+            else:
+                space["bk_biz_id"] = int(space["space_id"])
+            # is_demo
+            space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
+            # display_name
+            # [cc-auto]配置发现
+            display_name = f"[{space['space_id']}]{space['space_name']}"
+            if space['space_type_id'] == SpaceTypeEnum.BKCC.value:
+                # [2]蓝鲸
+                display_name = f"[{space['space_id']}]{space['space_name']}"
+            space["display_name"] = display_name + f" ({space['type_name']})"
 
-        result = []
-        for space_dict in space_list:
-            # 添加空间类型属性
-            type_id = space_dict["space_type_id"]
-            space_type_item = space_type_map.get(type_id, {})
-            if space_type_item:
-                space_dict.update(space_type_item)
-            # 将字典转换为空间对象
-            space_obj = SpaceDefine.from_dict(space_dict)
-            result.append(space_obj)
-
-        return result
+        # 10min
+        local_mem.set("metadata:list_spaces_dict", spaces, 600)
+        return spaces

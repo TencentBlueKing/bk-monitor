@@ -94,6 +94,7 @@ export default defineComponent({
   },
   emits: ['zoom', 'move'],
   setup(props, { emit }) {
+    /** 时序图 */
     const { t } = useI18n();
     const MIN_ZOOM = 0;
     const showLegend = ref<boolean>(localStorage.getItem('showTimeLegend') === 'true');
@@ -113,10 +114,10 @@ export default defineComponent({
     const legendFn = () => (
       <div class='failure-topo-graph-legend-content'>
         <ul class='node-type'>
-          {NODE_TYPE.map((node, index) => {
+          {NODE_TYPE.map(node => {
             const isTag = node.type === 'tag';
             return (
-              <li key={index}>
+              <li key={node.type}>
                 <span class={['circle', node.status, { 'node-tag': isTag }]}>{isTag ? t('根因') : ''}</span>
                 <span>{t(node.text)}</span>
               </li>
@@ -124,9 +125,9 @@ export default defineComponent({
           })}
         </ul>
         <ul class='info-type'>
-          {INFO_TYPE.map((node, index) => {
+          {INFO_TYPE.map(node => {
             return (
-              <li key={index}>
+              <li key={node.text}>
                 <span>
                   <i class={`icon-monitor item-icon ${node.icon}`} />
                 </span>
@@ -346,10 +347,10 @@ export default defineComponent({
             content: (
               <div class='failure-topo-graph-legend-content'>
                 <ul class='node-type'>
-                  {NODE_TYPE.map((node, index) => {
+                  {NODE_TYPE.map(node => {
                     const isTag = node.type === 'tag';
                     return (
-                      <li key={index}>
+                      <li key={node.type}>
                         <span class={['circle', node.status, { 'node-tag': isTag }]}>
                           {isTag ? this.$t('根因') : ''}
                         </span>
@@ -357,8 +358,8 @@ export default defineComponent({
                       </li>
                     );
                   })}
-                  {INFO_TYPE.map((node, index) => (
-                    <li key={index}>
+                  {INFO_TYPE.map(node => (
+                    <li key={node.text}>
                       <span class='info-circle'>
                         <i class={`icon-monitor item-icon ${node.icon}`} />
                       </span>
@@ -392,6 +393,7 @@ export default defineComponent({
           renderType='auto'
           theme='light'
           trigger='manual'
+          zIndex={999}
         />
         <Popover
           ref='minimapRef'
@@ -442,6 +444,7 @@ export default defineComponent({
           renderType='auto'
           theme='light'
           trigger='manual'
+          zIndex={999}
         />
         <span class='failure-topo-graph-line' />
         <div class='failure-topo-graph-zoom-slider'>

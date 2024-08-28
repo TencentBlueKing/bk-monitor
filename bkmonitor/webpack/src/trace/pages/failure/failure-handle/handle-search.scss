@@ -101,7 +101,8 @@
         }
       }
 
-      .node-root, .node-root-feed {
+      .node-root,
+      .node-root-feed {
         display: inline-block;
         height: 13px;
         padding: 0 5px;
@@ -109,12 +110,12 @@
         font-size: 9px;
         line-height: 13px;
         color: #fff;
-        background: #F55555;
+        background: #f55555;
         border-radius: 8px;
       }
 
       .node-root-feed {
-        background: #FF9C01;
+        background: #ff9c01;
       }
 
       .node-append {
@@ -143,7 +144,7 @@
       }
 
       .feed {
-        color: #FF9C01;
+        color: #ff9c01;
       }
 
       .root {
@@ -156,7 +157,7 @@
         color: #a3b1cc;
 
         &.status {
-          color: #979BA5;
+          color: #979ba5;
         }
 
         &.ABNORMAL {
@@ -185,12 +186,12 @@
 
       .text-tips {
         font-size: 14px;
-        color: #63656E;
+        color: #63656e;
       }
 
       .text-wrap {
         margin-top: 8px;
-        color: #979BA5;
+        color: #979ba5;
       }
     }
   }
@@ -235,6 +236,7 @@
       height: 26px;
       line-height: 26px;
       color: #63656e;
+      width: 120px;
     }
 
     .drop-item-checkbox {

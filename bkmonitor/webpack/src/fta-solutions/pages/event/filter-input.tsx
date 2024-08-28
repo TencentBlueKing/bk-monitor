@@ -189,7 +189,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   }
 
   get favoriteDisable() {
-    return !Boolean(this.inputValue.length);
+    return !this.inputValue.length;
   }
 
   @Watch('value', { immediate: true })
@@ -423,11 +423,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     this.incidentFieldList = [
       {
         id: 'id',
-        name: this.$t('故障UUID'),
-      },
-      {
-        id: 'incident_id',
-        name: this.$t('故障内部ID'),
+        name: this.$t('故障ID'),
       },
       {
         id: 'incident_name',
@@ -492,7 +488,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     this.mouseDowncontroller?.abort?.();
   }
   /**
-   * @description 只适用于收藏部分的交互
+   * @description  只适用于收藏部分的交互
    * @param event
    */
   handleMouseDown(event: Event) {
@@ -969,7 +965,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           edit: true,
         });
       this.favoriteList.forEach(item => {
-        if (!!item.name) {
+        if (item.name) {
           item.edit = false;
           item.fakeName = String(item.name);
         }
@@ -1134,10 +1130,12 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             {id === 'field' && !item.edit && !this.isEn && <span class='item-id'>({item.id})</span>}
             {id === 'favorite' &&
               !item.edit && [
+                // biome-ignore lint/correctness/useJsxKeyInIterable: <explanation>
                 <i
                   class='icon-monitor icon-bianji edit-icon'
                   onMousedown={e => this.handleEidtFavorite(e, item)}
                 />,
+                // biome-ignore lint/correctness/useJsxKeyInIterable: <explanation>
                 <i
                   class='icon-monitor icon-mc-close close-icon'
                   onMousedown={e => this.handleDeleteFavorite(e, item, index)}
@@ -1145,20 +1143,21 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
               ]}
             {id === 'favorite' &&
               item.edit && [
+                // biome-ignore lint/correctness/useJsxKeyInIterable: <explanation>
                 <bk-input
                   ref={`favorite-input-${item.id}`}
                   class='favorite-input'
                   v-model={item.fakeName}
                   placeholder={this.$t('输入收藏名称')}
                   type='text'
-                  on-blur={e => this.handleFavoriteInputBlur(e, item)}
+                  on-blur={(e: MouseEvent) => this.handleFavoriteInputBlur(e, item)}
                 />,
+                // biome-ignore lint/correctness/useJsxKeyInIterable: <explanation>
                 <i
                   class={[
                     'icon-monitor icon-mc-check-small check-icon',
                     { 'is-diabled': !item?.fakeName?.trim?.().length },
                   ]}
-                  /*  */
                   onMousedown={e => this.handleUpdateFavorite(e, item)}
                 />,
               ]}

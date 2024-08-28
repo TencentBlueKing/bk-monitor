@@ -19,19 +19,19 @@ logger = logging.getLogger(__name__)
 class ErrorDetails:
     """错误详情信息补充类"""
 
-    def __init__(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warn"):
+    def __init__(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warning"):
         self.exc_type = exc_type  # 错误类型
         self.exc_code = exc_code  # 错误码
         self.overview = overview  # 错误概述
         self.detail = detail  # 错误详情
-        self.popup_message = popup_message  # 错误弹框类型 warn-黄色 danger-红色
+        self.popup_message = popup_message  # 错误弹框类型 warning-黄色 error-红色
 
     def to_dict(self):
         return {
-            "exc_type": self.exc_type,
-            "exc_code": self.exc_code,
-            "overview": self.overview,
-            "detail": self.detail,
+            "type": self.exc_type,
+            "code": self.exc_code,
+            "overview": str(self.overview),
+            "detail": str(self.detail),
             "popup_message": self.popup_message,
         }
 
@@ -53,7 +53,7 @@ class Error(Exception):
     description = ""
     # 错误信息详情
     error_details = None
-    popup_message = "warn"  # 弹框颜色，默认为黄框
+    popup_message = "warning"  # 弹框颜色，默认为黄框
 
     def __init__(self, context=None, data=None, extra=None, **kwargs):
         if not context:
@@ -83,7 +83,7 @@ class Error(Exception):
             popup_message=self.popup_message,
         )
 
-    def set_details(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warn"):
+    def set_details(self, exc_type=None, exc_code=None, overview=None, detail=None, popup_message="warning"):
         """设置错误详情信息"""
         self.error_details = ErrorDetails(exc_type, exc_code, overview, detail, popup_message).to_dict()
 

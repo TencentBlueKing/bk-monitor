@@ -1053,7 +1053,8 @@ class MappingHandlers(object):
         return None
 
     @classmethod
-    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str) -> dict:
+    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str,
+                            sort_fields: list) -> dict:
         """
         判断是否可以支持大额导出
         """
@@ -1063,6 +1064,8 @@ class MappingHandlers(object):
         if not FeatureToggleObject.switch(FEATURE_ASYNC_EXPORT_COMMON):
             result["async_export_usable_reason"] = _("【异步导出功能尚未开放】")
             return result
+        if sort_fields and fields.issuperset(set(sort_fields)):
+            return cls._judge_missing_agg_field(result, agg_fields, sort_fields)
 
         if scenario_id == Scenario.BKDATA and fields.issuperset(set(BKDATA_ASYNC_FIELDS)):
             return cls._judge_missing_agg_field(result, agg_fields, BKDATA_ASYNC_FIELDS)

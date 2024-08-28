@@ -34,7 +34,11 @@ import { authorityStore, bkMessage, makeMessage } from '../utils/index';
 const noMessageCode = [3314001, 3310003];
 const errorHandle = (response, config) => {
   const traceparent = config?.headers?.traceparent;
-  const resMessage = makeMessage(response.data.message || '请求出错了！', traceparent, config.needTraceId);
+  const resMessage = makeMessage(
+    response.data.error_details || response.data.message || '请求出错了！',
+    traceparent,
+    config.needTraceId
+  );
   switch (response.status) {
     case 502:
       if (config.needMessage) bkMessage(resMessage);
@@ -45,39 +49,43 @@ const errorHandle = (response, config) => {
       }
       break;
     case 401:
-      const { data } = response;
-      if (process.env.NODE_ENV === 'development') {
-        const url = new URL(data.login_url);
-        url.searchParams.set('c_url', location.href);
-        window.open(url.href, '_self');
-      } else {
-        const handleLoginExpire = () => {
-          window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
-        };
-        if (data?.has_plain) {
-          try {
-            if (data.login_url) {
-              // 初始化api 用于转换登入
-              if (config.url.includes('/commons/context/enhanced') && config.params.context_type === 'basic') {
-                const url = `${data.login_url.split('c_url=')[0]}c_url=${encodeURIComponent(location.href)}`;
-                window.open(url, '_self');
-                return;
-              }
-              const url = new URL(data.login_url);
-              const curl = url.searchParams.get('c_url');
-              url.protocol = location.protocol;
-              if (curl) {
-                url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
-                window.showLoginModal({ loginUrl: url.href });
+      {
+        const { data } = response;
+        if (process.env.NODE_ENV === 'development') {
+          const url = new URL(data.login_url);
+          url.searchParams.set('c_url', location.href);
+          window.open(url.href, '_self');
+        } else {
+          const handleLoginExpire = () => {
+            window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
+          };
+          if (data?.has_plain) {
+            try {
+              if (data.login_url) {
+                // 初始化api 用于转换登入
+                if (config.url.includes('/commons/context/enhanced') && config.params.context_type === 'basic') {
+                  const url = `${data.login_url.split('c_url=')[0]}c_url=${encodeURIComponent(location.href)}`;
+                  window.open(url, '_self');
+                  return;
+                }
+                const url = new URL(data.login_url);
+                const curl = url.searchParams.get('c_url');
+                url.protocol = location.protocol;
+                if (curl) {
+                  url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
+                  window.showLoginModal({ loginUrl: url.href });
+                } else {
+                  window.showLoginModal({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
+                }
               } else {
-                window.showLoginModal({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
+                handleLoginExpire();
               }
+            } catch (_) {
+              handleLoginExpire();
             }
-          } catch (_) {
+          } else {
             handleLoginExpire();
           }
-        } else {
-          handleLoginExpire();
         }
       }
       break;

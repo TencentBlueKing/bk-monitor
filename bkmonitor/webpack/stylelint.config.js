@@ -1,3 +1,4 @@
+/** @type {import('stylelint').Config} */
 module.exports = {
   extends: ['stylelint-config-recommended-vue', 'stylelint-config-recess-order'],
   overrides: [

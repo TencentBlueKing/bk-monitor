@@ -52,7 +52,7 @@ class DashboardExporter:
         self.requires[f"datasource{data_source_meta['type']}"] = {
             "type": "datasource",
             "id": data_source_meta["type"],
-            "name": data_source_meta["typeName"],
+            "name": data_source_meta["name"],
         }
 
         ref_name = f"DS_{data_source_meta['name'].replace(' ', '_').upper()}"
@@ -62,7 +62,7 @@ class DashboardExporter:
             "description": "",
             "type": "datasource",
             "pluginId": data_source_meta["type"],
-            "pluginName": data_source_meta["typeName"],
+            "pluginName": data_source_meta["name"],
         }
 
         if isinstance(data_source, str):
@@ -75,7 +75,7 @@ class DashboardExporter:
 
     def replace_table_id_with_data_label(self, query_config: Dict):
         """
-         将结果表ID的值替换为 data_label 的值
+        将结果表ID的值替换为 data_label 的值
         """
         if not query_config:
             return

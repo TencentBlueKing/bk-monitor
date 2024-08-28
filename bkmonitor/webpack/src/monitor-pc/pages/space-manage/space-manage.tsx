@@ -142,7 +142,7 @@ export default class SpaceManage extends tsc<object> {
   /** 置顶空间数据 */
   stickyList: string[] = [];
   /** 空间数据数据 */
-  tableData: ITableItem[] = [];
+  tableData: ITableItem[];
 
   emptyStatusType: EmptyStatusType = 'empty';
 
@@ -156,13 +156,14 @@ export default class SpaceManage extends tsc<object> {
    * 主要依赖数据: this.tableData, this.keyword, this.filtersData
    */
   get filterTableData() {
+    if (!this.tableData?.length) return [];
     /** 置顶排序 */
-    const sortList = this.tableData.sort((a, b) => {
+    this.tableData.sort((a, b) => {
       a.collected = this.stickyList.includes(a.uid);
       b.collected = this.stickyList.includes(b.uid);
       return a.collected && !b.collected ? -1 : 1;
     });
-    return sortList.filter(item => {
+    return this.tableData.filter(item => {
       /** 搜索 */
       const isMatch =
         item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) > -1 ||
@@ -187,6 +188,7 @@ export default class SpaceManage extends tsc<object> {
 
   /** 状态筛选数据 */
   get statusFilterOptions() {
+    if (!this.tableData?.length) return [];
     const map = new Map();
     return this.tableData.reduce((total, item) => {
       if (!map.get(item.status)) {
@@ -201,9 +203,10 @@ export default class SpaceManage extends tsc<object> {
   }
   /** 类型筛选数据 */
   get typeFilterOptions() {
+    if (!this.tableData?.length) return [];
     const map = new Map();
     return this.tableData.reduce((total, item) => {
-      item.types.forEach(type => {
+      for (const type of item.types) {
         if (!map.get(type.id)) {
           total.push({
             text: type.name,
@@ -211,7 +214,7 @@ export default class SpaceManage extends tsc<object> {
           });
           map.set(type.id, true);
         }
-      });
+      }
       return total;
     }, []);
   }
@@ -246,7 +249,7 @@ export default class SpaceManage extends tsc<object> {
       // 全局space_list bizList
       this.handleMergeBizList(data);
     }
-    this.tableData = this.handleFormatterList(data);
+    this.tableData = this.handleFormatterList(data) || [];
   }
   // 更新全局space_list bizList bk_biz_list
   handleMergeBizList(spaceList: ISpaceItem[]) {
@@ -290,8 +293,8 @@ export default class SpaceManage extends tsc<object> {
       return {
         name: item.space_name,
         enName: ETagsType.BKCC === item.space_type_id ? `#${item.space_id}` : item.space_id || item.space_code,
-        status: item.status === 'normal' ? SpaceStatus.normal : SpaceStatus.stoped,
-        statusText: this.$tc(item.status === 'normal' ? '正常' : '被停用'),
+        status: !item.status || item.status === 'normal' ? SpaceStatus.normal : SpaceStatus.stoped,
+        statusText: this.$tc(!item.status || item.status === 'normal' ? '正常' : '被停用'),
         types,
         collected: false,
         function: item.func_info,
@@ -385,7 +388,7 @@ export default class SpaceManage extends tsc<object> {
   }
   // 判断是否有权限
   getHasAuthority(spaceUid: string) {
-    return this.$store.getters.bizList.some(item => item.space_uid === spaceUid);
+    return this.$store.getters.spaceUidMap.has(spaceUid);
   }
   // 无权限跳转权限中心
   async handleApplyAuth(item: ITableItem) {
@@ -401,7 +404,7 @@ export default class SpaceManage extends tsc<object> {
   handleOperation(val: EmptyStatusOperationType) {
     switch (val) {
       case 'clear-filter':
-        this.keyword = '';
+        this.handleSearch('');
         break;
       case 'refresh':
         this.handleFetchList(this.spaceType === SpaceType.all);
@@ -447,121 +450,124 @@ export default class SpaceManage extends tsc<object> {
               onInput={this.handleSearch}
             />
           </div>
-          <bk-table
-            key={this.refreshTable}
-            ref='tableRef'
-            class='table-wrap'
-            data={this.currentPageTableData}
-            outer-border={false}
-            pagination={this.pagination}
-            on-filter-change={this.handleFilterChange}
-            on-page-change={this.handlePageChange}
-            on-page-limit-change={this.handleLimitChange}
-          >
-            <EmptyStatus
-              slot='empty'
-              type={this.emptyStatusType}
-              onOperation={this.handleOperation}
-            />
-            <bk-table-column
-              width={150}
-              formatter={(row: ITableItem) => (
-                <div class='space-name-wrap'>
-                  <i
-                    class={['icon-monitor', row.collected ? 'icon-yizhiding' : 'icon-zhiding']}
-                    onClick={() => this.handleCollected(row)}
-                  />
-                  <div
-                    class='space-name-main'
-                    v-authority={{ active: !row.hasAuth }}
-                    onClick={() => !row.hasAuth && this.handleApplyAuth(row)}
-                  >
-                    <div
-                      style={{ color: !row.hasAuth ? '#ccc' : '#3a84ff' }}
-                      class='space-name'
-                      v-bk-overflow-tips
-                    >
-                      {row.name}
-                    </div>
-                    <div
-                      style={{ color: !row.hasAuth ? '#ccc' : '#979BA5' }}
-                      class='space-enname'
-                      v-bk-overflow-tips
-                    >
-                      {row.enName}
-                    </div>
-                  </div>
-                </div>
-              )}
-              label={this.$t('空间名')}
-            />
-            <bk-table-column
-              width={90}
-              formatter={(row: ITableItem) => (
-                <CommonStatus
-                  text={row.statusText}
-                  type={row.status}
-                />
-              )}
-              filters={this.statusFilterOptions}
-              label={this.$t('状态')}
-              property={'status'}
-            />
-            <bk-table-column
-              width={110}
-              formatter={(row: ITableItem) =>
-                row.types.map(item => (
-                  <span
-                    style={{ ...SPACE_TYPE_MAP[item.id]?.light }}
-                    class='space-type'
-                  >
-                    {item.name}
-                  </span>
-                ))
-              }
-              filters={this.typeFilterOptions}
-              label={this.$t('类型')}
-              property={'types'}
-            />
-            {
+          {!!this.tableData?.length && (
+            <bk-table
+              key={this.refreshTable}
+              ref='tableRef'
+              class='table-wrap'
+              data={this.currentPageTableData}
+              outer-border={false}
+              pagination={this.pagination}
+              on-filter-change={this.handleFilterChange}
+              on-page-change={this.handlePageChange}
+              on-page-limit-change={this.handleLimitChange}
+            >
+              <EmptyStatus
+                slot='empty'
+                type={this.emptyStatusType}
+                onOperation={this.handleOperation}
+              />
               <bk-table-column
+                width={150}
                 formatter={(row: ITableItem) => (
-                  <div class='function-wrap'>
-                    {
-                      SPACE_FEATURE_LIST.map(item => (
-                        <CommonStatus
-                          key={item.id}
-                          class='func-item'
-                          v-bk-tooltips={{ content: row.function[item.id] ? this.$t('已关联') : this.$t('未关联') }}
-                          icon={!row.function[item.id] ? 'icon-monitor icon-mc-target-link' : ''}
-                          text={item.name}
-                          type={row.function[item.id] ? 'normal' : 'stoped'}
-                        />
-                      ))
-                      // row.function?.length ? row.function.map(item => (
-                      //   item.type === 'status'
-                      //     ? <CommonStatus
-                      //       class="func-item"
-                      //       type={item.status as CommonStatusType}
-                      //       text={item.name} />
-                      //     : <CustomSelect
-                      //       class="func-item select"
-                      //       options={[{ id: '2', name: 'sdd' }]}>
-                      //       <span slot="target" >
-                      //         <i class="icon-monitor icon-copy-link"></i>
-                      //         { item.name}
-                      //       </span>
-                      //       <bk-option id="2" name="sdd"></bk-option>
-                      //     </CustomSelect>
-                      // )) : '--'
-                    }
+                  <div class='space-name-wrap'>
+                    <i
+                      class={['icon-monitor', row.collected ? 'icon-yizhiding' : 'icon-zhiding']}
+                      onClick={() => this.handleCollected(row)}
+                    />
+                    <div
+                      class='space-name-main'
+                      v-authority={{ active: !row.hasAuth }}
+                      onClick={() => !row.hasAuth && this.handleApplyAuth(row)}
+                    >
+                      <div
+                        style={{ color: !row.hasAuth ? '#ccc' : '#3a84ff' }}
+                        class='space-name'
+                        v-bk-overflow-tips
+                      >
+                        {row.name}
+                      </div>
+                      <div
+                        style={{ color: !row.hasAuth ? '#ccc' : '#979BA5' }}
+                        class='space-enname'
+                        v-bk-overflow-tips
+                      >
+                        {row.enName}
+                      </div>
+                    </div>
                   </div>
                 )}
-                label={this.$t('具备功能')}
-                min-width={660}
+                label={this.$t('空间名')}
               />
-            }
-          </bk-table>
+              <bk-table-column
+                width={90}
+                formatter={(row: ITableItem) => (
+                  <CommonStatus
+                    text={row.statusText}
+                    type={row.status}
+                  />
+                )}
+                filters={this.statusFilterOptions}
+                label={this.$t('状态')}
+                property={'status'}
+              />
+              <bk-table-column
+                width={110}
+                formatter={(row: ITableItem) =>
+                  row.types.map((item, index) => (
+                    <span
+                      key={index}
+                      style={{ ...SPACE_TYPE_MAP[item.id]?.light }}
+                      class='space-type'
+                    >
+                      {item.name}
+                    </span>
+                  ))
+                }
+                filters={this.typeFilterOptions}
+                label={this.$t('类型')}
+                property={'types'}
+              />
+              {
+                <bk-table-column
+                  formatter={(row: ITableItem) => (
+                    <div class='function-wrap'>
+                      {
+                        SPACE_FEATURE_LIST.map(item => (
+                          <CommonStatus
+                            key={item.id}
+                            class='func-item'
+                            v-bk-tooltips={{ content: row.function[item.id] ? this.$t('已关联') : this.$t('未关联') }}
+                            icon={!row.function[item.id] ? 'icon-monitor icon-mc-target-link' : ''}
+                            text={item.name}
+                            type={row.function[item.id] ? 'normal' : 'stoped'}
+                          />
+                        ))
+                        // row.function?.length ? row.function.map(item => (
+                        //   item.type === 'status'
+                        //     ? <CommonStatus
+                        //       class="func-item"
+                        //       type={item.status as CommonStatusType}
+                        //       text={item.name} />
+                        //     : <CustomSelect
+                        //       class="func-item select"
+                        //       options={[{ id: '2', name: 'sdd' }]}>
+                        //       <span slot="target" >
+                        //         <i class="icon-monitor icon-copy-link"></i>
+                        //         { item.name}
+                        //       </span>
+                        //       <bk-option id="2" name="sdd"></bk-option>
+                        //     </CustomSelect>
+                        // )) : '--'
+                      }
+                    </div>
+                  )}
+                  label={this.$t('具备功能')}
+                  min-width={660}
+                />
+              }
+            </bk-table>
+          )}
         </div>
         <SpaceAddList
           show={this.showAdd}

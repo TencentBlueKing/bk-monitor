@@ -293,4 +293,6 @@ export default {
   选择服务: 'Select Service',
   选择应用: 'Select Application',
   搜索服务名称: 'Search Service Name',
+  '搜索 故障处理人': 'Search Fault Handler',
+  '搜索 流转记录': 'Search Flow Record',
 };

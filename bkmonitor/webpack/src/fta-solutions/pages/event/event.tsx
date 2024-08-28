@@ -141,8 +141,8 @@ export const commonAlertFieldMap = {
       name: window.i18n.tc('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已关闭',
-      name: window.i18n.tc('已关闭'),
+      id: isEn ? 'CLOSED' : '已失效',
+      name: window.i18n.tc('已失效'),
     },
   ],
   severity: [
@@ -2491,12 +2491,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               />
             )}
             <div class='content-wrap-filter'>
-              <div
-                v-en-style='width: 120px;'
-                class='business-screening-notes'
-              >
-                {this.$t('空间筛选')}
-              </div>
               {/* <bk-select
                 class={`filter-select ${this.filterSelectIsEmpty ? 'empty-warning' : ''}`}
                 v-model={this.bizIds}
