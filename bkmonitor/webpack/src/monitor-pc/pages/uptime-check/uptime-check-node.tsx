@@ -77,7 +77,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   sortTableData = [];
   emptyStatusType: EmptyStatusType = 'empty';
   loading = false;
-
+  skeletonLoading = false;
   get searchData(): INodeData[] {
     return searchNodesData(this.searchValue, this.data.nodes);
   }
@@ -211,6 +211,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   // loading
   @Emit('loading')
   handleLoading(v: boolean) {
+    this.skeletonLoading = v;
     return v;
   }
 
@@ -284,7 +285,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
             onCreate={this.handleHeaderCreate}
             onSearch={(v: string) => this.handleSearch(v)}
           />
-          {this.loading ? (
+          {this.skeletonLoading ? (
             <TableSkeleton class='mt-16' />
           ) : (
             <CommonTable

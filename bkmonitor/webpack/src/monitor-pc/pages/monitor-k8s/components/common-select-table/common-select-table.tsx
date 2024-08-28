@@ -32,7 +32,7 @@ import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+// import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   filterSelectorPanelSearchList,
@@ -561,6 +561,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       <div
         ref='selectTablePanel'
         class='common-select-table'
+        v-bkloading={{ isLoading: this.loading }}
       >
         <div class={['list-header', { 'flex-header': this.width > 1000 }]}>
           <div class='search-bar'>
@@ -622,7 +623,8 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               <span>{`${this.panel?.title}${this.$t('概览')}`}</span>
             </div>
           )}
-          {!this.loading ? (
+          {
+            // !this.loading ?
             <CommonTable
               key={this.refreshKey}
               ref='tableRef'
@@ -645,9 +647,10 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               onSortChange={this.handleSortChange}
               onSwitchOverview={this.handleOverviewChange}
             />
-          ) : (
-            <TableSkeleton type={4} />
-          )}
+            // : (
+            //   <TableSkeleton type={4} />
+            // )
+          }
         </div>
         {this.showScrollLoadBar && <div class='scroll-load-bar'>{handleLoadBarText()}</div>}
       </div>

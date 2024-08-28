@@ -239,7 +239,9 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
         return (
           <UptimeCheckNode
             refreshKey={`${this.refreshKeys[UPTIME_CHECK_LIST[1].id]}__${this.$store.getters.bizId}`}
-            onLoading={(v: boolean) => (this.loading = v)}
+            onLoading={(v: boolean) => {
+              this.loading = v;
+            }}
             onNameChange={this.handleNodeNameChange}
           />
         );
@@ -251,7 +253,9 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
             nodeName={this.nodeName}
             refreshKey={`${this.refreshKeys[UPTIME_CHECK_LIST[0].id]}__${this.$store.getters.bizId}`}
             onGroupStatus={(v: boolean) => this.fetchTaskGroupTask(v)}
-            onLoading={(v: boolean) => (this.loading = v)}
+            onLoading={(v: boolean) => {
+              this.loading = v;
+            }}
             onNodeNameChange={this.handleNodeNameChange}
             onRefresh={this.handleRefreshData}
           />
@@ -264,7 +268,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
     return (
       <div
         class='uptime-check-page'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         <PageTitle
           activeTab={this.active}

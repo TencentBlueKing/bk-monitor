@@ -646,32 +646,6 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     }
     this.handleRefreshTableData();
   }
-
-  render() {
-    return (
-      <div class='uptime-check-task-component'>
-        {!this.data.group_data.length && !this.data.task_data.length ? (
-          <UptimeCheckEmpty
-            is-node={!this.data.has_node}
-            on-create={() => this.handleEmptyCreate('create')}
-            on-create-node={() => this.handleEmptyCreate('createNode')}
-            on-import={() => this.handleEmptyCreate('import')}
-          />
-        ) : this.isCard ? (
-          this.getCardData()
-        ) : (
-          this.getTableData()
-        )}
-        {this.getDialogContent()}
-        <UptimeCheckImport
-          options={{ isShow: this.isShowImport }}
-          on-close={() => (this.isShowImport = false)}
-          on-complete={this.handleRefreshData}
-        />
-      </div>
-    );
-  }
-
   // 表格容器
   getTableData() {
     return (
@@ -820,7 +794,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                     />
                   ))}
             </CardsContainer>,
-            this.searchTaskData.length ? (
+            this.loading || this.searchTaskData.length ? (
               <CardsContainer
                 key='task'
                 style={{ marginTop: '12px' }}
@@ -922,6 +896,31 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           <bk-button on-click={this.handleCloseGroupData}>{this.$t('取消')}</bk-button>
         </div>
       </bk-dialog>
+    );
+  }
+
+  render() {
+    return (
+      <div class='uptime-check-task-component'>
+        {!this.loading && !this.data.group_data.length && !this.data.task_data.length ? (
+          <UptimeCheckEmpty
+            is-node={!this.data.has_node}
+            on-create={() => this.handleEmptyCreate('create')}
+            on-create-node={() => this.handleEmptyCreate('createNode')}
+            on-import={() => this.handleEmptyCreate('import')}
+          />
+        ) : this.isCard ? (
+          this.getCardData()
+        ) : (
+          this.getTableData()
+        )}
+        {this.getDialogContent()}
+        <UptimeCheckImport
+          options={{ isShow: this.isShowImport }}
+          on-close={() => (this.isShowImport = false)}
+          on-complete={this.handleRefreshData}
+        />
+      </div>
     );
   }
 }
