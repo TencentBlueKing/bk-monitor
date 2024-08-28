@@ -202,11 +202,16 @@ class ClusteringConfigHandler(object):
         service = UpdateOnlineService()
         data = service.build_data_context(params)
         pipeline = service.build_pipeline(data, **params)
+
+        if not pipeline:
+            # 如果无需任何调整，则直接返回空
+            return None
+
         service.start_pipeline(pipeline)
 
         now_time = arrow.now()
         self.data.task_records.append(
-            {"operate": OperatorServiceEnum.CREATE, "task_id": pipeline.id, "time": now_time.timestamp}
+            {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": now_time.timestamp}
         )
         self.data.save(update_fields=["task_records"])
         return pipeline.id
@@ -277,6 +282,7 @@ class ClusteringConfigHandler(object):
 
         # 更新接入任务状态
         result["flow_create"].update(
+            task_id=task_id,
             task_detail=clustering_config.task_details[task_id],
             status=clustering_config.task_details[task_id][-1]["status"],
             message=clustering_config.task_details[task_id][-1]["message"],
@@ -297,17 +303,29 @@ class ClusteringConfigHandler(object):
             return {"status": self.AccessStatusCode.FAILED, "message": _("dataflow({}) 获取信息失败: {}".format(flow_id, e))}
 
         flow_status_mapping = {
-            "": {"status": self.AccessStatusCode.FAILED, "detail": _("未创建")},
-            "no-start": {"status": self.AccessStatusCode.RUNNING, "detail": _("未启动")},
-            "running": {"status": self.AccessStatusCode.SUCCESS, "detail": _("状态正常")},
-            "starting": {"status": self.AccessStatusCode.FAILED, "detail": _("运行异常")},
-            "failure": {"status": self.AccessStatusCode.FAILED, "detail": _("运行失败")},
-            "stopping": {"status": self.AccessStatusCode.RUNNING, "detail": _("重启中")},
+            "": {"status": self.AccessStatusCode.FAILED, "message": _("未创建")},
+            "no-start": {"status": self.AccessStatusCode.RUNNING, "message": _("未启动")},
+            "running": {"status": self.AccessStatusCode.SUCCESS, "message": _("状态正常")},
+            "starting": {"status": self.AccessStatusCode.RUNNING, "message": _("启动中")},
+            "failure": {"status": self.AccessStatusCode.FAILED, "message": _("状态异常")},
+            "stopping": {"status": self.AccessStatusCode.RUNNING, "message": _("停止中")},
         }
+
+        task_detail = {}
+        if flow_status == "running":
+            deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=flow_id)
+            if deploy_data["status"] == "failure":
+                flow_status = "failure"
+            elif deploy_data["status"] == "success":
+                flow_status = "running"
+            else:
+                flow_status = "starting"
+            task_detail = deploy_data
 
         return {
             "status": flow_status_mapping[flow_status]["status"],
-            "message": _("dataflow({}) {}".format(flow_id, flow_status_mapping[flow_status]["detail"])),
+            "message": _("dataflow({}) {}".format(flow_id, flow_status_mapping[flow_status]["message"])),
+            "task_detail": task_detail,
         }
 
     def preview(self, input_data, min_members, predefined_varibles, delimeter, max_log_length, is_case_sensitive):
@@ -391,48 +409,6 @@ class ClusteringConfigHandler(object):
             etl_params=collector_detail["etl_params"],
             fields=collector_detail["fields"],
         )
-
-    @staticmethod
-    def check_clustering_config_update(
-        clustering_config,
-        filter_rules,
-        min_members,
-        predefined_varibles,
-        delimeter,
-        max_log_length,
-        is_case_sensitive,
-        clustering_fields,
-        signature_enable,
-    ):
-        """
-        判断是否需要进行对应更新操作
-        """
-        # 此时不需要做任何更新动作
-        if not signature_enable:
-            return False, False, False, False
-        # 此时需要创建service 而不是更新service
-        if not clustering_config.signature_enable:
-            return False, False, False, True
-        change_filter_rules = clustering_config.filter_rules != filter_rules
-        change_model_config = model_to_dict(
-            clustering_config,
-            fields=[
-                "min_members",
-                "predefined_varibles",
-                "delimeter",
-                "max_log_length",
-                "is_case_sensitive",
-            ],
-        ) != {
-            "min_members": min_members,
-            "predefined_varibles": predefined_varibles,
-            "delimeter": delimeter,
-            "max_log_length": max_log_length,
-            "is_case_sensitive": is_case_sensitive,
-        }
-        change_clustering_fields = clustering_config.clustering_fields != clustering_fields
-
-        return change_filter_rules, change_model_config, change_clustering_fields, False
 
     @classmethod
     def pre_check_fields(cls, fields, etl_config, clustering_fields):

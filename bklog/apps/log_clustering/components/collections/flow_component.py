@@ -316,13 +316,10 @@ class UpdateOnlineModelService(BaseService):
 
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
-
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-
         if clustering_config.predict_flow_id:
             # 需要更新 flow中的预测节点 及 更新在线训练任务 训练参数的变动
             DataFlowHandler().update_predict_nodes_and_online_tasks(index_set_id=self.index_set_id)
-
         return True
 
 

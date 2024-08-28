@@ -177,6 +177,10 @@ class UpdateOnlineService(BasePipeLineService):
             clustering_config.save(update_fields=["clustering_fields"])
             current = current.extend(UpdateClusteringField(index_set_id=index_set_id).update_clustering_field)
 
+        if current.type() == start.type():
+            # 没有任何修改则不做处理
+            return None
+
         current.extend(end)
 
         tree = build_tree(start, data=data_context)
