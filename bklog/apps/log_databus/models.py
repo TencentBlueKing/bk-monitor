@@ -172,6 +172,7 @@ class CollectorConfig(CollectorBase):
     bcs_cluster_id = models.CharField(_("bcs集群id"), max_length=128, null=True, blank=True)
     extra_labels = models.JSONField(_("额外字段添加"), null=True, blank=True)
     add_pod_label = models.BooleanField(_("是否自动添加pod中的labels"), default=False)
+    add_pod_annotation = models.BooleanField(_("是否自动添加pod中的annotations"), default=False)
 
     yaml_config_enabled = models.BooleanField(_("是否使用yaml配置模式"), default=False)
     yaml_config = models.TextField(_("yaml配置内容"), default="")
@@ -383,6 +384,7 @@ class ContainerCollectorConfig(SoftDeleteModel):
     container_name = models.TextField(_("容器名称"), null=True, blank=True, default="")
     container_name_exclude = models.TextField(_("容器名称选择排除"), null=True, blank=True, default="")
     match_labels = models.JSONField(_("匹配标签"), null=True, blank=True)
+    match_annotations = models.JSONField(_("匹配注解"), null=True, blank=True)
     match_expressions = models.JSONField(_("匹配表达式"), null=True, blank=True)
     all_container = models.BooleanField(_("所有容器"), default=False)
     status = models.CharField(

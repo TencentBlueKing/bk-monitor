@@ -2422,6 +2422,7 @@ class CollectorViewSet(ModelViewSet):
                 CollectorHandler.container_dict_configs_to_yaml(
                     container_configs=data["configs"],
                     add_pod_label=data["add_pod_label"],
+                    add_pod_annotation=data["add_pod_annotation"],
                     extra_labels=data["extra_labels"],
                 ).encode("utf-8")
             )
