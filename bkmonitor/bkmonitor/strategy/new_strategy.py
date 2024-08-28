@@ -209,8 +209,8 @@ def parse_metric_id(metric_id: str) -> Dict:
             info.update(
                 {
                     "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "result_table_id": ".".join(split_field_list[1:3]),
-                    "metric_field": split_field_list[3],
+                    "result_table_id": ".".join(split_field_list[1:-1]),
+                    "metric_field": split_field_list[-1],
                 }
             )
     elif data_source_label == DataSourceLabel.BK_LOG_SEARCH:
