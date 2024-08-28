@@ -25,21 +25,26 @@ import time
 from apps.log_search.constants import CONTEXT_GSE_INDEX_SIZE
 from apps.log_search.handlers.es.bk_mock_body import (
     BODY_DATA_FOR_CONTEXT,
-    BODY_DATA_FOR_CONTEXT_SCENARIO_ES,
-    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG,
+    BODY_DATA_FOR_TAIL,
+    BODY_DATA_FOR_TAIL_SCENARIO_ES,
+    BODY_DATA_FOR_TAIL_SCENARIO_LOG,
 )
+from apps.log_search.utils import create_context_should_query
 
 
 class DslCreateSearchContextBodyScenarioBkData(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
-        sort_list, size, start, gseindex, path, ip, order, container_id=None, logfile=None
+        sort_list, size, start, gse_index, iteration_idx,dt_event_time_stamp,
+        path, ip, order, container_id=None, logfile=None
         """
         sort_list = kwargs.get("sort_list")
         size = kwargs.get("size")
         start = kwargs.get("start")
-        gseindex = kwargs.get("gseindex")
+        gse_index = kwargs.get("gse_index")
+        iteration_idx = kwargs.get("iteration_idx")
+        dt_event_time_stamp = kwargs.get("dt_event_time_stamp")
         path = kwargs.get("path", "")
         ip = kwargs.get("ip", "")
         order = kwargs.get("order")
@@ -52,23 +57,20 @@ class DslCreateSearchContextBodyScenarioBkData(object):
 
         self._body = None
         body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
-
+        body_should_data = body_data["query"]["bool"]["should"]
+        sort_fields = ["gseindex", "_iteration_idx", "dtEventTimeStamp"]
+        sort_fields_value = [gse_index, iteration_idx, dt_event_time_stamp]
         order_use: str = "asc"
+
+        # 根据排序方式构造查询语句
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["filter"][0]["range"]["gseindex"] = {
-                "lt": int(gseindex),
-                "gt": int(gseindex) - CONTEXT_GSE_INDEX_SIZE,
-            }
-
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
         if order == "+":
-            body_data["query"]["bool"]["filter"][0]["range"]["gseindex"] = {
-                "lt": int(gseindex) + CONTEXT_GSE_INDEX_SIZE,
-                "gte": int(gseindex),
-            }
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
 
         sort = []
-        for item in ["gseindex", "_iteration_idx", "dtEventTimeStamp"]:
+        for item in sort_fields:
             if item in sort_list:
                 sort.append({item: {"order": order_use}})
         body_data["sort"] = sort
@@ -159,34 +161,36 @@ class DslCreateSearchContextBodyScenarioLog(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
-        sort_list, size, start, gseIndex, path, serverIp, order, container_id=None, logfile=None
+        sort_list, size, start, gse_index, iteration_index, dt_event_time_stamp,
+        path, server_ip, order, container_id=None, logfile=None
         """
         sort_list = kwargs.get("sort_list")
         size = kwargs.get("size")
         start = kwargs.get("start")
-        gse_index = kwargs.get("gseIndex")
+        iteration_index = kwargs.get("iteration_index")
+        gse_index = kwargs.get("gse_index")
+        dt_event_time_stamp = kwargs.get("dt_event_time_stamp")
         path = kwargs.get("path")
-        server_ip = kwargs.get("serverIp")
+        server_ip = kwargs.get("server_ip")
         bk_host_id = kwargs.get("bk_host_id")
         order = kwargs.get("order")
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_LOG)
+        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
+        body_should_data = body_data["query"]["bool"]["should"]
+        sort_fields = ["gseIndex", "iterationIndex", "dtEventTimeStamp"]
+        sort_fields_value = [gse_index, iteration_index, dt_event_time_stamp]
         order_use: str = "asc"
+
+        # 根据排序方式构造查询语句
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["filter"][0]["range"]["gseIndex"] = {
-                "lt": int(gse_index),
-                "gt": int(gse_index) - CONTEXT_GSE_INDEX_SIZE,
-            }
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
         if order == "+":
-            body_data["query"]["bool"]["filter"][0]["range"]["gseIndex"] = {
-                "lt": int(gse_index) + CONTEXT_GSE_INDEX_SIZE,
-                "gte": int(gse_index),
-            }
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
 
         sort = []
-        for item in ["gseIndex", "iterationIndex", "dtEventTimeStamp"]:
+        for item in sort_fields:
             if item in sort_list:
                 sort.append({item: {"order": order_use}})
         body_data["sort"] = sort
@@ -257,19 +261,25 @@ class DslCreateSearchContextBodyCustomField:
         if not target_fields or not sort_fields:
             return
 
-        # 取优先级最高的字段为范围查询字段
-        range_field = sort_fields[0]
-        range_field_value: int = params.get(range_field, 0)
+        # 把排序字段为空的字段剔除并记录非空字段的值
+        sort_fields_value = []
+        for _sort_field in sort_fields:
+            _field_value = params.get(_sort_field, "")
+            if _field_value == "":
+                sort_fields.remove(_sort_field)
+            else:
+                sort_fields_value.append(_field_value)
 
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
+        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
+        body_should_data = body_data["query"]["bool"]["should"]
         order_use: str = "asc"
 
+        # 根据排序方式构造查询语句
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["filter"].append({"range": {range_field: {"lt": range_field_value}}})
-
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
         if order == "+":
-            body_data["query"]["bool"]["filter"].append({"range": {range_field: {"gte": range_field_value}}})
+            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
 
         sort = []
         for item in sort_fields:
@@ -322,7 +332,7 @@ class DslCreateSearchTailBodyScenarioBkData:
         ext_container_id = kwargs.get("__ext", {}).get("container_id", "")
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
+        body_data = copy.deepcopy(BODY_DATA_FOR_TAIL)
 
         order_use: str = "asc"
         if zero:
@@ -443,7 +453,7 @@ class DslCreateSearchTailBodyScenarioLog:
         zero = kwargs.get("zero", False)
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_LOG)
+        body_data = copy.deepcopy(BODY_DATA_FOR_TAIL_SCENARIO_LOG)
 
         order_use: str = "asc"
         if zero:
@@ -514,7 +524,7 @@ class DslCreateSearchTailBodyCustomField:
         range_field_value: int = params.get(range_field, 0)
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
+        body_data = copy.deepcopy(BODY_DATA_FOR_TAIL_SCENARIO_ES)
 
         order_use: str = "asc"
         if zero:

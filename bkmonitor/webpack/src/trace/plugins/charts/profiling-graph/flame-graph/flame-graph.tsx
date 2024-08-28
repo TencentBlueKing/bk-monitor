@@ -636,6 +636,7 @@ export default defineComponent({
                 class='menu-item'
                 onClick={() => this.handleContextMenuClick(item)}
               >
+                <i class={`menu-item-icon icon-monitor ${item.icon}`} />
                 <span class='menu-item-text'>{item.name}</span>
               </li>
             ))}

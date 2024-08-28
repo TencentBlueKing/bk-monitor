@@ -197,8 +197,8 @@ ACTION_TASK_CRONTAB = [
     # 分集群任务
     # 定期检测异常告警
     ("alarm_backends.service.alert.manager.tasks.check_abnormal_alert", "* * * * *", "cluster"),
-    # 定期关闭流控告警，避免与整点之类的任务并发，设置每12分钟执行一次
-    ("alarm_backends.service.alert.manager.tasks.check_blocked_alert", "* */1 * * *", "cluster"),
+    # 定期关闭流控告警，避免与整点之类的任务并发，设置每小时执行一次
+    ("alarm_backends.service.alert.manager.tasks.check_blocked_alert", "40 */1 * * *", "cluster"),
     # 定期检测屏蔽策略，进行告警的屏蔽
     ("alarm_backends.service.converge.shield.tasks.check_and_send_shield_notice", "* * * * *", "cluster"),
     # 全局任务
@@ -242,6 +242,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
+    # 关联协议数据同步--cmdb_relation
+    {"metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"},
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [

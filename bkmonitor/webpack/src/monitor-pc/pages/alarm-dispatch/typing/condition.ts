@@ -188,10 +188,10 @@ export async function allKVOptions(
   setData: (type: string, key: string, values: any) => void,
   end?: () => void
 ) {
-  // setData('valueMap', 'is_empty_users', [
-  //   { id: 'true', name: window.i18n.t('是') },
-  //   { id: 'false', name: window.i18n.t('否') }
-  // ]);
+  setData('valueMap', 'is_empty_users', [
+    { id: 'true', name: 'true' },
+    { id: 'false', name: 'false' },
+  ]);
   let i = 0;
   const awaitAll = () => {
     i += 1;

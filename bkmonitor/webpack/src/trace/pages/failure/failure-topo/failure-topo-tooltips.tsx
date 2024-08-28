@@ -33,7 +33,7 @@ import { copyText } from 'monitor-common/utils/utils';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
-import { getNodeAttrs } from './utils';
+import { getNodeAttrs, truncateText } from './utils';
 
 import type { IEdge, ITopoNode } from './types';
 
@@ -327,12 +327,12 @@ export default defineComponent({
               'node-source',
               node?.entity?.is_anomaly && 'node-source-anomaly',
               node?.entity?.is_on_alert && 'node-source-alert',
-              node?.entity?.alert_all_recorved && 'node-source-alert-recorved',
+              node?.alert_all_recorved && 'node-source-alert-recorved',
             ]}
           >
             <span class='node-item'>
               <span>
-                {(node?.entity?.is_on_alert || node?.entity?.alert_all_recorved) && (
+                {(node?.entity?.is_on_alert || node?.alert_all_recorved) && (
                   <span class='alert-wrap'>
                     <i class='icon-monitor icon-menu-event' />
                   </span>
@@ -670,7 +670,7 @@ export default defineComponent({
                 }}
                 class='root-mark'
               >
-                {this.$t('根因')}
+                {truncateText(this.$t('根因'), 28, 11, 'PingFangSC-Medium')}
               </span>
             )}
             {this.showViewResource &&

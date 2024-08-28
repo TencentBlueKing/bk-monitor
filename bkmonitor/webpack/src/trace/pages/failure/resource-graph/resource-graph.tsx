@@ -233,7 +233,7 @@ export default defineComponent({
     const registerCustomNode = () => {
       registerNode('resource-node', {
         afterDraw(cfg, group) {
-          const { entity, is_feedback_root } = cfg as any;
+          const { entity, is_feedback_root, alert_all_recorved } = cfg as any;
           const nodeAttrs = getNodeAttrs(cfg as ITopoNode);
           if (entity.is_root || is_feedback_root) {
             group.addShape('circle', {
@@ -242,7 +242,7 @@ export default defineComponent({
                 lineWidth: 1, // 描边宽度
                 cursor: 'pointer', // 手势类型
                 r: 25, // 圆半径
-                stroke: (cfg as ITopoNode).entity.is_root ? '#F55555' : '#FF9C01',
+                stroke: entity.is_root ? '#F55555' : '#FF9C01',
               },
               name: 'resource-node-root-border',
             });
@@ -255,7 +255,7 @@ export default defineComponent({
                 height: 16,
                 radius: 8,
                 stroke: '#3A3B3D',
-                fill: (cfg as ITopoNode).entity.is_root ? '#F55555' : '#FF9C01',
+                fill: entity.is_root ? '#F55555' : '#FF9C01',
               },
               name: 'resource-node-rect',
             });
@@ -274,7 +274,7 @@ export default defineComponent({
               name: 'resource-node-text',
             });
           }
-          if (entity.is_on_alert || entity.alert_all_recorved) {
+          if (entity.is_on_alert || alert_all_recorved) {
             group.addShape('circle', {
               attrs: {
                 x: 15,

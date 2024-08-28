@@ -151,12 +151,16 @@ class SearchHandler(object):
         can_highlight=True,
         export_fields=None,
         export_log: bool = False,
+        only_for_agg: bool = False,
     ):
         # 请求用户名
         self.request_username = get_request_external_username() or get_request_username()
 
         self.search_dict: dict = search_dict
         self.export_log = export_log
+
+        # 是否只用于聚合，可以简化某些查询语句
+        self.only_for_agg = only_for_agg
 
         # 透传查询类型
         self.index_set_id = index_set_id
@@ -391,7 +395,8 @@ class SearchHandler(object):
         @param field_result:
         @return:
         """
-        result = MappingHandlers.async_export_fields(field_result, self.scenario_id)
+        sort_fields = self.index_set.sort_fields if self.index_set else []
+        result = MappingHandlers.async_export_fields(field_result, self.scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
         return False, {"usable_reason": result["async_export_usable_reason"]}
@@ -1393,7 +1398,9 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioBkData(
                 size=self.size,
                 start=self.start,
-                gseindex=self.gseindex,
+                gse_index=self.gseindex,
+                iteration_idx=self.iterationIdx,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
                 ip=self.ip,
                 bk_host_id=self.bk_host_id,
@@ -1407,9 +1414,11 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioLog(
                 size=self.size,
                 start=self.start,
-                gseIndex=self.gseIndex,
+                gse_index=self.gseIndex,
+                iteration_index=self.iterationIndex,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
-                serverIp=self.serverIp,
+                server_ip=self.serverIp,
                 bk_host_id=self.bk_host_id,
                 container_id=self.container_id,
                 logfile=self.logfile,
@@ -1559,6 +1568,10 @@ class SearchHandler(object):
             return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
 
     def _init_sort(self) -> list:
+        if self.only_for_agg:
+            # 仅聚合时无需排序
+            return []
+
         index_set_id = self.search_dict.get("index_set_id")
         # 获取用户对sort的排序需求
         sort_list: List = self.search_dict.get("sort_list", [])
@@ -1997,7 +2010,6 @@ class SearchHandler(object):
 
         # find the search one
         _index: int = -1
-        _count_start: int = -1
         if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
             for index, item in enumerate(log_list):
                 gseindex: str = item.get("gseindex")
@@ -2007,10 +2019,6 @@ class SearchHandler(object):
                 container_id: str = item.get("container_id")
                 logfile: str = item.get("logfile")
                 _iteration_idx: str = item.get("_iteration_idx")
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseindex) == mark_gseindex:
-                        _count_start = index
 
                 if (
                     (
@@ -2042,10 +2050,7 @@ class SearchHandler(object):
                 bk_host_id: int = item.get("bk_host_id")
                 path: str = item.get("path", "")
                 iterationIndex: str = item.get("iterationIndex")  # pylint: disable=invalid-name
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseIndex) == mark_gseIndex:
-                        _count_start = index
+
                 if (
                     self.gseIndex == str(gseIndex)
                     and self.bk_host_id == bk_host_id
@@ -2062,14 +2067,6 @@ class SearchHandler(object):
 
         elif self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
             for index, item in enumerate(log_list):
-                _sort_value = item.get(sort_fields[0])
-                check_value = self.search_dict.get(sort_fields[0])
-                # find the counting range point
-                if _count_start == -1:
-                    _sort_value = item.get(sort_fields[0])
-                    if _sort_value and str(_sort_value) == str(check_value):
-                        _count_start = index
-
                 for field in sort_fields + target_fields:
                     if str(item.get(field)) != str(self.search_dict.get(field)):
                         break
@@ -2077,6 +2074,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
+        _count_start = _index
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
 
     def _analyze_empty_log(self, log_list: List[Dict[str, Any]]):

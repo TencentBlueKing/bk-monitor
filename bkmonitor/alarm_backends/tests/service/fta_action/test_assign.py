@@ -775,6 +775,7 @@ def init_configs():
     init_action_plugin()
     ALERT_SNAPSHOT_KEY.client.flushall()
     AssignCacheManager.refresh()
+    AssignCacheManager.clear()
     ActionConfigCacheManager.refresh()
 
 

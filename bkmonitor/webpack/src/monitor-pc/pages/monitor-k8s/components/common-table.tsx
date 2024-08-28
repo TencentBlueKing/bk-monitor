@@ -228,11 +228,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     this.tableSize = this.defaultSize;
   }
   // 常用值格式化
-  commonFormatter(val: ITableItem<'string'>) {
+  commonFormatter(val: ITableItem<'string'>, column: ITableColumn) {
     if (typeof val !== 'number' && !val) return '--';
     return (
       <span class='string-col'>
-        <TextOverflowCopy val={val} />
+        <TextOverflowCopy
+          isEveryCopy={column.name === 'Span Name'}
+          val={val}
+        />
       </span>
     );
   }
@@ -497,7 +500,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   progressFormatter(val: ITableItem<'progress'>) {
     return val ? (
       <div class='common-table-progress'>
-        <div class='table-progress-text'>{val.label || '--'}</div>
+        <div class='table-progress-text'>{val.label ?? val.value ?? '--'}</div>
         <bk-progress
           class={['common-progress-color', `color-${val.status}`]}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
@@ -643,7 +646,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       case 'more_operate':
         return this.moreOperateFormatter(value as ITableItem<'more_operate'>);
       default:
-        return this.commonFormatter(value as ITableItem<'string'>);
+        return this.commonFormatter(value as ITableItem<'string'>, column);
     }
   }
   /**
@@ -718,7 +721,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   ? () => column.renderHeader()
                   : undefined
             }
-            formatter={(row: TableRow) => this.handleSetFormatter(column.id, row)}
+            formatter={(row: TableRow) => this.handleSetFormatter(column.id, { ...this.overviewData, ...row })}
             label={column.name}
             prop={column.id}
             show-overflow-tooltip={showOverflowTooltip}

@@ -48,7 +48,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace'],
+  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace', 'changeTab'],
   setup(props, { emit }) {
     /** 左侧头部菜单 */
     const { t } = useI18n();
@@ -126,6 +126,9 @@ export default defineComponent({
     const handleSpace = (value: string[]) => {
       emit('changeSpace', value);
     };
+    const changeTab = () => {
+      emit('changeTab');
+    };
     return {
       active,
       tabList,
@@ -139,6 +142,7 @@ export default defineComponent({
       chooseOperation,
       refNav,
       handleRefNavRefresh,
+      changeTab
     };
   },
   render() {
@@ -165,6 +169,7 @@ export default defineComponent({
               onNodeClick={this.nodeClick}
               onNodeExpand={this.nodeExpand}
               onTreeScroll={this.treeScroll}
+              onChangeTab={this.changeTab}
             />
           </KeepAlive>
         </div>

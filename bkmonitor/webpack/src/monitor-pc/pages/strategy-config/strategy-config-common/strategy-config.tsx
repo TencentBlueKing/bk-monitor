@@ -1286,8 +1286,20 @@ class StrategyConfig extends Mixins(UserConfigMixin) {
          * 如果该筛选项没有子级，就暂时使用Url传递的值构造一个id为值的对象,等待接口返回后在进行处理
          */
         if (data?.length) {
-          values = data.filter(child => item.value.includes(child.id));
-        } else {
+          values = data.reduce((values, cur) => {
+            if (Array.isArray(cur.children)) {
+              values.push(...cur.children.filter(child => item.value.includes(child.id)));
+            } else {
+              item.value.includes(cur.id) && values.push(cur);
+            }
+            return values;
+          }, []);
+        } else if (typeof item.value === 'string') {
+          return {
+            id: item.value,
+            name: item.value,
+          };
+        } else if (Array.isArray(item.value)) {
           values = item.value.map(id => ({
             id,
             name: id,

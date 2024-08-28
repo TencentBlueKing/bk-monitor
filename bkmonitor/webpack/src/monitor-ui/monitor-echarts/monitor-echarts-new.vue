@@ -234,7 +234,6 @@
   </div>
 </template>
 <script lang="ts">
-import type { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { type ResizeCallback, addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -256,6 +255,10 @@ import TextChart from './components/text-chart.vue';
 import './map/china';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
+import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
+import watermarkMaker from './utils/watermarkMaker';
+import { getValueFormat } from './valueFormats';
+
 import type {
   ChartType,
   IAnnotation,
@@ -267,9 +270,7 @@ import type {
   ITextChartOption,
   ITextSeries,
 } from './options/type-interface';
-import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
-import watermarkMaker from './utils/watermarkMaker';
-import { getValueFormat } from './valueFormats';
+import type { CreateElement } from 'vue';
 
 interface ICurValue {
   xAxis: number | string;
@@ -374,7 +375,10 @@ export default class MonitorEcharts extends Vue {
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
-  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: string[]) => void;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (
+    value: string[],
+    immediateQuery?: boolean
+  ) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   // chart: Echarts.ECharts = null
   resizeHandler: ResizeCallback<HTMLDivElement>;
@@ -818,6 +822,7 @@ export default class MonitorEcharts extends Vue {
         if (this.chartOption.grid) {
           optionData.options.grid.bottom = this.chartOption.grid.bottom;
         }
+        debugger;
         setTimeout(() => {
           if (this.chart) {
             let options = deepMerge(optionData.options, this.defaultOptions);
@@ -861,7 +866,7 @@ export default class MonitorEcharts extends Vue {
                         type: 'restore',
                       });
                       if (this.enableSelectionRestoreAll) {
-                        this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
+                        this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)), true);
                       } else {
                         await this.handleSeriesData(timeFrom, timeTo);
                       }
