@@ -728,7 +728,13 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                 ) : (
                   ''
                 )}
-                <span class={'status-label-status'}> {this.eventStatusMap?.[status]?.name || '--'}</span>
+                <span
+                  class={'status-label-status'}
+                  v-bk-overflow-tips
+                >
+                  {' '}
+                  {this.eventStatusMap?.[status]?.name || '--'}
+                </span>
               </span>
             </div>
           ),
