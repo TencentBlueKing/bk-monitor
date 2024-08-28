@@ -36,7 +36,8 @@ import CompareGraphTools from '../../apm-time-series/components/compare-topo-ful
 import './apm-relation-topo.scss';
 type ApmRelationTopoProps = {
   data: any;
-  activeNode: string;
+  activeNode: string[];
+  scene: string;
 };
 
 type ApmRelationTopoEvent = {
@@ -47,6 +48,7 @@ interface INodeModelConfig extends ModelConfig {
   lineDash?: number[];
   stroke?: string;
   size?: number;
+  disabled?: boolean;
 }
 
 interface IEdgeModelConfig extends ModelConfig {
@@ -64,7 +66,8 @@ const LIMIT_WORKER_ENABLED = 500;
 @Component
 export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelationTopoEvent> {
   @Prop() data: any;
-  @Prop() activeNode: string;
+  @Prop() activeNode: string[];
+  @Prop() scene: string;
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('graphToolsPanel') graphToolsPanelRef: HTMLDivElement;
   @Ref('topoGraphContent') topoGraphContentRef: HTMLDivElement;
@@ -144,14 +147,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     ],
   };
 
-  /** 图例筛选条件 */
-  legendFiltersSelect = {
-    status: '',
-    size: '',
-    lineType: 'request',
-    lineValue: '',
-  };
-
   /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
     const curNodeLen = this.data?.nodes?.length || 0;
@@ -188,6 +183,46 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Watch('data')
   handleDataChange() {
     this.initGraph();
+  }
+
+  // 节点菜单
+  contextMenu() {
+    return new G6.Menu({
+      className: 'node-menu-container',
+      trigger: 'contextmenu',
+      // 是否阻止行为发生
+      shouldBegin(evt) {
+        if (evt.item) return true;
+        return false;
+      },
+      // 菜单项内容
+      getContent(evt) {
+        const { item } = evt;
+        if (!item) return;
+        const itemType = item.getType();
+        const model = item.getModel() as any;
+        if (itemType && model) {
+          return `<ul>
+            ${model.menu
+              .map(
+                target =>
+                  `<li id='${JSON.stringify(target)}'>
+                    <span class="icon-monitor node-menu-icon ${target.icon}"></span>
+                    ${target.name}
+                   </li>`
+              )
+              .join('')}
+            </ul>`;
+        }
+      },
+      handleMenuClick: (target, item) => this.handleNodeMenuClick(target, item),
+      // 在哪些类型的元素上响应 node：节点 | canvas：画布
+      itemTypes: ['node'],
+    });
+  }
+
+  handleNodeMenuClick(target, item) {
+    console.log(target, item);
   }
 
   initGraph() {
@@ -248,7 +283,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         container: this.thumbnailToolRef,
         size: [236, 146],
       });
-      const plugins = [minimap];
+      const plugins = [
+        minimap,
+        this.contextMenu(), // 节点菜单
+      ];
       this.graph = new G6.Graph({
         container: this.relationGraphRef as HTMLElement, // 指定挂载容器
         width: this.canvasWidth,
@@ -291,13 +329,20 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       });
       this.bindListener(this.graph); // 图监听事件
       this.graph.read(this.data); // 读取数据源并渲染
-      this.graph.setItemState(this.activeNode, 'active', true);
-      this.graph.setItemState(this.activeNode, 'active', true);
+      const nodes = this.graph.findAll('node', node => this.activeNode.includes(node.getID()));
+      const activeEdge: IEdge[] = nodes.reduce((pre, node: INode) => {
+        node.setState('active', true);
+        pre.push(...node.getEdges());
+        return pre;
+      }, []);
+      for (const edge of activeEdge) {
+        edge.setState('active', true);
+      }
     }, 30);
   }
 
   drawNode(cfg: INodeModelConfig, group: IGroup) {
-    const { size = 36 } = cfg;
+    const { size = 36, disabled } = cfg;
 
     group.addShape('circle', {
       attrs: {
@@ -312,8 +357,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const keyShape = group.addShape('circle', {
       attrs: {
         fill: '#fff', // 填充颜色,
-        stroke: cfg.stroke || '#2DCB56', // 描边颜色
-        lineWidth: 4, // 描边宽度
+        stroke: disabled ? '#DCDEE5' : cfg.stroke || '#2DCB56', // 描边颜色
+        lineWidth: disabled ? 2 : 4, // 描边宽度
         r: size,
         cursor: 'pointer',
         lineDash: cfg.lineDash || [],
@@ -329,7 +374,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         opacity: 0.2,
         cursor: 'pointer',
       },
-      visible: cfg.id === this.activeNode,
+      visible: false,
       name: 'custom-node-active-circle',
     });
 
@@ -341,7 +386,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         opacity: 0.1,
         cursor: 'pointer',
       },
-      visible: cfg.id === this.activeNode,
+      visible: false,
       name: 'custom-node-active-circle',
     });
 
@@ -354,6 +399,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           height: 24,
           img: cfg.icon,
           cursor: 'pointer',
+          opacity: disabled ? 0.4 : 1,
         },
         name: 'node-icon',
       });
@@ -371,6 +417,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         fontWeight: 700,
         lineHeight: 12,
         cursor: 'pointer',
+        opacity: disabled ? 0.4 : 1,
       },
       name: 'text-shape',
     });
@@ -397,27 +444,37 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   bindListener(graph: Graph) {
     graph.on('node:click', evt => {
       const { item } = evt;
-      const { id } = item._cfg;
+      const { id, model } = item._cfg;
+      if (model.disabled) return;
       for (const node of graph.getNodes()) {
         node.setState('active', item._cfg.id === node._cfg.id);
+      }
+      const allEdges = this.graph.getEdges();
+      const nodeEdges = (item as INode).getEdges();
+      for (const edge of allEdges) {
+        edge.setState('active', nodeEdges.includes(edge));
       }
       this.$emit('nodeClick', id);
     });
 
     graph.on('node:mouseenter', evt => {
       const { item } = evt;
+      const { model } = item._cfg;
+      if (model.disabled) return;
       graph.setItemState(item, 'hover', true);
     });
 
     graph.on('node:mouseleave', evt => {
       const { item } = evt;
+      const { model } = item._cfg;
+      if (model.disabled) return;
       graph.setItemState(item, 'hover', false);
     });
   }
 
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
-    const { size = 36 } = item.getModel() as INodeModelConfig;
+    const { size = 36, stroke = '#2DCB56' } = item.getModel() as INodeModelConfig;
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
       item.toBack();
@@ -453,24 +510,30 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       for (const shape of activeCircle) {
         value ? shape.show() : shape.hide();
       }
-      if (value) {
-        const allEdges = this.graph.getEdges();
-        const nodeEdges = item.getEdges();
-        for (const edge of allEdges) {
-          edge.setState('active', nodeEdges.includes(edge));
-        }
-      }
     }
 
     if (name === 'disabled') {
+      const textShape = group.find(e => e.get('name') === 'text-shape');
+      const nodeIcon = group.find(e => e.get('name') === 'node-icon');
+      const nodeKeyShape = group.find(e => e.get('name') === 'custom-node-keyShape');
+      textShape.attr({
+        opacity: value ? 0.4 : 1,
+      });
+      nodeIcon.attr({
+        opacity: value ? 0.4 : 1,
+      });
+      nodeKeyShape.attr({
+        stroke: value ? '#DCDEE5' : stroke,
+        lineWidth: value ? 2 : 4,
+      });
     }
   }
 
   setEdgeState(name: string, value: boolean | string, item: IEdge) {
     const group = item.get('group');
+    const keyShape: IShape = group.get('children')[0];
 
     if (name === 'active') {
-      const keyShape: IShape = group.find(ele => ele.get('name') === 'edge-shape');
       if (value) {
         let index = 0; // 边 path 图形的动画
         // 设置边动画
@@ -497,7 +560,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         });
       } else {
         keyShape.stopAnimate();
-        console.log(keyShape.attr());
         keyShape.attr({
           stroke: '#C4C6CC',
           lineDashOffset: 0,
@@ -588,35 +650,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.toolsPopoverInstance.show();
   }
 
-  handleNodeColorChange(value: string) {
-    if (this.legendFiltersSelect.status === value) {
-      this.legendFiltersSelect.status = '';
-    } else {
-      this.legendFiltersSelect.status = value;
-    }
-  }
-
-  handleNodeSizeChange(value: string) {
-    if (this.legendFiltersSelect.size === value) {
-      this.legendFiltersSelect.size = '';
-    } else {
-      this.legendFiltersSelect.size = value;
-    }
-  }
-
-  handleLineTypeChange(type: string) {
-    if (this.legendFiltersSelect.lineType === type) return;
-    this.legendFiltersSelect.lineType = type;
-  }
-
-  handleDurationChange(value: string) {
-    if (this.legendFiltersSelect.lineValue === value) {
-      this.legendFiltersSelect.lineValue = '';
-    } else {
-      this.legendFiltersSelect.lineValue = value;
-    }
-  }
-
   reset() {
     this.showLegend = false;
     this.showThumbnail = false;
@@ -673,18 +706,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                     {this.legendFilter.nodeColor.map(item => (
                       <div
                         key={item.id}
-                        class={{
-                          'color-item': true,
-                          active: this.legendFiltersSelect.status === item.id || !this.legendFiltersSelect.status,
-                        }}
-                        onClick={() => this.handleNodeColorChange(item.id)}
+                        class='color-item'
                       >
                         <div
                           style={{
-                            background:
-                              this.legendFiltersSelect.status && this.legendFiltersSelect.status !== item.id
-                                ? '#ccc'
-                                : item.color,
+                            background: item.color,
                           }}
                           class='color-mark'
                         />
@@ -700,14 +726,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                       <div
                         key={item.id}
                         class='node-item'
-                        onClick={() => this.handleNodeSizeChange(item.id)}
                       >
-                        <div
-                          class={{
-                            radio: true,
-                            active: this.legendFiltersSelect.size === item.id,
-                          }}
-                        />
+                        <div class='radio' />
                         <span>{item.label}</span>
                       </div>
                     ))}
@@ -717,22 +737,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                   <div class='filter-title line'>
                     {this.$t('连接线')}
                     <div class='line-type'>
-                      <div
-                        class={{ active: this.legendFiltersSelect.lineType === 'request' }}
-                        onClick={() => this.handleLineTypeChange('request')}
-                      >
-                        {this.$t('请求量')}
-                      </div>
-                      <div
-                        class={{ active: this.legendFiltersSelect.lineType === 'duration' }}
-                        onClick={() => this.handleLineTypeChange('duration')}
-                      >
-                        {this.$t('耗时')}
-                      </div>
+                      <div class={{ active: this.scene === 'request' }}>{this.$t('请求量')}</div>
+                      <div class={{ active: this.scene === 'duration' }}>{this.$t('耗时')}</div>
                     </div>
                   </div>
                   <div class='filter-list connect-line'>
-                    {this.legendFiltersSelect.lineType === 'request'
+                    {this.scene === 'request'
                       ? [
                           <div
                             key='1'
@@ -767,14 +777,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                           <div
                             key={item.id}
                             class='duration-item'
-                            onClick={() => this.handleDurationChange(item.id)}
                           >
-                            <div
-                              class={{
-                                radio: true,
-                                active: this.legendFiltersSelect.lineValue === item.id,
-                              }}
-                            />
+                            <div class='radio' />
                             <span>{item.label}</span>
                           </div>
                         ))}
