@@ -1,6 +1,7 @@
 <script setup>
   import { ref, computed } from 'vue';
   import useLocale from '@/hooks/use-locale';
+  import SelectIndexSet from '../condition-comp/select-index-set.tsx';
 
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI语句'), $t('SQL语句')]);
@@ -28,7 +29,7 @@
         >
       </div>
 
-      <bk-select style="width: 200px;margin: 0 12px;"></bk-select>
+      <SelectIndexSet style="width: 200px;margin: 0 12px;"></SelectIndexSet>
       <span class="query-history">
         <span class="log-icon icon-lishijilu"></span>
         <span>{{ $t('历史查询') }}</span>

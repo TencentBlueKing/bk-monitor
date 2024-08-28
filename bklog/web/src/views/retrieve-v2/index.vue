@@ -81,15 +81,15 @@
   };
 
   const fetchPageData = async () => {
-        // 有spaceUid且有业务权限时 才去请求索引集列表
-        if (!authMainPageInfo.value && spaceUid.value) {
-          // 收藏侧边栏打开且 则先获取到收藏列表再获取索引集列表
-          this.isShowCollect && (await this.getFavoriteList());
-          this.requestIndexSetList();
-        } else {
-          this.isFirstLoad = false;
-        }
-      }
+    // 有spaceUid且有业务权限时 才去请求索引集列表
+    if (!authMainPageInfo.value && spaceUid.value) {
+      // 收藏侧边栏打开且 则先获取到收藏列表再获取索引集列表
+      this.isShowCollect && (await this.getFavoriteList());
+      this.requestIndexSetList();
+    } else {
+      this.isFirstLoad = false;
+    }
+  };
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
