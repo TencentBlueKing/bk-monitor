@@ -6,23 +6,6 @@
   background: #FFFFFF;
   box-shadow: 0 3px 4px 0 #4070cb0f;
 
-  .box-favorites {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 110px;
-    height: 100%;
-
-    font-size: 14px;
-    color: #63656E;
-    border-right: solid 1px #DCDEE5;
-
-    .log-icon {
-      font-size: 18px;
-      transform: rotate(90deg);
-    }
-  }
-
   .box-biz-select {
     display: flex;
     align-items: center;

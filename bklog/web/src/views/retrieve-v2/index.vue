@@ -25,15 +25,52 @@
 -->
 
 <script setup>
-import { ref } from 'vue';
-import SearchBar from './search-bar/index.vue';
-import SubBar from './sub-bar/index.vue';
+  import { ref } from 'vue';
+  import SearchBar from './search-bar/index.vue';
+  import SubBar from './sub-bar/index.vue';
+  import CollectFavorites from './collect/collect-index';
 
+  const showFavorites = ref(false);
+  const favoriteList = ref([]);
+  const activeFavoriteID = ref(-1);
+
+  const handleFavoritesClick = () => {
+    showFavorites.value = !showFavorites.value;
+  };
 </script>
 <template>
-  <div class="retrieve-v2-index">
-    <SubBar />
+  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
+    <div class="sub-head">
+      <div
+        class="box-favorites"
+        @click="handleFavoritesClick"
+      >
+        <div
+          v-if="showFavorites"
+          class="collet-label"
+        >
+          <div class="left-info">
+            <span class="collect-title">{{ $t('收藏夹') }}</span>
+            <span class="collect-count">50</span>
+            <span class="collect-edit log-icon icon-wholesale-editor"></span>
+          </div>
+          <span class="log-icon icon-collapse-small"></span>
+        </div>
+        <template v-else>
+          <span :class="['log-icon icon-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
+        </template>
+      </div>
+      <SubBar />
+    </div>
     <div class="retrieve-body">
+      <CollectFavorites
+        v-if="showFavorites"
+        class="collect-favorites"
+        :width="240"
+        :isShow="showFavorites"
+        :favoriteList="favoriteList"
+        :activeFavoriteID="activeFavoriteID"
+      ></CollectFavorites>
       <SearchBar></SearchBar>
       <div class="result-row"></div>
       <div class="result-row"></div>
@@ -41,5 +78,5 @@ import SubBar from './sub-bar/index.vue';
   </div>
 </template>
 <style scoped>
-@import './index.scss';
+  @import './index.scss';
 </style>
