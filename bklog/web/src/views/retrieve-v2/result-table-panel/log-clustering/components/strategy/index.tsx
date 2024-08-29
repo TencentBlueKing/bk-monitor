@@ -338,7 +338,7 @@ export default class Strategy extends tsc<object> {
         <div slot='title'>
           <i18n path='当前页面提供快速配置，如需完整配置，请前往{0}'>
             <span class='info-btn'>
-              {$i18n.t('新建完整策略')} <i class='log-icon icon-jump'></i>
+              {$i18n.t('新建完整策略')} <i class='bklog-icon bklog-jump'></i>
             </span>
           </i18n>
         </div>
@@ -521,7 +521,7 @@ export default class Strategy extends tsc<object> {
             <span>{$i18n.t('查看策略')}</span>
             <i
               style={{ 'margin-left': '4px' }}
-              class='log-icon icon-jump'
+              class='bklog-icon bklog-jump'
             ></i>
           </bk-button>
         )}

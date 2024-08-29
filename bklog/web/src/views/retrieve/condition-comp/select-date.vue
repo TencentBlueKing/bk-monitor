@@ -72,7 +72,7 @@
             {{ shortText }}
           </div>
           <div class="icon-wrapper">
-            <span class="log-icon icon-date-picker"></span>
+            <span class="bklog-icon bklog-date-picker"></span>
           </div>
         </div>
       </template>

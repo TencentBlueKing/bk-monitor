@@ -56,7 +56,7 @@
       class="menu-list"
     >
       <span
-        class="log-icon icon-xiangji"
+        class="bklog-icon bklog-xiangji"
         data-test-id="generalTrendEcharts_span_downloadEcharts"
         @click.stop="handleMenuClick({ id: 'screenshot' })"
       >
@@ -180,7 +180,7 @@
       top: 16px;
       right: 36px;
 
-      .log-icon {
+      .bklog-icon {
         font-size: 14px;
         color: #979ba5;
         cursor: pointer;

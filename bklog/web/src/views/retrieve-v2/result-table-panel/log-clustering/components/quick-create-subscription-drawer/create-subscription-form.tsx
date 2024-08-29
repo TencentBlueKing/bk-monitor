@@ -735,7 +735,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     style='font-size: 26px;'
                     class={[
                       'icon-monitor',
-                      this.isShowAdvancedOption ? 'log-icon icon-expand-small' : 'log-icon icon-collapse-small',
+                      this.isShowAdvancedOption ? 'bklog-icon bklog-expand-small' : 'bklog-icon bklog-collapse-small',
                     ]}
                   ></i>
                 </div>
@@ -951,7 +951,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                                 <span style='width: calc(100% - 20px);'>{row.name}</span>
                                 <i
                                   style='font-size: 16px; margin-left: 5px; color: #3A84FF; cursor: pointer;'
-                                  class='log-icon icon-copy-2'
+                                  class='bklog-icon bklog-copy-2'
                                   onClick={() => {
                                     this.handleCopy(row.name);
                                   }}
@@ -1044,7 +1044,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     <span style='margin-left: 10px;'>
                       <i
                         style='margin-right: 10px; color: #EA3636; font-size: 14px;'
-                        class='log-icon icon-info-fill'
+                        class='bklog-icon bklog-info-fill'
                       ></i>
                       <span style='color: #63656E; font-size: 12px;'>{this.$t('给他人订阅需要经过管理员审批')}</span>
                     </span>

@@ -58,7 +58,7 @@
             :class="['result-icon-box', { 'light-icon': !showRetrieveCondition }]"
             @click="handleClickResultIcon('search')"
           >
-            <span class="bk-icon log-icon icon-jiansuo"></span>
+            <span class="bk-icon bklog-icon bklog-jiansuo"></span>
           </div>
           <template #content>
             <div>{{ iconSearchStr }}</div>
@@ -98,7 +98,7 @@
         <slot name="trigger">
           <div class="auto-refresh-trigger">
             <span
-              :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
+              :class="['bklog-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
               data-test-id="retrieve_span_periodicRefresh"
               @click.stop="handleRefreshDebounce"
             ></span>
@@ -137,7 +137,7 @@
       >
         <slot name="trigger">
           <div class="more-operation">
-            <i class="bk-icon log-icon icon-ellipsis-more"></i>
+            <i class="bk-icon bklog-icon bklog-ellipsis-more"></i>
           </div>
         </slot>
         <template #content>
@@ -292,7 +292,7 @@
           },
         ],
         routeNameList: {
-          
+
           log: 'manage-collection',
           custom: 'custom-report-detail',
           bkdata: 'bkdata-index-set-manage',
@@ -677,7 +677,7 @@
       white-space: nowrap;
       cursor: pointer;
 
-      .log-icon {
+      .bklog-icon {
         padding: 0 5px 0 17px;
         font-size: 14px;
         color: #63656e;

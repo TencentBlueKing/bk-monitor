@@ -218,7 +218,7 @@
 </script>
 <template>
   <div class="subbar-container">
-    <!-- <div class="box-favorites"><span class="log-icon icon-collapse-small"></span>{{ $t('收藏夹') }}</div> -->
+    <!-- <div class="box-favorites"><span class="bklog-icon bklog-collapse-small"></span>{{ $t('收藏夹') }}</div> -->
     <div class="box-biz-select"><BizMenuSelect theme="light"></BizMenuSelect></div>
     <div class="box-right-option">
       <bk-popover
@@ -234,7 +234,7 @@
       >
         <slot name="trigger">
           <div class="field-setting">
-            <i class="log-icon icon-setting"></i>
+            <i class="bklog-icon bklog-setting"></i>
             {{ $t('字段配置') }}
           </div>
         </slot>
@@ -265,7 +265,7 @@
         >
           <slot name="trigger">
             <div class="more-operation">
-              <span class="log-icon icon-ellipsis-more"></span>
+              <span class="bklog-icon bklog-ellipsis-more"></span>
             </div>
           </slot>
           <template #content>

@@ -279,7 +279,7 @@
       },
       getMenuIcon(item) {
         if (item.icon) {
-          return `bk-icon log-icon icon-${item.icon}`;
+          return `bk-icon bklog-icon bklog-${item.icon}`;
         }
 
         return 'bk-icon icon-home-shape';

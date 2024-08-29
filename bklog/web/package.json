@@ -47,6 +47,7 @@
     "qs": "^6.11.2",
     "resize-detector": "0.3.0",
     "throttle-debounce": "^5.0.0",
+    "tippy.js": "^6.3.7",
     "vue": "v2-latest",
     "vue-class-component": "7.2.6",
     "vue-i18n": "8.11.2",

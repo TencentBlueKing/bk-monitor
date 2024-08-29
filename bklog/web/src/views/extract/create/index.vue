@@ -81,7 +81,7 @@
         {{ $t('目录或文件名') }}
         <span class="required">*</span>
         <span
-          class="log-icon icon-info-fill"
+          class="bklog-icon bklog-info-fill"
           v-bk-tooltips="`${$t('以')}/${$t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`"
         >
         </span>

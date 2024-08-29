@@ -256,7 +256,7 @@
                   data-test-id="fieldExtractionBox_span_applyTemp"
                   @click="openTemplateDialog(false)"
                 >
-                  <span class="log-icon icon-daoru"></span>
+                  <span class="bklog-icon bklog-daoru"></span>
                   {{ $t('应用模版') }}
                 </span>
               </div>
@@ -265,7 +265,7 @@
                 class="documentation button-text"
                 @click="handleGotoLink('logExtract')"
               >
-                <span>{{ $t('说明文档') }}</span> <span class="log-icon icon-jump"></span>
+                <span>{{ $t('说明文档') }}</span> <span class="bklog-icon bklog-jump"></span>
               </p>
             </div>
 
@@ -287,7 +287,7 @@
               <template v-if="params.etl_config === 'bk_log_regexp'">
                 <span
                   style="margin-left: 10px; color: #979ba5; cursor: pointer"
-                  class="log-icon icon-info-fill fl"
+                  class="bklog-icon bklog-info-fill fl"
                   v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
                 ></span>
                 <div id="reg-tip">
@@ -482,7 +482,7 @@
                       @click="handleGotoLink('bkBase')"
                     >
                       {{ $t('计算平台文档') }}
-                      <span class="log-icon icon-lianjie"></span>
+                      <span class="bklog-icon bklog-lianjie"></span>
                     </a>
                   </i18n>
                 </span>

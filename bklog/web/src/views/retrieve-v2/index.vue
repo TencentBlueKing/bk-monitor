@@ -64,22 +64,23 @@
   };
 
   const getIndexSetList = () => {
-    console.log('spaceUid', spaceUid.value);
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value });
   };
 
   watch(
     indexItem,
     () => {
-      const { ids } = indexItem.value;
+      const { ids, isUnionIndex } = indexItem.value;
       const indexId = ids?.[0];
+      const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] };
+      const query = isUnionIndex
+        ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
+        : route.query;
+
       if (indexId) {
         router.push({
-          params: {
-            ...route.params,
-            indexId,
-          },
-          query: route.query,
+          params,
+          query,
         });
       }
     },
@@ -149,17 +150,17 @@
             <span class="collect-title">{{ $t('收藏夹') }}</span>
             <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
             <span
-              class="collect-edit log-icon icon-wholesale-editor"
+              class="collect-edit bklog-icon bklog-wholesale-editor"
               @click="handleEditFavoriteGroup"
             ></span>
           </div>
           <span
-            class="log-icon icon-collapse-small"
+            class="bklog-icon bklog-collapse-small"
             @click="handleFavoritesClose"
           ></span>
         </div>
         <template v-else>
-          <span :class="['log-icon icon-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
+          <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
       <SubBar

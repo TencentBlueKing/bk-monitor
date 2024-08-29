@@ -101,7 +101,7 @@
               >
                 <div class="row-left">
                   <div class="row-left-index">
-                    <span class="icon log-icon icon-drag-dots"></span><span>{{ index }}</span>
+                    <span class="icon bklog-icon bklog-drag-dots"></span><span>{{ index }}</span>
                   </div>
                   <div class="regular-container">
                     <register-column

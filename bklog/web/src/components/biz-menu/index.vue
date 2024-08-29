@@ -121,7 +121,7 @@
           class="menu-select-extension-item"
           @mousedown.stop="experienceDemo"
         >
-          <span class="icon log-icon icon-app-store"></span>
+          <span class="icon bklog-icon bklog-app-store"></span>
           {{ $t('体验DEMO') }}
         </div>
       </div>

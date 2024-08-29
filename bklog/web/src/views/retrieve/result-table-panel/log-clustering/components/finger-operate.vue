@@ -132,7 +132,7 @@
             <span>
               <span class="title">{{ $t('维度') }}</span>
               <i
-                class="notice log-icon icon-help"
+                class="notice bklog-icon bklog-help"
                 v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
               ></i>
             </span>
@@ -233,7 +233,7 @@
                           class="top-end"
                           v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
                         >
-                          <i class="log-icon icon-help"></i>
+                          <i class="bklog-icon bklog-help"></i>
                         </span>
                       </div>
                     </div>
@@ -652,7 +652,7 @@
     border-color: #dcdee5;
 
     &:hover,
-    .log-icon {
+    .bklog-icon {
       color: #c4c6cc;
       border-color: #dcdee5;
     }

@@ -64,7 +64,7 @@
             @click="handleNavClick(item)"
           >
             <div>
-              <span class="log-icon icon-block-shape"></span>
+              <span class="bklog-icon bklog-block-shape"></span>
               <span>{{ item.name }}</span>
             </div>
             <div @click.stop="stopChangeSwitch(item)">
@@ -116,7 +116,7 @@
               @click="handleClickDetail"
             >
               {{ $t('更多详情') }}
-              <span class="log-icon icon-lianjie"></span>
+              <span class="bklog-icon bklog-lianjie"></span>
             </div>
           </div>
           <div
@@ -468,7 +468,7 @@
           cursor: pointer;
           transition: all 0.3s;
 
-          .log-icon {
+          .bklog-icon {
             margin-right: 20px;
           }
 

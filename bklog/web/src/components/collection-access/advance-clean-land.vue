@@ -29,7 +29,7 @@
     class="advance-clean-land"
     v-bkloading="{ isLoading: loading }"
   >
-    <span class="log-icon icon-shijian"></span>
+    <span class="bklog-icon bklog-shijian"></span>
     <p class="title">{{ $t('高级清洗中') }}</p>
     <p class="remark">
       <span v-if="isInit">

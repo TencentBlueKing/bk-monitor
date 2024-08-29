@@ -105,7 +105,7 @@ export default class QueryStatement extends tsc<object> {
         <div class='flex-div'>
           {this.$t('查询语句')}
           <span
-            class='log-icon icon-help'
+            class='bklog-icon bklog-help'
             v-bk-tooltips={this.tips}
           ></span>
           <div id='retrieve-help-tips-content'>
@@ -116,7 +116,7 @@ export default class QueryStatement extends tsc<object> {
                 onClick={() => this.handleGotoLink('queryString')}
               >
                 {this.$t('查看语法')}
-                <span class='log-icon icon-lianjie'></span>
+                <span class='bklog-icon bklog-lianjie'></span>
               </a>
             </div>
             <div class='title'>{this.$t('精确匹配(支持AND、OR)：')}</div>
@@ -169,7 +169,7 @@ export default class QueryStatement extends tsc<object> {
         <div>
           {/* 历史记录 */}
           <div class='history-button'>
-            <span class='log-icon icon-lishijilu'></span>
+            <span class='bklog-icon bklog-lishijilu'></span>
             <span onClick={this.handleClickHistoryButton}>{this.$t('查询历史')}</span>
           </div>
           <div v-show={false}>

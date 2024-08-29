@@ -406,7 +406,7 @@ export default {
       }
     },
     getFieldIcon(fieldType) {
-      return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
+      return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
     },
     handleMenuClick(option, isLink) {
       switch (option.operation) {

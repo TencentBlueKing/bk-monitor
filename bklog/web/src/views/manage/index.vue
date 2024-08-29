@@ -71,7 +71,7 @@
     methods: {
       getMenuIcon(item) {
         if (item.icon) {
-          return `log-icon icon-${item.icon}`;
+          return `bklog-icon bklog-${item.icon}`;
         }
 
         return 'bk-icon icon-home-shape';

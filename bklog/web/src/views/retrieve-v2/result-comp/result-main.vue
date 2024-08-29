@@ -45,7 +45,7 @@
                 @click="jumpMonitor"
               >
                 {{ $t('添加为监控') }}
-                <span class="log-icon icon-lianjie"></span>
+                <span class="bklog-icon bklog-lianjie"></span>
               </a>
             </i18n>
           </span>

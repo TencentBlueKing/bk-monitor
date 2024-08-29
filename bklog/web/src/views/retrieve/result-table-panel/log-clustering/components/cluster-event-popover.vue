@@ -55,7 +55,7 @@
             v-bk-tooltips="$t('新开标签页')"
             @click.stop="handleClick('show original', true)"
           >
-            <i class="log-icon icon-jump"></i>
+            <i class="bklog-icon bklog-jump"></i>
           </div>
         </div>
         <div class="event-box">
@@ -63,7 +63,7 @@
             class="event-btn"
             @click="handleClick('copy')"
           >
-            <i class="icon log-icon icon-copy"></i>
+            <i class="icon bklog-icon bklog-copy"></i>
             <span>{{ $t('复制') }}</span>
           </span>
         </div>

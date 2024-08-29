@@ -45,15 +45,15 @@ export default class FieldAnalysis extends tsc<object> {
     },
     number: {
       name: window.mainComponent.$t('数字'),
-      icon: 'log-icon icon-number',
+      icon: 'bklog-icon bklog-number',
     },
     keyword: {
       name: window.mainComponent.$t('字符串'),
-      icon: 'log-icon icon-string',
+      icon: 'bklog-icon bklog-string',
     },
     text: {
       name: window.mainComponent.$t('文本'),
-      icon: 'log-icon icon-text',
+      icon: 'bklog-icon bklog-text',
     },
     date: {
       name: window.mainComponent.$t('时间'),
@@ -65,7 +65,7 @@ export default class FieldAnalysis extends tsc<object> {
     },
     __virtual__: {
       name: window.mainComponent.$t('虚拟字段'),
-      icon: 'log-icon icon-ext',
+      icon: 'bklog-icon bklog-ext',
     },
   };
 

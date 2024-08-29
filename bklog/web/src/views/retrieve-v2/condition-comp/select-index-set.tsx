@@ -120,12 +120,12 @@ export default class QueryStatement extends tsc<object> {
   tabPanels = [
     {
       name: 'history',
-      icon: 'log-icon icon-lishijilu',
+      icon: 'bklog-icon bklog-lishijilu',
       label: window.mainComponent.$t('历史记录'),
     },
     {
       name: 'favorite',
-      icon: 'log-icon icon-star-shape',
+      icon: 'bklog-icon bklog-star-shape',
       label: window.mainComponent.$t('收藏'),
     },
   ];
@@ -345,6 +345,7 @@ export default class QueryStatement extends tsc<object> {
       ids,
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
+      isUnionIndex: !this.isAloneType
     };
     this.$store.commit('updateIndexItem', payload);
     return payload;
@@ -462,48 +463,6 @@ export default class QueryStatement extends tsc<object> {
     if (indexSetID === '-1') return this.getIsAllCheck;
     return this.selectedItemIDlist.includes(indexSetID);
   }
-
-  // 初始化索引集
-  // requestIndexSetList() {
-  //   const spaceUid = this.spaceUid;
-  //   this.basicLoading = true;
-  //   this.$http
-  //     .request('retrieve/getIndexSetList', {
-  //       query: {
-  //         space_uid: spaceUid,
-  //       },
-  //     })
-  //     .then(res => {
-  //       if (res.data.length) {
-  //         // 有索引集
-  //         // 根据权限排序
-  //         const s1 = [];
-  //         const s2 = [];
-  //         for (const item of res.data) {
-  //           if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-  //             s1.push(item);
-  //           } else {
-  //             s2.push(item);
-  //           }
-  //         }
-  //         const indexSetList = s1.concat(s2);
-
-  //         // 索引集数据加工
-  //         indexSetList.forEach(item => {
-  //           item.index_set_id = `${item.index_set_id}`;
-  //           item.indexName = item.index_set_name;
-  //           item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-  //         });
-  //         this.indexSetList = indexSetList;
-  //       }
-  //     })
-  //     .catch(() => {
-  //       this.indexSetList.splice(0);
-  //     })
-  //     .finally(() => {
-  //       this.basicLoading = false;
-  //     });
-  // }
 
   // 申请索引集的搜索权限
   async applySearchAccess(item) {
@@ -897,7 +856,7 @@ export default class QueryStatement extends tsc<object> {
                 class='clear-btn'
                 onClick={e => this.handleDeleteHistory(null, e, true)}
               >
-                <i class='log-icon icon-brush'></i>
+                <i class='bklog-icon bklog-brush'></i>
                 <span>{this.$t('清空')}</span>
               </span>
             </div>
@@ -1025,7 +984,7 @@ export default class QueryStatement extends tsc<object> {
           >
             <span class='favorite-btn'>
               <i
-                class={[!!this.multipleFavoriteSelectID ? 'log-icon icon-star-shape' : 'log-icon bk-icon icon-star']}
+                class={[!!this.multipleFavoriteSelectID ? 'bklog-icon bklog-star-shape' : 'log-icon bk-icon icon-star']}
               ></i>
               <span>{this.$t('收藏该组合')}</span>
             </span>
@@ -1095,7 +1054,7 @@ export default class QueryStatement extends tsc<object> {
     const indexHandDom = item => {
       return this.isAloneType ? (
         <span
-          class={[item.is_favorite ? 'log-icon icon-star-shape' : 'log-icon bk-icon icon-star']}
+          class={[item.is_favorite ? 'bklog-icon bklog-star-shape' : 'log-icon bk-icon icon-star']}
           onClick={e => this.handleCollection(item, e)}
         ></span>
       ) : (

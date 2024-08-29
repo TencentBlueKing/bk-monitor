@@ -101,7 +101,7 @@
             @click="handleBtnClick('queryString')"
           >
             {{ $t('查看更多语法规则') }}
-            <span class="log-icon icon-tiaozhuan"></span>
+            <span class="bklog-icon bklog-tiaozhuan"></span>
           </div>
         </div>
       </bk-exception>
@@ -293,7 +293,7 @@
         color: #3a84ff;
         cursor: pointer;
 
-        .log-icon {
+        .bklog-icon {
           display: inline-block;
           transform: scale(0.8) translate3d(-2px, -1px, 0);
         }

@@ -69,7 +69,7 @@
             @click="handleViewMonitor(field)"
           >
             <span>{{ getRelationMonitorField(field) }}</span>
-            <i class="log-icon icon-jump"></i>
+            <i class="bklog-icon bklog-jump"></i>
           </span>
         </div>
       </div>
@@ -135,8 +135,8 @@
           { id: 'is', icon: 'bk-icon icon-enlarge-line search' },
           { id: 'not', icon: 'bk-icon icon-narrow-line search' },
           { id: 'display', icon: 'bk-icon icon-arrows-up-circle' },
-          // { id: 'chart', icon: 'log-icon icon-chart' },
-          { id: 'copy', icon: 'log-icon icon-copy' },
+          // { id: 'chart', icon: 'bklog-icon bklog-chart' },
+          { id: 'copy', icon: 'bklog-icon bklog-copy' },
         ],
         toolMenuTips: {
           is: this.$t('添加 {n} 过滤项', { n: '=' }),
@@ -202,7 +202,7 @@
       },
       getFieldIcon(field) {
         const fieldType = this.getFieldType(field);
-        return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
+        return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
       },
       fieldTypePopover(field) {
         const target = this.fieldList.find(item => item.field_name === field);

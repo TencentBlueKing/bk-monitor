@@ -155,7 +155,7 @@
           >
             <div class="icon-circle-container">
               <span
-                class="icon log-icon icon-help"
+                class="icon bklog-icon bklog-help"
                 slot="dropdown-trigger"
               ></span>
             </div>
@@ -756,7 +756,7 @@
 
           @include flex-center;
 
-          .log-icon {
+          .bklog-icon {
             font-size: 16px;
             transition: all 0.2s;
           }
@@ -772,7 +772,7 @@
             background: linear-gradient(270deg, #253047, #263247);
             transition: all 0.2s;
 
-            .log-icon {
+            .bklog-icon {
               color: #d3d9e4;
               transition: all 0.2s;
             }

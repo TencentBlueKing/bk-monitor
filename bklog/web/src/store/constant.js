@@ -33,27 +33,27 @@ export const fieldTypeMap = {
   },
   number: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'bklog-icon bklog-number',
   },
   integer: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'bklog-icon bklog-number',
   },
   double: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'bklog-icon bklog-number',
   },
   keyword: {
     name: i18n.t('字符串'),
-    icon: 'log-icon icon-string',
+    icon: 'bklog-icon bklog-string',
   },
   long: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'bklog-icon bklog-number',
   },
   text: {
     name: i18n.t('文本'),
-    icon: 'log-icon icon-text',
+    icon: 'bklog-icon bklog-text',
   },
   date: {
     name: i18n.t('时间'),
@@ -65,7 +65,7 @@ export const fieldTypeMap = {
   },
   boolean: {
     name: i18n.t('布尔'),
-    icon: 'log-icon icon-boolean',
+    icon: 'bklog-icon bklog-boolean',
   },
   conflict: {
     name: i18n.t('冲突字段'),
@@ -73,7 +73,7 @@ export const fieldTypeMap = {
   },
   __virtual__: {
     name: i18n.t('该字段为平台补充 不可检索'),
-    icon: 'log-icon icon-ext',
+    icon: 'bklog-icon bklog-ext',
   },
 };
 

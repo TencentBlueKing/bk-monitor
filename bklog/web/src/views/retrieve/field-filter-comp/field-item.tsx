@@ -100,7 +100,7 @@ export default class FieldItem extends tsc<object> {
   }
 
   getFieldIcon(fieldType: string) {
-    return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
+    return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
   }
   // 点击字段行，展开显示聚合信息
   handleClickItem() {
@@ -170,12 +170,12 @@ export default class FieldItem extends tsc<object> {
           class={{ 'filed-title': true, expanded: this.isExpand }}
           onClick={() => this.handleClickItem()}
         >
-          <span class={['icon log-icon icon-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>
+          <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>
           {/* 三角符号 */}
           <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
           {/* 字段类型对应的图标 */}
           <span
-            class={[this.getFieldIcon(this.fieldItem.field_type) || 'log-icon icon-unkown', 'field-type-icon']}
+            class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
             v-bk-tooltips={{
               content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
               disabled: !this.fieldTypeMap[this.fieldItem.field_type],
@@ -227,7 +227,7 @@ export default class FieldItem extends tsc<object> {
                   this.handleClickAnalysisItem();
                 }}
               >
-                <i class='log-icon icon-log-trend'></i>
+                <i class='bklog-icon bklog-log-trend'></i>
               </div>
             )}
             {/* 设置字段显示或隐藏 */}

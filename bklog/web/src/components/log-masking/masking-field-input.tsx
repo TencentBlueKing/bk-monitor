@@ -238,7 +238,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             closable
           >
             <div slot='title'>
-              <i class='log-icon icon-log-loading'></i>
+              <i class='bklog-icon bklog-log-loading'></i>
               <span>{this.$t('正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…')}</span>
             </div>
           </Alert>
@@ -256,7 +256,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             class='right-fix'
             onClick={() => (this.inputFix = !this.inputFix)}
           >
-            <i class={['log-icon', this.inputFix ? 'icon-fix-shape' : 'icon-fix-line']}></i>
+            <i class={['bklog-icon', this.inputFix ? 'icon-fix-shape' : 'icon-fix-line']}></i>
             <span class='text'>{this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}</span>
           </div>
         </div>

@@ -1,0 +1,45 @@
+.ui-query-options {
+  background: #FFFFFF;
+
+  .option-content {
+    width: 510px;
+    display: flex;
+    border-bottom: solid 1px #DCDEE5;
+
+    .field-list {
+      width: 240px;
+      height: 312px;
+      padding: 4px 8px;
+      border-right: solid 1px #DCDEE5;
+
+      .ui-search-input {
+        height: 32px;
+        width: 100%;
+
+        >.bk-form-control {
+          >.bk-input-text {
+            >input {
+              border-bottom-color: #EAEBF0;
+            }
+          }
+        }
+      }
+
+      .ui-search-result {
+        height: 280px;
+      }
+    }
+
+    .value-list {
+      height: 312px;
+      width: 270;
+    }
+  }
+
+  .option-footer {
+    width: 510px;
+    height: 42px;
+    background: #FAFBFD;
+    box-shadow: 0 -1px 0 0 #DCDEE5;
+  }
+}

@@ -418,7 +418,7 @@ export default class FieldInfo extends tsc<IProps> {
     };
 
     const timeSlot = {
-      default: ({ row }) => <span class={{ 'log-icon icon-date-picker': row.field_name === this.timeField }}></span>,
+      default: ({ row }) => <span class={{ 'bklog-icon bklog-date-picker': row.field_name === this.timeField }}></span>,
     };
 
     return (

@@ -50,7 +50,7 @@
               class="list-item display-item"
               :key="field"
             >
-              <span class="icon log-icon icon-drag-dots"></span>
+              <span class="icon bklog-icon bklog-drag-dots"></span>
               <div class="field_name">{{ field }}</div>
               <div
                 :class="['operate-button', disabledRemove && 'disabled']"

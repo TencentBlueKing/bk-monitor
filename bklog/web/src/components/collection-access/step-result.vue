@@ -77,7 +77,7 @@
           target="_blank"
         >
           {{ $t('点击查看审批详情') }}
-          <span class="log-icon icon-lianjie"></span>
+          <span class="bklog-icon bklog-lianjie"></span>
         </a>
       </div>
     </bk-exception>

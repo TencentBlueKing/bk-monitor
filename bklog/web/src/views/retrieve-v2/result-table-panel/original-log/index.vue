@@ -347,7 +347,7 @@
           transition: boder-color 0.2s;
         }
 
-        .log-icon {
+        .bklog-icon {
           width: 16px;
           font-size: 16px;
           color: #979ba5;
@@ -360,7 +360,7 @@
         border-color: #dcdee5;
 
         &:hover,
-        .log-icon {
+        .bklog-icon {
           color: #c4c6cc;
           border-color: #dcdee5;
         }

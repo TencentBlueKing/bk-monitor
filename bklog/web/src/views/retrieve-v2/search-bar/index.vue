@@ -13,6 +13,14 @@
 
   const queryType = computed(() => queryTypeList.value[activeIndex.value]);
 
+  const searchItemList = ref([
+    { fieldName: 'log-a', fieldValue: 'natural Home', disabled: false },
+    { fieldName: 'log-b', fieldValue: 'natural Home', disabled: false },
+    { fieldName: 'log-c', fieldValue: 'natural Home natural Home', disabled: false },
+    { fieldName: 'log-d', fieldValue: 'natural Home', disabled: false },
+    { fieldName: 'log-e', fieldValue: 'natural Home natural Home', disabled: false },
+  ]);
+
   const handleQueryTypeChange = index => {
     activeIndex.value = index;
   };
@@ -35,16 +43,16 @@
 
       <SelectIndexSet style="width: 200px; margin: 0 12px"></SelectIndexSet>
       <span class="query-history">
-        <span class="log-icon icon-lishijilu"></span>
+        <span class="bklog-icon bklog-lishijilu"></span>
         <span>{{ $t('历史查询') }}</span>
       </span>
     </div>
     <div class="search-input">
-      <UiInput></UiInput>
+      <UiInput v-model="searchItemList"></UiInput>
       <div class="search-tool items">
-        <span class="log-icon icon-brush"></span>
-        <span class="log-icon icon-star-line"></span>
-        <span class="log-icon icon-set-icon"></span>
+        <span class="bklog-icon bklog-brush"></span>
+        <span class="bklog-icon bklog-star-line"></span>
+        <span class="bklog-icon bklog-set-icon"></span>
       </div>
       <div
         class="search-tool search-btn"

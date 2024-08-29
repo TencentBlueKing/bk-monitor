@@ -180,7 +180,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                       placement='bottom'
                       theme='light'
                     >
-                      <span class='bk-icon log-icon icon-shixiao'></span>
+                      <span class='bk-icon bklog-icon bklog-shixiao'></span>
                       <div slot='content'>
                         {this.isMultiIndex(item) ? (
                           <ul>

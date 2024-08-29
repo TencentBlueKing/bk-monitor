@@ -92,7 +92,7 @@
             class="event-btn"
             @click="handleMenuClick('copy')"
           >
-            <i class="icon log-icon icon-copy"></i>
+            <i class="icon bklog-icon bklog-copy"></i>
             <span>{{ $t('复制') }}</span>
           </span>
         </div>
@@ -109,7 +109,7 @@
             v-bk-tooltips="$t('新开标签页')"
             @click.stop="handleMenuClick('is', true)"
           >
-            <i class="log-icon icon-jump"></i>
+            <i class="bklog-icon bklog-jump"></i>
           </div>
         </div>
         <div class="event-box">
@@ -124,7 +124,7 @@
             v-bk-tooltips="$t('新开标签页')"
             @click.stop="handleMenuClick('new-page', true)"
           >
-            <i class="log-icon icon-jump"></i>
+            <i class="bklog-icon bklog-jump"></i>
           </div>
         </div>
       </div>

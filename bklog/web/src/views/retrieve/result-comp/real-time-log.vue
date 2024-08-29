@@ -75,11 +75,11 @@
         >
           <span
             v-if="isPolling"
-            class="icon log-icon icon-stop-log"
+            class="icon bklog-icon bklog-stop-log"
           ></span>
           <span
             v-else
-            class="icon log-icon icon-play-log"
+            class="icon bklog-icon bklog-play-log"
           ></span>
         </div>
         <div
@@ -87,14 +87,14 @@
           v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }"
           @click="copyLogText"
         >
-          <span class="icon log-icon icon-copy"></span>
+          <span class="icon bklog-icon bklog-copy"></span>
         </div>
         <div
           class="control-icon"
           v-bk-tooltips.top="{ content: $t('全屏'), delay: 300 }"
           @click="toggleScreenFull"
         >
-          <span class="icon log-icon icon-full-screen-log"></span>
+          <span class="icon bklog-icon bklog-full-screen-log"></span>
         </div>
       </div>
     </div>

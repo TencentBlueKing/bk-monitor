@@ -39,7 +39,7 @@
       v-if="isShowDetailName"
       class="collect-link"
     >
-      <span class="bk-icon log-icon icon-position"></span>
+      <span class="bk-icon bklog-icon bklog-position"></span>
       {{ getBaseName() }}
     </div>
     <ul

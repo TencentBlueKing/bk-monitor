@@ -167,6 +167,11 @@ const store = new Vuex.Store({
   mutations: {
     updateIndexItem(state, payload) {
       state.indexItem = payload ?? {};
+
+      state.unionIndexList = [];
+      if (payload.isUnionIndex) {
+        state.unionIndexList = payload.ids;
+      }
     },
     updateUserMeta(state, payload) {
       state.userMeta = payload;

@@ -81,7 +81,7 @@
           @click="handleClickField(item)"
         >
           <div class="item-type-icon">
-            <span class="log-icon icon-field"></span>
+            <span class="bklog-icon bklog-field"></span>
           </div>
           <div
             class="item-text text-overflow-hidden"
@@ -105,7 +105,7 @@
           @click="handleClickValue(item)"
         >
           <div class="item-type-icon">
-            <span class="log-icon icon-value"></span>
+            <span class="bklog-icon bklog-value"></span>
           </div>
           <div
             class="item-text text-overflow-hidden"
@@ -122,7 +122,7 @@
           @click="handleClickColon(':')"
         >
           <div class="item-type-icon">
-            <span class="log-icon icon-equal"></span>
+            <span class="bklog-icon bklog-equal"></span>
           </div>
           <div class="item-text">:</div>
           <div
@@ -139,7 +139,7 @@
           @click="handleClickColon(': *')"
         >
           <div class="item-type-icon">
-            <span class="log-icon icon-equal"></span>
+            <span class="bklog-icon bklog-equal"></span>
           </div>
           <div class="item-text">:*</div>
           <div
@@ -160,7 +160,7 @@
               @click="handleClickColon(item.operator)"
             >
               <div class="item-type-icon">
-                <span class="log-icon icon-equal"></span>
+                <span class="bklog-icon bklog-equal"></span>
               </div>
               <div class="item-text">{{ item.operator }}</div>
               <div
@@ -182,7 +182,7 @@
           @click="handleClickContinue('AND')"
         >
           <div class="item-type-icon">
-            <span class="log-icon icon-and"></span>
+            <span class="bklog-icon bklog-and"></span>
           </div>
           <div class="item-text">AND</div>
           <div
@@ -199,7 +199,7 @@
           @click="handleClickContinue('OR')"
         >
           <div class="item-type-icon">
-            <span class="log-icon icon-and"></span>
+            <span class="bklog-icon bklog-and"></span>
           </div>
           <div class="item-text">OR</div>
           <div
@@ -746,7 +746,7 @@
           width: 32px;
           height: 32px;
 
-          .log-icon {
+          .bklog-icon {
             font-size: 16px;
           }
         }

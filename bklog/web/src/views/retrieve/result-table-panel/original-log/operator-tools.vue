@@ -32,7 +32,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
       >
         <span
-          :class="`icon log-icon icon-handle icon-time ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-handle icon-time ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         >
         </span>
@@ -42,7 +42,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
       >
         <span
-          :class="`icon log-icon icon-handle icon-document ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-handle icon-document ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('contextLog', isActiveLog)"
         >
         </span>
@@ -53,7 +53,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
       >
         <span
-          :class="`icon icon-handle log-icon icon-teminal ${!isCanClickWebConsole && 'is-disable'}`"
+          :class="`icon icon-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"
           @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
         ></span>
       </span>
