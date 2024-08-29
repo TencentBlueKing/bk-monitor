@@ -9,7 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from apm_web.models import Application
-from apm_web.topo.resources import DataTypeBarQueryResource, TopoViewResource
+from apm_web.topo.resources import (
+    DataTypeBarQueryResource,
+    NodeRelationResource,
+    TopoViewResource,
+)
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -35,4 +39,5 @@ class GlobalViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", DataTypeBarQueryResource, endpoint="bar"),
         ResourceRoute("GET", TopoViewResource, endpoint="topo"),
+        ResourceRoute("GET", NodeRelationResource, endpoint="relation"),
     ]

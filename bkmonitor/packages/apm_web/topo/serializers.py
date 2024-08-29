@@ -12,7 +12,12 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.models import Application
-from apm_web.topo.constants import BarChartDataType, GraphViewType, TopoEdgeDataType
+from apm_web.topo.constants import (
+    BarChartDataType,
+    GraphViewType,
+    RelationResourcePath,
+    TopoEdgeDataType,
+)
 
 
 class TopoBaseRequestSerializer(serializers.Serializer):
@@ -50,4 +55,7 @@ class NodeRelationSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     app_name = serializers.CharField(label="应用名称")
-    service_name = serializers.CharField(label="服务名称", required=False)
+    service_name = serializers.CharField(label="服务名称")
+    start_time = serializers.IntegerField(label="开始时间")
+    end_time = serializers.IntegerField(label="结束时间")
+    path = serializers.ChoiceField(label="路径", choices=RelationResourcePath.get_choices())

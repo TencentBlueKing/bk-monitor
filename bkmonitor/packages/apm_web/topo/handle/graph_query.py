@@ -253,6 +253,10 @@ class Graph:
 
 
 class GraphQuery(BaseQuery):
+    @property
+    def filter_params(self):
+        return {"service_name": self.service_name} if self.service_name else {}
+
     def execute(self, export_type, edge_data_type):
         converter = ViewConverter.new(self.bk_biz_id, self.app_name, export_type, self.filter_params)
 

@@ -9,7 +9,7 @@
     {
       "id": "1",
       "title": "Clusters",
-      "type": "relation-graph",
+      "type": "apm-relation-graph",
       "instant": true,
       "targets": [
         {
@@ -33,6 +33,13 @@
           }
         }
       ],
+      "options": {
+        "apm-relation-graph": {
+          "node-detail": [],
+          "node-relation": [],
+          "topo-bar": []
+        }
+      },
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -42,28 +49,5 @@
     }
   ],
   "order": [],
-  "options": {
-    "panel_tool": {
-      "method_select": false,
-      "compare_select": false,
-      "columns_toggle": false,
-      "interval_select": false,
-      "split_switcher": false
-    },
-    "overview_detail_panel": {
-      "title": "workload",
-      "type": "info",
-      "targets": [
-        {
-          "datasource": "info",
-          "dataType": "info",
-          "api": "apm_meta.serviceDetail",
-          "data": {
-            "app_name": "$app_name",
-            "service_name": "$service_name"
-          }
-        }
-      ]
-    }
-  }
+  "options": {}
 }

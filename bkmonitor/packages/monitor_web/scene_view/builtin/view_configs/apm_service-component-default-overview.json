@@ -163,7 +163,10 @@
         }
       ],
       "options": {
-        "apm_metric": "request_count"
+        "apm_time_series": {
+          "metric": "request_count",
+          "unit": "number"
+        }
       }
     },
     {
@@ -340,7 +343,10 @@
         }
       ],
       "options": {
-        "apm_metric": "error_count"
+        "apm_time_series": {
+          "metric": "error_count",
+          "unit": "number"
+        }
       }
     },
     {
@@ -686,7 +692,10 @@
         }
       ],
       "options": {
-        "apm_metric": "avg_duration"
+        "apm_time_series": {
+          "metric": "avg_duration",
+          "unit": "μs"
+        }
       }
     },
     {

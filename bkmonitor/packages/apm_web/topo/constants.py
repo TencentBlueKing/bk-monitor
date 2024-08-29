@@ -81,3 +81,19 @@ class GraphViewType(ChoicesEnum):
         (TOPO, _("视图")),
         (TABLE, _("表格")),
     )
+
+
+class RelationResourcePath(ChoicesEnum):
+    """关联指标 - 查询路径"""
+
+    DEFAULT = "default"
+    INSTANCE_TO_SYSTEM = "instance_to_system"
+    INSTANCE_TO_POD_TO_SYSTEM = "instance_to_pod_to_system"
+    INSTANCE_TO_SERVICE_TO_SYSTEM = "instance_to_service_to_system"
+
+    _choices_labels = (
+        (DEFAULT, _("默认路径")),
+        (INSTANCE_TO_SYSTEM, _("实例->机器")),
+        (INSTANCE_TO_POD_TO_SYSTEM, _("实例->K8s Pod->机器")),
+        (INSTANCE_TO_SERVICE_TO_SYSTEM, _("实例->K8s Service->机器")),
+    )
