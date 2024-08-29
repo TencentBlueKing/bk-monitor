@@ -1058,4 +1058,21 @@ API_FAILED_REQUESTS_TOTAL = Gauge(
     labelnames=("action", "module", "code", "role", "exception", "user_name"),
 )
 
+AIOPS_ACCESS_TASK_COUNT = Gauge(
+    name="bkmonitor_aiops_access_task_count",
+    documentation="",
+    labelnames=(
+        "bk_biz_id",
+        "strategy_id",
+        "algorithm",
+        "data_source_label",
+        "data_type_label",
+        "metric_id",
+        "task_id",
+        "result",
+        "retries",
+        "exception",
+    ),
+)
+
 TOTAL_TAG = "__total__"
