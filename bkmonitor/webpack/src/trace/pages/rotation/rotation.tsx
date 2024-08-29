@@ -28,10 +28,11 @@ import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
+import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import * as authMap from './authority-map';
@@ -83,7 +84,6 @@ export default defineComponent({
       showDetail: authorityStore.getAuthorityDetail,
     });
     const tableData = reactive({
-      loading: false,
       data: [],
       pagination: {
         current: 1,
@@ -553,10 +553,10 @@ export default defineComponent({
           return <span>{row.category === Ecategory.regular ? t('日常值班') : t('交替轮值')}</span>;
         }
         case EColunm.label: {
-          return row.labels.length ? row.labels.map(label => <Tag>{label}</Tag>) : '--';
+          return row.labels.length ? row.labels.map((label, index) => <Tag key={index}>{label}</Tag>) : '--';
         }
         case EColunm.relation: {
-          return !!row.user_groups_count ? (
+          return row.user_groups_count ? (
             <Button
               theme='primary'
               text
@@ -718,40 +718,46 @@ export default defineComponent({
                 onUpdate:modelValue={v => this.handleSearch(v)}
               />
             </div>
-            <Loading loading={this.loading}>
-              <div class='table-content'>
-                <Table
-                  columns={this.tableData.columns
-                    .filter(item => this.settings.checked.includes(item.id))
-                    .map(item => {
-                      return {
-                        ...item,
-                        label: (col: any) => col.name,
-                        render: ({ row, _column }) => this.handleSetFormater(row, item.id),
-                      };
-                    })}
-                  darkHeader={true}
-                  data={this.tableData.data}
-                  pagination={false}
-                  settings={this.settings}
-                  showOverflowTooltip={true}
-                  onColumnFilter={this.handleColumnFilter}
-                  onColumnSort={this.handleColumnSort}
-                  onSettingChange={this.handleSettingChange}
-                />
-                <Pagination
-                  class='mt-14'
-                  align={'right'}
-                  count={this.tableData.pagination.count}
-                  layout={['total', 'limit', 'list']}
-                  limit={this.tableData.pagination.limit}
-                  location={'right'}
-                  modelValue={this.tableData.pagination.current}
-                  onChange={v => this.handlePageChange(v)}
-                  onLimitChange={v => this.handleLimitChange(v)}
-                />
-              </div>
-            </Loading>
+            <div class='table-content'>
+              {!this.loading ? (
+                [
+                  <Table
+                    key={'rotation-table'}
+                    columns={this.tableData.columns
+                      .filter(item => this.settings.checked.includes(item.id))
+                      .map(item => {
+                        return {
+                          ...item,
+                          label: (col: any) => col.name,
+                          render: ({ row, _column }) => this.handleSetFormater(row, item.id),
+                        };
+                      })}
+                    darkHeader={true}
+                    data={this.tableData.data}
+                    pagination={false}
+                    settings={this.settings}
+                    showOverflowTooltip={true}
+                    onColumnFilter={this.handleColumnFilter}
+                    onColumnSort={this.handleColumnSort}
+                    onSettingChange={this.handleSettingChange}
+                  />,
+                  <Pagination
+                    key={'rotation-pagination'}
+                    class='mt-14'
+                    align={'right'}
+                    count={this.tableData.pagination.count}
+                    layout={['total', 'limit', 'list']}
+                    limit={this.tableData.pagination.limit}
+                    location={'right'}
+                    modelValue={this.tableData.pagination.current}
+                    onChange={v => this.handlePageChange(v)}
+                    onLimitChange={v => this.handleLimitChange(v)}
+                  />,
+                ]
+              ) : (
+                <TableSkeleton />
+              )}
+            </div>
           </div>
         </div>
 

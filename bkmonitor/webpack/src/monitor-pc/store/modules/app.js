@@ -39,7 +39,7 @@ export const SET_MESSAGE_QUEUE = 'SET_MESSAGE_QUEUE';
 export const SET_LOGIN_URL = 'SET_LOGIN_URL';
 export const SET_FULL_SCREEN = 'SET_FULL_SCREEN';
 // 路由切换时需获取权限中心权限 这里有一段loading
-export const SET_ROUTE_CHANGE_LOADNG = 'SET_ROUTE_CHANGE_LOADNG';
+export const SET_ROUTE_CHANGE_LOADING = 'SET_ROUTE_CHANGE_LOADING';
 // 路由面包屑数据
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 // 设置 biz bg color
@@ -135,7 +135,7 @@ const mutations = {
   [SET_LOGIN_URL](state, url) {
     state.loginUrl = url;
   },
-  [SET_ROUTE_CHANGE_LOADNG](state, val) {
+  [SET_ROUTE_CHANGE_LOADING](state, val) {
     state.routeChangeLoading = val;
   },
   [SET_NAV_ROUTE_LIST](state, list) {

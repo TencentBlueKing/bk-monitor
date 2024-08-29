@@ -35,6 +35,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import GuidePage from '../../components/guide-page/guide-page';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import CommonStatus, { type CommonStatusType } from '../monitor-k8s/components/common-status/common-status';
 import CommonTable from '../monitor-k8s/components/common-table';
@@ -394,7 +395,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     return (
       <div
         class='custom-scenes-page'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         <PageTitle
           activeTab={''}
@@ -423,6 +424,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 >
                   {addTypes.map(item => (
                     <li
+                      key={item.id}
                       class='list-item'
                       onClick={() => this.handleAdd(item.id)}
                     >
@@ -441,90 +443,95 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 onChange={this.handleSearchChange}
               />
             </div>
-            <CommonTable
-              scopedSlots={{
-                name: (row: ITableItem) => (
-                  <div class='column-name'>
-                    <div
-                      class='title'
-                      v-authority={{ active: !this.getAuthority(row).authority }}
-                      onClick={() => this.handleToView(row)}
-                    >
-                      {row.name}
+            {this.loading ? (
+              <TableSkeleton />
+            ) : (
+              <CommonTable
+                scopedSlots={{
+                  name: (row: ITableItem) => (
+                    <div class='column-name'>
+                      <div
+                        class='title'
+                        v-authority={{ active: !this.getAuthority(row).authority }}
+                        onClick={() => this.handleToView(row)}
+                      >
+                        {row.name}
+                      </div>
+                      <div class='subtitle'>{row.sub_name}</div>
                     </div>
-                    <div class='subtitle'>{row.sub_name}</div>
-                  </div>
-                ),
-                status: (row: ITableItem) =>
-                  this.statusLoading ? (
-                    <div class='spinner' />
-                  ) : (
-                    <div class='column-status'>
-                      {row.status ? (
-                        <CommonStatus
-                          text={STATUS_TYPE[row.status]}
-                          type={row.status}
-                        />
+                  ),
+                  status: (row: ITableItem) =>
+                    this.statusLoading ? (
+                      <div class='spinner' />
+                    ) : (
+                      <div class='column-status'>
+                        {row.status ? (
+                          <CommonStatus
+                            text={STATUS_TYPE[row.status]}
+                            type={row.status}
+                          />
+                        ) : (
+                          '--'
+                        )}
+                      </div>
+                    ),
+                  strategy: (row: ITableItem) => (
+                    <div class='column-count'>
+                      {row.strategy_count > 0 ? (
+                        <bk-button
+                          text
+                          onClick={() => this.handleToStrategy(row)}
+                        >
+                          {row.strategy_count}
+                        </bk-button>
                       ) : (
                         '--'
                       )}
                     </div>
                   ),
-                strategy: (row: ITableItem) => (
-                  <div class='column-count'>
-                    {row.strategy_count > 0 ? (
-                      <bk-button
-                        text
-                        onClick={() => this.handleToStrategy(row)}
-                      >
-                        {row.strategy_count}
-                      </bk-button>
-                    ) : (
-                      '--'
-                    )}
-                  </div>
-                ),
-                collector: (row: ITableItem) => (
-                  <div class='column-count'>
-                    {row.collect_config_count > 0 ? (
-                      <bk-button
-                        text
-                        onClick={() => this.handleToCollect(row)}
-                      >
-                        {row.collect_config_count}
-                      </bk-button>
-                    ) : (
-                      '--'
-                    )}
-                  </div>
-                ),
-                operate: (row: ITableItem) => [
-                  row.scene_type === ESceneType.plugin ? (
-                    <bk-button
-                      style={{ marginLeft: '10px' }}
-                      text
-                      onClick={() => this.handleAddItem(row)}
-                    >
-                      {window.i18n.t('新建采集')}
-                    </bk-button>
-                  ) : (
-                    ''
+                  collector: (row: ITableItem) => (
+                    <div class='column-count'>
+                      {row.collect_config_count > 0 ? (
+                        <bk-button
+                          text
+                          onClick={() => this.handleToCollect(row)}
+                        >
+                          {row.collect_config_count}
+                        </bk-button>
+                      ) : (
+                        '--'
+                      )}
+                    </div>
                   ),
-                ],
-              }}
-              checkable={false}
-              columns={this.tableData.columns}
-              data={this.tableData.data}
-              pagination={this.tableData.pagination}
-              onLimitChange={this.handleLimitChange}
-              onPageChange={this.handlePageChange}
-            >
-              <EmptyStatus
-                slot='empty'
-                type={this.emptyStatusType}
-                onOperation={this.handleOperation}
-              />
-            </CommonTable>
+                  operate: (row: ITableItem) => [
+                    row.scene_type === ESceneType.plugin ? (
+                      <bk-button
+                        key='add'
+                        style={{ marginLeft: '10px' }}
+                        text
+                        onClick={() => this.handleAddItem(row)}
+                      >
+                        {window.i18n.t('新建采集')}
+                      </bk-button>
+                    ) : (
+                      ''
+                    ),
+                  ],
+                }}
+                checkable={false}
+                columns={this.tableData.columns}
+                data={this.tableData.data}
+                pagination={this.tableData.pagination}
+                onLimitChange={this.handleLimitChange}
+                onPageChange={this.handlePageChange}
+              >
+                <EmptyStatus
+                  slot='empty'
+                  type={this.emptyStatusType}
+                  onOperation={this.handleOperation}
+                />
+              </CommonTable>
+            )}
           </div>
         </div>
       </div>

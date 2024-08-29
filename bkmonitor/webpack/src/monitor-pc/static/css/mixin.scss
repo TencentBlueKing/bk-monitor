@@ -1,0 +1,27 @@
+@mixin simple-class-style($prop, $value) {
+  .#{$prop}-#{$value} {
+    @if $prop == 'mr' {
+      margin-right: #{$value}px;
+    }
+
+    @if $prop == 'ml' {
+      margin-left: #{$value}px;
+    }
+
+    @if $prop == 'mt' {
+      margin-top: #{$value}px;
+    }
+
+    @if $prop == 'mb' {
+      margin-bottom: #{$value}px;
+    }
+
+    @if $prop == 'h' {
+      height: #{$value}px;
+    }
+
+    @if $prop == 'w' {
+      width: #{$value}px;
+    }
+  }
+}
