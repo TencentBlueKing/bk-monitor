@@ -15,6 +15,7 @@
     .main-content {
       flex: 1;
       height: 100%;
+      overflow: hidden;
     }
 
     .side-content {
@@ -53,7 +54,16 @@
       }
 
       &.drop-active {
-        border-left: 2px solid #3A84FF;
+        border-left: 1px solid #3A84FF;
+        &::after {
+          content: '';
+          position: absolute;
+          left: -2px;
+          top: 0;
+          height: 100%;
+          width: 1px;
+          background: #3A84FF;
+        }
         transition: width 0s;
 
         .side-drop-wrap {

@@ -32,7 +32,7 @@ import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlar
 
 import './bar-alarm-chart.scss';
 
-type TGetData = (dataType: EDataType, set: (v: IAlarmDataItem[]) => void) => void;
+type TGetData = (set: (v: IAlarmDataItem[]) => void) => void;
 interface IProps {
   itemHeight?: number;
   activeItemHeight?: number;
@@ -41,6 +41,7 @@ interface IProps {
   isAdaption?: boolean;
   dataType: EDataType;
   getData?: TGetData;
+  onDataZoom: () => void;
 }
 
 @Component
@@ -92,11 +93,12 @@ export default class BarAlarmChart extends tsc<IProps> {
   };
 
   timeRange = [];
+  selectedTimeRange = [];
 
   initData() {
     if (this.getData) {
       this.loading = true;
-      this.getData(this.dataType, data => {
+      this.getData(data => {
         this.loading = false;
         this.localData = Object.freeze(data);
         if (this.localData.length) {
@@ -293,11 +295,12 @@ export default class BarAlarmChart extends tsc<IProps> {
         break;
       }
     }
-    this.timeRange = [startTime, endTime];
+    this.selectedTimeRange = [startTime, endTime];
+    this.$emit('dataZoom', startTime, endTime);
   }
 
   handleTimeRangeReset() {
-    this.timeRange = [];
+    this.selectedTimeRange = [];
   }
 
   alarmListRender(item) {

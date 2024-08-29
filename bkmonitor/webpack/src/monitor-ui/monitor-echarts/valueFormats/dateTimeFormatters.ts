@@ -402,3 +402,29 @@ export function dateTimeFromNow(
   const time = isUtc ? dayjs.utc(value) : dayjs.tz(value);
   return { text: time.fromNow() };
 }
+
+/**
+ * @description 
+ */
+export const formatTimeUnitAndValue = (value: number, unit: string) => {
+  const units: { [key in string]: number } = {
+    ns: 1,
+    µs: 1000,
+    ms: 1000000,
+    s: 1000000000,
+    min: 60000000000,
+    hour: 3600000000000,
+    day: 86400000000000
+  };
+  if(!units[unit]) {
+    return { value, unit };
+  }
+  let currentUnit = unit;
+  let currentSize = value * units[unit];
+  while (Math.abs(currentSize) >= 1000 && currentUnit !== 'day') {
+    currentSize /= 1000;
+    currentUnit = Object.keys(units).find(u => u === currentUnit);
+  }
+
+  return { value: currentSize.toFixed(2), unit: currentUnit };
+}

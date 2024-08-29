@@ -35,6 +35,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { isEnFn } from 'monitor-pc/utils';
+import { formatTimeUnitAndValue } from 'monitor-ui/monitor-echarts/valueFormats/dateTimeFormatters';
 
 import CompareTopoFullscreen from './compare-topo-fullscreen/compare-topo-fullscreen';
 import MiniChart, { EPointType } from './mini-chart';
@@ -332,16 +333,10 @@ export default class DetailsSide extends tsc<IProps> {
       return {
         [EColumn.Chart]: pointData,
         [EColumn.CompareCount]: unit
-          ? {
-              value: compareCount,
-              unit,
-            }
+          ? { value: compareCount, unit }
           : compareCount,
         [EColumn.ReferCount]: unit
-          ? {
-              value: referCount,
-              unit,
-            }
+          ? { value: referCount, unit }
           : referCount,
         [EColumn.DiffCount]: diffCount,
       };
