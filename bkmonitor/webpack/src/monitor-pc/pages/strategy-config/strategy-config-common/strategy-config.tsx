@@ -440,7 +440,6 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     });
   }
   created() {
-    console.info('created==============');
     this.backDisplayMap = {
       bkStrategyId: {
         name: this.$t('策略ID'),
@@ -811,7 +810,6 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
 
   async activated() {
-    console.info('activated==============');
     await this.getAuthCreated();
     if (!this.hasPageViewAuth) return;
     /** 获取筛选面板用户配置 */
