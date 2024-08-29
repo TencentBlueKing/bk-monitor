@@ -191,4 +191,5 @@ export default {
   查看配置: 'View Configuration',
   测试发送: 'Test Send',
   分隔符: 'Separator',
+  字段配置: 'Field Config',
 };
