@@ -11,7 +11,7 @@
   }
 
   .search-container {
-    padding: 16px;
+    padding: 0 16px 16px;
 
     .search-title,
     .log-icon {
@@ -65,8 +65,8 @@
   }
 
   .group-container {
-    height: calc(100vh - 240px);
-    margin-right: 4px;
+    height: calc(100vh - 210px);
+    margin-right: 2px;
     overflow-y: auto;
 
     &::-webkit-scrollbar {

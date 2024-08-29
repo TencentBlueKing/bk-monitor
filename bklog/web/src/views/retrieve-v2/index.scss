@@ -4,7 +4,7 @@
   &.show-favorites {
     .sub-head {
       .box-favorites {
-        width: 240px;
+        width: 100%;
         background-color: transparent;
 
         .collet-label {
@@ -41,22 +41,16 @@
           }
         }
       }
-
-      .subbar-container {
-        width: calc(100% - 240px);
-      }
     }
 
     .retrieve-body {
       position: relative;
-      padding-left: 260px;
 
       .collect-favorites {
         position: absolute;
         top: 0;
         bottom: 0;
         left: 0;
-        width: 240px;
       }
     }
   }
@@ -67,9 +61,10 @@
 
     .box-favorites {
       display: flex;
+      flex: 1;
       align-items: center;
       justify-content: center;
-      width: 110px;
+      min-width: 110px;
       height: 100%;
 
       font-size: 14px;

@@ -7,8 +7,8 @@
   import BizMenuSelect from '@/components/biz-menu';
   import SettingModal from '../setting-modal';
   import FieldsSetting from '../result-comp/fields-setting';
-  import $http from '@/api';
-  import { computed, ref, defineProps, defineEmits, watch } from 'vue';
+  // import $http from '@/api';
+  import { computed, ref, watch } from 'vue';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -51,8 +51,6 @@
   const bkBizId = computed(() => store.state.bkBizId);
   const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
-  const unionIndexList = computed(() => store.getters.unionIndexList);
-  const routeIndexSet = computed(() => route.params.indexId);
 
   const isAiopsToggle = computed(() => {
     // 日志聚类总开关

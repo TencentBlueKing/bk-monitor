@@ -2,10 +2,6 @@
 
 .add-collect-dialog {
   .bk-form {
-    > :first-child {
-      margin-top: -10px;
-    }
-
     > :not(:first-child) {
       /* stylelint-disable-next-line declaration-no-important */
       margin-top: 12px !important;
