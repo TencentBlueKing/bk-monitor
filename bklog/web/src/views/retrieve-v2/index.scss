@@ -14,6 +14,11 @@
           padding: 0 16px;
 
           .left-info {
+            .collect-title {
+              font-size: 14px;
+              color: #313238;
+            }
+
             .collect-count {
               display: inline-flex;
               align-items: center;
@@ -36,7 +41,7 @@
           }
 
           .log-icon {
-            font-size: 18px;
+            font-size: 22px;
             transform: rotate(-90deg);
           }
         }
@@ -77,7 +82,7 @@
       box-shadow: 0 3px 4px 0 #4070cb0f;
 
       .log-icon {
-        font-size: 18px;
+        font-size: 22px;
         transform: rotate(90deg);
       }
     }

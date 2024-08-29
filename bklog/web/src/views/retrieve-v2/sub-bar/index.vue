@@ -1,9 +1,7 @@
 <script setup>
-  import axios from 'axios';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import useRouter from '@/hooks/use-router';
-  import useRoute from '@/hooks/use-route';
   import BizMenuSelect from '@/components/biz-menu';
   import SettingModal from '../setting-modal';
   import FieldsSetting from '../result-comp/fields-setting';
@@ -13,8 +11,6 @@
   const { $t } = useLocale();
   const store = useStore();
   const router = useRouter();
-  const route = useRoute();
-  const CancelToken = axios.CancelToken;
 
   const props = defineProps({
     indexSetItem: {
@@ -75,7 +71,6 @@
   const maskingRouteKey = ref('log');
   const isShowSettingModal = ref(false);
   const isShowFieldsSetting = ref(false);
-  const getFieldsConfigCancelFn = null;
   const maskingConfigRoute = ref({
     log: 'collectMasking',
     es: 'es-index-set-masking',
@@ -149,8 +144,8 @@
 
   watch(
     props.indexSetItem,
-    newValue => {
-      setShowLiList(newValue);
+    () => {
+      setShowLiList(props.indexSetItem);
     },
     { immediate: true },
   );
@@ -237,7 +232,10 @@
         :on-show="handleDropdownShow"
       >
         <slot name="trigger">
-          <div class="field-setting"><i class="log-icon icon-setting"></i>{{ $t('字段配置') }}</div>
+          <div class="field-setting">
+            <i class="log-icon icon-setting"></i>
+            {{ $t('字段配置') }}
+          </div>
         </slot>
         <template #content>
           <div class="fields-setting-container">

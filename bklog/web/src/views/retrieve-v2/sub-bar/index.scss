@@ -33,11 +33,25 @@
       align-items: center;
       justify-content: center;
       width: 100px;
+      height: 30px;
+      cursor: pointer;
       border-right: solid 1px #DCDEE5;
 
       span {
         margin-right: 4px;
         font-size: 16px;
+      }
+
+      .log-icon {
+        margin-right: 4px;
+        font-size: 16px;
+      }
+
+      &:hover {
+        color: #0083ff;
+        cursor: pointer;
+        background-color: #e1ecff;
+        border-radius: 2px;
       }
     }
 
@@ -46,6 +60,23 @@
       align-items: center;
       justify-content: center;
       width: 68px;
+
+      .icon-ellipsis-more {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        overflow: hidden;
+        font-size: 18px;
+
+        &:hover {
+          color: #0083ff;
+          cursor: pointer;
+          background-color: #e1ecff;
+          border-radius: 2px;
+        }
+      }
     }
   }
 }
