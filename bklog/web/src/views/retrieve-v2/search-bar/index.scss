@@ -64,124 +64,6 @@
     border-radius: 2px;
     box-shadow: 0 2px 4px 0 #1919290d;
 
-    ul.search-items {
-      display: inline-flex;
-      max-height: 135px;
-      padding: 4px;
-      margin: 0;
-      overflow: auto;
-
-      li {
-
-        display: inline-flex;
-        flex-direction: column;
-        align-content: center;
-        justify-content: center;
-        height: 40px;
-        padding: 2px 8px;
-        margin-right: 4px;
-        cursor: pointer;
-        border-radius: 2px;
-
-        &.btn-add {
-          font-size: 12px;
-          line-height: 20px;
-          color: #3A84FF;
-          letter-spacing: 0;
-          background: #F0F5FF;
-
-          &:hover {
-            background: #E1ECFF;
-          }
-        }
-
-        &.tag-item {
-          position: relative;
-          padding-right: 48px;
-          background: #F0F5FF;
-
-          &.disabled {
-            .tag-row {
-              &.match-value {
-                position: relative;
-                color: #C4C6CC;
-
-                &::after {
-                  position: absolute;
-                  top: 50%;
-                  left: 0;
-                  width: 100%;
-                  height: 1px;
-                  content: '';
-                  border-bottom: 1px solid #C4C6CC;
-                }
-              }
-            }
-          }
-
-          &:hover {
-            background: #E1ECFF;
-
-            .tag-options {
-              display: flex;
-            }
-          }
-
-          .tag-options {
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            display: none;
-            align-items: center;
-
-            justify-content: center;
-            width: 48px;
-
-            span {
-              font-size: 16px;
-              color: #979BA5;
-
-              &.icon-close {
-                font-size: 18px;
-              }
-            }
-          }
-
-          .tag-row {
-            display: flex;
-            justify-content: flex-start;
-            width: 100%;
-            font-size: 12px;
-
-            &.match-name {
-              color: #979BA5;
-
-              .symbol {
-                padding: 0 4px;
-                color: #FF9C01;
-              }
-            }
-
-            &.match-value {
-              color: #313238;
-            }
-          }
-        }
-
-        div {
-          width: 100%;
-          text-align: left;
-
-          &.tag-add {
-            font-size: 18px;
-            font-weight: 600;
-            text-align: center;
-          }
-        }
-      }
-    }
-
     .search-tool {
       position: absolute;
       top: 0;
@@ -204,11 +86,14 @@
 
       &.search-btn {
         right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 80px;
-        height: 48px;
+
         font-size: 14px;
         color: #FFFFFF;
-        text-align: center;
         cursor: pointer;
         background: #3A84FF;
         border-radius: 2px;
