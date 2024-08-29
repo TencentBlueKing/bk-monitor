@@ -43,7 +43,6 @@
 
   const showFavorites = ref(false);
   const favoriteList = ref([]);
-  const indexSetItem = ref({});
 
   const activeFavoriteID = ref(-1);
 
@@ -55,6 +54,7 @@
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
   const indexItem = computed(() => store.state.indexItem);
+  const indexSetItem = computed(() => indexItem.value.items?.[0]);
 
   const setRouteParams = (name = 'retrieve', params, query) => {
     router.replace({

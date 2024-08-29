@@ -335,9 +335,11 @@ export default class QueryStatement extends tsc<object> {
 
   @Emit('selected')
   emitSelected() {
+    const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
     const payload = {
-      ids: this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist,
+      ids,
       selectIsUnionSearch: !this.isAloneType,
+      items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
     };
     this.$store.commit('updateIndexItem', payload);
     return payload;
