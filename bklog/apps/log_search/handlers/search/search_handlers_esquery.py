@@ -432,7 +432,7 @@ class SearchHandler(object):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
         if clustering_config:
             return (
-                True,
+                clustering_config.signature_enable,
                 {
                     "collector_config_id": self.index_set.collector_config_id,
                     "signature_switch": clustering_config.signature_enable,

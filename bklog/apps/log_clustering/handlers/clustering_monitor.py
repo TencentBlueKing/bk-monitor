@@ -222,10 +222,20 @@ class ClusteringMonitorHandler(object):
         strategy_output_rt = f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
         if strategy_type == StrategiesType.NORMAL_STRATEGY:
             self.clustering_config.normal_strategy_output = strategy_output_rt
+            self.clustering_config.normal_strategy_enable = True
         else:
             self.clustering_config.new_cls_strategy_output = strategy_output_rt
+            self.clustering_config.new_cls_strategy_enable = True
 
-        self.clustering_config.save()
+        self.clustering_config.save(
+            update_fields=[
+                "normal_strategy_output",
+                "normal_strategy_enable",
+                "new_cls_strategy_output",
+                "new_cls_strategy_enable",
+            ]
+        )
+
         return {"strategy_id": strategy_id, "label_name": labels}
 
     def get_strategy(self, strategy_type, strategy_id):
@@ -261,6 +271,23 @@ class ClusteringMonitorHandler(object):
             return ""
         strategy_id = obj.strategy_id
         obj.delete()
+
+        if strategy_type == StrategiesType.NORMAL_STRATEGY:
+            self.clustering_config.normal_strategy_output = ""
+            self.clustering_config.normal_strategy_enable = False
+        else:
+            self.clustering_config.new_cls_strategy_output = ""
+            self.clustering_config.new_cls_strategy_enable = False
+
+        self.clustering_config.save(
+            update_fields=[
+                "normal_strategy_output",
+                "normal_strategy_enable",
+                "new_cls_strategy_output",
+                "new_cls_strategy_enable",
+            ]
+        )
+
         MonitorApi.delete_alarm_strategy_v3(params={"bk_biz_id": self.bk_biz_id, "ids": [strategy_id]})
         return strategy_id
 

@@ -158,6 +158,7 @@ class ClusteringConfig(SoftDeleteModel):
     new_cls_strategy_output = models.CharField(_("日志新类告警输出结果表"), max_length=255, default="", null=True, blank=True)
     normal_strategy_enable = models.BooleanField(_("是否开启数量突增告警"), default=False)
     normal_strategy_output = models.CharField(_("日志数量告警输出结果表"), max_length=255, default="", null=True, blank=True)
+    access_finished = models.BooleanField(_("是否接入完成"), default=True)
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":

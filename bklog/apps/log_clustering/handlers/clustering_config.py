@@ -181,6 +181,7 @@ class ClusteringConfigHandler(object):
             related_space_pre_bk_biz_id=related_space_pre_bk_biz_id,  # 查询space关联的真实业务之前的业务id
             new_cls_strategy_enable=params["new_cls_strategy_enable"],
             normal_strategy_enable=params["normal_strategy_enable"],
+            access_finished=False,
         )
 
         access_clustering.delay(index_set_id=index_set_id)
@@ -220,7 +221,10 @@ class ClusteringConfigHandler(object):
         """
         接入状态检测
         """
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
+
         result = {
+            "access_finished": clustering_config.access_finished,
             "flow_create": {
                 "status": self.AccessStatusCode.SUCCESS,
                 "message": _("步骤完成"),
@@ -234,8 +238,6 @@ class ClusteringConfigHandler(object):
                 "message": _("步骤完成"),
             },
         }
-
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
 
         # 1. 先校验数据写入是否正常
         if clustering_config.clustered_rt:
@@ -251,6 +253,10 @@ class ClusteringConfigHandler(object):
                 search_handler = SearchHandler(self.index_set_id, query_params)
                 search_result = search_handler.search()
                 if search_result["total"] > 0:
+                    # 只要有一次有数据，就认为是接入完成
+                    clustering_config.access_finished = True
+                    clustering_config.save(update_fields=["access_finished"])
+                    result["access_finished"] = True
                     return result
                 else:
                     result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("暂无数据"))
