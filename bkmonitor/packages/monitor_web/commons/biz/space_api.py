@@ -53,7 +53,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
         ret: List[SpaceDefine] = local_mem.get("metadata:spaces_map", None)
         # cmdb业务尝试用缓存
-        using_cache = params.get("space_uid", "").startswith("bkcc") or bk_biz_id < 0
+        using_cache = params.get("space_uid", "").startswith("bkcc") or bk_biz_id > 0
         if ret is not None and using_cache:
             space = ret.get(params["space_uid"])
             if space is not None:
