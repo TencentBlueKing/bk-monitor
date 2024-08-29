@@ -1865,6 +1865,8 @@ export default {
   关联服务类型: 'Associated service type',
   Apdex阈值T: 'Apdex threshold T',
   替换为: 'Replace with',
+  批量替换: 'Batch replacement',
+  批量追加: 'Batch append',
 
   故障关注人: 'Fault Follower',
   故障链接: 'Fault Link',
