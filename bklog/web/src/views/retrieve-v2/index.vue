@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, ref, watch } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
 
   // import * as authorityMap from '@/common/authority-map';
   import useStore from '@/hooks/use-store';
@@ -42,9 +42,8 @@
   const route = useRoute();
 
   const showFavorites = ref(false);
-  const favoriteList = ref([]);
-
-  const activeFavoriteID = ref(-1);
+  const favoriteRef = ref(null);
+  const favoriteWidth = ref(240);
 
   // const retrieveParams = ref({
   //   bk_biz_id: store.state.bkBizId,
@@ -108,16 +107,38 @@
     },
     { immediate: true },
   );
+  const initFavoriteState = () => {
+    const isOpen = localStorage.getItem('isAutoShowCollect') === 'true';
+    if (!isOpen) {
+      showFavorites.value = true;
+      favoriteWidth.value = 240;
+    }
+  };
 
   const handleFavoritesClick = () => {
-    showFavorites.value = !showFavorites.value;
+    if (showFavorites.value) return;
+    showFavorites.value = true;
   };
+  const handleFavoritesClose = e => {
+    e.stopPropagation();
+    showFavorites.value = false;
+  };
+  const handleEditFavoriteGroup = e => {
+    e.stopPropagation();
+    favoriteRef.value.isShowManageDialog = true;
+  };
+  const handleClickFavorite = v => {};
+
+  onMounted(() => {
+    initFavoriteState();
+  });
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
     <div class="sub-head">
       <div
         class="box-favorites"
+        :style="{ width: `${showFavorites ? favoriteWidth : 110}px` }"
         @click="handleFavoritesClick"
       >
         <div
@@ -126,29 +147,39 @@
         >
           <div class="left-info">
             <span class="collect-title">{{ $t('收藏夹') }}</span>
-            <span class="collect-count">50</span>
-            <span class="collect-edit log-icon icon-wholesale-editor"></span>
+            <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
+            <span
+              class="collect-edit log-icon icon-wholesale-editor"
+              @click="handleEditFavoriteGroup"
+            ></span>
           </div>
-          <span class="log-icon icon-collapse-small"></span>
+          <span
+            class="log-icon icon-collapse-small"
+            @click="handleFavoritesClose"
+          ></span>
         </div>
         <template v-else>
           <span :class="['log-icon icon-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar :index-set-item="indexSetItem" />
+      <SubBar
+        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }"
+        :indexSetItem="indexSetItem"
+      />
     </div>
     <div class="retrieve-body">
       <CollectFavorites
-        v-if="showFavorites"
         class="collect-favorites"
-        :active-favorite-i-d="activeFavoriteID"
-        :favorite-list="favoriteList"
-        :is-show="showFavorites"
-        :width="240"
+        ref="favoriteRef"
+        :is-show.sync="showFavorites"
+        :width.sync="favoriteWidth"
+        @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
-      <SearchBar></SearchBar>
-      <div class="result-row"></div>
-      <div class="result-row"></div>
+      <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }">
+        <SearchBar></SearchBar>
+        <div class="result-row"></div>
+        <div class="result-row"></div>
+      </div>
     </div>
   </div>
 </template>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -40,10 +41,7 @@ import './collect-index.scss';
 interface IProps {
   collectWidth: number;
   isShowCollect: boolean;
-  activeFavoriteID: number;
   visibleFields: Array<any>;
-  favoriteList: any;
-  favoriteLoading: boolean;
 }
 
 export interface IGroupItem {
@@ -65,6 +63,7 @@ export interface IFavoriteItem {
   is_active: boolean;
   is_actives?: boolean[];
   index_set_names?: string[];
+  index_set_ids?: string[];
   display_fields: string[];
 }
 
@@ -74,9 +73,7 @@ type visibleType = 'private' | 'public' | 'unknown';
 export default class CollectIndex extends tsc<IProps> {
   @PropSync('width', { type: Number }) collectWidth: number;
   @PropSync('isShow', { type: Boolean }) isShowCollect: boolean;
-  @Prop({ type: Boolean, required: true }) favoriteLoading: boolean;
-  @Prop({ type: Array, required: true }) favoriteList: any;
-  @Prop({ type: Number, required: true }) activeFavoriteID: number;
+  @Prop({ type: Object, default: () => ({}) }) indexSetList: object;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
 
   collectMinWidth = 160; // 收藏最小栏宽度
@@ -95,6 +92,8 @@ export default class CollectIndex extends tsc<IProps> {
   baseSortType = 'NAME_ASC'; // 排序参数
   sortType = 'NAME_ASC'; // 展示的排序参数
   editFavoriteID = -1; // 点击编辑时的收藏ID
+  activeFavorite: IFavoriteItem = null;
+  favoriteLoading = false;
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
@@ -146,6 +145,7 @@ export default class CollectIndex extends tsc<IProps> {
     interactive: true,
     theme: 'light',
   };
+  favoriteList = [];
   groupList: IGroupItem[] = []; // 分组列表
   collectList: IGroupItem[] = []; // 收藏列表
   filterCollectList: IGroupItem[] = []; // 搜索的收藏列表
@@ -156,6 +156,14 @@ export default class CollectIndex extends tsc<IProps> {
 
   get spaceUid() {
     return this.$store.state.spaceUid;
+  }
+
+  get bkBizId() {
+    return this.$store.state.bkBizId;
+  }
+
+  get activeFavoriteID() {
+    return this.activeFavorite?.id || -1;
   }
 
   get isClickFavoriteEdit() {
@@ -175,7 +183,7 @@ export default class CollectIndex extends tsc<IProps> {
   }
 
   @Watch('isShowCollect')
-  async handleShowCollect(value) {
+  handleShowCollect(value) {
     if (value) {
       this.baseSortType = localStorage.getItem('favoriteSortType') || 'NAME_ASC';
       this.sortType = this.baseSortType;
@@ -188,12 +196,17 @@ export default class CollectIndex extends tsc<IProps> {
     }
   }
 
+  @Watch('bkBizId')
+  watchIndexSetIDChange() {
+    this.isShowCollect && this.getFavoriteList();
+  }
+
   @Watch('favoriteList', { deep: true })
   watchFavoriteData(value) {
     this.handleInitFavoriteList(value);
   }
 
-  @Emit('handle-click')
+  @Emit('handle-click-favorite')
   handleClickFavorite(value) {
     return value;
   }
@@ -211,14 +224,125 @@ export default class CollectIndex extends tsc<IProps> {
     };
   }
 
-  @Emit('request-favorite-list')
-  getFavoriteList() {}
+  /** 获取收藏列表 */
+  async getFavoriteList() {
+    // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
+    try {
+      this.favoriteLoading = true;
+      const { data } = await $http.request('favorite/getFavoriteByGroupList', {
+        query: {
+          space_uid: this.spaceUid,
+          order_type: localStorage.getItem('favoriteSortType') || 'NAME_ASC',
+        },
+      });
+      const provideFavorite = data[0];
+      const publicFavorite = data[data.length - 1];
+      const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
+      const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
+      this.favoriteList = sortAfterList;
+    } catch (err) {
+      this.favoriteLoading = false;
+      this.favoriteList = [];
+    } finally {
+      // 获取收藏列表后 若当前不是新检索 则判断当前收藏是否已删除 若删除则变为新检索
+      if (this.activeFavoriteID !== -1) {
+        let isFindCheckValue = false; // 是否从列表中找到匹配当前收藏的id
+        for (const gItem of this.favoriteList) {
+          const findFavorites = gItem.favorites.find(item => item.id === this.activeFavoriteID);
+          if (!!findFavorites) {
+            isFindCheckValue = true; // 找到 中断循环
+            break;
+          }
+        }
+        if (!isFindCheckValue) this.handleClickFavoriteItem(); // 未找到 清空当前收藏 变为新检索
+      }
+      this.favoriteLoading = false;
+    }
+  }
+
+  // 点击收藏列表的收藏
+  async handleClickFavoriteItem(value?) {
+    // if (!value) {
+    //   // 点击为新检索时 清空收藏
+    //   this.activeFavorite = null;
+    //   return;
+    // }
+    const data = deepClone(value);
+    // if (!Object.keys(data.params.ip_chooser || []).length) {
+    //   data.params.ip_chooser = {};
+    // }
+    this.activeFavorite = data;
+    // const { index_set_id: indexSetID, params } = data;
+    // const selectIsUnionSearch = value.index_set_type === 'union';
+    // const ids = selectIsUnionSearch ? value.index_set_ids.map(item => String(item)) : [String(indexSetID)];
+    // const filterIDs = (this.indexSetList as any)
+    //   ?.filter(item => ids.includes(item.index_set_id))
+    //   .map(item => item.index_set_id);
+    // if (filterIDs.length) {
+    //   const setChangeValue = {
+    //     ids: filterIDs,
+    //     selectIsUnionSearch,
+    //   };
+    //   const favoriteParams = { ...params, from_favorite_id: this.activeFavoriteID };
+    //   this.handleSelectIndex(setChangeValue, favoriteParams, true);
+    // } else {
+    //   this.messageError(this.$t('没有找到该记录下相关索引集'));
+    // }
+    this.handleClickFavorite(value);
+  }
+
+  /**
+   * @desc: 切换索引
+   * @param {Object} val 切换索引集的数据
+   * @param {Object} params 检索传参数据
+   * @param {Boolean} isFavoriteSearch 是否是收藏
+   * @returns {*}
+   */
+  handleSelectIndex(val, isFavoriteSearch = false) {
+    const { ids, selectIsUnionSearch } = val;
+    // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
+    if (!isFavoriteSearch) {
+      const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)) ?? [];
+      if (this.compareArrays(ids, favoriteIDs)) return;
+      // this.resetFavoriteValue();
+    }
+    if (selectIsUnionSearch) {
+      if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
+        this.$store.commit('updateUnionIndexList', ids);
+      }
+    } else {
+      // 单选时弹窗关闭时 判断之前是否是多选 如果是多选 则直接检索
+      if (this.isUnionSearch) {
+      } else {
+      }
+      this.$store.commit('updateUnionIndexList', []);
+    }
+  }
+
+  /** 检查两个数组否相等 */
+  compareArrays(arr1, arr2) {
+    let allElementsEqual = true;
+    // 检查两个数组的长度是否相等
+    if (arr1.length !== arr2.length) return false;
+    // 对比两个数组的每个元素
+    const sortedArr1 = [...arr1].sort();
+    const sortedArr2 = [...arr2].sort();
+
+    // 逐一比较排序后数组的元素
+    for (let i = 0; i < sortedArr1.length; i++) {
+      if (sortedArr1[i] !== sortedArr2[i]) {
+        allElementsEqual = false; // 发现不匹配元素
+        break;
+      }
+    }
+    return allElementsEqual;
+  }
 
   async handleUserOperate(obj) {
     const { type, value } = obj;
     switch (type) {
       case 'click-favorite': // 点击收藏
-        this.handleClickFavorite(value);
+        this.handleClickFavoriteItem(value);
         break;
       case 'add-group': // 新增组
         await this.handleUpdateGroupName({ group_new_name: value });
@@ -533,7 +657,7 @@ export default class CollectIndex extends tsc<IProps> {
   dragMoving(e) {
     const newTreeBoxWidth = this.currentTreeBoxWidth + e.screenX - this.currentScreenX;
     if (newTreeBoxWidth < this.collectMinWidth) {
-      this.collectWidth = 0;
+      this.collectWidth = 240;
       this.isShowCollect = false;
       this.dragStop();
       localStorage.setItem('isAutoShowCollect', 'false');
@@ -552,7 +676,13 @@ export default class CollectIndex extends tsc<IProps> {
   }
   render() {
     return (
-      <div class='retrieve-collect-index'>
+      <div
+        style={{
+          width: this.isShowCollect ? `${this.collectWidth}px` : 0,
+          display: this.isShowCollect ? 'block' : 'none',
+        }}
+        class='retrieve-collect-index'
+      >
         <CollectContainer
           activeFavoriteID={this.activeFavoriteID}
           collectLoading={this.collectLoading || this.favoriteLoading}
@@ -562,16 +692,6 @@ export default class CollectIndex extends tsc<IProps> {
           on-change={this.handleUserOperate}
         >
           <div class='search-container'>
-            <div class='fl-jcsb'>
-              <span class='search-title fl-jcsb'>
-                {this.$t('收藏查询')}
-                <span class='favorite-number'>{this.allFavoriteNumber}</span>
-              </span>
-              <span
-                class='bk-icon log-icon icon-wholesale-editor'
-                onClick={() => (this.isShowManageDialog = true)}
-              ></span>
-            </div>
             <div class='search-box fl-jcsb'>
               <Input
                 vModel={this.searchVal}
@@ -662,11 +782,11 @@ export default class CollectIndex extends tsc<IProps> {
             <span class='bk-icon icon-enlarge-line'></span>
             <span>{this.$t('新检索')}</span>
           </div>
+          <div
+            class={['drag-border', { 'drag-ing': this.isChangingWidth }]}
+            onMousedown={this.dragBegin}
+          ></div>
         </CollectContainer>
-        <div
-          class={['drag-border', { 'drag-ing': this.isChangingWidth }]}
-          onMousedown={this.dragBegin}
-        ></div>
         <ManageGroupDialog
           vModel={this.isShowManageDialog}
           onSubmit={value => value && this.getFavoriteList()}
