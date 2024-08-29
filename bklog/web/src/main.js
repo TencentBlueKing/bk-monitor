@@ -49,7 +49,7 @@ import methods from './plugins/methods';
 import router from './router';
 import store from './store';
 
-import './static/log-style.css';
+import './static/style.css';
 // import 'vue-json-pretty/lib/styles.css';
 
 const provider = new WebTracerProvider();
