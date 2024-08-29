@@ -628,7 +628,7 @@ export const formatTimeUnitAndValue = (value: number, unit: string) => {
     curUnit = units[index + 1].unit;
   }
   return {
-    value: curValue,
+    value: curValue.toFixed(2),
     unit: curUnit
   };
 }
