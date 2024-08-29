@@ -187,22 +187,24 @@ class BCSClusterInfo(models.Model):
         # 直接基于环境变量进行bcs纳管k8s信息的填充
         api_key_content = settings.BCS_API_GATEWAY_TOKEN
         server_address_path = "clusters"
-
-        cluster = cls.objects.create(
-            cluster_id=cluster_id,
-            bcs_api_cluster_id=cluster_id,
-            bk_biz_id=bk_biz_id,
-            project_id=project_id,
-            domain_name=domain_name,
-            port=port,
-            server_address_path=server_address_path,
-            api_key_type=api_key_type,
-            api_key_content=api_key_content,
-            api_key_prefix=api_key_prefix,
-            is_skip_ssl_verify=is_skip_ssl_verify,
-            creator=creator,
-            bk_env=bk_env or settings.BCS_CLUSTER_BK_ENV_LABEL,
-        )
+        try:
+            cluster = cls.objects.create(
+                cluster_id=cluster_id,
+                bcs_api_cluster_id=cluster_id,
+                bk_biz_id=bk_biz_id,
+                project_id=project_id,
+                domain_name=domain_name,
+                port=port,
+                server_address_path=server_address_path,
+                api_key_type=api_key_type,
+                api_key_content=api_key_content,
+                api_key_prefix=api_key_prefix,
+                is_skip_ssl_verify=is_skip_ssl_verify,
+                creator=creator,
+                bk_env=bk_env or settings.BCS_CLUSTER_BK_ENV_LABEL,
+            )
+        except Exception as e:
+            logger.error("cluster->[%s] create database record failed, error->[%s]", cluster_id, e)
         logger.info("cluster->[%s] create database record success.", cluster.cluster_id)
 
         if transfer_cluster_id is None:
