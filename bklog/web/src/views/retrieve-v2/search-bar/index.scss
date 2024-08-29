@@ -100,4 +100,77 @@
       }
     }
   }
+
+  .search-refresh {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0px 28px 0px 13px;
+    cursor: pointer;
+
+    &::before {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      content: '';
+      background-color: #dcdee5;
+    }
+  }
+
+  .auto-refresh-trigger {
+    display: flex;
+    align-items: center;
+    min-width: 103px;
+    height: 52px;
+    font-size: 12px;
+    line-height: 22px;
+    white-space: nowrap;
+    cursor: pointer;
+
+    .log-icon {
+      padding: 0 5px 0 17px;
+      font-size: 14px;
+      color: #63656e;
+    }
+
+    .active-text {
+      color: #3a84ff;
+    }
+
+    .icon-angle-down {
+      margin: 0 10px;
+      font-size: 22px;
+      color: #63656e;
+      transition: transform 0.3s;
+
+      &.active {
+        transition: transform 0.3s;
+        transform: rotate(-180deg);
+      }
+    }
+
+    &:hover > span {
+      color: #3a84ff;
+    }
+
+    &::before {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      content: '';
+      background-color: #dcdee5;
+    }
+  }  
+
+  .query-params-wrap {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: end;
+  }
 }

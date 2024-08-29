@@ -27,6 +27,8 @@
 <script setup>
   import { computed, onMounted, ref, watch } from 'vue';
 
+  import dayjs from 'dayjs';
+  import { updateTimezone } from '../../language/dayjs';
   // import * as authorityMap from '@/common/authority-map';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
@@ -45,6 +47,9 @@
   const favoriteRef = ref(null);
   const favoriteWidth = ref(240);
 
+  const datePickerValue = ref(['now-15m', 'now']);
+  const activeFavoriteID = ref(-1);
+  const timeZone = ref(dayjs.tz.guess());
   // const retrieveParams = ref({
   //   bk_biz_id: store.state.bkBizId,
   //   ...getDefaultRetrieveParams(),
@@ -133,6 +138,15 @@
   onMounted(() => {
     initFavoriteState();
   });
+  /** 修改时区 */
+  const handleTimezoneChange = (timezone) => {
+    timezone.value = timezone;
+    updateTimezone(timezone);
+  }
+  /** 触发重新查询 */
+  const shouldRetrieve = () => {
+    console.log('======= shouldRetrieve')
+  }
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
@@ -177,7 +191,13 @@
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
       <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }">
-        <SearchBar></SearchBar>
+        <SearchBar 
+          :timeZone="timeZone"
+          :datePickerValue="datePickerValue"
+          @update:date-picker-value="(value) => datePickerValue = value"
+          @timezone-change="handleTimezoneChange"
+          @should-retrieve="shouldRetrieve"
+        ></SearchBar>
         <div class="result-row"></div>
         <div class="result-row"></div>
       </div>
@@ -186,4 +206,5 @@
 </template>
 <style scoped>
   @import './index.scss';
-</style>
+</style>import dayjs from 'dayjs';
+
