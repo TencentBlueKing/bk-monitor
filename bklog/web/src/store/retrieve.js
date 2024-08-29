@@ -24,7 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import * as authorityMap from '@/common/authority-map';
 import { random } from '@/components/monitor-echarts/utils';
+
+import http from '@/api';
 
 export default {
   namespaced: true,
@@ -33,6 +36,8 @@ export default {
     cacheDatePickerValue: [],
     cacheTimeRange: '',
     filedSettingConfigID: 1,
+    indexSetList: [],
+    isIndexSetLoading: false,
   },
   mutations: {
     updateChartKey(state) {
@@ -47,6 +52,51 @@ export default {
     updateFiledSettingConfigID(state, payload) {
       state.filedSettingConfigID = payload;
     },
+    updateIndexSetList(state, payload) {
+      state.indexSetList.length = 0;
+      state.indexSetList = [];
+      state.indexSetList.push(...payload);
+    },
+    updateIndexSetLoading(state, payload) {
+      state.isIndexSetLoading = payload;
+    },
   },
-  actions: {},
+  actions: {
+    getIndexSetList(ctx, payload) {
+      ctx.commit('updateIndexSetLoading', true);
+      return http
+        .request('retrieve/getIndexSetList', {
+          query: {
+            space_uid: payload.spaceUid,
+          },
+        })
+        .then(res => {
+          if (res.data.length) {
+            // 有索引集
+            // 根据权限排序
+            const s1 = [];
+            const s2 = [];
+            for (const item of res.data) {
+              if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+                s1.push(item);
+              } else {
+                s2.push(item);
+              }
+            }
+            const indexSetList = s1.concat(s2);
+            // 索引集数据加工
+            indexSetList.forEach(item => {
+              item.index_set_id = `${item.index_set_id}`;
+              item.indexName = item.index_set_name;
+              item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+            });
+            ctx.commit('updateIndexSetList', indexSetList);
+          }
+          return res;
+        })
+        .finally(() => {
+          ctx.commit('updateIndexSetLoading', false);
+        });
+    },
+  },
 };

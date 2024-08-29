@@ -27,15 +27,15 @@
 <script setup>
   import { computed, onMounted, ref, watch } from 'vue';
 
-  import * as authorityMap from '@/common/authority-map';
+  // import * as authorityMap from '@/common/authority-map';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import CollectFavorites from './collect/collect-index';
-  import { getDefaultRetrieveParams } from './const';
+  // import { getDefaultRetrieveParams } from './const';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
-  import http from '@/api';
+  // import http from '@/api';
 
   const store = useStore();
   const router = useRouter();
@@ -45,10 +45,10 @@
   const favoriteRef = ref(null);
   const favoriteWidth = ref(240);
 
-  const retrieveParams = ref({
-    bk_biz_id: store.state.bkBizId,
-    ...getDefaultRetrieveParams(),
-  });
+  // const retrieveParams = ref({
+  //   bk_biz_id: store.state.bkBizId,
+  //   ...getDefaultRetrieveParams(),
+  // });
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -61,6 +61,11 @@
       params,
       query,
     });
+  };
+
+  const getIndexSetList = () => {
+    console.log('spaceUid', spaceUid.value);
+    store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value });
   };
 
   watch(
@@ -98,6 +103,7 @@
           },
         );
       }
+      getIndexSetList();
     },
     { immediate: true },
   );
