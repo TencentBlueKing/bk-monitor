@@ -69,6 +69,7 @@ import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
+import EventDetailSlider from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
@@ -308,9 +309,6 @@ const filterIconMap = {
 };
 @Component({
   name: 'Event',
-  components: {
-    EventDetailSlider: () => import(/* webpackChunkName: "EventDetailSlider" */ './event-detail/event-detail-slider'),
-  },
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 监控左侧栏是否收缩配置 自愈默认未收缩
@@ -2698,16 +2696,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           ) : undefined}
         </div>
-        {this.detailInfo.isShow && (
-          <event-detail-slider
-            activeTab={this.detailInfo.activeTab}
-            bizId={this.detailInfo.bizId}
-            eventId={this.detailInfo.id}
-            isShow={this.detailInfo.isShow}
-            type={this.detailInfo.type}
-            onShowChange={v => (this.detailInfo.isShow = v)}
-          />
-        )}
+        <EventDetailSlider
+          activeTab={this.detailInfo.activeTab}
+          bizId={this.detailInfo.bizId}
+          eventId={this.detailInfo.id}
+          isShow={this.detailInfo.isShow}
+          type={this.detailInfo.type}
+          onShowChange={v => (this.detailInfo.isShow = v)}
+        />
         {this.getOperateDialogComponent()}
         <ChatGroup
           alarmEventName={this.chatGroupDialog.alertName}
