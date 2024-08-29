@@ -36,9 +36,6 @@ Component.registerHooks(['beforeRouteEnter']);
 export default (authMap: { [propsName: string]: string }, inCreated = true) => {
   class authorityMixin extends tsc<undefined> {
     __bizIdUnWatch__: any;
-    get __BizId__() {
-      return this.$store.getters.bizId;
-    }
     authLoading = false;
     dataLoading = false;
     isQueryAuthDone = false;
@@ -48,6 +45,9 @@ export default (authMap: { [propsName: string]: string }, inCreated = true) => {
       super();
       // biome-ignore lint/style/noCommaOperator: <explanation>
       this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => ((pre[cur] = false), pre), {});
+    }
+    get __BizId__() {
+      return this.$store.getters.bizId;
     }
     get hasPageViewAuth() {
       if (this.$store.getters.is_superuser) return true;

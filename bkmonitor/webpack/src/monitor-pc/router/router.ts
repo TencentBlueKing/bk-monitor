@@ -166,7 +166,6 @@ router.beforeEach(async (to, from, next) => {
       'share',
     ].includes(to.name)
   ) {
-    console.info(authority.page, authority.map, getAuthById(authority.page), '============');
     if (!getAuthById(authority.page)) {
       store.commit('app/SET_ROUTE_CHANGE_LOADING', true);
       hasAuthority = await isAuthority(authority?.page)
