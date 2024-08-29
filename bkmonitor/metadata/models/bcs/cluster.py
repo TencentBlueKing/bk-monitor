@@ -187,6 +187,7 @@ class BCSClusterInfo(models.Model):
         # 直接基于环境变量进行bcs纳管k8s信息的填充
         api_key_content = settings.BCS_API_GATEWAY_TOKEN
         server_address_path = "clusters"
+
         cluster = cls.objects.create(
             cluster_id=cluster_id,
             bcs_api_cluster_id=cluster_id,
