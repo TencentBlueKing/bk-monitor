@@ -166,7 +166,7 @@ const store = new Vuex.Store({
   // 公共 mutations
   mutations: {
     updateIndexItem(state, payload) {
-      state.indexItem = payload;
+      state.indexItem = payload ?? {};
     },
     updateUserMeta(state, payload) {
       state.userMeta = payload;

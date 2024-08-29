@@ -20,6 +20,7 @@
     indexSetItem: {
       type: Object,
       required: true,
+      default: () => ({})
     },
     // totalFields: {
     //   type: Array,
