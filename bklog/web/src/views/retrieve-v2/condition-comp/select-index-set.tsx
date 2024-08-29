@@ -57,9 +57,6 @@ const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
 export default class QueryStatement extends tsc<object> {
-  indexSetList = [];
-  basicLoading = false;
-
   /** 表示集合数据是否正在加载 */
   isCollectionLoading = false;
 
@@ -168,6 +165,14 @@ export default class QueryStatement extends tsc<object> {
   @Ref('selectInput') private readonly selectInputRef: Select;
   @Ref('favoritePopover') private readonly favoritePopoverRef: Popover;
   @Ref('checkInputForm') private readonly checkInputFormRef: Form;
+
+  get indexSetList() {
+    return this.$store.state.retrieve.indexSetList;
+  }
+
+  get basicLoading() {
+    return this.$store.state.retrieve.isIndexSetLoading;
+  }
 
   get indexId() {
     return this.$route.params.indexId;
@@ -328,10 +333,10 @@ export default class QueryStatement extends tsc<object> {
     this.selectTagCatchIDList = !!val.length ? val : this.indexId ? [this.indexId] : [];
   }
 
-  @Watch('spaceUid', { immediate: true })
-  handleSpaceUidChange() {
-    this.requestIndexSetList();
-  }
+  // @Watch('spaceUid', { immediate: true })
+  // handleSpaceUidChange() {
+  //   this.requestIndexSetList();
+  // }
 
   @Emit('selected')
   emitSelected() {
@@ -459,46 +464,46 @@ export default class QueryStatement extends tsc<object> {
   }
 
   // 初始化索引集
-  requestIndexSetList() {
-    const spaceUid = this.spaceUid;
-    this.basicLoading = true;
-    this.$http
-      .request('retrieve/getIndexSetList', {
-        query: {
-          space_uid: spaceUid,
-        },
-      })
-      .then(res => {
-        if (res.data.length) {
-          // 有索引集
-          // 根据权限排序
-          const s1 = [];
-          const s2 = [];
-          for (const item of res.data) {
-            if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-              s1.push(item);
-            } else {
-              s2.push(item);
-            }
-          }
-          const indexSetList = s1.concat(s2);
+  // requestIndexSetList() {
+  //   const spaceUid = this.spaceUid;
+  //   this.basicLoading = true;
+  //   this.$http
+  //     .request('retrieve/getIndexSetList', {
+  //       query: {
+  //         space_uid: spaceUid,
+  //       },
+  //     })
+  //     .then(res => {
+  //       if (res.data.length) {
+  //         // 有索引集
+  //         // 根据权限排序
+  //         const s1 = [];
+  //         const s2 = [];
+  //         for (const item of res.data) {
+  //           if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+  //             s1.push(item);
+  //           } else {
+  //             s2.push(item);
+  //           }
+  //         }
+  //         const indexSetList = s1.concat(s2);
 
-          // 索引集数据加工
-          indexSetList.forEach(item => {
-            item.index_set_id = `${item.index_set_id}`;
-            item.indexName = item.index_set_name;
-            item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-          });
-          this.indexSetList = indexSetList;
-        }
-      })
-      .catch(() => {
-        this.indexSetList.splice(0);
-      })
-      .finally(() => {
-        this.basicLoading = false;
-      });
-  }
+  //         // 索引集数据加工
+  //         indexSetList.forEach(item => {
+  //           item.index_set_id = `${item.index_set_id}`;
+  //           item.indexName = item.index_set_name;
+  //           item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+  //         });
+  //         this.indexSetList = indexSetList;
+  //       }
+  //     })
+  //     .catch(() => {
+  //       this.indexSetList.splice(0);
+  //     })
+  //     .finally(() => {
+  //       this.basicLoading = false;
+  //     });
+  // }
 
   // 申请索引集的搜索权限
   async applySearchAccess(item) {

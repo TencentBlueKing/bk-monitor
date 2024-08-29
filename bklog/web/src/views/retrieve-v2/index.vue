@@ -27,15 +27,15 @@
 <script setup>
   import { computed, ref, watch } from 'vue';
 
-  import * as authorityMap from '@/common/authority-map';
+  // import * as authorityMap from '@/common/authority-map';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import CollectFavorites from './collect/collect-index';
-  import { getDefaultRetrieveParams } from './const';
+  // import { getDefaultRetrieveParams } from './const';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
-  import http from '@/api';
+  // import http from '@/api';
 
   const store = useStore();
   const router = useRouter();
@@ -46,10 +46,10 @@
 
   const activeFavoriteID = ref(-1);
 
-  const retrieveParams = ref({
-    bk_biz_id: store.state.bkBizId,
-    ...getDefaultRetrieveParams(),
-  });
+  // const retrieveParams = ref({
+  //   bk_biz_id: store.state.bkBizId,
+  //   ...getDefaultRetrieveParams(),
+  // });
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -64,19 +64,28 @@
     });
   };
 
-  watch(indexItem, () => {
-    const { ids } = indexItem.value;
-    const indexId = ids?.[0];
-    if (indexId) {
-      router.push({
-        params: {
-          ...route.params,
-          indexId
-        },
-        query: route.query
-      })
-    }
-  }, { immediate: true, deep: true });
+  const getIndexSetList = () => {
+    console.log('spaceUid', spaceUid.value);
+    store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value });
+  };
+
+  watch(
+    indexItem,
+    () => {
+      const { ids } = indexItem.value;
+      const indexId = ids?.[0];
+      if (indexId) {
+        router.push({
+          params: {
+            ...route.params,
+            indexId,
+          },
+          query: route.query,
+        });
+      }
+    },
+    { immediate: true, deep: true },
+  );
 
   watch(
     spaceUid,
@@ -95,6 +104,7 @@
           },
         );
       }
+      getIndexSetList();
     },
     { immediate: true },
   );
@@ -125,7 +135,7 @@
           <span :class="['log-icon icon-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar :indexSetItem="indexSetItem" />
+      <SubBar :index-set-item="indexSetItem" />
     </div>
     <div class="retrieve-body">
       <CollectFavorites
