@@ -1399,7 +1399,7 @@ class SearchHandler(object):
                 size=self.size,
                 start=self.start,
                 gse_index=self.gseindex,
-                iteration_idx=self.iterationIdx,
+                iteration_idx=self._iteration_idx,
                 dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
                 ip=self.ip,
