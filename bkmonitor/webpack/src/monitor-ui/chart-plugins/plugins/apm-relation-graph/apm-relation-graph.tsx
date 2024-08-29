@@ -305,17 +305,17 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(true);
     try {
       this.unregisterOberver();
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const params = {
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
+        app_name: this.appName,
+        service_name: this.serviceName,
+        data_type: this.dataType,
+      };
       this.getAlarmBarData = async setData => {
-        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-        const params = {
-          start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
-        };
         const data = await dataTypeBarQuery({
           ...params,
-          data_type: this.dataType,
-          app_name: this.appName,
-          service_name: this.serviceName,
         }).catch(() => ({ series: [] }));
         setData(alarmBarChartDataTransform(this.dataType, data.series));
       };
@@ -342,8 +342,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.curFilter = id;
   }
 
-  handleDataTypeChange(item) {
+  handleShowTypeChange(item) {
     this.showType = item.id;
+  }
+
+  handleDataTypeChange() {
+    this.getPanelData();
   }
 
   dataZoom(startTime: string, endTime: string) {
@@ -364,7 +368,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 <div
                   key={item.id}
                   class={['data-type-item', { active: this.showType === item.id }]}
-                  onClick={() => this.handleDataTypeChange(item)}
+                  onClick={() => this.handleShowTypeChange(item)}
                 >
                   <span class={`icon-monitor ${item.icon}`} />
                 </div>
@@ -374,6 +378,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               class='type-selector'
               v-model={this.dataType}
               clearable={false}
+              onChange={this.handleDataTypeChange}
             >
               {DATA_TYPE_LIST.map(item => (
                 <bk-option

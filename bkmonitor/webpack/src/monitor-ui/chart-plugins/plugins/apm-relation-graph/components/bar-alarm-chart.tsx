@@ -114,11 +114,6 @@ export default class BarAlarmChart extends tsc<IProps> {
     }
   }
 
-  @Watch('dataType')
-  handleWatchDataType() {
-    this.initData();
-  }
-
   @Watch('getData', { immediate: true })
   handleGetData() {
     this.loading = true;
