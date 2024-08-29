@@ -33,61 +33,61 @@ export default class IntegratedFilterSkeleton extends tsc<object> {
   render() {
     return (
       <div class='integrated-filter-skeleton'>
-        <div class='w-auto h-24 skeleton-element'></div>
+        <div class='w-auto h-24 skeleton-element' />
         <div class='child'>
           <div class='child-item'>
-            <div class='w-89 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-89 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-99 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-99 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-59 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-59 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
         </div>
-        <div class='w-auto h-24 mt-16 skeleton-element'></div>
+        <div class='w-auto h-24 mt-16 skeleton-element' />
         <div class='child'>
           <div class='child-item'>
-            <div class='w-89 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-89 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-99 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-99 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-59 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-59 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
         </div>
-        <div class='w-auto h-24 mt-16 skeleton-element'></div>
+        <div class='w-auto h-24 mt-16 skeleton-element' />
         <div class='child'>
           <div class='child-item'>
-            <div class='w-89 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-89 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-99 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-99 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-59 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-59 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-59 h-20 ml-21 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-59 h-20 ml-21 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-59 h-20 ml-21 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-59 h-20 ml-21 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
           <div class='child-item'>
-            <div class='w-59 h-20 skeleton-element'></div>
-            <div class='w-20 h-20 skeleton-element'></div>
+            <div class='w-59 h-20 skeleton-element' />
+            <div class='w-20 h-20 skeleton-element' />
           </div>
         </div>
       </div>

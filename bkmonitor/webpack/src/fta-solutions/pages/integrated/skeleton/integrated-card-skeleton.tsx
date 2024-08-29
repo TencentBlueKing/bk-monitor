@@ -54,12 +54,12 @@ export default class IntegratedCardSkeleton extends tsc<object> {
             class='wrap-item'
           >
             <div class='header-wrap'>
-              <span class='bk-icon icon-angle-right'></span>
+              <span class='bk-icon icon-angle-right' />
               <span class='name'>{item.name}</span>
               <span class='group-number'>(0)</span>
             </div>
             <div class='content-title'>
-              <span class='title-tip'></span>
+              <span class='title-tip' />
               {this.$t('事件插件')}
             </div>
             <div class='content-wrap'>
@@ -68,12 +68,12 @@ export default class IntegratedCardSkeleton extends tsc<object> {
                   key={cindex}
                   class='card-item'
                 >
-                  <div class='skeleton-element w-48 h-48 mt-28'></div>
-                  <div class='skeleton-element w-86 h-20 mt-8'></div>
-                  <div class='bottom'>
-                    <div class='skeleton-element w-39 h-16 mr-98'></div>
-                    <div class='skeleton-element w-39 h-16'></div>
-                  </div>
+                  <div class='skeleton-element w-48 h-48 mt-28' />
+                  <div class='skeleton-element w-86 h-20 mt-8' />
+                  {/* <div class='bottom'>
+                    <div class='skeleton-element w-39 h-16 mr-98' />
+                    <div class='skeleton-element w-39 h-16' />
+                  </div> */}
                 </div>
               ))}
             </div>
