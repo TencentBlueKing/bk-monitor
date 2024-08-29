@@ -66,7 +66,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
-  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: [string | number, string | number]) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   /* 概览图、列表图切换 */
