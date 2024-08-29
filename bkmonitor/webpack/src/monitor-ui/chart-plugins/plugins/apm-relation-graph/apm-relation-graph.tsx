@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Ref } from 'vue-property-decorator';
 // import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -62,6 +62,14 @@ const sideOverviewMinWidth = 320;
 @Component
 export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
+
+  // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
+  @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (
+    value: [number | string, number | string]
+  ) => void;
+  @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
+  @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   /* 概览图、列表图切换 */
   showTypes = [
     {
@@ -140,6 +148,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     showTotalCount: true,
   };
 
+  searchValue = '';
+
   graphData = {
     nodes: [],
     edges: [],
@@ -154,6 +164,16 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   get serviceName() {
     return this.panel?.options?.apm_relation_graph?.service_name || '';
+  }
+
+  /* 当前图表内参数 */
+  get filters() {
+    return {
+      app_name: this.appName,
+      service_name: this.serviceName,
+      data_type: this.dataType,
+      search: this.searchValue,
+    };
   }
 
   created() {
@@ -285,17 +305,17 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(true);
     try {
       this.unregisterOberver();
-      this.getAlarmBarData = async (dataType: EDataType, setData) => {
-        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-        const params = {
-          start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
-        };
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const params = {
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
+        app_name: this.appName,
+        service_name: this.serviceName,
+        data_type: this.dataType,
+      };
+      this.getAlarmBarData = async setData => {
         const data = await dataTypeBarQuery({
           ...params,
-          data_type: dataType,
-          app_name: this.appName,
-          service_name: this.serviceName,
         }).catch(() => ({ series: [] }));
         setData(alarmBarChartDataTransform(this.dataType, data.series));
       };
@@ -322,8 +342,20 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.curFilter = id;
   }
 
-  handleDataTypeChange(item) {
+  handleShowTypeChange(item) {
     this.showType = item.id;
+  }
+
+  handleDataTypeChange() {
+    this.getPanelData();
+  }
+
+  dataZoom(startTime: string, endTime: string) {
+    if (this.enableSelectionRestoreAll) {
+      this.handleChartDataZoom([startTime, endTime]);
+    } else {
+      this.getPanelData(startTime, endTime);
+    }
   }
 
   render() {
@@ -336,7 +368,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 <div
                   key={item.id}
                   class={['data-type-item', { active: this.showType === item.id }]}
-                  onClick={() => this.handleDataTypeChange(item)}
+                  onClick={() => this.handleShowTypeChange(item)}
                 >
                   <span class={`icon-monitor ${item.icon}`} />
                 </div>
@@ -346,6 +378,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               class='type-selector'
               v-model={this.dataType}
               clearable={false}
+              onChange={this.handleDataTypeChange}
             >
               {DATA_TYPE_LIST.map(item => (
                 <bk-option
@@ -362,6 +395,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               dataType={this.dataType}
               getData={this.getAlarmBarData}
               itemHeight={16}
+              onDataZoom={this.dataZoom as any}
             />
           </div>
           <div class='header-search-wrap'>
@@ -376,6 +410,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             <bk-checkbox class='ml-24'>无数据节点</bk-checkbox>
             <bk-input
               class='ml-24'
+              v-model={this.searchValue}
               behavior='simplicity'
               placeholder={'搜索服务、接口'}
               right-icon='bk-icon icon-search'

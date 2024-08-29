@@ -32,7 +32,7 @@ import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlar
 
 import './bar-alarm-chart.scss';
 
-type TGetData = (dataType: EDataType, set: (v: IAlarmDataItem[]) => void) => void;
+type TGetData = (set: (v: IAlarmDataItem[]) => void) => void;
 interface IProps {
   itemHeight?: number;
   activeItemHeight?: number;
@@ -41,6 +41,7 @@ interface IProps {
   isAdaption?: boolean;
   dataType: EDataType;
   getData?: TGetData;
+  onDataZoom: () => void;
 }
 
 @Component
@@ -92,11 +93,12 @@ export default class BarAlarmChart extends tsc<IProps> {
   };
 
   timeRange = [];
+  selectedTimeRange = [];
 
   initData() {
     if (this.getData) {
       this.loading = true;
-      this.getData(this.dataType, data => {
+      this.getData(data => {
         this.loading = false;
         this.localData = Object.freeze(data);
         if (this.localData.length) {
@@ -110,11 +112,6 @@ export default class BarAlarmChart extends tsc<IProps> {
         }
       });
     }
-  }
-
-  @Watch('dataType')
-  handleWatchDataType() {
-    this.initData();
   }
 
   @Watch('getData', { immediate: true })
@@ -284,20 +281,24 @@ export default class BarAlarmChart extends tsc<IProps> {
     const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');
     const itemWidth = target?.children?.[0]?.clientWidth || 6;
     for (const item of this.localData) {
-      w += itemWidth;
+      w += itemWidth + 2;
       if (!startTime && w - 2 > startX) {
         startTime = item.time;
       }
       if (!endTime && w > endX) {
+        console.log(w, endX);
         endTime = item.time;
         break;
       }
     }
-    this.timeRange = [startTime, endTime];
+    this.selectedTimeRange = [startTime, endTime];
+    const timeFrom = dayjs(+startTime.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+    const timeTo = dayjs(+endTime.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+    this.$emit('dataZoom', timeFrom, timeTo);
   }
 
   handleTimeRangeReset() {
-    this.timeRange = [];
+    this.selectedTimeRange = [];
   }
 
   alarmListRender(item) {
