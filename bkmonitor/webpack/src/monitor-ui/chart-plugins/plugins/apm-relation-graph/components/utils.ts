@@ -169,9 +169,9 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
     };
   }
   const textMap = {
-    [EAlarmType.green]: `${window.i18n.tc('错误率')}：0`,
-    [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：10%`,
-    [EAlarmType.red]: `${window.i18n.tc('错误率')}：10%`,
+    [EAlarmType.green]: `${window.i18n.tc('错误率')}：${item.value * 100}%`,
+    [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：${item.value * 100}%`,
+    [EAlarmType.red]: `${window.i18n.tc('错误率')}：${item.value * 100}%`,
   };
   return {
     color: alarmColorMap.default[item.type],
