@@ -286,17 +286,20 @@ export default class BarAlarmChart extends tsc<IProps> {
     const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');
     const itemWidth = target?.children?.[0]?.clientWidth || 6;
     for (const item of this.localData) {
-      w += itemWidth;
+      w += itemWidth + 2;
       if (!startTime && w - 2 > startX) {
         startTime = item.time;
       }
       if (!endTime && w > endX) {
+        console.log(w, endX);
         endTime = item.time;
         break;
       }
     }
     this.selectedTimeRange = [startTime, endTime];
-    this.$emit('dataZoom', startTime, endTime);
+    const timeFrom = dayjs(+startTime.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+    const timeTo = dayjs(+endTime.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+    this.$emit('dataZoom', timeFrom, timeTo);
   }
 
   handleTimeRangeReset() {

@@ -63,10 +63,11 @@ const sideOverviewMinWidth = 320;
 export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
 
-
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
-  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: [string | number, string | number]) => void;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (
+    value: [number | string, number | string]
+  ) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   /* 概览图、列表图切换 */
@@ -171,8 +172,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       app_name: this.appName,
       service_name: this.serviceName,
       data_type: this.dataType,
-      search: this.searchValue
-    }
+      search: this.searchValue,
+    };
   }
 
   created() {
@@ -304,7 +305,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(true);
     try {
       this.unregisterOberver();
-      this.getAlarmBarData = async (setData) => {
+      this.getAlarmBarData = async setData => {
         const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
         const params = {
           start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -404,10 +405,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             <bk-checkbox class='ml-24'>无数据节点</bk-checkbox>
             <bk-input
               class='ml-24'
+              v-model={this.searchValue}
               behavior='simplicity'
               placeholder={'搜索服务、接口'}
               right-icon='bk-icon icon-search'
-              v-model={this.searchValue}
               clearable
             />
           </div>
