@@ -796,7 +796,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             </CardsContainer>,
             this.loading || this.searchTaskData.length ? (
               <CardsContainer
-                key='task'
+                key='task_1'
                 style={{ marginTop: '12px' }}
                 title={this.$tc('拨测任务')}
               >
