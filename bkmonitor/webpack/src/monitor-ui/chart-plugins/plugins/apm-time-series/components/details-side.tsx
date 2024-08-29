@@ -35,7 +35,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { isEnFn } from 'monitor-pc/utils';
-import { formatTimeUnitAndValue } from 'monitor-ui/monitor-echarts/valueFormats/dateTimeFormatters';
+import { formatTimeUnitAndValue } from '../../../utils/utils';
 
 import CompareTopoFullscreen from './compare-topo-fullscreen/compare-topo-fullscreen';
 import MiniChart, { EPointType } from './mini-chart';
@@ -43,6 +43,8 @@ import MiniChart, { EPointType } from './mini-chart';
 import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './details-side.scss';
+
+
 
 enum EColumn {
   Chart = 'datapoints',
@@ -411,13 +413,13 @@ export default class DetailsSide extends tsc<IProps> {
               id: EColumn.CompareCount,
               name: window.i18n.t('对比'),
               sortable: 'custom',
-              type: 'number',
+              type: 'scoped_slots',
             },
             {
               id: EColumn.ReferCount,
               name: window.i18n.t('参照'),
               sortable: 'custom',
-              type: 'number',
+              type: 'scoped_slots',
             },
             {
               id: EColumn.DiffCount,
@@ -743,6 +745,16 @@ export default class DetailsSide extends tsc<IProps> {
                       />
                     </div>
                   );
+                },
+                [EColumn.CompareCount]: row => {
+                  const rowItem = row[EColumn.CompareCount];
+                  const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
+                  return <span>{`${timeItem.value}${timeItem.unit}`}</span>
+                },
+                [EColumn.ReferCount]: row => {
+                  const rowItem = row[EColumn.ReferCount];
+                  const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
+                  return <span>{`${timeItem.value}${timeItem.unit}`}</span>
                 },
                 [EColumn.Operate]: _row => {
                   return (

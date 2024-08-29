@@ -26,7 +26,7 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { formatTimeUnitAndValue } from 'monitor-ui/monitor-echarts/valueFormats/dateTimeFormatters';
+import { formatTimeUnitAndValue } from '../../../utils/utils';
 
 import dayjs from 'dayjs';
 
