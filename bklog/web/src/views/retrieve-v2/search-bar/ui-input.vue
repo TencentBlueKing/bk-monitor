@@ -31,7 +31,7 @@
     uninstallInstance();
     if (tippyInstance === null) {
       tippyInstance = tippy(target, {
-        content: refPopInstance.value.firstChild.cloneNode(true),
+        content: refPopInstance.value.$el,
         trigger: 'manual',
         theme: 'log-light',
         placement: 'bottom-start',
@@ -99,11 +99,8 @@
         ></span>
       </div>
     </li>
-    <div
-      ref="refPopInstance"
-      style="display: none"
-    >
-      <UiInputOptions></UiInputOptions>
+    <div style="display: none">
+      <UiInputOptions ref="refPopInstance"></UiInputOptions>
     </div>
   </ul>
 </template>
@@ -113,8 +110,8 @@
 </style>
 <style>
   [data-theme='log-light'] {
-    background-color: #fff;
     color: #63656e;
+    background-color: #fff;
     box-shadow: 0 2px 6px 0 #0000001a;
 
     .tippy-content {
@@ -123,6 +120,7 @@
 
     .tippy-arrow {
       color: #fff;
+
       &::after {
         background-color: #fff;
         box-shadow: 0 2px 6px 0 #0000001a;
