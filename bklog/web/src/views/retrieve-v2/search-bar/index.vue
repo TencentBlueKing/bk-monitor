@@ -247,7 +247,7 @@
       </span>
     </div>
     <div class="search-input">
-      <UiInput v-model="searchItemList"></UiInput>
+      <UiInput v-model="searchItemList" ></UiInput>
       <div class="search-tool items">
         <span class="bklog-icon bklog-brush"></span>
         <span class="bklog-icon bklog-star-line"></span>

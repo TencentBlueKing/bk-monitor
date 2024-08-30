@@ -18,6 +18,7 @@
   let tippyInstance = null;
   const modelValue = ref([]);
   const refPopInstance = ref(null);
+  const queryItem = ref('xxxx');
 
   const uninstallInstance = () => {
     if (tippyInstance) {
@@ -61,6 +62,7 @@
 
   const handleAddItem = e => {
     const target = e.target.closest('.search-item');
+    queryItem.value = '89898998';
     showTagListItems(target);
   };
 
@@ -71,6 +73,14 @@
   const handleDeleteTagItem = index => {
     modelValue.value.splice(index, 1);
     emitChange(modelValue.value);
+  };
+
+  const handleSaveQueryClick = () => {
+    tippyInstance.hide();
+  };
+
+  const handleCancelClick = () => {
+    tippyInstance.hide();
   };
 </script>
 <template>
@@ -100,7 +110,12 @@
       </div>
     </li>
     <div style="display: none">
-      <UiInputOptions ref="refPopInstance"></UiInputOptions>
+      <UiInputOptions
+        ref="refPopInstance"
+        @save="handleSaveQueryClick"
+        @cancel="handleCancelClick"
+        :value="queryItem"
+      ></UiInputOptions>
     </div>
   </ul>
 </template>
