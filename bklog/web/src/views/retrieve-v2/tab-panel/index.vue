@@ -1,5 +1,7 @@
 <script setup>
-  import { defineEmits, defineProps } from 'vue';
+  import { defineEmits, defineProps, computed } from 'vue';
+  import useLocale from '@/hooks/use-locale';
+  const { $t } = useLocale();
   const props = defineProps({
     value: {
       type: String,
@@ -7,7 +9,26 @@
     },
   });
   const emit = defineEmits(['input']);
-  //切换Tab
+  //可切换Tab数组
+  const panelList = computed(() => {
+    const list = [
+      { name: 'origin', label: $t('原始日志') },
+      { name: 'clustering', label: $t('日志聚类') },
+      { name: 'chartAnalysis', label: $t('图表分析') },
+    ];
+    return list;
+  });
+  // after边框
+  const isAfter = item => {
+    const afterListMap = {
+      origin: ['chartAnalysis'],
+      clustering: ['origin'],
+      chartAnalysis: ['origin', 'clustering'],
+    };
+
+    const afterList = afterListMap[item.name] || ['chartAnalysis'];
+    return afterList.includes(props.value);
+  };
   //是否显示对应的边框
   const handleActive = panel => {
     emit('input', panel);
@@ -16,31 +37,10 @@
 <template>
   <div class="retrieve-tab">
     <span
-      :class="[
-        'retrieve-panel',
-        { 'retrieve-after': ['chartAnalysis'].includes(value) },
-        { activeClass: value === 'originalLog' },
-      ]"
-      @click="handleActive('originalLog')"
-      >原始日志</span
-    >
-    <span
-      :class="[
-        'retrieve-panel',
-        { 'retrieve-after': ['originalLog'].includes(value) },
-        { activeClass: value === 'logClustering' },
-      ]"
-      @click="handleActive('logClustering')"
-      >日志聚类</span
-    >
-    <span
-      :class="[
-        'retrieve-panel',
-        { 'retrieve-after': ['originalLog', 'logClustering'].includes(value) },
-        { activeClass: value === 'chartAnalysis' },
-      ]"
-      @click="handleActive('chartAnalysis')"
-      >图表分析</span
+      v-for="item in panelList"
+      :class="['retrieve-panel', { 'retrieve-after': isAfter(item) }, { activeClass: value === item.name }]"
+      @click="handleActive(item.name)"
+      >{{ item.label }}</span
     >
   </div>
 </template>
