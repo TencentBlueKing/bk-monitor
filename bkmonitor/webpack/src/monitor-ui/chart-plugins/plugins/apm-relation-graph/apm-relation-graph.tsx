@@ -159,11 +159,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   getAlarmBarData = null;
 
   get appName() {
-    return this.panel?.options?.apm_relation_graph?.app_name || '';
+    return this.viewOptions?.app_name || '';
   }
 
   get serviceName() {
-    return this.panel?.options?.apm_relation_graph?.service_name || '';
+    return this.viewOptions?.service_name || '';
   }
 
   /* 当前图表内参数 */
