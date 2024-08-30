@@ -256,7 +256,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             class='right-fix'
             onClick={() => (this.inputFix = !this.inputFix)}
           >
-            <i class={['bklog-icon', this.inputFix ? 'icon-fix-shape' : 'icon-fix-line']}></i>
+            <i class={['bklog-icon', this.inputFix ? 'bklog-fix-shape' : 'bklog-fix-line']}></i>
             <span class='text'>{this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}</span>
           </div>
         </div>
