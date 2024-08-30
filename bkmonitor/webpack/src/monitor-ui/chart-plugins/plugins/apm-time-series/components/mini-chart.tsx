@@ -26,6 +26,7 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { formatTimeUnitAndValue } from '../../../utils/utils';
 
 import dayjs from 'dayjs';
 
@@ -291,17 +292,19 @@ export default class MiniChart extends tsc<IProps> {
                     return undefined;
                   }
                 }
+                const valueText = formatTimeUnitAndValue(value, this.unit);
                 return `
               <div class="left-compare-type" style="background: ${timeTitle === compareTitleText ? '#7B29FF' : '#FFB848'};"></div>
               <div>
                 <div>${timeTitle}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
-                <div>${this.valueTitle}：${value}${this.unit}</div>
+                <div>${this.valueTitle}：${valueText.value}${valueText.unit}</div>
               </div>`;
               }
               if (this.isMouseOver) {
+                const valueText = formatTimeUnitAndValue(params[0].value[1] || 0, this.unit);
                 return `<div>
                 <div>${dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
-                <div>${this.valueTitle}：${params[0].value[1] || 0}${this.unit}</div>
+                <div>${this.valueTitle}：${valueText.value}${valueText.unit}</div>
               </div>`;
               }
               return undefined;

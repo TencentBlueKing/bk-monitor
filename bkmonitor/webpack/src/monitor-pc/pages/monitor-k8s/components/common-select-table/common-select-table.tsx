@@ -32,6 +32,7 @@ import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+// import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   filterSelectorPanelSearchList,
@@ -358,7 +359,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         this.handleSelectDetail(checkedItem);
       }
 
-      if (!!title) {
+      if (title) {
         this.handleTitleChange(typeof title === 'object' ? title.value : title);
         this.tableRef?.handleSelectedRow(checkedItem);
       }
@@ -622,28 +623,34 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               <span>{`${this.panel?.title}${this.$t('概览')}`}</span>
             </div>
           )}
-          <CommonTable
-            key={this.refreshKey}
-            ref='tableRef'
-            height='100%'
-            class={this.getTableClasses()}
-            calcColumnWidth={this.handleColumnWidth}
-            checkable={false}
-            columns={this.columns}
-            data={this.tableData}
-            defaultSize='small'
-            hasColnumSetting={this.showHeader && this.showMode === 'list'}
-            highlightCurrentRow={true}
-            overviewData={this.overviewData}
-            pagination={null}
-            showHeader={this.showHeader}
-            stripe={true}
-            onFilterChange={this.handleFilterChange}
-            onRowClick={this.handleSelectDetail}
-            onScrollEnd={this.handleScrollEnd}
-            onSortChange={this.handleSortChange}
-            onSwitchOverview={this.handleOverviewChange}
-          />
+          {
+            // !this.loading ?
+            <CommonTable
+              key={this.refreshKey}
+              ref='tableRef'
+              height='100%'
+              class={this.getTableClasses()}
+              calcColumnWidth={this.handleColumnWidth}
+              checkable={false}
+              columns={this.columns}
+              data={this.tableData}
+              defaultSize='small'
+              hasColnumSetting={this.showHeader && this.showMode === 'list'}
+              highlightCurrentRow={true}
+              overviewData={this.overviewData}
+              pagination={null}
+              showHeader={this.showHeader}
+              stripe={true}
+              onFilterChange={this.handleFilterChange}
+              onRowClick={this.handleSelectDetail}
+              onScrollEnd={this.handleScrollEnd}
+              onSortChange={this.handleSortChange}
+              onSwitchOverview={this.handleOverviewChange}
+            />
+            // : (
+            //   <TableSkeleton type={4} />
+            // )
+          }
         </div>
         {this.showScrollLoadBar && <div class='scroll-load-bar'>{handleLoadBarText()}</div>}
       </div>

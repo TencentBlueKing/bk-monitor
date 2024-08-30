@@ -261,7 +261,6 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         ...p,
       })
     );
-    console.info('fetchHostsDynamicGroup', p, data);
     return data;
   }
   async fetchHostAgentStatisticsDynamicGroups(p) {
@@ -271,7 +270,6 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         ...p,
       })
     );
-    console.info('fetchHostAgentStatisticsDynamicGroups', p, data);
     return data;
   }
 

@@ -345,6 +345,8 @@ class CollectConfigMeta(OperateRecordModelBase):
                     "process_name": config_params["process"].get("process_name", ""),
                     "exclude_pattern": config_params["process"]["exclude_pattern"],
                     "port_detect": config_params["process"]["port_detect"],
+                    # 维度注入能力
+                    "extract_pattern": config_params["process"].get("extract_pattern", ""),
                     "pid_path": config_params["process"]["pid_path"],
                     "labels": {
                         "$for": "cmdb_instance.scope",

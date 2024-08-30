@@ -38,6 +38,7 @@ import {
 import { Debounce, random } from 'monitor-common/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import emptyImageSrc from '../../static/images/png/empty.png';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmBatchEdit from './components/alarm-batch-edit';
@@ -83,7 +84,7 @@ export default class AlarmDispatch extends tsc<object> {
   isViewDebugEffect = false;
   emptyType: EmptyStatusType = 'empty';
   /** 优先级检验提示*/
-  priorityErrorMsg: TranslateResult | string = '';
+  priorityErrorMsg: string | TranslateResult = '';
   /* 流程套餐*/
   processPackage = [];
 
@@ -470,7 +471,7 @@ export default class AlarmDispatch extends tsc<object> {
   handlePriorityChange(value: number | string) {
     if (typeof value === 'string') {
       if (!value) return;
-      if (isNaN(Number(value))) {
+      if (Number.isNaN(Number(value))) {
         this.formData.priority = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -486,7 +487,7 @@ export default class AlarmDispatch extends tsc<object> {
         }
       }
     } else {
-      if (isNaN(value)) {
+      if (Number.isNaN(value)) {
         this.formData.priority = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -573,7 +574,7 @@ export default class AlarmDispatch extends tsc<object> {
     allKVOptions(
       [this.$store.getters.bizId],
       (type: string, key: string, values: any) => {
-        if (!!key) {
+        if (key) {
           (this.conditionProps[type] as Map<string, any>).set(key, values);
         } else {
           this.conditionProps[type] = values;
@@ -610,7 +611,7 @@ export default class AlarmDispatch extends tsc<object> {
     return (
       <div
         class='alarm-dispath-page'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         <div class='alarm-dispath-page-wrap'>
           <div class='wrap-header'>
@@ -646,185 +647,218 @@ export default class AlarmDispatch extends tsc<object> {
             </bk-button>
           </div>
           <div class='wrap-content'>
-            {this.ruleGroups.length > 0 ? (
-              [
-                this.renderGroups.map((item, index) => (
-                  <div
-                    key={index}
-                    class='expan-item'
-                  >
+            {this.ruleGroups.length > 0
+              ? [
+                  this.renderGroups.map((item, index) => (
                     <div
-                      class={['expan-item-header', { 'is-collapse': !item.isExpan }]}
-                      onClick={() => item.setExpan(!item.isExpan)}
+                      key={index}
+                      class='expan-item'
                     >
-                      <div class={['expan-status', { 'is-expan': item.isExpan }]}>
-                        <i class='icon-monitor icon-mc-triangle-down' />
-                      </div>
-                      {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
-                      {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
                       <div
-                        class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
-                        v-bk-tooltips={{
-                          placements: ['top'],
-                          content: this.$t('内置的分派规则组不允许修改'),
-                          disabled: item.editAllowed,
-                        }}
-                        onClick={() => item.editAllowed && this.handleToConfig(item.id)}
+                        class={['expan-item-header', { 'is-collapse': !item.isExpan }]}
+                        onClick={() => item.setExpan(!item.isExpan)}
                       >
-                        <span class='icon-monitor icon-bianji' />
-                        <span>{this.$t('配置规则')}</span>
+                        <div class={['expan-status', { 'is-expan': item.isExpan }]}>
+                          <i class='icon-monitor icon-mc-triangle-down' />
+                        </div>
+                        {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
+                        {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
+                        <div
+                          class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
+                          v-bk-tooltips={{
+                            placements: ['top'],
+                            content: this.$t('内置的分派规则组不允许修改'),
+                            disabled: item.editAllowed,
+                          }}
+                          onClick={() => item.editAllowed && this.handleToConfig(item.id)}
+                        >
+                          <span class='icon-monitor icon-bianji' />
+                          <span>{this.$t('配置规则')}</span>
+                        </div>
+                        <div
+                          class={['del-btn-wrap', { 'del-btn-disabled': !item.editAllowed }]}
+                          v-bk-tooltips={{
+                            placements: ['top'],
+                            content: this.$t('内置的分派规则组不允许修改'),
+                            disabled: item.editAllowed,
+                          }}
+                          onClick={e => {
+                            item.editAllowed && this.handleDeleteGroup(e, item);
+                          }}
+                        >
+                          <span class='icon-monitor icon-mc-delete-line' />
+                        </div>
                       </div>
-                      <div
-                        class={['del-btn-wrap', { 'del-btn-disabled': !item.editAllowed }]}
-                        v-bk-tooltips={{
-                          placements: ['top'],
-                          content: this.$t('内置的分派规则组不允许修改'),
-                          disabled: item.editAllowed,
-                        }}
-                        onClick={e => {
-                          item.editAllowed && this.handleDeleteGroup(e, item);
-                        }}
-                      >
-                        <span class='icon-monitor icon-mc-delete-line' />
+                      <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
+                        {this.groupLoading ? (
+                          <div class='item-content-skeleton'>
+                            <TableSkeleton type={3} />
+                          </div>
+                        ) : (
+                          <bk-table
+                            v-bkloading={{ isLoading: this.groupLoading }}
+                            data={item.ruleData}
+                            stripe
+                          >
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <div class='alarm-group-list'>
+                                    {row.user_groups.map(groupId => (
+                                      <bk-tag
+                                        key={groupId}
+                                        class='alarm-tag'
+                                        v-bk-overflow-tips
+                                        onClick={() => {
+                                          this.handleSelcetAlarmGroup(groupId);
+                                        }}
+                                      >
+                                        {this.getAlarmGroupByID(groupId)}
+                                      </bk-tag>
+                                    ))}
+                                  </div>
+                                ),
+                              }}
+                              label={this.$t('告警组')}
+                              min-width={100}
+                              prop='user_groups'
+                            />
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) =>
+                                  row.conditions?.length ? (
+                                    <CommonCondition
+                                      key={this.conditionsKey}
+                                      class='rule-wrap'
+                                      groupKey={GROUP_KEYS}
+                                      groupKeys={this.conditionProps.groupKeys}
+                                      keyList={this.conditionProps.keys}
+                                      readonly={true}
+                                      value={row.conditions}
+                                      valueMap={this.conditionProps.valueMap}
+                                    />
+                                  ) : (
+                                    '--'
+                                  ),
+                              }}
+                              label={this.$t('匹配规则')}
+                              min-width={400}
+                              prop='rule'
+                            />
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <AlarmDispatchAction
+                                    actions={row.actions}
+                                    alarmGroupList={this.alarmGroupList}
+                                    detailData={this.detailData}
+                                    processPackage={this.processPackage}
+                                    showAlarmGroup={this.handleSelcetAlarmGroup}
+                                    showDetail={this.handleShowDetail}
+                                    userType={row.user_type}
+                                  />
+                                ),
+                              }}
+                              label={this.$t('分派动作')}
+                              min-width={400}
+                              prop='action'
+                            />
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <AlarmUpdateContent
+                                    severity={row.alert_severity}
+                                    tag={row.additional_tags}
+                                  />
+                                ),
+                              }}
+                              label={this.$t('修改告警内容')}
+                              min-width={300}
+                              prop='content'
+                            />
+                            <bk-table-column
+                              width={160}
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <bk-tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
+                                    {this.$t(row.is_enabled ? '启用' : '停用')}
+                                  </bk-tag>
+                                ),
+                              }}
+                              label={this.$t('状态')}
+                              prop='is_enabled'
+                            />
+                            <div
+                              class='alarm-group-empty'
+                              slot='empty'
+                            >
+                              <div>
+                                <img
+                                  alt=''
+                                  loading='lazy'
+                                  src={emptyImageSrc}
+                                />
+                              </div>
+                              <div class='mb15 empty-text'>{this.$t('当前组暂无规则，需去配置新规则')}</div>
+                              <div
+                                class='empty-rule-config mt15'
+                                onClick={() => this.handleToConfig(item.id)}
+                              >
+                                {this.$t('配置规则')}
+                              </div>
+                            </div>
+                          </bk-table>
+                        )}
                       </div>
                     </div>
-                    <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
-                      <bk-table
-                        v-bkloading={{ isLoading: this.groupLoading }}
-                        data={item.ruleData}
-                        stripe
+                  )),
+                  <div
+                    key={'footer'}
+                    ref='itemFooterRef'
+                    style={{
+                      display: this.hiddenFooter ? 'none' : 'flex',
+                    }}
+                    class='item-footer'
+                  />,
+                ]
+              : (() => {
+                  if (this.loading) {
+                    return new Array(3).fill(null).map((_item, index) => (
+                      <div
+                        key={index}
+                        class='expan-item'
                       >
-                        <bk-table-column
-                          scopedSlots={{
-                            default: ({ row }) => (
-                              <div class='alarm-group-list'>
-                                {row.user_groups.map(groupId => (
-                                  <bk-tag
-                                    class='alarm-tag'
-                                    v-bk-overflow-tips
-                                    onClick={() => {
-                                      this.handleSelcetAlarmGroup(groupId);
-                                    }}
-                                  >
-                                    {this.getAlarmGroupByID(groupId)}
-                                  </bk-tag>
-                                ))}
-                              </div>
-                            ),
-                          }}
-                          label={this.$t('告警组')}
-                          min-width={100}
-                          prop='user_groups'
-                        />
-                        <bk-table-column
-                          scopedSlots={{
-                            default: ({ row }) =>
-                              !!row.conditions?.length ? (
-                                <CommonCondition
-                                  key={this.conditionsKey}
-                                  class='rule-wrap'
-                                  groupKey={GROUP_KEYS}
-                                  groupKeys={this.conditionProps.groupKeys}
-                                  keyList={this.conditionProps.keys}
-                                  readonly={true}
-                                  value={row.conditions}
-                                  valueMap={this.conditionProps.valueMap}
-                                />
-                              ) : (
-                                '--'
-                              ),
-                          }}
-                          label={this.$t('匹配规则')}
-                          min-width={400}
-                          prop='rule'
-                        />
-                        <bk-table-column
-                          scopedSlots={{
-                            default: ({ row }) => (
-                              <AlarmDispatchAction
-                                actions={row.actions}
-                                alarmGroupList={this.alarmGroupList}
-                                detailData={this.detailData}
-                                processPackage={this.processPackage}
-                                showAlarmGroup={this.handleSelcetAlarmGroup}
-                                showDetail={this.handleShowDetail}
-                                userType={row.user_type}
-                              />
-                            ),
-                          }}
-                          label={this.$t('分派动作')}
-                          min-width={400}
-                          prop='action'
-                        />
-                        <bk-table-column
-                          scopedSlots={{
-                            default: ({ row }) => (
-                              <AlarmUpdateContent
-                                severity={row.alert_severity}
-                                tag={row.additional_tags}
-                              />
-                            ),
-                          }}
-                          label={this.$t('修改告警内容')}
-                          min-width={300}
-                          prop='content'
-                        />
-                        <bk-table-column
-                          width={160}
-                          scopedSlots={{
-                            default: ({ row }) => (
-                              <bk-tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
-                                {this.$t(row.is_enabled ? '启用' : '停用')}
-                              </bk-tag>
-                            ),
-                          }}
-                          label={this.$t('状态')}
-                          prop='is_enabled'
-                        />
-                        <div
-                          class='alarm-group-empty'
-                          slot='empty'
-                        >
-                          <div>
-                            <img
-                              alt=''
-                              loading='lazy'
-                              src={emptyImageSrc}
-                            />
+                        <div class='expan-item-header'>
+                          <div class='expan-status'>
+                            <i class='icon-monitor icon-mc-triangle-down' />
                           </div>
-                          <div class='mb15 empty-text'>{this.$t('当前组暂无规则，需去配置新规则')}</div>
-                          <div
-                            class='empty-rule-config mt15'
-                            onClick={() => this.handleToConfig(item.id)}
-                          >
-                            {this.$t('配置规则')}
+                          <div class='head-skeleton skeleton-element' />
+                          <div class='edit-btn-wrap edit-btn-disabled'>
+                            <span class='icon-monitor icon-bianji' />
+                            <span>{this.$t('配置规则')}</span>
+                          </div>
+                          <div class='del-btn-wrap del-btn-disabled'>
+                            <span class='icon-monitor icon-mc-delete-line' />
                           </div>
                         </div>
-                      </bk-table>
-                    </div>
-                  </div>
-                )),
-                <div
-                  ref='itemFooterRef'
-                  style={{
-                    display: this.hiddenFooter ? 'none' : 'flex',
-                  }}
-                  class='item-footer'
-                />,
-              ]
-            ) : (
-              <div class='empty-dispatch-content'>
-                <EmptyStatus
-                  type={this.emptyType}
-                  onOperation={this.handleEmptyOpreation}
-                />
-                {/* <img
+                        <div class='expan-item-content' />
+                      </div>
+                    ));
+                  }
+                  return (
+                    <div class='empty-dispatch-content'>
+                      <EmptyStatus
+                        type={this.emptyType}
+                        onOperation={this.handleEmptyOpreation}
+                      />
+                      {/* <img
                   alt=''
                   src={emptyImageSrc}
                 />
                 <span class='empty-dispatch-text'>{this.emptyText}</span> */}
-              </div>
-            )}
+                    </div>
+                  );
+                })()}
           </div>
         </div>
         <div style='display: none'>

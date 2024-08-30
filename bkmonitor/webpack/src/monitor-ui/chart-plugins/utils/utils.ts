@@ -579,3 +579,56 @@ export function padTextToWidth(targetText: string, widthInPx: number): string {
     return paddedText;
   }
 }
+
+
+/**
+ * @description 格式化时间单位和值
+ * @param value 
+ * @param unit 
+ * @returns 
+ */
+export const formatTimeUnitAndValue = (value: number, unit: string) => {
+  const units = [
+    {
+      unit: 'μs',
+      value: 1
+    },
+    {
+      unit: 'ms',
+      value: 1000
+    },
+    {
+      unit: 's',
+      value: 1000000
+    },
+    {
+      unit: 'min',
+      value: 60000000
+    },
+    {
+      unit: 'hour',
+      value: 3600000000
+    },
+    {
+      unit: 'day',
+      value: 86400000000
+    }
+  ];
+  let curValue = value;
+  let curUnit = unit;
+  if(!units.map(item => item.unit).includes(unit)) {
+    return {
+      value: curValue,
+      unit: curUnit
+    }
+  }
+  while(Math.abs(curValue) >= 1000 && curUnit !== 'day') {
+    const index = units.findIndex(item => item.unit === curUnit);
+    curValue = value / units[index + 1].value;
+    curUnit = units[index + 1].unit;
+  }
+  return {
+    value: curValue.toFixed(2),
+    unit: curUnit
+  };
+}

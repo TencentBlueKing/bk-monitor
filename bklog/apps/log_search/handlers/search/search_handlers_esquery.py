@@ -1399,7 +1399,7 @@ class SearchHandler(object):
                 size=self.size,
                 start=self.start,
                 gse_index=self.gseindex,
-                iteration_idx=self.iterationIdx,
+                iteration_idx=self._iteration_idx,
                 dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
                 ip=self.ip,
@@ -2010,7 +2010,6 @@ class SearchHandler(object):
 
         # find the search one
         _index: int = -1
-        _count_start: int = -1
         if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
             for index, item in enumerate(log_list):
                 gseindex: str = item.get("gseindex")
@@ -2020,10 +2019,6 @@ class SearchHandler(object):
                 container_id: str = item.get("container_id")
                 logfile: str = item.get("logfile")
                 _iteration_idx: str = item.get("_iteration_idx")
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseindex) == mark_gseindex:
-                        _count_start = index
 
                 if (
                     (
@@ -2055,10 +2050,7 @@ class SearchHandler(object):
                 bk_host_id: int = item.get("bk_host_id")
                 path: str = item.get("path", "")
                 iterationIndex: str = item.get("iterationIndex")  # pylint: disable=invalid-name
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseIndex) == mark_gseIndex:
-                        _count_start = index
+
                 if (
                     self.gseIndex == str(gseIndex)
                     and self.bk_host_id == bk_host_id
@@ -2075,14 +2067,6 @@ class SearchHandler(object):
 
         elif self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
             for index, item in enumerate(log_list):
-                _sort_value = item.get(sort_fields[0])
-                check_value = self.search_dict.get(sort_fields[0])
-                # find the counting range point
-                if _count_start == -1:
-                    _sort_value = item.get(sort_fields[0])
-                    if _sort_value and str(_sort_value) == str(check_value):
-                        _count_start = index
-
                 for field in sort_fields + target_fields:
                     if str(item.get(field)) != str(self.search_dict.get(field)):
                         break
@@ -2090,6 +2074,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
+        _count_start = _index
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
 
     def _analyze_empty_log(self, log_list: List[Dict[str, Any]]):

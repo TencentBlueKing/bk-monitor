@@ -34,11 +34,13 @@
         <span>{{
           `${$t('找到 {count} 条结果 , 耗时  {time} ms', { count: totalCount, time: searchTipsObj.time })}`
         }}</span>
-        <span v-if="searchTipsObj.showAddStrategy">,
+        <span v-if="searchTipsObj.showAddStrategy"
+          >,
           <span
             class="add-strategy-btn"
             @click="handleQueryAddStrategy"
-          >{{ $t('添加监控策略') }}</span>
+            >{{ $t('添加监控策略') }}</span
+          >
         </span>
       </div>
       <div
@@ -81,14 +83,14 @@
                       {
                         'border-bottom':
                           group.panels.length - index <= chartType + 1 &&
-                          group.panels.length - index <= (group.panels.length % (chartType + 1) || chartType + 1)
+                          group.panels.length - index <= (group.panels.length % (chartType + 1) || chartType + 1),
                       },
                       { 'border-right': chartType > 0 && (index + 1) % (chartType + 1) },
                       {
                         'is-collect': needCollect && getHasCollected(item.id),
                         'is-collect-row': needCollect && getHasCollected(item.id),
-                        'collect-wrapper': needCollect
-                      }
+                        'collect-wrapper': needCollect,
+                      },
                     ]"
                     v-if="!item.hidden && showPanel(item.show)"
                     :key="item.key"
@@ -145,8 +147,8 @@
               {
                 'is-collect': needCollect && item.type === 'graph' && getHasCollected(item.id),
                 'collect-wrapper': needCollect && item.type === 'graph',
-                'has-child': item.panels && item.panels.length
-              }
+                'has-child': item.panels && item.panels.length,
+              },
             ]"
             :key="item.key"
           >
@@ -265,7 +267,6 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import authorityStore from '../../../store/modules/authority';
 import { getCollectVariable, setCollectVariable } from '../../collector-config/collector-view/variable-set';
 import CollectChart from '../../data-retrieval/components/collect-chart.vue';
-import ViewDetail from '../../view-detail/view-detail.vue';
 import type { ChartType, IHostGroup, IQueryOption, ISearchTipsObj } from '../performance-type';
 
 @Component({
@@ -273,7 +274,7 @@ import type { ChartType, IHostGroup, IQueryOption, ISearchTipsObj } from '../per
   components: {
     MonitorEcharts,
     CollectChart,
-    ViewDetail,
+    ViewDetail: () => import(/* webpackChunkName: "view-detail" */ '../../view-detail/view-detail.vue'),
   },
 })
 export default class DashboardPanels extends Vue {
@@ -817,7 +818,7 @@ export default class DashboardPanels extends Vue {
   .icon-arrow-right {
     font-size: 24px;
     color: #979ba5;
-    transition: transform .2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 
     &.expand {
       transform: rotate(90deg);
@@ -832,7 +833,7 @@ export default class DashboardPanels extends Vue {
   :deep(.bk-collapse-item-hover) {
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .05);
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
 
     &:hover {
       color: #63656e;
@@ -843,7 +844,7 @@ export default class DashboardPanels extends Vue {
     padding: 0;
     margin-top: 1px;
     background: #fff;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
   }
 
   .chart-wrapper-old {
@@ -868,9 +869,7 @@ export default class DashboardPanels extends Vue {
             flex: 0 0 calc($w - 5px);
             width: calc($w - 5px);
           }
-        }
-
-        @else {
+        } @else {
           flex: 0 0 calc($w - 10px);
           width: calc($w - 10px);
         }
@@ -891,7 +890,7 @@ export default class DashboardPanels extends Vue {
       margin-bottom: 10px;
       border: 2px solid transparent;
       border-radius: 2px;
-      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
       &.scroll-in {
         /* stylelint-disable-next-line declaration-no-important */
@@ -918,7 +917,7 @@ export default class DashboardPanels extends Vue {
           background: white;
           border: 0;
           border-radius: 2px;
-          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
           &:first-child {
             margin-right: 10px;
@@ -942,7 +941,7 @@ export default class DashboardPanels extends Vue {
       position: relative;
       // border: 1px solid transparent;
       &:hover {
-        box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.1);
 
         .collect-wrapper-mark {
           display: block;
@@ -974,7 +973,7 @@ export default class DashboardPanels extends Vue {
       }
 
       &.is-collect {
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
         .collect-wrapper-mark {
           display: block;

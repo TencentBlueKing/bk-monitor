@@ -754,6 +754,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         item.options = {
           ...item.options,
           apm_relation_graph: {
+            ...(item.options?.apm_relation_graph || {}),
             app_name: this.filters.app_name || '',
             service_name: this.filters.service_name || '',
           },
