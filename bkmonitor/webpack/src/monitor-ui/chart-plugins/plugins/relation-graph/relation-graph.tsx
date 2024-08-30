@@ -1293,6 +1293,7 @@ export class RelationGraph extends CommonSimpleChart {
           isFullScreen={this.isFullScreen}
           isOverview={this.isOverview}
           showNoData={this.showNoData}
+          onbackToCenter={this.handlebackToCenter}
           onClearFilter={this.handleClearFilter}
           onConditionChange={this.handleConditionChange}
           onFilterChange={this.handleFilterChange}
@@ -1300,7 +1301,6 @@ export class RelationGraph extends CommonSimpleChart {
           onOverview={this.handleOverview}
           onSearchChange={this.handleSearchChange}
           onShowNodata={this.handleShowNodata}
-          onbackToCenter={this.handlebackToCenter}
         />
         {this.isOverview ? (
           <div class='graph-main'>

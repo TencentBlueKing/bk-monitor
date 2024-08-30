@@ -177,6 +177,11 @@ class AlgorithmModel(Model):
         AlgorithmChoices.HostAnomalyDetection,
     ]
 
+    AUTHORIZED_SOURCE_ALGORITHMS = [
+        AlgorithmChoices.MultivariateAnomalyDetection,
+        AlgorithmChoices.HostAnomalyDetection,
+    ]
+
     ALGORITHM_CHOICES = (
         (AlgorithmChoices.Threshold, _lazy("静态阈值算法")),
         (AlgorithmChoices.SimpleRingRatio, _lazy("简易环比算法")),

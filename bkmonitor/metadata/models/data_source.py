@@ -479,7 +479,11 @@ class DataSource(models.Model):
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单标
-            if (settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series") or bcs_cluster_id:
+            # 添加过滤条件，只接入时序数据到bkdata
+            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series":
+                logger.info(
+                    "apply for data id from bkdata,type_label->{},etl_config->{}".format(type_label, etl_config)
+                )
                 bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:

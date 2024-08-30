@@ -284,6 +284,8 @@ export default {
   请求数: 'Request count',
   对比时间: 'Comparison time',
   参照时间: 'Reference time',
+  告警系统事件: 'Alarm System Event',
+  故障系统事件: 'Fault System Event',
   '关闭 AI 小鲸会话': 'Close the AI ​​Assistant session',
   '打开 AI 小鲸会话': 'Open the AI ​​Assistant session',
   '蓝鲸监控的告警包含哪几个级别？': 'What are the alert levels included in Blue Whale monitoring?',
@@ -293,6 +295,4 @@ export default {
   '智能检测目前能支持哪些场景？': 'What scenarios are currently supported by intelligent detection?',
   '你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。':
     'Hello, I am AI ​​Assistant. You can ask me questions related to the use of the Blue Whale monitoring product.',
-  告警系统事件: 'Alarm System Event',
-  故障系统事件: 'Fault System Event',
 };

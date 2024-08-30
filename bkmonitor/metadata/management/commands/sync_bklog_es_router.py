@@ -133,6 +133,7 @@ class Command(BaseCommand):
         updated_objs = []
         for obj in exist_objs:
             obj.index_set = tid_info[obj.table_id]["index_set"]
+            obj.need_create_index = tid_info[obj.table_id]["need_create_index"]
             updated_objs.append(obj)
 
         try:
@@ -140,7 +141,9 @@ class Command(BaseCommand):
                 models.ResultTable.objects.bulk_update(
                     updated_rt_objs, ["data_label"], batch_size=BULK_UPDATE_BATCH_SIZE
                 )
-                models.ESStorage.objects.bulk_update(updated_objs, ["index_set"], batch_size=BULK_UPDATE_BATCH_SIZE)
+                models.ESStorage.objects.bulk_update(
+                    updated_objs, ["index_set", "need_create_index"], batch_size=BULK_UPDATE_BATCH_SIZE
+                )
         except Exception as e:
             self.stderr.write(f"failed to update rt or es storage, err: {e}")
             return set(), set(), set()

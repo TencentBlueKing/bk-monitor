@@ -36,10 +36,10 @@ import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 import './collector-configuration.scss';
 
 enum ETargetColumn {
-  IP = 'IP',
   agentStatus = 'agentStatus',
   catetory = 'catetory',
   cloudName = 'cloudName',
+  IP = 'IP',
   name = 'name',
   objectType = 'objectType',
 }
@@ -150,6 +150,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         port_detect: portDetect,
         match_pattern: matchPattern,
         exclude_pattern: excludePattern,
+        extract_pattern: extractPattern,
         pid_path: pidPath,
       } = process;
       this.basicInfo = {
@@ -157,6 +158,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         match: matchType,
         match_pattern: matchPattern,
         exclude_pattern: excludePattern,
+        extract_pattern: extractPattern,
         pid_path: pidPath,
         process_name: processName || '--',
         port_detect: `${portDetect}`,
@@ -337,7 +339,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 (() => {
                   if (key === 'name') {
                     return [
-                      <span>
+                      <span key={1}>
                         {this.input.show ? (
                           <bk-input
                             ref={`input${key}`}
@@ -393,8 +395,16 @@ export default class CollectorConfiguration extends tsc<IProps> {
                       <span class='detail-item-val process'>
                         {this.basicInfo?.[key] === 'command'
                           ? [
-                              <div class='match-title'>{this.matchType?.[this.basicInfo?.[key]]}</div>,
-                              <ul class='param-list'>
+                              <div
+                                key={'match-title'}
+                                class='match-title'
+                              >
+                                {this.matchType?.[this.basicInfo?.[key]]}
+                              </div>,
+                              <ul
+                                key={'param-list'}
+                                class='param-list'
+                              >
                                 <li class='param-list-item'>
                                   <span class='item-name'>{this.$t('包含')}</span>
                                   <span class='item-content'>{this.basicInfo?.match_pattern}</span>
@@ -403,11 +413,22 @@ export default class CollectorConfiguration extends tsc<IProps> {
                                   <span class='item-name'>{this.$t('排除')}</span>
                                   <span class='item-content'>{this.basicInfo?.exclude_pattern}</span>
                                 </li>
+                                <li class='param-list-item'>
+                                  <span class='item-name'>{this.$t('维度提取')}</span>
+                                  <span class='item-content'>{this.basicInfo?.extract_pattern}</span>
+                                </li>
                               </ul>,
                             ]
                           : [
-                              <div class='match-title'>{this.matchType?.[this.basicInfo?.[key]]}</div>,
-                              <div>{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>,
+                              <div
+                                key={'match-title'}
+                                class='match-title'
+                              >
+                                {this.matchType?.[this.basicInfo?.[key]]}
+                              </div>,
+                              <div
+                                key={'param-list'}
+                              >{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>,
                             ]}
                       </span>
                     );
@@ -419,7 +440,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
             {this.runtimeParams.length
               ? formItem(
                   this.$t('运行参数'),
-                  <ul class='param-list  mt--6'>
+                  <ul class='param-list mt--6'>
                     {this.runtimeParams.map((item, index) => (
                       <li
                         key={index}

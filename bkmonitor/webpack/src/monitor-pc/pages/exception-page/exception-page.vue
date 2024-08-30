@@ -139,7 +139,6 @@ export default class ExceptionPage extends Vue {
   handleGotoApply() {
     // 20231205 代码还原，先保留原有部分
     // showAccessRequest(this.applyUrl);
-
     if (!this.applyUrl) return;
     try {
       if (self === top) {

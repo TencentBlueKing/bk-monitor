@@ -1412,10 +1412,12 @@ export default defineComponent({
 
     function handleTraceTableSettingsChange(settings: { checked: string[]; size: string; height: number }) {
       store.tableSettings.trace.checked = settings.checked;
+      window.localStorage.setItem('traceCheckedSettings', JSON.stringify(settings.checked));
     }
 
     function handleSpanTableSettingsChange(settings: { checked: string[]; size: string; height: number }) {
       store.tableSettings.span.checked = settings.checked;
+      window.localStorage.setItem('spanCheckedSettings', JSON.stringify(settings.checked));
     }
 
     return {
