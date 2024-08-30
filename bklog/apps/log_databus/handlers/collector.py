@@ -4546,10 +4546,6 @@ class CollectorHandler(object):
                     exclude_field = container_config.pop(field)
                     container_config.update(exclude_field)
 
-                if "annotation_selector" in container_config:
-                    annotation_selector = container_config.pop("annotation_selector")
-                    container_config.update({"match_annotations": annotation_selector["match_expressions"]})
-
             # 与ContainerCollectorConfig创建时计算属性一致
             computed_fields = {
                 "all_container": not any(
@@ -4560,7 +4556,7 @@ class CollectorHandler(object):
                         container_config["container_name_exclude"],
                         container_config["match_labels"],
                         container_config["match_expressions"],
-                        container_config["match_annotations"],
+                        container_config.get("match_annotations", []),
                     ]
                 ),
                 "any_namespace": not any([container_config["namespaces"], container_config["namespaces_exclude"]]),
