@@ -34,6 +34,7 @@
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import CollectFavorites from './collect/collect-index';
+  import TabPanel from './tab-panel/index.vue';
   // import { getDefaultRetrieveParams } from './const';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
@@ -147,6 +148,7 @@
   const shouldRetrieve = () => {
     console.log('======= shouldRetrieve')
   }
+  const activeTab = ref('originalLog');
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
@@ -198,7 +200,9 @@
           @timezone-change="handleTimezoneChange"
           @should-retrieve="shouldRetrieve"
         ></SearchBar>
-        <div class="result-row"></div>
+        <div class="result-row">
+        <TabPanel v-model="activeTab"></TabPanel>
+      </div>
         <div class="result-row"></div>
       </div>
     </div>

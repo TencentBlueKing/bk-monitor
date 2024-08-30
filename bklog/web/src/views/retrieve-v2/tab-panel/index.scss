@@ -1,0 +1,32 @@
+.retrieve-tab {
+  background: #f0f1f5;
+
+  .retrieve-panel {
+    position: relative;
+    display: inline-block;
+    width: 104px;
+    height: 42px;
+    font-size: 14 px;
+    line-height: 42px;
+    color: #63656e;
+    text-align: center;
+    cursor: pointer;
+    border-top-left-radius: 5px; /* 设置左上角圆角 */
+    border-top-right-radius: 5px; /* 设置右上角圆角 */
+  }
+
+  .retrieve-after::after {
+    position: absolute; /* 绝对定位 */
+    top: calc(50% - 10px);
+    left: 100%;
+    width: 2px; /* 边框宽度 */
+    height: 20px; /* 边框高度，可以根据需要调整 */
+    content: ''; /* 伪元素内容为空 */
+    background-color: #c9cbd0; /* 边框颜色 */
+  }
+
+  .activeClass {
+    color: #3a84ff;
+    background: #ffffff;
+  }
+}
