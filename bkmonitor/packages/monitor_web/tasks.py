@@ -61,6 +61,7 @@ from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.constants import (
     AIOPS_ACCESS_MAX_RETRIES,
     AIOPS_ACCESS_RETRY_INTERVAL,
+    AIOPS_ACCESS_STATUS_POLLING_INTERVAL,
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
 )
@@ -534,9 +535,51 @@ def get_aiops_access_func(algorithm: AlgorithmModel.AlgorithmChoices) -> callabl
     }.get(algorithm, access_aiops_by_strategy_id)
 
 
+@task(ignore_result=True, queue="celery_resource")
+def polling_aiops_strategy_status(
+    flow_id: int, task_id: int, base_labels: Dict, callback: callable, query_config: QueryConfig
+):
+    deploy_data = api.bkdata.get_datflow_deploy_data(flow_id=flow_id)
+    deploy_task_data = {item["id"]: item for item in deploy_data}
+    current_deploy_data = deploy_task_data.get(task_id, deploy_data[0])
+
+    if current_deploy_data["status"] == "running":
+        # 如果任务启动流程还在执行中，则下一个周期再继续检测
+        polling_aiops_strategy_status.apply_async(
+            args=(flow_id, task_id, base_labels, callback), countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL
+        )
+    elif current_deploy_data["status"] == "success":
+        # 如果任务启动流程已经完成且成功，则认为任务正常启动（内部失败需要在巡检任务通过其他指标检测到）
+        report_aiops_access_metrics(base_labels, AccessStatus.SUCCESS)
+        query_config.intelligent_detect["status"] = AccessStatus.SUCCESS
+        query_config.intelligent_detect["message"] = "create dataflow success"
+        query_config.save()
+    elif current_deploy_data["status"] == "failure":
+        # 如果任务启动流程已经完成且成功，则任务任务启动失败，记录失败，继续重试，直到重试次数超过最大重试
+        flow_msg = ", ".join(
+            map(lambda item: item["message"], filter(lambda log: log["level"] == "ERROR", current_deploy_data["logs"]))
+        )
+        retries = query_config.intelligent_detect.get("retries", 0)
+        err_msg = "create intelligent detect by strategy_id({}) failed: {}, retrying: {}/{}".format(
+            base_labels["strategy_id"],
+            flow_msg,
+            retries,
+            AIOPS_ACCESS_MAX_RETRIES,
+        )
+        # 重试启动任务
+        if retries < AIOPS_ACCESS_MAX_RETRIES:
+            callback.apply_async(args=(base_labels["strategy_id"],))
+            query_config.intelligent_detect["status"] = AccessStatus.RUNNING
+            query_config.intelligent_detect["retries"] = retries + 1
+            query_config.intelligent_detect["message"] = err_msg
+            query_config.save()
+
+        report_aiops_access_metrics(base_labels, AccessStatus.FAILED, err_msg)
+
+
 def report_aiops_access_metrics(base_labels: Dict, result: str, exception: str = ""):
     labels = copy.deepcopy(base_labels)
-    labels.update({"result": AccessStatus.FAILED, "exception": exception})
+    labels.update({"result": result, "exception": exception})
     metrics.AIOPS_ACCESS_TASK_COUNT.labels(**labels).inc()
     metrics.report_all()
 
@@ -680,13 +723,20 @@ def access_aiops_by_strategy_id(strategy_id):
             plan_args=plan_args,
         )
         detect_data_flow.create_flow()
-        detect_data_flow.start_flow(consuming_mode=ConsumingMode.Current)
+        result = detect_data_flow.start_flow(consuming_mode=ConsumingMode.Current)
         output_table_name = detect_data_flow.output_table_name
 
-        # 6.4 如果启动的数据流状态不是"运行中"，则直接抛出异常
-        if detect_data_flow.flow_status != DataFlow.Status.Running:
-            raise Exception(f"flow status is not running, current flow status:({detect_data_flow.flow_status})")
-
+        # 6.4 异步轮训接入任务的状态
+        polling_aiops_strategy_status.apply_async(
+            args=(
+                detect_data_flow.data_flow.flow_id,
+                result.get("task_id"),
+                base_labels,
+                access_aiops_by_strategy_id,
+                rt_query_config,
+            ),
+            countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL,
+        )
     except BaseException as e:  # noqa
         # 6.5 若创建并启动智能检测数据流过程中出现异常，则尝试再次接入智能检测算法
         retries = rt_query_config.intelligent_detect.get("retries", 0)
@@ -732,22 +782,21 @@ def access_aiops_by_strategy_id(strategy_id):
 
     # 7. 如果智能检测数据流成功创建并启动，更新算法接入状态为"成功"
     # 将配置好的模型生成的rt_id放到extend_fields中，前端会根据这张表来查询数据
-    rt_query_config.intelligent_detect = {
-        "data_flow_id": detect_data_flow.data_flow.flow_id,
-        "data_source_label": DataSourceLabel.BK_DATA,
-        "data_type_label": DataTypeLabel.TIME_SERIES,
-        "result_table_id": output_table_name,
-        "metric_field": "value",
-        "extend_fields": {"values": extend_fields},
-        "agg_condition": agg_condition,
-        "agg_dimension": agg_dimension,
-        "plan_id": plan_id,
-        "agg_method": agg_method,
-        "status": AccessStatus.SUCCESS,
-        "message": "create dataflow success",
-    }
+    rt_query_config.intelligent_detect.update(
+        {
+            "data_flow_id": detect_data_flow.data_flow.flow_id,
+            "data_source_label": DataSourceLabel.BK_DATA,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "result_table_id": output_table_name,
+            "metric_field": "value",
+            "extend_fields": {"values": extend_fields},
+            "agg_condition": agg_condition,
+            "agg_dimension": agg_dimension,
+            "plan_id": plan_id,
+            "agg_method": agg_method,
+        }
+    )
     rt_query_config.save()
-    report_aiops_access_metrics(base_labels, AccessStatus.SUCCESS)
 
 
 @task(ignore_result=True)
@@ -814,6 +863,9 @@ def update_aiops_dataflow_status():
     if not result:
         logger.info("no dataflow exists in project({})".format(settings.BK_DATA_PROJECT_ID))
 
+    # 需要检测的flow关键字
+    flow_name_keys = [StrategyIntelligentModelDetectTask.FLOW_NAME_KEY, HostAnomalyIntelligentDetectTask.FLOW_NAME_KEY]
+
     # 找到当前计算平台已有的模型应用dataflow
     strategy_to_data_flow = {}
     for flow in result:
@@ -822,21 +874,22 @@ def update_aiops_dataflow_status():
         if flow_status != DataFlow.Status.Running:
             continue
 
-        # 从名称判断是否为智能异常检测的dataflow
-        flow_name = flow.get("flow_name", "")
-        if StrategyIntelligentModelDetectTask.FLOW_NAME_KEY not in flow_name:
-            continue
+        for flow_name_key in flow_name_keys:
+            # 从名称判断是否为智能异常检测的dataflow
+            flow_name = flow.get("flow_name", "")
+            if flow_name_key not in flow_name:
+                continue
 
-        groups = flow_name.split(StrategyIntelligentModelDetectTask.FLOW_NAME_KEY)
-        groups = [i.strip() for i in groups if i.strip()]
-        if len(groups) != 2:
-            continue
+            groups = flow_name.split(flow_name_key)
+            groups = [i.strip() for i in groups if i.strip()]
+            if len(groups) != 2:
+                continue
 
-        strategy_id, rt_id = groups
-        if not strategy_id.isdigit():
-            continue
+            strategy_id, biz_or_rt = groups
+            if not strategy_id.isdigit():
+                continue
 
-        strategy_to_data_flow.setdefault(int(strategy_id), []).append({"rt_id": rt_id, "flow": flow})
+            strategy_to_data_flow.setdefault(int(strategy_id), []).append({"biz_or_rt": biz_or_rt, "flow": flow})
 
     # 找到监控平台配置了智能异常检测的所有策略
     qs = AlgorithmModel.objects.filter(type__in=AlgorithmModel.AIOPS_ALGORITHMS).values_list("strategy_id", flat=True)
@@ -879,7 +932,7 @@ def update_aiops_dataflow_status():
             # 去掉多余的dataflow
             flow_list = strategy_to_data_flow.get(strategy_id)
             for f in flow_list:
-                rt_id = f["rt_id"]
+                rt_id = f["biz_or_rt"]
                 flow_id = f["flow"]["flow_id"]
                 if rt_id != bk_data_result_table_id:
                     try:
@@ -1267,12 +1320,20 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
             plan_args=plan_args,
         )
         detect_data_flow.create_flow()
-        detect_data_flow.start_flow(consuming_mode=ConsumingMode.Current)
+        result = detect_data_flow.start_flow(consuming_mode=ConsumingMode.Current)
         output_table_name = detect_data_flow.output_table_name
 
-        # 3.4 如果启动的数据流状态不是"运行中"，则直接抛出异常
-        if detect_data_flow.flow_status != DataFlow.Status.Running:
-            raise Exception(f"flow status is not running, current flow status:({detect_data_flow.flow_status})")
+        # 3.4 异步轮训接入任务的状态
+        polling_aiops_strategy_status.apply_async(
+            args=(
+                detect_data_flow.data_flow.flow_id,
+                result.get("task_id"),
+                base_labels,
+                access_host_anomaly_detect_by_strategy_id,
+                rt_query_config,
+            ),
+            countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL,
+        )
 
     except BaseException as e:  # noqa
         # 3.5 若创建并启动主机异常检测数据流过程中出现异常，则尝试再次接入主机异常检测算法
@@ -1326,8 +1387,5 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         "agg_dimension": scene_params.agg_dimensions,
         "plan_id": plan_id,
         "agg_method": '',
-        "status": AccessStatus.SUCCESS,
-        "message": "create dataflow success",
     }
     rt_query_config.save()
-    report_aiops_access_metrics(base_labels, AccessStatus.SUCCESS)

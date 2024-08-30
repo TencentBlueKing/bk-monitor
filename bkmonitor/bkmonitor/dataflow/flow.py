@@ -168,16 +168,16 @@ class DataFlow(object):
         if flow_status == self.Status.NoStart:
             # 该flow的状态为no-start，需要start这个flow
             # 如果是之前没有部署过的则需要传入从头启动消费模式，如果已有部署信息，则传入参数消费模式
-            self.start_or_restart_flow(consuming_mode=consuming_mode if flow_deploy_info else ConsumingMode.Tail)
+            return self.start_or_restart_flow(consuming_mode=consuming_mode if flow_deploy_info else ConsumingMode.Tail)
         elif flow_status == self.Status.Running:
             # 该flow的状态正常启动，需要去判断是否更新如果节点有更新则重启
             if not self.is_modified:
                 logger.info("dataflow({}({})) has not changed.".format(self.flow_name, self.flow_id))
                 return
-            self.start_or_restart_flow(False, consuming_mode)
+            return self.start_or_restart_flow(False, consuming_mode)
         else:
             # 其余状态则全部重启
-            self.start_or_restart_flow(False, consuming_mode)
+            return self.start_or_restart_flow(False, consuming_mode)
 
     def stop(self):
         api.bkdata.stop_data_flow(flow_id=self.flow_id)
