@@ -415,15 +415,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
-      case 'relation-graph':
-        return (
-          <relation-graph
-            clearErrorMsg={this.handleClearErrorMsg}
-            panel={this.panel}
-            onErrorMsg={this.handleErrorMsgChange}
-            onLoading={this.handleChangeLoading}
-          />
-        );
+      // case 'relation-graph':
+      //   return (
+      //     <relation-graph
+      //       clearErrorMsg={this.handleClearErrorMsg}
+      //       panel={this.panel}
+      //       onErrorMsg={this.handleErrorMsgChange}
+      //       onLoading={this.handleChangeLoading}
+      //     />
+      //   );
       case 'api_message':
         return (
           <MessageChart
@@ -513,6 +513,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'relation-graph':
       case 'apm-relation-graph':
         return <ApmRelationGraph panel={this.panel} />;
       case 'alarm-event-chart':
@@ -550,7 +551,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
-        {!!window.graph_watermark && (
+        {window?.graph_watermark && (
           <div
             class='wm'
             v-watermark={{

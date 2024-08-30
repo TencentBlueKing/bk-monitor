@@ -23,33 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import Alert from '../../../static/img/failure/icon-alert.svg';
-import NodeHost from '../../../static/img/failure/icon-BCSNode.svg';
-import BcsService from '../../../static/img/failure/icon-BCSService.svg';
-import IdcSvg from '../../../static/img/failure/icon-mc-target-cloud.svg';
-import PodSvg from '../../../static/img/failure/icon-Pod.svg';
-import RackSvg from '../../../static/img/failure/icon-Rack.svg';
+import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
 
-export const NODE_TYPE_SVG = {
-  Idc: IdcSvg,
-  IdcUnit: IdcSvg,
-  Rack: RackSvg,
-  BcsService,
-  Unknown: BcsService,
-  BkNodeHost: NodeHost,
-  BcsNode: NodeHost,
-  BcsPod: PodSvg,
-  Alert: Alert,
-};
-
-export const NODE_TYPE_ICON = {
-  Idc: 'icon-mc-target-cloud',
-  IdcUnit: 'icon-mc-target-cloud',
-  Rack: 'icon-mc-rack',
-  BkNodeHost: 'icon-mc-bcs-node',
-  BcsNode: 'icon-mc-bcs-node',
-  BcsPod: 'icon-mc-pod',
-  BcsService: 'icon-mc-bcs-service',
-  Unknown: 'icon-mc-bcs-service',
-};
+import './resource-topo.scss';
+import '@blueking/monitor-resource-topo/vue2/vue2.css';
+@Component
+export default class ResourceTopo extends tsc<undefined> {
+  @Prop() a: number;
+  app = null;
+  unWatchStack = [];
+  created() {
+    // const props = this.$props;
+    // const emit = this.$emit.bind(this);
+    let resourceTopoInstance;
+    this.app = createApp({
+      render() {
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        resourceTopoInstance = this;
+        return vue3CreateElement(MonitorTopo, {});
+      },
+    });
+    this.unWatchStack = Object.keys(this.$props).map(k => {
+      return this.$watch(k, v => {
+        resourceTopoInstance[k] = v;
+        resourceTopoInstance.$forceUpdate();
+      });
+    });
+  }
+  mounted() {
+    this.app?.mount(this.$el);
+  }
+  beforeDestroy() {
+    for (const unWatch of this.unWatchStack) {
+      unWatch?.();
+    }
+    this.app?.unmount();
+  }
+  render() {
+    return <div class='apm-resource-topo' />;
+  }
+}
