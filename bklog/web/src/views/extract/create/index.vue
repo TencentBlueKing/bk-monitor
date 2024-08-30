@@ -409,7 +409,7 @@
           color: #ea3636;
         }
 
-        .icon-info-fill {
+        .bklog-info-fill {
           color: #979ba5;
           cursor: pointer;
         }

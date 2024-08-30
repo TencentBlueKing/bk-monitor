@@ -411,7 +411,7 @@
             color: #ff5656;
           }
 
-          .icon-info-fill {
+          .bklog-info-fill {
             font-size: 16px;
             color: #979ba5;
             cursor: pointer;
