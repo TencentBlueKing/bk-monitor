@@ -71,6 +71,7 @@ export default {
           },
         })
         .then(res => {
+          let indexSetList = [];
           if (res.data.length) {
             // 有索引集
             // 根据权限排序
@@ -83,7 +84,8 @@ export default {
                 s2.push(item);
               }
             }
-            const indexSetList = s1.concat(s2);
+
+            indexSetList = s1.concat(s2);
             // 索引集数据加工
             indexSetList.forEach(item => {
               item.index_set_id = `${item.index_set_id}`;
@@ -92,7 +94,7 @@ export default {
             });
             ctx.commit('updateIndexSetList', indexSetList);
           }
-          return res;
+          return [res, indexSetList];
         })
         .finally(() => {
           ctx.commit('updateIndexSetLoading', false);

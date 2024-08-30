@@ -25,7 +25,8 @@
 -->
 
 <script setup>
-  import { computed, onMounted, ref, watch } from 'vue';
+  import { computed, onMounted, ref, watch, set } from 'vue';
+  import { isEqual } from 'lodash';
 
   import dayjs from 'dayjs';
   import { updateTimezone } from '../../language/dayjs';
@@ -38,7 +39,6 @@
   // import { getDefaultRetrieveParams } from './const';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
-  // import http from '@/api';
 
   const store = useStore();
   const router = useRouter();
@@ -49,7 +49,6 @@
   const favoriteWidth = ref(240);
 
   const datePickerValue = ref(['now-15m', 'now']);
-  const activeFavoriteID = ref(-1);
   const timeZone = ref(dayjs.tz.guess());
   // const retrieveParams = ref({
   //   bk_biz_id: store.state.bkBizId,
@@ -58,36 +57,36 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
-  const indexItem = computed(() => store.state.indexItem);
-  const indexSetItem = computed(() => indexItem.value.items?.[0]);
+  const indexItem = computed(() => store.state.indexItem ?? {});
 
-  const setRouteParams = (name = 'retrieve', params, query) => {
-    router.replace({
-      name,
-      params,
-      query,
+  const getIndexSetList = () => {
+    store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
+      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] });
     });
   };
 
-  const getIndexSetList = () => {
-    store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value });
+  const setRouteParams = () => {
+    const { ids, isUnionIndex } = indexItem.value;
+    const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] };
+    const query = isUnionIndex
+      ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
+      : route.query;
+
+    if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
+      router.replace({
+        params,
+        query,
+      });
+    }
   };
 
   watch(
-    indexItem,
+    indexItem.value,
     () => {
-      const { ids, isUnionIndex } = indexItem.value;
-      const indexId = ids?.[0];
-      const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] };
-      const query = isUnionIndex
-        ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
-        : route.query;
-
-      if (indexId) {
-        router.push({
-          params,
-          query,
-        });
+      setRouteParams();
+      const { ids = [] } = indexItem.value ?? {};
+      if (ids.length) {
+        store.dispatch('requestIndexSetFieldInfo');
       }
     },
     { immediate: true, deep: true },
@@ -96,30 +95,27 @@
   watch(
     spaceUid,
     () => {
-      const name = route.name;
-      const spaceId = route.query.spaceUid;
-      const bizId = route.query.bizId;
-
-      if (name !== 'retrieve' || spaceId !== spaceUid.value || bizId !== bkBizId.value) {
-        setRouteParams(
-          'retrieve',
-          {},
-          {
+      const routeQuery = route.query ?? {};
+      if (routeQuery.spaceUid !== spaceUid || routeQuery.bizId !== bkBizId.value) {
+        router.replace({
+          query: {
+            ...routeQuery,
             spaceUid: spaceUid.value,
             bizId: bkBizId.value,
           },
-        );
+        });
       }
       getIndexSetList();
     },
     { immediate: true },
   );
+
   const initFavoriteState = () => {
-    const isOpen = localStorage.getItem('isAutoShowCollect') === 'true';
-    if (!isOpen) {
-      showFavorites.value = true;
-      favoriteWidth.value = 240;
-    }
+    // const isOpen = localStorage.getItem('isAutoShowCollect') === 'true';
+    // if (!isOpen) {
+    //   showFavorites.value = true;
+    //   favoriteWidth.value = 240;
+    // }
   };
 
   const handleFavoritesClick = () => {
@@ -140,14 +136,14 @@
     initFavoriteState();
   });
   /** 修改时区 */
-  const handleTimezoneChange = (timezone) => {
+  const handleTimezoneChange = timezone => {
     timezone.value = timezone;
     updateTimezone(timezone);
-  }
+  };
   /** 触发重新查询 */
   const shouldRetrieve = () => {
-    console.log('======= shouldRetrieve')
-  }
+    console.log('======= shouldRetrieve');
+  };
   const activeTab = ref('originalLog');
 </script>
 <template>
@@ -179,10 +175,7 @@
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar
-        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }"
-        :indexSetItem="indexSetItem"
-      />
+      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }" />
     </div>
     <div class="retrieve-body">
       <CollectFavorites
@@ -193,16 +186,16 @@
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
       <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }">
-        <SearchBar 
+        <SearchBar
           :timeZone="timeZone"
           :datePickerValue="datePickerValue"
-          @update:date-picker-value="(value) => datePickerValue = value"
+          @update:date-picker-value="value => (datePickerValue = value)"
           @timezone-change="handleTimezoneChange"
           @should-retrieve="shouldRetrieve"
         ></SearchBar>
         <div class="result-row">
-        <TabPanel v-model="activeTab"></TabPanel>
-      </div>
+          <TabPanel v-model="activeTab"></TabPanel>
+        </div>
         <div class="result-row"></div>
       </div>
     </div>
@@ -210,5 +203,5 @@
 </template>
 <style scoped>
   @import './index.scss';
-</style>import dayjs from 'dayjs';
-
+</style>
+import dayjs from 'dayjs';

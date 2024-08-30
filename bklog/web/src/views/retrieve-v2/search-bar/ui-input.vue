@@ -2,6 +2,7 @@
   import { ref, watch } from 'vue';
   import tippy from 'tippy.js';
   import UiInputOptions from './ui-input-option.vue';
+  import useStore from '@/hooks/use-store';
 
   const props = defineProps({
     value: {
@@ -13,6 +14,7 @@
 
   const emit = defineEmits(['input', 'change']);
 
+  const store = useStore();
   let tippyInstance = null;
   const modelValue = ref([]);
   const refPopInstance = ref(null);
@@ -58,9 +60,6 @@
   };
 
   const handleAddItem = e => {
-    // const index = Math.ceil(Math.random() * 10);
-    // modelValue.value.push({ fieldName: `log-${index}`, fieldValue: 'natural Home', disabled: false });
-    // emitChange(modelValue.value);
     const target = e.target.closest('.search-item');
     showTagListItems(target);
   };

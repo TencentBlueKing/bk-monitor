@@ -30,50 +30,62 @@ export const fieldTypeMap = {
   any: {
     name: i18n.t('不限'),
     icon: 'bk-icon icon-check-line',
+    color: '#DCDEE5'
   },
   number: {
     name: i18n.t('数字'),
     icon: 'bklog-icon bklog-number',
+    color: '#F7F0CA'
   },
   integer: {
     name: i18n.t('数字'),
     icon: 'bklog-icon bklog-number',
+    color: '#F7F0CA'
   },
   double: {
     name: i18n.t('数字'),
     icon: 'bklog-icon bklog-number',
+    color: '#F7F0CA'
   },
   keyword: {
     name: i18n.t('字符串'),
     icon: 'bklog-icon bklog-string',
+    color: '#DCF4F8',
   },
   long: {
     name: i18n.t('数字'),
     icon: 'bklog-icon bklog-number',
+    color: '#F7F0CA'
   },
   text: {
     name: i18n.t('文本'),
     icon: 'bklog-icon bklog-text',
+    color: '#D9E5F9'
   },
   date: {
     name: i18n.t('时间'),
     icon: 'bk-icon icon-clock',
+    color: '#E2F8E8'
   },
   date_nanos: {
     name: i18n.t('时间'),
     icon: 'bk-icon icon-clock',
+    color: '#E2F8E8'
   },
   boolean: {
     name: i18n.t('布尔'),
     icon: 'bklog-icon bklog-boolean',
+    color: '#A3C5FD'
   },
   conflict: {
     name: i18n.t('冲突字段'),
     icon: 'bk-icon icon-exclamation-triangle',
+    color: '#FFB848'
   },
   __virtual__: {
     name: i18n.t('该字段为平台补充 不可检索'),
     icon: 'bklog-icon bklog-ext',
+    color: '#F2E2FB'
   },
 };
 

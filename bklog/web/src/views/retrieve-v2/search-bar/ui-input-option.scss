@@ -1,19 +1,16 @@
 .ui-query-options {
   background: #FFFFFF;
 
-  .option-content {
+  .ui-query-option-content {
     width: 510px;
     display: flex;
-    border-bottom: solid 1px #DCDEE5;
 
     .field-list {
       width: 240px;
-      height: 312px;
-      padding: 4px 8px;
       border-right: solid 1px #DCDEE5;
 
       .ui-search-input {
-        height: 32px;
+        padding-top: 4px;
         width: 100%;
 
         >.bk-form-control {
@@ -27,6 +24,56 @@
 
       .ui-search-result {
         height: 280px;
+        overflow: auto;
+
+        .ui-search-result-row {
+          width: 100%;
+          height: 32px;
+          padding: 0 12px;
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          &.active {
+            background: #E1ECFF;
+          }
+
+          &:hover {
+            background: #F5F7FA;
+          }
+
+          .field-type-icon {
+            display: inline-flex;
+            width: 16px;
+            height: 16px;
+            align-items: center;
+            justify-content: center;
+            background: #DCDEE5;
+            border-radius: 2px;
+
+            &.bklog-ext {
+              font-size: 8px;
+            }
+          }
+
+          .field-alias {
+            padding: 0 4px;
+            font-size: 12px;
+            color: #63656E;
+            letter-spacing: 0;
+            line-height: 20px;
+          }
+
+          .field-name {
+            font-weight: 400;
+            font-size: 12px;
+            color: #9B9DA1;
+            letter-spacing: 0;
+            line-height: 20px;
+          }
+        }
       }
     }
 
@@ -36,10 +83,10 @@
     }
   }
 
-  .option-footer {
+  .ui-query-option-footer {
     width: 510px;
     height: 42px;
     background: #FAFBFD;
-    box-shadow: 0 -1px 0 0 #DCDEE5;
+    border-top: solid 1px #DCDEE5;
   }
 }

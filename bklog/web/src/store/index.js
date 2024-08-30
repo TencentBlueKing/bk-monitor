@@ -30,7 +30,7 @@
  * @author  <>
  */
 
-import Vue from 'vue';
+import Vue, { set } from 'vue';
 
 import { unifyObjectStyle } from '@/common/util';
 import Vuex from 'vuex';
@@ -39,6 +39,7 @@ import collect from './collect';
 import globals from './globals';
 import retrieve from './retrieve';
 import http from '@/api';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 Vue.use(Vuex);
 
@@ -67,11 +68,30 @@ const store = new Vuex.Store({
     space: {},
     spaceUid: '',
     indexId: '',
-    indexItem: {},
+    indexItem: {
+      start_time: 'now-15m',
+      end_time: 'now',
+      timezone: '',
+      ids: [],
+      isUnionIndex: false,
+      items: [],
+      selectIsUnionSearch: false,
+    },
     /** 联合查询ID列表 */
     unionIndexList: [],
     /** 联合查询元素列表 */
     unionIndexItemList: [],
+    /** 索引集对应的字段列表信息 */
+    indexFieldInfo: {
+      "fields": [],
+      "display_fields": [],
+      "sort_list": [],
+      "time_field": "",
+      "time_field_type": "",
+      "time_field_unit": "",
+      "config": [],
+      "config_id": 0
+  },
     traceIndexId: '',
     // 业务Id
     bkBizId: '',
@@ -166,13 +186,13 @@ const store = new Vuex.Store({
   // 公共 mutations
   mutations: {
     updateIndexItem(state, payload) {
-      state.indexItem = payload ?? {};
-
+      Object.assign(state.indexItem, payload ?? {})
       state.unionIndexList = [];
       if (payload.isUnionIndex) {
         state.unionIndexList = payload.ids;
       }
     },
+
     updateUserMeta(state, payload) {
       state.userMeta = payload;
     },
@@ -325,6 +345,9 @@ const store = new Vuex.Store({
       localStorage.setItem('EXPAND_SEARCH_VIEW', JSON.stringify(val));
       state.isLimitExpandView = val;
     },
+    updateIndexFieldInfo(state, payload) {
+      Object.assign(state.indexFieldInfo, payload ?? {});
+    },
   },
   actions: {
     /**
@@ -440,6 +463,62 @@ const store = new Vuex.Store({
           reject(err);
         }
       });
+    },
+
+    /**
+     * 初始化时，通过路由参数和请求返回的索引集列表初始化索引集默认选中值
+     * @param {*} param0
+     * @param {*} param1
+     */
+    updateIndexItemByRoute({ commit }, { route, list }) {
+      const ids = [];
+      let isUnionIndex = false;
+      if (route.params.indexId) {
+        ids.push(route.params.indexId);
+      } else {
+        isUnionIndex = true;
+        ids.push(...JSON.parse(decodeURIComponent(route.query?.unionList ?? '[]')));
+      }
+
+      if (ids.length) {
+        const payload = {
+          ids,
+          selectIsUnionSearch: isUnionIndex,
+          items: ids.map(val => (list || []).find(item => item.index_set_id === val)),
+          isUnionIndex,
+        };
+
+        commit('updateIndexItem', payload);
+      }
+    },
+
+    requestIndexSetFieldInfo({ commit, state }) {
+      const isUnionIndex = state.indexItem?.isUnionIndex;
+      const { ids = [], start_time = '', end_time = '' } = state.indexItem;
+      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+      const tempList = handleTransformToTimestamp([start_time, end_time]);
+      const queryData = {
+        start_time: tempList[0],
+        end_time: tempList[1],
+        is_realtime: 'True',
+      };
+      if (isUnionIndex) {
+        Object.assign(queryData, {
+          index_set_ids: ids,
+        });
+      }
+
+      console.log('requestIndexSetFieldInfo')
+      return http
+        .request(urlStr, {
+          params: { index_set_id: ids[0] },
+          query: !isUnionIndex ? queryData : undefined,
+          data: isUnionIndex ? queryData : undefined,
+        })
+        .then(res => {
+          commit('updateIndexFieldInfo', res.data ?? {});
+          return res;
+        });
     },
   },
 });

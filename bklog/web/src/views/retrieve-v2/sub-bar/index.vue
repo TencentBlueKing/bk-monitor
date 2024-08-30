@@ -12,33 +12,7 @@
   const store = useStore();
   const router = useRouter();
 
-  const props = defineProps({
-    indexSetItem: {
-      type: Object,
-      required: true,
-      default: () => ({})
-    },
-    // totalFields: {
-    //   type: Array,
-    //   default: () => [],
-    // },
-    // configData: {
-    //   type: Object,
-    //   require: true,
-    // },
-    // cleanConfig: {
-    //   type: Object,
-    //   require: true,
-    // },
-    // datePickerValue: {
-    //   type: Array,
-    //   required: true,
-    // },
-    // retrieveParams: {
-    //   type: Object,
-    //   require: true,
-    // },
-  });
+  const props = defineProps({});
 
   const emit = defineEmits(['setting-menu-click', 'update-log-fields', 'fields-updated', 'should-retrieve']);
 
@@ -143,13 +117,6 @@
     initJumpRouteList(setItem.scenario_id, true);
   };
 
-  watch(
-    props.indexSetItem,
-    () => {
-      setShowLiList(props.indexSetItem);
-    },
-    { immediate: true },
-  );
 
   const handleMenuClick = val => {
     // 不属于新开页面的操作
@@ -288,17 +255,17 @@
         </bk-popover>
       </div>
     </div>
-    <SettingModal
+    <!-- <SettingModal
       :clean-config="cleanConfig"
       :config-data="configData"
-      :date-picker-value="datePickerValue"
+      :date-picker-value="time"
       :index-set-item="indexSetItem"
       :is-show-dialog="isShowSettingModal"
       :retrieve-params="retrieveParams"
       :total-fields="totalFields"
       @close-setting="isShowSettingModal = false"
       @update-log-fields="handleUpdateLogFields"
-    ></SettingModal>
+    ></SettingModal> -->
   </div>
 </template>
 <style scoped>
