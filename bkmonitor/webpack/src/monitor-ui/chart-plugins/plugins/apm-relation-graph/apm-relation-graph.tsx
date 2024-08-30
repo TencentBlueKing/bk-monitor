@@ -39,6 +39,7 @@ import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import ApmRelationTopo from './components/apm-relation-topo';
 import BarAlarmChart from './components/bar-alarm-chart';
+import ResourceTopo from './components/resource-topo';
 import ServiceOverview from './components/service-overview';
 import { alarmBarChartDataTransform, DATA_TYPE_LIST, EDataType } from './components/utils';
 
@@ -461,7 +462,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                     <span class='icon-monitor icon-zhankai' />
                   </div>
                 </div>
-                <div class='content-wrap' />
+                <div class='content-wrap'>
+                  <ResourceTopo />
+                </div>
               </div>
 
               <div
