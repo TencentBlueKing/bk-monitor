@@ -840,4 +840,8 @@ export default {
   请先新建新类告警策略: 'Please create a new category strategy first',
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
   收藏夹: 'Favorite clip',
+  UI语句: 'UI statement',
+  SQL语句: 'SQL statement',
+  历史查询: 'History query',
+  请输入关键字: 'Please enter keywords',
 };
