@@ -211,9 +211,9 @@ export class DataQuery implements IDataQuery {
   compareFieldsSort?: FieldsSortType = [];
   // 查询图表配置
   data: any;
+  datasource?: null | string;
   // 数据类型 table time_series ...
   dataType?: string;
-  datasource?: null | string;
   field?: Record<string, string> = {};
   // 变量的映射关系
   fields?: Record<string, string> = {};
@@ -393,6 +393,12 @@ export interface IApmRelationGraphOption {
   };
 }
 
+export interface IApdexChartOption {
+  apdex_chart?: {
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+  };
+}
+
 // 视图特殊配置
 export type PanelOption = {
   legend?: ILegendOption;
@@ -414,7 +420,8 @@ export type PanelOption = {
   IResourceChartOption &
   IRelatedLogChartoption &
   IApmTimeSeriesOption &
-  IApmRelationGraphOption;
+  IApmRelationGraphOption &
+  IApdexChartOption;
 
 export interface IPanelModel {
   id: number | string;
