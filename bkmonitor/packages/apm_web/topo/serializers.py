@@ -58,4 +58,4 @@ class NodeRelationSerializer(serializers.Serializer):
     service_name = serializers.CharField(label="服务名称")
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
-    path = serializers.ChoiceField(label="路径", choices=RelationResourcePath.get_choices())
+    path_type = serializers.ChoiceField(label="请求路径类型", choices=RelationResourcePath.get_choices())
