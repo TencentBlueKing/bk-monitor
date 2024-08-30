@@ -80,9 +80,6 @@ from apps.log_search.exceptions import (
     UnauthorizedResultTableException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-from apps.log_search.handlers.search.search_handlers_esquery import (
-    SearchHandler as SearchHandlerEsquery,
-)
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     IndexSetTag,
@@ -1663,31 +1660,6 @@ class IndexSetFieldsConfigHandler(object):
                     name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
                 ).exists():
                     raise IndexSetFieldsConfigAlreadyExistException()
-
-        # 排序字段映射
-        sort_field_mappings = {}
-        for field_list in sort_list:
-            sort_field_mappings[field_list[0]] = field_list[1]
-
-        new_sort_list = []
-        if "dtEventTimeStamp" in sort_field_mappings:
-            # 获取拉取字段信息列表
-            search_handler_esquery = SearchHandlerEsquery(self.index_set_id, {})
-            field_result, _ = search_handler_esquery.get_pull_fields()
-            field_result_list = [i["field_name"] for i in field_result]
-
-            for sort_field_list in sort_list:
-                _field, order = sort_field_list
-                if _field == "dtEventTimeStamp":
-                    new_sort_list.append(sort_field_list)
-                    if "gseIndex" in field_result_list:
-                        new_sort_list.append(["gseIndex", order])
-                    if "iterationIndex" in field_result_list:
-                        new_sort_list.append(["iterationIndex", order])
-                elif _field not in ["dtEventTimeStamp", "gseIndex", "iterationIndex"]:
-                    new_sort_list.append(sort_field_list)
-
-            sort_list = new_sort_list
 
         if self.data:
             # 更新配置, 只允许更新name, display_fields, sort_list

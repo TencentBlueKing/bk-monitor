@@ -533,7 +533,7 @@ class SearchHandler(object):
         if self.size > MAX_RESULT_WINDOW:
             once_size = MAX_RESULT_WINDOW
 
-        # 把dtEventTimeStamp,gseIndex,iterationIndex做为一个排序组
+        # 把time_field,gseIndex,iterationIndex做为一个排序组
         new_sort_list = self.get_sort_group()
         if new_sort_list:
             self.sort_list = new_sort_list
@@ -587,21 +587,33 @@ class SearchHandler(object):
 
     def get_sort_group(self):
         """
-        排序字段dtEventTimeStamp是,那么补充上gseIndex, iterationIndex
+        排序字段是self.time_field时,那么补充上gseIndex/gseindex, iterationIndex/_iteration_idx
         """
+        target_fields = self.index_set_obj.target_fields
+        sort_fields = self.index_set_obj.sort_fields
+        # 根据不同情景为排序组字段赋予不同的名称
+        if self.scenario_id == Scenario.LOG:
+            gse_index = "gseIndex"
+            iteration_index = "iterationIndex"
+        elif self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+            gse_index = "gseindex"
+            iteration_index = "_iteration_idx"
+        else:
+            gse_index = iteration_index = ""
+
         new_sort_list = []
-        if len(self.sort_list) == 1:
+        if len(self.sort_list) == 1 and gse_index:
             _field, order = self.sort_list[0]
-            if _field == "dtEventTimeStamp":
+            if _field == self.time_field:
                 # 获取拉取字段信息列表
                 field_result, _ = self.get_pull_fields()
                 field_result_list = [i["field_name"] for i in field_result]
 
                 new_sort_list.append([_field, order])
-                if "gseIndex" in field_result_list:
-                    new_sort_list.append(["gseIndex", order])
-                if "iterationIndex" in field_result_list:
-                    new_sort_list.append(["iterationIndex", order])
+                if gse_index in field_result_list:
+                    new_sort_list.append([gse_index, order])
+                if iteration_index in field_result_list:
+                    new_sort_list.append([iteration_index, order])
 
         return new_sort_list
 
