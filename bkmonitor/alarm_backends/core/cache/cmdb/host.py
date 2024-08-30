@@ -188,10 +188,16 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
 
     @classmethod
     def get_by_agent_id(cls, bk_agent_id):
+        if not bk_agent_id:
+            return None
+
         bk_host_id = HostAgentIDManager.get(bk_agent_id)
         if not bk_host_id:
             return None
-        return cls.get_by_id(bk_host_id)
+
+        host = cls.get_by_id(bk_host_id)
+        if host and getattr(host, "bk_agent_id", "") == bk_agent_id:
+            return host
 
     @classmethod
     def get_by_id(cls, bk_host_id, using_mem=False):
