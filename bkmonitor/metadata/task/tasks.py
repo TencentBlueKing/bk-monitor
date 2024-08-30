@@ -183,14 +183,7 @@ def _manage_es_storage(es_storage):
         # 先预创建各个时间段的index，
         # 1. 同时判断各个预创建好的index是否字段与数据库的一致
         # 2. 也判断各个创建的index是否有大小需要切片的需要
-
-        if not es_storage.index_exist():
-            #   如果该table_id的index在es中不存在，说明要走初始化流程
-            logger.info("table_id->[%s] found no index in es,will create new one", es_storage.table_id)
-            es_storage.create_index_and_aliases(es_storage.slice_gap)
-        else:
-            # 否则走更新流程
-            es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
+        logger.info("table_id->[%s] start to create index", es_storage.table_id)
 
         # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
         if not es_storage.index_settings or es_storage.index_settings == '{}':
@@ -199,6 +192,14 @@ def _manage_es_storage(es_storage):
         if not es_storage.mapping_settings or es_storage.mapping_settings == '{}':
             logger.error("table_id->[%s] need to create index,but mapping_settings invalid", es_storage.table_id)
             return
+
+        if not es_storage.index_exist():
+            #   如果该table_id的index在es中不存在，说明要走初始化流程
+            logger.info("table_id->[%s] found no index in es,will create new one", es_storage.table_id)
+            es_storage.create_index_and_aliases(es_storage.slice_gap)
+        else:
+            # 否则走更新流程
+            es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
 
         # 创建快照
         es_storage.create_snapshot()
@@ -209,17 +210,12 @@ def _manage_es_storage(es_storage):
         # 重新分配索引数据
         es_storage.reallocate_index()
 
+        logger.info("table_id->[%s] create index successfully", es_storage.table_id)
         logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
-        logger.error(
-            "es_storage: %s index lifecycle failed, name: %s, id: %s, domain: %s, error: %s",
-            es_storage.table_id,
-            es_storage.storage_cluster.cluster_name,
-            es_storage.storage_cluster.cluster_id,
-            es_storage.storage_cluster.domain_name,
-            e,
-        )
+        logger.error("es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
+        logger.exception(e)
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

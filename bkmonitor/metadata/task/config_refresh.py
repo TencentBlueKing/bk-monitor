@@ -252,6 +252,8 @@ def refresh_kafka_topic_info():
 
 @share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
+    logger.info("start to refresh es_storage")
+    # 轮转黑名单
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
 
     # NOTE: 这是临时处理；如果在白名单中，则按照串行处理

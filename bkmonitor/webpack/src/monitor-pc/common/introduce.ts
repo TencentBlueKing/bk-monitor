@@ -99,25 +99,31 @@ class IntroduceStore {
   // 初始化所有介绍数据
   initIntroduce(to: RouteConfig) {
     const toNavId = to.meta.navId;
-    Object.keys(this.data).forEach((tag: IntroduceRouteKey) => {
+    for (const [tag, value] of Object.entries(this.data)) {
       // 如果已有数据，直接返回
-      if (this.data[tag].introduce) return;
-      if (!this.data[tag].loading) {
+      if (value.introduce) return;
+      if (!value.loading) {
         requestIdleCallback(() => {
           if (toNavId === tag) {
-            this.getIntroduce(tag);
+            this.getIntroduce(tag as IntroduceRouteKey);
           } else {
             this.data[tag].loading = true;
-            spaceIntroduce({ tag })
-              .then(data => {
-                this.data[tag].introduce = data;
-              })
-              .catch(() => (this.data[tag].introduce = undefined))
-              .finally(() => (this.data[tag].loading = false));
+            setTimeout(() => {
+              spaceIntroduce({ tag })
+                .then(data => {
+                  this.data[tag].introduce = data;
+                })
+                .catch(() => {
+                  value.introduce = undefined;
+                })
+                .finally(() => {
+                  value.loading = false;
+                });
+            }, 6000);
           }
         });
       }
-    });
+    }
   }
 }
 

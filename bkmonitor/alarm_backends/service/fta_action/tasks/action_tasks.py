@@ -354,13 +354,15 @@ def check_timeout_actions():
                 if int(timeout_timestamp) >= int(running_action.create_time.timestamp()):
                     timeout_actions.append(running_action.id)
             if timeout_actions:
-                ActionInstance.objects.filter(id__in=timeout_actions).update(
-                    end_time=datetime.now(tz=timezone.utc),
-                    update_time=datetime.now(tz=timezone.utc),
-                    status=ActionStatus.FAILURE,
-                    failure_type=FailureType.TIMEOUT,
-                    ex_data=dict(message=_("处理执行时间超过套餐配置的最大时长{}分钟, 按失败处理").format(timeout_setting // 60 or 10)),
-                )
+                step = 100
+                for idx in range(0, len(timeout_actions), step):
+                    ActionInstance.objects.filter(id__in=timeout_actions[idx : idx + step]).update(
+                        end_time=datetime.now(tz=timezone.utc),
+                        update_time=datetime.now(tz=timezone.utc),
+                        status=ActionStatus.FAILURE,
+                        failure_type=FailureType.TIMEOUT,
+                        ex_data=dict(message=_("处理执行时间超过套餐配置的最大时长{}分钟, 按失败处理").format(timeout_setting // 60 or 10)),
+                    )
                 logger.info("setting actions(%s) to failure because of timeout", len(timeout_actions))
     except LockError:
         # 加锁失败

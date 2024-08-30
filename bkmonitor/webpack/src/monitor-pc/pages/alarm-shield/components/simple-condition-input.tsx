@@ -70,6 +70,7 @@ interface IProps {
   isHasNullOption?: boolean;
 }
 interface IEvents {
+  // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
   onChange?: void;
   onKeyLoading?: (v: boolean) => void;
 }
@@ -311,6 +312,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
       this.conditions.push(this.handleGetDefaultCondition(false));
     } else {
       if (this.conditions[index] && (this.conditions[index - 1]?.condition || index === 0)) {
+        // biome-ignore lint/performance/noDelete: <explanation>
         delete this.conditions[index].condition;
       }
     }
@@ -333,16 +335,19 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
         {this.hasLeftLabel && <span class='condition-item condition-item-label'>{this.$t('条件')}</span>}
         {this.conditions.map((item, index) => [
           item.condition && item.key && index > 0 ? (
-            <input
-              key={`condition-${index}-${item.key}`}
-              style={{ display: item.condition ? 'block' : 'none' }}
-              class='condition-item condition-item-condition'
-              value={item.condition.toLocaleUpperCase()}
-              readonly
-              on-click={e => this.handleToggleCondition(e, { index, prop: 'condition' })}
-            />
+            <div key={`condition${index}`}>
+              <input
+                key={`condition-${index}-${item.key}`}
+                style={{ display: item.condition ? 'block' : 'none' }}
+                class='condition-item condition-item-condition'
+                value={item.condition.toLocaleUpperCase()}
+                readonly
+                on-click={e => this.handleToggleCondition(e, { index, prop: 'condition' })}
+              />
+            </div>
           ) : undefined,
           <SimpleSelectInput
+            key={`selectInput${index}`}
             ref={`selectInput${index}`}
             v-bk-tooltips={{
               content: item.key,

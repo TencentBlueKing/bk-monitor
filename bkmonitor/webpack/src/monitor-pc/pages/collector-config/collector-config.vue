@@ -31,7 +31,6 @@
   <div
     v-else
     class="collector-config"
-    v-monitor-loading="{ isLoading: delayLoading }"
   >
     <page-tips
       style="margin-bottom: 16px"
@@ -119,7 +118,14 @@
         ref="tableWrapper"
         class="collector-config-table"
       >
-        <div class="table-wrap">
+        <table-skeleton
+          v-if="delayLoading"
+          :type="2"
+        ></table-skeleton>
+        <div
+          v-else
+          class="table-wrap"
+        >
           <bk-table
             ref="table"
             :row-style="handleStoppedRow"
@@ -156,9 +162,8 @@
                       v-if="scope.$index !== table.editIndex"
                       class="col-name-desc"
                       @click.stop="handleShowDetail(scope.row)"
+                      >{{ scope.row.name }}</span
                     >
-                      {{ scope.row.name }}
-                    </span>
                     <span
                       v-if="scope.row.needUpdate && scope.$index !== table.editIndex && scope.row.status !== 'STOPPED'"
                       v-en-style="'flex: 0 0 50px'"
@@ -192,9 +197,8 @@
                     <span
                       :class="{ 'pointer-active': !['PREPARING', 'STOPPED'].includes(scope.row.status) }"
                       @click="!['PREPARING', 'STOPPED'].includes(scope.row.status) && handleCheckStatus(scope.row)"
+                      >{{ scope.row.statusName }}</span
                     >
-                      {{ scope.row.statusName }}
-                    </span>
                   </span>
                 </template>
                 <template v-else-if="column.prop === 'targetString'">
@@ -248,9 +252,8 @@
                     <span
                       :style="!!scope.row.errorNum ? 'visibility: visible;' : 'visibility: hidden;'"
                       style="min-width: 23px; color: #ea3636"
+                      >({{ scope.row.errorNum }})</span
                     >
-                      ({{ scope.row.errorNum }})
-                    </span>
                   </span>
                   <span
                     v-if="scope.row.bizId === bizId"
@@ -378,9 +381,8 @@
         <span
           class="operator-group-btn"
           @click="handleOpenOrClose"
+          >{{ popover.status === 'STOPPED' ? $t('启用') : $t('停用') }}</span
         >
-          {{ popover.status === 'STOPPED' ? $t('启用') : $t('停用') }}
-        </span>
         <span
           class="operator-group-btn"
           @click="handleCloneConfig"
@@ -412,6 +414,7 @@ import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
 import GuidePage from '../../components/guide-page/guide-page';
 import pageTips from '../../components/pageTips/pageTips';
+import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_ADD_DATA, SET_ADD_MODE, SET_OBJECT_TYPE } from '../../store/modules/collector-config';
 import * as collectAuth from './authority-map';
@@ -430,6 +433,7 @@ export default {
     pageTips,
     EmptyStatus,
     GuidePage,
+    TableSkeleton,
   },
   mixins: [authorityMixinCreate(collectAuth)],
   provide() {
@@ -610,6 +614,9 @@ export default {
       return this.tableInstance.tabItemMap || {};
     },
     retrievalUrl() {
+      if (process.env.NODE_ENV === 'development') {
+        return `${process.env.loginHost}/t/log-search-4#/manage/collect?bizId=${this.bizId}`;
+      }
       return `${this.$store.getters.bkLogSearchUrl}#/manage/collect?bizId=${this.bizId}`;
     },
     /** 是否展示分页 */

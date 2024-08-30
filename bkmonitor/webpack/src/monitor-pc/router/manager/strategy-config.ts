@@ -29,7 +29,7 @@ import * as ruleAuth from '../../pages/strategy-config/authority-map';
 import type { Route, RouteConfig } from 'vue-router';
 
 const StrategyConfig = () =>
-  import(/* webpackChunkName: 'StrategyConfig' */ '../../pages/strategy-config/strategy-config');
+  import(/* webpackChunkName: 'StrategyConfig' */ '../../pages/strategy-config/strategy-config-common/strategy-config');
 const StrategyConfigSetNew = () =>
   import(/* webpackChunkName: 'StrategyConfigSetNew' */ '../../pages/strategy-config/strategy-config-set');
 // const StrategyConfigDetail = () => import(/* webpackChunkName: 'StrategyConfigDetail' */ '../../pages/strategy-config/strategy-config-detail/strategy-config-detail');
